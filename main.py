@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -13,6 +15,15 @@ Base.metadata.create_all(bind=engine)
 # Initialize the FastAPI application
 app = FastAPI(title="Anime Site API")
 
+# Add CORS middleware to allow your frontend to talk to the backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins (perfect for local development)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, PATCH, etc.)
+    allow_headers=["*"],
+)
+
 
 # Dependency: Safely opens and closes a database session for each request
 def get_db():
@@ -24,8 +35,9 @@ def get_db():
 
 
 @app.get("/")
-def read_root():
-    return {"message": "⛩️ Welcome to the Anime Site API! Server is running."}
+def serve_frontend():
+    # This tells FastAPI to send your index.html file when someone visits the root URL
+    return FileResponse("static/index.html")
 
 
 # ==========================================
