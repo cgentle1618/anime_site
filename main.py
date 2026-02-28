@@ -6,6 +6,8 @@ from typing import List
 from database import engine, Base, SessionLocal, AnimeEntry
 import schemas
 
+import sheets_sync
+
 # This tells SQLAlchemy to create the tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
@@ -22,7 +24,6 @@ def get_db():
         db.close()
 
 
-# A simple root endpoint to check if the server is alive
 @app.get("/")
 def read_root():
     return {"message": "⛩️ Welcome to the Anime Site API! Server is running."}
@@ -42,16 +43,9 @@ def get_all_anime(db: Session = Depends(get_db)):
 
 @app.get("/api/series/{series_keyword}", response_model=List[schemas.AnimeResponse])
 def search_anime_series(series_keyword: str, db: Session = Depends(get_db)):
-    """
-    Searches for anime where the keyword matches:
-    - English Series Name (series_en)
-    - Chinese Series Name (series_cn)
-    - Alternative Names (alt_name)
-    """
-    # Create a wildcard search term (e.g., "%Titan%")
+    """Searches for anime where the keyword matches titles or alt names."""
     search_term = f"%{series_keyword}%"
 
-    # Use 'ilike' for case-insensitive searching across our new columns
     results = (
         db.query(AnimeEntry)
         .filter(
@@ -62,10 +56,29 @@ def search_anime_series(series_keyword: str, db: Session = Depends(get_db)):
         .all()
     )
 
-    # If the list is empty, return a 404 Not Found error
     if not results:
         raise HTTPException(
             status_code=404, detail="No anime found matching that keyword."
         )
-
     return results
+
+
+# ==========================================
+# PHASE 3, STEP 2: ADMIN SYNC ENDPOINT (POST)
+# ==========================================
+
+
+@app.post("/api/sync")
+def sync_with_google_sheets(db: Session = Depends(get_db)):
+    """Triggers the Google Sheets ETL pipeline to update the PostgreSQL database."""
+    try:
+        rows_updated = sheets_sync.sync_sheet_to_db()
+
+        # Placeholder so the server doesn't crash before you hook it up:
+        rows_updated = "Successfully triggered the sync script!"
+
+        return {"message": "Sync complete", "status": rows_updated}
+
+    except Exception as e:
+        # If your sync script crashes, this sends the exact error safely back to the frontend
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
