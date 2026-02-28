@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from database import engine, Base
 
-# This line is the magic: It tells SQLAlchemy to look at the AnimeEntry model
-# we just made, go to PostgreSQL, and CREATE the table if it doesn't exist yet!
+# It tells SQLAlchemy to look at the AnimeEntry model
+# we just made, go to PostgreSQL, and CREATE the table if it doesn't exist yet
 Base.metadata.create_all(bind=engine)
 
 # Initialize the FastAPI application
