@@ -5,7 +5,6 @@ from typing import List
 # Import our custom files
 from database import engine, Base, SessionLocal, AnimeEntry
 import schemas
-
 import sheets_sync
 
 # This tells SQLAlchemy to create the tables if they don't exist
@@ -82,3 +81,34 @@ def sync_with_google_sheets(db: Session = Depends(get_db)):
     except Exception as e:
         # If your sync script crashes, this sends the exact error safely back to the frontend
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+# ==========================================
+# PHASE 3, STEP 3: PROGRESS UPDATE (PATCH)
+# ==========================================
+
+
+@app.patch("/api/anime/{system_id}/progress")
+def update_anime_progress(
+    system_id: str, progress: schemas.ProgressUpdate, db: Session = Depends(get_db)
+):
+    """Updates watched episodes in PostgreSQL AND Google Sheets (2-Way Sync)."""
+
+    # 1. Update the PostgreSQL Database (High-Speed Cache)
+    anime = db.query(AnimeEntry).filter(AnimeEntry.system_id == system_id).first()
+    if not anime:
+        raise HTTPException(status_code=404, detail="Anime not found in database.")
+
+    anime.ep_fin = progress.ep_fin
+    db.commit()
+    db.refresh(anime)
+
+    # 2. Update the Google Sheet (Master Record)
+    try:
+        sheets_sync.update_episode_progress_in_sheet(system_id, progress.ep_fin)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"DB updated, but Google Sheets failed: {str(e)}"
+        )
+
+    return {"message": "Progress updated successfully", "ep_fin": anime.ep_fin}

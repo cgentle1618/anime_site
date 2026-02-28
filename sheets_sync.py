@@ -6,6 +6,21 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, AnimeEntry
 
 
+def get_google_sheet():
+    """Authenticates with Google and returns the specific worksheet."""
+    gc = gspread.service_account(filename="credentials.json")
+
+    # 2. Open the spreadsheet by its exact name
+    # ⚠️ CHANGE "Anime Database" to the exact name of your Google Sheet file if it's different!
+    spreadsheet = gc.open("Anime Database")
+
+    # 3. Select the specific tab/worksheet
+    # ⚠️ CHANGE "Anime" to the exact name of the tab at the bottom of your screen if it's different!
+    worksheet = spreadsheet.worksheet("Anime")
+
+    return worksheet
+
+
 def clean_value(val, expected_type=str):
     """Utility function to clean empty Google Sheets cells into None or correct types."""
     if not val or str(val).strip() == "":
@@ -26,9 +41,7 @@ def sync_sheet_to_db():
     print("Starting Google Sheets Sync...")
 
     # 1. Connect to Google Sheets
-    gc = gspread.service_account(filename="credentials.json")
-    sh = gc.open("Anime Database")
-    worksheet = sh.worksheet("Anime")
+    worksheet = get_google_sheet()
 
     print("Fetching data from Google Sheets...")
     rows = worksheet.get_all_values()
@@ -147,6 +160,28 @@ def sync_sheet_to_db():
         print(f"\n❌ Error during sync: {e}")
     finally:
         db.close()
+
+
+def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
+    """Finds a specific system_id in Google Sheets and updates its ep_fin column."""
+    sheet = get_google_sheet()
+
+    # 1. Find the row with the matching system_id
+    cell = sheet.find(system_id)
+    if not cell:
+        raise ValueError(f"system_id {system_id} not found in Google Sheet.")
+    row_index = cell.row
+
+    # 2. Find the column index for 'ep_fin' dynamically
+    headers = sheet.row_values(1)
+    try:
+        col_index = headers.index("ep_fin") + 1  # gspread is 1-indexed
+    except ValueError:
+        raise ValueError("Column 'ep_fin' not found in the header row.")
+
+    # 3. Update that specific cell
+    sheet.update_cell(row_index, col_index, ep_fin)
+    return True
 
 
 if __name__ == "__main__":
