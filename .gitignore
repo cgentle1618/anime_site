@@ -3,3 +3,4 @@ __pycache__/
 .env
 credentials.json
 postgres_anime_data/
+one_time/

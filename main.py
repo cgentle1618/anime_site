@@ -1,127 +1,111 @@
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 
-# Import our custom files
-from database import engine, Base, SessionLocal, AnimeEntry
 import schemas
-import sheets_sync  # <-- Imports your newly finished sync script!
+import database
+from sheets_sync import sync_sheet_to_db, update_episode_progress_in_sheet
 
-# This tells SQLAlchemy to create the tables if they don't exist
-Base.metadata.create_all(bind=engine)
+# 1. Initialize the FastAPI app (This is what was missing!)
+app = FastAPI(title="Anime Tracker API")
 
-# Initialize the FastAPI application
-app = FastAPI(title="Anime Site API")
-
-# Add CORS middleware to allow your frontend to talk to the backend
+# 2. CORS Setup - allows your frontend (HTML) to talk to your backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins (perfect for local development)
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, PATCH, etc.)
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# 3. Create tables on startup (if they don't already exist)
+database.Base.metadata.create_all(bind=database.engine)
 
-# Dependency: Safely opens and closes a database session for each request
+
+# 4. Dependency: Safely opens and closes a database session for each request
 def get_db():
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
 
-# --- FRONTEND ROUTE ---
-# This tells FastAPI to serve your HTML file when you visit the main URL
+# ==========================================
+# FRONTEND HTML ROUTES
+# ==========================================
+
+
 @app.get("/")
 def serve_frontend():
     return FileResponse("static/index.html")
 
 
-# NEW ROUTE: Serve the library page
 @app.get("/library")
 def serve_library():
     return FileResponse("static/library.html")
 
 
-# --- API ENDPOINTS ---
+# ==========================================
+# BACKEND API ENDPOINTS
+# ==========================================
 
 
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
 def get_all_anime(db: Session = Depends(get_db)):
-    """Fetches every single anime from the database."""
-    anime_list = db.query(AnimeEntry).all()
-    return anime_list
+    """Fetches all anime entries from PostgreSQL."""
+    return db.query(database.AnimeEntry).all()
 
 
-@app.get("/api/series/{series_keyword}", response_model=List[schemas.AnimeResponse])
-def search_anime_series(series_keyword: str, db: Session = Depends(get_db)):
-    """Searches for anime where the keyword matches titles or alt names."""
-    search_term = f"%{series_keyword}%"
-
-    results = (
-        db.query(AnimeEntry)
-        .filter(
-            (AnimeEntry.series_en.ilike(search_term))
-            | (AnimeEntry.series_cn.ilike(search_term))
-            | (AnimeEntry.alt_name.ilike(search_term))
-        )
+@app.get("/api/series/{series_name}", response_model=List[schemas.AnimeResponse])
+def get_series(series_name: str, db: Session = Depends(get_db)):
+    """Fetches all anime matching a specific series."""
+    return (
+        db.query(database.AnimeEntry)
+        .filter(database.AnimeEntry.series_en == series_name)
         .all()
     )
 
-    if not results:
-        raise HTTPException(
-            status_code=404, detail="No anime found matching that keyword."
-        )
-    return results
-
-
-# ==========================================
-# PHASE 3, STEP 2: ADMIN SYNC ENDPOINT (POST)
-# ==========================================
-
 
 @app.post("/api/sync")
-def sync_with_google_sheets(db: Session = Depends(get_db)):
-    """Triggers the Google Sheets ETL pipeline to update the PostgreSQL database."""
+def trigger_sync(db: Session = Depends(get_db)):
+    """Triggers the Google Sheets -> PostgreSQL sync script."""
     try:
-        # Calls the actual function from your sheets_sync.py file!
-        rows_updated = sheets_sync.sync_sheet_to_db(db)
-        return {"message": "Sync complete", "status": rows_updated}
+        # We pass the FastAPI db session directly into the sync script
+        result = sync_sheet_to_db(db_session=db)
+        return result
     except Exception as e:
-        # If your sync script crashes, this sends the exact error safely back to the frontend
-        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
-
-
-# ==========================================
-# PHASE 3, STEP 3: PROGRESS UPDATE (PATCH)
-# ==========================================
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.patch("/api/anime/{system_id}/progress")
-def update_anime_progress(
-    system_id: str, progress: schemas.ProgressUpdate, db: Session = Depends(get_db)
-):
-    """Updates watched episodes in PostgreSQL AND Google Sheets (2-Way Sync)."""
+def update_progress(system_id: str, payload: dict, db: Session = Depends(get_db)):
+    """Updates episodes watched in both PostgreSQL and Google Sheets."""
+    new_ep_fin = payload.get("ep_fin")
+    if new_ep_fin is None:
+        raise HTTPException(status_code=400, detail="Missing 'ep_fin' in payload")
 
-    # 1. Update the PostgreSQL Database (High-Speed Cache)
-    anime = db.query(AnimeEntry).filter(AnimeEntry.system_id == system_id).first()
+    # 1. Update PostgreSQL
+    anime = (
+        db.query(database.AnimeEntry)
+        .filter(database.AnimeEntry.system_id == system_id)
+        .first()
+    )
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found in database.")
+        raise HTTPException(status_code=404, detail="Anime not found in database")
 
-    anime.ep_fin = progress.ep_fin
+    anime.ep_fin = new_ep_fin
     db.commit()
-    db.refresh(anime)
 
-    # 2. Update the Google Sheet (Master Record)
+    # 2. Update Google Sheet (Source of Truth)
     try:
-        sheets_sync.update_episode_progress_in_sheet(system_id, progress.ep_fin)
+        update_episode_progress_in_sheet(system_id, new_ep_fin)
     except Exception as e:
+        print(f"Failed to update Google Sheet: {e}")
         raise HTTPException(
-            status_code=500, detail=f"DB updated, but Google Sheets failed: {str(e)}"
+            status_code=500, detail=f"Database updated, but Sheet failed: {e}"
         )
 
-    return {"message": "Progress updated successfully", "ep_fin": anime.ep_fin}
+    return {"status": "success", "new_ep_fin": new_ep_fin}

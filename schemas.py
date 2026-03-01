@@ -60,6 +60,18 @@ class AnimeResponse(BaseModel):
         from_attributes = True
 
 
+class AnimeSeriesResponse(BaseModel):
+    system_id: str
+    series_en: Optional[str] = None
+    series_roman: Optional[str] = None
+    series_cn: Optional[str] = None
+    rating_series: Optional[str] = None
+    alt_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # --- We will use this in the next step (Phase 3, Step 3) ---
 class ProgressUpdate(BaseModel):
     ep_fin: int

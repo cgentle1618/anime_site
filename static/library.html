@@ -74,7 +74,7 @@
                   >Library</a
                 >
                 <a
-                  href="#"
+                  href="/admin"
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Admin</a
                 >
@@ -82,7 +82,7 @@
             </div>
           </div>
 
-          <!-- Global Search -->
+          <!-- Search & Sync -->
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -97,6 +97,14 @@
                 placeholder="Search Title, Alt Name, Studio..."
               />
             </div>
+
+            <button
+              onclick="handleSync()"
+              id="syncBtn"
+              class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
+            >
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
+            </button>
           </div>
         </div>
       </div>
@@ -201,58 +209,131 @@
         return mainTitle;
       }
 
-      // Render Table Rows
+      // Render Table Rows (Grouped by series_en)
       function renderTable() {
         const tbody = document.getElementById("libraryTableBody");
         tbody.innerHTML = "";
 
+        // 1. Group Data by series_en
+        const groupedData = {};
         displayData.forEach((anime) => {
-          const title = getDisplayTitle(anime);
-          const rating = anime.rating_mine || "-";
-          const status = anime.my_progress || "-";
-          const eps = `${anime.ep_fin || 0} / ${anime.ep_total || "?"}`;
+          // Group by series_en, fallback to series_cn, or label as standalone
+          const seriesName =
+            anime.series_en || anime.series_cn || "Standalone / Other";
+          if (!groupedData[seriesName]) {
+            groupedData[seriesName] = [];
+          }
+          groupedData[seriesName].push(anime);
+        });
 
-          // Colorize Status
-          let statusColor = "text-gray-600 bg-gray-100";
-          if (status === "Active Watching")
-            statusColor = "text-green-700 bg-green-100";
-          if (status === "Passive Watching")
-            statusColor = "text-blue-700 bg-blue-100";
-          if (status === "Paused")
-            statusColor = "text-orange-700 bg-orange-100";
-          if (status === "Completed")
-            statusColor = "text-purple-700 bg-purple-100";
+        // 2. Sort Series Groups (Alphabetically)
+        let seriesNames = Object.keys(groupedData);
+        seriesNames.sort((a, b) => {
+          // If sorting by title descending, reverse the groups too
+          if (sortCol === "title" && !sortAsc) return a > b ? -1 : 1;
+          return a < b ? -1 : 1;
+        });
 
-          // Colorize Rating
-          let ratingColor = "text-gray-600";
-          if (["S", "A+", "A"].includes(rating))
-            ratingColor = "text-red-600 font-bold";
-          else if (["B", "C"].includes(rating))
-            ratingColor = "text-blue-600 font-medium";
-
-          const tr = document.createElement("tr");
-          tr.className = "hover:bg-gray-50 transition-colors";
-          tr.innerHTML = `
-                    <td class="px-4 py-3 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">${title}</td>
-                    <td class="px-4 py-3 ${ratingColor}">${rating}</td>
-                    <td class="px-4 py-3">
-                        <span class="px-2 py-1 text-xs rounded-md ${statusColor}">${status}</span>
+        // 3. Render Groups and their Items
+        seriesNames.forEach((seriesName) => {
+          // Render Group Header Row
+          const headerTr = document.createElement("tr");
+          headerTr.className = "bg-gray-100/80 border-y border-gray-200";
+          headerTr.innerHTML = `
+                    <td colspan="12" class="px-4 py-3 font-bold text-gray-800 text-sm">
+                        <i class="fas fa-layer-group text-brand mr-2"></i>${seriesName}
+                        <span class="text-xs text-gray-500 font-normal ml-2">(${groupedData[seriesName].length} Entries)</span>
                     </td>
-                    <td class="px-4 py-3 font-mono text-xs">${eps}</td>
-                    <td class="px-4 py-3 text-gray-500">${anime.airing_type || "-"}</td>
-                    <td class="px-4 py-3 text-gray-500">${anime.main_spinoff || "-"}</td>
-                    <td class="px-4 py-3 text-gray-900">${anime.release_date || "-"}</td>
-                    <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.studio || ""}">${anime.studio || "-"}</td>
-                    <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.director || ""}">${anime.director || "-"}</td>
-                    <td class="px-4 py-3 text-gray-500">${anime.distributor_tw || "-"}</td>
-                    <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.genre_main || ""}">${anime.genre_main || "-"}</td>
-                    <td class="px-4 py-3 text-gray-400 max-w-[200px] truncate" title="${anime.remark || ""}">${anime.remark || "-"}</td>
                 `;
-          tbody.appendChild(tr);
+          tbody.appendChild(headerTr);
+
+          // 4. Sort Items inside the group
+          const animesInSeries = groupedData[seriesName];
+          animesInSeries.sort((a, b) => {
+            let valA = a[sortCol] || "";
+            let valB = b[sortCol] || "";
+
+            // Default sub-sort by release_date if no specific sort is clicked
+            if (!sortCol) {
+              valA = a.release_date || "";
+              valB = b.release_date || "";
+              return valA < valB ? -1 : valA > valB ? 1 : 0;
+            }
+
+            if (sortCol === "title") {
+              valA = getDisplayTitle(a);
+              valB = getDisplayTitle(b);
+            }
+
+            if (sortCol === "rating_mine") {
+              const tiers = {
+                S: 1,
+                "A+": 2,
+                A: 3,
+                B: 4,
+                C: 5,
+                D: 6,
+                E: 7,
+                F: 8,
+              };
+              valA = tiers[valA] || 99;
+              valB = tiers[valB] || 99;
+            }
+
+            if (valA < valB) return sortAsc ? -1 : 1;
+            if (valA > valB) return sortAsc ? 1 : -1;
+            return 0;
+          });
+
+          // 5. Render Individual Anime Rows
+          animesInSeries.forEach((anime) => {
+            const title = getDisplayTitle(anime);
+            const rating = anime.rating_mine || "-";
+            const status = anime.my_progress || "-";
+            const eps = `${anime.ep_fin || 0} / ${anime.ep_total || "?"}`;
+
+            let statusColor = "text-gray-600 bg-gray-100";
+            if (status === "Active Watching")
+              statusColor = "text-green-700 bg-green-100";
+            if (status === "Passive Watching")
+              statusColor = "text-blue-700 bg-blue-100";
+            if (status === "Paused")
+              statusColor = "text-orange-700 bg-orange-100";
+            if (status === "Completed")
+              statusColor = "text-purple-700 bg-purple-100";
+
+            let ratingColor = "text-gray-600";
+            if (["S", "A+", "A"].includes(rating))
+              ratingColor = "text-red-600 font-bold";
+            else if (["B", "C"].includes(rating))
+              ratingColor = "text-blue-600 font-medium";
+
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-gray-50 transition-colors";
+            tr.innerHTML = `
+                        <td class="px-4 py-3 pl-8 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">
+                            <i class="fas fa-angle-right text-gray-300 mr-2 text-xs"></i>${title}
+                        </td>
+                        <td class="px-4 py-3 ${ratingColor}">${rating}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 text-xs rounded-md ${statusColor}">${status}</span>
+                        </td>
+                        <td class="px-4 py-3 font-mono text-xs">${eps}</td>
+                        <td class="px-4 py-3 text-gray-500">${anime.airing_type || "-"}</td>
+                        <td class="px-4 py-3 text-gray-500">${anime.main_spinoff || "-"}</td>
+                        <td class="px-4 py-3 text-gray-900">${anime.release_date || "-"}</td>
+                        <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.studio || ""}">${anime.studio || "-"}</td>
+                        <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.director || ""}">${anime.director || "-"}</td>
+                        <td class="px-4 py-3 text-gray-500">${anime.distributor_tw || "-"}</td>
+                        <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.genre_main || ""}">${anime.genre_main || "-"}</td>
+                        <td class="px-4 py-3 text-gray-400 max-w-[200px] truncate" title="${anime.remark || ""}">${anime.remark || "-"}</td>
+                    `;
+            tbody.appendChild(tr);
+          });
         });
       }
 
-      // Handle Sorting
+      // Handle Sorting (State update only)
       function handleSort(column) {
         if (sortCol === column) {
           sortAsc = !sortAsc; // Toggle direction
@@ -260,29 +341,6 @@
           sortCol = column;
           sortAsc = true; // Default to ascending
         }
-
-        displayData.sort((a, b) => {
-          let valA = a[column] || "";
-          let valB = b[column] || "";
-
-          // Special handling for calculated/fallback fields
-          if (column === "title") {
-            valA = getDisplayTitle(a);
-            valB = getDisplayTitle(b);
-          }
-
-          // Tier Sorting
-          if (column === "rating_mine") {
-            const tiers = { S: 1, "A+": 2, A: 3, B: 4, C: 5, D: 6, E: 7, F: 8 };
-            valA = tiers[valA] || 99;
-            valB = tiers[valB] || 99;
-          }
-
-          if (valA < valB) return sortAsc ? -1 : 1;
-          if (valA > valB) return sortAsc ? 1 : -1;
-          return 0;
-        });
-
         renderTable();
       }
 
@@ -307,6 +365,40 @@
         if (sortCol) handleSort(sortCol);
         else renderTable();
       });
+
+      // Handle Sync Button
+      async function handleSync() {
+        const icon = document.getElementById("syncIcon");
+        const btn = document.getElementById("syncBtn");
+
+        icon.classList.add("fa-spin");
+        btn.classList.add("opacity-75");
+        btn.innerText = " Syncing...";
+        btn.prepend(icon);
+
+        try {
+          // Keep the exact same API route for the sync endpoint
+          const response = await fetch(`${API_BASE_URL}/sync`, {
+            method: "POST",
+          });
+          const result = await response.json();
+
+          if (response.ok) {
+            // Refresh the library table data!
+            await fetchLibrary();
+          } else {
+            alert(`Sync Error: ${result.detail}`);
+          }
+        } catch (error) {
+          alert("Failed to connect to the backend sync service.");
+          console.error(error);
+        } finally {
+          icon.classList.remove("fa-spin");
+          btn.classList.remove("opacity-75");
+          btn.innerText = " Sync Sheets";
+          btn.prepend(icon);
+        }
+      }
 
       document.addEventListener("DOMContentLoaded", fetchLibrary);
     </script>

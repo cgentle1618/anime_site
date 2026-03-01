@@ -14,46 +14,12 @@ HOST = os.getenv("POSTGRES_HOST")
 PORT = os.getenv("POSTGRES_PORT")
 DB_NAME = os.getenv("POSTGRES_DB")
 
-# Standard PostgreSQL connection string format
 SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
 
-# 3. Create the SQLAlchemy "Engine" (the thing that actually talks to the database)
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
-# 4. Create a SessionLocal class (each instance of this will be an actual database session)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 5. Create a Base class that our models will inherit from
-Base = declarative_base()
-
-
-# 6. Define your Anime Table Schema
-import os
-import uuid
-from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, String, Integer, Float
-from sqlalchemy.orm import declarative_base, sessionmaker
-
-# 1. Load the environment variables from your .env file
-load_dotenv()
-
-# 2. Build the database connection URL dynamically
-USER = os.getenv("POSTGRES_USER")
-PASSWORD = os.getenv("POSTGRES_PASSWORD")
-HOST = os.getenv("POSTGRES_HOST")
-PORT = os.getenv("POSTGRES_PORT")
-DB_NAME = os.getenv("POSTGRES_DB")
-
-# Standard PostgreSQL connection string format
-SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
-
-# 3. Create the SQLAlchemy Engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-# 4. Create a SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 5. Create a Base class
 Base = declarative_base()
 
 
@@ -114,3 +80,15 @@ class AnimeEntry(Base):
     # --- Phase 5: External API Data (Auto-fetched later) ---
     mal_rating = Column(Float, nullable=True)
     cover_image_url = Column(String, nullable=True)
+
+
+# --- NEW TABLE: Anime Series (Franchise Hubs) ---
+class AnimeSeries(Base):
+    __tablename__ = "anime_series"
+
+    system_id = Column(String, primary_key=True, index=True)
+    series_en = Column(String, nullable=True)
+    series_roman = Column(String, nullable=True)
+    series_cn = Column(String, nullable=True)
+    rating_series = Column(String, nullable=True)
+    alt_name = Column(String, nullable=True)
