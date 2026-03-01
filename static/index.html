@@ -292,66 +292,89 @@
           subTitle = "";
         }
 
+        // Format MAL Rating
+        const malRatingDisplay = anime.mal_rating
+          ? anime.mal_rating.toFixed(2)
+          : "N/A";
+
+        // Bahamut Icon Logic
+        const bahaStr = String(anime.source_baha || "").toUpperCase();
+        const hasBaha =
+          bahaStr === "TRUE" || bahaStr === "YES" || bahaStr === "有";
+        const bahaBadge = hasBaha
+          ? `<span class="bg-[#00B4D8] text-white px-1.5 py-0.5 rounded border border-[#0096C7] flex items-center shadow-sm text-[10px] font-bold whitespace-nowrap" title="巴哈姆特動畫瘋"><i class="fas fa-play-circle mr-1"></i>動畫瘋</span>`
+          : "";
+
         return `
                 <div class="bg-white rounded-xl overflow-hidden border border-gray-200 flex flex-col sm:flex-row card-hover shadow-sm">
                     <!-- Key Visual Image -->
-                    <div class="h-48 sm:h-auto sm:w-48 relative bg-gray-200 shrink-0 border-r border-gray-100">
-                        <img src="${anime.cover_image_url || ""}" alt="${mainTitle}" class="w-full h-full object-cover object-top" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100%\\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'14\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'">
-                        <div class="absolute top-2 left-2 ${rankColor} text-xs font-bold px-2 py-1 rounded shadow-sm backdrop-blur-sm">
-                            Tier: ${anime.rating_mine || "-"}
-                        </div>
-                        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/70 to-transparent p-2 pt-8">
-                            <span class="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded shadow-sm">${anime.release_date || "TBA"}</span>
-                        </div>
+                    <div class="h-24 sm:h-auto sm:w-24 relative bg-gray-100 shrink-0 border-r border-gray-200 flex justify-center items-center">
+                        <img src="${anime.cover_image_url || ""}" alt="${mainTitle}" class="w-full h-full object-contain" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100%\\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'10\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'">
                     </div>
 
                     <!-- Row Content -->
-                    <div class="p-4 flex-1 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div class="p-3 flex-1 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         
                         <!-- Left Info Section -->
-                        <div class="flex-1 min-w-0">
-                            <h2 class="text-lg font-bold text-gray-900 line-clamp-1 mb-1" title="${mainTitle}">${mainTitle}</h2>
-                            <h3 class="text-sm text-gray-500 line-clamp-1 mb-3 font-medium" title="${subTitle}">${subTitle}</h3>
+                        <div class="flex-1 min-w-0 w-full">
+                            <h2 class="text-base font-bold text-gray-900 line-clamp-1 mb-0.5" title="${mainTitle}">${mainTitle}</h2>
+                            <h3 class="text-xs text-gray-500 line-clamp-1 mb-1.5 font-medium" title="${subTitle}">${subTitle}</h3>
                             
-                            <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                                <span class="text-xs ${anime.airing_status === "Currently Airing" ? "text-green-700 bg-green-100 border-green-200" : "text-blue-700 bg-blue-100 border-blue-200"} px-2 py-1 rounded border shadow-sm">
+                            <!-- Ratings Row -->
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <span class="${rankColor} px-1.5 py-0.5 rounded shadow-sm text-[10px] font-bold whitespace-nowrap">
+                                    Rating: ${anime.rating_mine || "-"}
+                                </span>
+                                <span class="bg-[#2e51a2] text-white px-1.5 py-0.5 rounded shadow-sm flex items-center text-[10px] font-bold whitespace-nowrap">
+                                    <i class="fas fa-star text-yellow-400 mr-1 text-[8px]"></i> MAL: ${malRatingDisplay}
+                                </span>
+                            </div>
+
+                            <!-- Tags & Status Row -->
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                                <span class="text-[10px] ${anime.airing_status === "Currently Airing" ? "text-green-700 bg-green-100 border-green-200" : "text-blue-700 bg-blue-100 border-blue-200"} px-1.5 py-0.5 rounded border shadow-sm whitespace-nowrap">
                                     ${anime.airing_status || "-"}
                                 </span>
-                                <span class="bg-gray-100 px-2 py-1 rounded-md border border-gray-200 flex items-center shadow-sm">
-                                    <i class="fas fa-building text-gray-400 mr-2 text-xs"></i>
-                                    <span class="truncate max-w-[120px]" title="${anime.studio || "-"}">${anime.studio || "-"}</span>
+                                <span class="bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200 flex items-center shadow-sm text-[10px] whitespace-nowrap">
+                                    <i class="fas fa-calendar-alt text-gray-400 mr-1"></i>
+                                    ${anime.release_date || "TBA"}
                                 </span>
+                                <span class="bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200 flex items-start shadow-sm text-[10px]">
+                                    <i class="fas fa-building text-gray-400 mr-1 mt-0.5 shrink-0"></i>
+                                    <span class="break-words">${anime.studio || "-"}</span>
+                                </span>
+                                ${bahaBadge}
                             </div>
                         </div>
 
                         <!-- Right Tracker Component -->
-                        <div class="w-full sm:w-64 bg-gray-50 p-3 rounded-xl border border-gray-200 shrink-0">
-                            <div class="text-xs text-gray-500 mb-2 flex justify-between items-center">
+                        <div class="w-full sm:w-56 bg-gray-50 p-2 rounded-xl border border-gray-200 shrink-0">
+                            <div class="text-[10px] text-gray-500 mb-1 flex justify-between items-center">
                                 <span>Episodes Watched</span>
                                 <span class="font-bold text-gray-900">${progressPercent}%</span>
                             </div>
                             
-                            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3">
-                                <div class="bg-brand h-1.5 rounded-full transition-all duration-300 shadow-sm" style="width: ${progressPercent}%"></div>
+                            <div class="w-full bg-gray-200 rounded-full h-1 mb-2">
+                                <div class="bg-brand h-1 rounded-full transition-all duration-300 shadow-sm" style="width: ${progressPercent}%"></div>
                             </div>
 
                             <div class="flex items-center justify-between bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
-                                <button onclick="updateProgress('${anime.system_id}', -1)" class="w-8 h-8 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
-                                    <i class="fas fa-minus"></i>
+                                <button onclick="updateProgress('${anime.system_id}', -1)" class="w-7 h-7 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
+                                    <i class="fas fa-minus text-[10px]"></i>
                                 </button>
                                 
-                                <div class="font-mono font-bold text-lg tracking-wide flex items-baseline justify-center">
+                                <div class="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center">
                                     <input type="number" 
                                            value="${anime.ep_fin || 0}" 
                                            onchange="setExactProgress('${anime.system_id}', this.value)"
                                            onclick="this.select()"
-                                           class="w-12 text-center text-gray-900 bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0" />
-                                    <span class="text-gray-400 mx-1 text-sm">/</span>
-                                    <span class="text-gray-500 text-sm">${totalEps}</span>
+                                           class="w-10 text-center text-gray-900 bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0" />
+                                    <span class="text-gray-400 mx-0.5 text-xs">/</span>
+                                    <span class="text-gray-500 text-xs">${totalEps}</span>
                                 </div>
                                 
-                                <button onclick="updateProgress('${anime.system_id}', 1)" class="w-8 h-8 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
-                                    <i class="fas fa-plus"></i>
+                                <button onclick="updateProgress('${anime.system_id}', 1)" class="w-7 h-7 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
+                                    <i class="fas fa-plus text-[10px]"></i>
                                 </button>
                             </div>
                         </div>
