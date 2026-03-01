@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Library - CG1618 Anime Site</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
+            colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* Custom scrollbar for a clean spreadsheet feel */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f3f4f6;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+
+      .sortable:hover {
+        cursor: pointer;
+        background-color: #f9fafb;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <!-- Logo & Links -->
+          <div class="flex items-center space-x-8">
+            <div
+              class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
+            >
+              CG1618
+            </div>
+            <div class="hidden md:block">
+              <div class="flex items-baseline space-x-4">
+                <a
+                  href="/"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Dashboard</a
+                >
+                <a
+                  href="/library"
+                  class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  >Library</a
+                >
+                <a
+                  href="#"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Admin</a
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Global Search -->
+          <div class="flex items-center space-x-4 flex-1 justify-end">
+            <div class="relative w-full max-w-md hidden sm:block">
+              <div
+                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+              >
+                <i class="fas fa-search text-gray-400"></i>
+              </div>
+              <input
+                type="text"
+                id="searchInput"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search Title, Alt Name, Studio..."
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content: Spreadsheet Table -->
+    <main class="flex-1 w-full max-w-[100vw] px-4 py-8 overflow-x-auto">
+      <div
+        class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+      >
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left whitespace-nowrap">
+            <thead
+              class="text-xs text-gray-600 uppercase bg-gray-50 border-b border-gray-200 sticky top-0"
+            >
+              <tr>
+                <!-- Clickable Headers for Sorting -->
+                <th
+                  scope="col"
+                  class="px-4 py-3 sortable transition"
+                  onclick="handleSort('title')"
+                >
+                  Title <i class="fas fa-sort text-gray-400 ml-1"></i>
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sortable transition"
+                  onclick="handleSort('rating_mine')"
+                >
+                  Rating <i class="fas fa-sort text-gray-400 ml-1"></i>
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sortable transition"
+                  onclick="handleSort('my_progress')"
+                >
+                  Status <i class="fas fa-sort text-gray-400 ml-1"></i>
+                </th>
+                <th scope="col" class="px-4 py-3">Episodes</th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sortable transition"
+                  onclick="handleSort('airing_type')"
+                >
+                  Type <i class="fas fa-sort text-gray-400 ml-1"></i>
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sortable transition"
+                  onclick="handleSort('main_spinoff')"
+                >
+                  Class <i class="fas fa-sort text-gray-400 ml-1"></i>
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sortable transition"
+                  onclick="handleSort('release_date')"
+                >
+                  Release <i class="fas fa-sort text-gray-400 ml-1"></i>
+                </th>
+                <th scope="col" class="px-4 py-3">Studio</th>
+                <th scope="col" class="px-4 py-3">Director</th>
+                <th scope="col" class="px-4 py-3">Distributor</th>
+                <th scope="col" class="px-4 py-3">Genre</th>
+                <th scope="col" class="px-4 py-3 max-w-[200px]">Notes</th>
+              </tr>
+            </thead>
+            <tbody id="libraryTableBody" class="divide-y divide-gray-200">
+              <!-- Rows injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const API_BASE_URL = "/api";
+      let originalData = [];
+      let displayData = [];
+      let sortCol = "";
+      let sortAsc = true;
+
+      // Fetch data on load
+      async function fetchLibrary() {
+        try {
+          const response = await fetch(`${API_BASE_URL}/anime`);
+          originalData = await response.json();
+          displayData = [...originalData];
+          renderTable();
+        } catch (error) {
+          console.error("Failed to load library data:", error);
+        }
+      }
+
+      // Get robust main title
+      function getDisplayTitle(anime) {
+        let mainTitle = anime.series_season_cn;
+        if (!mainTitle) {
+          mainTitle =
+            anime.series_season_en || anime.series_en || "Unknown Title";
+        }
+        return mainTitle;
+      }
+
+      // Render Table Rows
+      function renderTable() {
+        const tbody = document.getElementById("libraryTableBody");
+        tbody.innerHTML = "";
+
+        displayData.forEach((anime) => {
+          const title = getDisplayTitle(anime);
+          const rating = anime.rating_mine || "-";
+          const status = anime.my_progress || "-";
+          const eps = `${anime.ep_fin || 0} / ${anime.ep_total || "?"}`;
+
+          // Colorize Status
+          let statusColor = "text-gray-600 bg-gray-100";
+          if (status === "Active Watching")
+            statusColor = "text-green-700 bg-green-100";
+          if (status === "Passive Watching")
+            statusColor = "text-blue-700 bg-blue-100";
+          if (status === "Paused")
+            statusColor = "text-orange-700 bg-orange-100";
+          if (status === "Completed")
+            statusColor = "text-purple-700 bg-purple-100";
+
+          // Colorize Rating
+          let ratingColor = "text-gray-600";
+          if (["S", "A+", "A"].includes(rating))
+            ratingColor = "text-red-600 font-bold";
+          else if (["B", "C"].includes(rating))
+            ratingColor = "text-blue-600 font-medium";
+
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-gray-50 transition-colors";
+          tr.innerHTML = `
+                    <td class="px-4 py-3 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">${title}</td>
+                    <td class="px-4 py-3 ${ratingColor}">${rating}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 text-xs rounded-md ${statusColor}">${status}</span>
+                    </td>
+                    <td class="px-4 py-3 font-mono text-xs">${eps}</td>
+                    <td class="px-4 py-3 text-gray-500">${anime.airing_type || "-"}</td>
+                    <td class="px-4 py-3 text-gray-500">${anime.main_spinoff || "-"}</td>
+                    <td class="px-4 py-3 text-gray-900">${anime.release_date || "-"}</td>
+                    <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.studio || ""}">${anime.studio || "-"}</td>
+                    <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.director || ""}">${anime.director || "-"}</td>
+                    <td class="px-4 py-3 text-gray-500">${anime.distributor_tw || "-"}</td>
+                    <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.genre_main || ""}">${anime.genre_main || "-"}</td>
+                    <td class="px-4 py-3 text-gray-400 max-w-[200px] truncate" title="${anime.remark || ""}">${anime.remark || "-"}</td>
+                `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Handle Sorting
+      function handleSort(column) {
+        if (sortCol === column) {
+          sortAsc = !sortAsc; // Toggle direction
+        } else {
+          sortCol = column;
+          sortAsc = true; // Default to ascending
+        }
+
+        displayData.sort((a, b) => {
+          let valA = a[column] || "";
+          let valB = b[column] || "";
+
+          // Special handling for calculated/fallback fields
+          if (column === "title") {
+            valA = getDisplayTitle(a);
+            valB = getDisplayTitle(b);
+          }
+
+          // Tier Sorting
+          if (column === "rating_mine") {
+            const tiers = { S: 1, "A+": 2, A: 3, B: 4, C: 5, D: 6, E: 7, F: 8 };
+            valA = tiers[valA] || 99;
+            valB = tiers[valB] || 99;
+          }
+
+          if (valA < valB) return sortAsc ? -1 : 1;
+          if (valA > valB) return sortAsc ? 1 : -1;
+          return 0;
+        });
+
+        renderTable();
+      }
+
+      // Handle Search Bar
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase();
+        displayData = originalData.filter((anime) => {
+          return (
+            (anime.series_en &&
+              anime.series_en.toLowerCase().includes(query)) ||
+            (anime.series_cn &&
+              anime.series_cn.toLowerCase().includes(query)) ||
+            (anime.series_season_en &&
+              anime.series_season_en.toLowerCase().includes(query)) ||
+            (anime.series_season_cn &&
+              anime.series_season_cn.toLowerCase().includes(query)) ||
+            (anime.alt_name && anime.alt_name.toLowerCase().includes(query)) ||
+            (anime.studio && anime.studio.toLowerCase().includes(query))
+          );
+        });
+        // Re-apply sort to filtered data
+        if (sortCol) handleSort(sortCol);
+        else renderTable();
+      });
+
+      document.addEventListener("DOMContentLoaded", fetchLibrary);
+    </script>
+  </body>
+</html>

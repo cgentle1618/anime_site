@@ -7,7 +7,7 @@ from typing import List
 # Import our custom files
 from database import engine, Base, SessionLocal, AnimeEntry
 import schemas
-import sheets_sync
+import sheets_sync  # <-- Imports your newly finished sync script!
 
 # This tells SQLAlchemy to create the tables if they don't exist
 Base.metadata.create_all(bind=engine)
@@ -34,15 +34,20 @@ def get_db():
         db.close()
 
 
+# --- FRONTEND ROUTE ---
+# This tells FastAPI to serve your HTML file when you visit the main URL
 @app.get("/")
 def serve_frontend():
-    # This tells FastAPI to send your index.html file when someone visits the root URL
     return FileResponse("static/index.html")
 
 
-# ==========================================
-# PHASE 3, STEP 1: READ ENDPOINTS (GET)
-# ==========================================
+# NEW ROUTE: Serve the library page
+@app.get("/library")
+def serve_library():
+    return FileResponse("static/library.html")
+
+
+# --- API ENDPOINTS ---
 
 
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
@@ -83,13 +88,9 @@ def search_anime_series(series_keyword: str, db: Session = Depends(get_db)):
 def sync_with_google_sheets(db: Session = Depends(get_db)):
     """Triggers the Google Sheets ETL pipeline to update the PostgreSQL database."""
     try:
-        rows_updated = sheets_sync.sync_sheet_to_db()
-
-        # Placeholder so the server doesn't crash before you hook it up:
-        rows_updated = "Successfully triggered the sync script!"
-
+        # Calls the actual function from your sheets_sync.py file!
+        rows_updated = sheets_sync.sync_sheet_to_db(db)
         return {"message": "Sync complete", "status": rows_updated}
-
     except Exception as e:
         # If your sync script crashes, this sends the exact error safely back to the frontend
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
