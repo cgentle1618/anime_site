@@ -6,7 +6,7 @@ import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from database import SessionLocal, AnimeEntry
+from database import SessionLocal, AnimeEntry, AnimeSeries
 
 # ==========================================
 # 1. API & GOOGLE SHEETS HELPERS
@@ -330,6 +330,44 @@ def sync_sheet_to_db(db_session: Session = None):
     # 3. Resume Postgres Database Sync Operations for Main Anime Tab
     print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
     db = db_session if db_session else SessionLocal()
+
+    # --- NEW: Sync Anime Series Tab Data (Ratings) to PostgreSQL ---
+    print("\n--- Syncing Anime Series Tab to PostgreSQL ---")
+    try:
+        series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
+        series_rows = execute_with_retry(series_sheet.get_all_values)
+        if series_rows and len(series_rows) > 1:
+            s_headers = series_rows[0]
+            for s_row in series_rows[1:]:
+                padded_s_row = s_row + [""] * (len(s_headers) - len(s_row))
+                s_dict = dict(zip(s_headers, padded_s_row))
+
+                s_sys_id = s_dict.get("system_id", "").strip()
+                if not s_sys_id:
+                    continue
+
+                s_entry_data = {
+                    "system_id": s_sys_id,
+                    "series_en": clean_value(s_dict.get("series_en")),
+                    "series_roman": clean_value(s_dict.get("series_roman")),
+                    "series_cn": clean_value(s_dict.get("series_cn")),
+                    "rating_series": clean_value(s_dict.get("rating_series")),
+                    "alt_name": clean_value(s_dict.get("alt_name")),
+                }
+
+                existing_s = (
+                    db.query(AnimeSeries)
+                    .filter(AnimeSeries.system_id == s_sys_id)
+                    .first()
+                )
+                if existing_s:
+                    for key, value in s_entry_data.items():
+                        setattr(existing_s, key, value)
+                else:
+                    new_s = AnimeSeries(**s_entry_data)
+                    db.add(new_s)
+    except Exception as e:
+        print(f"⚠️ Error syncing Anime Series tab to DB: {e}")
 
     updated_count = 0
     added_count = 0

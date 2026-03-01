@@ -8,7 +8,7 @@ import schemas
 import database
 from sheets_sync import sync_sheet_to_db, update_episode_progress_in_sheet
 
-# 1. Initialize the FastAPI app (This is what was missing!)
+# 1. Initialize the FastAPI app
 app = FastAPI(title="Anime Tracker API")
 
 # 2. CORS Setup - allows your frontend (HTML) to talk to your backend
@@ -57,6 +57,12 @@ def serve_library():
 def get_all_anime(db: Session = Depends(get_db)):
     """Fetches all anime entries from PostgreSQL."""
     return db.query(database.AnimeEntry).all()
+
+
+@app.get("/api/series", response_model=List[schemas.AnimeSeriesResponse])
+def get_all_series(db: Session = Depends(get_db)):
+    """Fetches all anime series (franchises) from PostgreSQL."""
+    return db.query(database.AnimeSeries).all()
 
 
 @app.get("/api/series/{series_name}", response_model=List[schemas.AnimeResponse])
