@@ -1,9 +1,11 @@
 import re
 import time
 import uuid
+import requests
 import gspread
-from gspread.exceptions import APIError
+from gspread.exceptions import APIError, WorksheetNotFound
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from database import SessionLocal, AnimeEntry
 
 # ==========================================
@@ -21,7 +23,7 @@ def execute_with_retry(func, *args, max_retries=3, **kwargs):
             return func(*args, **kwargs)
         except APIError as e:
             if "429" in str(e):
-                wait_time = 60 * (attempt + 1)  # Waits 60s, then 120s, etc.
+                wait_time = 60 * (attempt + 1)
                 print(
                     f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})..."
                 )
@@ -33,10 +35,15 @@ def execute_with_retry(func, *args, max_retries=3, **kwargs):
     )
 
 
-def get_google_sheet():
-    """Authenticates with Google and returns the specific worksheet."""
+def get_google_spreadsheet():
+    """Authenticates with Google and returns the entire Spreadsheet object."""
     gc = gspread.service_account(filename="credentials.json")
-    return gc.open("Anime Database").worksheet("Anime")
+    return gc.open("Anime Database")
+
+
+def get_google_sheet(sheet_name="Anime"):
+    """Helper to get a specific tab."""
+    return get_google_spreadsheet().worksheet(sheet_name)
 
 
 # ==========================================
@@ -68,19 +75,234 @@ def extract_mal_id(mal_link):
     return None
 
 
+def extract_season_from_title(title_en):
+    """Extracts 'Season X' or 'Season X Part Y' from the English title."""
+    if not title_en:
+        return None
+    # Regex matches "Season <number>" optionally followed by " Part <number>"
+    match = re.search(r"(Season\s\d+(?:\sPart\s\d+)?)", str(title_en), re.IGNORECASE)
+    if match:
+        # Capitalize properly (e.g. "Season 2 Part 1")
+        return match.group(1).title()
+    return None
+
+
+def extract_season_from_cn_title(title_cn):
+    """Extracts '第X季' from the Chinese title and converts it to 'Season X'."""
+    if not title_cn:
+        return None
+
+    # Matches '第' followed by Chinese numerals (一 to 十) or Arabic numerals, then '季'
+    match = re.search(r"第\s*([一二三四五六七八九十]+|\d+)\s*季", str(title_cn))
+    if match:
+        num_str = match.group(1)
+
+        if num_str.isdigit():
+            return f"Season {num_str}"
+
+        cn_to_num = {
+            "一": 1,
+            "二": 2,
+            "三": 3,
+            "四": 4,
+            "五": 5,
+            "六": 6,
+            "七": 7,
+            "八": 8,
+            "九": 9,
+            "十": 10,
+        }
+        num = cn_to_num.get(num_str)
+        if num:
+            return f"Season {num}"
+
+    return None
+
+
 # ==========================================
-# 3. MAIN SYNC LOGIC
+# 3. GOOGLE SHEETS TAB MANAGEMENT
 # ==========================================
 
 
-# Fixed signature to accept an optional 'db_session' to prevent the positional argument crash
+def populate_anime_series_tab(spreadsheet, anime_row_dicts):
+    """
+    Scans the main Anime tab, extracts unique franchises by series_en,
+    and auto-populates the 'Anime Series' tab.
+    """
+    print("\n--- Checking 'Anime Series' Tab ---")
+
+    try:
+        series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
+    except WorksheetNotFound:
+        print("⚠️ 'Anime Series' tab not found! Skipping series population.")
+        return
+
+    series_rows = execute_with_retry(series_sheet.get_all_values)
+
+    if not series_rows:
+        headers = [
+            "system_id",
+            "series_en",
+            "series_roman",
+            "series_cn",
+            "rating_series",
+            "alt_name",
+        ]
+        execute_with_retry(series_sheet.append_row, headers)
+        series_rows = [headers]
+    else:
+        headers = series_rows[0]
+
+    existing_series_tracker = set()
+    cells_to_update = []
+
+    sys_id_col = headers.index("system_id") if "system_id" in headers else 0
+    en_col = headers.index("series_en") if "series_en" in headers else 1
+
+    # 1. Check existing rows
+    for i, row in enumerate(series_rows[1:], start=2):
+        row = row + [""] * (len(headers) - len(row))
+
+        sys_id = row[sys_id_col].strip()
+        if not sys_id:
+            sys_id = str(uuid.uuid4())
+            cells_to_update.append(
+                gspread.Cell(row=i, col=sys_id_col + 1, value=sys_id)
+            )
+            print(f"Generated missing UUID for Series Tab row {i}")
+
+        s_en = clean_value(row[en_col])
+        if s_en:
+            existing_series_tracker.add(s_en)
+
+    if cells_to_update:
+        print(
+            f"Updating {len(cells_to_update)} missing system_ids in 'Anime Series' tab..."
+        )
+        execute_with_retry(series_sheet.update_cells, cells_to_update)
+
+    # 2. Extract unique series from the main Anime tab (using only series_en now)
+    new_series_to_append = []
+
+    for a_dict in anime_row_dicts:
+        s_en = clean_value(a_dict.get("series_en"))
+
+        # Skip if there's no overarching series name
+        if not s_en:
+            continue
+
+        if s_en not in existing_series_tracker:
+            existing_series_tracker.add(s_en)
+
+            new_row = []
+            for h in headers:
+                if h == "system_id":
+                    new_row.append(str(uuid.uuid4()))
+                elif h == "series_en":
+                    new_row.append(s_en)
+                else:
+                    new_row.append("")  # Leave other fields blank for manual entry
+
+            new_series_to_append.append(new_row)
+
+    # 3. Append new unique series
+    if new_series_to_append:
+        print(
+            f"Discovered {len(new_series_to_append)} new unique series! Appending to 'Anime Series' tab..."
+        )
+        execute_with_retry(series_sheet.append_rows, new_series_to_append)
+    else:
+        print("No new series to add to 'Anime Series' tab. All up to date.")
+
+
+# ==========================================
+# 4. EXTERNAL API ENRICHMENT (JIKAN / MAL)
+# ==========================================
+
+
+def fetch_mal_data(mal_id):
+    """Hits the Jikan API to grab the Key Visual and MAL Score."""
+    try:
+        url = f"https://api.jikan.moe/v4/anime/{mal_id}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data = response.json().get("data", {})
+            image_url = data.get("images", {}).get("jpg", {}).get("large_image_url")
+            score = data.get("score")
+            return {"cover_image_url": image_url, "mal_rating": score}
+        elif response.status_code == 429:
+            print(f"⚠️ Jikan Rate Limit hit while fetching ID {mal_id}.")
+            return None
+    except Exception as e:
+        print(f"❌ Failed to fetch Jikan data for ID {mal_id}: {e}")
+    return None
+
+
+def enrich_anime_database(db: Session):
+    """
+    Finds ALL anime with a mal_id but missing cover image OR mal_rating, and fetches them.
+    Skips fetching if ONLY mal_rating is missing but the show is 'Not Yet Aired'.
+    Warning: This will take a while if the database is mostly empty due to rate limits.
+    """
+    anime_to_enrich = (
+        db.query(AnimeEntry)
+        .filter(
+            AnimeEntry.mal_id.isnot(None),
+            or_(
+                AnimeEntry.cover_image_url.is_(None),
+                and_(
+                    AnimeEntry.mal_rating.is_(None),
+                    or_(
+                        AnimeEntry.airing_status != "Not Yet Aired",
+                        AnimeEntry.airing_status.is_(None),
+                    ),
+                ),
+            ),
+        )
+        .all()
+    )
+
+    if not anime_to_enrich:
+        return 0
+
+    print(f"\n--- Fetching MAL Data for {len(anime_to_enrich)} anime ---")
+    print(
+        "This may take a while depending on the amount. Please do not close the terminal."
+    )
+
+    enriched_count = 0
+
+    for anime in anime_to_enrich:
+        print(f"Fetching data for MAL ID {anime.mal_id}...")
+        mal_data = fetch_mal_data(anime.mal_id)
+
+        if mal_data:
+            if mal_data["cover_image_url"]:
+                anime.cover_image_url = mal_data["cover_image_url"]
+            if mal_data["mal_rating"]:
+                anime.mal_rating = mal_data["mal_rating"]
+            enriched_count += 1
+
+        # MANDATORY JIKAN RATE LIMIT SLEEP (Max 3 requests per second allowed, 2 seconds is safe)
+        time.sleep(2)
+
+    db.commit()
+    return enriched_count
+
+
+# ==========================================
+# 5. MAIN SYNC LOGIC
+# ==========================================
+
+
 def sync_sheet_to_db(db_session: Session = None):
     print("Starting Google Sheets Sync...")
 
-    worksheet = get_google_sheet()
+    spreadsheet = get_google_spreadsheet()
+    worksheet = execute_with_retry(spreadsheet.worksheet, "Anime")
 
-    print("Fetching data from Google Sheets...")
-    # Protected with retry logic
+    print("Fetching data from main Anime tab...")
     rows = execute_with_retry(worksheet.get_all_values)
     if not rows:
         print("No data found.")
@@ -88,7 +310,25 @@ def sync_sheet_to_db(db_session: Session = None):
 
     headers = rows[0]
 
-    # Use the passed session if it exists, otherwise create a new one
+    # 1. Transform raw rows into dictionaries and count series
+    anime_row_dicts = []
+    series_counts = {}
+
+    for row in rows[1:]:
+        padded_row = row + [""] * (len(headers) - len(row))
+        row_dict = dict(zip(headers, padded_row))
+        anime_row_dicts.append(row_dict)
+
+        # Track how many times each series_en appears
+        s_en = clean_value(row_dict.get("series_en"))
+        if s_en:
+            series_counts[s_en] = series_counts.get(s_en, 0) + 1
+
+    # 2. Automatically populate the new Anime Series tab!
+    populate_anime_series_tab(spreadsheet, anime_row_dicts)
+
+    # 3. Resume Postgres Database Sync Operations for Main Anime Tab
+    print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
     db = db_session if db_session else SessionLocal()
 
     updated_count = 0
@@ -96,10 +336,7 @@ def sync_sheet_to_db(db_session: Session = None):
     cells_to_update = []
 
     try:
-        for idx, row in enumerate(rows[1:], start=2):
-            row = row + [""] * (len(headers) - len(row))
-            row_data = dict(zip(headers, row))
-
+        for idx, row_data in enumerate(anime_row_dicts, start=2):
             system_id = row_data.get("system_id", "").strip()
             if not system_id:
                 system_id = str(uuid.uuid4())
@@ -125,19 +362,67 @@ def sync_sheet_to_db(db_session: Session = None):
                             gspread.Cell(row=idx, col=col_idx, value=extracted_id)
                         )
 
+            # --- NEW: Season Extraction Logic with Count check ---
+            series_season_val = row_data.get("series_season", "")
+            series_season_en_val = row_data.get("series_season_en", "")
+            series_season_cn_val = row_data.get("series_season_cn", "")
+            series_en_val = clean_value(row_data.get("series_en"))
+
+            # Only auto-extract if the season cell is currently empty
+            if not series_season_val or str(series_season_val).strip() == "":
+
+                # Try English first
+                extracted_season = extract_season_from_title(series_season_en_val)
+
+                # If English fails, try Chinese
+                if not extracted_season:
+                    extracted_season = extract_season_from_cn_title(
+                        series_season_cn_val
+                    )
+
+                # If regex fails completely, but this is the ONLY entry for this franchise, default to "Season 1"
+                if (
+                    not extracted_season
+                    and series_en_val
+                    and series_counts.get(series_en_val) == 1
+                ):
+                    extracted_season = "Season 1"
+
+                if extracted_season:
+                    series_season_val = extracted_season
+                    print(f"Row {idx}: Set season '{extracted_season}'.")
+                    if "series_season" in headers:
+                        col_idx = headers.index("series_season") + 1
+                        cells_to_update.append(
+                            gspread.Cell(row=idx, col=col_idx, value=extracted_season)
+                        )
+
+            # --- NEW: Movie Episode Total Logic ---
+            airing_type_val = clean_value(row_data.get("airing_type"))
+            ep_total_val = clean_value(row_data.get("ep_total"), int)
+
+            if airing_type_val and airing_type_val.lower() == "movie":
+                if ep_total_val != 1:
+                    ep_total_val = 1
+                    print(f"Row {idx}: Set ep_total to 1 because airing_type is Movie.")
+                    if "ep_total" in headers:
+                        col_idx = headers.index("ep_total") + 1
+                        cells_to_update.append(
+                            gspread.Cell(row=idx, col=col_idx, value=1)
+                        )
+
+            # Updated mapping
             entry_data = {
                 "system_id": system_id,
                 "series_en": clean_value(row_data.get("series_en")),
-                "series_roman": clean_value(row_data.get("series_roman")),
-                "series_cn": clean_value(row_data.get("series_cn")),
                 "series_season_en": clean_value(row_data.get("series_season_en")),
                 "series_season_roman": clean_value(row_data.get("series_season_roman")),
                 "series_season_cn": clean_value(row_data.get("series_season_cn")),
-                "alt_name": clean_value(row_data.get("alt_name")),
-                "airing_type": clean_value(row_data.get("airing_type")),
+                "series_season": clean_value(series_season_val),
+                "airing_type": airing_type_val,
                 "my_progress": clean_value(row_data.get("my_progress")),
                 "airing_status": clean_value(row_data.get("airing_status")),
-                "ep_total": clean_value(row_data.get("ep_total"), int),
+                "ep_total": ep_total_val,
                 "ep_fin": clean_value(row_data.get("ep_fin"), int),
                 "rating_mine": clean_value(row_data.get("rating_mine")),
                 "main_spinoff": clean_value(row_data.get("main_spinoff")),
@@ -165,6 +450,12 @@ def sync_sheet_to_db(db_session: Session = None):
             )
             if existing_entry:
                 for key, value in entry_data.items():
+                    # Preserve API fetched data like covers and ratings
+                    if (
+                        key in ["cover_image_url", "mal_rating"]
+                        and getattr(existing_entry, key) is not None
+                    ):
+                        continue
                     setattr(existing_entry, key, value)
                 updated_count += 1
             else:
@@ -174,9 +465,8 @@ def sync_sheet_to_db(db_session: Session = None):
 
         if cells_to_update:
             print(
-                f"\nSending batch update to Google Sheets for {len(cells_to_update)} rows..."
+                f"Sending batch update to Google Sheets for {len(cells_to_update)} rows..."
             )
-            # Protected with chunking and retry logic to prevent 429 errors
             chunk_size = 50
             for i in range(0, len(cells_to_update), chunk_size):
                 chunk = cells_to_update[i : i + chunk_size]
@@ -184,25 +474,33 @@ def sync_sheet_to_db(db_session: Session = None):
 
         db.commit()
         print(
-            f"\n✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count}"
+            f"✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count}"
         )
-        return {"status": "success", "rows_updated": added_count + updated_count}
+
+        # --- 4. ENRICH ALL MISSING DATA ---
+        enriched_count = enrich_anime_database(db)
+        if enriched_count > 0:
+            print(f"✨ Successfully enriched {enriched_count} anime with MAL Data!")
+
+        return {
+            "status": "success",
+            "rows_updated": added_count + updated_count,
+            "enriched_count": enriched_count,
+        }
 
     except Exception as e:
         db.rollback()
         print(f"\n❌ Error during sync: {e}")
         raise e
     finally:
-        # Only close if we created the session locally (prevents closing FastAPI's dependency session)
         if not db_session:
             db.close()
 
 
 def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
     """Finds a specific system_id in Google Sheets and updates its ep_fin column."""
-    sheet = get_google_sheet()
+    sheet = get_google_sheet("Anime")
 
-    # Protected with retry logic
     cell = execute_with_retry(sheet.find, system_id)
     if not cell:
         raise ValueError(f"system_id {system_id} not found in Google Sheet.")
@@ -213,7 +511,6 @@ def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
     except ValueError:
         raise ValueError("Column 'ep_fin' not found in the header row.")
 
-    # Protected with retry logic
     execute_with_retry(sheet.update_cell, cell.row, col_index, ep_fin)
     return True
 
