@@ -60,6 +60,16 @@
         transform: translateY(-4px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       }
+
+      /* Hide number input arrows */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
@@ -330,8 +340,12 @@
                                     <i class="fas fa-minus"></i>
                                 </button>
                                 
-                                <div class="font-mono font-bold text-lg tracking-wide flex items-baseline">
-                                    <span class="text-gray-900">${anime.ep_fin || 0}</span>
+                                <div class="font-mono font-bold text-lg tracking-wide flex items-baseline justify-center">
+                                    <input type="number" 
+                                           value="${anime.ep_fin || 0}" 
+                                           onchange="setExactProgress('${anime.system_id}', this.value)"
+                                           onclick="this.select()"
+                                           class="w-12 text-center text-gray-900 bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0" />
                                     <span class="text-gray-400 mx-1 text-sm">/</span>
                                     <span class="text-gray-500 text-sm">${totalEps}</span>
                                 </div>
@@ -386,25 +400,40 @@
         renderSection(paused, "pausedGrid", "pausedCount", "pausedSection");
       }
 
-      // 3. Logic for the +/- buttons (Sends real PATCH request)
-      async function updateProgress(system_id, change) {
+      // Logic for the +/- buttons
+      function updateProgress(system_id, change) {
         const index = animeData.findIndex((a) => a.system_id === system_id);
         if (index === -1) return;
 
         let current = animeData[index].ep_fin || 0;
-        let total = animeData[index].ep_total;
-        let newTotal = current;
+        let newTotal = current + change;
 
-        if (change < 0 && current > 0) {
-          newTotal--;
-        } else if (change > 0 && (!total || current < total)) {
-          newTotal++;
-        } else {
-          return; // No change needed
+        // Pass the new calculated value directly to our existing logic!
+        setExactProgress(system_id, newTotal);
+      }
+
+      // 3. Logic for exact progress input (Sends real PATCH request)
+      async function setExactProgress(system_id, newValue) {
+        const index = animeData.findIndex((a) => a.system_id === system_id);
+        if (index === -1) return;
+
+        let parsedValue = parseInt(newValue, 10);
+        if (isNaN(parsedValue)) parsedValue = 0;
+
+        let total = animeData[index].ep_total;
+
+        // Prevent going below 0 or above total episode count
+        if (parsedValue < 0) parsedValue = 0;
+        if (total && parsedValue > total) parsedValue = total;
+
+        const current = animeData[index].ep_fin || 0;
+        if (parsedValue === current) {
+          renderCards(); // Re-render to clear invalid typing in the UI
+          return;
         }
 
         // Optimistically update the UI instantly
-        animeData[index].ep_fin = newTotal;
+        animeData[index].ep_fin = parsedValue;
         renderCards();
 
         // Send request to backend to update DB and Google Sheets
@@ -414,7 +443,7 @@
             {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ep_fin: newTotal }),
+              body: JSON.stringify({ ep_fin: parsedValue }),
             },
           );
 
