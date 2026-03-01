@@ -1,6 +1,7 @@
 import re
 import time
 import uuid
+import requests
 import gspread
 from gspread.exceptions import APIError
 from sqlalchemy.orm import Session
@@ -21,7 +22,7 @@ def execute_with_retry(func, *args, max_retries=3, **kwargs):
             return func(*args, **kwargs)
         except APIError as e:
             if "429" in str(e):
-                wait_time = 60 * (attempt + 1)  # Waits 60s, then 120s, etc.
+                wait_time = 60 * (attempt + 1)
                 print(
                     f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})..."
                 )
@@ -81,7 +82,6 @@ def process_row_data(row_index, row_dict, header_map):
     """
     cells_to_update = []
 
-    # --- 1. System ID Logic ---
     system_id = row_dict.get("system_id", "").strip()
     if not system_id:
         system_id = str(uuid.uuid4())
@@ -93,7 +93,6 @@ def process_row_data(row_index, row_dict, header_map):
                 )
             )
 
-    # --- 2. MAL ID Extraction Logic ---
     mal_id_val = row_dict.get("mal_id", "")
     mal_link_val = row_dict.get("mal_link", "")
 
@@ -109,7 +108,6 @@ def process_row_data(row_index, row_dict, header_map):
                     )
                 )
 
-    # --- 3. Cleaned Dictionary Creation ---
     entry_data = {
         "system_id": system_id,
         "series_en": clean_value(row_dict.get("series_en")),
@@ -158,6 +156,12 @@ def upsert_anime_entry(db: Session, entry_data: dict):
 
     if existing_entry:
         for key, value in entry_data.items():
+            # Never overwrite existing external data (like cover images) if it was already fetched
+            if (
+                key in ["cover_image_url", "mal_rating"]
+                and getattr(existing_entry, key) is not None
+            ):
+                continue
             setattr(existing_entry, key, value)
         return "updated"
     else:
@@ -167,7 +171,66 @@ def upsert_anime_entry(db: Session, entry_data: dict):
 
 
 # ==========================================
-# 4. MAIN SYNC CONTROLLERS
+# 4. EXTERNAL API ENRICHMENT (JIKAN / MAL)
+# ==========================================
+
+
+def fetch_mal_key_visual(mal_id):
+    """Hits the Jikan API to grab the highest quality Key Visual."""
+    try:
+        url = f"https://api.jikan.moe/v4/anime/{mal_id}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data = response.json().get("data", {})
+            return data.get("images", {}).get("jpg", {}).get("large_image_url")
+        elif response.status_code == 429:
+            print(f"⚠️ Jikan Rate Limit hit while fetching ID {mal_id}.")
+            return None
+    except Exception as e:
+        print(f"❌ Failed to fetch Jikan data for ID {mal_id}: {e}")
+    return None
+
+
+def enrich_anime_database(db: Session):
+    """
+    Finds ALL anime with a mal_id but no cover image, and fetches them.
+    Warning: If you have 100 missing images, this will take ~200 seconds to complete
+    due to mandatory rate-limit pacing.
+    """
+    anime_to_enrich = (
+        db.query(AnimeEntry)
+        .filter(AnimeEntry.mal_id.isnot(None), AnimeEntry.cover_image_url.is_(None))
+        .all()
+    )
+
+    if not anime_to_enrich:
+        return 0
+
+    print(f"\n--- Fetching MAL Key Visuals for {len(anime_to_enrich)} anime ---")
+    print(
+        "This may take a while depending on the amount. Please do not close the terminal."
+    )
+
+    enriched_count = 0
+
+    for anime in anime_to_enrich:
+        print(f"Fetching cover for MAL ID {anime.mal_id}...")
+        image_url = fetch_mal_key_visual(anime.mal_id)
+
+        if image_url:
+            anime.cover_image_url = image_url
+            enriched_count += 1
+
+        # MANDATORY JIKAN RATE LIMIT SLEEP (Max 3 requests per second allowed, 2 seconds is very safe)
+        time.sleep(2)
+
+    db.commit()
+    return enriched_count
+
+
+# ==========================================
+# 5. MAIN SYNC CONTROLLERS
 # ==========================================
 
 
@@ -178,14 +241,12 @@ def sync_sheet_to_db():
     worksheet = get_google_sheet()
 
     print("Fetching data from Google Sheets...")
-    # Wrap in execute_with_retry to protect against quotas
     rows = execute_with_retry(worksheet.get_all_values)
     if not rows:
         print("No data found.")
         return
 
     headers = rows[0]
-    # Map header names to their 1-indexed column numbers for gspread
     header_map = {name: idx + 1 for idx, name in enumerate(headers)}
 
     db: Session = SessionLocal()
@@ -194,24 +255,19 @@ def sync_sheet_to_db():
     all_cells_to_update = []
 
     try:
-        # Loop through data (starting at row 2)
         for idx, row in enumerate(rows[1:], start=2):
-            # Ensure row matches header length to prevent zip matching errors
             row = row + [""] * (len(headers) - len(row))
             row_dict = dict(zip(headers, row))
 
-            # 1. Process Data & Extract Needs
             entry_data, cell_updates = process_row_data(idx, row_dict, header_map)
             all_cells_to_update.extend(cell_updates)
 
-            # 2. Upsert to Local Database
             action = upsert_anime_entry(db, entry_data)
             if action == "updated":
                 updated_count += 1
             else:
                 added_count += 1
 
-        # 3. Batch Update Google Sheets (Chunked to prevent limits)
         if all_cells_to_update:
             print(
                 f"\nSending batch update to Google Sheets for {len(all_cells_to_update)} cells..."
@@ -225,7 +281,19 @@ def sync_sheet_to_db():
         print(
             f"\n✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count}"
         )
-        return {"status": "success", "rows_updated": added_count + updated_count}
+
+        # --- ENRICH ALL MISSING DATA ---
+        enriched_count = enrich_anime_database(db)
+        if enriched_count > 0:
+            print(
+                f"✨ Successfully enriched {enriched_count} anime with Key Visuals from MAL!"
+            )
+
+        return {
+            "status": "success",
+            "rows_updated": added_count + updated_count,
+            "enriched_images": enriched_count,
+        }
 
     except Exception as e:
         db.rollback()
@@ -239,7 +307,6 @@ def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
     """Finds a specific system_id in Google Sheets and updates its ep_fin column."""
     sheet = get_google_sheet()
 
-    # Wrapped in retry logic to prevent rapid button-clicking crashes
     cell = execute_with_retry(sheet.find, system_id)
     if not cell:
         raise ValueError(f"system_id {system_id} not found in Google Sheet.")
@@ -250,7 +317,6 @@ def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
     except ValueError:
         raise ValueError("Column 'ep_fin' not found in the header row.")
 
-    # Execute the final single-cell update
     execute_with_retry(sheet.update_cell, cell.row, col_index, ep_fin)
     return True
 
