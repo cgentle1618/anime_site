@@ -53,16 +53,19 @@ def get_google_sheet(sheet_name="Anime"):
 
 def clean_value(val, expected_type=str):
     """Utility function to clean empty Google Sheets cells into None or correct types."""
-    if not val or str(val).strip() == "":
+    if val is None or str(val).strip() == "":
         return None
+
+    val_str = str(val).strip()
     try:
         if expected_type == int:
-            return int(val)
+            # Safely handles floats in string format like "12.0" without throwing errors
+            return int(float(val_str))
         if expected_type == float:
-            return float(val)
+            return float(val_str)
     except ValueError:
         return None
-    return str(val).strip()
+    return val_str
 
 
 def extract_mal_id(mal_link):
@@ -156,8 +159,17 @@ def populate_anime_series_tab(spreadsheet, anime_row_dicts):
     existing_series_tracker = set()
     cells_to_update = []
 
-    sys_id_col = headers.index("system_id") if "system_id" in headers else 0
-    en_col = headers.index("series_en") if "series_en" in headers else 1
+    # Reverse lookup to bypass duplicate/hidden columns
+    sys_id_col = (
+        (len(headers) - headers[::-1].index("system_id") - 1)
+        if "system_id" in headers
+        else 0
+    )
+    en_col = (
+        (len(headers) - headers[::-1].index("series_en") - 1)
+        if "series_en" in headers
+        else 1
+    )
 
     # 1. Check existing rows
     for i, row in enumerate(series_rows[1:], start=2):
@@ -179,7 +191,11 @@ def populate_anime_series_tab(spreadsheet, anime_row_dicts):
         print(
             f"Updating {len(cells_to_update)} missing system_ids in 'Anime Series' tab..."
         )
-        execute_with_retry(series_sheet.update_cells, cells_to_update)
+        execute_with_retry(
+            series_sheet.update_cells,
+            cells_to_update,
+            value_input_option="USER_ENTERED",
+        )
 
     # 2. Extract unique series from the main Anime tab (using only series_en now)
     new_series_to_append = []
@@ -243,7 +259,6 @@ def enrich_anime_database(db: Session):
     """
     Finds ALL anime with a mal_id but missing cover image OR mal_rating, and fetches them.
     Skips fetching if ONLY mal_rating is missing but the show is 'Not Yet Aired'.
-    Warning: This will take a while if the database is mostly empty due to rate limits.
     """
     anime_to_enrich = (
         db.query(AnimeEntry)
@@ -284,7 +299,6 @@ def enrich_anime_database(db: Session):
                 anime.mal_rating = mal_data["mal_rating"]
             enriched_count += 1
 
-        # MANDATORY JIKAN RATE LIMIT SLEEP (Max 3 requests per second allowed, 2 seconds is safe)
         time.sleep(2)
 
     db.commit()
@@ -380,7 +394,7 @@ def sync_sheet_to_db(db_session: Session = None):
                 system_id = str(uuid.uuid4())
                 print(f"Row {idx}: Missing system_id. Generating new UUID: {system_id}")
                 if "system_id" in headers:
-                    col_idx = headers.index("system_id") + 1
+                    col_idx = len(headers) - headers[::-1].index("system_id")
                     cells_to_update.append(
                         gspread.Cell(row=idx, col=col_idx, value=system_id)
                     )
@@ -395,30 +409,23 @@ def sync_sheet_to_db(db_session: Session = None):
                     mal_id_val = extracted_id
                     print(f"Row {idx}: Extracted MAL ID {extracted_id} from link.")
                     if "mal_id" in headers:
-                        col_idx = headers.index("mal_id") + 1
+                        col_idx = len(headers) - headers[::-1].index("mal_id")
                         cells_to_update.append(
                             gspread.Cell(row=idx, col=col_idx, value=extracted_id)
                         )
 
-            # --- NEW: Season Extraction Logic with Count check ---
+            # Season Extraction Logic
             series_season_val = row_data.get("series_season", "")
             series_season_en_val = row_data.get("series_season_en", "")
             series_season_cn_val = row_data.get("series_season_cn", "")
             series_en_val = clean_value(row_data.get("series_en"))
 
-            # Only auto-extract if the season cell is currently empty
             if not series_season_val or str(series_season_val).strip() == "":
-
-                # Try English first
                 extracted_season = extract_season_from_title(series_season_en_val)
-
-                # If English fails, try Chinese
                 if not extracted_season:
                     extracted_season = extract_season_from_cn_title(
                         series_season_cn_val
                     )
-
-                # If regex fails completely, but this is the ONLY entry for this franchise, default to "Season 1"
                 if (
                     not extracted_season
                     and series_en_val
@@ -430,12 +437,12 @@ def sync_sheet_to_db(db_session: Session = None):
                     series_season_val = extracted_season
                     print(f"Row {idx}: Set season '{extracted_season}'.")
                     if "series_season" in headers:
-                        col_idx = headers.index("series_season") + 1
+                        col_idx = len(headers) - headers[::-1].index("series_season")
                         cells_to_update.append(
                             gspread.Cell(row=idx, col=col_idx, value=extracted_season)
                         )
 
-            # --- NEW: Movie Episode Total Logic ---
+            # Movie Episode Total Logic
             airing_type_val = clean_value(row_data.get("airing_type"))
             ep_total_val = clean_value(row_data.get("ep_total"), int)
 
@@ -444,26 +451,34 @@ def sync_sheet_to_db(db_session: Session = None):
                     ep_total_val = 1
                     print(f"Row {idx}: Set ep_total to 1 because airing_type is Movie.")
                     if "ep_total" in headers:
-                        col_idx = headers.index("ep_total") + 1
+                        col_idx = len(headers) - headers[::-1].index("ep_total")
                         cells_to_update.append(
                             gspread.Cell(row=idx, col=col_idx, value=1)
                         )
 
-            # --- NEW: Completed Auto-Match Logic ---
+            # Completed Auto-Match Logic
             my_progress_val = clean_value(row_data.get("my_progress"))
             ep_fin_val = clean_value(row_data.get("ep_fin"), int)
 
             if (
                 my_progress_val in ["Completed", "Finished"]
                 and ep_total_val
-                and ep_fin_val != ep_total_val
+                and ep_fin_val is None
             ):
                 ep_fin_val = ep_total_val
+                title_for_log = (
+                    clean_value(row_data.get("series_season_en"))
+                    or clean_value(row_data.get("series_en"))
+                    or "Unknown Title"
+                )
+                raw_ep_fin = row_data.get("ep_fin")
+
                 print(
-                    f"Row {idx}: Auto-matched ep_fin to {ep_total_val} because status is {my_progress_val}."
+                    f"Row {idx} ({title_for_log}): Auto-matched ep_fin to {ep_total_val} because status is {my_progress_val}. [Raw sheet value read: '{raw_ep_fin}']"
                 )
                 if "ep_fin" in headers:
-                    col_idx = headers.index("ep_fin") + 1
+                    # Finds the LAST occurrence of 'ep_fin' to bypass hidden/duplicate columns!
+                    col_idx = len(headers) - headers[::-1].index("ep_fin")
                     cells_to_update.append(
                         gspread.Cell(row=idx, col=col_idx, value=ep_total_val)
                     )
@@ -527,7 +542,9 @@ def sync_sheet_to_db(db_session: Session = None):
             chunk_size = 50
             for i in range(0, len(cells_to_update), chunk_size):
                 chunk = cells_to_update[i : i + chunk_size]
-                execute_with_retry(worksheet.update_cells, chunk)
+                execute_with_retry(
+                    worksheet.update_cells, chunk, value_input_option="USER_ENTERED"
+                )
 
         db.commit()
         print(
@@ -564,7 +581,8 @@ def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
 
     headers = execute_with_retry(sheet.row_values, 1)
     try:
-        col_index = headers.index("ep_fin") + 1
+        # Reverse lookup ensures we update the real column, not a hidden one
+        col_index = len(headers) - headers[::-1].index("ep_fin")
     except ValueError:
         raise ValueError("Column 'ep_fin' not found in the header row.")
 
