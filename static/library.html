@@ -47,6 +47,16 @@
         cursor: pointer;
         background-color: #f9fafb;
       }
+
+      /* Hide number input arrows for a cleaner spreadsheet look */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
@@ -111,10 +121,11 @@
     </nav>
 
     <!-- Main Content: Spreadsheet Table -->
-    <main class="flex-1 w-full max-w-[100vw] px-4 py-8 overflow-x-auto">
-      <!-- NEW: Toolbar above the table -->
-      <div class="mb-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-gray-800">Library</h1>
+    <main
+      class="flex-1 w-full max-w-[100vw] px-4 py-6 flex flex-col h-[calc(100vh-4rem)]"
+    >
+      <!-- Toolbar above the table -->
+      <div class="mb-4 flex justify-end items-center shrink-0">
         <button
           onclick="toggleAll()"
           id="toggleAllBtn"
@@ -124,64 +135,103 @@
         </button>
       </div>
 
+      <!-- Scrollable Table Container -->
       <div
-        class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+        class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col min-h-0"
       >
-        <div class="overflow-x-auto">
+        <div class="overflow-auto flex-1 relative">
           <table class="w-full text-sm text-left whitespace-nowrap">
-            <thead
-              class="text-xs text-gray-600 uppercase bg-gray-50 border-b border-gray-200 sticky top-0"
-            >
+            <thead class="text-xs text-gray-600 uppercase">
               <tr>
-                <!-- Clickable Headers for Sorting -->
+                <!-- Sticky applied directly to <th> elements to guarantee it works -->
                 <th
                   scope="col"
-                  class="px-4 py-3 sortable transition"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
                   onclick="handleSort('title')"
                 >
                   Title <i class="fas fa-sort text-gray-400 ml-1"></i>
                 </th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sortable transition"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Season
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
                   onclick="handleSort('rating_mine')"
                 >
                   Rating <i class="fas fa-sort text-gray-400 ml-1"></i>
                 </th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sortable transition"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
                   onclick="handleSort('my_progress')"
                 >
                   Status <i class="fas fa-sort text-gray-400 ml-1"></i>
                 </th>
-                <th scope="col" class="px-4 py-3">Episodes</th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sortable transition"
-                  onclick="handleSort('airing_type')"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
                 >
-                  Type <i class="fas fa-sort text-gray-400 ml-1"></i>
+                  Airing
                 </th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sortable transition"
-                  onclick="handleSort('main_spinoff')"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
                 >
-                  Class <i class="fas fa-sort text-gray-400 ml-1"></i>
+                  Episodes
                 </th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sortable transition"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Type
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Class
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
                   onclick="handleSort('release_date')"
                 >
                   Release <i class="fas fa-sort text-gray-400 ml-1"></i>
                 </th>
-                <th scope="col" class="px-4 py-3">Studio</th>
-                <th scope="col" class="px-4 py-3">Director</th>
-                <th scope="col" class="px-4 py-3">Distributor</th>
-                <th scope="col" class="px-4 py-3">Genre</th>
-                <th scope="col" class="px-4 py-3 max-w-[200px]">Notes</th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Studio
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Director
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Distributor
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  巴哈
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] max-w-[200px]"
+                >
+                  Notes
+                </th>
               </tr>
             </thead>
             <tbody id="libraryTableBody" class="divide-y divide-gray-200">
@@ -202,7 +252,7 @@
       // NEW: State variables to track collapsed series and ratings
       let collapsedSeries = new Set();
       let isAllCollapsed = false;
-      let seriesRatings = {};
+      let seriesMetadata = {};
 
       // Fetch data on load
       async function fetchLibrary() {
@@ -214,17 +264,14 @@
           ]);
 
           originalData = await animeRes.json();
-          displayData = [...originalData];
 
-          // Map series ratings for quick lookup
+          // Map series metadata for quick lookup
           const seriesData = await seriesRes.json();
           seriesData.forEach((s) => {
-            if (s.series_en && s.rating_series)
-              seriesRatings[s.series_en] = s.rating_series;
-            else if (s.series_cn && s.rating_series)
-              seriesRatings[s.series_cn] = s.rating_series;
+            if (s.series_en) seriesMetadata[s.series_en] = s;
           });
 
+          displayData = [...originalData];
           renderTable();
         } catch (error) {
           console.error("Failed to load library data:", error);
@@ -249,9 +296,8 @@
         // 1. Group Data by series_en
         const groupedData = {};
         displayData.forEach((anime) => {
-          // Group by series_en, fallback to series_cn, or label as standalone
-          const seriesName =
-            anime.series_en || anime.series_cn || "Standalone / Other";
+          // Group by series_en, or label as standalone
+          const seriesName = anime.series_en || "Standalone / Other";
           if (!groupedData[seriesName]) {
             groupedData[seriesName] = [];
           }
@@ -261,13 +307,37 @@
         // 2. Sort Series Groups (Alphabetically)
         let seriesNames = Object.keys(groupedData);
         seriesNames.sort((a, b) => {
-          // If sorting by title descending, reverse the groups too
-          if (sortCol === "title" && !sortAsc) return a > b ? -1 : 1;
-          return a < b ? -1 : 1;
+          const metaA = seriesMetadata[a] || {};
+          const metaB = seriesMetadata[b] || {};
+          const entriesA = groupedData[a] || [];
+          const entriesB = groupedData[b] || [];
+
+          let valA = a;
+          let valB = b;
+
+          // Sort the overarching Series logic based on the selected column
+          if (sortCol === "rating_mine") {
+            valA = metaA.rating_series || "";
+            valB = metaB.rating_series || "";
+            const tiers = { S: 1, "A+": 2, A: 3, B: 4, C: 5, D: 6, E: 7, F: 8 };
+            valA = tiers[valA] || 99;
+            valB = tiers[valB] || 99;
+          } else if (sortCol === "release_date") {
+            valA = entriesA[0]?.release_date || "";
+            valB = entriesB[0]?.release_date || "";
+          } else if (sortCol === "my_progress") {
+            valA = entriesA[0]?.my_progress || "";
+            valB = entriesB[0]?.my_progress || "";
+          }
+
+          if (valA < valB) return sortAsc ? -1 : 1;
+          if (valA > valB) return sortAsc ? 1 : -1;
+          return 0;
         });
 
         // 3. Render Groups and their Items
         seriesNames.forEach((seriesName) => {
+          const meta = seriesMetadata[seriesName] || {};
           const isCollapsed = collapsedSeries.has(seriesName);
           const chevronClass = isCollapsed
             ? "fa-chevron-right text-gray-400"
@@ -275,7 +345,7 @@
 
           // Format the Series Rating Badge
           let seriesRatingBadge = "";
-          const sRating = seriesRatings[seriesName];
+          const sRating = meta.rating_series;
           if (sRating) {
             let sRatingColor = "text-gray-600 border-gray-300 bg-white";
             if (["S", "A+", "A"].includes(sRating))
@@ -283,8 +353,29 @@
             else if (["B", "C"].includes(sRating))
               sRatingColor = "text-blue-700 border-blue-200 bg-blue-50";
 
-            seriesRatingBadge = `<span class="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded border ${sRatingColor} font-bold ml-2 shadow-sm">Overall: ${sRating}</span>`;
+            seriesRatingBadge = `<span class="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded border ${sRatingColor} font-bold ml-3 shadow-sm">Overall: ${sRating}</span>`;
           }
+
+          // Format Series Title display (Chinese Name Left, English Name Right, Alt Name End)
+          const cnName = meta.series_cn || "";
+          const enName = seriesName !== "Standalone / Other" ? seriesName : "";
+          const altName = meta.alt_name || "";
+
+          let titleDisplay = "";
+          if (cnName && enName) {
+            titleDisplay = `<span class="text-gray-900">${cnName}</span><span class="text-gray-500 font-normal ml-2">${enName}</span>`;
+          } else if (cnName) {
+            titleDisplay = `<span class="text-gray-900">${cnName}</span>`;
+          } else if (enName) {
+            titleDisplay = `<span class="text-gray-900">${enName}</span>`;
+          } else {
+            titleDisplay = `<span class="text-gray-900">Standalone / Other</span>`;
+          }
+
+          // Use ml-auto to push the Alt Name beautifully to the right edge
+          let altNameDisplay = altName
+            ? `<span class="text-xs text-gray-400 font-normal ml-auto italic pr-4 pl-4">${altName}</span>`
+            : "";
 
           // Render Group Header Row (Now Clickable)
           const headerTr = document.createElement("tr");
@@ -292,13 +383,13 @@
             "bg-gray-100/80 border-y border-gray-200 cursor-pointer hover:bg-gray-200/80 transition-colors";
           headerTr.onclick = () => toggleSeries(seriesName);
           headerTr.innerHTML = `
-                    <td colspan="12" class="px-4 py-3 font-bold text-gray-800 text-sm select-none">
-                        <div class="flex items-center">
+                    <td colspan="14" class="px-4 py-3 font-bold text-gray-800 text-sm select-none">
+                        <div class="flex items-center w-full">
                             <i class="fas ${chevronClass} w-4 text-center mr-1"></i>
                             <i class="fas fa-layer-group text-brand mr-2"></i>
-                            <span>${seriesName}</span>
-                            <span class="text-xs text-gray-500 font-normal ml-2">(${groupedData[seriesName].length} Entries)</span>
+                            ${titleDisplay}
                             ${seriesRatingBadge}
+                            ${altNameDisplay}
                         </div>
                     </td>
                 `;
@@ -307,42 +398,15 @@
           // If this series is collapsed, skip rendering its children!
           if (isCollapsed) return;
 
-          // 4. Sort Items inside the group
+          // 4. Sort Items inside the group (Always chronological by season)
           const animesInSeries = groupedData[seriesName];
           animesInSeries.sort((a, b) => {
-            let valA = a[sortCol] || "";
-            let valB = b[sortCol] || "";
-
-            // Default sub-sort by release_date if no specific sort is clicked
-            if (!sortCol) {
-              valA = a.release_date || "";
-              valB = b.release_date || "";
-              return valA < valB ? -1 : valA > valB ? 1 : 0;
-            }
-
-            if (sortCol === "title") {
-              valA = getDisplayTitle(a);
-              valB = getDisplayTitle(b);
-            }
-
-            if (sortCol === "rating_mine") {
-              const tiers = {
-                S: 1,
-                "A+": 2,
-                A: 3,
-                B: 4,
-                C: 5,
-                D: 6,
-                E: 7,
-                F: 8,
-              };
-              valA = tiers[valA] || 99;
-              valB = tiers[valB] || 99;
-            }
-
-            if (valA < valB) return sortAsc ? -1 : 1;
-            if (valA > valB) return sortAsc ? 1 : -1;
-            return 0;
+            let valA = a.series_season_en || a.series_en || "";
+            let valB = b.series_season_en || b.series_en || "";
+            return valA.localeCompare(valB, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            });
           });
 
           // 5. Render Individual Anime Rows
@@ -350,7 +414,27 @@
             const title = getDisplayTitle(anime);
             const rating = anime.rating_mine || "-";
             const status = anime.my_progress || "-";
-            const eps = `${anime.ep_fin || 0} / ${anime.ep_total || "?"}`;
+
+            const epFin = anime.ep_fin || 0;
+            const epTotal = anime.ep_total || "?";
+
+            // Create a clickable, editable number input for episodes
+            const epsInput = `
+                        <div class="flex items-center">
+                            <input type="number" value="${epFin}" min="0" ${anime.ep_total ? `max="${anime.ep_total}"` : ""}
+                                   onchange="updateEpisode('${anime.system_id}', this.value, ${epFin})"
+                                   class="w-8 bg-transparent border-b border-dashed border-gray-400 hover:border-brand focus:border-solid focus:border-brand focus:outline-none text-center font-mono py-0.5 transition-colors"
+                                   onclick="this.select()">
+                            <span class="text-gray-500 font-mono ml-1">/ ${epTotal}</span>
+                        </div>
+                    `;
+
+            const bahaStr = String(anime.source_baha || "").toUpperCase();
+            const bahaDisplay = bahaStr === "TRUE" ? "有" : "無";
+            const bahaColor =
+              bahaDisplay === "有"
+                ? "text-green-600 font-bold"
+                : "text-gray-400";
 
             let statusColor = "text-gray-600 bg-gray-100";
             if (status === "Active Watching")
@@ -374,18 +458,20 @@
                         <td class="px-4 py-3 pl-10 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">
                             ${title}
                         </td>
+                        <td class="px-4 py-3 text-gray-600 font-medium whitespace-nowrap">${anime.series_season || "-"}</td>
                         <td class="px-4 py-3 ${ratingColor}">${rating}</td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 text-xs rounded-md ${statusColor}">${status}</span>
                         </td>
-                        <td class="px-4 py-3 font-mono text-xs">${eps}</td>
+                        <td class="px-4 py-3 text-gray-500">${anime.airing_status || "-"}</td>
+                        <td class="px-4 py-3 text-xs">${epsInput}</td>
                         <td class="px-4 py-3 text-gray-500">${anime.airing_type || "-"}</td>
                         <td class="px-4 py-3 text-gray-500">${anime.main_spinoff || "-"}</td>
                         <td class="px-4 py-3 text-gray-900">${anime.release_date || "-"}</td>
                         <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.studio || ""}">${anime.studio || "-"}</td>
                         <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.director || ""}">${anime.director || "-"}</td>
                         <td class="px-4 py-3 text-gray-500">${anime.distributor_tw || "-"}</td>
-                        <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.genre_main || ""}">${anime.genre_main || "-"}</td>
+                        <td class="px-4 py-3 ${bahaColor}">${bahaDisplay}</td>
                         <td class="px-4 py-3 text-gray-400 max-w-[200px] truncate" title="${anime.remark || ""}">${anime.remark || "-"}</td>
                     `;
             tbody.appendChild(tr);
@@ -403,25 +489,47 @@
         renderTable();
       }
 
-      // NEW: Toggle all series globally
-      function toggleAll() {
-        isAllCollapsed = !isAllCollapsed;
-        const btn = document.getElementById("toggleAllBtn");
-
-        if (isAllCollapsed) {
-          // Add every visible series to the collapsed set
-          displayData.forEach((anime) => {
-            const seriesName =
-              anime.series_en || anime.series_cn || "Standalone / Other";
-            collapsedSeries.add(seriesName);
-          });
-          btn.innerHTML = `<i class="fas fa-expand-arrows-alt mr-2"></i> Expand All`;
-        } else {
-          // Clear the set to expand everything
-          collapsedSeries.clear();
-          btn.innerHTML = `<i class="fas fa-compress-arrows-alt mr-2"></i> Collapse All`;
+      // NEW: Send updated episode count directly to backend
+      async function updateEpisode(systemId, newValue, oldValue) {
+        const parsedValue = parseInt(newValue, 10);
+        if (isNaN(parsedValue) || parsedValue < 0) {
+          alert("Invalid episode number.");
+          renderTable(); // Revert to old value
+          return;
         }
-        renderTable();
+
+        // Optimistically update the UI arrays
+        const displayIndex = displayData.findIndex(
+          (a) => a.system_id === systemId,
+        );
+        if (displayIndex !== -1) displayData[displayIndex].ep_fin = parsedValue;
+
+        const origIndex = originalData.findIndex(
+          (a) => a.system_id === systemId,
+        );
+        if (origIndex !== -1) originalData[origIndex].ep_fin = parsedValue;
+
+        try {
+          // Same endpoint used by the Dashboard's +/- buttons
+          const response = await fetch(
+            `${API_BASE_URL}/anime/${systemId}/progress`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ep_fin: parsedValue }),
+            },
+          );
+
+          if (!response.ok) throw new Error("Server rejected update");
+        } catch (error) {
+          console.error("Error updating progress:", error);
+          alert("Failed to sync progress to database. Check your connection.");
+
+          // Revert on failure
+          if (displayIndex !== -1) displayData[displayIndex].ep_fin = oldValue;
+          if (origIndex !== -1) originalData[origIndex].ep_fin = oldValue;
+          renderTable();
+        }
       }
 
       // Handle Sorting (State update only)
@@ -439,16 +547,18 @@
       document.getElementById("searchInput").addEventListener("input", (e) => {
         const query = e.target.value.toLowerCase();
         displayData = originalData.filter((anime) => {
+          const meta = anime.series_en
+            ? seriesMetadata[anime.series_en] || {}
+            : {};
           return (
             (anime.series_en &&
               anime.series_en.toLowerCase().includes(query)) ||
-            (anime.series_cn &&
-              anime.series_cn.toLowerCase().includes(query)) ||
+            (meta.series_cn && meta.series_cn.toLowerCase().includes(query)) ||
             (anime.series_season_en &&
               anime.series_season_en.toLowerCase().includes(query)) ||
             (anime.series_season_cn &&
               anime.series_season_cn.toLowerCase().includes(query)) ||
-            (anime.alt_name && anime.alt_name.toLowerCase().includes(query)) ||
+            (meta.alt_name && meta.alt_name.toLowerCase().includes(query)) ||
             (anime.studio && anime.studio.toLowerCase().includes(query))
           );
         });

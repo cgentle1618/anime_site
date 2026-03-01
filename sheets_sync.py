@@ -449,6 +449,25 @@ def sync_sheet_to_db(db_session: Session = None):
                             gspread.Cell(row=idx, col=col_idx, value=1)
                         )
 
+            # --- NEW: Completed Auto-Match Logic ---
+            my_progress_val = clean_value(row_data.get("my_progress"))
+            ep_fin_val = clean_value(row_data.get("ep_fin"), int)
+
+            if (
+                my_progress_val in ["Completed", "Finished"]
+                and ep_total_val
+                and ep_fin_val != ep_total_val
+            ):
+                ep_fin_val = ep_total_val
+                print(
+                    f"Row {idx}: Auto-matched ep_fin to {ep_total_val} because status is {my_progress_val}."
+                )
+                if "ep_fin" in headers:
+                    col_idx = headers.index("ep_fin") + 1
+                    cells_to_update.append(
+                        gspread.Cell(row=idx, col=col_idx, value=ep_total_val)
+                    )
+
             # Updated mapping
             entry_data = {
                 "system_id": system_id,
@@ -458,10 +477,10 @@ def sync_sheet_to_db(db_session: Session = None):
                 "series_season_cn": clean_value(row_data.get("series_season_cn")),
                 "series_season": clean_value(series_season_val),
                 "airing_type": airing_type_val,
-                "my_progress": clean_value(row_data.get("my_progress")),
+                "my_progress": my_progress_val,
                 "airing_status": clean_value(row_data.get("airing_status")),
                 "ep_total": ep_total_val,
-                "ep_fin": clean_value(row_data.get("ep_fin"), int),
+                "ep_fin": ep_fin_val,
                 "rating_mine": clean_value(row_data.get("rating_mine")),
                 "main_spinoff": clean_value(row_data.get("main_spinoff")),
                 "release_date": clean_value(row_data.get("release_date")),
