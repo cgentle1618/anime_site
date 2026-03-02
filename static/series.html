@@ -178,29 +178,45 @@
               </div>
             </div>
 
-            <div
-              class="text-center p-5 bg-indigo-50 rounded-2xl border border-indigo-100 min-w-[160px] flex-shrink-0"
-            >
-              <label
-                for="series-rating"
-                class="text-[10px] text-brand font-bold uppercase block mb-2 cursor-pointer"
-                >Overall Rating</label
+            <div class="flex flex-row gap-4 flex-shrink-0">
+              <div
+                class="text-center p-4 bg-blue-50 rounded-2xl border border-blue-100 min-w-[120px] flex flex-col justify-center shadow-sm"
               >
-              <select
-                id="series-rating"
-                class="rating-select w-full bg-transparent text-4xl font-black text-brand focus:outline-none cursor-pointer text-center"
-                onchange="syncSeriesRating(this.value)"
+                <span
+                  class="text-[10px] text-blue-600 font-bold uppercase block mb-1"
+                  title="Average of Main Story (本傳)"
+                  >MAL Avg</span
+                >
+                <span
+                  id="series-mal-rating"
+                  class="text-3xl font-black text-blue-700"
+                  >-</span
+                >
+              </div>
+              <div
+                class="text-center p-4 bg-indigo-50 rounded-2xl border border-indigo-100 min-w-[120px] flex flex-col justify-center shadow-sm"
               >
-                <option value="null" class="text-xl">-</option>
-                <option value="S" class="text-xl">S</option>
-                <option value="A+" class="text-xl">A+</option>
-                <option value="A" class="text-xl">A</option>
-                <option value="B" class="text-xl">B</option>
-                <option value="C" class="text-xl">C</option>
-                <option value="D" class="text-xl">D</option>
-                <option value="E" class="text-xl">E</option>
-                <option value="F" class="text-xl">F</option>
-              </select>
+                <label
+                  for="series-rating"
+                  class="text-[10px] text-brand font-bold uppercase block mb-1 cursor-pointer"
+                  >My Rating</label
+                >
+                <select
+                  id="series-rating"
+                  class="rating-select w-full bg-transparent text-3xl font-black text-brand focus:outline-none cursor-pointer text-center"
+                  onchange="syncSeriesRating(this.value)"
+                >
+                  <option value="null" class="text-xl">-</option>
+                  <option value="S" class="text-xl">S</option>
+                  <option value="A+" class="text-xl">A+</option>
+                  <option value="A" class="text-xl">A</option>
+                  <option value="B" class="text-xl">B</option>
+                  <option value="C" class="text-xl">C</option>
+                  <option value="D" class="text-xl">D</option>
+                  <option value="E" class="text-xl">E</option>
+                  <option value="F" class="text-xl">F</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -288,6 +304,18 @@
         document.getElementById("series-rating").value =
           seriesData.rating_series || "null";
 
+        // Calculate and display MAL Average for "本傳" (Main Story)
+        let totalMal = 0;
+        let countMal = 0;
+        animeData.forEach((anime) => {
+          if (anime.main_spinoff === "本傳" && anime.mal_rating) {
+            totalMal += anime.mal_rating;
+            countMal++;
+          }
+        });
+        const malAvg = countMal > 0 ? (totalMal / countMal).toFixed(2) : "N/A";
+        document.getElementById("series-mal-rating").innerText = malAvg;
+
         // Extract and display all unique genres from the franchise's entries
         const genres = new Set();
         animeData.forEach((anime) => {
@@ -320,8 +348,9 @@
           return;
         }
 
-        // 1. Group Data into Categories by airing_type (and Not Yet Aired status)
+        // 1. Group Data into Categories (Added 'Watching')
         const groups = {
+          Watching: [],
           "Not Yet Aired": [],
           TV: [],
           ONA: [],
@@ -333,9 +362,19 @@
         };
 
         animeData.forEach((anime) => {
-          if (anime.airing_status === "Not Yet Aired") {
+          // Priority 1: Is the user currently watching it?
+          if (
+            anime.my_progress === "Active Watching" ||
+            anime.my_progress === "Passive Watching"
+          ) {
+            groups["Watching"].push(anime);
+          }
+          // Priority 2: Is it not yet aired?
+          else if (anime.airing_status === "Not Yet Aired") {
             groups["Not Yet Aired"].push(anime);
-          } else {
+          }
+          // Priority 3: Group by standard airing type
+          else {
             const type = anime.airing_type || "Other";
             if (groups[type] !== undefined) {
               groups[type].push(anime);
@@ -358,6 +397,7 @@
         };
 
         // 3. Sort Each Group uniformly by release date
+        groups["Watching"].sort(sortByReleaseDate);
         groups["Not Yet Aired"].sort(sortByReleaseDate);
         groups["TV"].sort(sortByReleaseDate);
         groups["ONA"].sort(sortByReleaseDate);
@@ -386,7 +426,8 @@
           grid.innerHTML += html;
         };
 
-        // Render in exact order required
+        // Render in exact order required (Watching first!)
+        renderSection("Watching", groups["Watching"], "fa-eye");
         renderSection(
           "Not Yet Aired",
           groups["Not Yet Aired"],

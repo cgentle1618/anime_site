@@ -196,7 +196,7 @@
                   >
                   <span
                     id="rating-mal"
-                    class="text-2xl font-black text-blue-700"
+                    class="text-2xl font-black text-blue-700 whitespace-nowrap flex items-baseline justify-center"
                     >-</span
                   >
                 </div>
@@ -596,16 +596,19 @@
         document.getElementById("kv-image").src = anime.cover_image_url || "";
         document.getElementById("rating-dropdown").value =
           anime.rating_mine || "null";
-        document.getElementById("rating-mal").innerText =
-          anime.mal_rating?.toFixed(2) || "-";
 
-        // Extra Info (Top Section)
-        document.getElementById("top-airing-type").innerText =
-          anime.airing_type || "-";
-        document.getElementById("top-main-spinoff").innerText =
-          anime.main_spinoff || "-";
-        document.getElementById("top-series-season").innerText =
-          anime.series_season || "-";
+        // Format MAL Rating and Rank
+        const malScore = anime.mal_rating ? anime.mal_rating.toFixed(2) : "-";
+        let malRank = "";
+        if (anime.mal_rank) {
+          if (String(anime.mal_rank).toUpperCase() === "N/A") {
+            malRank = `<span class="text-sm font-bold text-blue-500/80 ml-1">(N/A)</span>`;
+          } else {
+            malRank = `<span class="text-sm font-bold text-blue-500/80 ml-1">(#${anime.mal_rank})</span>`;
+          }
+        }
+        document.getElementById("rating-mal").innerHTML =
+          `${malScore}${malRank}`;
 
         // Release Date (Top Section)
         document.getElementById("top-release-date").innerText =

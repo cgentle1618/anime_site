@@ -42,6 +42,7 @@ class AnimeResponse(BaseModel):
     source_netflix: Optional[str] = None
 
     mal_rating: Optional[float] = None
+    mal_rank: Optional[str] = None
     cover_image_url: Optional[str] = None
 
     class Config:

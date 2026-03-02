@@ -237,7 +237,7 @@ def populate_anime_series_tab(spreadsheet, anime_row_dicts):
 
 
 def fetch_mal_data(mal_id):
-    """Hits the Jikan API to grab the Key Visual and MAL Score."""
+    """Hits the Jikan API to grab the Key Visual, MAL Score, and MAL Rank."""
     try:
         url = f"https://api.jikan.moe/v4/anime/{mal_id}"
         response = requests.get(url)
@@ -246,7 +246,16 @@ def fetch_mal_data(mal_id):
             data = response.json().get("data", {})
             image_url = data.get("images", {}).get("jpg", {}).get("large_image_url")
             score = data.get("score")
-            return {"cover_image_url": image_url, "mal_rating": score}
+            rank = data.get("rank")
+
+            # Convert rank to string, fallback to "N/A" if missing to prevent infinite refetching
+            rank_str = str(rank) if rank is not None else "N/A"
+
+            return {
+                "cover_image_url": image_url,
+                "mal_rating": score,
+                "mal_rank": rank_str,
+            }
         elif response.status_code == 429:
             print(f"⚠️ Jikan Rate Limit hit while fetching ID {mal_id}.")
             return None
@@ -255,10 +264,11 @@ def fetch_mal_data(mal_id):
     return None
 
 
-def enrich_anime_database(db: Session):
+def enrich_anime_database(db: Session, worksheet):
     """
-    Finds ALL anime with a mal_id but missing cover image OR mal_rating, and fetches them.
-    Skips fetching if ONLY mal_rating is missing but the show is 'Not Yet Aired'.
+    Finds ALL anime with a mal_id but missing cover image, mal_rating, OR mal_rank and fetches them.
+    Skips fetching ratings/ranks if the show is 'Not Yet Aired'.
+    Batches API updates back to Google Sheets to save quota limits.
     """
     anime_to_enrich = (
         db.query(AnimeEntry)
@@ -267,7 +277,7 @@ def enrich_anime_database(db: Session):
             or_(
                 AnimeEntry.cover_image_url.is_(None),
                 and_(
-                    AnimeEntry.mal_rating.is_(None),
+                    or_(AnimeEntry.mal_rating.is_(None), AnimeEntry.mal_rank.is_(None)),
                     or_(
                         AnimeEntry.airing_status != "Not Yet Aired",
                         AnimeEntry.airing_status.is_(None),
@@ -286,7 +296,34 @@ def enrich_anime_database(db: Session):
         "This may take a while depending on the amount. Please do not close the terminal."
     )
 
+    # Prepare for Google Sheets bulk update
+    headers = execute_with_retry(worksheet.row_values, 1)
+
+    # Reverse lookup to bypass hidden columns safely
+    sys_id_col = (
+        len(headers) - headers[::-1].index("system_id")
+        if "system_id" in headers
+        else None
+    )
+    rating_col = (
+        len(headers) - headers[::-1].index("mal_rating")
+        if "mal_rating" in headers
+        else None
+    )
+    rank_col = (
+        len(headers) - headers[::-1].index("mal_rank")
+        if "mal_rank" in headers
+        else None
+    )
+
+    # Map row indexes for fast lookup (so we don't have to execute 'sheet.find' in a loop)
+    row_map = {}
+    if sys_id_col:
+        sys_id_values = execute_with_retry(worksheet.col_values, sys_id_col)
+        row_map = {val.strip(): idx + 1 for idx, val in enumerate(sys_id_values)}
+
     enriched_count = 0
+    cells_to_update = []
 
     for anime in anime_to_enrich:
         print(f"Fetching data for MAL ID {anime.mal_id}...")
@@ -295,11 +332,45 @@ def enrich_anime_database(db: Session):
         if mal_data:
             if mal_data["cover_image_url"]:
                 anime.cover_image_url = mal_data["cover_image_url"]
+
+            # Map Rating
             if mal_data["mal_rating"]:
                 anime.mal_rating = mal_data["mal_rating"]
+                if rating_col and anime.system_id in row_map:
+                    cells_to_update.append(
+                        gspread.Cell(
+                            row=row_map[anime.system_id],
+                            col=rating_col,
+                            value=mal_data["mal_rating"],
+                        )
+                    )
+
+            # Map Rank
+            if mal_data["mal_rank"]:
+                anime.mal_rank = mal_data["mal_rank"]
+                if rank_col and anime.system_id in row_map:
+                    cells_to_update.append(
+                        gspread.Cell(
+                            row=row_map[anime.system_id],
+                            col=rank_col,
+                            value=mal_data["mal_rank"],
+                        )
+                    )
+
             enriched_count += 1
 
-        time.sleep(2)
+        time.sleep(
+            2
+        )  # Respect Jikan API rate limit (3 req/sec max, 2 seconds is very safe)
+
+    # Push all updated metrics to Google Sheets in one single API call
+    if cells_to_update:
+        print(
+            f"Syncing {len(cells_to_update)} newly fetched metrics (Ratings & Ranks) back to Google Sheets..."
+        )
+        execute_with_retry(
+            worksheet.update_cells, cells_to_update, value_input_option="USER_ENTERED"
+        )
 
     db.commit()
     return enriched_count
@@ -483,6 +554,14 @@ def sync_sheet_to_db(db_session: Session = None):
                         gspread.Cell(row=idx, col=col_idx, value=ep_total_val)
                     )
 
+            # Fallbacks to capture sheet headers named either "mal_rank" or "MAL Rank"
+            mal_rating_extracted = clean_value(
+                row_data.get("mal_rating", row_data.get("MAL Rating")), float
+            )
+            mal_rank_extracted = clean_value(
+                row_data.get("mal_rank", row_data.get("MAL Rank")), str
+            )
+
             # Updated mapping
             entry_data = {
                 "system_id": system_id,
@@ -508,6 +587,8 @@ def sync_sheet_to_db(db_session: Session = None):
                 "remark": clean_value(row_data.get("remark")),
                 "mal_id": clean_value(mal_id_val, int),
                 "mal_link": clean_value(mal_link_val),
+                "mal_rating": mal_rating_extracted,
+                "mal_rank": mal_rank_extracted,
                 "anilist_link": clean_value(row_data.get("anilist_link")),
                 "op": clean_value(row_data.get("op")),
                 "ed": clean_value(row_data.get("ed")),
@@ -522,9 +603,9 @@ def sync_sheet_to_db(db_session: Session = None):
             )
             if existing_entry:
                 for key, value in entry_data.items():
-                    # Preserve API fetched data like covers and ratings
+                    # Preserve API fetched data like covers and ratings so they aren't overwritten by blank cells
                     if (
-                        key in ["cover_image_url", "mal_rating"]
+                        key in ["cover_image_url", "mal_rating", "mal_rank"]
                         and getattr(existing_entry, key) is not None
                     ):
                         continue
@@ -551,8 +632,8 @@ def sync_sheet_to_db(db_session: Session = None):
             f"✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count}"
         )
 
-        # --- 4. ENRICH ALL MISSING DATA ---
-        enriched_count = enrich_anime_database(db)
+        # --- 4. ENRICH ALL MISSING DATA (Now passes worksheet so it can write back) ---
+        enriched_count = enrich_anime_database(db, worksheet)
         if enriched_count > 0:
             print(f"✨ Successfully enriched {enriched_count} anime with MAL Data!")
 

@@ -64,6 +64,7 @@ class AnimeEntry(Base):
     source_netflix = Column(String, nullable=True)
 
     mal_rating = Column(Float, nullable=True)
+    mal_rank = Column(String, nullable=True)
     cover_image_url = Column(String, nullable=True)
 
 
