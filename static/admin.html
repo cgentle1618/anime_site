@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - CG1618</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
+            colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f3f4f6;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+    <!-- Universal Top Navigation Bar -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center space-x-8">
+            <a
+              href="/"
+              class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand hover:opacity-80 transition cursor-pointer"
+            >
+              CG1618
+            </a>
+            <div class="hidden md:block">
+              <div class="flex items-baseline space-x-4">
+                <a
+                  href="/"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Dashboard</a
+                >
+                <a
+                  href="/library"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Library</a
+                >
+                <a
+                  href="/admin"
+                  class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  >Admin</a
+                >
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 flex-1 justify-end">
+            <div class="relative w-full max-w-md hidden sm:block">
+              <div
+                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+              >
+                <i class="fas fa-search text-gray-400"></i>
+              </div>
+              <input
+                type="text"
+                id="globalSearchInput"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search Series or Anime Names..."
+              />
+            </div>
+            <button
+              onclick="handleSync()"
+              id="syncBtn"
+              class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
+            >
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <div class="mb-8 border-b border-gray-200 pb-4">
+        <h1 class="text-3xl font-bold text-gray-900">
+          <i class="fas fa-tools text-brand mr-3"></i>System Administration
+        </h1>
+        <p class="text-gray-500 mt-2">
+          Manage metadata overrides, resolve database conflicts, and monitor
+          synchronization health.
+        </p>
+      </div>
+
+      <!-- Admin Grid Layout -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <!-- LEFT COLUMN -->
+        <div class="space-y-8">
+          <!-- Sync Logs Monitor -->
+          <div
+            class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+          >
+            <div
+              class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+            >
+              <h2 class="font-bold text-gray-800">
+                <i class="fas fa-clipboard-list text-gray-400 mr-2"></i> Sync
+                Log History
+              </h2>
+              <button
+                onclick="loadLogs()"
+                class="text-brand hover:text-brand-hover text-sm font-bold"
+              >
+                <i class="fas fa-redo-alt mr-1"></i> Refresh
+              </button>
+            </div>
+            <div class="overflow-auto flex-1 p-0">
+              <table class="w-full text-sm text-left whitespace-nowrap">
+                <thead
+                  class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  <tr>
+                    <th class="px-4 py-3 font-bold">Time</th>
+                    <th class="px-4 py-3 font-bold">Type</th>
+                    <th class="px-4 py-3 font-bold">Status</th>
+                    <th class="px-4 py-3 font-bold">Changes</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-tbody" class="divide-y divide-gray-100">
+                  <!-- Logs injected here -->
+                  <tr>
+                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                      <i class="fas fa-spinner fa-spin mr-2"></i> Loading
+                      logs...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Data Conflict Management (Orphans) -->
+          <div
+            class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+          >
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="font-bold text-gray-800">
+                <i class="fas fa-heart-broken text-rose-500 mr-2"></i> Database
+                Conflicts (Orphans)
+              </h2>
+              <button
+                id="scan-orphans-btn"
+                onclick="scanOrphans()"
+                class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition"
+              >
+                <i class="fas fa-radar mr-1"></i> Scan
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+              Detects PostgreSQL database entries that no longer exist in your
+              Google Sheet (e.g., deleted rows). You can safely purge them here
+              to restore parity.
+            </p>
+
+            <div
+              id="orphans-container"
+              class="bg-gray-50 border border-gray-200 rounded-xl max-h-[250px] overflow-auto p-2"
+            >
+              <div class="text-center py-6 text-gray-400 text-sm italic">
+                Click "Scan" to detect orphaned records.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="space-y-8">
+          <!-- MAL ID Override Form -->
+          <div
+            class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+          >
+            <h2 class="font-bold text-gray-800 mb-2">
+              <i class="fas fa-fingerprint text-blue-500 mr-2"></i> MAL ID
+              Override
+            </h2>
+            <p class="text-xs text-gray-500 mb-6">
+              Force-update the MyAnimeList ID for a specific entry. This will
+              clear the cached cover image and ratings, triggering a fresh fetch
+              from the Jikan API on the next sync.
+            </p>
+
+            <form
+              id="mal-override-form"
+              onsubmit="submitMalOverride(event)"
+              class="space-y-4"
+            >
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >System ID</label
+                  >
+                  <input
+                    type="text"
+                    id="override-sys-id"
+                    required
+                    placeholder="e.g. 123e4567-e89b..."
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >New MAL ID</label
+                  >
+                  <input
+                    type="number"
+                    id="override-mal-id"
+                    required
+                    placeholder="e.g. 5114"
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                </div>
+              </div>
+              <div class="flex items-center justify-between pt-2">
+                <span
+                  id="mal-override-status"
+                  class="text-sm font-bold hidden"
+                ></span>
+                <button
+                  type="submit"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition"
+                >
+                  Override ID
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Manual Entry Append Form -->
+          <div
+            class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+          >
+            <h2 class="font-bold text-gray-800 mb-2">
+              <i class="fas fa-plus-square text-emerald-500 mr-2"></i> Manual
+              Entry Append
+            </h2>
+            <p class="text-xs text-gray-500 mb-6">
+              Append a new anime record directly to the bottom of the Google
+              Sheet. (Note: A full Sync is required afterward to pull this into
+              the dashboard).
+            </p>
+
+            <form
+              id="manual-add-form"
+              onsubmit="submitManualEntry(event)"
+              class="space-y-4"
+            >
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >English / Romanized Title</label
+                  >
+                  <input
+                    type="text"
+                    id="add-en"
+                    required
+                    placeholder="Required..."
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                </div>
+                <div class="sm:col-span-2">
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Chinese Title (Optional)</label
+                  >
+                  <input
+                    type="text"
+                    id="add-cn"
+                    placeholder="Optional..."
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Season String</label
+                  >
+                  <input
+                    type="text"
+                    id="add-season"
+                    placeholder="e.g. Season 1"
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Airing Type</label
+                  >
+                  <select
+                    id="add-type"
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  >
+                    <option value="TV">TV</option>
+                    <option value="Movie">Movie</option>
+                    <option value="OVA">OVA</option>
+                    <option value="ONA">ONA</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >My Progress</label
+                  >
+                  <select
+                    id="add-progress"
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  >
+                    <option value="Might Watch">Might Watch</option>
+                    <option value="Plan to Watch">Plan to Watch</option>
+                    <option value="Watch When Airs">Watch When Airs</option>
+                    <option value="Active Watching">Active Watching</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Dropped">Dropped</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Total Episodes</label
+                  >
+                  <input
+                    type="number"
+                    id="add-ep-total"
+                    placeholder="Leave blank if unknown"
+                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                </div>
+              </div>
+              <div
+                class="flex items-center justify-between pt-4 border-t border-gray-100 mt-4"
+              >
+                <span
+                  id="manual-add-status"
+                  class="text-sm font-bold hidden"
+                ></span>
+                <button
+                  type="submit"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition"
+                >
+                  <i class="fas fa-upload mr-1.5"></i> Append to Sheet
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const API_BASE_URL = "/api";
+
+      // --- Universal UI Logic ---
+      const globalSearchInput = document.getElementById("globalSearchInput");
+      if (globalSearchInput) {
+        globalSearchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            const query = e.target.value.trim();
+            if (query)
+              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+          }
+        });
+      }
+
+      function showStatus(elementId, message, isError = false) {
+        const el = document.getElementById(elementId);
+        el.innerText = message;
+        el.className = `text-sm font-bold ${isError ? "text-red-500" : "text-green-600"}`;
+        el.classList.remove("hidden");
+        setTimeout(() => el.classList.add("hidden"), 5000);
+      }
+
+      // --- Feature 1: Sync Logs ---
+      async function loadLogs() {
+        const tbody = document.getElementById("logs-tbody");
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Fetching logs...</td></tr>`;
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/logs`);
+          if (!res.ok) throw new Error("Failed to fetch logs");
+          const logs = await res.json();
+
+          if (logs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500 italic">No sync history found.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = logs
+            .map((log) => {
+              const date = new Date(log.timestamp).toLocaleString();
+              const statusColor =
+                log.status === "success"
+                  ? "text-green-600 bg-green-50"
+                  : "text-red-600 bg-red-50";
+              const typeIcon =
+                log.sync_type === "cron"
+                  ? '<i class="fas fa-robot text-gray-400"></i>'
+                  : '<i class="fas fa-user text-gray-400"></i>';
+
+              let changes = `<span class="text-gray-500">No changes</span>`;
+              if (log.rows_added > 0 || log.rows_updated > 0) {
+                changes = `<span class="text-emerald-600 font-bold">+${log.rows_added}</span> / <span class="text-blue-600 font-bold">~${log.rows_updated}</span>`;
+              }
+              if (log.error_message) {
+                changes = `<span class="text-red-500 truncate max-w-[150px] inline-block" title="${log.error_message}">${log.error_message}</span>`;
+              }
+
+              return `
+                      <tr class="hover:bg-gray-50 transition">
+                          <td class="px-4 py-3 text-gray-600">${date}</td>
+                          <td class="px-4 py-3 text-gray-700 capitalize">${typeIcon} ${log.sync_type}</td>
+                          <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${log.status}</span></td>
+                          <td class="px-4 py-3">${changes}</td>
+                      </tr>
+                  `;
+            })
+            .join("");
+        } catch (error) {
+          tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</td></tr>`;
+        }
+      }
+
+      // --- Feature 2: Conflict Management (Orphans) ---
+      async function scanOrphans() {
+        const container = document.getElementById("orphans-container");
+        const btn = document.getElementById("scan-orphans-btn");
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Scanning...`;
+        container.innerHTML = `<div class="text-center py-6 text-brand"><i class="fas fa-circle-notch fa-spin mr-2"></i> Comparing DB to Google Sheets...</div>`;
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/orphans`);
+          if (!res.ok) throw new Error("Failed to scan orphans");
+          const orphans = await res.json();
+
+          if (orphans.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-green-600 font-bold"><i class="fas fa-check-circle mr-2"></i> Database is perfectly synced! No orphans found.</div>`;
+          } else {
+            container.innerHTML = orphans
+              .map(
+                (anime) => `
+                      <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm mb-2 last:mb-0 flex justify-between items-center group">
+                          <div class="min-w-0 pr-4">
+                              <div class="font-bold text-gray-900 truncate">${anime.series_season_cn || anime.series_season_en || anime.series_en}</div>
+                              <div class="text-[10px] font-mono text-gray-400 mt-0.5 truncate">${anime.system_id}</div>
+                          </div>
+                          <button onclick="deleteOrphan('${anime.system_id}', this)" class="shrink-0 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 hover:text-rose-600 px-3 py-1.5 rounded-md text-xs font-bold transition">
+                              <i class="fas fa-trash-alt mr-1"></i> Delete
+                          </button>
+                      </div>
+                  `,
+              )
+              .join("");
+          }
+        } catch (error) {
+          container.innerHTML = `<div class="text-center py-6 text-red-500 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fas fa-radar mr-1"></i> Scan`;
+        }
+      }
+
+      async function deleteOrphan(systemId, btnElement) {
+        if (
+          !confirm(
+            "Are you sure you want to hard delete this entry from the PostgreSQL database?",
+          )
+        )
+          return;
+
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        btnElement.disabled = true;
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/orphans/${systemId}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error("Deletion failed");
+
+          // Remove the item from the UI
+          btnElement.closest("div.bg-white").remove();
+
+          // If empty, show success state
+          const container = document.getElementById("orphans-container");
+          if (container.children.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-green-600 font-bold"><i class="fas fa-check-circle mr-2"></i> All orphans cleared!</div>`;
+          }
+        } catch (error) {
+          alert(error.message);
+          btnElement.innerHTML = originalHtml;
+          btnElement.disabled = false;
+        }
+      }
+
+      // --- Feature 3: MAL Override ---
+      async function submitMalOverride(e) {
+        e.preventDefault();
+        const sysId = document.getElementById("override-sys-id").value.trim();
+        const malId = parseInt(
+          document.getElementById("override-mal-id").value,
+        );
+        const btn = e.target.querySelector('button[type="submit"]');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/admin/override_mal/${sysId}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mal_id: malId }),
+            },
+          );
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Override failed");
+
+          showStatus(
+            "mal-override-status",
+            "Success! Metadata cleared for refetch.",
+          );
+          e.target.reset();
+        } catch (error) {
+          showStatus("mal-override-status", error.message, true);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = "Override ID";
+        }
+      }
+
+      // --- Feature 4: Manual Append ---
+      async function submitManualEntry(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+
+        // Generate a system ID on the frontend so it immediately has a unique key in the DB
+        const newSysId = crypto.randomUUID();
+
+        const payload = {
+          system_id: newSysId,
+          series_en: document.getElementById("add-en").value.trim(),
+          series_cn: document.getElementById("add-cn").value.trim() || null,
+          series_season:
+            document.getElementById("add-season").value.trim() || null,
+          airing_type: document.getElementById("add-type").value,
+          my_progress: document.getElementById("add-progress").value,
+          ep_total:
+            parseInt(document.getElementById("add-ep-total").value) || null,
+        };
+
+        btn.disabled = true;
+        btn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-1.5"></i> Appending...';
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/add`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Append failed");
+
+          showStatus("manual-add-status", "Success! Don't forget to Sync.");
+          e.target.reset();
+        } catch (error) {
+          showStatus("manual-add-status", error.message, true);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML =
+            '<i class="fas fa-upload mr-1.5"></i> Append to Sheet';
+        }
+      }
+
+      // --- Universal Sync Helper ---
+      async function handleSync() {
+        const icon = document.getElementById("syncIcon");
+        const btn = document.getElementById("syncBtn");
+
+        icon.classList.add("fa-spin");
+        btn.classList.add("opacity-75");
+        btn.innerText = " Syncing...";
+        btn.prepend(icon);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/sync`, {
+            method: "POST",
+          });
+          if (response.ok) {
+            alert("Database Synced Successfully!");
+            loadLogs(); // Refresh the logs table immediately
+          } else {
+            const data = await response.json();
+            alert(`Sync Error: ${data.detail}`);
+          }
+        } catch (error) {
+          alert("Failed to connect to backend sync.");
+        } finally {
+          icon.classList.remove("fa-spin");
+          btn.classList.remove("opacity-75");
+          btn.innerText = " Sync Sheets";
+          btn.prepend(icon);
+        }
+      }
+
+      // Initialize Page
+      document.addEventListener("DOMContentLoaded", loadLogs);
+    </script>
+  </body>
+</html>

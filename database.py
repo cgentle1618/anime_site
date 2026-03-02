@@ -1,7 +1,8 @@
 import os
 import uuid
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, String, Integer, Float, Date
+from datetime import datetime
+from sqlalchemy import DateTime, create_engine, Column, String, Integer, Float, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
@@ -78,3 +79,19 @@ class AnimeSeries(Base):
     series_cn = Column(String, nullable=True)
     rating_series = Column(String, nullable=True)
     alt_name = Column(String, nullable=True)
+
+
+class SyncLog(Base):
+    __tablename__ = "sync_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    sync_type = Column(String)  # 'manual' or 'cron'
+    status = Column(String)  # 'success', 'failed', 'in_progress'
+
+    # Track exactly what happened during the sync
+    rows_added = Column(Integer, default=0)
+    rows_updated = Column(Integer, default=0)
+    rows_deleted = Column(Integer, default=0)
+
+    error_message = Column(String, nullable=True)

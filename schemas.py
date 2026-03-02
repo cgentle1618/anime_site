@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 
 class AnimeResponse(BaseModel):
@@ -60,3 +61,56 @@ class AnimeSeriesResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ==========================================
+# ADMIN SCHEMAS
+# ==========================================
+
+
+class SyncLogResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    sync_type: str
+    status: str
+    rows_added: int
+    rows_updated: int
+    rows_deleted: int
+    error_message: Optional[str] = None
+
+    class Config:
+        from_attributes = True  # Allows Pydantic to read from SQLAlchemy ORM models
+
+
+class MalOverrideRequest(BaseModel):
+    mal_id: int
+
+
+class AnimeManualCreate(BaseModel):
+    """
+    Schema for manually adding a new anime entry via the Admin Dashboard.
+    Requires the essential fields needed to append a valid row to the Google Sheet.
+    """
+
+    system_id: str
+    series_cn: Optional[str] = None
+    series_en: Optional[str] = None
+    series_roman: Optional[str] = None
+    alt_name: Optional[str] = None
+    series_season_cn: Optional[str] = None
+    series_season_en: Optional[str] = None
+    series_season: Optional[str] = None
+
+    rating_mine: Optional[str] = None
+    my_progress: Optional[str] = None
+    airing_status: Optional[str] = None
+    ep_fin: Optional[int] = 0
+    ep_total: Optional[int] = None
+    airing_type: Optional[str] = None
+    main_spinoff: Optional[str] = None
+    release_date: Optional[str] = None
+    studio: Optional[str] = None
+    director: Optional[str] = None
+    distributor_tw: Optional[str] = None
+    source_baha: Optional[str] = "False"
+    remark: Optional[str] = None

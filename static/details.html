@@ -86,7 +86,7 @@
                   >Library</a
                 >
                 <a
-                  href="/admin"
+                  href="/system"
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Admin</a
                 >
@@ -304,6 +304,7 @@
                         onchange="syncStatus(this.value)"
                       >
                         <option value="Might Watch">Might Watch</option>
+                        <option value="Plan to Watch">Plan to Watch</option>
                         <option value="Watch When Airs">Watch When Airs</option>
                         <option value="Active Watching">Active Watching</option>
                         <option value="Passive Watching">
@@ -544,12 +545,28 @@
     <script>
       const systemId = window.location.pathname.split("/").pop();
       let anime = null;
+      let seriesData = null;
 
       async function fetchDetails() {
         try {
           const res = await fetch(`/api/anime/details/${systemId}`);
           if (!res.ok) throw new Error("Failed to load anime info");
           anime = await res.json();
+
+          // NEW ADDITION: Fetch Series Metadata to get the Chinese Series Name and the Series ID
+          if (anime.series_en) {
+            try {
+              const seriesRes = await fetch(
+                `/api/series/details/${encodeURIComponent(anime.series_en)}`,
+              );
+              if (seriesRes.ok) {
+                seriesData = await seriesRes.json();
+              }
+            } catch (err) {
+              console.error("Could not fetch parent series details", err);
+            }
+          }
+
           render();
         } catch (e) {
           document.getElementById("loading").innerHTML =
@@ -569,20 +586,30 @@
         document.getElementById("sub-title").innerText =
           anime.series_season_en || "";
 
-        // Priority logic for Series Name & Link Generation
+        // Priority logic for Series Name & Link Generation using the new seriesData
         const seriesNameEl = document.getElementById("series-name");
-        seriesNameEl.innerText =
-          anime.series_cn || anime.series_en || "Standalone";
 
-        if (anime.series_id) {
-          seriesNameEl.href = `/series/${anime.series_id}`;
+        if (seriesData) {
+          seriesNameEl.innerText =
+            seriesData.series_cn || seriesData.series_en || anime.series_en;
+          seriesNameEl.href = `/series/${seriesData.system_id}`;
           seriesNameEl.classList.add(
             "hover:underline",
             "hover:text-brand-hover",
             "cursor-pointer",
           );
           seriesNameEl.classList.remove("text-gray-500", "cursor-default");
+        } else if (anime.series_en) {
+          seriesNameEl.innerText = anime.series_en;
+          seriesNameEl.removeAttribute("href");
+          seriesNameEl.classList.remove(
+            "hover:underline",
+            "hover:text-brand-hover",
+            "cursor-pointer",
+          );
+          seriesNameEl.classList.add("text-gray-500", "cursor-default");
         } else {
+          seriesNameEl.innerText = "Standalone";
           seriesNameEl.removeAttribute("href");
           seriesNameEl.classList.remove(
             "hover:underline",

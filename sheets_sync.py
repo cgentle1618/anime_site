@@ -6,7 +6,7 @@ import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from database import SessionLocal, AnimeEntry, AnimeSeries
+from database import SessionLocal, AnimeEntry, AnimeSeries, SyncLog
 
 # ==========================================
 # 1. API & GOOGLE SHEETS HELPERS
@@ -44,6 +44,32 @@ def get_google_spreadsheet():
 def get_google_sheet(sheet_name="Anime"):
     """Helper to get a specific tab."""
     return get_google_spreadsheet().worksheet(sheet_name)
+
+
+def log_sync_event(
+    db: Session,
+    sync_type: str,
+    status: str,
+    added: int = 0,
+    updated: int = 0,
+    deleted: int = 0,
+    error: str = None,
+):
+    """Logs the results of a sync operation to the database for the Admin Dashboard."""
+    try:
+        log_entry = SyncLog(
+            sync_type=sync_type,
+            status=status,
+            rows_added=added,
+            rows_updated=updated,
+            rows_deleted=deleted,
+            error_message=error,
+        )
+        db.add(log_entry)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️ Failed to write sync log to DB: {e}")
 
 
 # ==========================================
@@ -377,88 +403,169 @@ def enrich_anime_database(db: Session, worksheet):
 
 
 # ==========================================
-# 5. MAIN SYNC LOGIC
+# 5. ADMIN UTILITIES & ORPHAN DETECTION
 # ==========================================
 
 
-def sync_sheet_to_db(db_session: Session = None):
-    print("Starting Google Sheets Sync...")
+def append_new_anime(anime_data: dict):
+    """
+    Appends a new manually created anime entry directly to the bottom of the Google Sheet.
+    Used exclusively by the Admin Dashboard.
+    """
+    sheet = get_google_sheet("Anime")
+    headers = execute_with_retry(sheet.row_values, 1)
 
-    spreadsheet = get_google_spreadsheet()
-    worksheet = execute_with_retry(spreadsheet.worksheet, "Anime")
+    new_row = []
+    for header in headers:
+        val = anime_data.get(header, "")
+        # Ensure None values are safely converted to empty strings for GSpread
+        new_row.append(val if val is not None else "")
 
-    print("Fetching data from main Anime tab...")
-    rows = execute_with_retry(worksheet.get_all_values)
-    if not rows:
-        print("No data found.")
-        return
+    print(
+        f"Appending new row with system_id {anime_data.get('system_id')} to Google Sheets..."
+    )
+    execute_with_retry(sheet.append_row, new_row, value_input_option="USER_ENTERED")
+    return True
 
-    headers = rows[0]
 
-    # 1. Transform raw rows into dictionaries and count series
-    anime_row_dicts = []
-    series_counts = {}
+def detect_orphans(db: Session):
+    """
+    Scans the Google Sheet and compares system_ids against the PostgreSQL DB.
+    Returns a list of anime system_ids that exist in the DB but NOT in the Sheet.
+    """
+    worksheet = get_google_sheet("Anime")
+    headers = execute_with_retry(worksheet.row_values, 1)
 
-    for row in rows[1:]:
-        padded_row = row + [""] * (len(headers) - len(row))
-        row_dict = dict(zip(headers, padded_row))
-        anime_row_dicts.append(row_dict)
+    try:
+        sys_id_col = len(headers) - headers[::-1].index("system_id")
+    except ValueError:
+        print("Error: system_id column not found in Google Sheets.")
+        return []
 
-        # Track how many times each series_en appears
-        s_en = clean_value(row_dict.get("series_en"))
-        if s_en:
-            series_counts[s_en] = series_counts.get(s_en, 0) + 1
+    sheet_sys_ids = execute_with_retry(worksheet.col_values, sys_id_col)
+    # Skip header row and filter out blanks
+    sheet_sys_ids_set = {sid.strip() for sid in sheet_sys_ids[1:] if sid.strip()}
 
-    # 2. Automatically populate the new Anime Series tab!
-    populate_anime_series_tab(spreadsheet, anime_row_dicts)
+    db_entries = db.query(AnimeEntry.system_id).all()
+    db_sys_ids_set = {entry[0] for entry in db_entries}
 
-    # 3. Resume Postgres Database Sync Operations for Main Anime Tab
-    print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
+    # Identify orphans (present in DB, missing from Google Sheet)
+    orphans = list(db_sys_ids_set - sheet_sys_ids_set)
+    return orphans
+
+
+def update_anime_field_in_sheet(system_id: str, field_name: str, value):
+    """Finds a specific system_id in Google Sheets and updates a specified column dynamically."""
+    sheet = get_google_sheet("Anime")
+
+    cell = execute_with_retry(sheet.find, system_id)
+    if not cell:
+        raise ValueError(f"system_id {system_id} not found in Google Sheet.")
+
+    headers = execute_with_retry(sheet.row_values, 1)
+    try:
+        # Reverse lookup ensures we update the real column, not a hidden one
+        col_index = len(headers) - headers[::-1].index(field_name)
+    except ValueError:
+        raise ValueError(f"Column '{field_name}' not found in the header row.")
+
+    # Write None values as empty strings back to the sheet
+    execute_with_retry(
+        sheet.update_cell, cell.row, col_index, value if value is not None else ""
+    )
+    return True
+
+
+# ==========================================
+# 6. MAIN SYNC LOGIC
+# ==========================================
+
+
+def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
+    print(f"Starting Google Sheets Sync ({sync_type})...")
+
     db = db_session if db_session else SessionLocal()
-
-    # --- NEW: Sync Anime Series Tab Data (Ratings) to PostgreSQL ---
-    print("\n--- Syncing Anime Series Tab to PostgreSQL ---")
-    try:
-        series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
-        series_rows = execute_with_retry(series_sheet.get_all_values)
-        if series_rows and len(series_rows) > 1:
-            s_headers = series_rows[0]
-            for s_row in series_rows[1:]:
-                padded_s_row = s_row + [""] * (len(s_headers) - len(s_row))
-                s_dict = dict(zip(s_headers, padded_s_row))
-
-                s_sys_id = s_dict.get("system_id", "").strip()
-                if not s_sys_id:
-                    continue
-
-                s_entry_data = {
-                    "system_id": s_sys_id,
-                    "series_en": clean_value(s_dict.get("series_en")),
-                    "series_roman": clean_value(s_dict.get("series_roman")),
-                    "series_cn": clean_value(s_dict.get("series_cn")),
-                    "rating_series": clean_value(s_dict.get("rating_series")),
-                    "alt_name": clean_value(s_dict.get("alt_name")),
-                }
-
-                existing_s = (
-                    db.query(AnimeSeries)
-                    .filter(AnimeSeries.system_id == s_sys_id)
-                    .first()
-                )
-                if existing_s:
-                    for key, value in s_entry_data.items():
-                        setattr(existing_s, key, value)
-                else:
-                    new_s = AnimeSeries(**s_entry_data)
-                    db.add(new_s)
-    except Exception as e:
-        print(f"⚠️ Error syncing Anime Series tab to DB: {e}")
-
-    updated_count = 0
     added_count = 0
-    cells_to_update = []
+    updated_count = 0
 
     try:
+        spreadsheet = get_google_spreadsheet()
+        worksheet = execute_with_retry(spreadsheet.worksheet, "Anime")
+
+        print("Fetching data from main Anime tab...")
+        rows = execute_with_retry(worksheet.get_all_values)
+        if not rows:
+            print("No data found.")
+            log_sync_event(
+                db,
+                sync_type=sync_type,
+                status="success",
+                error="No data found in sheet.",
+            )
+            return
+
+        headers = rows[0]
+
+        # 1. Transform raw rows into dictionaries and count series
+        anime_row_dicts = []
+        series_counts = {}
+
+        for row in rows[1:]:
+            padded_row = row + [""] * (len(headers) - len(row))
+            row_dict = dict(zip(headers, padded_row))
+            anime_row_dicts.append(row_dict)
+
+            # Track how many times each series_en appears
+            s_en = clean_value(row_dict.get("series_en"))
+            if s_en:
+                series_counts[s_en] = series_counts.get(s_en, 0) + 1
+
+        # 2. Automatically populate the new Anime Series tab!
+        populate_anime_series_tab(spreadsheet, anime_row_dicts)
+
+        # 3. Resume Postgres Database Sync Operations for Main Anime Tab
+        print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
+
+        # --- NEW: Sync Anime Series Tab Data (Ratings) to PostgreSQL ---
+        print("\n--- Syncing Anime Series Tab to PostgreSQL ---")
+        try:
+            series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
+            series_rows = execute_with_retry(series_sheet.get_all_values)
+            if series_rows and len(series_rows) > 1:
+                s_headers = series_rows[0]
+                for s_row in series_rows[1:]:
+                    padded_s_row = s_row + [""] * (len(s_headers) - len(s_row))
+                    s_dict = dict(zip(s_headers, padded_s_row))
+
+                    s_sys_id = s_dict.get("system_id", "").strip()
+                    if not s_sys_id:
+                        continue
+
+                    s_entry_data = {
+                        "system_id": s_sys_id,
+                        "series_en": clean_value(s_dict.get("series_en")),
+                        "series_roman": clean_value(s_dict.get("series_roman")),
+                        "series_cn": clean_value(s_dict.get("series_cn")),
+                        "rating_series": clean_value(s_dict.get("rating_series")),
+                        "alt_name": clean_value(s_dict.get("alt_name")),
+                    }
+
+                    existing_s = (
+                        db.query(AnimeSeries)
+                        .filter(AnimeSeries.system_id == s_sys_id)
+                        .first()
+                    )
+                    if existing_s:
+                        for key, value in s_entry_data.items():
+                            setattr(existing_s, key, value)
+                    else:
+                        new_s = AnimeSeries(**s_entry_data)
+                        db.add(new_s)
+        except Exception as e:
+            print(f"⚠️ Error syncing Anime Series tab to DB: {e}")
+
+        cells_to_update = []
+
         for idx, row_data in enumerate(anime_row_dicts, start=2):
             system_id = row_data.get("system_id", "").strip()
             if not system_id:
@@ -637,6 +744,15 @@ def sync_sheet_to_db(db_session: Session = None):
         if enriched_count > 0:
             print(f"✨ Successfully enriched {enriched_count} anime with MAL Data!")
 
+        # Log successful sync event to DB
+        log_sync_event(
+            db,
+            sync_type=sync_type,
+            status="success",
+            added=added_count,
+            updated=updated_count,
+        )
+
         return {
             "status": "success",
             "rows_updated": added_count + updated_count,
@@ -646,30 +762,13 @@ def sync_sheet_to_db(db_session: Session = None):
     except Exception as e:
         db.rollback()
         print(f"\n❌ Error during sync: {e}")
+        # Log failure sync event to DB
+        log_sync_event(db, sync_type=sync_type, status="failed", error=str(e))
         raise e
     finally:
         if not db_session:
             db.close()
 
 
-def update_episode_progress_in_sheet(system_id: str, ep_fin: int):
-    """Finds a specific system_id in Google Sheets and updates its ep_fin column."""
-    sheet = get_google_sheet("Anime")
-
-    cell = execute_with_retry(sheet.find, system_id)
-    if not cell:
-        raise ValueError(f"system_id {system_id} not found in Google Sheet.")
-
-    headers = execute_with_retry(sheet.row_values, 1)
-    try:
-        # Reverse lookup ensures we update the real column, not a hidden one
-        col_index = len(headers) - headers[::-1].index("ep_fin")
-    except ValueError:
-        raise ValueError("Column 'ep_fin' not found in the header row.")
-
-    execute_with_retry(sheet.update_cell, cell.row, col_index, ep_fin)
-    return True
-
-
 if __name__ == "__main__":
-    sync_sheet_to_db()
+    sync_sheet_to_db(sync_type="manual")
