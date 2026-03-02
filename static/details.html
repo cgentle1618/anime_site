@@ -610,6 +610,14 @@
         document.getElementById("rating-mal").innerHTML =
           `${malScore}${malRank}`;
 
+        // Ensure Extra Info (Class, Type, Season) is injected!
+        document.getElementById("top-airing-type").innerText =
+          anime.airing_type || "-";
+        document.getElementById("top-main-spinoff").innerText =
+          anime.main_spinoff || "-";
+        document.getElementById("top-series-season").innerText =
+          anime.series_season || "-";
+
         // Release Date (Top Section)
         document.getElementById("top-release-date").innerText =
           anime.release_date || "TBA";
