@@ -107,13 +107,7 @@ POSTGRES_PASSWORD=password
 POSTGRES_DB=anime_site_db
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
-DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/anime_site_db
 ```
-
-# Google Sheets CSV Export URLs
-
-SHEET_SERIES_URL="[https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_1](https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_1)"
-SHEET_ANIME_URL="[https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_2](https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_2)"
 
 ### 3. Start the Database
 
@@ -216,7 +210,3 @@ uvicorn main:app --reload
 - Refine Docker configuration for production readiness (using multi-stage builds or optimized images).
 - Configure Google Cloud Platform resources including Cloud SQL for the relational database.
 - Deploy the FastAPI application using Cloud Run or Compute Engine for scalable hosting.
-
-```
-
-```
