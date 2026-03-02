@@ -4,14 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CG1618 Anime Site</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-    <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
       rel="stylesheet"
@@ -35,7 +32,6 @@
       };
     </script>
     <style>
-      /* Custom scrollbar for light mode */
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -50,7 +46,6 @@
         background: #9ca3af;
       }
 
-      /* Smooth transitions */
       .card-hover {
         transition:
           transform 0.2s ease,
@@ -61,7 +56,6 @@
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       }
 
-      /* Hide number input arrows */
       input[type="number"]::-webkit-inner-spin-button,
       input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -73,11 +67,9 @@
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
-    <!-- Top Navigation Bar -->
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <!-- Logo & Links -->
           <div class="flex items-center space-x-8">
             <div
               class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
@@ -105,7 +97,6 @@
             </div>
           </div>
 
-          <!-- Search & Sync -->
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -132,11 +123,8 @@
       </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <!-- SECTION 1: Active Watching -->
       <div id="activeSection" class="mb-12">
-        <!-- STICKY HEADER -->
         <div
           class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
         >
@@ -149,14 +137,10 @@
             >0 Shows</span
           >
         </div>
-        <div id="activeGrid" class="flex flex-col gap-4">
-          <!-- Cards injected via JS -->
-        </div>
+        <div id="activeGrid" class="flex flex-col gap-4"></div>
       </div>
 
-      <!-- SECTION 2: Passive Watching -->
       <div id="passiveSection" class="mb-12">
-        <!-- STICKY HEADER -->
         <div
           class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
         >
@@ -169,14 +153,10 @@
             >0 Shows</span
           >
         </div>
-        <div id="passiveGrid" class="flex flex-col gap-4">
-          <!-- Cards injected via JS -->
-        </div>
+        <div id="passiveGrid" class="flex flex-col gap-4"></div>
       </div>
 
-      <!-- SECTION 3: Paused -->
       <div id="pausedSection" class="mb-12">
-        <!-- STICKY HEADER -->
         <div
           class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
         >
@@ -189,13 +169,10 @@
             >0 Shows</span
           >
         </div>
-        <div id="pausedGrid" class="flex flex-col gap-4">
-          <!-- Cards injected via JS -->
-        </div>
+        <div id="pausedGrid" class="flex flex-col gap-4"></div>
       </div>
     </main>
 
-    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
@@ -204,12 +181,10 @@
       </div>
     </footer>
 
-    <!-- JavaScript Logic -->
     <script>
       const API_BASE_URL = "/api";
       let animeData = [];
 
-      // Definition of Tier Hierarchy
       const tierOrder = {
         S: 1,
         "A+": 2,
@@ -221,14 +196,12 @@
         F: 8,
       };
 
-      // Custom sorting function based on tier
       function sortByTier(a, b) {
         const rankA = tierOrder[a.rating_mine] || 99;
         const rankB = tierOrder[b.rating_mine] || 99;
         return rankA - rankB;
       }
 
-      // 1. Fetch real data from your FastAPI backend
       async function fetchAnime() {
         try {
           const response = await fetch(`${API_BASE_URL}/anime`);
@@ -253,12 +226,9 @@
         }
       }
 
-      // Helper function to generate the HTML for a single Anime Card
       function createCardHTML(anime) {
-        // Default styling for no tier (Light Mode)
         let rankColor = "bg-gray-100 text-gray-600 border-gray-300";
 
-        // Expanded Tier Color Logic for Light Mode
         if (anime.rating_mine === "S")
           rankColor = "bg-yellow-100 text-yellow-700 border border-yellow-300";
         else if (anime.rating_mine === "A+")
@@ -281,23 +251,19 @@
           ? Math.round((anime.ep_fin / anime.ep_total) * 100)
           : 0;
 
-        // Title logic: Use series_season_cn. Do NOT fall back to series_cn.
         let mainTitle = anime.series_season_cn;
         let subTitle = anime.series_season_en || anime.series_en || "";
 
-        // If series_season_cn is not available, use English and hide subtitle.
         if (!mainTitle) {
           mainTitle =
             anime.series_season_en || anime.series_en || "Unknown Title";
           subTitle = "";
         }
 
-        // Format MAL Rating
         const malRatingDisplay = anime.mal_rating
           ? anime.mal_rating.toFixed(2)
           : "N/A";
 
-        // Bahamut Icon Logic
         const bahaStr = String(anime.source_baha || "").toUpperCase();
         const hasBaha =
           bahaStr === "TRUE" || bahaStr === "YES" || bahaStr === "有";
@@ -383,19 +349,16 @@
             `;
       }
 
-      // Helper function to inject cards into a specific section
       function renderSection(filteredData, gridId, countId, sectionId) {
         const grid = document.getElementById(gridId);
         const section = document.getElementById(sectionId);
         grid.innerHTML = ""; // Clear previous
 
-        // DYNAMIC UI: If a section has 0 anime, hide the entire section completely.
         if (filteredData.length === 0) {
           section.style.display = "none";
           return;
         }
 
-        // Otherwise, show the section and render the cards
         section.style.display = "block";
         document.getElementById(countId).innerText =
           `${filteredData.length} Shows`;
@@ -405,7 +368,6 @@
         });
       }
 
-      // 2. Render all the cards into their respective sections
       function renderCards() {
         const active = animeData
           .filter((a) => a.my_progress === "Active Watching")
@@ -417,13 +379,11 @@
           .filter((a) => a.my_progress === "Paused")
           .sort(sortByTier);
 
-        // Passing the wrapper ID (e.g. 'activeSection') so we can hide/show it dynamically
         renderSection(active, "activeGrid", "activeCount", "activeSection");
         renderSection(passive, "passiveGrid", "passiveCount", "passiveSection");
         renderSection(paused, "pausedGrid", "pausedCount", "pausedSection");
       }
 
-      // Logic for the +/- buttons
       function updateProgress(system_id, change) {
         const index = animeData.findIndex((a) => a.system_id === system_id);
         if (index === -1) return;
@@ -431,11 +391,9 @@
         let current = animeData[index].ep_fin || 0;
         let newTotal = current + change;
 
-        // Pass the new calculated value directly to our existing logic!
         setExactProgress(system_id, newTotal);
       }
 
-      // 3. Logic for exact progress input (Sends real PATCH request)
       async function setExactProgress(system_id, newValue) {
         const index = animeData.findIndex((a) => a.system_id === system_id);
         if (index === -1) return;
@@ -445,21 +403,18 @@
 
         let total = animeData[index].ep_total;
 
-        // Prevent going below 0 or above total episode count
         if (parsedValue < 0) parsedValue = 0;
         if (total && parsedValue > total) parsedValue = total;
 
         const current = animeData[index].ep_fin || 0;
         if (parsedValue === current) {
-          renderCards(); // Re-render to clear invalid typing in the UI
+          renderCards();
           return;
         }
 
-        // Optimistically update the UI instantly
         animeData[index].ep_fin = parsedValue;
         renderCards();
 
-        // Send request to backend to update DB and Google Sheets
         try {
           const response = await fetch(
             `${API_BASE_URL}/anime/${system_id}/progress`,
@@ -478,13 +433,11 @@
           alert(
             "Failed to sync progress to database. Please check connection.",
           );
-          // Revert UI if it failed
           animeData[index].ep_fin = current;
           renderCards();
         }
       }
 
-      // 4. Logic for the Sync Button (Sends real POST request)
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
@@ -516,7 +469,6 @@
         }
       }
 
-      // Initialize the app on page load
       document.addEventListener("DOMContentLoaded", () => {
         fetchAnime();
       });
