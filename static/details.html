@@ -137,7 +137,7 @@
           <p id="sub-title" class="text-xl text-gray-500 font-medium"></p>
           <div class="mt-2 text-sm text-brand font-semibold">
             <i class="fas fa-layer-group mr-1"></i> From Series:
-            <span id="series-name"></span>
+            <a id="series-name" class="transition-colors"></a>
           </div>
         </div>
 
@@ -569,9 +569,28 @@
         document.getElementById("sub-title").innerText =
           anime.series_season_en || "";
 
-        // Priority logic for Series Name: series_cn -> series_en -> Standalone
-        document.getElementById("series-name").innerText =
+        // Priority logic for Series Name & Link Generation
+        const seriesNameEl = document.getElementById("series-name");
+        seriesNameEl.innerText =
           anime.series_cn || anime.series_en || "Standalone";
+
+        if (anime.series_id) {
+          seriesNameEl.href = `/series/${anime.series_id}`;
+          seriesNameEl.classList.add(
+            "hover:underline",
+            "hover:text-brand-hover",
+            "cursor-pointer",
+          );
+          seriesNameEl.classList.remove("text-gray-500", "cursor-default");
+        } else {
+          seriesNameEl.removeAttribute("href");
+          seriesNameEl.classList.remove(
+            "hover:underline",
+            "hover:text-brand-hover",
+            "cursor-pointer",
+          );
+          seriesNameEl.classList.add("text-gray-500", "cursor-default");
+        }
 
         // KV & Stats
         document.getElementById("kv-image").src = anime.cover_image_url || "";
