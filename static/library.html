@@ -302,6 +302,88 @@
         return mainTitle;
       }
 
+      // NEW: Logic function to calculate overarching series progress based on all its season entries
+      function calculateSeriesProgress(entries) {
+        if (!entries || entries.length === 0) return [];
+        let statuses = [];
+
+        // 1. Completely Finished (Overrides everything else, so return immediately)
+        const allFinished = entries.every(
+          (e) => e.my_progress === "Completed" || e.my_progress === "Finished",
+        );
+        if (allFinished) return ["Completely Finished"];
+
+        // 2. Finished Main Story (Added first so it renders on the left of other statuses)
+        const mainStoryEntries = entries.filter(
+          (e) => e.main_spinoff === "本傳",
+        );
+        if (mainStoryEntries.length > 0) {
+          const mainFinished = mainStoryEntries.every(
+            (e) =>
+              e.my_progress === "Completed" || e.my_progress === "Finished",
+          );
+          if (mainFinished) statuses.push("Finished Main Story");
+        }
+
+        // 3. Highest Priority: Any active/paused/dropped states
+        const priorityStatuses = [
+          "Active Watching",
+          "Passive Watching",
+          "Paused",
+          "Temp Dropped",
+          "Dropped",
+        ];
+        let foundPriority = false;
+        for (let status of priorityStatuses) {
+          if (entries.some((e) => e.my_progress === status)) {
+            statuses.push(status);
+            foundPriority = true;
+            break;
+          }
+        }
+
+        // 4. Other States (If no active/paused/dropped state was found)
+        if (!foundPriority) {
+          // Waiting for New Release
+          const allFinishedOrNotAired = entries.every(
+            (e) =>
+              e.my_progress === "Completed" ||
+              e.my_progress === "Finished" ||
+              e.airing_status === "Not Yet Aired" ||
+              e.my_progress === "Watch When Airs" ||
+              e.my_progress === "Not Yet Aired",
+          );
+          if (
+            allFinishedOrNotAired &&
+            entries.some(
+              (e) =>
+                e.airing_status === "Not Yet Aired" ||
+                e.my_progress === "Watch When Airs" ||
+                e.my_progress === "Not Yet Aired",
+            )
+          ) {
+            statuses.push("Waiting for New Release");
+          } else {
+            // Finished (Exclude Won't Watch)
+            const allFinishedOrWontWatch = entries.every(
+              (e) =>
+                e.my_progress === "Completed" ||
+                e.my_progress === "Finished" ||
+                e.my_progress === "Won't Watch",
+            );
+            if (
+              allFinishedOrWontWatch &&
+              entries.some((e) => e.my_progress === "Won't Watch")
+            ) {
+              statuses.push("Finished");
+            }
+          }
+        }
+
+        // Note: "Plan to Watch" is intentionally omitted to remain hidden.
+        return statuses;
+      }
+
       // Render Table Rows (Grouped by series_en)
       function renderTable() {
         const tbody = document.getElementById("libraryTableBody");
@@ -351,6 +433,9 @@
         seriesNames.forEach((seriesName) => {
           const meta = seriesMetadata[seriesName] || {};
 
+          // MOVE THIS UP: Get entries before checking isCollapsed so we can calculate the progress badge!
+          const animesInSeries = groupedData[seriesName];
+
           const isCollapsed = collapsedSeries.has(seriesName);
           const chevronClass = isCollapsed
             ? "fa-chevron-right text-gray-400"
@@ -376,12 +461,47 @@
             )
               colorClass = "bg-gray-200 text-gray-600 border-gray-300";
 
-            seriesRatingBadge = `<span class="ml-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider ${colorClass}">Overall: ${meta.rating_series}</span>`;
+            seriesRatingBadge = `<span class="ml-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider shrink-0 ${colorClass}">Overall: ${meta.rating_series}</span>`;
           }
+
+          // Format the Series Progress Badge(s)
+          const seriesStatuses = calculateSeriesProgress(animesInSeries);
+          let progressBadgesHtml = "";
+
+          seriesStatuses.forEach((seriesProgress) => {
+            let progressColorClass =
+              "bg-gray-100 text-gray-600 border-gray-300";
+            if (seriesProgress === "Active Watching")
+              progressColorClass =
+                "bg-green-100 text-green-700 border-green-300";
+            else if (seriesProgress === "Passive Watching")
+              progressColorClass = "bg-blue-100 text-blue-700 border-blue-300";
+            else if (seriesProgress === "Paused")
+              progressColorClass =
+                "bg-orange-100 text-orange-700 border-orange-300";
+            else if (
+              seriesProgress === "Temp Dropped" ||
+              seriesProgress === "Dropped"
+            )
+              progressColorClass = "bg-red-100 text-red-700 border-red-300";
+            else if (seriesProgress === "Completely Finished")
+              progressColorClass =
+                "bg-purple-100 text-purple-700 border-purple-300";
+            else if (seriesProgress === "Waiting for New Release")
+              progressColorClass = "bg-teal-100 text-teal-700 border-teal-300";
+            else if (seriesProgress === "Finished Main Story")
+              progressColorClass =
+                "bg-indigo-100 text-indigo-700 border-indigo-300";
+            else if (seriesProgress === "Finished")
+              progressColorClass =
+                "bg-purple-50 text-purple-600 border-purple-200";
+
+            progressBadgesHtml += `<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider shrink-0 ${progressColorClass}">${seriesProgress}</span>`;
+          });
 
           const goToSeriesBtn = meta.system_id
             ? `
-            <button onclick="goToSeries(event, '${meta.system_id}')" class="ml-4 bg-white border border-gray-200 hover:border-brand text-gray-600 hover:text-brand px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center hover:bg-brand/5" title="Open Series Hub">
+            <button onclick="goToSeries(event, '${meta.system_id}')" class="ml-4 bg-white border border-gray-200 hover:border-brand text-gray-600 hover:text-brand px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center hover:bg-brand/5 shrink-0" title="Open Series Hub">
                 Go to Series <i class="fas fa-external-link-alt ml-1.5 opacity-70"></i>
             </button>
           `
@@ -392,17 +512,19 @@
             "cursor-pointer hover:bg-gray-100 transition group";
           headerTr.onclick = () => toggleSeries(seriesName);
 
-          // STRUCTURE FIX 4: Sticky top-[41px] keeps it beautifully glued under the main table header
+          // UPDATED: Rating & Progress moved to the left container, Go To Series remains on the right
           headerTr.innerHTML = `
               <td colspan="14" class="px-4 py-3 text-sm font-bold text-gray-900 sticky top-[41px] z-30 bg-gray-100/95 backdrop-blur-md shadow-[0_1px_0_0_#e5e7eb] border-b border-gray-200">
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <i class="fas ${chevronClass} w-4 mr-2 transition-transform"></i>
+                  <div class="flex items-center flex-wrap gap-y-1">
+                    <i class="fas ${chevronClass} w-4 mr-1 transition-transform"></i>
                     <i class="fas fa-layer-group text-brand mr-2"></i>
-                    ${meta.series_cn || seriesName} <span class="text-gray-400 font-normal ml-2 text-xs">${seriesName !== "Other" ? seriesName : ""}</span>
+                    <span class="truncate max-w-[300px] xl:max-w-[400px]">${meta.series_cn || seriesName}</span>
+                    <span class="text-gray-400 font-normal ml-2 mr-2 text-xs truncate max-w-[200px]">${seriesName !== "Other" ? seriesName : ""}</span>
+                    ${seriesRatingBadge}
+                    ${progressBadgesHtml}
                   </div>
                   <div class="flex items-center">
-                    ${seriesRatingBadge}
                     ${goToSeriesBtn}
                   </div>
                 </div>
@@ -413,7 +535,6 @@
           if (isCollapsed) return;
 
           // 4. Sort Items inside the group
-          const animesInSeries = groupedData[seriesName];
           animesInSeries.sort((a, b) => {
             let valA = a.series_season_en || a.series_en || "";
             let valB = b.series_season_en || b.series_en || "";
