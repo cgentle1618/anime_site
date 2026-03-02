@@ -129,7 +129,7 @@
         <button
           onclick="toggleAll()"
           id="toggleAllBtn"
-          class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md text-sm font-medium transition shadow-sm flex items-center"
+          class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md text-sm font-medium transition shadow-sm flex items-center w-36 justify-center"
         >
           <i class="fas fa-compress-arrows-alt mr-2"></i> Collapse All
         </button>
@@ -139,11 +139,10 @@
       <div
         class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col min-h-0"
       >
-        <div class="overflow-auto flex-1 relative">
+        <div id="tableContainer" class="overflow-auto flex-1 relative">
           <table class="w-full text-sm text-left whitespace-nowrap">
             <thead class="text-xs text-gray-600 uppercase">
               <tr>
-                <!-- Sticky applied directly to <th> elements to guarantee it works -->
                 <th
                   scope="col"
                   class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
@@ -242,6 +241,15 @@
       </div>
     </main>
 
+    <!-- Scroll to Top Button -->
+    <button
+      id="scrollToTopBtn"
+      onclick="scrollToTop()"
+      class="fixed bottom-6 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    >
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
     <script>
       const API_BASE_URL = "/api";
       let originalData = [];
@@ -249,7 +257,7 @@
       let sortCol = "";
       let sortAsc = true;
 
-      // NEW: State variables to track collapsed series and ratings
+      // State variables to track collapsed series
       let collapsedSeries = new Set();
       let isAllCollapsed = false;
       let seriesMetadata = {};
@@ -257,7 +265,6 @@
       // Fetch data on load
       async function fetchLibrary() {
         try {
-          // Fetch both anime entries and series metadata concurrently
           const [animeRes, seriesRes] = await Promise.all([
             fetch(`${API_BASE_URL}/anime`),
             fetch(`${API_BASE_URL}/series`),
@@ -265,7 +272,6 @@
 
           originalData = await animeRes.json();
 
-          // Map series metadata for quick lookup
           const seriesData = await seriesRes.json();
           seriesData.forEach((s) => {
             if (s.series_en) seriesMetadata[s.series_en] = s;
@@ -278,7 +284,6 @@
         }
       }
 
-      // Get robust main title
       function getDisplayTitle(anime) {
         let mainTitle = anime.series_season_cn;
         if (!mainTitle) {
@@ -296,7 +301,6 @@
         // 1. Group Data by series_en
         const groupedData = {};
         displayData.forEach((anime) => {
-          // Group by series_en, or label as standalone
           const seriesName = anime.series_en || "Standalone / Other";
           if (!groupedData[seriesName]) {
             groupedData[seriesName] = [];
@@ -315,7 +319,6 @@
           let valA = a;
           let valB = b;
 
-          // Sort the overarching Series logic based on the selected column
           if (sortCol === "rating_mine") {
             valA = metaA.rating_series || "";
             valB = metaB.rating_series || "";
@@ -356,7 +359,6 @@
             seriesRatingBadge = `<span class="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded border ${sRatingColor} font-bold ml-3 shadow-sm">Overall: ${sRating}</span>`;
           }
 
-          // Format Series Title display (Chinese Name Left, English Name Right, Alt Name End)
           const cnName = meta.series_cn || "";
           const enName = seriesName !== "Standalone / Other" ? seriesName : "";
           const altName = meta.alt_name || "";
@@ -372,12 +374,11 @@
             titleDisplay = `<span class="text-gray-900">Standalone / Other</span>`;
           }
 
-          // Use ml-auto to push the Alt Name beautifully to the right edge
           let altNameDisplay = altName
             ? `<span class="text-xs text-gray-400 font-normal ml-auto italic pr-4 pl-4">${altName}</span>`
             : "";
 
-          // Render Group Header Row (Now Clickable)
+          // Render Group Header Row
           const headerTr = document.createElement("tr");
           headerTr.className =
             "bg-gray-100/80 border-y border-gray-200 cursor-pointer hover:bg-gray-200/80 transition-colors";
@@ -395,10 +396,9 @@
                 `;
           tbody.appendChild(headerTr);
 
-          // If this series is collapsed, skip rendering its children!
           if (isCollapsed) return;
 
-          // 4. Sort Items inside the group (Always chronological by season)
+          // 4. Sort Items inside the group
           const animesInSeries = groupedData[seriesName];
           animesInSeries.sort((a, b) => {
             let valA = a.series_season_en || a.series_en || "";
@@ -414,11 +414,9 @@
             const title = getDisplayTitle(anime);
             const rating = anime.rating_mine || "-";
             const status = anime.my_progress || "-";
-
             const epFin = anime.ep_fin || 0;
             const epTotal = anime.ep_total || "?";
 
-            // Create a clickable, editable number input for episodes
             const epsInput = `
                         <div class="flex items-center">
                             <input type="number" value="${epFin}" min="0" ${anime.ep_total ? `max="${anime.ep_total}"` : ""}
@@ -443,7 +441,7 @@
               statusColor = "text-blue-700 bg-blue-100";
             if (status === "Paused")
               statusColor = "text-orange-700 bg-orange-100";
-            if (status === "Completed")
+            if (status === "Completed" || status === "Finished")
               statusColor = "text-purple-700 bg-purple-100";
 
             let ratingColor = "text-gray-600";
@@ -454,9 +452,11 @@
 
             const tr = document.createElement("tr");
             tr.className = "hover:bg-gray-50 transition-colors";
+
+            // Updated line: Added <a> tag surrounding the title!
             tr.innerHTML = `
                         <td class="px-4 py-3 pl-10 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">
-                            ${title}
+                            <a href="/anime/${anime.system_id}" class="hover:text-brand hover:underline transition-colors block w-full truncate">${title}</a>
                         </td>
                         <td class="px-4 py-3 text-gray-600 font-medium whitespace-nowrap">${anime.series_season || "-"}</td>
                         <td class="px-4 py-3 ${ratingColor}">${rating}</td>
@@ -479,7 +479,7 @@
         });
       }
 
-      // NEW: Toggle a single series
+      // Toggle a single series
       function toggleSeries(seriesName) {
         if (collapsedSeries.has(seriesName)) {
           collapsedSeries.delete(seriesName); // Expand
@@ -489,16 +489,41 @@
         renderTable();
       }
 
-      // NEW: Send updated episode count directly to backend
+      // NEW: Implementing the completely missing toggleAll function
+      function toggleAll() {
+        const btn = document.getElementById("toggleAllBtn");
+
+        // Find all unique series names currently rendered in displayData
+        const uniqueSeries = new Set();
+        displayData.forEach((anime) => {
+          uniqueSeries.add(anime.series_en || "Standalone / Other");
+        });
+
+        isAllCollapsed = !isAllCollapsed;
+
+        if (isAllCollapsed) {
+          // Add every single series name to the collapsed set
+          uniqueSeries.forEach((s) => collapsedSeries.add(s));
+          btn.innerHTML =
+            '<i class="fas fa-expand-arrows-alt mr-2"></i> Expand All';
+        } else {
+          // Clear the collapsed set to expand everything
+          collapsedSeries.clear();
+          btn.innerHTML =
+            '<i class="fas fa-compress-arrows-alt mr-2"></i> Collapse All';
+        }
+
+        renderTable();
+      }
+
       async function updateEpisode(systemId, newValue, oldValue) {
         const parsedValue = parseInt(newValue, 10);
         if (isNaN(parsedValue) || parsedValue < 0) {
           alert("Invalid episode number.");
-          renderTable(); // Revert to old value
+          renderTable();
           return;
         }
 
-        // Optimistically update the UI arrays
         const displayIndex = displayData.findIndex(
           (a) => a.system_id === systemId,
         );
@@ -510,7 +535,6 @@
         if (origIndex !== -1) originalData[origIndex].ep_fin = parsedValue;
 
         try {
-          // Same endpoint used by the Dashboard's +/- buttons
           const response = await fetch(
             `${API_BASE_URL}/anime/${systemId}/progress`,
             {
@@ -525,25 +549,22 @@
           console.error("Error updating progress:", error);
           alert("Failed to sync progress to database. Check your connection.");
 
-          // Revert on failure
           if (displayIndex !== -1) displayData[displayIndex].ep_fin = oldValue;
           if (origIndex !== -1) originalData[origIndex].ep_fin = oldValue;
           renderTable();
         }
       }
 
-      // Handle Sorting (State update only)
       function handleSort(column) {
         if (sortCol === column) {
-          sortAsc = !sortAsc; // Toggle direction
+          sortAsc = !sortAsc;
         } else {
           sortCol = column;
-          sortAsc = true; // Default to ascending
+          sortAsc = true;
         }
         renderTable();
       }
 
-      // Handle Search Bar
       document.getElementById("searchInput").addEventListener("input", (e) => {
         const query = e.target.value.toLowerCase();
         displayData = originalData.filter((anime) => {
@@ -562,12 +583,10 @@
             (anime.studio && anime.studio.toLowerCase().includes(query))
           );
         });
-        // Re-apply sort to filtered data
         if (sortCol) handleSort(sortCol);
         else renderTable();
       });
 
-      // Handle Sync Button
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
@@ -578,14 +597,12 @@
         btn.prepend(icon);
 
         try {
-          // Keep the exact same API route for the sync endpoint
           const response = await fetch(`${API_BASE_URL}/sync`, {
             method: "POST",
           });
           const result = await response.json();
 
           if (response.ok) {
-            // Refresh the library table data!
             await fetchLibrary();
           } else {
             alert(`Sync Error: ${result.detail}`);
@@ -598,6 +615,54 @@
           btn.classList.remove("opacity-75");
           btn.innerText = " Sync Sheets";
           btn.prepend(icon);
+        }
+      }
+
+      // Scroll to Top Logic for Library (Handles both container and window scroll)
+      const tableContainer = document.getElementById("tableContainer");
+
+      function handleScroll() {
+        const btn = document.getElementById("scrollToTopBtn");
+        // Check both window and tableContainer scroll positions to guarantee it triggers
+        const scrollPos = Math.max(
+          window.scrollY,
+          tableContainer ? tableContainer.scrollTop : 0,
+        );
+
+        if (scrollPos > 300) {
+          btn.classList.remove(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        } else {
+          btn.classList.add(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        }
+      }
+
+      window.addEventListener("scroll", handleScroll);
+      if (tableContainer) {
+        tableContainer.addEventListener("scroll", handleScroll);
+      }
+
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (tableContainer) {
+          tableContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
       }
 
