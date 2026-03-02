@@ -68,7 +68,6 @@
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <!-- Logo & Links -->
           <div class="flex items-center space-x-8">
             <a
               href="/"
@@ -96,8 +95,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Search & Sync -->
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -168,6 +165,16 @@
                   <i class="fas fa-tags mr-1.5 text-gray-400"></i>
                   <span id="series-alt"></span>
                 </span>
+                <span
+                  id="series-genres-container"
+                  class="hidden bg-brand/5 px-2.5 py-1.5 rounded-lg border border-brand/20 text-brand shadow-sm items-center max-w-full"
+                >
+                  <i class="fas fa-shapes mr-1.5 opacity-70"></i>
+                  <span
+                    id="series-genres"
+                    class="truncate font-semibold tracking-wide"
+                  ></span>
+                </span>
               </div>
             </div>
 
@@ -198,21 +205,10 @@
           </div>
         </div>
 
-        <!-- Anime Entries List -->
+        <!-- Anime Entries Sections -->
         <div>
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">
-              <i class="fas fa-film text-brand mr-2"></i> Franchise Entries
-            </h2>
-            <span
-              id="entriesCount"
-              class="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm font-medium"
-              >0 Shows</span
-            >
-          </div>
-
-          <div id="seriesGrid" class="flex flex-col gap-4">
-            <!-- Cards Injected via JS -->
+          <div id="seriesGrid" class="flex flex-col gap-6">
+            <!-- Sections Injected via JS -->
           </div>
         </div>
       </div>
@@ -227,12 +223,11 @@
       <i class="fas fa-arrow-up"></i>
     </button>
 
-    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
       >
-        &copy; 2026 CG1618 Anime Database. Version 1.0
+        &copy; 2026 CG1618 Anime Database. Version 0.0
       </div>
     </footer>
 
@@ -245,14 +240,12 @@
 
       async function fetchSeriesDetails() {
         try {
-          // 1. Fetch Series Metadata using the system_id
           const seriesRes = await fetch(
             `${API_BASE_URL}/series/details/${systemId}`,
           );
           if (!seriesRes.ok) throw new Error("Failed to load series metadata");
           seriesData = await seriesRes.json();
 
-          // 2. Fetch all individual anime entries belonging to this franchise (using series_en)
           if (seriesData.series_en) {
             const animeRes = await fetch(
               `${API_BASE_URL}/series/${encodeURIComponent(seriesData.series_en)}`,
@@ -295,33 +288,119 @@
         document.getElementById("series-rating").value =
           seriesData.rating_series || "null";
 
-        // Sort anime chronologically by release date, falling back to season title parsing
-        animeData.sort((a, b) => {
-          let valA = a.release_date || "9999";
-          let valB = b.release_date || "9999";
-          if (valA !== valB) return valA.localeCompare(valB);
-
-          let titleA = a.series_season_en || a.series_season_cn || "";
-          let titleB = b.series_season_en || b.series_season_cn || "";
-          return titleA.localeCompare(titleB, undefined, { numeric: true });
+        // Extract and display all unique genres from the franchise's entries
+        const genres = new Set();
+        animeData.forEach((anime) => {
+          if (anime.genre_main && anime.genre_main.trim() !== "")
+            genres.add(anime.genre_main.trim());
+          if (anime.genre_sub && anime.genre_sub.trim() !== "")
+            genres.add(anime.genre_sub.trim());
         });
 
-        document.getElementById("entriesCount").innerText =
-          `${animeData.length} Shows`;
+        const genreArray = Array.from(genres);
+        const genreContainer = document.getElementById(
+          "series-genres-container",
+        );
+
+        if (genreArray.length > 0) {
+          document.getElementById("series-genres").innerText =
+            genreArray.join(" / ");
+          genreContainer.classList.remove("hidden");
+          genreContainer.classList.add("flex");
+        } else {
+          genreContainer.classList.add("hidden");
+          genreContainer.classList.remove("flex");
+        }
 
         const grid = document.getElementById("seriesGrid");
         grid.innerHTML = "";
 
         if (animeData.length === 0) {
           grid.innerHTML = `<p class="text-gray-500 italic text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">No specific seasons found for this franchise.</p>`;
-        } else {
-          animeData.forEach((anime) => {
-            grid.innerHTML += createCardHTML(anime);
-          });
+          return;
         }
+
+        // 1. Group Data into Categories by airing_type (and Not Yet Aired status)
+        const groups = {
+          "Not Yet Aired": [],
+          TV: [],
+          ONA: [],
+          Movie: [],
+          Special: [],
+          OVA: [],
+          OAD: [],
+          Other: [],
+        };
+
+        animeData.forEach((anime) => {
+          if (anime.airing_status === "Not Yet Aired") {
+            groups["Not Yet Aired"].push(anime);
+          } else {
+            const type = anime.airing_type || "Other";
+            if (groups[type] !== undefined) {
+              groups[type].push(anime);
+            } else {
+              groups["Other"].push(anime);
+            }
+          }
+        });
+
+        // 2. Define Sorting Algorithm (Sort by Release Date for everything)
+        const sortByReleaseDate = (a, b) => {
+          let valA = a.release_date || "9999";
+          let valB = b.release_date || "9999";
+          if (valA !== valB) return valA.localeCompare(valB);
+
+          // Tie breaker: season title
+          let titleA = a.series_season_en || a.series_season_cn || "";
+          let titleB = b.series_season_en || b.series_season_cn || "";
+          return titleA.localeCompare(titleB, undefined, { numeric: true });
+        };
+
+        // 3. Sort Each Group uniformly by release date
+        groups["Not Yet Aired"].sort(sortByReleaseDate);
+        groups["TV"].sort(sortByReleaseDate);
+        groups["ONA"].sort(sortByReleaseDate);
+        groups["Movie"].sort(sortByReleaseDate);
+        groups["Special"].sort(sortByReleaseDate);
+        groups["OVA"].sort(sortByReleaseDate);
+        groups["OAD"].sort(sortByReleaseDate);
+        groups["Other"].sort(sortByReleaseDate);
+
+        // 4. Render Sections (Order is strictly defined here)
+        const renderSection = (title, entries, icon) => {
+          if (entries.length === 0) return;
+
+          let html = `
+                <div class="mb-6 last:mb-0">
+                    <div class="flex items-center mb-4 border-b border-gray-200 pb-2">
+                        <h3 class="text-lg font-bold text-gray-800 uppercase tracking-wide"><i class="fas ${icon} text-brand mr-2 w-6 text-center"></i> ${title}</h3>
+                        <span class="ml-3 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-bold border border-gray-200">${entries.length}</span>
+                    </div>
+                    <div class="flex flex-col gap-3">
+            `;
+          entries.forEach((anime) => {
+            html += createCardHTML(anime);
+          });
+          html += `</div></div>`;
+          grid.innerHTML += html;
+        };
+
+        // Render in exact order required
+        renderSection(
+          "Not Yet Aired",
+          groups["Not Yet Aired"],
+          "fa-calendar-plus",
+        );
+        renderSection("TV", groups["TV"], "fa-tv");
+        renderSection("ONA", groups["ONA"], "fa-globe");
+        renderSection("Movie", groups["Movie"], "fa-film");
+        renderSection("Special", groups["Special"], "fa-star");
+        renderSection("OVA", groups["OVA"], "fa-compact-disc");
+        renderSection("OAD", groups["OAD"], "fa-compact-disc");
+        renderSection("Other", groups["Other"], "fa-question-circle");
       }
 
-      // Reused robust card logic from the Dashboard
       function createCardHTML(anime) {
         let rankColor = "bg-gray-100 text-gray-600 border-gray-300";
 
@@ -365,6 +444,32 @@
           ? `<span class="bg-[#00B4D8] text-white px-1.5 py-0.5 rounded border border-[#0096C7] flex items-center shadow-sm text-[10px] font-bold whitespace-nowrap" title="巴哈姆特動畫瘋"><i class="fas fa-play-circle mr-1"></i>動畫瘋</span>`
           : "";
 
+        // Map colors for "my_progress"
+        const progressStatus = anime.my_progress || "Plan to Watch";
+        let progressColor = "text-gray-700 bg-gray-100 border-gray-300";
+        if (progressStatus === "Active Watching")
+          progressColor = "text-green-700 bg-green-100 border-green-300";
+        else if (progressStatus === "Passive Watching")
+          progressColor = "text-blue-700 bg-blue-100 border-blue-300";
+        else if (progressStatus === "Paused")
+          progressColor = "text-orange-700 bg-orange-100 border-orange-300";
+        else if (
+          progressStatus === "Completed" ||
+          progressStatus === "Finished"
+        )
+          progressColor = "text-purple-700 bg-purple-100 border-purple-300";
+        else if (
+          progressStatus === "Dropped" ||
+          progressStatus === "Temp Dropped" ||
+          progressStatus === "Won't Watch"
+        )
+          progressColor = "text-red-700 bg-red-100 border-red-300";
+        else if (
+          progressStatus === "Might Watch" ||
+          progressStatus === "Watch When Airs"
+        )
+          progressColor = "text-teal-700 bg-teal-100 border-teal-300";
+
         return `
                 <div class="bg-white rounded-xl overflow-hidden border border-gray-200 flex flex-col sm:flex-row card-hover shadow-sm" onclick="window.location.href='/anime/${anime.system_id}'">
                     <div class="h-24 sm:h-auto sm:w-24 relative bg-gray-100 shrink-0 border-r border-gray-200 flex justify-center items-center">
@@ -374,7 +479,10 @@
                         <div class="flex-1 min-w-0 w-full">
                             <h2 class="text-base font-bold text-gray-900 line-clamp-1 mb-0.5" title="${mainTitle}">${mainTitle}</h2>
                             <h3 class="text-xs text-gray-500 line-clamp-1 mb-1.5 font-medium" title="${subTitle}">${subTitle}</h3>
-                            <div class="flex items-center gap-2 mb-1.5">
+                            <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                                <span class="px-2 py-0.5 rounded shadow-sm text-xs font-bold whitespace-nowrap border ${progressColor}">
+                                    ${progressStatus}
+                                </span>
                                 <span class="${rankColor} px-1.5 py-0.5 rounded shadow-sm text-[10px] font-bold whitespace-nowrap">
                                     Rating: ${anime.rating_mine || "-"}
                                 </span>
@@ -382,7 +490,13 @@
                                     <i class="fas fa-star text-yellow-400 mr-1 text-[8px]"></i> MAL: ${malRatingDisplay}
                                 </span>
                             </div>
-                            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-600 mt-2">
+                                <span class="bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200 flex items-center shadow-sm text-[10px] whitespace-nowrap font-semibold">
+                                    ${anime.main_spinoff || "-"}
+                                </span>
+                                <span class="bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200 flex items-center shadow-sm text-[10px] whitespace-nowrap font-semibold">
+                                    ${anime.airing_type || "-"}
+                                </span>
                                 <span class="text-[10px] ${anime.airing_status === "Currently Airing" ? "text-green-700 bg-green-100 border-green-200" : "text-blue-700 bg-blue-100 border-blue-200"} px-1.5 py-0.5 rounded border shadow-sm whitespace-nowrap">
                                     ${anime.airing_status || "-"}
                                 </span>
@@ -424,7 +538,6 @@
             `;
       }
 
-      // Logic to update episode progress directly from the Series Hub
       function updateProgress(sys_id, change) {
         const index = animeData.findIndex((a) => a.system_id === sys_id);
         if (index === -1) return;
@@ -469,7 +582,6 @@
         }
       }
 
-      // Syncs the overall series rating back to the DB and Google Sheet
       async function syncSeriesRating(val) {
         const payloadVal = val === "null" ? "null" : val;
         try {
@@ -489,7 +601,6 @@
         }
       }
 
-      // Reused Global Sync function
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
@@ -518,7 +629,6 @@
         }
       }
 
-      // Scroll to Top Logic
       window.addEventListener("scroll", () => {
         const btn = document.getElementById("scrollToTopBtn");
         if (window.scrollY > 300) {
@@ -550,7 +660,6 @@
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
-      // Init
       document.addEventListener("DOMContentLoaded", fetchSeriesDetails);
     </script>
   </body>
