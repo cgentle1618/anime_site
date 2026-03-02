@@ -4,18 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CG1618 Anime Site</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+    <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <script>
       tailwind.config = {
-        darkMode: "class", // Kept for future system theme support
+        darkMode: "class",
         theme: {
           extend: {
             fontFamily: {
@@ -32,6 +35,7 @@
       };
     </script>
     <style>
+      /* Custom scrollbar for light mode */
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -46,16 +50,19 @@
         background: #9ca3af;
       }
 
+      /* Smooth transitions */
       .card-hover {
         transition:
           transform 0.2s ease,
           box-shadow 0.2s ease;
+        cursor: pointer;
       }
       .card-hover:hover {
         transform: translateY(-4px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       }
 
+      /* Hide number input arrows */
       input[type="number"]::-webkit-inner-spin-button,
       input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -67,9 +74,11 @@
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+    <!-- Top Navigation Bar -->
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
+          <!-- Logo & Links -->
           <div class="flex items-center space-x-8">
             <div
               class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
@@ -85,18 +94,19 @@
                 >
                 <a
                   href="/library"
-                  class="text-gray-300 hover:text-white hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Library</a
                 >
                 <a
                   href="/admin"
-                  class="text-gray-300 hover:text-white hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Admin</a
                 >
               </div>
             </div>
           </div>
 
+          <!-- Search & Sync -->
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -123,8 +133,11 @@
       </div>
     </nav>
 
+    <!-- Main Content -->
     <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <!-- SECTION 1: Active Watching -->
       <div id="activeSection" class="mb-12">
+        <!-- STICKY HEADER -->
         <div
           class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
         >
@@ -137,10 +150,14 @@
             >0 Shows</span
           >
         </div>
-        <div id="activeGrid" class="flex flex-col gap-4"></div>
+        <div id="activeGrid" class="flex flex-col gap-4">
+          <!-- Cards injected via JS -->
+        </div>
       </div>
 
+      <!-- SECTION 2: Passive Watching -->
       <div id="passiveSection" class="mb-12">
+        <!-- STICKY HEADER -->
         <div
           class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
         >
@@ -153,10 +170,14 @@
             >0 Shows</span
           >
         </div>
-        <div id="passiveGrid" class="flex flex-col gap-4"></div>
+        <div id="passiveGrid" class="flex flex-col gap-4">
+          <!-- Cards injected via JS -->
+        </div>
       </div>
 
+      <!-- SECTION 3: Paused -->
       <div id="pausedSection" class="mb-12">
+        <!-- STICKY HEADER -->
         <div
           class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
         >
@@ -169,10 +190,22 @@
             >0 Shows</span
           >
         </div>
-        <div id="pausedGrid" class="flex flex-col gap-4"></div>
+        <div id="pausedGrid" class="flex flex-col gap-4">
+          <!-- Cards injected via JS -->
+        </div>
       </div>
     </main>
 
+    <!-- Scroll to Top Button -->
+    <button
+      id="scrollToTopBtn"
+      onclick="scrollToTop()"
+      class="fixed bottom-6 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    >
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
@@ -181,10 +214,12 @@
       </div>
     </footer>
 
+    <!-- JavaScript Logic -->
     <script>
       const API_BASE_URL = "/api";
       let animeData = [];
 
+      // Definition of Tier Hierarchy
       const tierOrder = {
         S: 1,
         "A+": 2,
@@ -196,12 +231,14 @@
         F: 8,
       };
 
+      // Custom sorting function based on tier
       function sortByTier(a, b) {
         const rankA = tierOrder[a.rating_mine] || 99;
         const rankB = tierOrder[b.rating_mine] || 99;
         return rankA - rankB;
       }
 
+      // 1. Fetch real data from your FastAPI backend
       async function fetchAnime() {
         try {
           const response = await fetch(`${API_BASE_URL}/anime`);
@@ -226,9 +263,12 @@
         }
       }
 
+      // Helper function to generate the HTML for a single Anime Card
       function createCardHTML(anime) {
+        // Default styling for no tier (Light Mode)
         let rankColor = "bg-gray-100 text-gray-600 border-gray-300";
 
+        // Tier Color Logic
         if (anime.rating_mine === "S")
           rankColor = "bg-yellow-100 text-yellow-700 border border-yellow-300";
         else if (anime.rating_mine === "A+")
@@ -239,18 +279,13 @@
           rankColor = "bg-blue-100 text-blue-700 border border-blue-300";
         else if (anime.rating_mine === "C")
           rankColor = "bg-green-100 text-green-700 border border-green-300";
-        else if (anime.rating_mine === "D")
-          rankColor = "bg-teal-100 text-teal-700 border border-teal-300";
-        else if (anime.rating_mine === "E")
-          rankColor = "bg-purple-100 text-purple-700 border border-purple-300";
-        else if (anime.rating_mine === "F")
-          rankColor = "bg-gray-200 text-gray-700 border border-gray-300";
 
         const totalEps = anime.ep_total ? anime.ep_total : "?";
         const progressPercent = anime.ep_total
           ? Math.round((anime.ep_fin / anime.ep_total) * 100)
           : 0;
 
+        // Title logic: Use series_season_cn
         let mainTitle = anime.series_season_cn;
         let subTitle = anime.series_season_en || anime.series_en || "";
 
@@ -260,10 +295,12 @@
           subTitle = "";
         }
 
+        // Format MAL Rating
         const malRatingDisplay = anime.mal_rating
           ? anime.mal_rating.toFixed(2)
           : "N/A";
 
+        // Bahamut Icon Logic
         const bahaStr = String(anime.source_baha || "").toUpperCase();
         const hasBaha =
           bahaStr === "TRUE" || bahaStr === "YES" || bahaStr === "有";
@@ -272,10 +309,10 @@
           : "";
 
         return `
-                <div class="bg-white rounded-xl overflow-hidden border border-gray-200 flex flex-col sm:flex-row card-hover shadow-sm">
+                <div class="bg-white rounded-xl overflow-hidden border border-gray-200 flex flex-col sm:flex-row card-hover shadow-sm" onclick="window.location.href='/anime/${anime.system_id}'">
                     <!-- Key Visual Image -->
                     <div class="h-24 sm:h-auto sm:w-24 relative bg-gray-100 shrink-0 border-r border-gray-200 flex justify-center items-center">
-                        <img src="${anime.cover_image_url || ""}" alt="${mainTitle}" class="w-full h-full object-contain" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100%\\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'10\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'">
+                        <img src="${anime.cover_image_url || ""}" alt="${mainTitle}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/100x150?text=No+Image'">
                     </div>
 
                     <!-- Row Content -->
@@ -314,7 +351,7 @@
                         </div>
 
                         <!-- Right Tracker Component -->
-                        <div class="w-full sm:w-56 bg-gray-50 p-2 rounded-xl border border-gray-200 shrink-0">
+                        <div class="w-full sm:w-56 bg-gray-50 p-2 rounded-xl border border-gray-200 shrink-0" onclick="event.stopPropagation()">
                             <div class="text-[10px] text-gray-500 mb-1 flex justify-between items-center">
                                 <span>Episodes Watched</span>
                                 <span class="font-bold text-gray-900">${progressPercent}%</span>
@@ -352,7 +389,7 @@
       function renderSection(filteredData, gridId, countId, sectionId) {
         const grid = document.getElementById(gridId);
         const section = document.getElementById(sectionId);
-        grid.innerHTML = ""; // Clear previous
+        grid.innerHTML = "";
 
         if (filteredData.length === 0) {
           section.style.display = "none";
@@ -387,11 +424,8 @@
       function updateProgress(system_id, change) {
         const index = animeData.findIndex((a) => a.system_id === system_id);
         if (index === -1) return;
-
         let current = animeData[index].ep_fin || 0;
-        let newTotal = current + change;
-
-        setExactProgress(system_id, newTotal);
+        setExactProgress(system_id, current + change);
       }
 
       async function setExactProgress(system_id, newValue) {
@@ -402,7 +436,6 @@
         if (isNaN(parsedValue)) parsedValue = 0;
 
         let total = animeData[index].ep_total;
-
         if (parsedValue < 0) parsedValue = 0;
         if (total && parsedValue > total) parsedValue = total;
 
@@ -424,15 +457,9 @@
               body: JSON.stringify({ ep_fin: parsedValue }),
             },
           );
-
-          if (!response.ok) {
-            throw new Error("Failed to update on server");
-          }
+          if (!response.ok) throw new Error("Failed to update on server");
         } catch (error) {
           console.error("Error updating progress:", error);
-          alert(
-            "Failed to sync progress to database. Please check connection.",
-          );
           animeData[index].ep_fin = current;
           renderCards();
         }
@@ -441,7 +468,6 @@
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
-
         icon.classList.add("fa-spin");
         btn.classList.add("opacity-75");
         btn.innerText = " Syncing...";
@@ -451,16 +477,14 @@
           const response = await fetch(`${API_BASE_URL}/sync`, {
             method: "POST",
           });
-          const result = await response.json();
-
           if (response.ok) {
             await fetchAnime();
           } else {
+            const result = await response.json();
             alert(`Sync Error: ${result.detail}`);
           }
         } catch (error) {
-          alert("Failed to connect to the backend sync service.");
-          console.error(error);
+          alert("Failed to connect to backend sync.");
         } finally {
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75");
@@ -469,6 +493,39 @@
         }
       }
 
+      // Scroll to Top Logic
+      window.addEventListener("scroll", () => {
+        const btn = document.getElementById("scrollToTopBtn");
+        if (window.scrollY > 300) {
+          btn.classList.remove(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        } else {
+          btn.classList.add(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        }
+      });
+
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Initialize the app on page load
       document.addEventListener("DOMContentLoaded", () => {
         fetchAnime();
       });
