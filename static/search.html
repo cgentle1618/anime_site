@@ -178,6 +178,15 @@
         }
       });
 
+      // NEW: Helper function to strip all punctuation and spaces for robust matching
+      function normalizeSearchString(str) {
+        if (!str) return "";
+        // The regex [^\p{L}\p{N}] removes anything that is NOT a letter or a number across all languages (English, Chinese, Japanese, etc.)
+        return String(str)
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}]/gu, "");
+      }
+
       async function performSearch() {
         const urlParams = new URLSearchParams(window.location.search);
         const query = urlParams.get("q") || "";
@@ -199,31 +208,32 @@
           allAnimeData = await animeRes.json();
           const allSeriesData = await seriesRes.json();
 
-          const qLower = query.toLowerCase();
+          // Normalize the search query by removing all spaces and punctuation
+          const qNormalized = normalizeSearchString(query);
 
-          // 1. Filter Series (Franchises) strictly by Names
+          // 1. Filter Series (Franchises) robustly
           filteredSeries = allSeriesData.filter((s) => {
-            const sEn = (s.series_en || "").toLowerCase();
-            const sCn = (s.series_cn || "").toLowerCase();
-            const sRo = (s.series_roman || "").toLowerCase();
-            const sAlt = (s.alt_name || "").toLowerCase();
+            const sEn = normalizeSearchString(s.series_en);
+            const sCn = normalizeSearchString(s.series_cn);
+            const sRo = normalizeSearchString(s.series_roman);
+            const sAlt = normalizeSearchString(s.alt_name);
             return (
-              sEn.includes(qLower) ||
-              sCn.includes(qLower) ||
-              sRo.includes(qLower) ||
-              sAlt.includes(qLower)
+              sEn.includes(qNormalized) ||
+              sCn.includes(qNormalized) ||
+              sRo.includes(qNormalized) ||
+              sAlt.includes(qNormalized)
             );
           });
 
-          // 2. Filter Anime Entries strictly by Names
+          // 2. Filter Anime Entries robustly
           filteredAnime = allAnimeData.filter((a) => {
-            const aEn = (a.series_season_en || "").toLowerCase();
-            const aCn = (a.series_season_cn || "").toLowerCase();
-            const aSeriesEn = (a.series_en || "").toLowerCase();
+            const aEn = normalizeSearchString(a.series_season_en);
+            const aCn = normalizeSearchString(a.series_season_cn);
+            const aSeriesEn = normalizeSearchString(a.series_en);
             return (
-              aEn.includes(qLower) ||
-              aCn.includes(qLower) ||
-              aSeriesEn.includes(qLower)
+              aEn.includes(qNormalized) ||
+              aCn.includes(qNormalized) ||
+              aSeriesEn.includes(qNormalized)
             );
           });
 
