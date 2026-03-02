@@ -59,9 +59,15 @@
       }
     </style>
   </head>
-  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+
+  <!-- STRUCUTURE FIX 1: Lock the body so ONLY the inner table can scroll -->
+  <body
+    class="bg-gray-50 text-gray-900 h-screen w-screen overflow-hidden flex flex-col font-sans"
+  >
     <!-- Top Navigation Bar -->
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <nav
+      class="bg-white border-b border-gray-200 shrink-0 z-50 shadow-sm relative"
+    >
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Logo & Links -->
@@ -121,9 +127,8 @@
     </nav>
 
     <!-- Main Content: Spreadsheet Table -->
-    <main
-      class="flex-1 w-full max-w-[100vw] px-4 py-6 flex flex-col h-[calc(100vh-4rem)]"
-    >
+    <!-- STRUCTURE FIX 2: min-h-0 prevents flex items from overflowing their bounds -->
+    <main class="flex-1 w-full max-w-[100vw] px-4 py-6 flex flex-col min-h-0">
       <!-- Toolbar above the table -->
       <div class="mb-4 flex justify-end items-center shrink-0">
         <button
@@ -139,8 +144,12 @@
       <div
         class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col min-h-0"
       >
-        <div id="tableContainer" class="overflow-auto flex-1 relative">
-          <table class="w-full text-sm text-left whitespace-nowrap">
+        <!-- STRUCTURE FIX 3: This is the ONLY element allowed to scroll now -->
+        <div
+          id="tableContainer"
+          class="overflow-auto flex-1 relative w-full h-full"
+        >
+          <table class="w-full text-sm text-left whitespace-nowrap min-w-max">
             <thead class="text-xs text-gray-600 uppercase">
               <tr>
                 <th
@@ -308,7 +317,7 @@
           groupedData[seriesName].push(anime);
         });
 
-        // 2. Sort Series Groups (Alphabetically)
+        // 2. Sort Series Groups
         let seriesNames = Object.keys(groupedData);
         seriesNames.sort((a, b) => {
           const metaA = seriesMetadata[a] || {};
@@ -370,7 +379,6 @@
             seriesRatingBadge = `<span class="ml-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider ${colorClass}">Overall: ${meta.rating_series}</span>`;
           }
 
-          // Create the "Go to Series" button if we have a valid system_id from the metadata
           const goToSeriesBtn = meta.system_id
             ? `
             <button onclick="goToSeries(event, '${meta.system_id}')" class="ml-4 bg-white border border-gray-200 hover:border-brand text-gray-600 hover:text-brand px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center hover:bg-brand/5" title="Open Series Hub">
@@ -379,22 +387,19 @@
           `
             : "";
 
-          // Render Group Header
-          let displayTitle = meta.series_cn || seriesName;
-
           const headerTr = document.createElement("tr");
           headerTr.className =
-            "bg-gray-50/80 cursor-pointer hover:bg-gray-100 transition border-y border-gray-200 group";
+            "cursor-pointer hover:bg-gray-100 transition group";
           headerTr.onclick = () => toggleSeries(seriesName);
 
-          // Fixed colspan to 14 to match your exact number of columns
+          // STRUCTURE FIX 4: Sticky top-[41px] keeps it beautifully glued under the main table header
           headerTr.innerHTML = `
-              <td colspan="14" class="px-4 py-3 text-sm font-bold text-gray-900">
+              <td colspan="14" class="px-4 py-3 text-sm font-bold text-gray-900 sticky top-[41px] z-30 bg-gray-100/95 backdrop-blur-md shadow-[0_1px_0_0_#e5e7eb] border-b border-gray-200">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center">
                     <i class="fas ${chevronClass} w-4 mr-2 transition-transform"></i>
                     <i class="fas fa-layer-group text-brand mr-2"></i>
-                    ${displayTitle} <span class="text-gray-400 font-normal ml-2 text-xs">${seriesName !== "Other" ? seriesName : ""}</span>
+                    ${meta.series_cn || seriesName} <span class="text-gray-400 font-normal ml-2 text-xs">${seriesName !== "Other" ? seriesName : ""}</span>
                   </div>
                   <div class="flex items-center">
                     ${seriesRatingBadge}
@@ -462,7 +467,6 @@
             const tr = document.createElement("tr");
             tr.className = "hover:bg-gray-50 transition-colors";
 
-            // Updated line: Added <a> tag surrounding the title!
             tr.innerHTML = `
                         <td class="px-4 py-3 pl-10 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">
                             <a href="/anime/${anime.system_id}" class="hover:text-brand hover:underline transition-colors block w-full truncate">${title}</a>
@@ -488,7 +492,6 @@
         });
       }
 
-      // Toggle a single series
       function toggleSeries(seriesName) {
         if (collapsedSeries.has(seriesName)) {
           collapsedSeries.delete(seriesName);
@@ -500,37 +503,28 @@
 
       function toggleAll() {
         const btn = document.getElementById("toggleAllBtn");
-
-        // Find all unique series names currently rendered in displayData
         const uniqueSeries = new Set();
-        displayData.forEach((anime) => {
-          uniqueSeries.add(anime.series_en || "Standalone / Other");
-        });
+        displayData.forEach((anime) =>
+          uniqueSeries.add(anime.series_en || "Standalone / Other"),
+        );
 
         isAllCollapsed = !isAllCollapsed;
 
         if (isAllCollapsed) {
-          // Add every single series name to the collapsed set
           uniqueSeries.forEach((s) => collapsedSeries.add(s));
           btn.innerHTML =
             '<i class="fas fa-expand-arrows-alt mr-2"></i> Expand All';
         } else {
-          // Clear the collapsed set to expand everything
           collapsedSeries.clear();
           btn.innerHTML =
             '<i class="fas fa-compress-arrows-alt mr-2"></i> Collapse All';
         }
-
         renderTable();
       }
 
       async function updateEpisode(systemId, newValue, oldValue) {
         const parsedValue = parseInt(newValue, 10);
-        if (isNaN(parsedValue) || parsedValue < 0) {
-          alert("Invalid episode number.");
-          renderTable();
-          return;
-        }
+        if (isNaN(parsedValue) || parsedValue < 0) return;
 
         const displayIndex = displayData.findIndex(
           (a) => a.system_id === systemId,
@@ -551,12 +545,8 @@
               body: JSON.stringify({ ep_fin: parsedValue }),
             },
           );
-
-          if (!response.ok) throw new Error("Server rejected update");
         } catch (error) {
-          console.error("Error updating progress:", error);
-          alert("Failed to sync progress to database. Check your connection.");
-
+          console.error(error);
           if (displayIndex !== -1) displayData[displayIndex].ep_fin = oldValue;
           if (origIndex !== -1) originalData[origIndex].ep_fin = oldValue;
           renderTable();
@@ -573,23 +563,16 @@
         renderTable();
       }
 
-      // Setup Global Search Redirect (Replaces old local filtering)
-      const globalSearchInput = document.getElementById("globalSearchInput");
-      if (globalSearchInput) {
-        globalSearchInput.addEventListener("keypress", function (e) {
-          if (e.key === "Enter") {
-            const query = e.target.value.trim();
-            if (query) {
-              window.location.href = `/search?q=${encodeURIComponent(query)}`;
-            }
-          }
-        });
+      function goToSeries(event, systemId) {
+        event.stopPropagation();
+        if (systemId) {
+          window.location.href = `/series/${systemId}`;
+        }
       }
 
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
-
         icon.classList.add("fa-spin");
         btn.classList.add("opacity-75");
         btn.innerText = " Syncing...";
@@ -599,15 +582,8 @@
           const response = await fetch(`${API_BASE_URL}/sync`, {
             method: "POST",
           });
-          const result = await response.json();
-
-          if (response.ok) {
-            await fetchLibrary();
-          } else {
-            alert(`Sync Error: ${result.detail}`);
-          }
+          if (response.ok) await fetchLibrary();
         } catch (error) {
-          alert("Failed to connect to the backend sync service.");
           console.error(error);
         } finally {
           icon.classList.remove("fa-spin");
@@ -617,61 +593,64 @@
         }
       }
 
-      // Scroll to Top Logic for Library (Handles both container and window scroll)
-      const tableContainer = document.getElementById("tableContainer");
+      // ==========================================
+      // CLEAN UNIFIED INITIALIZATION BLOCK
+      // ==========================================
+      document.addEventListener("DOMContentLoaded", () => {
+        // 1. Fetch initial data
+        fetchLibrary();
 
-      function handleScroll() {
-        const btn = document.getElementById("scrollToTopBtn");
-        // Check both window and tableContainer scroll positions to guarantee it triggers
-        const scrollPos = Math.max(
-          window.scrollY,
-          tableContainer ? tableContainer.scrollTop : 0,
-        );
-
-        if (scrollPos > 300) {
-          btn.classList.remove(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.add(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        } else {
-          btn.classList.add(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.remove(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
+        // 2. Setup Global Search Redirect
+        const globalSearchInput = document.getElementById("globalSearchInput");
+        if (globalSearchInput) {
+          globalSearchInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              const query = e.target.value.trim();
+              if (query)
+                window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            }
+          });
         }
-      }
 
-      window.addEventListener("scroll", handleScroll);
-      if (tableContainer) {
-        tableContainer.addEventListener("scroll", handleScroll);
-      }
+        // 3. Setup Scroll-To-Top Event Listener securely
+        const scrollContainer = document.getElementById("tableContainer");
+        const btn = document.getElementById("scrollToTopBtn");
+
+        if (scrollContainer && btn) {
+          scrollContainer.addEventListener("scroll", () => {
+            if (scrollContainer.scrollTop > 300) {
+              btn.classList.remove(
+                "opacity-0",
+                "translate-y-4",
+                "pointer-events-none",
+              );
+              btn.classList.add(
+                "opacity-100",
+                "translate-y-0",
+                "pointer-events-auto",
+              );
+            } else {
+              btn.classList.add(
+                "opacity-0",
+                "translate-y-4",
+                "pointer-events-none",
+              );
+              btn.classList.remove(
+                "opacity-100",
+                "translate-y-0",
+                "pointer-events-auto",
+              );
+            }
+          });
+        }
+      });
 
       function scrollToTop() {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-
-      // Prevents the row from collapsing when clicking the button, and routes to the series page
-      function goToSeries(event, systemId) {
-        event.stopPropagation();
-        if (systemId) {
-          window.location.href = `/series/${systemId}`;
+        const scrollContainer = document.getElementById("tableContainer");
+        if (scrollContainer) {
+          scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
       }
-
-      // Initialize the library data when the page loads
-      document.addEventListener("DOMContentLoaded", fetchLibrary);
     </script>
   </body>
 </html>
