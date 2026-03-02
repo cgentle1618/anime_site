@@ -349,52 +349,60 @@
 
           // Format the Series Rating Badge
           let seriesRatingBadge = "";
-          const sRating = meta.rating_series;
-          if (sRating) {
-            let sRatingColor = "text-gray-600 border-gray-300 bg-white";
-            if (["S", "A+", "A"].includes(sRating))
-              sRatingColor = "text-red-700 border-red-200 bg-red-50";
-            else if (["B", "C"].includes(sRating))
-              sRatingColor = "text-blue-700 border-blue-200 bg-blue-50";
+          if (meta.rating_series) {
+            let colorClass = "bg-gray-100 text-gray-600 border-gray-300";
+            if (meta.rating_series === "S")
+              colorClass = "bg-yellow-100 text-yellow-700 border-yellow-300";
+            else if (meta.rating_series === "A+")
+              colorClass = "bg-orange-100 text-orange-700 border-orange-300";
+            else if (meta.rating_series === "A")
+              colorClass = "bg-red-100 text-red-700 border-red-300";
+            else if (meta.rating_series === "B")
+              colorClass = "bg-blue-100 text-blue-700 border-blue-300";
+            else if (
+              meta.rating_series === "C" ||
+              meta.rating_series === "D" ||
+              meta.rating_series === "E" ||
+              meta.rating_series === "F"
+            )
+              colorClass = "bg-gray-200 text-gray-600 border-gray-300";
 
-            seriesRatingBadge = `<span class="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded border ${sRatingColor} font-bold ml-3 shadow-sm">Overall: ${sRating}</span>`;
+            seriesRatingBadge = `<span class="ml-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider ${colorClass}">Overall: ${meta.rating_series}</span>`;
           }
 
-          const cnName = meta.series_cn || "";
-          const enName = seriesName !== "Standalone / Other" ? seriesName : "";
-          const altName = meta.alt_name || "";
-
-          let titleDisplay = "";
-          if (cnName && enName) {
-            titleDisplay = `<span class="text-gray-900">${cnName}</span><span class="text-gray-500 font-normal ml-2">${enName}</span>`;
-          } else if (cnName) {
-            titleDisplay = `<span class="text-gray-900">${cnName}</span>`;
-          } else if (enName) {
-            titleDisplay = `<span class="text-gray-900">${enName}</span>`;
-          } else {
-            titleDisplay = `<span class="text-gray-900">Standalone / Other</span>`;
-          }
-
-          let altNameDisplay = altName
-            ? `<span class="text-xs text-gray-400 font-normal ml-auto italic pr-4 pl-4">${altName}</span>`
+          // Create the "Go to Series" button if we have a valid system_id from the metadata
+          const goToSeriesBtn = meta.system_id
+            ? `
+            <button onclick="goToSeries(event, '${meta.system_id}')" class="ml-4 bg-white border border-gray-200 hover:border-brand text-gray-600 hover:text-brand px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center hover:bg-brand/5" title="Open Series Hub">
+                Go to Series <i class="fas fa-external-link-alt ml-1.5 opacity-70"></i>
+            </button>
+          `
             : "";
 
-          // Render Group Header Row
+          // Render Group Header
+          let displayTitle = meta.series_cn || seriesName;
+
           const headerTr = document.createElement("tr");
           headerTr.className =
-            "bg-gray-100/80 border-y border-gray-200 cursor-pointer hover:bg-gray-200/80 transition-colors";
+            "bg-gray-50/80 cursor-pointer hover:bg-gray-100 transition border-y border-gray-200 group";
           headerTr.onclick = () => toggleSeries(seriesName);
+
+          // Fixed colspan to 14 to match your exact number of columns
           headerTr.innerHTML = `
-                    <td colspan="14" class="px-4 py-3 font-bold text-gray-800 text-sm select-none">
-                        <div class="flex items-center w-full">
-                            <i class="fas ${chevronClass} w-4 text-center mr-1"></i>
-                            <i class="fas fa-layer-group text-brand mr-2"></i>
-                            ${titleDisplay}
-                            ${seriesRatingBadge}
-                            ${altNameDisplay}
-                        </div>
-                    </td>
-                `;
+              <td colspan="14" class="px-4 py-3 text-sm font-bold text-gray-900">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center">
+                    <i class="fas ${chevronClass} w-4 mr-2 transition-transform"></i>
+                    <i class="fas fa-layer-group text-brand mr-2"></i>
+                    ${displayTitle} <span class="text-gray-400 font-normal ml-2 text-xs">${seriesName !== "Other" ? seriesName : ""}</span>
+                  </div>
+                  <div class="flex items-center">
+                    ${seriesRatingBadge}
+                    ${goToSeriesBtn}
+                  </div>
+                </div>
+              </td>
+          `;
           tbody.appendChild(headerTr);
 
           if (isCollapsed) return;
@@ -483,14 +491,13 @@
       // Toggle a single series
       function toggleSeries(seriesName) {
         if (collapsedSeries.has(seriesName)) {
-          collapsedSeries.delete(seriesName); // Expand
+          collapsedSeries.delete(seriesName);
         } else {
-          collapsedSeries.add(seriesName); // Collapse
+          collapsedSeries.add(seriesName);
         }
         renderTable();
       }
 
-      // NEW: Implementing the completely missing toggleAll function
       function toggleAll() {
         const btn = document.getElementById("toggleAllBtn");
 
@@ -653,11 +660,17 @@
 
       function scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
-        if (tableContainer) {
-          tableContainer.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Prevents the row from collapsing when clicking the button, and routes to the series page
+      function goToSeries(event, systemId) {
+        event.stopPropagation();
+        if (systemId) {
+          window.location.href = `/series/${systemId}`;
         }
       }
 
+      // Initialize the library data when the page loads
       document.addEventListener("DOMContentLoaded", fetchLibrary);
     </script>
   </body>
