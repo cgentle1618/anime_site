@@ -116,11 +116,11 @@
               </div>
               <input
                 type="text"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
-                placeholder="Search English, Romaji, or 中文..."
+                id="dashboardSearchInput"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search Series or Anime Names..."
               />
             </div>
-
             <button
               onclick="handleSync()"
               id="syncBtn"
@@ -210,35 +210,55 @@
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
       >
-        &copy; 2026 CG1618 Anime Database. Version 0.0
+        &copy; 2026 CG1618 Anime Database. Version 1.0
       </div>
     </footer>
 
     <!-- JavaScript Logic -->
     <script>
       const API_BASE_URL = "/api";
-      let animeData = [];
+      let animeData = []; // Declaring animeData properly
 
-      // Definition of Tier Hierarchy
-      const tierOrder = {
-        S: 1,
-        "A+": 2,
-        A: 3,
-        B: 4,
-        C: 5,
-        D: 6,
-        E: 7,
-        F: 8,
-      };
+      // Initialize the app on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchAnime();
 
-      // Custom sorting function based on tier
+        // Setup Global Search Redirect for Dashboard
+        const searchInput = document.getElementById("dashboardSearchInput");
+        if (searchInput) {
+          searchInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              const query = e.target.value.trim();
+              if (query) {
+                window.location.href = `/search?q=${encodeURIComponent(query)}`;
+              }
+            }
+          });
+        }
+      });
+
+      // Added missing sorting function
       function sortByTier(a, b) {
-        const rankA = tierOrder[a.rating_mine] || 99;
-        const rankB = tierOrder[b.rating_mine] || 99;
-        return rankA - rankB;
+        const tiers = {
+          S: 1,
+          "A+": 2,
+          A: 3,
+          B: 4,
+          C: 5,
+          D: 6,
+          E: 7,
+          F: 8,
+          null: 9,
+        };
+        const rankA = tiers[a.rating_mine] || 9;
+        const rankB = tiers[b.rating_mine] || 9;
+        if (rankA !== rankB) return rankA - rankB;
+
+        let titleA = a.series_season_cn || a.series_season_en || "";
+        let titleB = b.series_season_cn || b.series_season_en || "";
+        return titleA.localeCompare(titleB);
       }
 
-      // 1. Fetch real data from your FastAPI backend
       async function fetchAnime() {
         try {
           const response = await fetch(`${API_BASE_URL}/anime`);
@@ -524,11 +544,6 @@
       function scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
-
-      // Initialize the app on page load
-      document.addEventListener("DOMContentLoaded", () => {
-        fetchAnime();
-      });
     </script>
   </body>
 </html>
