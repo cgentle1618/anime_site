@@ -104,9 +104,9 @@
               </div>
               <input
                 type="text"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-gray-50 text-gray-400 placeholder-gray-400 focus:outline-none sm:text-sm cursor-not-allowed"
-                placeholder="Search is available on Dashboard & Library"
-                disabled
+                id="globalSearchInput"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search Series, Season, Studio, Release..."
               />
             </div>
             <button
@@ -263,8 +263,9 @@
           seriesData = await seriesRes.json();
 
           if (seriesData.series_en) {
+            // Use the robust by-series endpoint instead of the conflicting /series/ route
             const animeRes = await fetch(
-              `${API_BASE_URL}/series/${encodeURIComponent(seriesData.series_en)}`,
+              `${API_BASE_URL}/anime/by-series/${encodeURIComponent(seriesData.series_en)}`,
             );
             if (animeRes.ok) {
               animeData = await animeRes.json();
@@ -699,6 +700,19 @@
 
       function scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Listen for Enter key to trigger Global Search Redirection
+      const globalSearchInput = document.getElementById("globalSearchInput");
+      if (globalSearchInput) {
+        globalSearchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            const query = e.target.value.trim();
+            if (query) {
+              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            }
+          }
+        });
       }
 
       document.addEventListener("DOMContentLoaded", fetchSeriesDetails);
