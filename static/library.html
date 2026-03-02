@@ -102,9 +102,9 @@
               </div>
               <input
                 type="text"
-                id="searchInput"
+                id="globalSearchInput"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
-                placeholder="Search Title, Alt Name, Studio..."
+                placeholder="Search Series or Anime Names..."
               />
             </div>
 
@@ -341,6 +341,7 @@
         // 3. Render Groups and their Items
         seriesNames.forEach((seriesName) => {
           const meta = seriesMetadata[seriesName] || {};
+
           const isCollapsed = collapsedSeries.has(seriesName);
           const chevronClass = isCollapsed
             ? "fa-chevron-right text-gray-400"
@@ -565,27 +566,18 @@
         renderTable();
       }
 
-      document.getElementById("searchInput").addEventListener("input", (e) => {
-        const query = e.target.value.toLowerCase();
-        displayData = originalData.filter((anime) => {
-          const meta = anime.series_en
-            ? seriesMetadata[anime.series_en] || {}
-            : {};
-          return (
-            (anime.series_en &&
-              anime.series_en.toLowerCase().includes(query)) ||
-            (meta.series_cn && meta.series_cn.toLowerCase().includes(query)) ||
-            (anime.series_season_en &&
-              anime.series_season_en.toLowerCase().includes(query)) ||
-            (anime.series_season_cn &&
-              anime.series_season_cn.toLowerCase().includes(query)) ||
-            (meta.alt_name && meta.alt_name.toLowerCase().includes(query)) ||
-            (anime.studio && anime.studio.toLowerCase().includes(query))
-          );
+      // Setup Global Search Redirect (Replaces old local filtering)
+      const globalSearchInput = document.getElementById("globalSearchInput");
+      if (globalSearchInput) {
+        globalSearchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            const query = e.target.value.trim();
+            if (query) {
+              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            }
+          }
         });
-        if (sortCol) handleSort(sortCol);
-        else renderTable();
-      });
+      }
 
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
