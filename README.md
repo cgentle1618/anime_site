@@ -100,7 +100,7 @@ Data is structured to prevent corruption and handle edge cases during manual sor
 
 Create a `.env` file in the root directory and configure your credentials:
 
-````env
+```env
 # Database Configuration
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=password
@@ -108,11 +108,12 @@ POSTGRES_DB=anime_site_db
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/anime_site_db
+```
 
 # Google Sheets CSV Export URLs
+
 SHEET_SERIES_URL="[https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_1](https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_1)"
 SHEET_ANIME_URL="[https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_2](https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=YOUR_GID_2)"
-
 
 ### 3. Start the Database
 
@@ -120,6 +121,7 @@ Initialize the PostgreSQL container using Docker Compose:
 
 ```bash
 docker-compose up -d
+```
 
 ### 4. Install Python Dependencies
 
@@ -129,6 +131,7 @@ It is recommended to use a virtual environment:
 python -m venv venv
 source venv/bin/activate # On Windows: venv\Scripts\activate
 pip install fastapi uvicorn sqlalchemy psycopg2-binary pandas pydantic python-dotenv
+```
 
 ### 5. Run the Initial Data Sync
 
@@ -136,6 +139,7 @@ Populate your PostgreSQL database from your Google Sheets:
 
 ```bash
 python sheets_sync.py
+```
 
 ### 6. Start the Backend Server
 
@@ -143,6 +147,7 @@ Launch the FastAPI development server:
 
 ```bash
 uvicorn main:app --reload
+```
 
 ## Repository Structure
 
@@ -160,47 +165,58 @@ uvicorn main:app --reload
 ┣ 📜 docker-compose.yml    # Docker configuration for PostgreSQL
 ┣ 📜 .gitignore
 ┗ 📜 README.md
-
+```
 
 ## Roadmap
 
 ### Phase 1: Foundation & Infrastructure
+
 - Initialize Git repository and version control system.
 - Configure Docker Compose to manage the PostgreSQL database instance.
 - Set up persistent volume mapping for database data storage to ensure data integrity between restarts.
 - Establish the base FastAPI directory structure and environment configuration, including `.env` management.
 
 ### Phase 2: ETL Pipeline Development
+
 - Develop `sheets_sync.py` for fetching Google Sheets data published as CSVs.
 - Implement robust data cleansing logic to handle `NaN` values, sanitize strings, and manage type inconsistencies.
 - Create bulk upsert operations to synchronize the Google Sheet source of truth with the PostgreSQL database using `system_id` UUIDs to prevent duplicate entries.
 
 ### Phase 3: Backend Implementation
+
 - Define SQLAlchemy ORM models for Anime Series (parent records for franchise-level metadata) and individual Anime records (child records for granular data).
 - Create Pydantic schemas for strict request validation and serialization to ensure consistent data structures.
 - Implement FastAPI REST endpoints to serve data queries, including search, filter, and retrieval operations from the database.
 
 ### Phase 4: Frontend Development
+
 - Develop the main Dashboard view for high-level visualization of watch history.
 - Build the Library view for nested navigation between Franchise Series and individual Anime entries.
 - Implement Vanilla JavaScript logic to handle asynchronous API calls to the backend.
 - Apply responsive design and dark-mode styling using Tailwind CSS.
 
 ### Phase 5: External API Enrichment
+
 - Integrate the Jikan (MyAnimeList) API client to extend your local dataset.
 - Automate the retrieval of external assets such as cover art, synopses, and global ratings.
 - Implement background scheduling (using task queues or cron jobs) to periodically update cached data without blocking user requests.
 
 ### Phase 6: Granular Detail & Dual-Write
+
 - Build detailed view pages for individual anime entries, displaying full metadata and progress.
 - Integrate dual-write architectural logic to ensure that UI changes (e.g., updating watch status) instantly update the local database and silently push updates back to the master Google Sheet.
 
 ### Phase 7: Admin Dashboard
+
 - Create a dedicated, secure admin interface for managing data edge cases.
 - Implement tools for manual record overrides, handling data conflicts, and monitoring the status of the automated sync pipeline.
 
 ### Phase 8: Deploy to Web
+
 - Refine Docker configuration for production readiness (using multi-stage builds or optimized images).
 - Configure Google Cloud Platform resources including Cloud SQL for the relational database.
 - Deploy the FastAPI application using Cloud Run or Compute Engine for scalable hosting.
-````
+
+```
+
+```
