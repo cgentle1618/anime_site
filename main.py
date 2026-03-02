@@ -13,10 +13,6 @@ from sheets_sync import (
     execute_with_retry,
 )
 
-# ==========================================
-# 1. APP INITIALIZATION & SETUP
-# ==========================================
-
 app = FastAPI(title="Anime Tracker API")
 
 app.add_middleware(
@@ -27,17 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create tables on startup
 database.Base.metadata.create_all(bind=database.engine)
 
 
 # ==========================================
-# 2. DEPENDENCIES & HELPERS
+# DEPENDENCIES & ROBUST FINDERS
 # ==========================================
 
 
 def get_db():
-    """Safely opens and closes a database session for each request."""
     db = database.SessionLocal()
     try:
         yield db
@@ -48,30 +42,38 @@ def get_db():
 def update_sheet_field(
     system_id: str, field_name: str, value, sheet_name: str = "Anime"
 ):
-    """
-    Generic, reusable helper to update a specific cell in any Google Sheets tab.
-    Locates the row by system_id and the column by header name.
-    """
     sheet = get_google_sheet(sheet_name)
     cell = execute_with_retry(sheet.find, system_id)
-
     if not cell:
-        print(f"system_id {system_id} not found in sheet '{sheet_name}'.")
         return False
-
     headers = execute_with_retry(sheet.row_values, 1)
     try:
-        # Reverse lookup ensures we update the real column, bypassing hidden/duplicate columns
         col_index = len(headers) - headers[::-1].index(field_name)
         execute_with_retry(sheet.update_cell, cell.row, col_index, value)
         return True
     except ValueError:
-        print(f"Column '{field_name}' not found in sheet '{sheet_name}'.")
         return False
 
 
+# Bulletproof DB Lookup Helpers
+def get_anime_by_id(db: Session, system_id: str):
+    clean_id = str(system_id).strip().lower()
+    for entry in db.query(database.AnimeEntry).all():
+        if str(entry.system_id).strip().lower() == clean_id:
+            return entry
+    return None
+
+
+def get_series_by_id(db: Session, system_id: str):
+    clean_id = str(system_id).strip().lower()
+    for series in db.query(database.AnimeSeries).all():
+        if str(series.system_id).strip().lower() == clean_id:
+            return series
+    return None
+
+
 # ==========================================
-# 3. FRONTEND HTML ROUTES
+# FRONTEND HTML ROUTES
 # ==========================================
 
 
@@ -95,41 +97,43 @@ def serve_series(system_id: str):
     return FileResponse("static/series.html")
 
 
+@app.get("/search")
+def serve_search():
+    return FileResponse("static/search.html")
+
+
 # ==========================================
-# 4. BACKEND API ENDPOINTS - ANIME ENTRIES
+# BACKEND API ENDPOINTS - ANIME ENTRIES
 # ==========================================
 
 
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
 def get_all_anime(db: Session = Depends(get_db)):
-    """Fetches all anime entries from PostgreSQL."""
     return db.query(database.AnimeEntry).all()
 
 
 @app.get("/api/anime/details/{system_id}")
 def get_anime_details(system_id: str, db: Session = Depends(get_db)):
     """Fetches full details for a single anime and injects its parent series metadata."""
-    anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
-        .first()
-    )
+    anime = get_anime_by_id(db, system_id)
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found")
+        raise HTTPException(
+            status_code=404, detail=f"Anime with ID {system_id} not found"
+        )
 
-    # Fetch associated series to enrich the response
-    series_meta = (
-        db.query(database.AnimeSeries)
-        .filter(database.AnimeSeries.series_en == anime.series_en)
-        .first()
-    )
+    # Robust matching for associated series
+    series_meta = None
+    if anime.series_en:
+        clean_series_en = str(anime.series_en).strip().lower()
+        for s in db.query(database.AnimeSeries).all():
+            if str(s.series_en).strip().lower() == clean_series_en:
+                series_meta = s
+                break
 
-    # Convert ORM to dict to inject extra fields
     anime_dict = schemas.AnimeResponse.from_orm(anime).dict()
     anime_dict["alt_name"] = series_meta.alt_name if series_meta else None
     anime_dict["series_cn"] = series_meta.series_cn if series_meta else None
     anime_dict["series_id"] = series_meta.system_id if series_meta else None
-
     return anime_dict
 
 
@@ -137,24 +141,17 @@ def get_anime_details(system_id: str, db: Session = Depends(get_db)):
 def update_anime_state(
     system_id: str, payload: dict = Body(...), db: Session = Depends(get_db)
 ):
-    """Dynamically updates episodes, watch status, rating, or remarks in DB and Sheets."""
-    anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
-        .first()
-    )
+    anime = get_anime_by_id(db, system_id)
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found in database")
+        raise HTTPException(status_code=404, detail="Anime not found")
 
     try:
         if "ep_fin" in payload:
             anime.ep_fin = payload["ep_fin"]
             update_episode_progress_in_sheet(system_id, payload["ep_fin"])
-
         if "my_progress" in payload:
             anime.my_progress = payload["my_progress"]
             update_sheet_field(system_id, "my_progress", payload["my_progress"])
-
         if "rating_mine" in payload:
             new_rating = (
                 None if payload["rating_mine"] == "null" else payload["rating_mine"]
@@ -163,7 +160,6 @@ def update_anime_state(
             update_sheet_field(
                 system_id, "rating_mine", new_rating if new_rating else ""
             )
-
         if "remark" in payload:
             anime.remark = payload["remark"]
             update_sheet_field(
@@ -174,91 +170,69 @@ def update_anime_state(
         return {"status": "success"}
     except Exception as e:
         db.rollback()
-        print(f"Sync failed during PATCH: {e}")
-        raise HTTPException(
-            status_code=500, detail="Database updated, but Google Sheets sync failed."
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==========================================
-# 5. BACKEND API ENDPOINTS - SERIES (FRANCHISE)
+# BACKEND API ENDPOINTS - SERIES (FRANCHISE)
 # ==========================================
 
 
 @app.get("/api/series", response_model=List[schemas.AnimeSeriesResponse])
 def get_all_series(db: Session = Depends(get_db)):
-    """Fetches all anime series (franchises)."""
     return db.query(database.AnimeSeries).all()
 
 
-@app.get("/api/series/{series_name}", response_model=List[schemas.AnimeResponse])
-def get_anime_by_series(series_name: str, db: Session = Depends(get_db)):
-    """Fetches all individual anime seasons/movies belonging to a specific franchise."""
-    return (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.series_en == series_name)
-        .all()
-    )
-
-
 @app.get("/api/series/details/{system_id}", response_model=schemas.AnimeSeriesResponse)
-def get_series_details(system_id: str, db: Session = Depends(get_db)):
-    """Fetches metadata for a single franchise/series."""
-    series = (
-        db.query(database.AnimeSeries)
-        .filter(database.AnimeSeries.system_id == system_id)
-        .first()
-    )
+def get_series_details_by_id(system_id: str, db: Session = Depends(get_db)):
+    series = get_series_by_id(db, system_id)
     if not series:
         raise HTTPException(status_code=404, detail="Series not found")
     return series
+
+
+@app.get(
+    "/api/anime/by-series/{series_name:path}",
+    response_model=List[schemas.AnimeResponse],
+)
+def get_anime_by_series_name(series_name: str, db: Session = Depends(get_db)):
+    """Robust lookup for all anime inside a specific franchise (handles special chars/slashes)."""
+    clean_name = str(series_name).strip().lower()
+    result = []
+    for anime in db.query(database.AnimeEntry).all():
+        if anime.series_en and str(anime.series_en).strip().lower() == clean_name:
+            result.append(anime)
+    return result
 
 
 @app.patch("/api/series/{system_id}")
 def update_series_state(
     system_id: str, payload: dict = Body(...), db: Session = Depends(get_db)
 ):
-    """Updates series metadata (like the overall franchise rating) in DB and Sheets."""
-    series = (
-        db.query(database.AnimeSeries)
-        .filter(database.AnimeSeries.system_id == system_id)
-        .first()
-    )
+    series = get_series_by_id(db, system_id)
     if not series:
         raise HTTPException(status_code=404, detail="Series not found")
-
     try:
         if "rating_series" in payload:
             new_rating = (
                 None if payload["rating_series"] == "null" else payload["rating_series"]
             )
             series.rating_series = new_rating
-            # Notice we pass sheet_name="Anime Series" to target the correct tab
             update_sheet_field(
                 system_id,
                 "rating_series",
                 new_rating if new_rating else "",
                 sheet_name="Anime Series",
             )
-
         db.commit()
         return {"status": "success"}
     except Exception as e:
         db.rollback()
-        print(f"Sync failed during PATCH: {e}")
-        raise HTTPException(
-            status_code=500, detail="Database updated, but Google Sheets sync failed."
-        )
-
-
-# ==========================================
-# 6. BACKEND API ENDPOINTS - ETL
-# ==========================================
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/sync")
 def trigger_sync(db: Session = Depends(get_db)):
-    """Triggers the Google Sheets -> PostgreSQL sync script."""
     try:
         return sync_sheet_to_db(db_session=db)
     except Exception as e:
