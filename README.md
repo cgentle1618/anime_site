@@ -2,7 +2,7 @@
 
 <br />
 <div align="center">
-  <h1 align="center">⛩️ Anime Tracker</h1>
+  <h1 align="center">⛩️ Anime Database & Tracker</h1>
 
   <p align="center">
     A custom-built, high-performance web application designed to track, manage, and visualize personal anime watch history.
