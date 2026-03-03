@@ -578,7 +578,7 @@ def delete_series_row(system_id: str):
 
 
 def detect_orphans(db: Session):
-    """Scans Google Sheet and compares system_ids against DB. Returns IDs missing from Sheet."""
+    """Scans Google Sheet and compares system_ids against DB. Returns full DB objects missing from Sheet."""
     worksheet = get_google_sheet("Anime")
     headers = execute_with_retry(worksheet.row_values, 1)
 
@@ -588,13 +588,32 @@ def detect_orphans(db: Session):
         print("Error: system_id column not found in Google Sheets.")
         return []
 
+    # Get all valid system_ids currently in the Google Sheet
     sheet_sys_ids = execute_with_retry(worksheet.col_values, sys_id_col)
     sheet_sys_ids_set = {sid.strip() for sid in sheet_sys_ids[1:] if sid.strip()}
 
-    db_entries = db.query(AnimeEntry.system_id).all()
-    db_sys_ids_set = {entry[0] for entry in db_entries}
+    # Query the database for records that DO NOT exist in the Google Sheet
+    if not sheet_sys_ids_set:
+        db_orphans = db.query(AnimeEntry).all()
+    else:
+        db_orphans = (
+            db.query(AnimeEntry)
+            .filter(AnimeEntry.system_id.notin_(sheet_sys_ids_set))
+            .all()
+        )
 
-    orphans = list(db_sys_ids_set - sheet_sys_ids_set)
+    # Format as list of dictionaries for the frontend
+    orphans = []
+    for entry in db_orphans:
+        orphans.append(
+            {
+                "system_id": entry.system_id,
+                "series_en": entry.series_en,
+                "series_season_en": entry.series_season_en,
+                "series_season_cn": entry.series_season_cn,
+            }
+        )
+
     return orphans
 
 

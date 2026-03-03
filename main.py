@@ -380,5 +380,38 @@ def delete_series_entry(system_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/admin/orphans")
+def get_orphaned_entries(db: Session = Depends(get_db)):
+    """Detects orphaned entries in the Postgres DB that are missing from Google Sheets."""
+    try:
+        orphans = sheets_sync.detect_orphans(db)
+        return orphans
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/admin/orphans/{system_id}")
+def delete_orphan_entry(system_id: str, db: Session = Depends(get_db)):
+    """Deletes an orphaned entry directly from the Postgres Database."""
+    try:
+        db_entry = (
+            db.query(database.AnimeEntry)
+            .filter(database.AnimeEntry.system_id == system_id)
+            .first()
+        )
+        if not db_entry:
+            raise HTTPException(status_code=404, detail="Orphan not found in database.")
+
+        db.delete(db_entry)
+        db.commit()
+        return {
+            "status": "success",
+            "message": "Orphan successfully cleared from database.",
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

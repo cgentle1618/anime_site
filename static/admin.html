@@ -122,7 +122,7 @@
               id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
-              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
             </button>
           </div>
         </div>
@@ -196,8 +196,8 @@
           >
             <div class="flex justify-between items-center mb-4 shrink-0">
               <h2 class="font-bold text-gray-800">
-                <i class="fas fa-heart-broken text-rose-500 mr-2"></i> Database
-                Conflicts (Orphans)
+                <i class="fas fa-heart-broken text-rose-500 mr-2"></i> Google
+                Sheet & Database Conflicts
               </h2>
               <button
                 id="scan-orphans-btn"
@@ -236,7 +236,7 @@
           </h2>
           <div
             id="modified-anime-container"
-            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+            class="space-y-2 max-h-[800px] overflow-y-auto pr-2"
           >
             <div class="text-center py-6 text-gray-400 text-sm italic">
               <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
@@ -252,7 +252,7 @@
           </h2>
           <div
             id="modified-series-container"
-            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+            class="space-y-2 max-h-[800px] overflow-y-auto pr-2"
           >
             <div class="text-center py-6 text-gray-400 text-sm italic">
               <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
@@ -477,7 +477,7 @@
             return [...arr]
               .filter(isModified)
               .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-              .slice(0, 10);
+              .slice(0, 50);
           };
 
           // Fetch Anime
@@ -496,12 +496,12 @@
               modContainer.innerHTML = modifiedAnime
                 .map(
                   (a) => `
-                          <div class="p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/30 rounded-lg flex justify-between items-center transition-colors mb-2">
+                          <div onclick="window.location.href='/anime/${a.system_id}'" class="cursor-pointer p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/40 hover:bg-blue-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
                               <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-brand transition-colors">${a.series_season_cn || a.series_season_en || a.series_en}</div>
                                   <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-gray-400 shrink-0 bg-white px-2 py-1 rounded border border-gray-200">ID: ${a.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-gray-400 shrink-0 bg-white px-2 py-1 rounded border border-gray-200 group-hover:border-brand/30 transition-colors">ID: ${a.system_id.substring(0, 8)}...</div>
                           </div>
                       `,
                 )
@@ -519,12 +519,12 @@
               addContainer.innerHTML = addedAnime
                 .map(
                   (a) => `
-                          <div class="p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                          <div onclick="window.location.href='/anime/${a.system_id}'" class="cursor-pointer p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
                               <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-emerald-700 transition-colors">${a.series_season_cn || a.series_season_en || a.series_en}</div>
                                   <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-emerald-600/70 shrink-0 bg-white px-2 py-1 rounded border border-emerald-100">ID: ${a.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-emerald-600/70 shrink-0 bg-white px-2 py-1 rounded border border-emerald-100 group-hover:border-emerald-300 transition-colors">ID: ${a.system_id.substring(0, 8)}...</div>
                           </div>
                       `,
                 )
@@ -548,12 +548,12 @@
               modContainer.innerHTML = modifiedSeries
                 .map(
                   (s) => `
-                          <div class="p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                          <div onclick="window.location.href='/series/${s.system_id}'" class="cursor-pointer p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-400 hover:bg-purple-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
                               <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
+                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-purple-700 transition-colors">${s.series_en}</div>
                                   <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-purple-400/80 shrink-0 bg-white px-2 py-1 rounded border border-purple-100">ID: ${s.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-purple-400/80 shrink-0 bg-white px-2 py-1 rounded border border-purple-100 group-hover:border-purple-300 transition-colors">ID: ${s.system_id.substring(0, 8)}...</div>
                           </div>
                       `,
                 )
@@ -571,12 +571,12 @@
               addContainer.innerHTML = addedSeries
                 .map(
                   (s) => `
-                          <div class="p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                          <div onclick="window.location.href='/series/${s.system_id}'" class="cursor-pointer p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-400 hover:bg-pink-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
                               <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
+                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-pink-600 transition-colors">${s.series_en}</div>
                                   <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-pink-500/70 shrink-0 bg-white px-2 py-1 rounded border border-pink-100">ID: ${s.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-pink-500/70 shrink-0 bg-white px-2 py-1 rounded border border-pink-100 group-hover:border-pink-300 transition-colors">ID: ${s.system_id.substring(0, 8)}...</div>
                           </div>
                       `,
                 )
@@ -623,7 +623,7 @@
         } finally {
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75");
-          btn.innerText = " Sync Sheets";
+          btn.innerText = " Sync";
           btn.prepend(icon);
         }
       }
