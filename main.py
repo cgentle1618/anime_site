@@ -75,6 +75,12 @@ def read_modify():
         return f.read()
 
 
+@app.get("/delete", response_class=HTMLResponse)
+def read_delete():
+    with open("static/delete.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
 def get_all_anime(db: Session = Depends(get_db)):
     return db.query(database.AnimeEntry).all()
