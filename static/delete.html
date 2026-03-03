@@ -1017,7 +1017,9 @@
             }
 
             await loadDatabase(); // Refresh memory cache
-            alert(`Successfully deleted record(s) and synced database.`);
+
+            // No popup needed since it redirects, but a brief toast is nice if keeping user on page
+            // alert(`Successfully deleted record(s) and synced database.`);
           } catch (error) {
             alert("Error: " + error.message);
           } finally {
@@ -1032,7 +1034,7 @@
         const btn = document.getElementById("syncBtn");
 
         icon.classList.add("fa-spin");
-        btn.classList.add("opacity-75");
+        btn.classList.add("opacity-75", "pointer-events-none");
         btn.innerText = " Syncing...";
         btn.prepend(icon);
 
@@ -1041,19 +1043,44 @@
             method: "POST",
           });
           if (response.ok) {
-            alert("Database Synced Successfully!");
+            icon.classList.remove("fa-spin", "fa-sync-alt");
+            icon.classList.add("fa-check");
+            btn.classList.remove(
+              "bg-brand",
+              "hover:bg-brand-hover",
+              "opacity-75",
+              "pointer-events-none",
+            );
+            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+            btn.innerText = " Synced!";
+            btn.prepend(icon);
+
             await loadDatabase(); // Refresh memory cache
+
+            setTimeout(() => {
+              icon.classList.remove("fa-check");
+              icon.classList.add("fa-sync-alt");
+              btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+              btn.classList.add("bg-brand", "hover:bg-brand-hover");
+              btn.innerText = " Sync";
+              btn.prepend(icon);
+            }, 2000);
           } else {
+            icon.classList.remove("fa-spin");
+            btn.classList.remove("opacity-75", "pointer-events-none");
+            btn.innerText = " Sync";
+            btn.prepend(icon);
+
             const data = await response.json();
             alert(`Sync Error: ${data.detail}`);
           }
         } catch (error) {
-          alert("Failed to connect to backend sync.");
-        } finally {
           icon.classList.remove("fa-spin");
-          btn.classList.remove("opacity-75");
+          btn.classList.remove("opacity-75", "pointer-events-none");
           btn.innerText = " Sync";
           btn.prepend(icon);
+
+          alert("Failed to connect to backend sync.");
         }
       }
 

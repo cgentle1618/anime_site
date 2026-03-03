@@ -112,11 +112,6 @@
                         class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition"
                         >Modify</a
                       >
-                      <a
-                        href="/delete"
-                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
-                        >Delete</a
-                      >
                     </div>
                   </div>
                 </div>
@@ -142,7 +137,7 @@
               id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
-              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
             </button>
           </div>
         </div>
@@ -1830,7 +1825,7 @@
         const btn = document.getElementById("syncBtn");
 
         icon.classList.add("fa-spin");
-        btn.classList.add("opacity-75");
+        btn.classList.add("opacity-75", "pointer-events-none");
         btn.innerText = " Syncing...";
         btn.prepend(icon);
 
@@ -1839,19 +1834,44 @@
             method: "POST",
           });
           if (response.ok) {
-            alert("Database Synced Successfully!");
+            icon.classList.remove("fa-spin", "fa-sync-alt");
+            icon.classList.add("fa-check");
+            btn.classList.remove(
+              "bg-brand",
+              "hover:bg-brand-hover",
+              "opacity-75",
+              "pointer-events-none",
+            );
+            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+            btn.innerText = " Synced!";
+            btn.prepend(icon);
+
             await loadDatabase(); // Refresh memory cache
+
+            setTimeout(() => {
+              icon.classList.remove("fa-check");
+              icon.classList.add("fa-sync-alt");
+              btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+              btn.classList.add("bg-brand", "hover:bg-brand-hover");
+              btn.innerText = " Sync";
+              btn.prepend(icon);
+            }, 2000);
           } else {
+            icon.classList.remove("fa-spin");
+            btn.classList.remove("opacity-75", "pointer-events-none");
+            btn.innerText = " Sync";
+            btn.prepend(icon);
+
             const data = await response.json();
             alert(`Sync Error: ${data.detail}`);
           }
         } catch (error) {
-          alert("Failed to connect to backend sync.");
-        } finally {
           icon.classList.remove("fa-spin");
-          btn.classList.remove("opacity-75");
+          btn.classList.remove("opacity-75", "pointer-events-none");
           btn.innerText = " Sync";
           btn.prepend(icon);
+
+          alert("Failed to connect to backend sync.");
         }
       }
 
