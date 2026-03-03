@@ -565,8 +565,8 @@
           const response = await fetch(`${API_BASE_URL}/sync`, {
             method: "POST",
           });
-
           if (response.ok) {
+            // Visual success indicator
             icon.classList.remove("fa-spin", "fa-sync-alt");
             icon.classList.add("fa-check");
             btn.classList.remove(
@@ -579,8 +579,9 @@
             btn.innerText = " Synced!";
             btn.prepend(icon);
 
-            await fetchAnime(); // Refresh dashboard data
+            await fetchAnime(); // Refresh dashboard data automatically
 
+            // Revert button back to normal after 2 seconds
             setTimeout(() => {
               icon.classList.remove("fa-check");
               icon.classList.add("fa-sync-alt");
@@ -590,18 +591,22 @@
               btn.prepend(icon);
             }, 2000);
           } else {
-            const result = await response.json();
+            // Revert button immediately on error
             icon.classList.remove("fa-spin");
             btn.classList.remove("opacity-75", "pointer-events-none");
             btn.innerText = " Sync";
             btn.prepend(icon);
+
+            const result = await response.json();
             alert(`Sync Error: ${result.detail}`);
           }
         } catch (error) {
+          // Revert button immediately on error
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75", "pointer-events-none");
           btn.innerText = " Sync";
           btn.prepend(icon);
+
           alert("Failed to connect to backend sync.");
         }
       }
