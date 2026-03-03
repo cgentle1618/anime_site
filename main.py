@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Body
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
@@ -57,14 +57,16 @@ def serve_search():
     return FileResponse("static/search.html")
 
 
-@app.get("/system")
-def serve_admin():
-    return FileResponse("static/admin.html")
+@app.get("/system", response_class=HTMLResponse)
+def read_admin():
+    with open("static/admin.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 
-# ==========================================
-# BACKEND API ENDPOINTS - ANIME ENTRIES
-# ==========================================
+@app.get("/add", response_class=HTMLResponse)
+def read_add():
+    with open("static/add.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])

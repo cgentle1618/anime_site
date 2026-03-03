@@ -68,11 +68,33 @@
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Library</a
                 >
-                <a
-                  href="/system"
-                  class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                  >Admin</a
-                >
+
+                <!-- Admin Dropdown (Active State on Admin) -->
+                <div class="relative group">
+                  <button
+                    class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
+                  >
+                    Admin <i class="fas fa-chevron-down ml-1.5 text-[10px]"></i>
+                  </button>
+                  <div
+                    class="absolute left-0 top-full pt-1 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+                  >
+                    <div
+                      class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
+                    >
+                      <a
+                        href="/system"
+                        class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition border-b border-gray-100"
+                        >Admin</a
+                      >
+                      <a
+                        href="/add"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        >Add</a
+                      >
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

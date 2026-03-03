@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add New Entry - CG1618</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
+            colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f3f4f6;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans relative"
+  >
+    <!-- Universal Top Navigation Bar -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center space-x-8">
+            <a
+              href="/"
+              class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand hover:opacity-80 transition cursor-pointer"
+            >
+              CG1618
+            </a>
+            <div class="hidden md:block">
+              <div class="flex items-baseline space-x-4">
+                <a
+                  href="/"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Dashboard</a
+                >
+                <a
+                  href="/library"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Library</a
+                >
+
+                <!-- Admin Dropdown (Active State on Add) -->
+                <div class="relative group">
+                  <button
+                    class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
+                  >
+                    Admin <i class="fas fa-chevron-down ml-1.5 text-[10px]"></i>
+                  </button>
+                  <div
+                    class="absolute left-0 top-full pt-1 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+                  >
+                    <div
+                      class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
+                    >
+                      <a
+                        href="/system"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
+                        >Admin</a
+                      >
+                      <a
+                        href="/add"
+                        class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition"
+                        >Add</a
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 flex-1 justify-end">
+            <div class="relative w-full max-w-md hidden sm:block">
+              <div
+                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+              >
+                <i class="fas fa-search text-gray-400"></i>
+              </div>
+              <input
+                type="text"
+                id="globalSearchInput"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search Series or Anime Names..."
+              />
+            </div>
+            <button
+              onclick="handleSync()"
+              id="syncBtn"
+              class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
+            >
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <div class="mb-8 border-b border-gray-200 pb-4">
+        <h1 class="text-3xl font-bold text-gray-900">
+          <i class="fas fa-plus-square text-brand mr-3"></i>Add New Entry
+        </h1>
+        <p class="text-gray-500 mt-2">
+          The manual entry addition form will be placed here.
+        </p>
+      </div>
+
+      <!-- Empty Container for Future Form -->
+      <div
+        id="add-entry-container"
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 text-center text-gray-400"
+      >
+        [ Pending Form Migration ]
+      </div>
+    </main>
+
+    <script>
+      const API_BASE_URL = "/api";
+
+      // --- Universal UI Logic ---
+      const globalSearchInput = document.getElementById("globalSearchInput");
+      if (globalSearchInput) {
+        globalSearchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            const query = e.target.value.trim();
+            if (query)
+              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+          }
+        });
+      }
+
+      // --- Universal Sync Helper ---
+      async function handleSync() {
+        const icon = document.getElementById("syncIcon");
+        const btn = document.getElementById("syncBtn");
+
+        icon.classList.add("fa-spin");
+        btn.classList.add("opacity-75");
+        btn.innerText = " Syncing...";
+        btn.prepend(icon);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/sync`, {
+            method: "POST",
+          });
+          if (response.ok) {
+            alert("Database Synced Successfully!");
+          } else {
+            const data = await response.json();
+            alert(`Sync Error: ${data.detail}`);
+          }
+        } catch (error) {
+          alert("Failed to connect to backend sync.");
+        } finally {
+          icon.classList.remove("fa-spin");
+          btn.classList.remove("opacity-75");
+          btn.innerText = " Sync Sheets";
+          btn.prepend(icon);
+        }
+      }
+    </script>
+  </body>
+</html>
