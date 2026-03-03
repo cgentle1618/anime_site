@@ -41,10 +41,6 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #9ca3af;
       }
-      .sortable:hover {
-        cursor: pointer;
-        background-color: #f9fafb;
-      }
       input[type="number"]::-webkit-inner-spin-button,
       input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -121,7 +117,30 @@
 
     <!-- Main Content -->
     <main class="flex-1 w-full max-w-[100vw] px-4 py-6 flex flex-col min-h-0">
-      <div class="mb-4 flex justify-end items-center shrink-0">
+      <!-- Toolbar: Sorting & Collapse Controls -->
+      <div class="mb-4 flex justify-between items-center shrink-0">
+        <!-- New Sorting Block -->
+        <div
+          class="flex items-center space-x-3 bg-white border border-gray-300 rounded-md px-3 py-1.5 shadow-sm"
+        >
+          <label
+            for="sortDropdown"
+            class="text-sm font-bold text-gray-500 uppercase tracking-wider"
+            ><i class="fas fa-sort-amount-down mr-1.5 text-brand"></i> Sort
+            By:</label
+          >
+          <select
+            id="sortDropdown"
+            onchange="handleSort(this.value)"
+            class="bg-transparent text-sm font-bold text-gray-800 focus:outline-none cursor-pointer border-none outline-none pr-2"
+          >
+            <option value="title" selected>Title (A-Z)</option>
+            <option value="rating_mine">Rating (Highest First)</option>
+            <option value="my_progress">My Progress (Status Order)</option>
+            <option value="release_date">Release Date (Chronological)</option>
+          </select>
+        </div>
+
         <button
           onclick="toggleAll()"
           id="toggleAllBtn"
@@ -141,12 +160,12 @@
           <table class="w-full text-sm text-left whitespace-nowrap min-w-max">
             <thead class="text-xs text-gray-600 uppercase">
               <tr>
+                <!-- Headers are no longer sortable or clickable -->
                 <th
                   scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
-                  onclick="handleSort('title')"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
                 >
-                  Title <i class="fas fa-sort text-gray-400 ml-1"></i>
+                  Title
                 </th>
                 <th
                   scope="col"
@@ -156,23 +175,15 @@
                 </th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
-                  onclick="handleSort('rating_mine')"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
                 >
-                  Rating <i class="fas fa-sort text-gray-400 ml-1"></i>
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
-                  onclick="handleSort('my_progress')"
-                >
-                  Status <i class="fas fa-sort text-gray-400 ml-1"></i>
+                  Rating
                 </th>
                 <th
                   scope="col"
                   class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
                 >
-                  Airing
+                  My Progress
                 </th>
                 <th
                   scope="col"
@@ -194,10 +205,15 @@
                 </th>
                 <th
                   scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] sortable transition"
-                  onclick="handleSort('release_date')"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
                 >
-                  Release <i class="fas fa-sort text-gray-400 ml-1"></i>
+                  Airing
+                </th>
+                <th
+                  scope="col"
+                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
+                >
+                  Release
                 </th>
                 <th
                   scope="col"
@@ -252,7 +268,7 @@
       let originalData = [];
       let displayData = [];
       let sortCol = "title";
-      let sortAsc = true;
+      let sortAsc = true; // Permanently locked to true for strictly directed sorting
 
       let collapsedSeries = new Set();
       let isAllCollapsed = false;
@@ -546,17 +562,17 @@
             } else if (sortCol === "my_progress") {
               // Custom Watch Status Hierarchy Sort
               const statusOrder = {
-                "Active Watching": 1,
-                "Passive Watching": 2,
-                Paused: 3,
+                Finished: 1,
+                Completed: 1,
+                "Active Watching": 2,
+                "Passive Watching": 3,
                 "Watch When Airs": 4,
                 "Plan to Watch": 5,
                 "Might Watch": 6,
-                Completed: 7,
-                Finished: 8,
-                "Temp Dropped": 9,
-                Dropped: 10,
-                "Won't Watch": 11,
+                Paused: 7,
+                "Temp Dropped": 8,
+                Dropped: 9,
+                "Won't Watch": 10,
               };
               let valA = statusOrder[a.my_progress] || 99;
               let valB = statusOrder[b.my_progress] || 99;
@@ -639,10 +655,10 @@
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 text-xs rounded-md ${statusColor}">${status}</span>
                         </td>
-                        <td class="px-4 py-3 text-gray-500">${anime.airing_status || "-"}</td>
                         <td class="px-4 py-3 text-xs">${epsInput}</td>
                         <td class="px-4 py-3 text-gray-500">${anime.airing_type || "-"}</td>
                         <td class="px-4 py-3 text-gray-500">${anime.main_spinoff || "-"}</td>
+                        <td class="px-4 py-3 text-gray-500">${anime.airing_status || "-"}</td>
                         <td class="px-4 py-3 text-gray-900">${anime.release_date || "-"}</td>
                         <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.studio || ""}">${anime.studio || "-"}</td>
                         <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.director || ""}">${anime.director || "-"}</td>
@@ -717,12 +733,7 @@
       }
 
       function handleSort(column) {
-        if (sortCol === column) {
-          sortAsc = !sortAsc;
-        } else {
-          sortCol = column;
-          sortAsc = true;
-        }
+        sortCol = column;
         renderTable();
       }
 
