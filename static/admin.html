@@ -365,6 +365,79 @@
             })
             .join("");
         } catch (error) {
+          tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</td></tr>`;
+        }
+      }
+
+      // --- Feature 2: Conflict Management (Orphans) ---
+      async function scanOrphans() {
+        const container = document.getElementById("orphans-container");
+        const btn = document.getElementById("scan-orphans-btn");
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Scanning...`;
+        container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center text-brand"><i class="fas fa-circle-notch fa-spin mr-2"></i> Comparing DB to Google Sheets...</div>`;
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/orphans`);
+          if (!res.ok) throw new Error("Failed to scan orphans");
+          const orphans = await res.json();
+
+          if (orphans.length === 0) {
+            container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center text-green-600 font-bold"><i class="fas fa-check-circle mr-2"></i> Database is perfectly synced! No orphans found.</div>`;
+            alert(
+              "Scan complete: No database conflicts found! Your database is perfectly synced.",
+            );
+          } else {
+            container.innerHTML = orphans
+              .map(
+                (anime) => `
+                      <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm mb-2 last:mb-0 flex justify-between items-center group relative z-10">
+                          <div class="min-w-0 pr-4">
+                              <div class="font-bold text-gray-900 truncate">${anime.series_season_cn || anime.series_season_en || anime.series_en}</div>
+                              <div class="text-[10px] font-mono text-gray-400 mt-0.5 truncate">${anime.system_id}</div>
+                          </div>
+                          <button onclick="deleteOrphan('${anime.system_id}', this)" class="shrink-0 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 hover:text-rose-600 px-3 py-1.5 rounded-md text-xs font-bold transition">
+                              <i class="fas fa-trash-alt mr-1"></i> Delete
+                          </button>
+                      </div>
+                  `,
+              )
+              .join("");
+          }
+        } catch (error) {
+          container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center text-red-500 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fas fa-radar mr-1"></i> Scan`;
+        }
+      }
+
+      async function deleteOrphan(systemId, btnElement) {
+        if (
+          !confirm(
+            "Are you sure you want to hard delete this entry from the PostgreSQL database?",
+          )
+        )
+          return;
+
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        btnElement.disabled = true;
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/orphans/${systemId}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error("Deletion failed");
+
+          btnElement.closest("div.bg-white").remove();
+
+          const container = document.getElementById("orphans-container");
+          if (container.children.length === 0) {
+            container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center text-green-600 font-bold"><i class="fas fa-check-circle mr-2"></i> All orphans cleared!</div>`;
+          }
+        } catch (error) {
           alert(error.message);
           btnElement.innerHTML = originalHtml;
           btnElement.disabled = false;
@@ -423,14 +496,14 @@
               modContainer.innerHTML = modifiedAnime
                 .map(
                   (a) => `
-                        <div class="p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/30 rounded-lg flex justify-between items-center transition-colors mb-2">
-                            <div class="min-w-0 pr-2">
-                                <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                                <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
-                            </div>
-                            <div class="text-[10px] font-mono text-gray-400 shrink-0 bg-white px-2 py-1 rounded border border-gray-200">ID: ${a.system_id.substring(0, 8)}...</div>
-                        </div>
-                    `,
+                          <div class="p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/30 rounded-lg flex justify-between items-center transition-colors mb-2">
+                              <div class="min-w-0 pr-2">
+                                  <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                  <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                              </div>
+                              <div class="text-[10px] font-mono text-gray-400 shrink-0 bg-white px-2 py-1 rounded border border-gray-200">ID: ${a.system_id.substring(0, 8)}...</div>
+                          </div>
+                      `,
                 )
                 .join("");
             }
@@ -446,14 +519,14 @@
               addContainer.innerHTML = addedAnime
                 .map(
                   (a) => `
-                        <div class="p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-300 rounded-lg flex justify-between items-center transition-colors mb-2">
-                            <div class="min-w-0 pr-2">
-                                <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                                <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
-                            </div>
-                            <div class="text-[10px] font-mono text-emerald-600/70 shrink-0 bg-white px-2 py-1 rounded border border-emerald-100">ID: ${a.system_id.substring(0, 8)}...</div>
-                        </div>
-                    `,
+                          <div class="p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                              <div class="min-w-0 pr-2">
+                                  <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                  <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                              </div>
+                              <div class="text-[10px] font-mono text-emerald-600/70 shrink-0 bg-white px-2 py-1 rounded border border-emerald-100">ID: ${a.system_id.substring(0, 8)}...</div>
+                          </div>
+                      `,
                 )
                 .join("");
             }
@@ -475,14 +548,14 @@
               modContainer.innerHTML = modifiedSeries
                 .map(
                   (s) => `
-                        <div class="p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-300 rounded-lg flex justify-between items-center transition-colors mb-2">
-                            <div class="min-w-0 pr-2">
-                                <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
-                                <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
-                            </div>
-                            <div class="text-[10px] font-mono text-purple-400/80 shrink-0 bg-white px-2 py-1 rounded border border-purple-100">ID: ${s.system_id.substring(0, 8)}...</div>
-                        </div>
-                    `,
+                          <div class="p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                              <div class="min-w-0 pr-2">
+                                  <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
+                                  <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                              </div>
+                              <div class="text-[10px] font-mono text-purple-400/80 shrink-0 bg-white px-2 py-1 rounded border border-purple-100">ID: ${s.system_id.substring(0, 8)}...</div>
+                          </div>
+                      `,
                 )
                 .join("");
             }
@@ -498,14 +571,14 @@
               addContainer.innerHTML = addedSeries
                 .map(
                   (s) => `
-                        <div class="p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-300 rounded-lg flex justify-between items-center transition-colors mb-2">
-                            <div class="min-w-0 pr-2">
-                                <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
-                                <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
-                            </div>
-                            <div class="text-[10px] font-mono text-pink-500/70 shrink-0 bg-white px-2 py-1 rounded border border-pink-100">ID: ${s.system_id.substring(0, 8)}...</div>
-                        </div>
-                    `,
+                          <div class="p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                              <div class="min-w-0 pr-2">
+                                  <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
+                                  <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                              </div>
+                              <div class="text-[10px] font-mono text-pink-500/70 shrink-0 bg-white px-2 py-1 rounded border border-pink-100">ID: ${s.system_id.substring(0, 8)}...</div>
+                          </div>
+                      `,
                 )
                 .join("");
             }
