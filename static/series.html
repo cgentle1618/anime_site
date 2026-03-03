@@ -88,7 +88,7 @@
                   >Library</a
                 >
                 <a
-                  href="/admin"
+                  href="/system"
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Admin</a
                 >
@@ -263,7 +263,6 @@
           seriesData = await seriesRes.json();
 
           if (seriesData.series_en) {
-            // Use the robust by-series endpoint instead of the conflicting /series/ route
             const animeRes = await fetch(
               `${API_BASE_URL}/anime/by-series/${encodeURIComponent(seriesData.series_en)}`,
             );
@@ -349,7 +348,7 @@
           return;
         }
 
-        // 1. Group Data into Categories (Added 'Watching')
+        // 1. Group Data into Categories
         const groups = {
           Watching: [],
           "Not Yet Aired": [],
@@ -363,19 +362,14 @@
         };
 
         animeData.forEach((anime) => {
-          // Priority 1: Is the user currently watching it?
           if (
             anime.my_progress === "Active Watching" ||
             anime.my_progress === "Passive Watching"
           ) {
             groups["Watching"].push(anime);
-          }
-          // Priority 2: Is it not yet aired?
-          else if (anime.airing_status === "Not Yet Aired") {
+          } else if (anime.airing_status === "Not Yet Aired") {
             groups["Not Yet Aired"].push(anime);
-          }
-          // Priority 3: Group by standard airing type
-          else {
+          } else {
             const type = anime.airing_type || "Other";
             if (groups[type] !== undefined) {
               groups[type].push(anime);
@@ -391,18 +385,15 @@
           const str = String(dateStr).trim().toUpperCase();
           if (str === "TBA" || str === "") return 999999;
 
-          // Extract the 4-digit year reliably from anywhere in the string
           const yearMatch = str.match(/\d{4}/);
           if (yearMatch) {
             const year = parseInt(yearMatch[0], 10);
-            let month = 2; // Default to Feb (2/1) for Year-only formats
+            let month = 2; // Default to Feb
 
-            // 1. Seasonal Format Check
             if (str.includes("WIN")) month = 1;
             else if (str.includes("SPR")) month = 4;
             else if (str.includes("SUM")) month = 7;
             else if (str.includes("FAL")) month = 10;
-            // 2. Month Format Check
             else if (str.includes("JAN")) month = 1;
             else if (str.includes("FEB")) month = 2;
             else if (str.includes("MAR")) month = 3;
@@ -416,21 +407,24 @@
             else if (str.includes("NOV")) month = 11;
             else if (str.includes("DEC")) month = 12;
 
-            return year * 100 + month; // E.g., SPR 2024 -> 202404
+            return year * 100 + month;
           }
-
-          return 999999; // Fallback for anything without a year, sent to the bottom
+          return 999999;
         };
 
         const sortByReleaseDate = (a, b) => {
           let valA = parseReleaseDate(a.release_date);
           let valB = parseReleaseDate(b.release_date);
-          if (valA !== valB) return valA - valB; // Ascending numerical sort
+          if (valA !== valB) return valA - valB;
 
-          // Tie breaker: season title
-          let titleA = a.series_season_en || a.series_season_cn || "";
-          let titleB = b.series_season_en || b.series_season_cn || "";
-          return titleA.localeCompare(titleB, undefined, { numeric: true });
+          // Tie-breaker: Strict English Alphabetical
+          let titleA = String(a.series_season_en || a.series_en || "")
+            .trim()
+            .toLowerCase();
+          let titleB = String(b.series_season_en || b.series_en || "")
+            .trim()
+            .toLowerCase();
+          return titleA < titleB ? -1 : titleA > titleB ? 1 : 0;
         };
 
         // 3. Sort Each Group uniformly by release date
@@ -544,7 +538,8 @@
           progressColor = "text-red-700 bg-red-100 border-red-300";
         else if (
           progressStatus === "Might Watch" ||
-          progressStatus === "Watch When Airs"
+          progressStatus === "Watch When Airs" ||
+          progressStatus === "Plan to Watch"
         )
           progressColor = "text-teal-700 bg-teal-100 border-teal-300";
 
