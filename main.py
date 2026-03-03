@@ -251,13 +251,44 @@ def get_sync_logs(db: Session = Depends(get_db), limit: int = 50):
 
 
 @app.post("/api/admin/add")
-def manual_add_anime(payload: schemas.AnimeManualCreate):
-    """Appends a new anime to the Google Sheet. The frontend will trigger a full sync afterward."""
+def manual_add_anime(payload: schemas.AnimeManualCreate, db: Session = Depends(get_db)):
+    """Appends a new anime to the Google Sheet, handles new series creation, and immediately syncs to PostgreSQL."""
+    import uuid
+    import database  # Ensure access to models
+
     try:
-        sheets_sync.append_new_anime(payload.model_dump())
+        # 1. Check if it's a completely new series
+        if payload.series_en:
+            existing_series = (
+                db.query(database.AnimeSeries)
+                .filter(database.AnimeSeries.series_en == payload.series_en)
+                .first()
+            )
+
+            if not existing_series:
+                print(
+                    f"New series detected: {payload.series_en}. Creating series entry in Google Sheets..."
+                )
+                new_series_data = {
+                    "system_id": str(uuid.uuid4()),
+                    "series_en": payload.series_en,
+                    "series_roman": payload.series_season_roman,
+                    "series_cn": payload.series_season_cn,
+                    "rating_series": "",
+                    "alt_name": payload.series_alt_name,
+                }
+                sheets_sync.append_new_series(new_series_data)
+
+        # 2. Append Anime to Google Sheets (Exclude the temporary alt_name so it maps correctly)
+        anime_dict = payload.model_dump(exclude={"series_alt_name"})
+        sheets_sync.append_new_anime(anime_dict)
+
+        # 3. Immediately trigger Database Sync to keep Postgres completely aligned
+        sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
+
         return {
             "status": "success",
-            "message": "Successfully appended to Google Sheets.",
+            "message": "Successfully appended to Google Sheets and synced to database.",
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

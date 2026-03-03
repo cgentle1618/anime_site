@@ -428,6 +428,29 @@ def append_new_anime(anime_data: dict):
     return True
 
 
+# NEW FUNCTION ADDED HERE
+def append_new_series(series_data: dict):
+    """
+    Appends a completely new Franchise/Series directly to the 'Anime Series' Google Sheet.
+    """
+    try:
+        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
+    except WorksheetNotFound:
+        print("⚠️ 'Anime Series' tab not found! Cannot append new series.")
+        return False
+
+    headers = execute_with_retry(sheet.row_values, 1)
+
+    new_row = []
+    for header in headers:
+        val = series_data.get(header, "")
+        new_row.append(val if val is not None else "")
+
+    print(f"Appending new series '{series_data.get('series_en')}' to Google Sheets...")
+    execute_with_retry(sheet.append_row, new_row, value_input_option="USER_ENTERED")
+    return True
+
+
 def detect_orphans(db: Session):
     """
     Scans the Google Sheet and compares system_ids against the PostgreSQL DB.
