@@ -926,7 +926,7 @@
       }
 
       // --- Dynamic Checkbox Generator for Genres ---
-      const allGenres = [
+      const genreMainOptions = [
         "日常",
         "動作",
         "冒險",
@@ -950,6 +950,8 @@
         "百合",
         "美食",
         "色情",
+      ];
+      const genreSubOptions = [
         "原創",
         "爽番",
         "熱血",
@@ -983,11 +985,11 @@
       ];
 
       function populateGenres() {
-        const createCheckboxes = (containerId, name) => {
+        const createCheckboxes = (containerId, name, optionsList) => {
           const container = document.getElementById(containerId);
           if (!container) return;
           let html = "";
-          allGenres.forEach((genre) => {
+          optionsList.forEach((genre) => {
             html += `
                       <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
                           <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
@@ -997,8 +999,12 @@
           });
           container.innerHTML = html;
         };
-        createCheckboxes("genre-main-container", "genre_main");
-        createCheckboxes("genre-sub-container", "genre_sub");
+        createCheckboxes(
+          "genre-main-container",
+          "genre_main",
+          genreMainOptions,
+        );
+        createCheckboxes("genre-sub-container", "genre_sub", genreSubOptions);
       }
 
       // --- Dynamic Typable Multi-Select for Studios ---
