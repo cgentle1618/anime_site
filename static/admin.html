@@ -89,8 +89,13 @@
                       >
                       <a
                         href="/add"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
                         >Add</a
+                      >
+                      <a
+                        href="/modify"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        >Modify</a
                       >
                     </div>
                   </div>
@@ -136,7 +141,7 @@
         </p>
       </div>
 
-      <!-- Admin Grid Layout -->
+      <!-- Top Admin Grid Layout -->
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
         <!-- LEFT COLUMN -->
         <div class="space-y-8">
@@ -187,9 +192,9 @@
         <div class="space-y-8">
           <!-- Data Conflict Management (Orphans) -->
           <div
-            class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+            class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 h-[400px] flex flex-col"
           >
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex justify-between items-center mb-4 shrink-0">
               <h2 class="font-bold text-gray-800">
                 <i class="fas fa-heart-broken text-rose-500 mr-2"></i> Database
                 Conflicts (Orphans)
@@ -202,7 +207,7 @@
                 <i class="fas fa-radar mr-1"></i> Scan
               </button>
             </div>
-            <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+            <p class="text-xs text-gray-500 mb-4 leading-relaxed shrink-0">
               Detects PostgreSQL database entries that no longer exist in your
               Google Sheet (e.g., deleted rows). You can safely purge them here
               to restore parity.
@@ -210,11 +215,82 @@
 
             <div
               id="orphans-container"
-              class="bg-gray-50 border border-gray-200 rounded-xl max-h-[170px] overflow-auto p-2"
+              class="bg-gray-50 border border-gray-200 rounded-xl overflow-auto p-2 flex-1 relative"
             >
-              <div class="text-center py-6 text-gray-400 text-sm italic">
+              <div
+                class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm italic"
+              >
                 Click "Scan" to detect orphaned records.
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recently Modified Entries Grid Layout -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+        <!-- Modified Anime -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-bold text-gray-800 mb-4">
+            <i class="fas fa-edit text-brand mr-2"></i> Recently Modified Anime
+          </h2>
+          <div
+            id="modified-anime-container"
+            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+          >
+            <div class="text-center py-6 text-gray-400 text-sm italic">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+            </div>
+          </div>
+        </div>
+
+        <!-- Modified Series -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-bold text-gray-800 mb-4">
+            <i class="fas fa-edit text-purple-500 mr-2"></i> Recently Modified
+            Series
+          </h2>
+          <div
+            id="modified-series-container"
+            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+          >
+            <div class="text-center py-6 text-gray-400 text-sm italic">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recently Added Entries Grid Layout -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+        <!-- Added Anime -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-bold text-gray-800 mb-4">
+            <i class="fas fa-plus-square text-emerald-500 mr-2"></i> Recently
+            Added Anime
+          </h2>
+          <div
+            id="added-anime-container"
+            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+          >
+            <div class="text-center py-6 text-gray-400 text-sm italic">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+            </div>
+          </div>
+        </div>
+
+        <!-- Added Series -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-bold text-gray-800 mb-4">
+            <i class="fas fa-plus-square text-pink-500 mr-2"></i> Recently Added
+            Series
+          </h2>
+          <div
+            id="added-series-container"
+            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+          >
+            <div class="text-center py-6 text-gray-400 text-sm italic">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
             </div>
           </div>
         </div>
@@ -289,79 +365,161 @@
             })
             .join("");
         } catch (error) {
-          tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</td></tr>`;
-        }
-      }
-
-      // --- Feature 2: Conflict Management (Orphans) ---
-      async function scanOrphans() {
-        const container = document.getElementById("orphans-container");
-        const btn = document.getElementById("scan-orphans-btn");
-
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Scanning...`;
-        container.innerHTML = `<div class="text-center py-6 text-brand"><i class="fas fa-circle-notch fa-spin mr-2"></i> Comparing DB to Google Sheets...</div>`;
-
-        try {
-          const res = await fetch(`${API_BASE_URL}/admin/orphans`);
-          if (!res.ok) throw new Error("Failed to scan orphans");
-          const orphans = await res.json();
-
-          if (orphans.length === 0) {
-            container.innerHTML = `<div class="text-center py-6 text-green-600 font-bold"><i class="fas fa-check-circle mr-2"></i> Database is perfectly synced! No orphans found.</div>`;
-          } else {
-            container.innerHTML = orphans
-              .map(
-                (anime) => `
-                      <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm mb-2 last:mb-0 flex justify-between items-center group">
-                          <div class="min-w-0 pr-4">
-                              <div class="font-bold text-gray-900 truncate">${anime.series_season_cn || anime.series_season_en || anime.series_en}</div>
-                              <div class="text-[10px] font-mono text-gray-400 mt-0.5 truncate">${anime.system_id}</div>
-                          </div>
-                          <button onclick="deleteOrphan('${anime.system_id}', this)" class="shrink-0 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 hover:text-rose-600 px-3 py-1.5 rounded-md text-xs font-bold transition">
-                              <i class="fas fa-trash-alt mr-1"></i> Delete
-                          </button>
-                      </div>
-                  `,
-              )
-              .join("");
-          }
-        } catch (error) {
-          container.innerHTML = `<div class="text-center py-6 text-red-500 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = `<i class="fas fa-radar mr-1"></i> Scan`;
-        }
-      }
-
-      async function deleteOrphan(systemId, btnElement) {
-        if (
-          !confirm(
-            "Are you sure you want to hard delete this entry from the PostgreSQL database?",
-          )
-        )
-          return;
-
-        const originalHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
-        btnElement.disabled = true;
-
-        try {
-          const res = await fetch(`${API_BASE_URL}/admin/orphans/${systemId}`, {
-            method: "DELETE",
-          });
-          if (!res.ok) throw new Error("Deletion failed");
-
-          btnElement.closest("div.bg-white").remove();
-
-          const container = document.getElementById("orphans-container");
-          if (container.children.length === 0) {
-            container.innerHTML = `<div class="text-center py-6 text-green-600 font-bold"><i class="fas fa-check-circle mr-2"></i> All orphans cleared!</div>`;
-          }
-        } catch (error) {
           alert(error.message);
           btnElement.innerHTML = originalHtml;
           btnElement.disabled = false;
+        }
+      }
+
+      // --- Feature 3: Recent Entries Fetcher ---
+      async function loadRecentEntries() {
+        try {
+          // Helper to strictly differentiate modifications from new creations
+          const isModified = (item) => {
+            if (!item.updated_at) return false;
+            if (!item.created_at) return true;
+            // Check if timestamps are separated by more than 1 second (1000ms)
+            return (
+              new Date(item.updated_at).getTime() -
+                new Date(item.created_at).getTime() >
+              1000
+            );
+          };
+
+          const getAdded = (arr) => {
+            const withTimestamps = arr.filter((x) => x.created_at);
+            if (withTimestamps.length > 0) {
+              return [...arr]
+                .sort(
+                  (a, b) =>
+                    new Date(b.created_at || 0) - new Date(a.created_at || 0),
+                )
+                .slice(0, 10);
+            }
+            // Fallback: End of the list in Google Sheets equals newest addition
+            return [...arr].reverse().slice(0, 10);
+          };
+
+          const getModified = (arr) => {
+            return [...arr]
+              .filter(isModified)
+              .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+              .slice(0, 10);
+          };
+
+          // Fetch Anime
+          const resAnime = await fetch(`${API_BASE_URL}/anime`);
+          if (resAnime.ok) {
+            const allAnime = await resAnime.json();
+
+            // Modified Anime
+            const modifiedAnime = getModified(allAnime);
+            const modContainer = document.getElementById(
+              "modified-anime-container",
+            );
+            if (modifiedAnime.length === 0) {
+              modContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic">No recent modifications found. Ensure 'updated_at' is tracked by backend.</div>`;
+            } else {
+              modContainer.innerHTML = modifiedAnime
+                .map(
+                  (a) => `
+                        <div class="p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/30 rounded-lg flex justify-between items-center transition-colors mb-2">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                            </div>
+                            <div class="text-[10px] font-mono text-gray-400 shrink-0 bg-white px-2 py-1 rounded border border-gray-200">ID: ${a.system_id.substring(0, 8)}...</div>
+                        </div>
+                    `,
+                )
+                .join("");
+            }
+
+            // Added Anime
+            const addedAnime = getAdded(allAnime);
+            const addContainer = document.getElementById(
+              "added-anime-container",
+            );
+            if (addedAnime.length === 0) {
+              addContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic">No entries found.</div>`;
+            } else {
+              addContainer.innerHTML = addedAnime
+                .map(
+                  (a) => `
+                        <div class="p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                            </div>
+                            <div class="text-[10px] font-mono text-emerald-600/70 shrink-0 bg-white px-2 py-1 rounded border border-emerald-100">ID: ${a.system_id.substring(0, 8)}...</div>
+                        </div>
+                    `,
+                )
+                .join("");
+            }
+          }
+
+          // Fetch Series
+          const resSeries = await fetch(`${API_BASE_URL}/series`);
+          if (resSeries.ok) {
+            const allSeries = await resSeries.json();
+
+            // Modified Series
+            const modifiedSeries = getModified(allSeries);
+            const modContainer = document.getElementById(
+              "modified-series-container",
+            );
+            if (modifiedSeries.length === 0) {
+              modContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic">No recent modifications found. Ensure 'updated_at' is tracked by backend.</div>`;
+            } else {
+              modContainer.innerHTML = modifiedSeries
+                .map(
+                  (s) => `
+                        <div class="p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
+                                <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                            </div>
+                            <div class="text-[10px] font-mono text-purple-400/80 shrink-0 bg-white px-2 py-1 rounded border border-purple-100">ID: ${s.system_id.substring(0, 8)}...</div>
+                        </div>
+                    `,
+                )
+                .join("");
+            }
+
+            // Added Series
+            const addedSeries = getAdded(allSeries);
+            const addContainer = document.getElementById(
+              "added-series-container",
+            );
+            if (addedSeries.length === 0) {
+              addContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic">No series found.</div>`;
+            } else {
+              addContainer.innerHTML = addedSeries
+                .map(
+                  (s) => `
+                        <div class="p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-300 rounded-lg flex justify-between items-center transition-colors mb-2">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
+                                <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                            </div>
+                            <div class="text-[10px] font-mono text-pink-500/70 shrink-0 bg-white px-2 py-1 rounded border border-pink-100">ID: ${s.system_id.substring(0, 8)}...</div>
+                        </div>
+                    `,
+                )
+                .join("");
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load recent entries for admin page.", e);
+          document.getElementById("modified-anime-container").innerHTML =
+            `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
+          document.getElementById("added-anime-container").innerHTML =
+            `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
+          document.getElementById("modified-series-container").innerHTML =
+            `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
+          document.getElementById("added-series-container").innerHTML =
+            `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
         }
       }
 
@@ -381,7 +539,8 @@
           });
           if (response.ok) {
             alert("Database Synced Successfully!");
-            loadLogs(); // Refresh the logs table immediately
+            loadLogs();
+            loadRecentEntries();
           } else {
             const data = await response.json();
             alert(`Sync Error: ${data.detail}`);
@@ -397,7 +556,10 @@
       }
 
       // Initialize Page
-      document.addEventListener("DOMContentLoaded", loadLogs);
+      document.addEventListener("DOMContentLoaded", () => {
+        loadLogs();
+        loadRecentEntries();
+      });
     </script>
   </body>
 </html>
