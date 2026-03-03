@@ -146,6 +146,52 @@
         </p>
       </div>
 
+      <!-- Quick Action Buttons -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <a
+          href="/add"
+          class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition group flex items-center cursor-pointer"
+        >
+          <div
+            class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mr-4 group-hover:bg-emerald-100 transition shadow-sm border border-emerald-100"
+          >
+            <i class="fas fa-plus"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-900">Add Entry</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Append a new record</p>
+          </div>
+        </a>
+        <a
+          href="/modify"
+          class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-brand/40 transition group flex items-center cursor-pointer"
+        >
+          <div
+            class="w-12 h-12 rounded-full bg-brand/5 text-brand flex items-center justify-center text-xl mr-4 group-hover:bg-brand/10 transition shadow-sm border border-brand/10"
+          >
+            <i class="fas fa-pen"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-900">Modify Entry</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Edit existing records</p>
+          </div>
+        </a>
+        <a
+          href="/delete"
+          class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-red-300 transition group flex items-center cursor-pointer"
+        >
+          <div
+            class="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-xl mr-4 group-hover:bg-red-100 transition shadow-sm border border-red-100"
+          >
+            <i class="fas fa-trash-alt"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-900">Delete Entry</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Permanently remove</p>
+          </div>
+        </a>
+      </div>
+
       <!-- Top Admin Grid Layout -->
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
         <!-- LEFT COLUMN -->
@@ -235,13 +281,16 @@
       <!-- Recently Modified Entries Grid Layout -->
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
         <!-- Modified Anime -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 class="font-bold text-gray-800 mb-4">
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col"
+        >
+          <h2 class="font-bold text-gray-800 mb-4 shrink-0">
             <i class="fas fa-edit text-brand mr-2"></i> Recently Modified Anime
           </h2>
+          <!-- Changed from max-h to h-[500px] to enforce a permanently large, scrollable box -->
           <div
             id="modified-anime-container"
-            class="space-y-2 max-h-[800px] overflow-y-auto pr-2"
+            class="space-y-2 h-[500px] overflow-y-auto pr-2 bg-gray-50/50 rounded-xl border border-gray-100 p-2"
           >
             <div class="text-center py-6 text-gray-400 text-sm italic">
               <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
@@ -250,14 +299,17 @@
         </div>
 
         <!-- Modified Series -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 class="font-bold text-gray-800 mb-4">
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col"
+        >
+          <h2 class="font-bold text-gray-800 mb-4 shrink-0">
             <i class="fas fa-edit text-purple-500 mr-2"></i> Recently Modified
             Series
           </h2>
+          <!-- Changed from max-h to h-[500px] to enforce a permanently large, scrollable box -->
           <div
             id="modified-series-container"
-            class="space-y-2 max-h-[800px] overflow-y-auto pr-2"
+            class="space-y-2 h-[500px] overflow-y-auto pr-2 bg-gray-50/50 rounded-xl border border-gray-100 p-2"
           >
             <div class="text-center py-6 text-gray-400 text-sm italic">
               <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
@@ -274,6 +326,7 @@
             <i class="fas fa-plus-square text-emerald-500 mr-2"></i> Recently
             Added Anime
           </h2>
+          <!-- Kept max-h-[350px] so it stays smaller and shrinks to fit -->
           <div
             id="added-anime-container"
             class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
@@ -290,6 +343,7 @@
             <i class="fas fa-plus-square text-pink-500 mr-2"></i> Recently Added
             Series
           </h2>
+          <!-- Kept max-h-[350px] so it stays smaller and shrinks to fit -->
           <div
             id="added-series-container"
             class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
@@ -607,7 +661,7 @@
         const btn = document.getElementById("syncBtn");
 
         icon.classList.add("fa-spin");
-        btn.classList.add("opacity-75");
+        btn.classList.add("opacity-75", "pointer-events-none");
         btn.innerText = " Syncing...";
         btn.prepend(icon);
 
@@ -616,20 +670,49 @@
             method: "POST",
           });
           if (response.ok) {
-            alert("Database Synced Successfully!");
+            // Visual success indicator instead of popup alert
+            icon.classList.remove("fa-spin", "fa-sync-alt");
+            icon.classList.add("fa-check");
+            btn.classList.remove(
+              "bg-brand",
+              "hover:bg-brand-hover",
+              "opacity-75",
+              "pointer-events-none",
+            );
+            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+            btn.innerText = " Synced!";
+            btn.prepend(icon);
+
             loadLogs();
             loadRecentEntries();
+
+            // Revert button back to normal after 2 seconds
+            setTimeout(() => {
+              icon.classList.remove("fa-check");
+              icon.classList.add("fa-sync-alt");
+              btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+              btn.classList.add("bg-brand", "hover:bg-brand-hover");
+              btn.innerText = " Sync";
+              btn.prepend(icon);
+            }, 2000);
           } else {
+            // Revert button immediately on error
+            icon.classList.remove("fa-spin");
+            btn.classList.remove("opacity-75", "pointer-events-none");
+            btn.innerText = " Sync";
+            btn.prepend(icon);
+
             const data = await response.json();
             alert(`Sync Error: ${data.detail}`);
           }
         } catch (error) {
-          alert("Failed to connect to backend sync.");
-        } finally {
+          // Revert button immediately on error
           icon.classList.remove("fa-spin");
-          btn.classList.remove("opacity-75");
+          btn.classList.remove("opacity-75", "pointer-events-none");
           btn.innerText = " Sync";
           btn.prepend(icon);
+
+          alert("Failed to connect to backend sync.");
         }
       }
 
