@@ -787,12 +787,8 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     extracted_season = extract_season_from_cn_title(
                         row_data.get("series_season_cn", "")
                     )
-                if (
-                    not extracted_season
-                    and clean_value(row_data.get("series_en"))
-                    and series_counts.get(clean_value(row_data.get("series_en"))) == 1
-                ):
-                    extracted_season = "Season 1"
+
+                # We removed the fallback logic here that was forcing "Season 1" if series_counts == 1
 
                 if extracted_season:
                     series_season_val = extracted_season
