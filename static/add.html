@@ -127,7 +127,7 @@
               id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
-              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
             </button>
           </div>
         </div>
@@ -362,13 +362,13 @@
                   id="add-type"
                   class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
+                  <option value="" selected>-</option>
                   <option value="TV">TV</option>
                   <option value="ONA">ONA</option>
                   <option value="Movie">Movie</option>
                   <option value="Special">Special</option>
                   <option value="OVA">OVA</option>
                   <option value="OAD">OAD</option>
-                  <option value="Other" selected>Other</option>
                 </select>
               </div>
               <div>
@@ -1459,7 +1459,7 @@
         } finally {
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75");
-          btn.innerText = " Sync";
+          btn.innerText = " Sync Sheets";
           btn.prepend(icon);
         }
       }
