@@ -69,6 +69,12 @@ def read_add():
         return f.read()
 
 
+@app.get("/modify", response_class=HTMLResponse)
+def read_modify():
+    with open("static/modify.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
 def get_all_anime(db: Session = Depends(get_db)):
     return db.query(database.AnimeEntry).all()
@@ -296,62 +302,82 @@ def manual_add_anime(payload: schemas.AnimeManualCreate, db: Session = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.patch("/api/admin/override_mal/{system_id}")
-def override_mal_id(
-    system_id: str, payload: schemas.MalOverrideRequest, db: Session = Depends(get_db)
+@app.put("/api/admin/anime/{system_id}")
+def update_anime_entry(
+    system_id: str, payload: schemas.AnimeManualUpdate, db: Session = Depends(get_db)
 ):
-    """Updates a bad MAL ID and clears enriched data so Jikan will refetch it cleanly on next sync."""
-    anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found")
+    """Updates an anime in Google Sheets and triggers a DB sync."""
+    try:
+        anime_dict = payload.model_dump()
+        anime_dict["system_id"] = system_id  # Inject the path ID securely into the dict
 
-    anime.mal_id = payload.mal_id
-    anime.cover_image_url = None
-    anime.mal_rating = None
-    anime.mal_rank = None
-    db.commit()
+        sheets_sync.update_anime_row(system_id, anime_dict)
+        sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
 
-    return {
-        "status": "success",
-        "message": f"MAL ID updated to {payload.mal_id}. Enriched data cleared for refetch.",
-    }
+        return {
+            "status": "success",
+            "message": f"Successfully updated anime {system_id}.",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/admin/orphans", response_model=List[schemas.AnimeResponse])
-def get_orphaned_records(db: Session = Depends(get_db)):
-    """Returns all Anime entries that exist in Postgres but were deleted from the Google Sheet."""
-    orphans = sheets_sync.detect_orphans(db)
-    if not orphans:
-        return []
-    orphan_records = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id.in_(orphans))
-        .all()
-    )
-    return orphan_records
+@app.delete("/api/admin/anime/{system_id}")
+def delete_anime_entry(system_id: str, db: Session = Depends(get_db)):
+    """Deletes an anime in Google Sheets and triggers a DB sync."""
+    try:
+        sheets_sync.delete_anime_row(system_id)
+        sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
+
+        return {
+            "status": "success",
+            "message": f"Successfully deleted anime {system_id}.",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/admin/orphans/{system_id}")
-def delete_orphaned_record(system_id: str, db: Session = Depends(get_db)):
-    """Hard deletes an orphaned record from the Postgres database to restore parity with the Sheet."""
-    anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found")
+@app.put("/api/admin/series/{system_id}")
+def update_series_entry(
+    system_id: str, payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get_db)
+):
+    """Updates a series in Google Sheets and triggers a DB sync."""
+    try:
+        series_dict = payload.model_dump()
+        series_dict["system_id"] = system_id
 
-    db.delete(anime)
-    db.commit()
-    return {
-        "status": "success",
-        "message": f"Orphaned record {system_id} deleted from database.",
-    }
+        sheets_sync.update_series_row(system_id, series_dict)
+        sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated series {system_id}.",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/admin/series/{system_id}")
+def delete_series_entry(system_id: str, db: Session = Depends(get_db)):
+    """Deletes a series in Google Sheets and triggers a DB sync."""
+    try:
+        sheets_sync.delete_series_row(system_id)
+        sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
+
+        return {
+            "status": "success",
+            "message": f"Successfully deleted series {system_id}.",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

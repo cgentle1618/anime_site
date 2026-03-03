@@ -451,6 +451,156 @@ def append_new_series(series_data: dict):
     return True
 
 
+def update_anime_row(system_id: str, update_data: dict):
+    """Overwrites an existing anime row in Google Sheets matched by system_id."""
+    import gspread
+
+    sheet = get_google_sheet("Anime")
+    values = execute_with_retry(sheet.get_all_values)
+    if not values:
+        raise ValueError("Anime sheet is empty.")
+
+    headers = values[0]
+    try:
+        sys_id_idx = headers.index("system_id")
+    except ValueError:
+        raise ValueError("system_id column not found in Anime sheet.")
+
+    row_idx = None
+    for i, row in enumerate(values):
+        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
+            row_idx = i + 1  # 1-based index for Google Sheets
+            break
+
+    if not row_idx:
+        raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
+
+    new_row = []
+    for header in headers:
+        val = update_data.get(header, "")
+        new_row.append(val if val is not None else "")
+
+    print(f"Updating row {row_idx} for anime {system_id} in Google Sheets...")
+    try:
+        # Modern gspread syntax
+        execute_with_retry(
+            sheet.update,
+            values=[new_row],
+            range_name=f"A{row_idx}",
+            value_input_option="USER_ENTERED",
+        )
+    except TypeError:
+        # Fallback for older gspread versions
+        execute_with_retry(
+            sheet.update, f"A{row_idx}", [new_row], value_input_option="USER_ENTERED"
+        )
+    return True
+
+
+def delete_anime_row(system_id: str):
+    """Deletes an entire anime row from Google Sheets matched by system_id."""
+    sheet = get_google_sheet("Anime")
+    values = execute_with_retry(sheet.get_all_values)
+    if not values:
+        raise ValueError("Anime sheet is empty.")
+
+    headers = values[0]
+    try:
+        sys_id_idx = headers.index("system_id")
+    except ValueError:
+        raise ValueError("system_id column not found in Anime sheet.")
+
+    row_idx = None
+    for i, row in enumerate(values):
+        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
+            row_idx = i + 1
+            break
+
+    if not row_idx:
+        raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
+
+    print(f"Deleting row {row_idx} for anime {system_id} from Google Sheets...")
+    execute_with_retry(sheet.delete_rows, row_idx)
+    return True
+
+
+def update_series_row(system_id: str, update_data: dict):
+    """Overwrites an existing series row in Google Sheets matched by system_id."""
+    try:
+        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
+    except Exception:
+        raise ValueError("Anime Series tab not found.")
+
+    values = execute_with_retry(sheet.get_all_values)
+    if not values:
+        raise ValueError("Anime Series sheet is empty.")
+
+    headers = values[0]
+    try:
+        sys_id_idx = headers.index("system_id")
+    except ValueError:
+        raise ValueError("system_id column not found in Anime Series sheet.")
+
+    row_idx = None
+    for i, row in enumerate(values):
+        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
+            row_idx = i + 1
+            break
+
+    if not row_idx:
+        raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
+
+    new_row = []
+    for header in headers:
+        val = update_data.get(header, "")
+        new_row.append(val if val is not None else "")
+
+    print(f"Updating row {row_idx} for series {system_id} in Google Sheets...")
+    try:
+        execute_with_retry(
+            sheet.update,
+            values=[new_row],
+            range_name=f"A{row_idx}",
+            value_input_option="USER_ENTERED",
+        )
+    except TypeError:
+        execute_with_retry(
+            sheet.update, f"A{row_idx}", [new_row], value_input_option="USER_ENTERED"
+        )
+    return True
+
+
+def delete_series_row(system_id: str):
+    """Deletes an entire series row from Google Sheets matched by system_id."""
+    try:
+        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
+    except Exception:
+        raise ValueError("Anime Series tab not found.")
+
+    values = execute_with_retry(sheet.get_all_values)
+    if not values:
+        raise ValueError("Anime Series sheet is empty.")
+
+    headers = values[0]
+    try:
+        sys_id_idx = headers.index("system_id")
+    except ValueError:
+        raise ValueError("system_id column not found in Anime Series sheet.")
+
+    row_idx = None
+    for i, row in enumerate(values):
+        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
+            row_idx = i + 1
+            break
+
+    if not row_idx:
+        raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
+
+    print(f"Deleting row {row_idx} for series {system_id} from Google Sheets...")
+    execute_with_retry(sheet.delete_rows, row_idx)
+    return True
+
+
 def detect_orphans(db: Session):
     """
     Scans the Google Sheet and compares system_ids against the PostgreSQL DB.
