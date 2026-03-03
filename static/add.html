@@ -269,7 +269,7 @@
                 >
                   <option value="">-</option>
                   <option value="Not Yet Aired" selected>Not Yet Aired</option>
-                  <option value="Currently Airing">Currently Airing</option>
+                  <option value="Airing">Airing</option>
                   <option value="Finished Airing">Finished Airing</option>
                 </select>
               </div>
@@ -1073,6 +1073,10 @@
           return isNaN(val) ? null : val;
         };
 
+        let myProgress = getValue("add-progress");
+        let epTotal = getInt("add-ep-total");
+        let epFin = getInt("add-ep-fin") || 0;
+
         if (
           !getValue("add-season-en") &&
           !getValue("add-season-roman") &&
@@ -1089,6 +1093,54 @@
         const rSeason = getValue("add-release-season") || "";
         const rMonth = getValue("add-release-month") || "";
         const rYear = getValue("add-release-year") || "";
+
+        // Validation: Ensure Season and Month are not both selected
+        if (rSeason !== "" && rMonth !== "") {
+          showStatus(
+            "manual-add-status",
+            "Validation Error: Release Date cannot have both Season and Month selected.",
+            true,
+          );
+          return;
+        }
+
+        // Validation: Ep Fin cannot be greater than Ep Total
+        if (epTotal !== null && epFin > epTotal) {
+          showStatus(
+            "manual-add-status",
+            "Validation Error: Episodes Finished cannot exceed Total Episodes.",
+            true,
+          );
+          return;
+        }
+
+        // Validation: Mismatched Finished States
+        const cond1 = epTotal !== null && epFin === epTotal;
+        const cond2 = myProgress === "Finished";
+
+        if (cond1 !== cond2) {
+          const confirmed = confirm(
+            "Have you finished watching this\? \nProgress Status doesn't match Episode Count",
+          );
+          if (confirmed) {
+            // User confirmed they finished. Align both conditions to true.
+            myProgress = "Finished";
+            document.getElementById("add-progress").value = "Finished";
+            if (epTotal !== null) {
+              epFin = epTotal;
+              document.getElementById("add-ep-fin").value = epFin;
+            }
+          } else {
+            // User didn't finish, block submission to allow corrections
+            showStatus(
+              "manual-add-status",
+              "Validation Error: Please fix the mismatch between Episodes Finished and My Progress.",
+              true,
+            );
+            return;
+          }
+        }
+
         const releaseDateArr = [rSeason, rMonth, rYear].filter(Boolean);
         const finalReleaseDate =
           releaseDateArr.length > 0 ? releaseDateArr.join(" ") : null;
@@ -1111,10 +1163,10 @@
           series_season_cn: getValue("add-season-cn"),
           series_season: getValue("add-season"),
           airing_type: getValue("add-type"),
-          my_progress: getValue("add-progress"),
+          my_progress: myProgress,
           airing_status: getValue("add-airing-status"),
-          ep_total: getInt("add-ep-total"),
-          ep_fin: getInt("add-ep-fin") || 0,
+          ep_total: epTotal,
+          ep_fin: epFin,
           rating_mine: getValue("add-rating"),
           main_spinoff: getValue("add-main-spinoff"),
           release_date: finalReleaseDate,
