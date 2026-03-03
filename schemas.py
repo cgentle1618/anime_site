@@ -41,6 +41,8 @@ class AnimeResponse(BaseModel):
     source_baha: Optional[str] = None
     source_netflix: Optional[str] = None
     cover_image_url: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -58,6 +60,8 @@ class AnimeSeriesResponse(BaseModel):
     series_cn: Optional[str] = None
     rating_series: Optional[str] = None
     alt_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

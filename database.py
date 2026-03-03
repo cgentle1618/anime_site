@@ -68,6 +68,9 @@ class AnimeEntry(Base):
     mal_rank = Column(String, nullable=True)
     cover_image_url = Column(String, nullable=True)
 
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 # --- NEW TABLE: Anime Series (Franchise Hubs) ---
 class AnimeSeries(Base):
@@ -79,6 +82,9 @@ class AnimeSeries(Base):
     series_cn = Column(String, nullable=True)
     rating_series = Column(String, nullable=True)
     alt_name = Column(String, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class SyncLog(Base):
