@@ -98,7 +98,7 @@
                   >Library</a
                 >
                 <a
-                  href="/system"
+                  href="/admin"
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Admin</a
                 >
@@ -237,6 +237,35 @@
         }
       });
 
+      const parseReleaseDate = (dateStr) => {
+        if (!dateStr) return 999999;
+        const str = String(dateStr).trim().toUpperCase();
+        if (str === "TBA" || str === "") return 999999;
+        const yearMatch = str.match(/\d{4}/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[0], 10);
+          let month = 2;
+          if (str.includes("WIN")) month = 1;
+          else if (str.includes("SPR")) month = 4;
+          else if (str.includes("SUM")) month = 7;
+          else if (str.includes("FAL")) month = 10;
+          else if (str.includes("JAN")) month = 1;
+          else if (str.includes("FEB")) month = 2;
+          else if (str.includes("MAR")) month = 3;
+          else if (str.includes("APR")) month = 4;
+          else if (str.includes("MAY")) month = 5;
+          else if (str.includes("JUN")) month = 6;
+          else if (str.includes("JUL")) month = 7;
+          else if (str.includes("AUG")) month = 8;
+          else if (str.includes("SEP")) month = 9;
+          else if (str.includes("OCT")) month = 10;
+          else if (str.includes("NOV")) month = 11;
+          else if (str.includes("DEC")) month = 12;
+          return year * 100 + month;
+        }
+        return 999999;
+      };
+
       // Added missing sorting function
       function sortByTier(a, b) {
         const tiers = {
@@ -252,8 +281,16 @@
         };
         const rankA = tiers[a.rating_mine] || 9;
         const rankB = tiers[b.rating_mine] || 9;
+
+        // Primary Sort: Rating Tier
         if (rankA !== rankB) return rankA - rankB;
 
+        // Secondary Sort: Chronological Release Date
+        const valA = parseReleaseDate(a.release_date);
+        const valB = parseReleaseDate(b.release_date);
+        if (valA !== valB) return valA - valB;
+
+        // Tertiary Sort: Alphabetical
         let titleA = a.series_season_cn || a.series_season_en || "";
         let titleB = b.series_season_cn || b.series_season_en || "";
         return titleA.localeCompare(titleB);
