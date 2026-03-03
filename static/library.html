@@ -27,7 +27,6 @@
       };
     </script>
     <style>
-      /* Custom scrollbar for a clean spreadsheet feel */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -42,13 +41,10 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #9ca3af;
       }
-
       .sortable:hover {
         cursor: pointer;
         background-color: #f9fafb;
       }
-
-      /* Hide number input arrows for a cleaner spreadsheet look */
       input[type="number"]::-webkit-inner-spin-button,
       input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -60,7 +56,6 @@
     </style>
   </head>
 
-  <!-- STRUCUTURE FIX 1: Lock the body so ONLY the inner table can scroll -->
   <body
     class="bg-gray-50 text-gray-900 h-screen w-screen overflow-hidden flex flex-col font-sans"
   >
@@ -70,13 +65,12 @@
     >
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <!-- Logo & Links -->
           <div class="flex items-center space-x-8">
-            <div
+            <a
+              href="/"
               class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
+              >CG1618</a
             >
-              CG1618
-            </div>
             <div class="hidden md:block">
               <div class="flex items-baseline space-x-4">
                 <a
@@ -90,7 +84,7 @@
                   >Library</a
                 >
                 <a
-                  href="/admin"
+                  href="/system"
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Admin</a
                 >
@@ -98,7 +92,6 @@
             </div>
           </div>
 
-          <!-- Search & Sync -->
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -126,10 +119,8 @@
       </div>
     </nav>
 
-    <!-- Main Content: Spreadsheet Table -->
-    <!-- STRUCTURE FIX 2: min-h-0 prevents flex items from overflowing their bounds -->
+    <!-- Main Content -->
     <main class="flex-1 w-full max-w-[100vw] px-4 py-6 flex flex-col min-h-0">
-      <!-- Toolbar above the table -->
       <div class="mb-4 flex justify-end items-center shrink-0">
         <button
           onclick="toggleAll()"
@@ -140,11 +131,9 @@
         </button>
       </div>
 
-      <!-- Scrollable Table Container -->
       <div
         class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col min-h-0"
       >
-        <!-- STRUCTURE FIX 3: This is the ONLY element allowed to scroll now -->
         <div
           id="tableContainer"
           class="overflow-auto flex-1 relative w-full h-full"
@@ -250,7 +239,6 @@
       </div>
     </main>
 
-    <!-- Scroll to Top Button -->
     <button
       id="scrollToTopBtn"
       onclick="scrollToTop()"
@@ -263,29 +251,24 @@
       const API_BASE_URL = "/api";
       let originalData = [];
       let displayData = [];
-      let sortCol = "";
+      let sortCol = "title";
       let sortAsc = true;
 
-      // State variables to track collapsed series
       let collapsedSeries = new Set();
       let isAllCollapsed = false;
       let seriesMetadata = {};
 
-      // Fetch data on load
       async function fetchLibrary() {
         try {
           const [animeRes, seriesRes] = await Promise.all([
             fetch(`${API_BASE_URL}/anime`),
             fetch(`${API_BASE_URL}/series`),
           ]);
-
           originalData = await animeRes.json();
-
           const seriesData = await seriesRes.json();
           seriesData.forEach((s) => {
             if (s.series_en) seriesMetadata[s.series_en] = s;
           });
-
           displayData = [...originalData];
           renderTable();
         } catch (error) {
@@ -302,7 +285,6 @@
         return mainTitle;
       }
 
-      // NEW: Robust Release Date Parsing for Table Sorting
       const parseReleaseDate = (dateStr) => {
         if (!dateStr) return 999999;
         const str = String(dateStr).trim().toUpperCase();
@@ -332,18 +314,15 @@
         return 999999;
       };
 
-      // NEW: Logic function to calculate overarching series progress based on all its season entries
       function calculateSeriesProgress(entries) {
         if (!entries || entries.length === 0) return [];
         let statuses = [];
 
-        // 1. Completely Finished (Overrides everything else, so return immediately)
         const allFinished = entries.every(
           (e) => e.my_progress === "Completed" || e.my_progress === "Finished",
         );
         if (allFinished) return ["Completely Finished"];
 
-        // 2. Finished Main Story (Added first so it renders on the left of other statuses)
         const mainStoryEntries = entries.filter(
           (e) => e.main_spinoff === "本傳",
         );
@@ -355,7 +334,6 @@
           if (mainFinished) statuses.push("Finished Main Story");
         }
 
-        // 3. Highest Priority: Any active/paused/dropped states
         const priorityStatuses = [
           "Active Watching",
           "Passive Watching",
@@ -372,9 +350,7 @@
           }
         }
 
-        // 4. Other States (If no active/paused/dropped state was found)
         if (!foundPriority) {
-          // Waiting for New Release
           const allFinishedOrNotAired = entries.every(
             (e) =>
               e.my_progress === "Completed" ||
@@ -394,7 +370,6 @@
           ) {
             statuses.push("Waiting for New Release");
           } else {
-            // Finished (Exclude Won't Watch)
             const allFinishedOrWontWatch = entries.every(
               (e) =>
                 e.my_progress === "Completed" ||
@@ -409,17 +384,14 @@
             }
           }
         }
-
-        // Note: "Plan to Watch" is intentionally omitted to remain hidden.
         return statuses;
       }
 
-      // Render Table Rows (Grouped by series_en)
       function renderTable() {
         const tbody = document.getElementById("libraryTableBody");
         tbody.innerHTML = "";
 
-        // 1. Group Data by series_en
+        // 1. Group Data strictly by series_en
         const groupedData = {};
         displayData.forEach((anime) => {
           const seriesName = anime.series_en || "Standalone / Other";
@@ -432,43 +404,28 @@
         // 2. Sort Series Groups
         let seriesNames = Object.keys(groupedData);
         seriesNames.sort((a, b) => {
-          const metaA = seriesMetadata[a] || {};
-          const metaB = seriesMetadata[b] || {};
-          const entriesA = groupedData[a] || [];
-          const entriesB = groupedData[b] || [];
+          // Force 'Standalone / Other' to always stay at the very bottom
+          if (a === "Standalone / Other" && b !== "Standalone / Other")
+            return 1;
+          if (b === "Standalone / Other" && a !== "Standalone / Other")
+            return -1;
 
-          let valA = a;
-          let valB = b;
+          // Strictly sort by the group key (series_en) lowercase
+          let nameA = String(a).trim().toLowerCase();
+          let nameB = String(b).trim().toLowerCase();
 
-          if (sortCol === "rating_mine") {
-            valA = metaA.rating_series || "";
-            valB = metaB.rating_series || "";
-            const tiers = { S: 1, "A+": 2, A: 3, B: 4, C: 5, D: 6, E: 7, F: 8 };
-            valA = tiers[valA] || 99;
-            valB = tiers[valB] || 99;
-          } else if (sortCol === "release_date") {
-            // Find the earliest release date among all seasons inside the franchise to accurately sort the series block
-            valA = Math.min(
-              ...entriesA.map((e) => parseReleaseDate(e.release_date)),
-            );
-            valB = Math.min(
-              ...entriesB.map((e) => parseReleaseDate(e.release_date)),
-            );
-          } else if (sortCol === "my_progress") {
-            valA = entriesA[0]?.my_progress || "";
-            valB = entriesB[0]?.my_progress || "";
+          let comparison = nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
+
+          if (sortCol === "title" || sortCol === "") {
+            return sortAsc ? comparison : -comparison;
           }
-
-          if (valA < valB) return sortAsc ? -1 : 1;
-          if (valA > valB) return sortAsc ? 1 : -1;
-          return 0;
+          // Always lock series alphabetical order when sorting internals by Rating, Release Date, etc.
+          return comparison;
         });
 
         // 3. Render Groups and their Items
         seriesNames.forEach((seriesName) => {
           const meta = seriesMetadata[seriesName] || {};
-
-          // MOVE THIS UP: Get entries before checking isCollapsed so we can calculate the progress badge!
           const animesInSeries = groupedData[seriesName];
 
           const isCollapsed = collapsedSeries.has(seriesName);
@@ -476,7 +433,6 @@
             ? "fa-chevron-right text-gray-400"
             : "fa-chevron-down text-gray-600";
 
-          // Format the Series Rating Badge
           let seriesRatingBadge = "";
           if (meta.rating_series) {
             let colorClass = "bg-gray-100 text-gray-600 border-gray-300";
@@ -499,7 +455,6 @@
             seriesRatingBadge = `<span class="ml-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider shrink-0 ${colorClass}">Overall: ${meta.rating_series}</span>`;
           }
 
-          // Format the Series Progress Badge(s)
           const seriesStatuses = calculateSeriesProgress(animesInSeries);
           let progressBadgesHtml = "";
 
@@ -547,7 +502,6 @@
             "cursor-pointer hover:bg-gray-100 transition group";
           headerTr.onclick = () => toggleSeries(seriesName);
 
-          // UPDATED: Rating & Progress moved to the left container, Go To Series remains on the right
           headerTr.innerHTML = `
               <td colspan="14" class="px-4 py-3 text-sm font-bold text-gray-900 sticky top-[41px] z-30 bg-gray-100/95 backdrop-blur-md shadow-[0_1px_0_0_#e5e7eb] border-b border-gray-200">
                 <div class="flex items-center justify-between">
@@ -569,14 +523,60 @@
 
           if (isCollapsed) return;
 
-          // 4. Sort Items inside the group
+          // 4. Sort Items INSIDE the group dynamically
           animesInSeries.sort((a, b) => {
-            let valA = a.series_season_en || a.series_en || "";
-            let valB = b.series_season_en || b.series_en || "";
-            return valA.localeCompare(valB, undefined, {
-              numeric: true,
-              sensitivity: "base",
-            });
+            if (sortCol === "rating_mine") {
+              const tiers = {
+                S: 1,
+                "A+": 2,
+                A: 3,
+                B: 4,
+                C: 5,
+                D: 6,
+                E: 7,
+                F: 8,
+              };
+              let valA = tiers[a.rating_mine] || 99;
+              let valB = tiers[b.rating_mine] || 99;
+              if (valA !== valB) return sortAsc ? valA - valB : valB - valA;
+            } else if (sortCol === "release_date") {
+              let valA = parseReleaseDate(a.release_date);
+              let valB = parseReleaseDate(b.release_date);
+              if (valA !== valB) return sortAsc ? valA - valB : valB - valA;
+            } else if (sortCol === "my_progress") {
+              // Custom Watch Status Hierarchy Sort
+              const statusOrder = {
+                "Active Watching": 1,
+                "Passive Watching": 2,
+                Paused: 3,
+                "Watch When Airs": 4,
+                "Plan to Watch": 5,
+                "Might Watch": 6,
+                Completed: 7,
+                Finished: 8,
+                "Temp Dropped": 9,
+                Dropped: 10,
+                "Won't Watch": 11,
+              };
+              let valA = statusOrder[a.my_progress] || 99;
+              let valB = statusOrder[b.my_progress] || 99;
+              if (valA !== valB) return sortAsc ? valA - valB : valB - valA;
+            }
+
+            // Default Fallback / Tie-Breaker: Title Sort
+            // STRICTLY sort by series_season_en
+            let nameA = String(a.series_season_en || "")
+              .trim()
+              .toLowerCase();
+            let nameB = String(b.series_season_en || "")
+              .trim()
+              .toLowerCase();
+            let comparison = nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
+
+            if (sortCol === "title") {
+              return sortAsc ? comparison : -comparison;
+            }
+            return comparison; // Default chronological/alphabetical
           });
 
           // 5. Render Individual Anime Rows
@@ -598,7 +598,10 @@
                     `;
 
             const bahaStr = String(anime.source_baha || "").toUpperCase();
-            const bahaDisplay = bahaStr === "TRUE" ? "有" : "無";
+            const bahaDisplay =
+              bahaStr === "TRUE" || bahaStr === "YES" || bahaStr === "有"
+                ? "有"
+                : "無";
             const bahaColor =
               bahaDisplay === "有"
                 ? "text-green-600 font-bold"
@@ -613,6 +616,10 @@
               statusColor = "text-orange-700 bg-orange-100";
             if (status === "Completed" || status === "Finished")
               statusColor = "text-purple-700 bg-purple-100";
+            if (status === "Dropped" || status === "Temp Dropped")
+              statusColor = "text-red-700 bg-red-100";
+            if (status === "Plan to Watch" || status === "Might Watch")
+              statusColor = "text-teal-700 bg-teal-100";
 
             let ratingColor = "text-gray-600";
             if (["S", "A+", "A"].includes(rating))
@@ -749,14 +756,9 @@
         }
       }
 
-      // ==========================================
-      // CLEAN UNIFIED INITIALIZATION BLOCK
-      // ==========================================
       document.addEventListener("DOMContentLoaded", () => {
-        // 1. Fetch initial data
         fetchLibrary();
 
-        // 2. Setup Global Search Redirect
         const globalSearchInput = document.getElementById("globalSearchInput");
         if (globalSearchInput) {
           globalSearchInput.addEventListener("keypress", function (e) {
@@ -768,7 +770,6 @@
           });
         }
 
-        // 3. Setup Scroll-To-Top Event Listener securely
         const scrollContainer = document.getElementById("tableContainer");
         const btn = document.getElementById("scrollToTopBtn");
 
@@ -803,9 +804,8 @@
 
       function scrollToTop() {
         const scrollContainer = document.getElementById("tableContainer");
-        if (scrollContainer) {
+        if (scrollContainer)
           scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
-        }
       }
     </script>
   </body>
