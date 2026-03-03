@@ -629,6 +629,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
     db = db_session if db_session else SessionLocal()
     added_count = 0
     updated_count = 0
+    deleted_count = 0  # <--- NEW: Track deleted records
 
     try:
         spreadsheet = get_google_spreadsheet()
@@ -664,6 +665,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
 
         # 2. Sync Anime Series Tab to PostgreSQL (With Timestamp & Diff logic)
         print("\n--- Syncing Anime Series Tab to PostgreSQL ---")
+        valid_series_ids = set()  # <--- NEW: Track valid IDs from Sheet
         try:
             series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
             series_rows = execute_with_retry(series_sheet.get_all_values)
@@ -676,6 +678,8 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     s_sys_id = s_dict.get("system_id", "").strip()
                     if not s_sys_id:
                         continue
+
+                    valid_series_ids.add(s_sys_id)  # <--- Record valid ID
 
                     s_entry_data = {
                         "system_id": s_sys_id,
@@ -707,12 +711,25 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                         new_s.created_at = datetime.utcnow()
                         new_s.updated_at = datetime.utcnow()
                         db.add(new_s)
+
+            # <--- NEW LOGIC: Delete orphaned Series from DB
+            all_db_series = db.query(AnimeSeries).all()
+            for db_s in all_db_series:
+                if db_s.system_id not in valid_series_ids:
+                    print(
+                        f"Auto-deleting orphaned Series from DB: {db_s.series_en} ({db_s.system_id})"
+                    )
+                    db.delete(db_s)
+                    deleted_count += 1
+            # --->
+
         except Exception as e:
             print(f"⚠️ Error syncing Anime Series tab to DB: {e}")
 
         # 3. Sync Main Anime Tab to PostgreSQL (With Timestamp & Diff logic)
         print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
         cells_to_update = []
+        valid_anime_ids = set()  # <--- NEW: Track valid IDs from Sheet
 
         for idx, row_data in enumerate(anime_row_dicts, start=2):
             system_id = row_data.get("system_id", "").strip()
@@ -725,6 +742,8 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                         gspread.Cell(row=idx, col=col_idx, value=system_id)
                     )
                 row_data["system_id"] = system_id
+
+            valid_anime_ids.add(system_id)  # <--- Record valid ID
 
             # MAL ID Extraction
             mal_id_val = row_data.get("mal_id", "")
@@ -860,6 +879,17 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                 db.add(new_entry)
                 added_count += 1
 
+        # <--- NEW LOGIC: Delete orphaned Anime from DB
+        all_db_anime = db.query(AnimeEntry).all()
+        for db_a in all_db_anime:
+            if db_a.system_id not in valid_anime_ids:
+                print(
+                    f"Auto-deleting orphaned Anime from DB: {db_a.series_season_cn or db_a.series_en} ({db_a.system_id})"
+                )
+                db.delete(db_a)
+                deleted_count += 1
+        # --->
+
         if cells_to_update:
             chunk_size = 50
             for i in range(0, len(cells_to_update), chunk_size):
@@ -870,7 +900,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
 
         db.commit()
         print(
-            f"✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count}"
+            f"✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count} | Deleted: {deleted_count}"
         )
 
         # 4. ENRICH ALL MISSING DATA
@@ -878,17 +908,20 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
         if enriched_count > 0:
             print(f"✨ Successfully enriched {enriched_count} anime with MAL Data!")
 
+        # Include deleted count in log if database schema supports it
         log_sync_event(
             db,
             sync_type=sync_type,
             status="success",
             added=added_count,
             updated=updated_count,
+            deleted=deleted_count,
         )
 
         return {
             "status": "success",
             "rows_updated": added_count + updated_count,
+            "rows_deleted": deleted_count,
             "enriched_count": enriched_count,
         }
 
