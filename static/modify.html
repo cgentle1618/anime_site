@@ -114,7 +114,7 @@
                       >
                       <a
                         href="/delete"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
                         >Delete</a
                       >
                     </div>
@@ -142,7 +142,7 @@
               id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
-              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync Sheets
             </button>
           </div>
         </div>
@@ -1160,19 +1160,27 @@
         if (filtered.length === 0) {
           resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
         } else {
-          resultsContainer.innerHTML = filtered
-            .map(
-              (a) => `
+          const headerHtml =
+            typeof isRecent !== "undefined" && isRecent
+              ? `<div class="px-4 py-2 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 sticky top-0"><i class="fas fa-history mr-1"></i> Recent Entries</div>`
+              : "";
+          resultsContainer.innerHTML =
+            headerHtml +
+            filtered
+              .map(
+                (a) => `
                   <div onclick='selectAnime(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-brand/5 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
-                      <div class="min-w-0">
-                          <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                          <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                      <div class="min-w-0 flex-1 pr-2">
+                          <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en || "Unknown Title"}</div>
+                          <div class="text-[11px] text-gray-500 truncate mt-0.5">
+                              From series: <span class="font-semibold text-gray-700">${a.series_en || "-"}</span> • ${a.airing_type || "-"}
+                          </div>
                       </div>
                       <i class="fas fa-edit text-brand opacity-0 group-hover:opacity-100 transition shrink-0 ml-2"></i>
                   </div>
               `,
-            )
-            .join("");
+              )
+              .join("");
         }
         resultsContainer.classList.remove("hidden");
       }
@@ -1842,7 +1850,7 @@
         } finally {
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75");
-          btn.innerText = " Sync";
+          btn.innerText = " Sync Sheets";
           btn.prepend(icon);
         }
       }
