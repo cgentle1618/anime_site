@@ -6,11 +6,12 @@ from typing import List
 import uvicorn
 
 import database
+import models
 import schemas
 import sheets_sync
 
-# Initialize Database
-database.Base.metadata.create_all(bind=database.engine)
+# Initialize Database (Using models.Base to ensure all tables are registered)
+models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="CG1618 Anime Database")
 
@@ -93,7 +94,7 @@ def read_delete():
 
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
 def get_all_anime(db: Session = Depends(get_db)):
-    return db.query(database.AnimeEntry).all()
+    return db.query(models.AnimeEntry).all()
 
 
 @app.get(
@@ -104,7 +105,7 @@ def get_anime_by_series_name(series_name: str, db: Session = Depends(get_db)):
     """Robust lookup for all anime inside a specific franchise."""
     clean_name = str(series_name).strip().lower()
     result = []
-    for anime in db.query(database.AnimeEntry).all():
+    for anime in db.query(models.AnimeEntry).all():
         if anime.series_en and str(anime.series_en).strip().lower() == clean_name:
             result.append(anime)
     return result
@@ -114,8 +115,8 @@ def get_anime_by_series_name(series_name: str, db: Session = Depends(get_db)):
 def get_anime_details_alias(system_id: str, db: Session = Depends(get_db)):
     """Alias route to catch detail page requests that accidentally include /details/"""
     anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
         .first()
     )
     if not anime:
@@ -126,8 +127,8 @@ def get_anime_details_alias(system_id: str, db: Session = Depends(get_db)):
 @app.get("/api/anime/{system_id}", response_model=schemas.AnimeResponse)
 def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
     anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
         .first()
     )
     if not anime:
@@ -146,8 +147,8 @@ def update_anime_progress(
 ):
     """Dynamically updates any allowed field and pushes it to Google Sheets"""
     anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
         .first()
     )
     if not anime:
@@ -190,7 +191,7 @@ def update_anime_progress(
 
 @app.get("/api/series", response_model=List[schemas.AnimeSeriesResponse])
 def get_all_series(db: Session = Depends(get_db)):
-    return db.query(database.AnimeSeries).all()
+    return db.query(models.AnimeSeries).all()
 
 
 @app.get(
@@ -199,8 +200,8 @@ def get_all_series(db: Session = Depends(get_db)):
 def get_series_details_by_id(system_id: str, db: Session = Depends(get_db)):
     # 1. First, try treating it as a legitimate Series system_id
     series = (
-        db.query(database.AnimeSeries)
-        .filter(database.AnimeSeries.system_id == system_id)
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
         .first()
     )
     if series:
@@ -208,20 +209,20 @@ def get_series_details_by_id(system_id: str, db: Session = Depends(get_db)):
 
     # 2. Smart Fallback A: The frontend passed a Series Name instead of an ID!
     clean_name = str(system_id).strip().lower()
-    for s in db.query(database.AnimeSeries).all():
+    for s in db.query(models.AnimeSeries).all():
         if s.series_en and str(s.series_en).strip().lower() == clean_name:
             return s
 
     # 3. Smart Fallback B: The frontend passed an Anime system_id!
     # Let's find the anime, extract its series name, and return the parent series automatically.
     anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
         .first()
     )
     if anime and anime.series_en:
         clean_anime_name = str(anime.series_en).strip().lower()
-        for s in db.query(database.AnimeSeries).all():
+        for s in db.query(models.AnimeSeries).all():
             if s.series_en and str(s.series_en).strip().lower() == clean_anime_name:
                 return s
 
@@ -233,8 +234,8 @@ def update_series_state(
     system_id: str, payload: dict = Body(...), db: Session = Depends(get_db)
 ):
     series = (
-        db.query(database.AnimeSeries)
-        .filter(database.AnimeSeries.system_id == system_id)
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
         .first()
     )
     if not series:
@@ -271,10 +272,10 @@ def trigger_manual_sync(
 @app.get("/api/admin/logs", response_model=schemas.PaginatedSyncLogResponse)
 def get_sync_logs(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     """Fetches the most recent background and manual sync logs with pagination."""
-    total_logs = db.query(database.SyncLog).count()
+    total_logs = db.query(models.SyncLog).count()
     logs = (
-        db.query(database.SyncLog)
-        .order_by(database.SyncLog.timestamp.desc())
+        db.query(models.SyncLog)
+        .order_by(models.SyncLog.timestamp.desc())
         .offset(skip)
         .limit(limit)
         .all()
@@ -302,8 +303,8 @@ def trigger_log_cleanup(days: int = 30, db: Session = Depends(get_db)):
 def get_recent_deleted_records(limit: int = 15, db: Session = Depends(get_db)):
     """Fetch the most recently deleted anime and series entries."""
     records = (
-        db.query(database.DeletedRecord)
-        .order_by(database.DeletedRecord.deleted_at.desc())
+        db.query(models.DeletedRecord)
+        .order_by(models.DeletedRecord.deleted_at.desc())
         .limit(limit)
         .all()
     )
@@ -319,8 +320,8 @@ def manual_add_anime(payload: schemas.AnimeCreate, db: Session = Depends(get_db)
         # 1. Check if it's a completely new series
         if payload.series_en:
             existing_series = (
-                db.query(database.AnimeSeries)
-                .filter(database.AnimeSeries.series_en == payload.series_en)
+                db.query(models.AnimeSeries)
+                .filter(models.AnimeSeries.series_en == payload.series_en)
                 .first()
             )
 
@@ -379,8 +380,8 @@ def update_anime_entry(
 def delete_anime_entry(system_id: str, db: Session = Depends(get_db)):
     """Deletes an anime in Google Sheets and triggers a DB sync."""
     anime = (
-        db.query(database.AnimeEntry)
-        .filter(database.AnimeEntry.system_id == system_id)
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
         .first()
     )
     if not anime:
@@ -397,7 +398,7 @@ def delete_anime_entry(system_id: str, db: Session = Depends(get_db)):
         sheets_sync.delete_anime_row(system_id)
 
         # Log Deletion
-        deleted_record = database.DeletedRecord(
+        deleted_record = models.DeletedRecord(
             system_id=anime.system_id, record_type="anime", title=title
         )
         db.add(deleted_record)
@@ -441,8 +442,8 @@ def update_series_entry(
 def delete_series_entry(system_id: str, db: Session = Depends(get_db)):
     """Deletes a series in Google Sheets and triggers a DB sync."""
     series = (
-        db.query(database.AnimeSeries)
-        .filter(database.AnimeSeries.system_id == system_id)
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
         .first()
     )
     if not series:
@@ -452,7 +453,7 @@ def delete_series_entry(system_id: str, db: Session = Depends(get_db)):
         sheets_sync.delete_series_row(system_id)
 
         # Log Deletion
-        deleted_record = database.DeletedRecord(
+        deleted_record = models.DeletedRecord(
             system_id=series.system_id, record_type="series", title=series.series_en
         )
         db.add(deleted_record)
@@ -485,8 +486,8 @@ def delete_orphan_entry(system_id: str, db: Session = Depends(get_db)):
     """Deletes an orphaned entry directly from the Postgres Database."""
     try:
         db_entry = (
-            db.query(database.AnimeEntry)
-            .filter(database.AnimeEntry.system_id == system_id)
+            db.query(models.AnimeEntry)
+            .filter(models.AnimeEntry.system_id == system_id)
             .first()
         )
         if not db_entry:
@@ -500,7 +501,7 @@ def delete_orphan_entry(system_id: str, db: Session = Depends(get_db)):
         )
 
         # Log Deletion
-        deleted_record = database.DeletedRecord(
+        deleted_record = models.DeletedRecord(
             system_id=db_entry.system_id, record_type="anime_orphan", title=title
         )
         db.add(deleted_record)

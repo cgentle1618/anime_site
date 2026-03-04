@@ -8,14 +8,8 @@ from datetime import datetime
 from gspread.exceptions import APIError, WorksheetNotFound
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from database import (
-    SessionLocal,
-    AnimeEntry,
-    AnimeSeries,
-    SyncLog,
-    get_taipei_now,
-    cleanup_old_logs,
-)
+from database import SessionLocal, get_taipei_now, cleanup_old_logs
+from models import AnimeEntry, AnimeSeries, SyncLog
 
 # ==========================================
 # 1. API & GOOGLE SHEETS HELPERS
