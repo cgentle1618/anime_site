@@ -46,7 +46,7 @@ class AnimeBase(BaseModel):
     source_netflix: Optional[str] = None
 
 
-class AnimeSeriesBase(BaseModel):
+class SeriesBase(BaseModel):
     """Shared fields for Series creation, updating, and reading."""
 
     system_id: str
@@ -102,7 +102,7 @@ class AnimeUpdate(AnimeBase):
 # ==========================================
 
 
-class AnimeSeriesResponse(AnimeSeriesBase):
+class AnimeSeriesResponse(SeriesBase):
     """Schema for reading a series hub entry from the database."""
 
     created_at: Optional[datetime] = None
@@ -112,10 +112,10 @@ class AnimeSeriesResponse(AnimeSeriesBase):
         from_attributes = True
 
 
-class AnimeSeriesUpdate(AnimeSeriesBase):
+class AnimeSeriesUpdate(SeriesBase):
     """Schema for updating an existing Anime Series entry."""
 
-    pass  # Inherits all fields exactly as they are from AnimeSeriesBase
+    pass  # Inherits all fields exactly as they are from SeriesBase
 
 
 # ==========================================

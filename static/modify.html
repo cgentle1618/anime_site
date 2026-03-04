@@ -114,7 +114,7 @@
                       >
                       <a
                         href="/delete"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
                         >Delete</a
                       >
                     </div>
@@ -1835,7 +1835,7 @@
         btn.prepend(icon);
 
         try {
-          const response = await fetch(`${API_BASE_URL}/sync`, {
+          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
             method: "POST",
           });
           if (response.ok) {
