@@ -3,11 +3,17 @@ from typing import Optional, List
 from datetime import datetime
 
 # ==========================================
-# ANIME ENTRY SCHEMAS
+# BASE SCHEMAS
 # ==========================================
 
 
-class AnimeResponse(BaseModel):
+class AnimeBase(BaseModel):
+    """
+    Shared fields for Anime creation, updating, and reading.
+    By inheriting this base class, we avoid repeating these 30 fields
+    across multiple different schemas.
+    """
+
     system_id: str
     series_en: Optional[str] = None
     series_season_en: Optional[str] = None
@@ -31,8 +37,6 @@ class AnimeResponse(BaseModel):
     remark: Optional[str] = None
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    mal_rating: Optional[float] = None
-    mal_rank: Optional[str] = None
     anilist_link: Optional[str] = None
     op: Optional[str] = None
     ed: Optional[str] = None
@@ -40,12 +44,57 @@ class AnimeResponse(BaseModel):
     seiyuu: Optional[str] = None
     source_baha: Optional[str] = None
     source_netflix: Optional[str] = None
+
+
+class AnimeSeriesBase(BaseModel):
+    """Shared fields for Series creation, updating, and reading."""
+
+    system_id: str
+    series_en: Optional[str] = None
+    series_roman: Optional[str] = None
+    series_cn: Optional[str] = None
+    rating_series: Optional[str] = None
+    alt_name: Optional[str] = None
+
+
+# ==========================================
+# ANIME ENTRY SCHEMAS
+# ==========================================
+
+
+class AnimeResponse(AnimeBase):
+    """
+    Schema for reading an anime entry from the database.
+    Includes API-enriched fields and timestamps not present during manual creation.
+    """
+
+    mal_rating: Optional[float] = None
+    mal_rank: Optional[str] = None
     cover_image_url: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # Allows Pydantic to read from SQLAlchemy ORM models
+
+
+class AnimeCreate(AnimeBase):
+    """
+    Schema for manually adding a new anime entry via the Admin Dashboard.
+    Includes a temporary field to handle brand new Series Hub generation.
+    """
+
+    ep_fin: Optional[int] = 0
+    series_alt_name: Optional[str] = None  # Temp field for brand new series
+
+
+class AnimeUpdate(AnimeBase):
+    """
+    Schema for updating an existing anime entry via the Admin Dashboard.
+    System ID is strictly omitted because it is immutable.
+    """
+
+    ep_fin: Optional[int] = 0
 
 
 # ==========================================
@@ -53,13 +102,9 @@ class AnimeResponse(BaseModel):
 # ==========================================
 
 
-class AnimeSeriesResponse(BaseModel):
-    system_id: str
-    series_en: Optional[str] = None
-    series_roman: Optional[str] = None
-    series_cn: Optional[str] = None
-    rating_series: Optional[str] = None
-    alt_name: Optional[str] = None
+class AnimeSeriesResponse(AnimeSeriesBase):
+    """Schema for reading a series hub entry from the database."""
+
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -67,12 +112,20 @@ class AnimeSeriesResponse(BaseModel):
         from_attributes = True
 
 
+class AnimeSeriesUpdate(AnimeSeriesBase):
+    """Schema for updating an existing Anime Series entry."""
+
+    pass  # Inherits all fields exactly as they are from AnimeSeriesBase
+
+
 # ==========================================
-# ADMIN SCHEMAS
+# ADMIN / LOGGING SCHEMAS
 # ==========================================
 
 
 class SyncLogResponse(BaseModel):
+    """Schema representing a single synchronization operation log."""
+
     id: int
     timestamp: datetime
     sync_type: str
@@ -84,15 +137,19 @@ class SyncLogResponse(BaseModel):
     details_json: Optional[str] = None
 
     class Config:
-        from_attributes = True  # Allows Pydantic to read from SQLAlchemy ORM models
+        from_attributes = True
 
 
 class PaginatedSyncLogResponse(BaseModel):
+    """Wrapper schema for returning paginated sync logs with a total count."""
+
     total: int
     logs: List[SyncLogResponse]
 
 
 class DeletedRecordResponse(BaseModel):
+    """Schema for retrieving a history of permanently deleted items."""
+
     id: int
     system_id: str
     record_type: str
@@ -101,93 +158,3 @@ class DeletedRecordResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class AnimeManualCreate(BaseModel):
-    """
-    Schema for manually adding a new anime entry via the Admin Dashboard.
-    Contains all matching columns mapped from the Google Sheet.
-    """
-
-    system_id: str
-    series_en: Optional[str] = None
-    series_season_en: Optional[str] = None
-    series_season_roman: Optional[str] = None
-    series_season_cn: Optional[str] = None
-    series_season: Optional[str] = None
-    airing_type: Optional[str] = None
-    my_progress: Optional[str] = None
-    airing_status: Optional[str] = None
-    ep_total: Optional[int] = None
-    ep_fin: Optional[int] = 0
-    rating_mine: Optional[str] = None
-    main_spinoff: Optional[str] = None
-    release_date: Optional[str] = None
-    studio: Optional[str] = None
-    director: Optional[str] = None
-    producer: Optional[str] = None
-    distributor_tw: Optional[str] = None
-    genre_main: Optional[str] = None
-    genre_sub: Optional[str] = None
-    remark: Optional[str] = None
-    mal_id: Optional[int] = None
-    mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-    op: Optional[str] = None
-    ed: Optional[str] = None
-    insert_ost: Optional[str] = None
-    seiyuu: Optional[str] = None
-    source_baha: Optional[str] = None
-    source_netflix: Optional[str] = None
-
-    # Temporary field to hold the alt_name if a brand new series is detected
-    series_alt_name: Optional[str] = None
-
-
-class AnimeManualUpdate(BaseModel):
-    """
-    Schema for updating an existing anime entry via the Admin Dashboard.
-    System ID is omitted because it is strictly unchangeable.
-    """
-
-    series_en: Optional[str] = None
-    series_season_en: Optional[str] = None
-    series_season_roman: Optional[str] = None
-    series_season_cn: Optional[str] = None
-    series_season: Optional[str] = None
-    airing_type: Optional[str] = None
-    my_progress: Optional[str] = None
-    airing_status: Optional[str] = None
-    ep_total: Optional[int] = None
-    ep_fin: Optional[int] = 0
-    rating_mine: Optional[str] = None
-    main_spinoff: Optional[str] = None
-    release_date: Optional[str] = None
-    studio: Optional[str] = None
-    director: Optional[str] = None
-    producer: Optional[str] = None
-    distributor_tw: Optional[str] = None
-    genre_main: Optional[str] = None
-    genre_sub: Optional[str] = None
-    remark: Optional[str] = None
-    mal_id: Optional[int] = None
-    mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-    op: Optional[str] = None
-    ed: Optional[str] = None
-    insert_ost: Optional[str] = None
-    seiyuu: Optional[str] = None
-    source_baha: Optional[str] = None
-    source_netflix: Optional[str] = None
-
-
-class AnimeSeriesUpdate(BaseModel):
-    """
-    Schema for updating an existing Anime Series entry.
-    """
-
-    series_en: Optional[str] = None
-    series_roman: Optional[str] = None
-    series_cn: Optional[str] = None
-    rating_series: Optional[str] = None
-    alt_name: Optional[str] = None
