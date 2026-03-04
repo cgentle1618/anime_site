@@ -8,7 +8,7 @@ import uvicorn
 import database
 import models
 import schemas
-import sheets_sync
+import services.sheets_sync as sheets_sync
 
 # Initialize Database (Using models.Base to ensure all tables are registered)
 models.Base.metadata.create_all(bind=database.engine)
