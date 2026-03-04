@@ -86,6 +86,18 @@ class SyncLogResponse(BaseModel):
         from_attributes = True  # Allows Pydantic to read from SQLAlchemy ORM models
 
 
+# --- NEW: Schema for Deleted Records ---
+class DeletedRecordResponse(BaseModel):
+    id: int
+    system_id: str
+    record_type: str
+    title: str
+    deleted_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class MalOverrideRequest(BaseModel):
     mal_id: int
 

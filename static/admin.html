@@ -287,7 +287,6 @@
           <h2 class="font-bold text-gray-800 mb-4 shrink-0">
             <i class="fas fa-edit text-brand mr-2"></i> Recently Modified Anime
           </h2>
-          <!-- Changed from max-h to h-[500px] to enforce a permanently large, scrollable box -->
           <div
             id="modified-anime-container"
             class="space-y-2 h-[500px] overflow-y-auto pr-2 bg-gray-50/50 rounded-xl border border-gray-100 p-2"
@@ -306,7 +305,6 @@
             <i class="fas fa-edit text-purple-500 mr-2"></i> Recently Modified
             Series
           </h2>
-          <!-- Changed from max-h to h-[500px] to enforce a permanently large, scrollable box -->
           <div
             id="modified-series-container"
             class="space-y-2 h-[500px] overflow-y-auto pr-2 bg-gray-50/50 rounded-xl border border-gray-100 p-2"
@@ -326,7 +324,6 @@
             <i class="fas fa-plus-square text-emerald-500 mr-2"></i> Recently
             Added Anime
           </h2>
-          <!-- Kept max-h-[350px] so it stays smaller and shrinks to fit -->
           <div
             id="added-anime-container"
             class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
@@ -343,9 +340,43 @@
             <i class="fas fa-plus-square text-pink-500 mr-2"></i> Recently Added
             Series
           </h2>
-          <!-- Kept max-h-[350px] so it stays smaller and shrinks to fit -->
           <div
             id="added-series-container"
+            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+          >
+            <div class="text-center py-6 text-gray-400 text-sm italic">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deletion History Grid Layout -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+        <!-- Deleted Anime -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-bold text-gray-800 mb-4">
+            <i class="fas fa-trash-alt text-red-500 mr-2"></i> Recently Deleted
+            Anime
+          </h2>
+          <div
+            id="deleted-anime-container"
+            class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
+          >
+            <div class="text-center py-6 text-gray-400 text-sm italic">
+              <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+            </div>
+          </div>
+        </div>
+
+        <!-- Deleted Series -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-bold text-gray-800 mb-4">
+            <i class="fas fa-trash-alt text-rose-500 mr-2"></i> Recently Deleted
+            Series
+          </h2>
+          <div
+            id="deleted-series-container"
             class="space-y-2 max-h-[350px] overflow-y-auto pr-2"
           >
             <div class="text-center py-6 text-gray-400 text-sm italic">
@@ -503,6 +534,18 @@
         }
       }
 
+      function formatDate(dateStr) {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return dateStr;
+        return new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(d);
+      }
+
       // --- Feature 3: Recent Entries Fetcher ---
       async function loadRecentEntries() {
         try {
@@ -555,12 +598,15 @@
               modContainer.innerHTML = modifiedAnime
                 .map(
                   (a) => `
-                          <div onclick="window.location.href='/anime/${a.system_id}'" class="cursor-pointer p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/40 hover:bg-blue-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
-                              <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-brand transition-colors">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                                  <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                          <div onclick="window.location.href='/anime/${a.system_id}'" class="cursor-pointer p-3 bg-blue-50/40 border border-blue-100 hover:border-brand/40 hover:bg-blue-50/80 hover:shadow-sm rounded-lg flex flex-col transition-all mb-2 group">
+                              <div class="flex justify-between items-start">
+                                  <div class="min-w-0 pr-2 flex-1">
+                                      <div class="font-bold text-gray-800 text-sm truncate group-hover:text-brand transition-colors">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                      <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || "-"} • ${a.airing_type || "-"}</div>
+                                  </div>
+                                  <div class="text-[10px] text-gray-500 shrink-0 ml-2 bg-white px-1.5 py-0.5 rounded border border-gray-200">${formatDate(a.updated_at)}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-gray-400 shrink-0 bg-white px-2 py-1 rounded border border-gray-200 group-hover:border-brand/30 transition-colors">ID: ${a.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-gray-500 mt-2 bg-white/60 px-2 py-1 rounded border border-blue-100/50 group-hover:bg-white group-hover:border-blue-200 transition-colors truncate" title="${a.system_id}">ID: ${a.system_id}</div>
                           </div>
                       `,
                 )
@@ -578,12 +624,15 @@
               addContainer.innerHTML = addedAnime
                 .map(
                   (a) => `
-                          <div onclick="window.location.href='/anime/${a.system_id}'" class="cursor-pointer p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
-                              <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-emerald-700 transition-colors">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                                  <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || ""} • ${a.airing_type || ""}</div>
+                          <div onclick="window.location.href='/anime/${a.system_id}'" class="cursor-pointer p-3 bg-emerald-50/40 border border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50/80 hover:shadow-sm rounded-lg flex flex-col transition-all mb-2 group">
+                              <div class="flex justify-between items-start">
+                                  <div class="min-w-0 pr-2 flex-1">
+                                      <div class="font-bold text-gray-800 text-sm truncate group-hover:text-emerald-700 transition-colors">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                                      <div class="text-xs text-gray-500 truncate mt-0.5">${a.series_season || "-"} • ${a.airing_type || "-"}</div>
+                                  </div>
+                                  <div class="text-[10px] text-gray-500 shrink-0 ml-2 bg-white px-1.5 py-0.5 rounded border border-gray-200">${formatDate(a.created_at || a.updated_at)}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-emerald-600/70 shrink-0 bg-white px-2 py-1 rounded border border-emerald-100 group-hover:border-emerald-300 transition-colors">ID: ${a.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-emerald-600/80 mt-2 bg-white/60 px-2 py-1 rounded border border-emerald-100/50 group-hover:bg-white group-hover:border-emerald-200 transition-colors truncate" title="${a.system_id}">ID: ${a.system_id}</div>
                           </div>
                       `,
                 )
@@ -607,12 +656,15 @@
               modContainer.innerHTML = modifiedSeries
                 .map(
                   (s) => `
-                          <div onclick="window.location.href='/series/${s.system_id}'" class="cursor-pointer p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-400 hover:bg-purple-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
-                              <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-purple-700 transition-colors">${s.series_en}</div>
-                                  <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                          <div onclick="window.location.href='/series/${s.system_id}'" class="cursor-pointer p-3 bg-purple-50/40 border border-purple-100 hover:border-purple-400 hover:bg-purple-50/80 hover:shadow-sm rounded-lg flex flex-col transition-all mb-2 group">
+                              <div class="flex justify-between items-start">
+                                  <div class="min-w-0 pr-2 flex-1">
+                                      <div class="font-bold text-gray-800 text-sm truncate group-hover:text-purple-700 transition-colors">${s.series_en}</div>
+                                      <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                                  </div>
+                                  <div class="text-[10px] text-gray-500 shrink-0 ml-2 bg-white px-1.5 py-0.5 rounded border border-gray-200">${formatDate(s.updated_at)}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-purple-400/80 shrink-0 bg-white px-2 py-1 rounded border border-purple-100 group-hover:border-purple-300 transition-colors">ID: ${s.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-purple-600/80 mt-2 bg-white/60 px-2 py-1 rounded border border-purple-100/50 group-hover:bg-white group-hover:border-purple-200 transition-colors truncate" title="${s.system_id}">ID: ${s.system_id}</div>
                           </div>
                       `,
                 )
@@ -630,12 +682,15 @@
               addContainer.innerHTML = addedSeries
                 .map(
                   (s) => `
-                          <div onclick="window.location.href='/series/${s.system_id}'" class="cursor-pointer p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-400 hover:bg-pink-50/80 hover:shadow-sm rounded-lg flex justify-between items-center transition-all mb-2 group">
-                              <div class="min-w-0 pr-2">
-                                  <div class="font-bold text-gray-800 text-sm truncate group-hover:text-pink-600 transition-colors">${s.series_en}</div>
-                                  <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                          <div onclick="window.location.href='/series/${s.system_id}'" class="cursor-pointer p-3 bg-pink-50/40 border border-pink-100 hover:border-pink-400 hover:bg-pink-50/80 hover:shadow-sm rounded-lg flex flex-col transition-all mb-2 group">
+                              <div class="flex justify-between items-start">
+                                  <div class="min-w-0 pr-2 flex-1">
+                                      <div class="font-bold text-gray-800 text-sm truncate group-hover:text-pink-600 transition-colors">${s.series_en}</div>
+                                      <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
+                                  </div>
+                                  <div class="text-[10px] text-gray-500 shrink-0 ml-2 bg-white px-1.5 py-0.5 rounded border border-gray-200">${formatDate(s.created_at || s.updated_at)}</div>
                               </div>
-                              <div class="text-[10px] font-mono text-pink-500/70 shrink-0 bg-white px-2 py-1 rounded border border-pink-100 group-hover:border-pink-300 transition-colors">ID: ${s.system_id.substring(0, 8)}...</div>
+                              <div class="text-[10px] font-mono text-pink-600/80 mt-2 bg-white/60 px-2 py-1 rounded border border-pink-100/50 group-hover:bg-white group-hover:border-pink-200 transition-colors truncate" title="${s.system_id}">ID: ${s.system_id}</div>
                           </div>
                       `,
                 )
@@ -651,6 +706,67 @@
           document.getElementById("modified-series-container").innerHTML =
             `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
           document.getElementById("added-series-container").innerHTML =
+            `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
+        }
+      }
+
+      // --- Feature 4: Recent Deletions Fetcher ---
+      async function loadDeletedEntries() {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/admin/recent-deleted?limit=50`,
+          );
+          if (!res.ok) throw new Error("Failed to fetch deleted records");
+          const data = await res.json();
+
+          const deletedAnime = data
+            .filter(
+              (d) =>
+                d.record_type === "anime" || d.record_type === "anime_orphan",
+            )
+            .slice(0, 15);
+          const deletedSeries = data
+            .filter((d) => d.record_type === "series")
+            .slice(0, 15);
+
+          const renderDeletedItem = (item) => `
+            <div class="p-3 bg-red-50/40 border border-red-100 rounded-lg flex flex-col mb-2 group transition-all">
+                <div class="flex justify-between items-start">
+                    <div class="min-w-0 pr-2 flex-1">
+                        <div class="font-bold text-gray-800 text-sm truncate group-hover:text-red-700 transition-colors">${item.title}</div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 shrink-0 ml-2 bg-white px-1.5 py-0.5 rounded border border-gray-200">${formatDate(item.deleted_at)}</div>
+                </div>
+                <div class="text-[10px] font-mono text-red-600/80 mt-2 bg-white/60 px-2 py-1 rounded border border-red-100/50 group-hover:bg-white group-hover:border-red-200 transition-colors truncate" title="${item.system_id}">ID: ${item.system_id}</div>
+            </div>
+          `;
+
+          const animeContainer = document.getElementById(
+            "deleted-anime-container",
+          );
+          if (deletedAnime.length === 0) {
+            animeContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic">No recent deletions found.</div>`;
+          } else {
+            animeContainer.innerHTML = deletedAnime
+              .map(renderDeletedItem)
+              .join("");
+          }
+
+          const seriesContainer = document.getElementById(
+            "deleted-series-container",
+          );
+          if (deletedSeries.length === 0) {
+            seriesContainer.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm italic">No recent deletions found.</div>`;
+          } else {
+            seriesContainer.innerHTML = deletedSeries
+              .map(renderDeletedItem)
+              .join("");
+          }
+        } catch (error) {
+          console.error("Error loading deleted entries:", error);
+          document.getElementById("deleted-anime-container").innerHTML =
+            `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
+          document.getElementById("deleted-series-container").innerHTML =
             `<div class="text-center py-6 text-red-400 text-sm italic">Error loading data.</div>`;
         }
       }
@@ -685,6 +801,7 @@
 
             loadLogs();
             loadRecentEntries();
+            loadDeletedEntries();
 
             // Revert button back to normal after 2 seconds
             setTimeout(() => {
@@ -720,6 +837,7 @@
       document.addEventListener("DOMContentLoaded", () => {
         loadLogs();
         loadRecentEntries();
+        loadDeletedEntries();
       });
     </script>
   </body>

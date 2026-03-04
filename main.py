@@ -57,6 +57,11 @@ def serve_search():
     return FileResponse("static/search.html")
 
 
+# ==========================================
+# ADMIN FRONTEND ROUTES
+# ==========================================
+
+
 @app.get("/system", response_class=HTMLResponse)
 def read_admin():
     with open("static/admin.html", "r", encoding="utf-8") as f:
@@ -79,6 +84,11 @@ def read_modify():
 def read_delete():
     with open("static/delete.html", "r", encoding="utf-8") as f:
         return f.read()
+
+
+# ==========================================
+# BACKEND API ENDPOINTS - READ ONLY
+# ==========================================
 
 
 @app.get("/api/anime", response_model=List[schemas.AnimeResponse])
@@ -123,6 +133,11 @@ def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
     if not anime:
         raise HTTPException(status_code=404, detail="Anime not found")
     return anime
+
+
+# ==========================================
+# BACKEND API ENDPOINTS - PROGRESS UPDATE
+# ==========================================
 
 
 @app.patch("/api/anime/{system_id}/progress")
@@ -264,6 +279,20 @@ def get_sync_logs(db: Session = Depends(get_db), limit: int = 50):
     )
 
 
+@app.get(
+    "/api/admin/recent-deleted", response_model=List[schemas.DeletedRecordResponse]
+)
+def get_recent_deleted_records(limit: int = 15, db: Session = Depends(get_db)):
+    """Fetch the most recently deleted anime and series entries."""
+    records = (
+        db.query(database.DeletedRecord)
+        .order_by(database.DeletedRecord.deleted_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return records
+
+
 @app.post("/api/admin/add")
 def manual_add_anime(payload: schemas.AnimeManualCreate, db: Session = Depends(get_db)):
     """Appends a new anime to the Google Sheet, handles new series creation, and immediately syncs to PostgreSQL."""
@@ -333,8 +362,31 @@ def update_anime_entry(
 @app.delete("/api/admin/anime/{system_id}")
 def delete_anime_entry(system_id: str, db: Session = Depends(get_db)):
     """Deletes an anime in Google Sheets and triggers a DB sync."""
+    anime = (
+        db.query(database.AnimeEntry)
+        .filter(database.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not anime:
+        raise HTTPException(status_code=404, detail="Anime not found")
+
+    title = (
+        anime.series_season_cn
+        or anime.series_season_en
+        or anime.series_en
+        or "Unknown Title"
+    )
+
     try:
         sheets_sync.delete_anime_row(system_id)
+
+        # Log Deletion
+        deleted_record = database.DeletedRecord(
+            system_id=anime.system_id, record_type="anime", title=title
+        )
+        db.add(deleted_record)
+        db.commit()
+
         sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
 
         return {
@@ -372,8 +424,24 @@ def update_series_entry(
 @app.delete("/api/admin/series/{system_id}")
 def delete_series_entry(system_id: str, db: Session = Depends(get_db)):
     """Deletes a series in Google Sheets and triggers a DB sync."""
+    series = (
+        db.query(database.AnimeSeries)
+        .filter(database.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not series:
+        raise HTTPException(status_code=404, detail="Series Hub not found")
+
     try:
         sheets_sync.delete_series_row(system_id)
+
+        # Log Deletion
+        deleted_record = database.DeletedRecord(
+            system_id=series.system_id, record_type="series", title=series.series_en
+        )
+        db.add(deleted_record)
+        db.commit()
+
         sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
 
         return {
@@ -407,6 +475,19 @@ def delete_orphan_entry(system_id: str, db: Session = Depends(get_db)):
         )
         if not db_entry:
             raise HTTPException(status_code=404, detail="Orphan not found in database.")
+
+        title = (
+            db_entry.series_season_cn
+            or db_entry.series_season_en
+            or db_entry.series_en
+            or "Unknown Title"
+        )
+
+        # Log Deletion
+        deleted_record = database.DeletedRecord(
+            system_id=db_entry.system_id, record_type="anime_orphan", title=title
+        )
+        db.add(deleted_record)
 
         db.delete(db_entry)
         db.commit()

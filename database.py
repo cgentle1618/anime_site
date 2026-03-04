@@ -106,3 +106,13 @@ class SyncLog(Base):
     rows_deleted = Column(Integer, default=0)
 
     error_message = Column(String, nullable=True)
+
+
+class DeletedRecord(Base):
+    __tablename__ = "deleted_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    system_id = Column(String, index=True)
+    record_type = Column(String)  # 'anime' or 'series'
+    title = Column(String)  # The title of the anime or series
+    deleted_at = Column(DateTime, default=get_taipei_now)

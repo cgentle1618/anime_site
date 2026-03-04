@@ -7,7 +7,8 @@ from datetime import datetime
 from gspread.exceptions import APIError, WorksheetNotFound
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from database import SessionLocal, AnimeEntry, AnimeSeries, SyncLog
+from database import SessionLocal, AnimeEntry, AnimeSeries, SyncLog, DeletedRecord
+
 
 # ==========================================
 # 1. API & GOOGLE SHEETS HELPERS
@@ -719,6 +720,16 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     print(
                         f"Auto-deleting orphaned Series from DB: {db_s.series_en} ({db_s.system_id})"
                     )
+
+                    # --- NEW LOGIC: Log Deletion ---
+                    deleted_record = DeletedRecord(
+                        system_id=db_s.system_id,
+                        record_type="series",
+                        title=db_s.series_en,
+                    )
+                    db.add(deleted_record)
+                    # -------------------------------
+
                     db.delete(db_s)
                     deleted_count += 1
 
@@ -876,9 +887,18 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
         all_db_anime = db.query(AnimeEntry).all()
         for db_a in all_db_anime:
             if db_a.system_id not in valid_anime_ids:
+                title = db_a.series_season_cn or db_a.series_en or "Unknown Title"
                 print(
-                    f"Auto-deleting orphaned Anime from DB: {db_a.series_season_cn or db_a.series_en} ({db_a.system_id})"
+                    f"Auto-deleting orphaned Anime from DB: {title} ({db_a.system_id})"
                 )
+
+                # --- NEW LOGIC: Log Deletion ---
+                deleted_record = DeletedRecord(
+                    system_id=db_a.system_id, record_type="anime", title=title
+                )
+                db.add(deleted_record)
+                # -------------------------------
+
                 db.delete(db_a)
                 deleted_count += 1
 
