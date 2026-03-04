@@ -3,7 +3,7 @@ from typing import Optional, List
 from datetime import datetime
 
 # ==========================================
-# BASE SCHEMAS (DRY Principle)
+# BASE SCHEMAS
 # ==========================================
 
 
