@@ -3,12 +3,19 @@ import time
 import uuid
 import requests
 import gspread
+import json
 from datetime import datetime
 from gspread.exceptions import APIError, WorksheetNotFound
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from database import SessionLocal, AnimeEntry, AnimeSeries, SyncLog, DeletedRecord
-
+from database import (
+    SessionLocal,
+    AnimeEntry,
+    AnimeSeries,
+    SyncLog,
+    get_taipei_now,
+    cleanup_old_logs,
+)
 
 # ==========================================
 # 1. API & GOOGLE SHEETS HELPERS
@@ -27,7 +34,7 @@ def execute_with_retry(func, *args, max_retries=3, **kwargs):
             if "429" in str(e):
                 wait_time = 60 * (attempt + 1)
                 print(
-                    f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})..."
+                    f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})...."
                 )
                 time.sleep(wait_time)
             else:
@@ -56,6 +63,7 @@ def log_sync_event(
     updated: int = 0,
     deleted: int = 0,
     error: str = None,
+    details_json: str = None,
 ):
     """Logs the results of a sync operation to the database for the Admin Dashboard."""
     try:
@@ -66,6 +74,7 @@ def log_sync_event(
             rows_updated=updated,
             rows_deleted=deleted,
             error_message=error,
+            details_json=details_json,
         )
         db.add(log_entry)
         db.commit()
@@ -422,18 +431,25 @@ def update_anime_row(system_id: str, update_data: dict):
         raise ValueError("system_id column not found in Anime sheet.")
 
     row_idx = None
+    old_row = None
     for i, row in enumerate(values):
         if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
             row_idx = i + 1
+            # Keep a reference to the existing row to preserve columns missing from update_data
+            old_row = row + [""] * (len(headers) - len(row))
             break
 
     if not row_idx:
         raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
 
     new_row = []
-    for header in headers:
-        val = update_data.get(header, "")
-        new_row.append(val if val is not None else "")
+    for i, header in enumerate(headers):
+        if header in update_data:
+            val = update_data[header]
+            new_row.append(val if val is not None else "")
+        else:
+            # Preserve existing data (like cover_image_url) if missing from the UI payload
+            new_row.append(old_row[i])
 
     print(f"Updating row {row_idx} for anime {system_id} in Google Sheets...")
     try:
@@ -495,18 +511,23 @@ def update_series_row(system_id: str, update_data: dict):
         raise ValueError("system_id column not found in Anime Series sheet.")
 
     row_idx = None
+    old_row = None
     for i, row in enumerate(values):
         if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
             row_idx = i + 1
+            old_row = row + [""] * (len(headers) - len(row))
             break
 
     if not row_idx:
         raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
 
     new_row = []
-    for header in headers:
-        val = update_data.get(header, "")
-        new_row.append(val if val is not None else "")
+    for i, header in enumerate(headers):
+        if header in update_data:
+            val = update_data[header]
+            new_row.append(val if val is not None else "")
+        else:
+            new_row.append(old_row[i])
 
     print(f"Updating row {row_idx} for series {system_id} in Google Sheets...")
     try:
@@ -627,6 +648,12 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
     updated_count = 0
     deleted_count = 0  # <--- Track deleted records
 
+    # <--- NEW: Lists for Detailed JSON Audit Trail
+    added_items = []
+    updated_items = []
+    deleted_items = []
+    # --->
+
     try:
         spreadsheet = get_google_spreadsheet()
         worksheet = execute_with_retry(spreadsheet.worksheet, "Anime")
@@ -706,12 +733,18 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                                     setattr(existing_s, key, value)
                                     is_modified = True
                             if is_modified:
-                                existing_s.updated_at = datetime.utcnow()
+                                existing_s.updated_at = get_taipei_now()
+                                updated_items.append(
+                                    f"Series Hub: {existing_s.series_en}"
+                                )  # <--- NEW
                         else:
                             new_s = AnimeSeries(**s_entry_data)
-                            new_s.created_at = datetime.utcnow()
-                            new_s.updated_at = datetime.utcnow()
+                            new_s.created_at = get_taipei_now()
+                            new_s.updated_at = get_taipei_now()
                             db.add(new_s)
+                            added_items.append(
+                                f"Series Hub: {new_s.series_en}"
+                            )  # <--- NEW
 
             # Delete orphaned Series from DB (Triggered if manually deleted directly from Sheets)
             all_db_series = db.query(AnimeSeries).all()
@@ -720,16 +753,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     print(
                         f"Auto-deleting orphaned Series from DB: {db_s.series_en} ({db_s.system_id})"
                     )
-
-                    # --- NEW LOGIC: Log Deletion ---
-                    deleted_record = DeletedRecord(
-                        system_id=db_s.system_id,
-                        record_type="series",
-                        title=db_s.series_en,
-                    )
-                    db.add(deleted_record)
-                    # -------------------------------
-
+                    deleted_items.append(f"Series Hub: {db_s.series_en}")  # <--- NEW
                     db.delete(db_s)
                     deleted_count += 1
 
@@ -874,31 +898,31 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                         is_modified = True
 
                 if is_modified:
-                    existing_entry.updated_at = datetime.utcnow()
+                    existing_entry.updated_at = get_taipei_now()
                     updated_count += 1
+                    updated_items.append(
+                        f"Anime: {existing_entry.series_season_cn or existing_entry.series_en}"
+                    )
             else:
                 new_entry = AnimeEntry(**entry_data)
-                new_entry.created_at = datetime.utcnow()
-                new_entry.updated_at = datetime.utcnow()
+                new_entry.created_at = get_taipei_now()
+                new_entry.updated_at = get_taipei_now()
                 db.add(new_entry)
                 added_count += 1
+                added_items.append(
+                    f"Anime: {new_entry.series_season_cn or new_entry.series_en}"
+                )
 
         # Delete orphaned Anime from DB (Triggered if manually deleted directly from Sheets)
         all_db_anime = db.query(AnimeEntry).all()
         for db_a in all_db_anime:
             if db_a.system_id not in valid_anime_ids:
-                title = db_a.series_season_cn or db_a.series_en or "Unknown Title"
                 print(
-                    f"Auto-deleting orphaned Anime from DB: {title} ({db_a.system_id})"
+                    f"Auto-deleting orphaned Anime from DB: {db_a.series_season_cn or db_a.series_en} ({db_a.system_id})"
                 )
-
-                # --- NEW LOGIC: Log Deletion ---
-                deleted_record = DeletedRecord(
-                    system_id=db_a.system_id, record_type="anime", title=title
+                deleted_items.append(
+                    f"Anime: {db_a.series_season_cn or db_a.series_en}"
                 )
-                db.add(deleted_record)
-                # -------------------------------
-
                 db.delete(db_a)
                 deleted_count += 1
 
@@ -920,6 +944,13 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
         if enriched_count > 0:
             print(f"✨ Successfully enriched {enriched_count} anime with MAL Data!")
 
+        # <--- NEW: Compile Audit Trail JSON
+        audit_trail = {
+            "added": added_items,
+            "updated": updated_items,
+            "deleted": deleted_items,
+        }
+
         # Include deleted count in log if database schema supports it
         log_sync_event(
             db,
@@ -928,7 +959,19 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
             added=added_count,
             updated=updated_count,
             deleted=deleted_count,
+            details_json=json.dumps(
+                audit_trail, ensure_ascii=False
+            ),  # Fixed missing JSON argument
         )
+
+        # --- NEW: Trigger Auto-Cleanup of Logs older than 30 days ---
+        try:
+            purged = cleanup_old_logs(db, days_to_keep=30)
+            if purged > 0:
+                print(f"🧹 Auto-cleanup: Removed {purged} old sync logs.")
+        except Exception as cleanup_error:
+            print(f"⚠️ Failed to auto-cleanup old logs: {cleanup_error}")
+        # ------------------------------------------------------------
 
         return {
             "status": "success",

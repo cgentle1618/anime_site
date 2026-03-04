@@ -2,7 +2,16 @@ import os
 import uuid
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import DateTime, create_engine, Column, String, Integer, Float, Date
+from sqlalchemy import (
+    DateTime,
+    create_engine,
+    Column,
+    String,
+    Integer,
+    Float,
+    Date,
+    Text,
+)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
@@ -26,6 +35,16 @@ TAIPEI_TZ = timezone(timedelta(hours=8))
 def get_taipei_now():
     """Returns the current time in Taipei as a naive datetime object for DB storage."""
     return datetime.now(TAIPEI_TZ).replace(tzinfo=None)
+
+
+def cleanup_old_logs(db, days_to_keep: int = 30):
+    """Deletes sync logs older than the specified number of days."""
+    cutoff_date = get_taipei_now() - timedelta(days=days_to_keep)
+
+    # Perform the deletion
+    deleted_count = db.query(SyncLog).filter(SyncLog.timestamp < cutoff_date).delete()
+    db.commit()
+    return deleted_count
 
 
 class AnimeEntry(Base):
@@ -106,8 +125,10 @@ class SyncLog(Base):
     rows_deleted = Column(Integer, default=0)
 
     error_message = Column(String, nullable=True)
+    details_json = Column(Text, nullable=True)
 
 
+# --- Audit Log for Deletions ---
 class DeletedRecord(Base):
     __tablename__ = "deleted_records"
 

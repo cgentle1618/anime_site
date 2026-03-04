@@ -268,15 +268,32 @@ def trigger_manual_sync(
 # ==========================================
 
 
-@app.get("/api/admin/logs", response_model=List[schemas.SyncLogResponse])
-def get_sync_logs(db: Session = Depends(get_db), limit: int = 50):
-    """Fetches the most recent background and manual sync logs."""
-    return (
+@app.get("/api/admin/logs", response_model=schemas.PaginatedSyncLogResponse)
+def get_sync_logs(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    """Fetches the most recent background and manual sync logs with pagination."""
+    total_logs = db.query(database.SyncLog).count()
+    logs = (
         db.query(database.SyncLog)
         .order_by(database.SyncLog.timestamp.desc())
+        .offset(skip)
         .limit(limit)
         .all()
     )
+    return {"total": total_logs, "logs": logs}
+
+
+@app.delete("/api/admin/logs/cleanup")
+def trigger_log_cleanup(days: int = 30, db: Session = Depends(get_db)):
+    """Manually trigger cleanup of old sync logs."""
+    try:
+        deleted_count = database.cleanup_old_logs(db, days_to_keep=days)
+        return {
+            "status": "success",
+            "message": f"Successfully deleted {deleted_count} logs older than {days} days.",
+            "deleted_count": deleted_count,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get(
@@ -297,7 +314,6 @@ def get_recent_deleted_records(limit: int = 15, db: Session = Depends(get_db)):
 def manual_add_anime(payload: schemas.AnimeManualCreate, db: Session = Depends(get_db)):
     """Appends a new anime to the Google Sheet, handles new series creation, and immediately syncs to PostgreSQL."""
     import uuid
-    import database  # Ensure access to models
 
     try:
         # 1. Check if it's a completely new series

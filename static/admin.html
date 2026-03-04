@@ -118,7 +118,7 @@
               <input
                 type="text"
                 id="globalSearchInput"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
                 placeholder="Search Series or Anime Names..."
               />
             </div>
@@ -192,88 +192,121 @@
         </a>
       </div>
 
-      <!-- Top Admin Grid Layout -->
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-        <!-- LEFT COLUMN -->
-        <div class="space-y-8">
-          <!-- Sync Logs Monitor -->
-          <div
-            class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      <!-- Data Conflict Management (Orphans) -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 flex flex-col"
+      >
+        <div class="flex justify-between items-center mb-4 shrink-0">
+          <h2 class="font-bold text-gray-800">
+            <i class="fas fa-heart-broken text-rose-500 mr-2"></i> Google Sheet
+            & Database Conflicts
+          </h2>
+          <button
+            id="scan-orphans-btn"
+            onclick="scanOrphans()"
+            class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition"
           >
-            <div
-              class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
-            >
-              <h2 class="font-bold text-gray-800">
-                <i class="fas fa-clipboard-list text-gray-400 mr-2"></i> Sync
-                Log History
-              </h2>
-              <button
-                onclick="loadLogs()"
-                class="text-brand hover:text-brand-hover text-sm font-bold"
-              >
-                <i class="fas fa-redo-alt mr-1"></i> Refresh
-              </button>
-            </div>
-            <div class="overflow-auto flex-1 p-0">
-              <table class="w-full text-sm text-left whitespace-nowrap">
-                <thead
-                  class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  <tr>
-                    <th class="px-4 py-3 font-bold">Time</th>
-                    <th class="px-4 py-3 font-bold">Type</th>
-                    <th class="px-4 py-3 font-bold">Status</th>
-                    <th class="px-4 py-3 font-bold">Changes</th>
-                  </tr>
-                </thead>
-                <tbody id="logs-tbody" class="divide-y divide-gray-100">
-                  <tr>
-                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">
-                      <i class="fas fa-spinner fa-spin mr-2"></i> Loading
-                      logs...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <i class="fas fa-radar mr-1"></i> Scan
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4 leading-relaxed shrink-0">
+          Detects PostgreSQL database entries that no longer exist in your
+          Google Sheet (e.g., deleted rows). You can safely purge them here to
+          restore parity.
+        </p>
+        <div
+          id="orphans-container"
+          class="bg-gray-50 border border-gray-200 rounded-xl overflow-auto p-2 min-h-[100px] max-h-[300px] relative"
+        >
+          <div
+            class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm italic"
+          >
+            Click "Scan" to detect orphaned records.
           </div>
         </div>
+      </div>
 
-        <!-- RIGHT COLUMN -->
-        <div class="space-y-8">
-          <!-- Data Conflict Management (Orphans) -->
-          <div
-            class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 h-[400px] flex flex-col"
-          >
-            <div class="flex justify-between items-center mb-4 shrink-0">
-              <h2 class="font-bold text-gray-800">
-                <i class="fas fa-heart-broken text-rose-500 mr-2"></i> Google
-                Sheet & Database Conflicts
-              </h2>
-              <button
-                id="scan-orphans-btn"
-                onclick="scanOrphans()"
-                class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition"
-              >
-                <i class="fas fa-radar mr-1"></i> Scan
-              </button>
-            </div>
-            <p class="text-xs text-gray-500 mb-4 leading-relaxed shrink-0">
-              Detects PostgreSQL database entries that no longer exist in your
-              Google Sheet (e.g., deleted rows). You can safely purge them here
-              to restore parity.
-            </p>
+      <!-- Sync Logs Monitor -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col mb-8"
+      >
+        <div
+          class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+        >
+          <h2 class="font-bold text-gray-800">
+            <i class="fas fa-clipboard-list text-gray-400 mr-2"></i> Sync Log
+            History
+          </h2>
 
-            <div
-              id="orphans-container"
-              class="bg-gray-50 border border-gray-200 rounded-xl overflow-auto p-2 flex-1 relative"
+          <div class="flex items-center gap-4">
+            <button
+              onclick="cleanupLogs()"
+              class="text-gray-400 hover:text-red-500 text-xs font-bold transition flex items-center"
             >
-              <div
-                class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm italic"
-              >
-                Click "Scan" to detect orphaned records.
-              </div>
-            </div>
+              <i class="fas fa-broom mr-1"></i> Clean Old Logs
+            </button>
+            <button
+              onclick="loadLogs(1)"
+              class="text-brand hover:text-brand-hover text-sm font-bold flex items-center"
+            >
+              <i class="fas fa-redo-alt mr-1"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div class="overflow-auto max-h-[400px] p-0">
+          <table class="w-full text-sm text-left whitespace-nowrap">
+            <thead
+              class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 shadow-[0_1px_0_0_#e5e7eb] z-10"
+            >
+              <tr>
+                <th class="px-4 py-3 font-bold">Time</th>
+                <th class="px-4 py-3 font-bold">Type</th>
+                <th class="px-4 py-3 font-bold">Status</th>
+                <th class="px-4 py-3 font-bold">
+                  Changes
+                  <span
+                    class="text-[10px] font-normal text-gray-400 normal-case ml-1 tracking-normal"
+                    >(+ Add / ~ Upd / - Del)</span
+                  >
+                </th>
+                <th class="px-4 py-3 font-bold">Details</th>
+              </tr>
+            </thead>
+            <tbody id="logs-tbody" class="divide-y divide-gray-100">
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                  <i class="fas fa-spinner fa-spin mr-2"></i> Loading logs...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination Controls -->
+        <div
+          class="px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between"
+        >
+          <div class="text-xs text-gray-500">
+            Showing
+            <span id="log-start" class="font-bold text-gray-900">0</span> to
+            <span id="log-end" class="font-bold text-gray-900">0</span> of
+            <span id="log-total" class="font-bold text-gray-900">0</span>
+            entries
+          </div>
+          <div class="flex items-center space-x-2">
+            <button
+              onclick="changeLogPage(-1)"
+              id="log-prev-btn"
+              class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md text-xs font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Previous
+            </button>
+            <button
+              onclick="changeLogPage(1)"
+              id="log-next-btn"
+              class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md text-xs font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
@@ -390,6 +423,10 @@
     <script>
       const API_BASE_URL = "/api";
 
+      // Pagination Variables
+      let currentLogPage = 1;
+      const logsPerPage = 10;
+
       // --- Universal UI Logic ---
       const globalSearchInput = document.getElementById("globalSearchInput");
       if (globalSearchInput) {
@@ -410,17 +447,39 @@
         setTimeout(() => el.classList.add("hidden"), 5000);
       }
 
-      // --- Feature 1: Sync Logs ---
-      async function loadLogs() {
+      // --- Feature 1: Paginated Sync Logs (With Detailed JSON Audit Trail) ---
+      async function loadLogs(page = 1) {
+        currentLogPage = page;
+        const skip = (currentLogPage - 1) * logsPerPage;
+
         const tbody = document.getElementById("logs-tbody");
-        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Fetching logs...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Fetching logs...</td></tr>`;
+
         try {
-          const res = await fetch(`${API_BASE_URL}/admin/logs`);
+          const res = await fetch(
+            `${API_BASE_URL}/admin/logs?skip=${skip}&limit=${logsPerPage}`,
+          );
           if (!res.ok) throw new Error("Failed to fetch logs");
-          const logs = await res.json();
+
+          const data = await res.json();
+          // Extract logs list and total count from dictionary payload
+          const logs = data.logs || [];
+          const total = data.total || 0;
+
+          // Update Pagination UI Elements
+          const start = total === 0 ? 0 : skip + 1;
+          const end = Math.min(skip + logsPerPage, total);
+          document.getElementById("log-start").innerText = start;
+          document.getElementById("log-end").innerText = end;
+          document.getElementById("log-total").innerText = total;
+
+          // Toggle Button States
+          document.getElementById("log-prev-btn").disabled =
+            currentLogPage === 1;
+          document.getElementById("log-next-btn").disabled = end >= total;
 
           if (logs.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-gray-500 italic">No sync history found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500 italic">No sync history found.</td></tr>`;
             return;
           }
 
@@ -436,12 +495,50 @@
                   ? '<i class="fas fa-robot text-gray-400"></i>'
                   : '<i class="fas fa-user text-gray-400"></i>';
 
+              // Expand Changes column
               let changes = `<span class="text-gray-500">No changes</span>`;
-              if (log.rows_added > 0 || log.rows_updated > 0) {
-                changes = `<span class="text-emerald-600 font-bold">+${log.rows_added}</span> / <span class="text-blue-600 font-bold">~${log.rows_updated}</span>`;
+              if (
+                log.rows_added > 0 ||
+                log.rows_updated > 0 ||
+                log.rows_deleted > 0
+              ) {
+                changes = `<span class="text-emerald-600 font-bold">+${log.rows_added || 0}</span> / <span class="text-blue-600 font-bold">~${log.rows_updated || 0}</span> / <span class="text-red-600 font-bold">-${log.rows_deleted || 0}</span>`;
               }
+
+              // Generate interactive Details HTML from details_json
+              let detailsHtml = `<span class="text-gray-400">-</span>`;
               if (log.error_message) {
-                changes = `<span class="text-red-500 truncate max-w-[150px] inline-block" title="${log.error_message}">${log.error_message}</span>`;
+                detailsHtml = `<span class="text-red-500 truncate max-w-[200px] inline-block" title="${log.error_message}">${log.error_message}</span>`;
+              } else if (log.details_json) {
+                try {
+                  const parsed = JSON.parse(log.details_json);
+                  let listHtml = "";
+                  if (parsed.added && parsed.added.length > 0)
+                    listHtml += `<div class="text-emerald-700 mb-1"><span class="font-bold">Added:</span> ${parsed.added.join(", ")}</div>`;
+                  if (parsed.updated && parsed.updated.length > 0)
+                    listHtml += `<div class="text-blue-700 mb-1"><span class="font-bold">Updated:</span> ${parsed.updated.join(", ")}</div>`;
+                  if (parsed.deleted && parsed.deleted.length > 0)
+                    listHtml += `<div class="text-red-700"><span class="font-bold">Deleted:</span> ${parsed.deleted.join(", ")}</div>`;
+
+                  if (listHtml) {
+                    detailsHtml = `
+                        <details class="cursor-pointer relative group">
+                            <summary class="text-brand hover:underline font-medium text-[11px] focus:outline-none">View Details</summary>
+                            <div class="mt-2 p-3 bg-white border border-gray-200 shadow-xl rounded-lg text-[11px] whitespace-normal absolute right-0 sm:left-0 z-50 w-max max-w-[300px] sm:max-w-[400px] max-h-[250px] overflow-y-auto leading-relaxed">
+                                ${listHtml}
+                            </div>
+                        </details>`;
+                  }
+                } catch (e) {
+                  detailsHtml = `<span class="text-gray-400 text-[10px]">Invalid Format</span>`;
+                }
+              } else if (
+                !log.error_message &&
+                (log.rows_added > 0 ||
+                  log.rows_updated > 0 ||
+                  log.rows_deleted > 0)
+              ) {
+                detailsHtml = `<span class="text-gray-400 text-[10px] italic">Legacy Record</span>`;
               }
 
               return `
@@ -450,12 +547,41 @@
                           <td class="px-4 py-3 text-gray-700 capitalize">${typeIcon} ${log.sync_type}</td>
                           <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColor}">${log.status}</span></td>
                           <td class="px-4 py-3">${changes}</td>
+                          <td class="px-4 py-3">${detailsHtml}</td>
                       </tr>
                   `;
             })
             .join("");
         } catch (error) {
-          tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</td></tr>`;
+        }
+      }
+
+      function changeLogPage(delta) {
+        loadLogs(currentLogPage + delta);
+      }
+
+      // --- NEW: Feature 1b: Cleanup Old Logs ---
+      async function cleanupLogs() {
+        if (
+          !confirm(
+            "Are you sure you want to delete all sync logs older than 30 days?",
+          )
+        )
+          return;
+
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/admin/logs/cleanup?days=30`,
+            { method: "DELETE" },
+          );
+          if (!res.ok) throw new Error("Failed to clean up logs");
+
+          const data = await res.json();
+          alert(data.message);
+          loadLogs(1); // Refresh the table and jump to page 1
+        } catch (error) {
+          alert("Error cleaning up logs: " + error.message);
         }
       }
 
@@ -799,7 +925,7 @@
             btn.innerText = " Synced!";
             btn.prepend(icon);
 
-            loadLogs();
+            loadLogs(1); // Refresh logs and go to page 1
             loadRecentEntries();
             loadDeletedEntries();
 
@@ -835,7 +961,7 @@
 
       // Initialize Page
       document.addEventListener("DOMContentLoaded", () => {
-        loadLogs();
+        loadLogs(1); // Load page 1 on start
         loadRecentEntries();
         loadDeletedEntries();
       });
