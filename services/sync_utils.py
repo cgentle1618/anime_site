@@ -1,0 +1,60 @@
+import re
+
+
+def clean_value(val, expected_type=str):
+    if val is None or str(val).strip() == "":
+        return None
+
+    val_str = str(val).strip()
+    try:
+        if expected_type == int:
+            return int(float(val_str))
+        if expected_type == float:
+            return float(val_str)
+    except ValueError:
+        return None
+    return val_str
+
+
+def extract_mal_id(mal_link):
+    if not mal_link:
+        return None
+    match = re.search(r"myanimelist\.net/anime/(\d+)", str(mal_link))
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def extract_season_from_title(title_en):
+    if not title_en:
+        return None
+    match = re.search(r"(Season\s\d+(?:\sPart\s\d+)?)", str(title_en), re.IGNORECASE)
+    if match:
+        return match.group(1).title()
+    return None
+
+
+def extract_season_from_cn_title(title_cn):
+    if not title_cn:
+        return None
+    match = re.search(r"第\s*([一二三四五六七八九十]+|\d+)\s*季", str(title_cn))
+    if match:
+        num_str = match.group(1)
+        if num_str.isdigit():
+            return f"Season {num_str}"
+        cn_to_num = {
+            "一": 1,
+            "二": 2,
+            "三": 3,
+            "四": 4,
+            "五": 5,
+            "六": 6,
+            "七": 7,
+            "八": 8,
+            "九": 9,
+            "十": 10,
+        }
+        num = cn_to_num.get(num_str)
+        if num:
+            return f"Season {num}"
+    return None

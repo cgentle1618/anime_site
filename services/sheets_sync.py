@@ -1,52 +1,33 @@
-import re
 import time
 import uuid
-import requests
-import gspread
 import json
-from datetime import datetime
-from gspread.exceptions import APIError, WorksheetNotFound
+import gspread
+from gspread.exceptions import WorksheetNotFound
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
+
 from database import SessionLocal, get_taipei_now, cleanup_old_logs
 from models import AnimeEntry, AnimeSeries, SyncLog
 
-# ==========================================
-# 1. API & GOOGLE SHEETS HELPERS
-# ==========================================
-
-
-def execute_with_retry(func, *args, max_retries=3, **kwargs):
-    """
-    Executes a Google Sheets API call with exponential backoff.
-    Crucial for handling '429 Quota Exceeded' errors safely without crashing.
-    """
-    for attempt in range(max_retries):
-        try:
-            return func(*args, **kwargs)
-        except APIError as e:
-            if "429" in str(e):
-                wait_time = 60 * (attempt + 1)
-                print(
-                    f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})...."
-                )
-                time.sleep(wait_time)
-            else:
-                raise e
-    raise Exception(
-        f"Failed to execute {func.__name__} after {max_retries} retries due to strict quota limits."
-    )
-
-
-def get_google_spreadsheet():
-    """Authenticates with Google and returns the entire Spreadsheet object."""
-    gc = gspread.service_account(filename="credentials.json")
-    return gc.open("Anime Database")
-
-
-def get_google_sheet(sheet_name="Anime"):
-    """Helper to get a specific tab."""
-    return get_google_spreadsheet().worksheet(sheet_name)
+from sync_utils import (
+    clean_value,
+    extract_mal_id,
+    extract_season_from_title,
+    extract_season_from_cn_title,
+)
+from jikan_client import fetch_mal_data
+from sheets_client import (
+    execute_with_retry,
+    get_google_spreadsheet,
+    get_google_sheet,
+    append_new_anime,
+    append_new_series,
+    update_anime_row,
+    delete_anime_row,
+    update_series_row,
+    delete_series_row,
+    update_anime_field_in_sheet,
+)
 
 
 def log_sync_event(
@@ -59,7 +40,6 @@ def log_sync_event(
     error: str = None,
     details_json: str = None,
 ):
-    """Logs the results of a sync operation to the database for the Admin Dashboard."""
     try:
         log_entry = SyncLog(
             sync_type=sync_type,
@@ -77,84 +57,7 @@ def log_sync_event(
         print(f"⚠️ Failed to write sync log to DB: {e}")
 
 
-# ==========================================
-# 2. DATA CLEANING & EXTRACTION
-# ==========================================
-
-
-def clean_value(val, expected_type=str):
-    """Utility function to clean empty Google Sheets cells into None or correct types."""
-    if val is None or str(val).strip() == "":
-        return None
-
-    val_str = str(val).strip()
-    try:
-        if expected_type == int:
-            return int(float(val_str))
-        if expected_type == float:
-            return float(val_str)
-    except ValueError:
-        return None
-    return val_str
-
-
-def extract_mal_id(mal_link):
-    """Extracts the integer ID from a MyAnimeList URL."""
-    if not mal_link:
-        return None
-    match = re.search(r"myanimelist\.net/anime/(\d+)", str(mal_link))
-    if match:
-        return int(match.group(1))
-    return None
-
-
-def extract_season_from_title(title_en):
-    """Extracts 'Season X' or 'Season X Part Y' from the English title."""
-    if not title_en:
-        return None
-    match = re.search(r"(Season\s\d+(?:\sPart\s\d+)?)", str(title_en), re.IGNORECASE)
-    if match:
-        return match.group(1).title()
-    return None
-
-
-def extract_season_from_cn_title(title_cn):
-    """Extracts '第X季' from the Chinese title and converts it to 'Season X'."""
-    if not title_cn:
-        return None
-    match = re.search(r"第\s*([一二三四五六七八九十]+|\d+)\s*季", str(title_cn))
-    if match:
-        num_str = match.group(1)
-        if num_str.isdigit():
-            return f"Season {num_str}"
-        cn_to_num = {
-            "一": 1,
-            "二": 2,
-            "三": 3,
-            "四": 4,
-            "五": 5,
-            "六": 6,
-            "七": 7,
-            "八": 8,
-            "九": 9,
-            "十": 10,
-        }
-        num = cn_to_num.get(num_str)
-        if num:
-            return f"Season {num}"
-    return None
-
-
-# ==========================================
-# 3. GOOGLE SHEETS TAB MANAGEMENT
-# ==========================================
-
-
 def populate_anime_series_tab(spreadsheet, anime_row_dicts):
-    """
-    Scans the 'Anime Series' tab to ensure existing rows have a system_id.
-    (Auto-population of missing series has been disabled to prevent resurrection of deleted hubs).
-    """
     print("\n--- Checking 'Anime Series' Tab ---")
 
     try:
@@ -193,7 +96,6 @@ def populate_anime_series_tab(spreadsheet, anime_row_dicts):
         else 1
     )
 
-    # 1. Check existing rows
     for i, row in enumerate(series_rows[1:], start=2):
         row = row + [""] * (len(headers) - len(row))
         sys_id = row[sys_id_col].strip()
@@ -218,49 +120,12 @@ def populate_anime_series_tab(spreadsheet, anime_row_dicts):
             value_input_option="USER_ENTERED",
         )
 
-    # Disabled auto-append logic to allow orphaned anime entries
     print(
         "Skipping automatic Series auto-generation to allow standalone Anime entries."
     )
 
 
-# ==========================================
-# 4. EXTERNAL API ENRICHMENT (JIKAN / MAL)
-# ==========================================
-
-
-def fetch_mal_data(mal_id):
-    """Hits the Jikan API to grab the Key Visual, MAL Score, and MAL Rank."""
-    try:
-        url = f"https://api.jikan.moe/v4/anime/{mal_id}"
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            data = response.json().get("data", {})
-            image_url = data.get("images", {}).get("jpg", {}).get("large_image_url")
-            score = data.get("score")
-            rank = data.get("rank")
-            rank_str = str(rank) if rank is not None else "N/A"
-
-            return {
-                "cover_image_url": image_url,
-                "mal_rating": score,
-                "mal_rank": rank_str,
-            }
-        elif response.status_code == 429:
-            print(f"⚠️ Jikan Rate Limit hit while fetching ID {mal_id}.")
-            return None
-    except Exception as e:
-        print(f"❌ Failed to fetch Jikan data for ID {mal_id}: {e}")
-    return None
-
-
 def enrich_anime_database(db: Session, worksheet):
-    """
-    Finds ALL anime with a mal_id but missing cover image, mal_rating, OR mal_rank and fetches them.
-    Skips fetching ratings/ranks if the show is 'Not Yet Aired'.
-    Batches API updates back to Google Sheets to save quota limits.
-    """
     anime_to_enrich = (
         db.query(AnimeEntry)
         .filter(
@@ -341,7 +206,7 @@ def enrich_anime_database(db: Session, worksheet):
 
         if updated_fields > 0:
             enriched_count += 1
-            time.sleep(1.5)  # Rate limiting
+            time.sleep(1.5)
 
     if cells_to_update:
         execute_with_retry(
@@ -352,225 +217,7 @@ def enrich_anime_database(db: Session, worksheet):
     return enriched_count
 
 
-# ==========================================
-# 5. CRUD GOOGLE SHEETS ACTIONS
-# ==========================================
-
-
-def append_new_anime(anime_data: dict):
-    """Appends a new manually created anime entry directly to the Google Sheet."""
-    sheet = get_google_sheet("Anime")
-    headers = execute_with_retry(sheet.row_values, 1)
-
-    new_row = []
-    for header in headers:
-        val = anime_data.get(header, "")
-        new_row.append(val if val is not None else "")
-
-    print(
-        f"Appending new row with system_id {anime_data.get('system_id')} to Google Sheets..."
-    )
-    execute_with_retry(sheet.append_row, new_row, value_input_option="USER_ENTERED")
-    return True
-
-
-def append_new_series(series_data: dict):
-    """Appends a completely new Franchise/Series directly to the 'Anime Series' Google Sheet with Duplicate Checks."""
-    try:
-        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
-    except WorksheetNotFound:
-        print("⚠️ 'Anime Series' tab not found! Cannot append new series.")
-        return False
-
-    headers = execute_with_retry(sheet.row_values, 1)
-
-    series_en_to_add = series_data.get("series_en", "").strip()
-    if series_en_to_add:
-        try:
-            en_col_idx = headers.index("series_en")
-            existing_en_names = execute_with_retry(sheet.col_values, en_col_idx + 1)
-
-            if any(
-                series_en_to_add.lower() == existing.strip().lower()
-                for existing in existing_en_names[1:]
-            ):
-                print(
-                    f"⚠️ Series '{series_en_to_add}' already exists in Google Sheets. Skipping duplicate append."
-                )
-                return True
-        except ValueError:
-            pass
-
-    new_row = []
-    for header in headers:
-        val = series_data.get(header, "")
-        new_row.append(val if val is not None else "")
-
-    print(f"Appending new series '{series_en_to_add}' to Google Sheets...")
-    execute_with_retry(sheet.append_row, new_row, value_input_option="USER_ENTERED")
-    return True
-
-
-def update_anime_row(system_id: str, update_data: dict):
-    """Overwrites an existing anime row in Google Sheets matched by system_id."""
-    sheet = get_google_sheet("Anime")
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime sheet.")
-
-    row_idx = None
-    old_row = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            # Keep a reference to the existing row to preserve columns missing from update_data
-            old_row = row + [""] * (len(headers) - len(row))
-            break
-
-    if not row_idx:
-        raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
-
-    new_row = []
-    for i, header in enumerate(headers):
-        if header in update_data:
-            val = update_data[header]
-            new_row.append(val if val is not None else "")
-        else:
-            # Preserve existing data (like cover_image_url) if missing from the UI payload
-            new_row.append(old_row[i])
-
-    print(f"Updating row {row_idx} for anime {system_id} in Google Sheets...")
-    try:
-        execute_with_retry(
-            sheet.update,
-            values=[new_row],
-            range_name=f"A{row_idx}",
-            value_input_option="USER_ENTERED",
-        )
-    except TypeError:
-        execute_with_retry(
-            sheet.update, f"A{row_idx}", [new_row], value_input_option="USER_ENTERED"
-        )
-    return True
-
-
-def delete_anime_row(system_id: str):
-    """Deletes an entire anime row from Google Sheets matched by system_id."""
-    sheet = get_google_sheet("Anime")
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime sheet.")
-
-    row_idx = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            break
-
-    if not row_idx:
-        raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
-
-    print(f"Deleting row {row_idx} for anime {system_id} from Google Sheets...")
-    execute_with_retry(sheet.delete_rows, row_idx)
-    return True
-
-
-def update_series_row(system_id: str, update_data: dict):
-    """Overwrites an existing series row in Google Sheets matched by system_id."""
-    try:
-        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
-    except Exception:
-        raise ValueError("Anime Series tab not found.")
-
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime Series sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime Series sheet.")
-
-    row_idx = None
-    old_row = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            old_row = row + [""] * (len(headers) - len(row))
-            break
-
-    if not row_idx:
-        raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
-
-    new_row = []
-    for i, header in enumerate(headers):
-        if header in update_data:
-            val = update_data[header]
-            new_row.append(val if val is not None else "")
-        else:
-            new_row.append(old_row[i])
-
-    print(f"Updating row {row_idx} for series {system_id} in Google Sheets...")
-    try:
-        execute_with_retry(
-            sheet.update,
-            values=[new_row],
-            range_name=f"A{row_idx}",
-            value_input_option="USER_ENTERED",
-        )
-    except TypeError:
-        execute_with_retry(
-            sheet.update, f"A{row_idx}", [new_row], value_input_option="USER_ENTERED"
-        )
-    return True
-
-
-def delete_series_row(system_id: str):
-    """Deletes an entire series row from Google Sheets matched by system_id."""
-    try:
-        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
-    except Exception:
-        raise ValueError("Anime Series tab not found.")
-
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime Series sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime Series sheet.")
-
-    row_idx = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            break
-
-    if not row_idx:
-        raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
-
-    print(f"Deleting row {row_idx} for series {system_id} from Google Sheets...")
-    execute_with_retry(sheet.delete_rows, row_idx)
-    return True
-
-
 def detect_orphans(db: Session):
-    """Scans Google Sheet and compares system_ids against DB. Returns full DB objects missing from Sheet."""
     worksheet = get_google_sheet("Anime")
     headers = execute_with_retry(worksheet.row_values, 1)
 
@@ -580,11 +227,9 @@ def detect_orphans(db: Session):
         print("Error: system_id column not found in Google Sheets.")
         return []
 
-    # Get all valid system_ids currently in the Google Sheet
     sheet_sys_ids = execute_with_retry(worksheet.col_values, sys_id_col)
     sheet_sys_ids_set = {sid.strip() for sid in sheet_sys_ids[1:] if sid.strip()}
 
-    # Query the database for records that DO NOT exist in the Google Sheet
     if not sheet_sys_ids_set:
         db_orphans = db.query(AnimeEntry).all()
     else:
@@ -594,7 +239,6 @@ def detect_orphans(db: Session):
             .all()
         )
 
-    # Format as list of dictionaries for the frontend
     orphans = []
     for entry in db_orphans:
         orphans.append(
@@ -609,44 +253,17 @@ def detect_orphans(db: Session):
     return orphans
 
 
-def update_anime_field_in_sheet(system_id: str, field_name: str, value):
-    """Dynamically updates a single field for a specific system_id."""
-    sheet = get_google_sheet("Anime")
-
-    cell = execute_with_retry(sheet.find, system_id)
-    if not cell:
-        raise ValueError(f"system_id {system_id} not found in Google Sheet.")
-
-    headers = execute_with_retry(sheet.row_values, 1)
-    try:
-        col_index = len(headers) - headers[::-1].index(field_name)
-    except ValueError:
-        raise ValueError(f"Column '{field_name}' not found in the header row.")
-
-    execute_with_retry(
-        sheet.update_cell, cell.row, col_index, value if value is not None else ""
-    )
-    return True
-
-
-# ==========================================
-# 6. MAIN SYNC LOGIC (WITH DIFF/TIMESTAMPS)
-# ==========================================
-
-
 def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
     print(f"Starting Google Sheets Sync ({sync_type})...")
 
     db = db_session if db_session else SessionLocal()
     added_count = 0
     updated_count = 0
-    deleted_count = 0  # <--- Track deleted records
+    deleted_count = 0
 
-    # <--- NEW: Lists for Detailed JSON Audit Trail
     added_items = []
     updated_items = []
     deleted_items = []
-    # --->
 
     try:
         spreadsheet = get_google_spreadsheet()
@@ -682,12 +299,10 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
             if s_en:
                 series_counts[s_en] = series_counts.get(s_en, 0) + 1
 
-        # 1. Populate 'Anime Series' tab (Modified to NOT resurrect deleted hubs)
         populate_anime_series_tab(spreadsheet, anime_row_dicts)
 
-        # 2. Sync Anime Series Tab to PostgreSQL (With Timestamp & Diff logic)
         print("\n--- Syncing Anime Series Tab to PostgreSQL ---")
-        valid_series_ids = set()  # <--- Track valid IDs from Sheet
+        valid_series_ids = set()
         try:
             if series_sheet:
                 series_rows = execute_with_retry(series_sheet.get_all_values)
@@ -701,7 +316,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                         if not s_sys_id:
                             continue
 
-                        valid_series_ids.add(s_sys_id)  # <--- Record valid ID
+                        valid_series_ids.add(s_sys_id)
 
                         s_entry_data = {
                             "system_id": s_sys_id,
@@ -730,34 +345,30 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                                 existing_s.updated_at = get_taipei_now()
                                 updated_items.append(
                                     f"Series Hub: {existing_s.series_en}"
-                                )  # <--- NEW
+                                )
                         else:
                             new_s = AnimeSeries(**s_entry_data)
                             new_s.created_at = get_taipei_now()
                             new_s.updated_at = get_taipei_now()
                             db.add(new_s)
-                            added_items.append(
-                                f"Series Hub: {new_s.series_en}"
-                            )  # <--- NEW
+                            added_items.append(f"Series Hub: {new_s.series_en}")
 
-            # Delete orphaned Series from DB (Triggered if manually deleted directly from Sheets)
             all_db_series = db.query(AnimeSeries).all()
             for db_s in all_db_series:
                 if db_s.system_id not in valid_series_ids:
                     print(
                         f"Auto-deleting orphaned Series from DB: {db_s.series_en} ({db_s.system_id})"
                     )
-                    deleted_items.append(f"Series Hub: {db_s.series_en}")  # <--- NEW
+                    deleted_items.append(f"Series Hub: {db_s.series_en}")
                     db.delete(db_s)
                     deleted_count += 1
 
         except Exception as e:
             print(f"⚠️ Error syncing Anime Series tab to DB: {e}")
 
-        # 3. Sync Main Anime Tab to PostgreSQL (With Timestamp & Diff logic)
         print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
         cells_to_update = []
-        valid_anime_ids = set()  # <--- Track valid IDs from Sheet
+        valid_anime_ids = set()
 
         for idx, row_data in enumerate(anime_row_dicts, start=2):
             system_id = row_data.get("system_id", "").strip()
@@ -771,9 +382,8 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     )
                 row_data["system_id"] = system_id
 
-            valid_anime_ids.add(system_id)  # <--- Record valid ID
+            valid_anime_ids.add(system_id)
 
-            # MAL ID Extraction
             mal_id_val = row_data.get("mal_id", "")
             mal_link_val = row_data.get("mal_link", "")
             if (not mal_id_val or str(mal_id_val).strip() == "") and mal_link_val:
@@ -786,7 +396,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                             gspread.Cell(row=idx, col=col_idx, value=extracted_id)
                         )
 
-            # Season Extraction Logic
             series_season_val = row_data.get("series_season", "")
             if not series_season_val or str(series_season_val).strip() == "":
                 extracted_season = extract_season_from_title(
@@ -805,7 +414,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                             gspread.Cell(row=idx, col=col_idx, value=extracted_season)
                         )
 
-            # Movie Episode Total Logic
             airing_type_val = clean_value(row_data.get("airing_type"))
             ep_total_val = clean_value(row_data.get("ep_total"), int)
             if airing_type_val and airing_type_val.lower() == "movie":
@@ -817,7 +425,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                             gspread.Cell(row=idx, col=col_idx, value=1)
                         )
 
-            # Completed Auto-Match Logic
             my_progress_val = clean_value(row_data.get("my_progress"))
             ep_fin_val = clean_value(row_data.get("ep_fin"), int)
             if (
@@ -907,7 +514,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     f"Anime: {new_entry.series_season_cn or new_entry.series_en}"
                 )
 
-        # Delete orphaned Anime from DB (Triggered if manually deleted directly from Sheets)
         all_db_anime = db.query(AnimeEntry).all()
         for db_a in all_db_anime:
             if db_a.system_id not in valid_anime_ids:
@@ -933,19 +539,16 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
             f"✅ PostgreSQL Sync Complete! Added: {added_count} | Updated: {updated_count} | Deleted: {deleted_count}"
         )
 
-        # 4. ENRICH ALL MISSING DATA
         enriched_count = enrich_anime_database(db, worksheet)
         if enriched_count > 0:
             print(f"✨ Successfully enriched {enriched_count} anime with MAL Data!")
 
-        # <--- NEW: Compile Audit Trail JSON
         audit_trail = {
             "added": added_items,
             "updated": updated_items,
             "deleted": deleted_items,
         }
 
-        # Include deleted count in log if database schema supports it
         log_sync_event(
             db,
             sync_type=sync_type,
@@ -953,19 +556,15 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
             added=added_count,
             updated=updated_count,
             deleted=deleted_count,
-            details_json=json.dumps(
-                audit_trail, ensure_ascii=False
-            ),  # Fixed missing JSON argument
+            details_json=json.dumps(audit_trail, ensure_ascii=False),
         )
 
-        # --- NEW: Trigger Auto-Cleanup of Logs older than 30 days ---
         try:
             purged = cleanup_old_logs(db, days_to_keep=30)
             if purged > 0:
                 print(f"🧹 Auto-cleanup: Removed {purged} old sync logs.")
         except Exception as cleanup_error:
             print(f"⚠️ Failed to auto-cleanup old logs: {cleanup_error}")
-        # ------------------------------------------------------------
 
         return {
             "status": "success",
