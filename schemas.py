@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional, List
 from datetime import datetime
 
 # ==========================================
@@ -87,16 +87,11 @@ class SyncLogResponse(BaseModel):
         from_attributes = True  # Allows Pydantic to read from SQLAlchemy ORM models
 
 
-# --- NEW: Schema for Paginated Logs ---
 class PaginatedSyncLogResponse(BaseModel):
     total: int
     logs: List[SyncLogResponse]
 
 
-# --------------------------------------
-
-
-# --- Schema for Deleted Records ---
 class DeletedRecordResponse(BaseModel):
     id: int
     system_id: str
@@ -106,10 +101,6 @@ class DeletedRecordResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class MalOverrideRequest(BaseModel):
-    mal_id: int
 
 
 class AnimeManualCreate(BaseModel):
