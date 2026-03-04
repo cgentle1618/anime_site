@@ -9,6 +9,7 @@ import database
 import models
 import schemas
 import services.sheets_sync as sheets_sync
+import services.sheets_client as sheets_client
 
 # Initialize Database (Using models.Base to ensure all tables are registered)
 models.Base.metadata.create_all(bind=database.engine)
@@ -177,7 +178,7 @@ def update_anime_progress(
     # Update Google Sheets directly for each modified field
     try:
         for field, val in updated_fields.items():
-            sheets_sync.update_anime_field_in_sheet(system_id, field, val)
+            sheets_client.update_anime_field_in_sheet(system_id, field, val)
     except Exception as e:
         print(f"Failed to update sheet for {system_id}: {e}")
 
@@ -337,11 +338,11 @@ def manual_add_anime(payload: schemas.AnimeCreate, db: Session = Depends(get_db)
                     "rating_series": "",
                     "alt_name": payload.series_alt_name,
                 }
-                sheets_sync.append_new_series(new_series_data)
+                sheets_client.append_new_series(new_series_data)
 
         # 2. Append Anime to Google Sheets (Exclude the temporary alt_name so it maps correctly)
         anime_dict = payload.model_dump(exclude={"series_alt_name"})
-        sheets_sync.append_new_anime(anime_dict)
+        sheets_client.append_new_anime(anime_dict)
 
         # 3. Immediately trigger Database Sync to keep Postgres completely aligned
         sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
@@ -363,7 +364,7 @@ def update_anime_entry(
         anime_dict = payload.model_dump()
         anime_dict["system_id"] = system_id  # Inject the path ID securely into the dict
 
-        sheets_sync.update_anime_row(system_id, anime_dict)
+        sheets_client.update_anime_row(system_id, anime_dict)
         sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
 
         return {
@@ -395,7 +396,7 @@ def delete_anime_entry(system_id: str, db: Session = Depends(get_db)):
     )
 
     try:
-        sheets_sync.delete_anime_row(system_id)
+        sheets_client.delete_anime_row(system_id)
 
         # Log Deletion
         deleted_record = models.DeletedRecord(
@@ -425,7 +426,7 @@ def update_series_entry(
         series_dict = payload.model_dump()
         series_dict["system_id"] = system_id
 
-        sheets_sync.update_series_row(system_id, series_dict)
+        sheets_client.update_series_row(system_id, series_dict)
         sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
 
         return {
@@ -450,7 +451,7 @@ def delete_series_entry(system_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Series Hub not found")
 
     try:
-        sheets_sync.delete_series_row(system_id)
+        sheets_client.delete_series_row(system_id)
 
         # Log Deletion
         deleted_record = models.DeletedRecord(
