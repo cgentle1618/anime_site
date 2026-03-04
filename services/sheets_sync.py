@@ -15,14 +15,14 @@ from sqlalchemy import or_, and_
 from database import SessionLocal, get_taipei_now, cleanup_old_logs
 from models import AnimeEntry, AnimeSeries, SyncLog
 
-from sync_utils import (
+from services.sync_utils import (
     clean_value,
     extract_mal_id,
     extract_season_from_title,
     extract_season_from_cn_title,
 )
-from jikan_client import fetch_mal_data
-from sheets_client import (
+from services.jikan_client import fetch_mal_data
+from services.sheets_client import (
     execute_with_retry,
     get_google_spreadsheet,
     get_google_sheet,
