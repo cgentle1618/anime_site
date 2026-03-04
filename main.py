@@ -311,7 +311,7 @@ def get_recent_deleted_records(limit: int = 15, db: Session = Depends(get_db)):
 
 
 @app.post("/api/admin/add")
-def manual_add_anime(payload: schemas.AnimeManualCreate, db: Session = Depends(get_db)):
+def manual_add_anime(payload: schemas.AnimeCreate, db: Session = Depends(get_db)):
     """Appends a new anime to the Google Sheet, handles new series creation, and immediately syncs to PostgreSQL."""
     import uuid
 
@@ -355,7 +355,7 @@ def manual_add_anime(payload: schemas.AnimeManualCreate, db: Session = Depends(g
 
 @app.put("/api/admin/anime/{system_id}")
 def update_anime_entry(
-    system_id: str, payload: schemas.AnimeManualUpdate, db: Session = Depends(get_db)
+    system_id: str, payload: schemas.AnimeUpdate, db: Session = Depends(get_db)
 ):
     """Updates an anime in Google Sheets and triggers a DB sync."""
     try:
