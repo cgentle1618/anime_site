@@ -1224,27 +1224,65 @@
           // 1. Intercept & Check DB via existing endpoint
           if (seriesEn) {
             try {
+              // Get Anime for duplicate checking
               const checkRes = await fetch(
                 `${API_BASE_URL}/anime/by-series/${encodeURIComponent(seriesEn)}`,
               );
+              let existingAnime = [];
+              if (checkRes.ok) {
+                existingAnime = await checkRes.json();
+              }
 
-              // Scenario A: Completely New Series Detected
+              // Determine if the Series Hub exactly exists
+              let seriesHubExists = false;
+
+              // 1. Check local cache first
               if (
-                checkRes.status === 404 ||
-                (checkRes.ok && (await checkRes.clone().json()).length === 0)
+                allSeriesNames.some(
+                  (n) => n.toLowerCase() === seriesEn.toLowerCase(),
+                )
               ) {
+                seriesHubExists = true;
+              } else {
+                // 2. Double-check with backend to be absolutely sure (and enforce exact match)
+                try {
+                  const seriesCheckRes = await fetch(
+                    `${API_BASE_URL}/series/details/${encodeURIComponent(seriesEn)}`,
+                  );
+                  if (seriesCheckRes.ok) {
+                    const data = await seriesCheckRes.json();
+                    if (data && !Array.isArray(data) && data.system_id) {
+                      if (
+                        (data.series_en || "").toLowerCase() ===
+                        seriesEn.toLowerCase()
+                      ) {
+                        seriesHubExists = true;
+                      }
+                    } else if (Array.isArray(data) && data.length > 0) {
+                      if (
+                        data.some(
+                          (d) =>
+                            (d.series_en || "").toLowerCase() ===
+                            seriesEn.toLowerCase(),
+                        )
+                      ) {
+                        seriesHubExists = true;
+                      }
+                    }
+                  }
+                } catch (err) {}
+              }
+
+              if (!seriesHubExists) {
+                // TRULY NEW SERIES
                 pendingPayload = payload;
                 showNewSeriesModal(payload);
                 btn.disabled = false;
                 btn.innerHTML =
                   '<i class="fas fa-sync mr-1.5"></i> Add and Sync';
                 return;
-              }
-
-              // Scenario B: Existing Series Detected (Run Duplicate Checking)
-              if (checkRes.ok) {
-                const existingAnime = await checkRes.json();
-
+              } else {
+                // Existing Series -> Run Duplicate Checking for the Anime Entry
                 const safeLower = (val) => (val || "").trim().toLowerCase();
                 const typeMatchVal = safeLower(payload.airing_type);
                 const enMatchVal = safeLower(payload.series_season_en);
@@ -1252,6 +1290,12 @@
                 const romanMatchVal = safeLower(payload.series_season_roman);
 
                 const duplicates = existingAnime.filter((a) => {
+                  // Ensure the anime actually belongs to this exact series (in case of fuzzy backend match)
+                  if (
+                    (a.series_en || "").toLowerCase() !== seriesEn.toLowerCase()
+                  )
+                    return false;
+
                   if (safeLower(a.airing_type) !== typeMatchVal) return false;
 
                   const matchEn =
@@ -1461,6 +1505,8 @@
             btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
             btn.innerText = " Synced!";
             btn.prepend(icon);
+
+            await loadMetadata(); // Reload dropdown choices
 
             // Revert button back to normal after 2 seconds
             setTimeout(() => {
