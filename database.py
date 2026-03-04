@@ -1,7 +1,7 @@
 import os
 import uuid
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import DateTime, create_engine, Column, String, Integer, Float, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -16,13 +16,18 @@ DB_NAME = os.getenv("POSTGRES_DB")
 SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
+# --- TAIPEI TIME CONFIGURATION (GMT+8) ---
+TAIPEI_TZ = timezone(timedelta(hours=8))
 
-# 6. Define your Anime Table Schema matching the Google Sheet EXACTLY
+
+def get_taipei_now():
+    """Returns the current time in Taipei as a naive datetime object for DB storage."""
+    return datetime.now(TAIPEI_TZ).replace(tzinfo=None)
+
+
 class AnimeEntry(Base):
     __tablename__ = "anime_entries"
 
@@ -68,8 +73,8 @@ class AnimeEntry(Base):
     mal_rank = Column(String, nullable=True)
     cover_image_url = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
 
 # --- NEW TABLE: Anime Series (Franchise Hubs) ---
@@ -83,15 +88,15 @@ class AnimeSeries(Base):
     rating_series = Column(String, nullable=True)
     alt_name = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
 
 class SyncLog(Base):
     __tablename__ = "sync_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=get_taipei_now)
     sync_type = Column(String)  # 'manual' or 'cron'
     status = Column(String)  # 'success', 'failed', 'in_progress'
 

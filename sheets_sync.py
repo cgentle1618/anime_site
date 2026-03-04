@@ -148,8 +148,8 @@ def extract_season_from_cn_title(title_cn):
 
 def populate_anime_series_tab(spreadsheet, anime_row_dicts):
     """
-    Scans the main Anime tab, extracts unique franchises by series_en,
-    and auto-populates the 'Anime Series' tab.
+    Scans the 'Anime Series' tab to ensure existing rows have a system_id.
+    (Auto-population of missing series has been disabled to prevent resurrection of deleted hubs).
     """
     print("\n--- Checking 'Anime Series' Tab ---")
 
@@ -214,34 +214,10 @@ def populate_anime_series_tab(spreadsheet, anime_row_dicts):
             value_input_option="USER_ENTERED",
         )
 
-    # 2. Extract unique series from the main Anime tab
-    new_series_to_append = []
-
-    for a_dict in anime_row_dicts:
-        s_en = clean_value(a_dict.get("series_en"))
-        if not s_en:
-            continue
-
-        if s_en.lower() not in existing_series_tracker:
-            existing_series_tracker.add(s_en.lower())
-            new_row = []
-            for h in headers:
-                if h == "system_id":
-                    new_row.append(str(uuid.uuid4()))
-                elif h == "series_en":
-                    new_row.append(s_en)
-                else:
-                    new_row.append("")
-
-            new_series_to_append.append(new_row)
-
-    if new_series_to_append:
-        print(
-            f"Discovered {len(new_series_to_append)} new unique series! Appending to 'Anime Series' tab..."
-        )
-        execute_with_retry(series_sheet.append_rows, new_series_to_append)
-    else:
-        print("No new series to add to 'Anime Series' tab. All up to date.")
+    # Disabled auto-append logic to allow orphaned anime entries
+    print(
+        "Skipping automatic Series auto-generation to allow standalone Anime entries."
+    )
 
 
 # ==========================================
@@ -648,11 +624,16 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
     db = db_session if db_session else SessionLocal()
     added_count = 0
     updated_count = 0
-    deleted_count = 0  # <--- NEW: Track deleted records
+    deleted_count = 0  # <--- Track deleted records
 
     try:
         spreadsheet = get_google_spreadsheet()
         worksheet = execute_with_retry(spreadsheet.worksheet, "Anime")
+
+        try:
+            series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
+        except WorksheetNotFound:
+            series_sheet = None
 
         print("Fetching data from main Anime tab...")
         rows = execute_with_retry(worksheet.get_all_values)
@@ -679,59 +660,59 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
             if s_en:
                 series_counts[s_en] = series_counts.get(s_en, 0) + 1
 
-        # 1. Populate 'Anime Series' tab
+        # 1. Populate 'Anime Series' tab (Modified to NOT resurrect deleted hubs)
         populate_anime_series_tab(spreadsheet, anime_row_dicts)
 
         # 2. Sync Anime Series Tab to PostgreSQL (With Timestamp & Diff logic)
         print("\n--- Syncing Anime Series Tab to PostgreSQL ---")
-        valid_series_ids = set()  # <--- NEW: Track valid IDs from Sheet
+        valid_series_ids = set()  # <--- Track valid IDs from Sheet
         try:
-            series_sheet = execute_with_retry(spreadsheet.worksheet, "Anime Series")
-            series_rows = execute_with_retry(series_sheet.get_all_values)
-            if series_rows and len(series_rows) > 1:
-                s_headers = series_rows[0]
-                for s_row in series_rows[1:]:
-                    padded_s_row = s_row + [""] * (len(s_headers) - len(s_row))
-                    s_dict = dict(zip(s_headers, padded_s_row))
+            if series_sheet:
+                series_rows = execute_with_retry(series_sheet.get_all_values)
+                if series_rows and len(series_rows) > 1:
+                    s_headers = series_rows[0]
+                    for s_row in series_rows[1:]:
+                        padded_s_row = s_row + [""] * (len(s_headers) - len(s_row))
+                        s_dict = dict(zip(s_headers, padded_s_row))
 
-                    s_sys_id = s_dict.get("system_id", "").strip()
-                    if not s_sys_id:
-                        continue
+                        s_sys_id = s_dict.get("system_id", "").strip()
+                        if not s_sys_id:
+                            continue
 
-                    valid_series_ids.add(s_sys_id)  # <--- Record valid ID
+                        valid_series_ids.add(s_sys_id)  # <--- Record valid ID
 
-                    s_entry_data = {
-                        "system_id": s_sys_id,
-                        "series_en": clean_value(s_dict.get("series_en")),
-                        "series_roman": clean_value(s_dict.get("series_roman")),
-                        "series_cn": clean_value(s_dict.get("series_cn")),
-                        "rating_series": clean_value(s_dict.get("rating_series")),
-                        "alt_name": clean_value(s_dict.get("alt_name")),
-                    }
+                        s_entry_data = {
+                            "system_id": s_sys_id,
+                            "series_en": clean_value(s_dict.get("series_en")),
+                            "series_roman": clean_value(s_dict.get("series_roman")),
+                            "series_cn": clean_value(s_dict.get("series_cn")),
+                            "rating_series": clean_value(s_dict.get("rating_series")),
+                            "alt_name": clean_value(s_dict.get("alt_name")),
+                        }
 
-                    existing_s = (
-                        db.query(AnimeSeries)
-                        .filter(AnimeSeries.system_id == s_sys_id)
-                        .first()
-                    )
-                    if existing_s:
-                        is_modified = False
-                        for key, value in s_entry_data.items():
-                            current_val = getattr(existing_s, key)
-                            if current_val is None and value is None:
-                                continue
-                            if str(current_val) != str(value):
-                                setattr(existing_s, key, value)
-                                is_modified = True
-                        if is_modified:
-                            existing_s.updated_at = datetime.utcnow()
-                    else:
-                        new_s = AnimeSeries(**s_entry_data)
-                        new_s.created_at = datetime.utcnow()
-                        new_s.updated_at = datetime.utcnow()
-                        db.add(new_s)
+                        existing_s = (
+                            db.query(AnimeSeries)
+                            .filter(AnimeSeries.system_id == s_sys_id)
+                            .first()
+                        )
+                        if existing_s:
+                            is_modified = False
+                            for key, value in s_entry_data.items():
+                                current_val = getattr(existing_s, key)
+                                if current_val is None and value is None:
+                                    continue
+                                if str(current_val) != str(value):
+                                    setattr(existing_s, key, value)
+                                    is_modified = True
+                            if is_modified:
+                                existing_s.updated_at = datetime.utcnow()
+                        else:
+                            new_s = AnimeSeries(**s_entry_data)
+                            new_s.created_at = datetime.utcnow()
+                            new_s.updated_at = datetime.utcnow()
+                            db.add(new_s)
 
-            # <--- NEW LOGIC: Delete orphaned Series from DB
+            # Delete orphaned Series from DB (Triggered if manually deleted directly from Sheets)
             all_db_series = db.query(AnimeSeries).all()
             for db_s in all_db_series:
                 if db_s.system_id not in valid_series_ids:
@@ -740,7 +721,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     )
                     db.delete(db_s)
                     deleted_count += 1
-            # --->
 
         except Exception as e:
             print(f"⚠️ Error syncing Anime Series tab to DB: {e}")
@@ -748,7 +728,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
         # 3. Sync Main Anime Tab to PostgreSQL (With Timestamp & Diff logic)
         print("\n--- Syncing Main Anime Tab to PostgreSQL ---")
         cells_to_update = []
-        valid_anime_ids = set()  # <--- NEW: Track valid IDs from Sheet
+        valid_anime_ids = set()  # <--- Track valid IDs from Sheet
 
         for idx, row_data in enumerate(anime_row_dicts, start=2):
             system_id = row_data.get("system_id", "").strip()
@@ -787,8 +767,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                     extracted_season = extract_season_from_cn_title(
                         row_data.get("series_season_cn", "")
                     )
-
-                # We removed the fallback logic here that was forcing "Season 1" if series_counts == 1
 
                 if extracted_season:
                     series_season_val = extracted_season
@@ -894,7 +872,7 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                 db.add(new_entry)
                 added_count += 1
 
-        # <--- NEW LOGIC: Delete orphaned Anime from DB
+        # Delete orphaned Anime from DB (Triggered if manually deleted directly from Sheets)
         all_db_anime = db.query(AnimeEntry).all()
         for db_a in all_db_anime:
             if db_a.system_id not in valid_anime_ids:
@@ -903,7 +881,6 @@ def sync_sheet_to_db(db_session: Session = None, sync_type: str = "cron"):
                 )
                 db.delete(db_a)
                 deleted_count += 1
-        # --->
 
         if cells_to_update:
             chunk_size = 50
