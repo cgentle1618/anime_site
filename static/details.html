@@ -854,7 +854,7 @@
         btn.prepend(icon);
 
         try {
-          const response = await fetch(`/api/sync`, { method: "POST" });
+          const response = await fetch(`/api/admin/sync`, { method: "POST" });
 
           if (response.ok) {
             icon.classList.remove("fa-spin", "fa-sync-alt");

@@ -562,7 +562,7 @@
         btn.prepend(icon);
 
         try {
-          const response = await fetch(`${API_BASE_URL}/sync`, {
+          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
             method: "POST",
           });
           if (response.ok) {
@@ -579,7 +579,7 @@
             btn.innerText = " Synced!";
             btn.prepend(icon);
 
-            await fetchAnime(); // Refresh dashboard data automatically
+            await fetchAnime(); // Refresh dashboard data
 
             // Revert button back to normal after 2 seconds
             setTimeout(() => {
