@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Library - CG1618 Anime Site</title>
+    <title>Library - CG1618 Tracker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -29,7 +29,6 @@
     <style>
       ::-webkit-scrollbar {
         width: 8px;
-        height: 8px;
       }
       ::-webkit-scrollbar-track {
         background: #f3f4f6;
@@ -41,24 +40,26 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #9ca3af;
       }
-      input[type="number"]::-webkit-inner-spin-button,
-      input[type="number"]::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
+      .card-hover {
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
       }
-      input[type="number"] {
-        -moz-appearance: textfield;
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      }
+      .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
     </style>
   </head>
-
-  <body
-    class="bg-gray-50 text-gray-900 h-screen w-screen overflow-hidden flex flex-col font-sans"
-  >
-    <!-- Top Navigation Bar -->
-    <nav
-      class="bg-white border-b border-gray-200 shrink-0 z-50 shadow-sm relative"
-    >
+  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+    <!-- Universal Top Navigation Bar -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <div class="flex items-center space-x-8">
@@ -76,7 +77,7 @@
                 >
                 <a
                   href="/library"
-                  class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Library</a
                 >
 
@@ -110,7 +111,7 @@
                       >
                       <a
                         href="/delete"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
                         >Delete</a
                       >
                     </div>
@@ -119,7 +120,6 @@
               </div>
             </div>
           </div>
-
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -130,11 +130,10 @@
               <input
                 type="text"
                 id="globalSearchInput"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
-                placeholder="Search Series or Anime Names..."
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Global Search..."
               />
             </div>
-
             <button
               onclick="handleSync()"
               id="syncBtn"
@@ -147,635 +146,368 @@
       </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-1 w-full max-w-[100vw] px-4 py-6 flex flex-col min-h-0">
-      <!-- Toolbar: Sorting & Collapse Controls -->
-      <div class="mb-4 flex justify-between items-center shrink-0">
-        <!-- New Sorting Block -->
+    <!-- Sticky Control Bar (Filters & Sorting) -->
+    <div class="bg-white border-b border-gray-200 sticky top-16 z-40 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div
-          class="flex items-center space-x-3 bg-white border border-gray-300 rounded-md px-3 py-1.5 shadow-sm"
+          class="flex flex-col sm:flex-row gap-4 items-center justify-between"
         >
-          <label
-            for="sortDropdown"
-            class="text-sm font-bold text-gray-500 uppercase tracking-wider"
-            ><i class="fas fa-sort-amount-down mr-1.5 text-brand"></i> Sort
-            By:</label
-          >
-          <select
-            id="sortDropdown"
-            onchange="handleSort(this.value)"
-            class="bg-transparent text-sm font-bold text-gray-800 focus:outline-none cursor-pointer border-none outline-none pr-2"
-          >
-            <option value="title" selected>Title (A-Z)</option>
-            <option value="rating_mine">Rating (Highest First)</option>
-            <option value="my_progress">My Progress (Status Order)</option>
-            <option value="release_date">Release Date (Chronological)</option>
-          </select>
-        </div>
+          <!-- Local Filter Search -->
+          <div class="relative w-full sm:w-1/3">
+            <div
+              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            >
+              <i class="fas fa-filter text-gray-400"></i>
+            </div>
+            <input
+              type="text"
+              id="localFilterInput"
+              class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-gray-50 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand focus:bg-white sm:text-sm transition"
+              placeholder="Filter current view..."
+            />
+          </div>
 
-        <button
-          onclick="toggleAll()"
-          id="toggleAllBtn"
-          class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md text-sm font-medium transition shadow-sm flex items-center w-36 justify-center"
-        >
-          <i class="fas fa-compress-arrows-alt mr-2"></i> Collapse All
-        </button>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <!-- Status Dropdown -->
+            <select
+              id="statusFilter"
+              class="block pl-3 pr-10 py-2 text-sm border border-gray-200 rounded-md focus:ring-brand focus:border-brand bg-gray-50 hover:bg-white transition cursor-pointer font-medium text-gray-700"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Active Watching">Active Watching</option>
+              <option value="Passive Watching">Passive Watching</option>
+              <option value="Completed">Completed</option>
+              <option value="Paused">Paused / Dropped</option>
+              <option value="Plan to Watch">Plan to Watch</option>
+            </select>
+
+            <!-- Sort Dropdown -->
+            <select
+              id="sortSelector"
+              class="block pl-3 pr-10 py-2 text-sm border border-gray-200 rounded-md focus:ring-brand focus:border-brand bg-gray-50 hover:bg-white transition cursor-pointer font-medium text-gray-700"
+            >
+              <option value="titleAsc">Title (A-Z)</option>
+              <option value="scoreDesc">MAL Score (High - Low)</option>
+              <option value="myRatingDesc">My Rating (High - Low)</option>
+              <option value="releaseDesc">Release Date (Newest)</option>
+            </select>
+
+            <span
+              id="resultCount"
+              class="text-xs font-bold text-gray-400 tracking-wider uppercase ml-2 hidden sm:inline-block"
+              >Loading...</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <!-- Loading State -->
+      <div id="loading" class="flex flex-col items-center justify-center h-64">
+        <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+        <p class="text-gray-500 font-medium">Loading massive library...</p>
       </div>
 
+      <!-- Library Grid -->
       <div
-        class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col min-h-0"
+        id="library-grid"
+        class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"
       >
-        <div
-          id="tableContainer"
-          class="overflow-auto flex-1 relative w-full h-full"
+        <!-- Cards injected via JS -->
+      </div>
+
+      <!-- Empty State (Hidden by default) -->
+      <div
+        id="empty-state"
+        class="hidden flex-col items-center justify-center h-64 bg-white rounded-xl border border-gray-200 border-dashed mt-8"
+      >
+        <i class="fas fa-search text-4xl text-gray-300 mb-3"></i>
+        <p class="text-gray-500 font-medium">No anime match your filters.</p>
+        <button
+          onclick="clearFilters()"
+          class="mt-4 text-brand font-bold text-sm hover:underline"
         >
-          <table class="w-full text-sm text-left whitespace-nowrap min-w-max">
-            <thead class="text-xs text-gray-600 uppercase">
-              <tr>
-                <!-- Headers are no longer sortable or clickable -->
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Title
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Season
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Rating
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  My Progress
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Episodes
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Type
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Class
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Airing
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Release
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Studio
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Director
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  Distributor
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]"
-                >
-                  巴哈
-                </th>
-                <th
-                  scope="col"
-                  class="px-4 py-3 sticky top-0 z-40 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb] max-w-[200px]"
-                >
-                  Notes
-                </th>
-              </tr>
-            </thead>
-            <tbody id="libraryTableBody" class="divide-y divide-gray-200">
-              <!-- Rows injected via JS -->
-            </tbody>
-          </table>
-        </div>
+          Clear Filters
+        </button>
       </div>
     </main>
 
-    <button
-      id="scrollToTopBtn"
-      onclick="scrollToTop()"
-      class="fixed bottom-6 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    <!-- Global Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
     >
-      <i class="fas fa-arrow-up"></i>
-    </button>
+      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
+      <span id="toast-msg" class="font-medium text-sm"></span>
+    </div>
 
+    <!-- Logic -->
     <script>
       const API_BASE_URL = "/api";
-      let originalData = [];
-      let displayData = [];
-      let sortCol = "title";
-      let sortAsc = true; // Permanently locked to true for strictly directed sorting
+      let allAnimeData = [];
+      let debounceTimeout;
 
-      let collapsedSeries = new Set();
-      let isAllCollapsed = false;
-      let seriesMetadata = {};
+      // --- Core Event Listeners ---
+      document.addEventListener("DOMContentLoaded", loadLibrary);
 
-      async function fetchLibrary() {
+      document
+        .getElementById("localFilterInput")
+        .addEventListener("input", (e) => {
+          clearTimeout(debounceTimeout);
+          debounceTimeout = setTimeout(renderLibrary, 300); // Debounce typing for performance
+        });
+      document
+        .getElementById("statusFilter")
+        .addEventListener("change", renderLibrary);
+      document
+        .getElementById("sortSelector")
+        .addEventListener("change", renderLibrary);
+
+      const searchInput = document.getElementById("globalSearchInput");
+      searchInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          const query = e.target.value.trim();
+          if (query)
+            window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        }
+      });
+
+      function clearFilters() {
+        document.getElementById("localFilterInput").value = "";
+        document.getElementById("statusFilter").value = "All";
+        renderLibrary();
+      }
+
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        const msg = document.getElementById("toast-msg");
+        const icon = document.getElementById("toast-icon");
+
+        msg.innerText = message;
+        if (isError) {
+          icon.className =
+            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          toast.classList.replace("bg-red-900", "bg-gray-900");
+        }
+
+        toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(
+          () => toast.classList.add("translate-y-20", "opacity-0"),
+          3000,
+        );
+      }
+
+      // --- Data Fetching & Organization ---
+      async function loadLibrary() {
         try {
-          const [animeRes, seriesRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/anime`),
-            fetch(`${API_BASE_URL}/series`),
-          ]);
-          originalData = await animeRes.json();
-          const seriesData = await seriesRes.json();
-          seriesData.forEach((s) => {
-            if (s.series_en) seriesMetadata[s.series_en] = s;
-          });
-          displayData = [...originalData];
-          renderTable();
+          const res = await fetch(`${API_BASE_URL}/anime`);
+          if (!res.ok) throw new Error("Failed to load anime data");
+          allAnimeData = await res.json();
+
+          document.getElementById("loading").classList.add("hidden");
+          renderLibrary();
         } catch (error) {
-          console.error("Failed to load library data:", error);
+          document.getElementById("loading").innerHTML = `
+                <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+                    <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+                    <p class="font-bold">Error loading library data.</p>
+                    <p class="text-sm mt-1">${error.message}</p>
+                </div>`;
         }
       }
 
-      function getDisplayTitle(anime) {
-        let mainTitle = anime.series_season_cn;
-        if (!mainTitle) {
-          mainTitle =
-            anime.series_season_en || anime.series_en || "Unknown Title";
-        }
-        return mainTitle;
-      }
+      // --- In-Memory Sorting & Filtering Engine ---
+      function renderLibrary() {
+        const grid = document.getElementById("library-grid");
+        const emptyState = document.getElementById("empty-state");
 
-      const parseReleaseDate = (dateStr) => {
-        if (!dateStr) return 999999;
-        const str = String(dateStr).trim().toUpperCase();
-        if (str === "TBA" || str === "") return 999999;
-        const yearMatch = str.match(/\d{4}/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[0], 10);
-          let month = 2; // Default to Feb
-          if (str.includes("WIN")) month = 1;
-          else if (str.includes("SPR")) month = 4;
-          else if (str.includes("SUM")) month = 7;
-          else if (str.includes("FAL")) month = 10;
-          else if (str.includes("JAN")) month = 1;
-          else if (str.includes("FEB")) month = 2;
-          else if (str.includes("MAR")) month = 3;
-          else if (str.includes("APR")) month = 4;
-          else if (str.includes("MAY")) month = 5;
-          else if (str.includes("JUN")) month = 6;
-          else if (str.includes("JUL")) month = 7;
-          else if (str.includes("AUG")) month = 8;
-          else if (str.includes("SEP")) month = 9;
-          else if (str.includes("OCT")) month = 10;
-          else if (str.includes("NOV")) month = 11;
-          else if (str.includes("DEC")) month = 12;
-          return year * 100 + month;
-        }
-        return 999999;
-      };
+        const query = document
+          .getElementById("localFilterInput")
+          .value.toLowerCase()
+          .trim();
+        const statusVal = document.getElementById("statusFilter").value;
+        const sortVal = document.getElementById("sortSelector").value;
 
-      function calculateSeriesProgress(entries) {
-        if (!entries || entries.length === 0) return [];
-        let statuses = [];
-
-        const allFinished = entries.every(
-          (e) => e.my_progress === "Completed" || e.my_progress === "Finished",
-        );
-        if (allFinished) return ["Completely Finished"];
-
-        const mainStoryEntries = entries.filter(
-          (e) => e.main_spinoff === "本傳",
-        );
-        if (mainStoryEntries.length > 0) {
-          const mainFinished = mainStoryEntries.every(
-            (e) =>
-              e.my_progress === "Completed" || e.my_progress === "Finished",
-          );
-          if (mainFinished) statuses.push("Finished Main Story");
-        }
-
-        const priorityStatuses = [
-          "Active Watching",
-          "Passive Watching",
-          "Paused",
-          "Temp Dropped",
-          "Dropped",
-        ];
-        let foundPriority = false;
-        for (let status of priorityStatuses) {
-          if (entries.some((e) => e.my_progress === status)) {
-            statuses.push(status);
-            foundPriority = true;
-            break;
+        // 1. Filter
+        let filtered = allAnimeData.filter((anime) => {
+          // Status Match
+          let matchesStatus = true;
+          if (statusVal === "Paused") {
+            matchesStatus =
+              anime.my_progress === "Paused" ||
+              anime.my_progress === "Temp Dropped";
+          } else if (statusVal !== "All") {
+            matchesStatus = anime.my_progress === statusVal;
           }
-        }
 
-        if (!foundPriority) {
-          const allFinishedOrNotAired = entries.every(
-            (e) =>
-              e.my_progress === "Completed" ||
-              e.my_progress === "Finished" ||
-              e.airing_status === "Not Yet Aired" ||
-              e.my_progress === "Watch When Airs" ||
-              e.my_progress === "Not Yet Aired",
-          );
-          if (
-            allFinishedOrNotAired &&
-            entries.some(
-              (e) =>
-                e.airing_status === "Not Yet Aired" ||
-                e.my_progress === "Watch When Airs" ||
-                e.my_progress === "Not Yet Aired",
-            )
-          ) {
-            statuses.push("Waiting for New Release");
-          } else {
-            const allFinishedOrWontWatch = entries.every(
-              (e) =>
-                e.my_progress === "Completed" ||
-                e.my_progress === "Finished" ||
-                e.my_progress === "Won't Watch",
-            );
-            if (
-              allFinishedOrWontWatch &&
-              entries.some((e) => e.my_progress === "Won't Watch")
-            ) {
-              statuses.push("Finished");
-            }
+          // Text Match (Searches across multiple language titles)
+          let matchesText = true;
+          if (query) {
+            const searchStr =
+              `${anime.series_season_cn || ""} ${anime.series_season_en || ""} ${anime.series_en || ""} ${anime.series_season_roman || ""}`.toLowerCase();
+            matchesText = searchStr.includes(query);
           }
-        }
-        return statuses;
-      }
 
-      function renderTable() {
-        const tbody = document.getElementById("libraryTableBody");
-        tbody.innerHTML = "";
-
-        // 1. Group Data strictly by series_en
-        const groupedData = {};
-        displayData.forEach((anime) => {
-          const seriesName = anime.series_en || "Standalone / Other";
-          if (!groupedData[seriesName]) {
-            groupedData[seriesName] = [];
-          }
-          groupedData[seriesName].push(anime);
+          return matchesStatus && matchesText;
         });
 
-        // 2. Sort Series Groups
-        let seriesNames = Object.keys(groupedData);
-        seriesNames.sort((a, b) => {
-          // Force 'Standalone / Other' to always stay at the very bottom
-          if (a === "Standalone / Other" && b !== "Standalone / Other")
-            return 1;
-          if (b === "Standalone / Other" && a !== "Standalone / Other")
-            return -1;
-
-          // Strictly sort by the group key (series_en) lowercase
-          let nameA = String(a).trim().toLowerCase();
-          let nameB = String(b).trim().toLowerCase();
-
-          let comparison = nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
-
-          if (sortCol === "title" || sortCol === "") {
-            return sortAsc ? comparison : -comparison;
+        // 2. Sort
+        filtered.sort((a, b) => {
+          if (sortVal === "titleAsc") {
+            const titleA = (
+              a.series_season_cn ||
+              a.series_en ||
+              ""
+            ).toLowerCase();
+            const titleB = (
+              b.series_season_cn ||
+              b.series_en ||
+              ""
+            ).toLowerCase();
+            return titleA.localeCompare(titleB);
+          } else if (sortVal === "scoreDesc") {
+            return (b.mal_rating || 0) - (a.mal_rating || 0);
+          } else if (sortVal === "myRatingDesc") {
+            // Custom rating mapping (S > A+ > A > B...)
+            const scoreMap = {
+              S: 10,
+              "A+": 9,
+              A: 8,
+              B: 7,
+              C: 6,
+              D: 5,
+              E: 4,
+              F: 3,
+            };
+            const myA = scoreMap[a.rating_mine] || 0;
+            const myB = scoreMap[b.rating_mine] || 0;
+            return myB - myA;
+          } else if (sortVal === "releaseDesc") {
+            // Basic string compare for dates works if formatted consistently (e.g. YYYY-MM)
+            const dateA = a.release_date || "0000";
+            const dateB = b.release_date || "0000";
+            return dateB.localeCompare(dateA);
           }
-          // Always lock series alphabetical order when sorting internals by Rating, Release Date, etc.
-          return comparison;
+          return 0;
         });
 
-        // 3. Render Groups and their Items
-        seriesNames.forEach((seriesName) => {
-          const meta = seriesMetadata[seriesName] || {};
-          const animesInSeries = groupedData[seriesName];
+        // 3. Render
+        document.getElementById("resultCount").innerText =
+          `${filtered.length} Items`;
 
-          const isCollapsed = collapsedSeries.has(seriesName);
-          const chevronClass = isCollapsed
-            ? "fa-chevron-right text-gray-400"
-            : "fa-chevron-down text-gray-600";
+        if (filtered.length === 0) {
+          grid.classList.add("hidden");
+          emptyState.classList.replace("hidden", "flex");
+        } else {
+          grid.classList.remove("hidden");
+          emptyState.classList.replace("flex", "hidden");
+          grid.innerHTML = filtered
+            .map((anime) => createLibraryCard(anime))
+            .join("");
+        }
+      }
 
-          let seriesRatingBadge = "";
-          if (meta.rating_series) {
-            let colorClass = "bg-gray-100 text-gray-600 border-gray-300";
-            if (meta.rating_series === "S")
-              colorClass = "bg-yellow-100 text-yellow-700 border-yellow-300";
-            else if (meta.rating_series === "A+")
-              colorClass = "bg-orange-100 text-orange-700 border-orange-300";
-            else if (meta.rating_series === "A")
-              colorClass = "bg-red-100 text-red-700 border-red-300";
-            else if (meta.rating_series === "B")
-              colorClass = "bg-blue-100 text-blue-700 border-blue-300";
-            else if (
-              meta.rating_series === "C" ||
-              meta.rating_series === "D" ||
-              meta.rating_series === "E" ||
-              meta.rating_series === "F"
-            )
-              colorClass = "bg-gray-200 text-gray-600 border-gray-300";
+      function createLibraryCard(anime) {
+        const title =
+          anime.series_season_cn ||
+          anime.series_season_en ||
+          anime.series_en ||
+          "Unknown Title";
+        const epFin = anime.ep_fin || 0;
+        const epTotal = anime.ep_total || "?";
 
-            seriesRatingBadge = `<span class="ml-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider shrink-0 ${colorClass}">Overall: ${meta.rating_series}</span>`;
-          }
+        // Color coding for status
+        let statusColor = "bg-gray-800";
+        if (anime.my_progress === "Active Watching")
+          statusColor = "bg-green-600";
+        if (
+          anime.my_progress === "Completed" ||
+          anime.my_progress === "Finished"
+        )
+          statusColor = "bg-brand";
 
-          const seriesStatuses = calculateSeriesProgress(animesInSeries);
-          let progressBadgesHtml = "";
+        // Fallback Image
+        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
 
-          seriesStatuses.forEach((seriesProgress) => {
-            let progressColorClass =
-              "bg-gray-100 text-gray-600 border-gray-300";
-            if (seriesProgress === "Active Watching")
-              progressColorClass =
-                "bg-green-100 text-green-700 border-green-300";
-            else if (seriesProgress === "Passive Watching")
-              progressColorClass = "bg-blue-100 text-blue-700 border-blue-300";
-            else if (seriesProgress === "Paused")
-              progressColorClass =
-                "bg-orange-100 text-orange-700 border-orange-300";
-            else if (
-              seriesProgress === "Temp Dropped" ||
-              seriesProgress === "Dropped"
-            )
-              progressColorClass = "bg-red-100 text-red-700 border-red-300";
-            else if (seriesProgress === "Completely Finished")
-              progressColorClass =
-                "bg-purple-100 text-purple-700 border-purple-300";
-            else if (seriesProgress === "Waiting for New Release")
-              progressColorClass = "bg-teal-100 text-teal-700 border-teal-300";
-            else if (seriesProgress === "Finished Main Story")
-              progressColorClass =
-                "bg-indigo-100 text-indigo-700 border-indigo-300";
-            else if (seriesProgress === "Finished")
-              progressColorClass =
-                "bg-purple-50 text-purple-600 border-purple-200";
+        return `
+            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
+                <!-- Cover Image Container -->
+                <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
+                    <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
+                    
+                    <!-- Top Overlay Badges -->
+                    <div class="absolute top-2 left-2 flex flex-col gap-1">
+                        ${anime.mal_rating ? `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${anime.mal_rating.toFixed(2)}</span>` : ""}
+                        ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ""}
+                    </div>
 
-            progressBadgesHtml += `<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase border shadow-sm tracking-wider shrink-0 ${progressColorClass}">${seriesProgress}</span>`;
-          });
-
-          const goToSeriesBtn = meta.system_id
-            ? `
-            <button onclick="goToSeries(event, '${meta.system_id}')" class="ml-4 bg-white border border-gray-200 hover:border-brand text-gray-600 hover:text-brand px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center hover:bg-brand/5 shrink-0" title="Open Series Hub">
-                Go to Series <i class="fas fa-external-link-alt ml-1.5 opacity-70"></i>
-            </button>
-          `
-            : "";
-
-          const headerTr = document.createElement("tr");
-          headerTr.className =
-            "cursor-pointer hover:bg-gray-100 transition group";
-          headerTr.onclick = () => toggleSeries(seriesName);
-
-          headerTr.innerHTML = `
-              <td colspan="14" class="px-4 py-3 text-sm font-bold text-gray-900 sticky top-[41px] z-30 bg-gray-100/95 backdrop-blur-md shadow-[0_1px_0_0_#e5e7eb] border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center flex-wrap gap-y-1">
-                    <i class="fas ${chevronClass} w-4 mr-1 transition-transform"></i>
-                    <i class="fas fa-layer-group text-brand mr-2"></i>
-                    <span class="truncate max-w-[300px] xl:max-w-[400px]">${meta.series_cn || seriesName}</span>
-                    <span class="text-gray-400 font-normal ml-2 mr-2 text-xs truncate max-w-[200px]">${seriesName !== "Other" ? seriesName : ""}</span>
-                    ${seriesRatingBadge}
-                    ${progressBadgesHtml}
-                  </div>
-                  <div class="flex items-center">
-                    ${goToSeriesBtn}
-                  </div>
+                    <!-- Progress Bar Overlay (Bottom of Image) -->
+                    <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
+                        <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : epFin > 0 ? 100 : 0}%"></div>
+                    </div>
                 </div>
-              </td>
+
+                <!-- Card Content -->
+                <div class="p-3 flex flex-col flex-1">
+                    <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
+                    <p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p>
+                    
+                    <!-- Progress Controls (Bottom) -->
+                    <div class="mt-auto flex items-center justify-between">
+                        <span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                            <span id="card-ep-${anime.system_id}">${epFin}</span> / ${epTotal}
+                        </span>
+                        
+                        <button onclick="optimisticLibraryUpdate('${anime.system_id}', 1)" class="w-7 h-7 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center" title="Add 1 Episode">
+                            <i class="fas fa-plus text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
           `;
-          tbody.appendChild(headerTr);
-
-          if (isCollapsed) return;
-
-          // 4. Sort Items INSIDE the group dynamically
-          animesInSeries.sort((a, b) => {
-            if (sortCol === "rating_mine") {
-              const tiers = {
-                S: 1,
-                "A+": 2,
-                A: 3,
-                B: 4,
-                C: 5,
-                D: 6,
-                E: 7,
-                F: 8,
-              };
-              let valA = tiers[a.rating_mine] || 99;
-              let valB = tiers[b.rating_mine] || 99;
-              if (valA !== valB) return sortAsc ? valA - valB : valB - valA;
-            } else if (sortCol === "release_date") {
-              let valA = parseReleaseDate(a.release_date);
-              let valB = parseReleaseDate(b.release_date);
-              if (valA !== valB) return sortAsc ? valA - valB : valB - valA;
-            } else if (sortCol === "my_progress") {
-              // Custom Watch Status Hierarchy Sort
-              const statusOrder = {
-                Finished: 1,
-                Completed: 1,
-                "Active Watching": 2,
-                "Passive Watching": 3,
-                "Watch When Airs": 4,
-                "Plan to Watch": 5,
-                "Might Watch": 6,
-                Paused: 7,
-                "Temp Dropped": 8,
-                Dropped: 9,
-                "Won't Watch": 10,
-              };
-              let valA = statusOrder[a.my_progress] || 99;
-              let valB = statusOrder[b.my_progress] || 99;
-              if (valA !== valB) return sortAsc ? valA - valB : valB - valA;
-            }
-
-            // Default Fallback / Tie-Breaker: Title Sort
-            // STRICTLY sort by series_season_en
-            let nameA = String(a.series_season_en || "")
-              .trim()
-              .toLowerCase();
-            let nameB = String(b.series_season_en || "")
-              .trim()
-              .toLowerCase();
-            let comparison = nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
-
-            if (sortCol === "title") {
-              return sortAsc ? comparison : -comparison;
-            }
-            return comparison; // Default chronological/alphabetical
-          });
-
-          // 5. Render Individual Anime Rows
-          animesInSeries.forEach((anime) => {
-            const title = getDisplayTitle(anime);
-            const rating = anime.rating_mine || "-";
-            const status = anime.my_progress || "-";
-            const epFin = anime.ep_fin || 0;
-            const epTotal = anime.ep_total || "?";
-
-            const epsInput = `
-                        <div class="flex items-center">
-                            <input type="number" value="${epFin}" min="0" ${anime.ep_total ? `max="${anime.ep_total}"` : ""}
-                                   onchange="updateEpisode('${anime.system_id}', this.value, ${epFin})"
-                                   class="w-8 bg-transparent border-b border-dashed border-gray-400 hover:border-brand focus:border-solid focus:border-brand focus:outline-none text-center font-mono py-0.5 transition-colors"
-                                   onclick="this.select()">
-                            <span class="text-gray-500 font-mono ml-1">/ ${epTotal}</span>
-                        </div>
-                    `;
-
-            const bahaStr = String(anime.source_baha || "").toUpperCase();
-            const bahaDisplay =
-              bahaStr === "TRUE" || bahaStr === "YES" || bahaStr === "有"
-                ? "有"
-                : "無";
-            const bahaColor =
-              bahaDisplay === "有"
-                ? "text-green-600 font-bold"
-                : "text-gray-400";
-
-            let statusColor = "text-gray-600 bg-gray-100";
-            if (status === "Active Watching")
-              statusColor = "text-green-700 bg-green-100";
-            if (status === "Passive Watching")
-              statusColor = "text-blue-700 bg-blue-100";
-            if (status === "Paused")
-              statusColor = "text-orange-700 bg-orange-100";
-            if (status === "Completed" || status === "Finished")
-              statusColor = "text-purple-700 bg-purple-100";
-            if (status === "Dropped" || status === "Temp Dropped")
-              statusColor = "text-red-700 bg-red-100";
-            if (status === "Plan to Watch" || status === "Might Watch")
-              statusColor = "text-teal-700 bg-teal-100";
-
-            let ratingColor = "text-gray-600";
-            if (["S", "A+", "A"].includes(rating))
-              ratingColor = "text-red-600 font-bold";
-            else if (["B", "C"].includes(rating))
-              ratingColor = "text-blue-600 font-medium";
-
-            const tr = document.createElement("tr");
-            tr.className = "hover:bg-gray-50 transition-colors";
-
-            tr.innerHTML = `
-                        <td class="px-4 py-3 pl-10 font-medium text-gray-900 max-w-[250px] truncate" title="${title}">
-                            <a href="/anime/${anime.system_id}" class="hover:text-brand hover:underline transition-colors block w-full truncate">${title}</a>
-                        </td>
-                        <td class="px-4 py-3 text-gray-600 font-medium whitespace-nowrap">${anime.series_season || "-"}</td>
-                        <td class="px-4 py-3 ${ratingColor}">${rating}</td>
-                        <td class="px-4 py-3">
-                            <span class="px-2 py-1 text-xs rounded-md ${statusColor}">${status}</span>
-                        </td>
-                        <td class="px-4 py-3 text-xs">${epsInput}</td>
-                        <td class="px-4 py-3 text-gray-500">${anime.airing_type || "-"}</td>
-                        <td class="px-4 py-3 text-gray-500">${anime.main_spinoff || "-"}</td>
-                        <td class="px-4 py-3 text-gray-500">${anime.airing_status || "-"}</td>
-                        <td class="px-4 py-3 text-gray-900">${anime.release_date || "-"}</td>
-                        <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.studio || ""}">${anime.studio || "-"}</td>
-                        <td class="px-4 py-3 text-gray-500 max-w-[150px] truncate" title="${anime.director || ""}">${anime.director || "-"}</td>
-                        <td class="px-4 py-3 text-gray-500">${anime.distributor_tw || "-"}</td>
-                        <td class="px-4 py-3 ${bahaColor}">${bahaDisplay}</td>
-                        <td class="px-4 py-3 text-gray-400 max-w-[200px] truncate" title="${anime.remark || ""}">${anime.remark || "-"}</td>
-                    `;
-            tbody.appendChild(tr);
-          });
-        });
       }
 
-      function toggleSeries(seriesName) {
-        if (collapsedSeries.has(seriesName)) {
-          collapsedSeries.delete(seriesName);
-        } else {
-          collapsedSeries.add(seriesName);
-        }
-        renderTable();
-      }
+      // --- Optimistic State Management ---
+      async function optimisticLibraryUpdate(sys_id, change) {
+        const index = allAnimeData.findIndex((a) => a.system_id === sys_id);
+        if (index === -1) return;
 
-      function toggleAll() {
-        const btn = document.getElementById("toggleAllBtn");
-        const uniqueSeries = new Set();
-        displayData.forEach((anime) =>
-          uniqueSeries.add(anime.series_en || "Standalone / Other"),
-        );
+        const anime = allAnimeData[index];
+        const currentEps = anime.ep_fin || 0;
+        let newEps = currentEps + change;
 
-        isAllCollapsed = !isAllCollapsed;
+        if (newEps < 0) newEps = 0;
+        if (anime.ep_total && newEps > anime.ep_total) newEps = anime.ep_total;
+        if (newEps === currentEps) return; // No change
 
-        if (isAllCollapsed) {
-          uniqueSeries.forEach((s) => collapsedSeries.add(s));
-          btn.innerHTML =
-            '<i class="fas fa-expand-arrows-alt mr-2"></i> Expand All';
-        } else {
-          collapsedSeries.clear();
-          btn.innerHTML =
-            '<i class="fas fa-compress-arrows-alt mr-2"></i> Collapse All';
-        }
-        renderTable();
-      }
+        // 1. Optimistic Update in DOM directly (faster than full re-render)
+        allAnimeData[index].ep_fin = newEps;
+        const countSpan = document.getElementById(`card-ep-${sys_id}`);
+        if (countSpan) countSpan.innerText = newEps;
 
-      async function updateEpisode(systemId, newValue, oldValue) {
-        const parsedValue = parseInt(newValue, 10);
-        if (isNaN(parsedValue) || parsedValue < 0) return;
-
-        const displayIndex = displayData.findIndex(
-          (a) => a.system_id === systemId,
-        );
-        if (displayIndex !== -1) displayData[displayIndex].ep_fin = parsedValue;
-
-        const origIndex = originalData.findIndex(
-          (a) => a.system_id === systemId,
-        );
-        if (origIndex !== -1) originalData[origIndex].ep_fin = parsedValue;
-
+        // 2. Background API Request
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/anime/${systemId}/progress`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ep_fin: parsedValue }),
-            },
-          );
+          const res = await fetch(`${API_BASE_URL}/anime/${sys_id}/progress`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ep_fin: newEps }),
+          });
+
+          if (!res.ok) throw new Error("Failed to sync");
         } catch (error) {
-          console.error(error);
-          if (displayIndex !== -1) displayData[displayIndex].ep_fin = oldValue;
-          if (origIndex !== -1) originalData[origIndex].ep_fin = oldValue;
-          renderTable();
+          // Revert
+          allAnimeData[index].ep_fin = currentEps;
+          if (countSpan) countSpan.innerText = currentEps;
+          showToast("Network error. Progress reverted.", true);
         }
       }
 
-      function handleSort(column) {
-        sortCol = column;
-        renderTable();
-      }
-
-      function goToSeries(event, systemId) {
-        event.stopPropagation();
-        if (systemId) {
-          window.location.href = `/series/${systemId}`;
-        }
-      }
-
+      // --- Sync Orchestration ---
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
@@ -786,7 +518,7 @@
         btn.prepend(icon);
 
         try {
-          const response = await fetch(`${API_BASE_URL}/sync`, {
+          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
             method: "POST",
           });
           if (response.ok) {
@@ -802,7 +534,8 @@
             btn.innerText = " Synced!";
             btn.prepend(icon);
 
-            await fetchLibrary();
+            showToast("Successfully synchronized with Google Sheets!");
+            await loadLibrary(); // Refresh data
 
             setTimeout(() => {
               icon.classList.remove("fa-check");
@@ -813,13 +546,7 @@
               btn.prepend(icon);
             }, 2000);
           } else {
-            icon.classList.remove("fa-spin");
-            btn.classList.remove("opacity-75", "pointer-events-none");
-            btn.innerText = " Sync";
-            btn.prepend(icon);
-
-            const data = await response.json();
-            alert(`Sync Error: ${data.detail}`);
+            throw new Error((await response.json()).detail);
           }
         } catch (error) {
           icon.classList.remove("fa-spin");
@@ -827,61 +554,8 @@
           btn.innerText = " Sync";
           btn.prepend(icon);
 
-          console.error(error);
-          alert("Failed to connect to backend sync.");
+          showToast(`Sync Error: ${error.message}`, true);
         }
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        fetchLibrary();
-
-        const globalSearchInput = document.getElementById("globalSearchInput");
-        if (globalSearchInput) {
-          globalSearchInput.addEventListener("keypress", function (e) {
-            if (e.key === "Enter") {
-              const query = e.target.value.trim();
-              if (query)
-                window.location.href = `/search?q=${encodeURIComponent(query)}`;
-            }
-          });
-        }
-
-        const scrollContainer = document.getElementById("tableContainer");
-        const btn = document.getElementById("scrollToTopBtn");
-
-        if (scrollContainer && btn) {
-          scrollContainer.addEventListener("scroll", () => {
-            if (scrollContainer.scrollTop > 300) {
-              btn.classList.remove(
-                "opacity-0",
-                "translate-y-4",
-                "pointer-events-none",
-              );
-              btn.classList.add(
-                "opacity-100",
-                "translate-y-0",
-                "pointer-events-auto",
-              );
-            } else {
-              btn.classList.add(
-                "opacity-0",
-                "translate-y-4",
-                "pointer-events-none",
-              );
-              btn.classList.remove(
-                "opacity-100",
-                "translate-y-0",
-                "pointer-events-auto",
-              );
-            }
-          });
-        }
-      });
-
-      function scrollToTop() {
-        const scrollContainer = document.getElementById("tableContainer");
-        if (scrollContainer)
-          scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
       }
     </script>
   </body>
