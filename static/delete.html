@@ -1039,7 +1039,7 @@
         btn.prepend(icon);
 
         try {
-          const response = await fetch(`${API_BASE_URL}/sync`, {
+          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
             method: "POST",
           });
           if (response.ok) {
