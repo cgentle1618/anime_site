@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CG1618 Anime Site</title>
-    <!-- Tailwind CSS for styling -->
+    <title>Dashboard - CG1618 Tracker</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
+    <!-- FontAwesome -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -18,24 +18,15 @@
     />
     <script>
       tailwind.config = {
-        darkMode: "class",
         theme: {
           extend: {
-            fontFamily: {
-              sans: ["Roboto", "Noto Sans TC", "sans-serif"],
-            },
-            colors: {
-              brand: {
-                DEFAULT: "#6366f1", // Indigo 500
-                hover: "#4f46e5", // Indigo 600
-              },
-            },
+            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
+            colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
           },
         },
       };
     </script>
     <style>
-      /* Custom scrollbar for light mode */
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -49,47 +40,36 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #9ca3af;
       }
-
-      /* Smooth transitions */
       .card-hover {
         transition:
           transform 0.2s ease,
           box-shadow 0.2s ease;
-        cursor: pointer;
       }
       .card-hover:hover {
         transform: translateY(-4px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       }
-
-      /* Hide number input arrows */
-      input[type="number"]::-webkit-inner-spin-button,
-      input[type="number"]::-webkit-outer-spin-button {
+      input[type="number"]::-webkit-inner-spin-button {
         -webkit-appearance: none;
-        margin: 0;
-      }
-      input[type="number"] {
-        -moz-appearance: textfield;
       }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
-    <!-- Top Navigation Bar -->
+    <!-- Universal Top Navigation Bar -->
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <!-- Logo & Links -->
           <div class="flex items-center space-x-8">
-            <div
+            <a
+              href="/"
               class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
+              >CG1618</a
             >
-              CG1618
-            </div>
             <div class="hidden md:block">
               <div class="flex items-baseline space-x-4">
                 <a
                   href="/"
-                  class="bg-gray-900 text-white px-3 py-2 rounded-md text-sm font-medium"
+                  class="bg-gray-100 text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Dashboard</a
                 >
                 <a
@@ -97,6 +77,8 @@
                   class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
                   >Library</a
                 >
+
+                <!-- Admin Dropdown -->
                 <div class="relative group">
                   <button
                     class="text-gray-600 group-hover:text-gray-900 group-hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
@@ -126,7 +108,7 @@
                       >
                       <a
                         href="/delete"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
                         >Delete</a
                       >
                     </div>
@@ -135,8 +117,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Search & Sync -->
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <div class="relative w-full max-w-md hidden sm:block">
               <div
@@ -146,7 +126,7 @@
               </div>
               <input
                 type="text"
-                id="dashboardSearchInput"
+                id="globalSearchInput"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
                 placeholder="Search Series or Anime Names..."
               />
@@ -165,393 +145,349 @@
 
     <!-- Main Content -->
     <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <!-- SECTION 1: Active Watching -->
-      <div id="activeSection" class="mb-12">
-        <!-- STICKY HEADER -->
-        <div
-          class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
-        >
-          <h1 class="text-2xl font-bold text-gray-900">
-            <i class="fas fa-play-circle text-brand mr-2"></i> Active Watching
-          </h1>
-          <span
-            class="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm"
-            id="activeCount"
-            >0 Shows</span
-          >
-        </div>
-        <div id="activeGrid" class="flex flex-col gap-4">
-          <!-- Cards injected via JS -->
-        </div>
+      <!-- Hero / Welcome Section -->
+      <div class="mb-10">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+        <p class="text-gray-500" id="dashboard-subtitle">
+          Loading your active tracking data...
+        </p>
       </div>
 
-      <!-- SECTION 2: Passive Watching -->
-      <div id="passiveSection" class="mb-12">
-        <!-- STICKY HEADER -->
-        <div
-          class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
-        >
-          <h1 class="text-2xl font-bold text-gray-900">
-            <i class="fas fa-coffee text-brand mr-2"></i> Passive Watching
-          </h1>
-          <span
-            class="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm"
-            id="passiveCount"
-            >0 Shows</span
-          >
-        </div>
-        <div id="passiveGrid" class="flex flex-col gap-4">
-          <!-- Cards injected via JS -->
-        </div>
+      <!-- Loading State -->
+      <div id="loading" class="flex flex-col items-center justify-center h-48">
+        <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+        <p class="text-gray-500 font-medium">Fetching dashboard...</p>
       </div>
 
-      <!-- SECTION 3: Paused -->
-      <div id="pausedSection" class="mb-12">
-        <!-- STICKY HEADER -->
-        <div
-          class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-sm py-4 mb-4 flex justify-between items-center border-b border-gray-200"
-        >
-          <h1 class="text-2xl font-bold text-gray-900">
-            <i class="fas fa-pause-circle text-brand mr-2"></i> Paused
-          </h1>
-          <span
-            class="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm"
-            id="pausedCount"
-            >0 Shows</span
-          >
-        </div>
-        <div id="pausedGrid" class="flex flex-col gap-4">
-          <!-- Cards injected via JS -->
-        </div>
+      <!-- Dashboard Grid (Populated by JS) -->
+      <div id="dashboard-content" class="hidden space-y-12">
+        <!-- Active Watching Section -->
+        <section>
+          <div class="flex items-center mb-6 border-b border-gray-200 pb-3">
+            <h2 class="text-xl font-bold text-gray-900">
+              <i class="fas fa-play-circle text-green-500 mr-2"></i> Active
+              Watching
+            </h2>
+            <span
+              id="count-active"
+              class="ml-3 bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-200"
+              >0</span
+            >
+          </div>
+          <div
+            id="grid-active"
+            class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+          ></div>
+        </section>
+
+        <!-- Passive Watching Section -->
+        <section>
+          <div class="flex items-center mb-6 border-b border-gray-200 pb-3">
+            <h2 class="text-xl font-bold text-gray-900">
+              <i class="fas fa-coffee text-blue-500 mr-2"></i> Passive Watching
+            </h2>
+            <span
+              id="count-passive"
+              class="ml-3 bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-blue-200"
+              >0</span
+            >
+          </div>
+          <div
+            id="grid-passive"
+            class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+          ></div>
+        </section>
+
+        <!-- Paused Section -->
+        <section>
+          <div class="flex items-center mb-6 border-b border-gray-200 pb-3">
+            <h2 class="text-xl font-bold text-gray-900">
+              <i class="fas fa-pause-circle text-orange-500 mr-2"></i> Paused /
+              Temp Dropped
+            </h2>
+            <span
+              id="count-paused"
+              class="ml-3 bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-orange-200"
+              >0</span
+            >
+          </div>
+          <div
+            id="grid-paused"
+            class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+          ></div>
+        </section>
       </div>
     </main>
 
-    <!-- Scroll to Top Button -->
-    <button
-      id="scrollToTopBtn"
-      onclick="scrollToTop()"
-      class="fixed bottom-6 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
-    >
-      <i class="fas fa-arrow-up"></i>
-    </button>
-
-    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
       >
-        &copy; 2026 CG1618 Anime Database. Version 1.0
+        &copy; 2026 CG1618 Anime Database. Dashboard View.
       </div>
     </footer>
 
-    <!-- JavaScript Logic -->
+    <!-- Global Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
+    >
+      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
+      <span id="toast-msg" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- Logic -->
     <script>
       const API_BASE_URL = "/api";
-      let animeData = []; // Declaring animeData properly
+      let allAnimeData = [];
 
-      // Initialize the app on page load
-      document.addEventListener("DOMContentLoaded", () => {
-        fetchAnime();
-
-        // Setup Global Search Redirect for Dashboard
-        const searchInput = document.getElementById("dashboardSearchInput");
-        if (searchInput) {
-          searchInput.addEventListener("keypress", function (e) {
-            if (e.key === "Enter") {
-              const query = e.target.value.trim();
-              if (query) {
-                window.location.href = `/search?q=${encodeURIComponent(query)}`;
-              }
-            }
-          });
+      // --- Universal UI Features ---
+      const searchInput = document.getElementById("globalSearchInput");
+      searchInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          const query = e.target.value.trim();
+          if (query)
+            window.location.href = `/search?q=${encodeURIComponent(query)}`;
         }
       });
 
-      const parseReleaseDate = (dateStr) => {
-        if (!dateStr) return 999999;
-        const str = String(dateStr).trim().toUpperCase();
-        if (str === "TBA" || str === "") return 999999;
-        const yearMatch = str.match(/\d{4}/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[0], 10);
-          let month = 2;
-          if (str.includes("WIN")) month = 1;
-          else if (str.includes("SPR")) month = 4;
-          else if (str.includes("SUM")) month = 7;
-          else if (str.includes("FAL")) month = 10;
-          else if (str.includes("JAN")) month = 1;
-          else if (str.includes("FEB")) month = 2;
-          else if (str.includes("MAR")) month = 3;
-          else if (str.includes("APR")) month = 4;
-          else if (str.includes("MAY")) month = 5;
-          else if (str.includes("JUN")) month = 6;
-          else if (str.includes("JUL")) month = 7;
-          else if (str.includes("AUG")) month = 8;
-          else if (str.includes("SEP")) month = 9;
-          else if (str.includes("OCT")) month = 10;
-          else if (str.includes("NOV")) month = 11;
-          else if (str.includes("DEC")) month = 12;
-          return year * 100 + month;
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        const msg = document.getElementById("toast-msg");
+        const icon = document.getElementById("toast-icon");
+
+        msg.innerText = message;
+        if (isError) {
+          icon.className =
+            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          toast.classList.replace("bg-red-900", "bg-gray-900");
         }
-        return 999999;
-      };
 
-      // Added missing sorting function
-      function sortByTier(a, b) {
-        const tiers = {
-          S: 1,
-          "A+": 2,
-          A: 3,
-          B: 4,
-          C: 5,
-          D: 6,
-          E: 7,
-          F: 8,
-          null: 9,
-        };
-        const rankA = tiers[a.rating_mine] || 9;
-        const rankB = tiers[b.rating_mine] || 9;
-
-        // Primary Sort: Rating Tier
-        if (rankA !== rankB) return rankA - rankB;
-
-        // Secondary Sort: Chronological Release Date
-        const valA = parseReleaseDate(a.release_date);
-        const valB = parseReleaseDate(b.release_date);
-        if (valA !== valB) return valA - valB;
-
-        // Tertiary Sort: Alphabetical
-        let titleA = a.series_season_cn || a.series_season_en || "";
-        let titleB = b.series_season_cn || b.series_season_en || "";
-        return titleA.localeCompare(titleB);
+        toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(
+          () => toast.classList.add("translate-y-20", "opacity-0"),
+          3000,
+        );
       }
 
-      async function fetchAnime() {
+      // --- Data Fetching & Organization ---
+      async function loadDashboard() {
         try {
-          const response = await fetch(`${API_BASE_URL}/anime`);
-          const allAnime = await response.json();
+          const res = await fetch(`${API_BASE_URL}/anime`);
+          if (!res.ok) throw new Error("Failed to load anime data");
+          allAnimeData = await res.json();
 
-          animeData = allAnime.filter(
-            (a) =>
-              a.my_progress === "Active Watching" ||
-              a.my_progress === "Passive Watching" ||
-              a.my_progress === "Paused",
-          );
+          renderDashboard();
 
-          renderCards();
+          document.getElementById("loading").classList.add("hidden");
+          document
+            .getElementById("dashboard-content")
+            .classList.remove("hidden");
         } catch (error) {
-          console.error("Failed to fetch anime:", error);
-          document.getElementById("activeSection").style.display = "block";
-          document.getElementById("activeGrid").innerHTML = `
-                    <div class="w-full text-center text-red-600 py-8 bg-red-50 rounded-xl border border-red-200">
-                        <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-                        <p>Error loading data. Is your FastAPI server running?</p>
-                    </div>`;
+          document.getElementById("loading").innerHTML = `
+                <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+                    <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+                    <p class="font-bold">Error loading dashboard data.</p>
+                    <p class="text-sm mt-1">${error.message}</p>
+                </div>`;
         }
       }
 
-      // Helper function to generate the HTML for a single Anime Card
-      function createCardHTML(anime) {
-        // Default styling for no tier (Light Mode)
-        let rankColor = "bg-gray-100 text-gray-600 border-gray-300";
+      function renderDashboard() {
+        const active = [];
+        const passive = [];
+        const paused = [];
 
-        // Tier Color Logic
-        if (anime.rating_mine === "S")
-          rankColor = "bg-yellow-100 text-yellow-700 border border-yellow-300";
-        else if (anime.rating_mine === "A+")
-          rankColor = "bg-orange-100 text-orange-700 border border-orange-300";
-        else if (anime.rating_mine === "A")
-          rankColor = "bg-red-100 text-red-700 border border-red-300";
-        else if (anime.rating_mine === "B")
-          rankColor = "bg-blue-100 text-blue-700 border border-blue-300";
-        else if (anime.rating_mine === "C")
-          rankColor = "bg-green-100 text-green-700 border border-green-300";
+        // Sort recent additions/updates to top
+        const sortedData = [...allAnimeData].sort((a, b) => {
+          const titleA = (
+            a.series_season_cn ||
+            a.series_en ||
+            ""
+          ).toLowerCase();
+          const titleB = (
+            b.series_season_cn ||
+            b.series_en ||
+            ""
+          ).toLowerCase();
+          return titleA.localeCompare(titleB);
+        });
 
-        const totalEps = anime.ep_total ? anime.ep_total : "?";
-        const progressPercent = anime.ep_total
-          ? Math.round((anime.ep_fin / anime.ep_total) * 100)
-          : 0;
+        // Categorize into priority lanes
+        sortedData.forEach((anime) => {
+          if (anime.my_progress === "Active Watching") active.push(anime);
+          else if (anime.my_progress === "Passive Watching")
+            passive.push(anime);
+          else if (
+            anime.my_progress === "Paused" ||
+            anime.my_progress === "Temp Dropped"
+          )
+            paused.push(anime);
+        });
 
-        // Title logic: Use series_season_cn
-        let mainTitle = anime.series_season_cn;
-        let subTitle = anime.series_season_en || anime.series_en || "";
+        // Update subtitle
+        const totalActive = active.length + passive.length;
+        document.getElementById("dashboard-subtitle").innerText =
+          `You are currently tracking ${totalActive} ongoing series.`;
 
-        if (!mainTitle) {
-          mainTitle =
-            anime.series_season_en || anime.series_en || "Unknown Title";
-          subTitle = "";
+        // Render Grids
+        populateGrid("grid-active", "count-active", active);
+        populateGrid("grid-passive", "count-passive", passive);
+        populateGrid("grid-paused", "count-paused", paused);
+      }
+
+      function populateGrid(gridId, countId, dataArray) {
+        const grid = document.getElementById(gridId);
+        document.getElementById(countId).innerText = dataArray.length;
+
+        if (dataArray.length === 0) {
+          grid.innerHTML = `
+                <div class="col-span-full flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
+                    <p class="text-gray-400 font-medium italic"><i class="fas fa-ghost mr-2"></i> Nothing in this category right now.</p>
+                </div>`;
+          return;
         }
 
-        // Format MAL Rating
-        const malRatingDisplay = anime.mal_rating
-          ? anime.mal_rating.toFixed(2)
-          : "N/A";
+        grid.innerHTML = dataArray
+          .map((anime) => createDashboardCard(anime))
+          .join("");
+      }
 
-        // Bahamut Icon Logic
-        const bahaStr = String(anime.source_baha || "").toUpperCase();
+      function createDashboardCard(anime) {
+        const title =
+          anime.series_season_cn ||
+          anime.series_season_en ||
+          anime.series_en ||
+          "Unknown Title";
+        const subTitle = anime.series_en || "";
+
+        const epFin = anime.ep_fin || 0;
+        const epTotal = anime.ep_total || "?";
+
+        // Smart Progress Bar Calculation
+        let progressPercent = 0;
+        let progressStyle = `width: 0%`;
+
+        if (anime.ep_total) {
+          progressPercent = Math.round((epFin / anime.ep_total) * 100);
+          progressStyle = `width: ${progressPercent}%`;
+        } else if (epFin > 0) {
+          // Pulse effect for ongoing series without a known total
+          progressPercent = "Ongoing";
+          progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
+        }
+
+        // Badge Styling
+        let statusBadge = "";
+        if (anime.my_progress === "Active Watching")
+          statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 shadow-sm">${anime.my_progress}</span>`;
+        else if (anime.my_progress === "Passive Watching")
+          statusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 shadow-sm">${anime.my_progress}</span>`;
+        else
+          statusBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-200 shadow-sm">${anime.my_progress}</span>`;
+
         const hasBaha =
-          bahaStr === "TRUE" || bahaStr === "YES" || bahaStr === "有";
-        const bahaBadge = hasBaha
-          ? `<span class="bg-[#00B4D8] text-white px-1.5 py-0.5 rounded border border-[#0096C7] flex items-center shadow-sm text-[10px] font-bold whitespace-nowrap" title="巴哈姆特動畫瘋"><i class="fas fa-play-circle mr-1"></i>動畫瘋</span>`
+          String(anime.source_baha || "").toUpperCase() === "TRUE" ||
+          String(anime.source_baha || "").toUpperCase() === "YES" ||
+          String(anime.source_baha || "") === "有";
+        const bahaIcon = hasBaha
+          ? `<span class="text-[#00B4D8] ml-2" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>`
           : "";
 
+        // Fallback Image SVG
+        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
+
         return `
-                <div class="bg-white rounded-xl overflow-hidden border border-gray-200 flex flex-col sm:flex-row card-hover shadow-sm" onclick="window.location.href='/anime/${anime.system_id}'">
-                    <!-- Key Visual Image -->
-                    <div class="h-24 sm:h-auto sm:w-24 relative bg-gray-100 shrink-0 border-r border-gray-200 flex justify-center items-center">
-                        <img src="${anime.cover_image_url || ""}" alt="${mainTitle}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/100x150?text=No+Image'">
+            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full">
+                <!-- Top Section: Image & Info -->
+                <div class="flex p-3 cursor-pointer" onclick="window.location.href='/anime/${anime.system_id}'">
+                    <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                        <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
                     </div>
-
-                    <!-- Row Content -->
-                    <div class="p-3 flex-1 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        
-                        <!-- Left Info Section -->
-                        <div class="flex-1 min-w-0 w-full">
-                            <h2 class="text-base font-bold text-gray-900 line-clamp-1 mb-0.5" title="${mainTitle}">${mainTitle}</h2>
-                            <h3 class="text-xs text-gray-500 line-clamp-1 mb-1.5 font-medium" title="${subTitle}">${subTitle}</h3>
-                            
-                            <!-- Ratings Row -->
-                            <div class="flex items-center gap-2 mb-1.5">
-                                <span class="${rankColor} px-1.5 py-0.5 rounded shadow-sm text-[10px] font-bold whitespace-nowrap">
-                                    Rating: ${anime.rating_mine || "-"}
-                                </span>
-                                <span class="bg-[#2e51a2] text-white px-1.5 py-0.5 rounded shadow-sm flex items-center text-[10px] font-bold whitespace-nowrap">
-                                    <i class="fas fa-star text-yellow-400 mr-1 text-[8px]"></i> MAL: ${malRatingDisplay}
-                                </span>
-                            </div>
-
-                            <!-- Tags & Status Row -->
-                            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                                <span class="text-[10px] ${anime.airing_status === "Currently Airing" ? "text-green-700 bg-green-100 border-green-200" : "text-blue-700 bg-blue-100 border-blue-200"} px-1.5 py-0.5 rounded border shadow-sm whitespace-nowrap">
-                                    ${anime.airing_status || "-"}
-                                </span>
-                                <span class="bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200 flex items-center shadow-sm text-[10px] whitespace-nowrap">
-                                    <i class="fas fa-calendar-alt text-gray-400 mr-1"></i>
-                                    ${anime.release_date || "TBA"}
-                                </span>
-                                <span class="bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200 flex items-start shadow-sm text-[10px]">
-                                    <i class="fas fa-building text-gray-400 mr-1 mt-0.5 shrink-0"></i>
-                                    <span class="break-words">${anime.studio || "-"}</span>
-                                </span>
-                                ${bahaBadge}
-                            </div>
-                        </div>
-
-                        <!-- Right Tracker Component -->
-                        <div class="w-full sm:w-56 bg-gray-50 p-2 rounded-xl border border-gray-200 shrink-0" onclick="event.stopPropagation()">
-                            <div class="text-[10px] text-gray-500 mb-1 flex justify-between items-center">
-                                <span>Episodes Watched</span>
-                                <span class="font-bold text-gray-900">${progressPercent}%</span>
-                            </div>
-                            
-                            <div class="w-full bg-gray-200 rounded-full h-1 mb-2">
-                                <div class="bg-brand h-1 rounded-full transition-all duration-300 shadow-sm" style="width: ${progressPercent}%"></div>
-                            </div>
-
-                            <div class="flex items-center justify-between bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
-                                <button onclick="updateProgress('${anime.system_id}', -1)" class="w-7 h-7 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
-                                    <i class="fas fa-minus text-[10px]"></i>
-                                </button>
-                                
-                                <div class="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center">
-                                    <input type="number" 
-                                           value="${anime.ep_fin || 0}" 
-                                           onchange="setExactProgress('${anime.system_id}', this.value)"
-                                           onclick="this.select()"
-                                           class="w-10 text-center text-gray-900 bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0" />
-                                    <span class="text-gray-400 mx-0.5 text-xs">/</span>
-                                    <span class="text-gray-500 text-xs">${totalEps}</span>
-                                </div>
-                                
-                                <button onclick="updateProgress('${anime.system_id}', 1)" class="w-7 h-7 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
-                                    <i class="fas fa-plus text-[10px]"></i>
-                                </button>
-                            </div>
+                    <div class="ml-4 flex-1 min-w-0 flex flex-col justify-center">
+                        <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-tight mb-1" title="${title}">${title}</h3>
+                        <p class="text-xs text-gray-500 truncate mb-2" title="${subTitle}">${subTitle}</p>
+                        <div class="flex items-center flex-wrap gap-1.5 mt-auto">
+                            ${statusBadge}
+                            <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm"><i class="fas fa-tv mr-1"></i>${anime.airing_type || "TV"}</span>
+                            ${bahaIcon}
                         </div>
                     </div>
                 </div>
-            `;
+
+                <!-- Bottom Section: Progress Controls -->
+                <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto">
+                    <div class="flex justify-between items-end mb-1.5">
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
+                        <span class="text-[10px] font-bold text-brand">${progressPercent}${anime.ep_total ? "%" : ""}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
+                        <div class="bg-brand h-1.5 rounded-full transition-all duration-500" style="${progressStyle}"></div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm">
+                        <button onclick="optimisticUpdate('${anime.system_id}', -1)" class="w-8 h-8 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <div class="font-mono font-bold text-base tracking-wide flex items-baseline justify-center select-none">
+                            <span class="text-gray-900 w-8 text-center">${epFin}</span>
+                            <span class="text-gray-400 mx-1 text-sm">/</span>
+                            <span class="text-gray-500 text-sm w-8 text-center">${epTotal}</span>
+                        </div>
+                        <button onclick="optimisticUpdate('${anime.system_id}', 1)" class="w-8 h-8 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+          `;
       }
 
-      function renderSection(filteredData, gridId, countId, sectionId) {
-        const grid = document.getElementById(gridId);
-        const section = document.getElementById(sectionId);
-        grid.innerHTML = "";
-
-        if (filteredData.length === 0) {
-          section.style.display = "none";
-          return;
-        }
-
-        section.style.display = "block";
-        document.getElementById(countId).innerText =
-          `${filteredData.length} Shows`;
-
-        filteredData.forEach((anime) => {
-          grid.innerHTML += createCardHTML(anime);
-        });
-      }
-
-      function renderCards() {
-        const active = animeData
-          .filter((a) => a.my_progress === "Active Watching")
-          .sort(sortByTier);
-        const passive = animeData
-          .filter((a) => a.my_progress === "Passive Watching")
-          .sort(sortByTier);
-        const paused = animeData
-          .filter((a) => a.my_progress === "Paused")
-          .sort(sortByTier);
-
-        renderSection(active, "activeGrid", "activeCount", "activeSection");
-        renderSection(passive, "passiveGrid", "passiveCount", "passiveSection");
-        renderSection(paused, "pausedGrid", "pausedCount", "pausedSection");
-      }
-
-      function updateProgress(system_id, change) {
-        const index = animeData.findIndex((a) => a.system_id === system_id);
-        if (index === -1) return;
-        let current = animeData[index].ep_fin || 0;
-        setExactProgress(system_id, current + change);
-      }
-
-      async function setExactProgress(system_id, newValue) {
-        const index = animeData.findIndex((a) => a.system_id === system_id);
+      // --- Optimistic State Management ---
+      async function optimisticUpdate(sys_id, change) {
+        // 1. Find the local record
+        const index = allAnimeData.findIndex((a) => a.system_id === sys_id);
         if (index === -1) return;
 
-        let parsedValue = parseInt(newValue, 10);
-        if (isNaN(parsedValue)) parsedValue = 0;
+        const anime = allAnimeData[index];
+        const currentEps = anime.ep_fin || 0;
+        let newEps = currentEps + change;
 
-        let total = animeData[index].ep_total;
-        if (parsedValue < 0) parsedValue = 0;
-        if (total && parsedValue > total) parsedValue = total;
+        // Constraints
+        if (newEps < 0) newEps = 0;
+        if (anime.ep_total && newEps > anime.ep_total) newEps = anime.ep_total;
 
-        const current = animeData[index].ep_fin || 0;
-        if (parsedValue === current) {
-          renderCards();
-          return;
-        }
+        if (newEps === currentEps) return; // No change needed
 
-        animeData[index].ep_fin = parsedValue;
-        renderCards();
+        // 2. Optimistic Update (Instantly change UI before backend confirms)
+        allAnimeData[index].ep_fin = newEps;
+        renderDashboard(); // Re-render the UI instantly
 
+        // 3. Background API Request
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/anime/${system_id}/progress`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ep_fin: parsedValue }),
-            },
-          );
-          if (!response.ok) throw new Error("Failed to update on server");
+          const res = await fetch(`${API_BASE_URL}/anime/${sys_id}/progress`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ep_fin: newEps }),
+          });
+
+          if (!res.ok)
+            throw new Error(
+              (await res.json()).detail || "Failed to sync to database",
+            );
         } catch (error) {
-          console.error("Error updating progress:", error);
-          animeData[index].ep_fin = current;
-          renderCards();
+          // 4. Revert on Failure
+          console.error("Optimistic Update Failed:", error);
+          allAnimeData[index].ep_fin = currentEps; // Revert memory
+          renderDashboard(); // Re-render to show reverted state
+          showToast("Network error. Progress reverted.", true);
         }
       }
 
+      // --- Sync Orchestration ---
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
@@ -562,11 +498,10 @@
         btn.prepend(icon);
 
         try {
-          const response = await fetch(`${API_BASE_URL}/sync`, {
+          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
             method: "POST",
           });
           if (response.ok) {
-            // Visual success indicator
             icon.classList.remove("fa-spin", "fa-sync-alt");
             icon.classList.add("fa-check");
             btn.classList.remove(
@@ -579,9 +514,9 @@
             btn.innerText = " Synced!";
             btn.prepend(icon);
 
-            await fetchAnime(); // Refresh dashboard data automatically
+            showToast("Successfully synchronized with Google Sheets!");
+            await loadDashboard(); // Silently refresh data
 
-            // Revert button back to normal after 2 seconds
             setTimeout(() => {
               icon.classList.remove("fa-check");
               icon.classList.add("fa-sync-alt");
@@ -591,57 +526,31 @@
               btn.prepend(icon);
             }, 2000);
           } else {
-            // Revert button immediately on error
-            icon.classList.remove("fa-spin");
-            btn.classList.remove("opacity-75", "pointer-events-none");
-            btn.innerText = " Sync";
-            btn.prepend(icon);
-
-            const result = await response.json();
-            alert(`Sync Error: ${result.detail}`);
+            throw new Error((await response.json()).detail);
           }
         } catch (error) {
-          // Revert button immediately on error
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75", "pointer-events-none");
           btn.innerText = " Sync";
           btn.prepend(icon);
 
-          alert("Failed to connect to backend sync.");
+          showToast(`Sync Error: ${error.message}`, true);
         }
       }
 
-      // Scroll to Top Logic
-      window.addEventListener("scroll", () => {
-        const btn = document.getElementById("scrollToTopBtn");
-        if (window.scrollY > 300) {
-          btn.classList.remove(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.add(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        } else {
-          btn.classList.add(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.remove(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        }
-      });
-
-      function scrollToTop() {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      // Initialize
+      document.addEventListener("DOMContentLoaded", loadDashboard);
     </script>
+    <style>
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
   </body>
 </html>
