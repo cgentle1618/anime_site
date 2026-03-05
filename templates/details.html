@@ -1,1161 +1,642 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anime Details - CG1618 Tracker</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <!-- Google Fonts -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
-            colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
-          },
-        },
-      };
-    </script>
-    <style>
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f3f4f6;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #d1d5db;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #9ca3af;
-      }
-      input[type="number"]::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-      }
-      .bg-glass {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-      }
+{% extends "base.html" %} {% block title %}Anime Details - CG1618 Tracker{%
+endblock %} {% block extra_style %}
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; } {%
+endblock %} {% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+  <!-- Loading State -->
+  <div id="loading" class="flex flex-col items-center justify-center h-64">
+    <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+    <p class="text-gray-500 font-medium">Loading details...</p>
+  </div>
 
-      /* Search Dropdown Z-index management */
-      .search-dropdown {
-        max-height: 400px;
-        overflow-y: auto;
-      }
-    </style>
-  </head>
-  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
-    <!-- Universal Top Navigation Bar -->
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center space-x-8">
-            <a
-              href="/"
-              class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
-              >CG1618</a
-            >
-            <div class="hidden md:block">
-              <div class="flex items-baseline space-x-4">
-                <a
-                  href="/"
-                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
-                  >Dashboard</a
-                >
-                <a
-                  href="/library"
-                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
-                  >Library</a
-                >
-
-                <!-- Admin Dropdown -->
-                <div class="relative group">
-                  <button
-                    class="text-gray-600 group-hover:text-gray-900 group-hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
-                  >
-                    Admin <i class="fas fa-chevron-down ml-1.5 text-[10px]"></i>
-                  </button>
-                  <div
-                    class="absolute left-0 top-full pt-1 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
-                  >
-                    <div
-                      class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
-                    >
-                      <a
-                        href="/system"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
-                        >Admin</a
-                      >
-                      <a
-                        href="/add"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
-                        >Add</a
-                      >
-                      <a
-                        href="/modify"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
-                        >Modify</a
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="flex items-center space-x-4 flex-1 justify-end">
-            <!-- Global Search Bar with Suggestions -->
-            <div
-              class="relative w-full max-w-md hidden sm:block"
-              id="globalSearchContainer"
-            >
-              <div
-                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-              >
-                <i class="fas fa-search text-gray-400"></i>
-              </div>
-              <input
-                type="text"
-                id="globalSearchInput"
-                oninput="handleGlobalSearch(this.value)"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
-                placeholder="Search Series or Anime Names..."
-                autocomplete="off"
-              />
-
-              <!-- Suggestions Dropdown -->
-              <div
-                id="searchSuggestions"
-                class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-[100] hidden search-dropdown"
-              >
-                <!-- JS Injected Suggestions -->
-              </div>
-            </div>
-            <button
-              onclick="handleSync()"
-              id="syncBtn"
-              class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
-            >
-              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
-            </button>
-          </div>
-        </div>
-      </div>
+  <!-- Details Container -->
+  <div id="details-content" class="hidden">
+    <!-- Breadcrumbs -->
+    <nav class="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
+      <ol class="inline-flex items-center space-x-2">
+        <li>
+          <a href="/library" class="hover:text-brand transition">Library</a>
+        </li>
+        <li>
+          <i class="fas fa-chevron-right text-[10px] mx-1 opacity-50"></i>
+        </li>
+        <li
+          class="font-medium text-gray-900 truncate max-w-[200px] sm:max-w-md"
+          id="bc-title"
+        >
+          Title
+        </li>
+      </ol>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <!-- Loading State -->
-      <div id="loading" class="flex flex-col items-center justify-center h-64">
-        <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p class="text-gray-500 font-medium">Loading details...</p>
-      </div>
-
-      <!-- Details Container -->
-      <div id="details-content" class="hidden">
-        <!-- Breadcrumbs -->
-        <nav class="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
-          <ol class="inline-flex items-center space-x-2">
-            <li>
-              <a href="/library" class="hover:text-brand transition">Library</a>
-            </li>
-            <li>
-              <i class="fas fa-chevron-right text-[10px] mx-1 opacity-50"></i>
-            </li>
-            <li
-              class="font-medium text-gray-900 truncate max-w-[200px] sm:max-w-md"
-              id="bc-title"
-            >
-              Title
-            </li>
-          </ol>
-        </nav>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <!-- LEFT COLUMN: Metadata & Information -->
-          <div class="lg:col-span-8 space-y-8">
-            <!-- Hero Header Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- LEFT COLUMN: Metadata & Information -->
+      <div class="lg:col-span-8 space-y-8">
+        <!-- Hero Header Section -->
+        <div
+          class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-6"
+        >
+          <div
+            class="w-32 h-48 sm:w-40 sm:h-56 shrink-0 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 mx-auto sm:mx-0 shadow-inner relative"
+          >
+            <img
+              id="d-cover"
+              src=""
+              alt="Cover"
+              class="w-full h-full object-cover hidden"
+            />
             <div
-              class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-6"
+              id="d-cover-fallback"
+              class="absolute inset-0 flex flex-col items-center justify-center text-gray-400"
             >
-              <div
-                class="w-32 h-48 sm:w-40 sm:h-56 shrink-0 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 mx-auto sm:mx-0 shadow-inner relative"
+              <i class="fas fa-image text-3xl mb-2"></i>
+              <span class="text-xs font-bold uppercase tracking-wider"
+                >No Image</span
               >
-                <img
-                  id="d-cover"
-                  src=""
-                  alt="Cover"
-                  class="w-full h-full object-cover hidden"
-                />
-                <div
-                  id="d-cover-fallback"
-                  class="absolute inset-0 flex flex-col items-center justify-center text-gray-400"
-                >
-                  <i class="fas fa-image text-3xl mb-2"></i>
-                  <span class="text-xs font-bold uppercase tracking-wider"
-                    >No Image</span
-                  >
-                </div>
-              </div>
-
-              <div class="flex-1 flex flex-col justify-center">
-                <div class="flex flex-wrap gap-2 mb-3" id="d-badges">
-                  <!-- Badges injected here -->
-                </div>
-                <h1
-                  id="d-title-cn"
-                  class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 leading-tight"
-                >
-                  Chinese Title
-                </h1>
-                <h2
-                  id="d-title-en"
-                  class="text-sm sm:text-base text-gray-500 font-medium mb-2"
-                >
-                  English Title
-                </h2>
-
-                <div
-                  id="d-from-series-container"
-                  class="hidden mb-1 flex items-center flex-wrap"
-                >
-                  <span
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider"
-                    >From Series:</span
-                  >
-                  <a
-                    id="d-from-series-name"
-                    href="#"
-                    class="text-sm font-bold text-brand hover:text-brand-hover transition hover:underline ml-1.5"
-                  ></a>
-                </div>
-
-                <h3 id="d-title-roman" class="text-xs text-gray-400 mb-4 mt-1">
-                  Romaji Title
-                </h3>
-
-                <div class="mt-auto flex flex-wrap gap-3">
-                  <button
-                    id="btn-series-hub"
-                    class="hidden bg-white border border-gray-200 hover:border-brand text-gray-700 hover:text-brand px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all items-center"
-                  >
-                    <i class="fas fa-layer-group text-brand mr-2"></i> View
-                    Series Hub
-                  </button>
-                  <a
-                    id="btn-mal"
-                    href="#"
-                    target="_blank"
-                    class="hidden bg-[#2e51a2] hover:bg-[#1d3a7a] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all items-center"
-                  >
-                    <i class="fas fa-external-link-alt mr-2"></i> MyAnimeList
-                  </a>
-                  <a
-                    id="btn-anilist"
-                    href="#"
-                    target="_blank"
-                    class="hidden bg-[#02a9ff] hover:bg-[#018acb] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all items-center"
-                  >
-                    <i class="fas fa-external-link-alt mr-2"></i> AniList
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <!-- Details Grid -->
-            <div
-              class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
-            >
-              <h3
-                class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
-              >
-                <i class="fas fa-info-circle text-brand mr-2"></i> Information
-              </h3>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-y-6 gap-x-4">
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Type
-                  </p>
-                  <p id="d-type" class="text-sm font-medium text-gray-900">-</p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Episodes
-                  </p>
-                  <p id="d-ep-total" class="text-sm font-medium text-gray-900">
-                    -
-                  </p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Status
-                  </p>
-                  <p id="d-airing" class="text-sm font-medium text-gray-900">
-                    -
-                  </p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Release Date
-                  </p>
-                  <p id="d-release" class="text-sm font-medium text-gray-900">
-                    -
-                  </p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Studio
-                  </p>
-                  <p id="d-studio" class="text-sm font-medium text-gray-900">
-                    -
-                  </p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Director
-                  </p>
-                  <p id="d-director" class="text-sm font-medium text-gray-900">
-                    -
-                  </p>
-                </div>
-                <div class="col-span-2 sm:col-span-3">
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Genres
-                  </p>
-                  <div class="flex flex-wrap gap-2" id="d-genres">
-                    <!-- Genres injected here -->
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Music Section -->
-            <div
-              class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
-            >
-              <h3
-                class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
-              >
-                <i class="fas fa-music text-brand mr-2"></i> Music
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label
-                    class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                    >OP Theme</label
-                  >
-                  <div class="relative">
-                    <select
-                      id="input-op"
-                      onchange="updateField('op', this.value)"
-                      class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
-                    >
-                      <option value="null">-- Select --</option>
-                      <option value="Need">Need</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Done">Done</option>
-                    </select>
-                    <div
-                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
-                    >
-                      <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label
-                    class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                    >ED Theme</label
-                  >
-                  <div class="relative">
-                    <select
-                      id="input-ed"
-                      onchange="updateField('ed', this.value)"
-                      class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
-                    >
-                      <option value="null">-- Select --</option>
-                      <option value="Need">Need</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Done">Done</option>
-                    </select>
-                    <div
-                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
-                    >
-                      <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label
-                    class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                    >Insert / OST</label
-                  >
-                  <div class="relative">
-                    <select
-                      id="input-insert"
-                      onchange="updateField('insert_ost', this.value)"
-                      class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
-                    >
-                      <option value="null">-- Select --</option>
-                      <option value="Need">Need</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Done">Done</option>
-                    </select>
-                    <div
-                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
-                    >
-                      <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Characters and Cast Section -->
-            <div
-              class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
-            >
-              <h3
-                class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
-              >
-                <i class="fas fa-users text-brand mr-2"></i> Characters and Cast
-              </h3>
-              <div class="space-y-4">
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Key Seiyuu (Voice Actors)
-                  </p>
-                  <p
-                    id="d-seiyuu"
-                    class="text-sm text-gray-800 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-line"
-                  >
-                    -
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
-          <!-- RIGHT COLUMN: Interactive Tracker (Sticky) -->
-          <div class="lg:col-span-4">
-            <div class="sticky top-24 space-y-6">
-              <!-- Personal Tracking Card -->
-              <div
-                class="bg-white rounded-2xl p-6 border-2 border-brand/20 shadow-lg relative overflow-hidden"
+          <div class="flex-1 flex flex-col justify-center">
+            <div class="flex flex-wrap gap-2 mb-3" id="d-badges"></div>
+            <h1
+              id="d-title-cn"
+              class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 leading-tight"
+            >
+              Chinese Title
+            </h1>
+            <h2
+              id="d-title-en"
+              class="text-sm sm:text-base text-gray-500 font-medium mb-2"
+            >
+              English Title
+            </h2>
+
+            <div
+              id="d-from-series-container"
+              class="hidden mb-1 flex items-center flex-wrap"
+            >
+              <span
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider"
+                >From Series:</span
               >
-                <div class="absolute top-0 left-0 w-full h-1 bg-brand"></div>
+              <a
+                id="d-from-series-name"
+                href="#"
+                class="text-sm font-bold text-brand hover:text-brand-hover transition hover:underline ml-1.5"
+              ></a>
+            </div>
 
-                <h3 class="text-lg font-bold text-gray-900 mb-5">
-                  <i class="fas fa-tasks text-brand mr-2"></i> My Tracker
-                </h3>
+            <h3 id="d-title-roman" class="text-xs text-gray-400 mb-4 mt-1">
+              Romaji Title
+            </h3>
 
-                <!-- Episode Counter -->
-                <div class="mb-6">
-                  <div class="flex justify-between items-end mb-2">
-                    <label class="text-sm font-bold text-gray-600"
-                      >Episodes Watched</label
-                    >
-                    <span
-                      id="d-progress-pct"
-                      class="text-xs font-bold text-brand"
-                      >0%</span
-                    >
-                  </div>
+            <div class="mt-auto flex flex-wrap gap-3">
+              <button
+                id="btn-series-hub"
+                class="hidden bg-white border border-gray-200 hover:border-brand text-gray-700 hover:text-brand px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all items-center"
+              >
+                <i class="fas fa-layer-group text-brand mr-2"></i> View Series
+                Hub
+              </button>
+              <a
+                id="btn-mal"
+                href="#"
+                target="_blank"
+                class="hidden bg-[#2e51a2] hover:bg-[#1d3a7a] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all items-center"
+              >
+                <i class="fas fa-external-link-alt mr-2"></i> MyAnimeList
+              </a>
+              <a
+                id="btn-anilist"
+                href="#"
+                target="_blank"
+                class="hidden bg-[#02a9ff] hover:bg-[#018acb] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all items-center"
+              >
+                <i class="fas fa-external-link-alt mr-2"></i> AniList
+              </a>
+            </div>
+          </div>
+        </div>
 
-                  <div
-                    class="w-full bg-gray-100 rounded-full h-2.5 mb-4 border border-gray-200 overflow-hidden"
-                  >
-                    <div
-                      id="d-progress-bar"
-                      class="bg-brand h-2.5 rounded-full transition-all duration-500"
-                      style="width: 0%"
-                    ></div>
-                  </div>
+        <!-- Details Grid -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+          <h3
+            class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
+          >
+            <i class="fas fa-info-circle text-brand mr-2"></i> Information
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-y-6 gap-x-4">
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Type
+              </p>
+              <p id="d-type" class="text-sm font-medium text-gray-900">-</p>
+            </div>
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Episodes
+              </p>
+              <p id="d-ep-total" class="text-sm font-medium text-gray-900">-</p>
+            </div>
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Status
+              </p>
+              <p id="d-airing" class="text-sm font-medium text-gray-900">-</p>
+            </div>
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Release Date
+              </p>
+              <p id="d-release" class="text-sm font-medium text-gray-900">-</p>
+            </div>
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Studio
+              </p>
+              <p id="d-studio" class="text-sm font-medium text-gray-900">-</p>
+            </div>
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Director
+              </p>
+              <p id="d-director" class="text-sm font-medium text-gray-900">-</p>
+            </div>
+            <div class="col-span-2 sm:col-span-3">
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Genres
+              </p>
+              <div class="flex flex-wrap gap-2" id="d-genres"></div>
+            </div>
+          </div>
+        </div>
 
-                  <div
-                    class="flex items-center justify-between bg-gray-50 rounded-xl p-2 border border-gray-200"
-                  >
-                    <button
-                      onclick="optimisticUpdate(-1)"
-                      class="w-10 h-10 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-gray-600 transition flex items-center justify-center shadow-sm"
-                    >
-                      <i class="fas fa-minus"></i>
-                    </button>
-
-                    <div
-                      class="font-mono font-bold text-2xl tracking-wider flex items-baseline justify-center"
-                    >
-                      <span id="d-ep-fin" class="text-gray-900 w-12 text-center"
-                        >0</span
-                      >
-                      <span class="text-gray-400 mx-1 text-lg">/</span>
-                      <span
-                        id="d-ep-total-display"
-                        class="text-gray-500 text-lg w-10 text-center"
-                        >?</span
-                      >
-                    </div>
-
-                    <button
-                      onclick="optimisticUpdate(1)"
-                      class="w-10 h-10 rounded-lg bg-brand hover:bg-brand-hover text-white transition flex items-center justify-center shadow-sm"
-                    >
-                      <i class="fas fa-plus"></i>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Status Dropdown -->
-                <div class="mb-4">
-                  <label class="block text-sm font-bold text-gray-600 mb-2"
-                    >Watch Status</label
-                  >
-                  <div class="relative">
-                    <select
-                      id="input-status"
-                      onchange="updateField('my_progress', this.value)"
-                      class="block w-full pl-3 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer"
-                    >
-                      <option value="null">-- Select Status --</option>
-                      <option value="Active Watching">Active Watching</option>
-                      <option value="Passive Watching">Passive Watching</option>
-                      <option value="Paused">Paused</option>
-                      <option value="Temp Dropped">Temp Dropped</option>
-                      <option value="Dropped">Dropped</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Plan to Watch">Plan to Watch</option>
-                      <option value="Might Watch">Might Watch</option>
-                      <option value="Watch When Airs">Watch When Airs</option>
-                      <option value="Won't Watch">Won't Watch</option>
-                    </select>
-                    <div
-                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
-                    >
-                      <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Rating Dropdown -->
-                <div>
-                  <label class="block text-sm font-bold text-gray-600 mb-2"
-                    >My Rating</label
-                  >
-                  <div class="relative">
-                    <select
-                      id="input-rating"
-                      onchange="updateField('rating_mine', this.value)"
-                      class="block w-full pl-3 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer"
-                    >
-                      <option value="null">-- Unrated --</option>
-                      <option value="S">S (Masterpiece)</option>
-                      <option value="A+">A+ (Excellent)</option>
-                      <option value="A">A (Great)</option>
-                      <option value="B">B (Good)</option>
-                      <option value="C">C (Average)</option>
-                      <option value="D">D (Below Average)</option>
-                      <option value="E">E (Poor)</option>
-                      <option value="F">F (Terrible)</option>
-                    </select>
-                    <div
-                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
-                    >
-                      <i class="fas fa-star text-xs"></i>
-                    </div>
-                  </div>
+        <!-- Music Section -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+          <h3
+            class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
+          >
+            <i class="fas fa-music text-brand mr-2"></i> Music
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label
+                class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+                >OP Theme</label
+              >
+              <div class="relative">
+                <select
+                  id="input-op"
+                  onchange="updateField('op', this.value)"
+                  class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
+                >
+                  <option value="null">-- Select --</option>
+                  <option value="Need">Need</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Done">Done</option>
+                </select>
+                <div
+                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                >
+                  <i class="fas fa-chevron-down text-xs"></i>
                 </div>
               </div>
-
-              <!-- Notes Section -->
-              <div
-                class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+            </div>
+            <div>
+              <label
+                class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+                >ED Theme</label
               >
-                <div class="flex justify-between items-center mb-3">
-                  <h3 class="text-sm font-bold text-gray-900">
-                    <i class="fas fa-pen text-brand mr-2"></i> Personal Notes
-                  </h3>
-                  <span
-                    class="text-[10px] text-gray-400 uppercase tracking-wider font-bold bg-gray-100 px-2 py-0.5 rounded"
-                    >Auto-Saves</span
-                  >
+              <div class="relative">
+                <select
+                  id="input-ed"
+                  onchange="updateField('ed', this.value)"
+                  class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
+                >
+                  <option value="null">-- Select --</option>
+                  <option value="Need">Need</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Done">Done</option>
+                </select>
+                <div
+                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                >
+                  <i class="fas fa-chevron-down text-xs"></i>
                 </div>
-                <textarea
-                  id="input-remark"
-                  onblur="updateField('remark', this.value)"
-                  rows="5"
-                  class="block w-full text-sm border-gray-200 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand focus:bg-white transition p-3 placeholder-gray-400 resize-none"
-                  placeholder="Add your thoughts, review, or reminder here..."
-                ></textarea>
+              </div>
+            </div>
+            <div>
+              <label
+                class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+                >Insert / OST</label
+              >
+              <div class="relative">
+                <select
+                  id="input-insert"
+                  onchange="updateField('insert_ost', this.value)"
+                  class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
+                >
+                  <option value="null">-- Select --</option>
+                  <option value="Need">Need</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Done">Done</option>
+                </select>
+                <div
+                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                >
+                  <i class="fas fa-chevron-down text-xs"></i>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- Characters and Cast Section -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+          <h3
+            class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
+          >
+            <i class="fas fa-users text-brand mr-2"></i> Characters and Cast
+          </h3>
+          <div class="space-y-4">
+            <div>
+              <p
+                class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+              >
+                Key Seiyuu (Voice Actors)
+              </p>
+              <p
+                id="d-seiyuu"
+                class="text-sm text-gray-800 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-line"
+              >
+                -
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    </main>
 
-    <!-- Scroll to Top Button -->
-    <button
-      id="scrollToTopBtn"
-      onclick="scrollToTop()"
-      class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
-    >
-      <i class="fas fa-arrow-up"></i>
-    </button>
+      <!-- RIGHT COLUMN: Interactive Tracker (Sticky) -->
+      <div class="lg:col-span-4">
+        <div class="sticky top-24 space-y-6">
+          <div
+            class="bg-white rounded-2xl p-6 border-2 border-brand/20 shadow-lg relative overflow-hidden"
+          >
+            <div class="absolute top-0 left-0 w-full h-1 bg-brand"></div>
+            <h3 class="text-lg font-bold text-gray-900 mb-5">
+              <i class="fas fa-tasks text-brand mr-2"></i> My Tracker
+            </h3>
 
-    <!-- Global Toast Notification -->
-    <div
-      id="toast"
-      class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
-    >
-      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
-      <span id="toast-msg" class="font-medium text-sm"></span>
+            <div class="mb-6">
+              <div class="flex justify-between items-end mb-2">
+                <label class="text-sm font-bold text-gray-600"
+                  >Episodes Watched</label
+                >
+                <span id="d-progress-pct" class="text-xs font-bold text-brand"
+                  >0%</span
+                >
+              </div>
+              <div
+                class="w-full bg-gray-100 rounded-full h-2.5 mb-4 border border-gray-200 overflow-hidden"
+              >
+                <div
+                  id="d-progress-bar"
+                  class="bg-brand h-2.5 rounded-full transition-all duration-500"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <div
+                class="flex items-center justify-between bg-gray-50 rounded-xl p-2 border border-gray-200"
+              >
+                <button
+                  onclick="optimisticUpdate(-1)"
+                  class="w-10 h-10 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-gray-600 transition flex items-center justify-center shadow-sm"
+                >
+                  <i class="fas fa-minus"></i>
+                </button>
+                <div
+                  class="font-mono font-bold text-2xl tracking-wider flex items-baseline justify-center"
+                >
+                  <span id="d-ep-fin" class="text-gray-900 w-12 text-center"
+                    >0</span
+                  >
+                  <span class="text-gray-400 mx-1 text-lg">/</span>
+                  <span
+                    id="d-ep-total-display"
+                    class="text-gray-500 text-lg w-10 text-center"
+                    >?</span
+                  >
+                </div>
+                <button
+                  onclick="optimisticUpdate(1)"
+                  class="w-10 h-10 rounded-lg bg-brand hover:bg-brand-hover text-white transition flex items-center justify-center shadow-sm"
+                >
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-bold text-gray-600 mb-2"
+                >Watch Status</label
+              >
+              <div class="relative">
+                <select
+                  id="input-status"
+                  onchange="updateField('my_progress', this.value)"
+                  class="block w-full pl-3 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer"
+                >
+                  <option value="null">-- Select Status --</option>
+                  <option value="Active Watching">Active Watching</option>
+                  <option value="Passive Watching">Passive Watching</option>
+                  <option value="Paused">Paused</option>
+                  <option value="Temp Dropped">Temp Dropped</option>
+                  <option value="Dropped">Dropped</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Plan to Watch">Plan to Watch</option>
+                  <option value="Might Watch">Might Watch</option>
+                  <option value="Watch When Airs">Watch When Airs</option>
+                  <option value="Won't Watch">Won't Watch</option>
+                </select>
+                <div
+                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                >
+                  <i class="fas fa-chevron-down text-xs"></i>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-gray-600 mb-2"
+                >My Rating</label
+              >
+              <div class="relative">
+                <select
+                  id="input-rating"
+                  onchange="updateField('rating_mine', this.value)"
+                  class="block w-full pl-3 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer"
+                >
+                  <option value="null">-- Unrated --</option>
+                  <option value="S">S (Masterpiece)</option>
+                  <option value="A+">A+ (Excellent)</option>
+                  <option value="A">A (Great)</option>
+                  <option value="B">B (Good)</option>
+                  <option value="C">C (Average)</option>
+                  <option value="D">D (Below Average)</option>
+                  <option value="E">E (Poor)</option>
+                  <option value="F">F (Terrible)</option>
+                </select>
+                <div
+                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                >
+                  <i class="fas fa-star text-xs"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+          >
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-sm font-bold text-gray-900">
+                <i class="fas fa-pen text-brand mr-2"></i> Personal Notes
+              </h3>
+              <span
+                class="text-[10px] text-gray-400 uppercase tracking-wider font-bold bg-gray-100 px-2 py-0.5 rounded"
+                >Auto-Saves</span
+              >
+            </div>
+            <textarea
+              id="input-remark"
+              onblur="updateField('remark', this.value)"
+              rows="5"
+              class="block w-full text-sm border-gray-200 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand focus:bg-white transition p-3 placeholder-gray-400 resize-none"
+              placeholder="Add your thoughts..."
+            ></textarea>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
+</div>
+{% endblock %} {% block extra_scripts %}
+<script>
+  // Get systemId from the Jinja2 context provided by the backend
+  const systemId = "{{ system_id }}";
+  let animeData = null;
 
-    <script>
-      const API_BASE_URL = "/api";
-      const systemId = window.location.pathname.split("/").pop();
-      let animeData = null;
+  function onSyncComplete() {
+    loadDetails();
+  }
 
-      // Global Data variables for Search functionality
-      let allAnimeData = [];
-      let allSeriesData = [];
+  async function loadDetails() {
+    try {
+      const response = await fetch(`${GLOBAL_API_BASE}/anime/${systemId}`);
+      if (!response.ok) throw new Error("Anime not found");
+      animeData = await response.json();
+      renderDetails();
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("details-content").classList.remove("hidden");
+    } catch (error) {
+      document.getElementById("loading").innerHTML = `
+        <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200 max-w-md mx-auto">
+            <i class="fas fa-exclamation-triangle mb-2 text-3xl"></i>
+            <p class="font-bold text-lg mb-1">Anime Not Found</p>
+            <a href="/library" class="inline-block bg-white text-gray-700 font-bold px-4 py-2 rounded border border-gray-300 hover:bg-gray-50 transition">Return to Library</a>
+        </div>`;
+    }
+  }
 
-      // --- Universal UI Features ---
-      const searchInput = document.getElementById("globalSearchInput");
-      searchInput.addEventListener("keypress", function (e) {
-        if (e.key === "Enter") {
-          const query = e.target.value.trim();
-          if (query)
-            window.location.href = `/search?q=${encodeURIComponent(query)}`;
-        }
-      });
+  function renderDetails() {
+    const d = animeData;
+    const mainTitle =
+      d.series_season_cn ||
+      d.series_season_en ||
+      d.series_en ||
+      "Unknown Title";
 
-      // Handle clicking outside search container
-      document.addEventListener("click", function (e) {
-        const container = document.getElementById("globalSearchContainer");
-        const suggestions = document.getElementById("searchSuggestions");
-        if (container && !container.contains(e.target)) {
-          suggestions.classList.add("hidden");
-        }
-      });
+    document.getElementById("bc-title").innerText = mainTitle;
+    document.getElementById("d-title-cn").innerText = mainTitle;
+    document.getElementById("d-title-en").innerText =
+      d.series_season_en || d.series_en || "-";
+    document.getElementById("d-title-roman").innerText =
+      d.series_season_roman || "";
 
-      function showToast(message, isError = false) {
-        const toast = document.getElementById("toast");
-        const msg = document.getElementById("toast-msg");
-        const icon = document.getElementById("toast-icon");
+    if (d.series_en) {
+      const seriesNameEl = document.getElementById("d-from-series-name");
+      seriesNameEl.innerText = d.series_en;
+      document
+        .getElementById("d-from-series-container")
+        .classList.remove("hidden");
 
-        msg.innerText = message;
-        if (isError) {
-          icon.className =
-            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
-          toast.classList.replace("bg-gray-900", "bg-red-900");
-        } else {
-          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
-          toast.classList.replace("bg-red-900", "bg-gray-900");
-        }
-
-        toast.classList.remove("translate-y-20", "opacity-0");
-        setTimeout(
-          () => toast.classList.add("translate-y-20", "opacity-0"),
-          3000,
-        );
-      }
-
-      // --- Scroll to Top Engine ---
-      window.addEventListener("scroll", () => {
-        const btn = document.getElementById("scrollToTopBtn");
-        if (window.scrollY > 300) {
-          btn.classList.remove(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.add(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        } else {
-          btn.classList.add(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.remove(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        }
-      });
-
-      function scrollToTop() {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-
-      // --- Search Suggestions Logic ---
-      function normalize(str) {
-        if (!str) return "";
-        return String(str)
-          .toLowerCase()
-          .replace(/[^\p{L}\p{N}]/gu, "");
-      }
-
-      function handleGlobalSearch(query) {
-        const suggestionsDiv = document.getElementById("searchSuggestions");
-        if (!query || query.trim().length < 1) {
-          suggestionsDiv.classList.add("hidden");
-          return;
-        }
-
-        const qNorm = normalize(query);
-        const results = [];
-
-        // 1. Search Series
-        allSeriesData.forEach((s) => {
-          const matchText = [
-            s.series_en,
-            s.series_cn,
-            s.alt_name,
-            s.series_roman,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          if (normalize(matchText).includes(qNorm)) {
-            results.push({ type: "series", data: s });
+      fetch(
+        `${GLOBAL_API_BASE}/series/details/${encodeURIComponent(d.series_en)}`,
+      )
+        .then((res) => res.json())
+        .then((seriesMeta) => {
+          if (seriesMeta && seriesMeta.system_id) {
+            seriesNameEl.innerText =
+              seriesMeta.series_cn || seriesMeta.series_en;
+            seriesNameEl.href = `/series/${seriesMeta.system_id}`;
+            const btnSeries = document.getElementById("btn-series-hub");
+            btnSeries.onclick = () =>
+              (window.location.href = `/series/${seriesMeta.system_id}`);
+            btnSeries.classList.remove("hidden");
+            btnSeries.classList.add("inline-flex");
           }
-        });
+        })
+        .catch(() => {});
+    }
 
-        // 2. Search Anime
-        allAnimeData.forEach((a) => {
-          const matchText = [
-            a.series_season_cn,
-            a.series_season_en,
-            a.series_en,
-            a.series_season_roman,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          if (normalize(matchText).includes(qNorm)) {
-            results.push({ type: "anime", data: a });
-          }
-        });
+    const coverImg = document.getElementById("d-cover");
+    const fallback = document.getElementById("d-cover-fallback");
+    if (d.cover_image_url) {
+      coverImg.src = d.cover_image_url;
+      coverImg.classList.remove("hidden");
+      fallback.classList.add("hidden");
+    }
 
-        // Sort & Limit
-        const limitedResults = results.slice(0, 10);
+    if (d.mal_link) {
+      const btn = document.getElementById("btn-mal");
+      btn.href = d.mal_link;
+      btn.classList.replace("hidden", "inline-flex");
+    }
+    if (d.anilist_link) {
+      const btn = document.getElementById("btn-anilist");
+      btn.href = d.anilist_link;
+      btn.classList.replace("hidden", "inline-flex");
+    }
 
-        if (limitedResults.length === 0) {
-          suggestionsDiv.classList.add("hidden");
-          return;
-        }
+    let badgesHtml = "";
+    if (d.airing_status)
+      badgesHtml += `<span class="px-2 py-1 rounded shadow-sm text-xs font-bold border ${d.airing_status === "Currently Airing" ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}">${d.airing_status}</span>`;
+    if (d.mal_rating)
+      badgesHtml += `<span class="bg-[#2e51a2] text-white px-2 py-1 rounded text-xs font-bold"><i class="fas fa-star text-yellow-400 mr-1"></i>${d.mal_rating.toFixed(2)}</span>`;
 
-        suggestionsDiv.innerHTML = limitedResults
-          .map((res) => {
-            if (res.type === "anime") {
-              const a = res.data;
-              const seriesName = a.series_cn || a.series_en;
-              return `
-                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
-                         onclick="window.location.href='/anime/${a.system_id}'">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
-                            <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
-                        </div>
-                        <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesName}</div>
-                    </div>
-                  `;
-            } else {
-              const s = res.data;
-              return `
-                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
-                         onclick="window.location.href='/series/${s.system_id}'">
-                        <div class="flex items-center mb-1">
-                            <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
-                        </div>
-                        <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
-                        <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
-                    </div>
-                  `;
-            }
-          })
-          .join("");
+    const hasBaha =
+      String(d.source_baha || "").toUpperCase() === "TRUE" ||
+      String(d.source_baha || "") === "有";
+    if (hasBaha)
+      badgesHtml += `<span class="bg-[#00B4D8] text-white px-2 py-1 rounded text-xs font-bold">巴哈姆特動畫瘋</span>`;
+    document.getElementById("d-badges").innerHTML = badgesHtml;
 
-        suggestionsDiv.classList.remove("hidden");
-      }
+    document.getElementById("d-type").innerText = d.airing_type || "-";
+    document.getElementById("d-ep-total").innerText = d.ep_total || "?";
+    document.getElementById("d-airing").innerText = d.airing_status || "-";
+    document.getElementById("d-release").innerText = d.release_date || "TBA";
+    document.getElementById("d-studio").innerText = d.studio || "-";
+    document.getElementById("d-director").innerText = d.director || "-";
 
-      async function loadSearchData() {
-        try {
-          const [animeRes, seriesRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/anime`),
-            fetch(`${API_BASE_URL}/series`),
-          ]);
-          if (animeRes.ok) allAnimeData = await animeRes.json();
-          if (seriesRes.ok) allSeriesData = await seriesRes.json();
-        } catch (e) {
-          console.error("Failed to load background search data.", e);
-        }
-      }
-
-      // --- Data Loading (Page Focus) ---
-      async function loadDetails() {
-        try {
-          const response = await fetch(`${API_BASE_URL}/anime/${systemId}`);
-          if (!response.ok) throw new Error("Anime not found");
-
-          animeData = await response.json();
-          renderDetails();
-
-          document.getElementById("loading").classList.add("hidden");
-          document.getElementById("details-content").classList.remove("hidden");
-        } catch (error) {
-          document.getElementById("loading").innerHTML = `
-            <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200 max-w-md mx-auto">
-                <i class="fas fa-exclamation-triangle mb-2 text-3xl"></i>
-                <p class="font-bold text-lg mb-1">Anime Not Found</p>
-                <p class="text-sm text-gray-700 mb-4">The requested entry could not be located in the database.</p>
-                <a href="/library" class="inline-block bg-white text-gray-700 font-bold px-4 py-2 rounded border border-gray-300 hover:bg-gray-50 transition">Return to Library</a>
-            </div>`;
-        }
-      }
-
-      function renderDetails() {
-        const d = animeData;
-        const mainTitle =
-          d.series_season_cn ||
-          d.series_season_en ||
-          d.series_en ||
-          "Unknown Title";
-
-        // Breadcrumb & Headings
-        document.getElementById("bc-title").innerText = mainTitle;
-        document.getElementById("d-title-cn").innerText = mainTitle;
-        document.getElementById("d-title-en").innerText =
-          d.series_season_en || d.series_en || "-";
-        document.getElementById("d-title-roman").innerText =
-          d.series_season_roman || "";
-
-        // Auto-resolve Series Hub logic
-        if (d.series_en) {
-          const seriesContainer = document.getElementById(
-            "d-from-series-container",
-          );
-          const seriesNameEl = document.getElementById("d-from-series-name");
-
-          // Set fallback immediately
-          seriesNameEl.innerText = d.series_en;
-          seriesContainer.classList.remove("hidden");
-
-          // Look up series details dynamically
-          fetch(
-            `${API_BASE_URL}/series/details/${encodeURIComponent(d.series_en)}`,
+    const genres = [d.genre_main, d.genre_sub].filter(Boolean);
+    document.getElementById("d-genres").innerHTML = genres.length
+      ? genres
+          .map(
+            (g) =>
+              `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded-md text-[11px] font-bold border border-gray-200 uppercase">${g}</span>`,
           )
-            .then((res) => res.json())
-            .then((seriesMeta) => {
-              if (seriesMeta && seriesMeta.system_id) {
-                // Display CN name if available, else EN
-                seriesNameEl.innerText =
-                  seriesMeta.series_cn || seriesMeta.series_en;
-                seriesNameEl.href = `/series/${seriesMeta.system_id}`;
+          .join("")
+      : "-";
+    document.getElementById("d-seiyuu").innerText = d.seiyuu || "-";
 
-                // Keep button logic operational as well
-                const btnSeries = document.getElementById("btn-series-hub");
-                btnSeries.onclick = () =>
-                  (window.location.href = `/series/${seriesMeta.system_id}`);
-                btnSeries.classList.remove("hidden");
-                btnSeries.classList.add("inline-flex");
-              }
-            })
-            .catch(() => {});
-        }
+    updateTrackerUI();
 
-        // Cover Image
-        const coverImg = document.getElementById("d-cover");
-        const fallback = document.getElementById("d-cover-fallback");
-        if (d.cover_image_url) {
-          coverImg.src = d.cover_image_url;
-          coverImg.classList.remove("hidden");
-          fallback.classList.add("hidden");
-        }
+    const progressVal =
+      d.my_progress === "Finished" ? "Completed" : d.my_progress;
+    if (progressVal)
+      document.getElementById("input-status").value = progressVal;
+    if (d.rating_mine)
+      document.getElementById("input-rating").value = d.rating_mine;
+    if (d.remark) document.getElementById("input-remark").value = d.remark;
+    if (d.op) document.getElementById("input-op").value = d.op;
+    if (d.ed) document.getElementById("input-ed").value = d.ed;
+    if (d.insert_ost)
+      document.getElementById("input-insert").value = d.insert_ost;
+  }
 
-        // Links
-        if (d.mal_link) {
-          const btnMal = document.getElementById("btn-mal");
-          btnMal.href = d.mal_link;
-          btnMal.classList.remove("hidden");
-          btnMal.classList.add("inline-flex");
-        }
-        if (d.anilist_link) {
-          const btnAL = document.getElementById("btn-anilist");
-          btnAL.href = d.anilist_link;
-          btnAL.classList.remove("hidden");
-          btnAL.classList.add("inline-flex");
-        }
+  function updateTrackerUI() {
+    const currentEps = animeData.ep_fin || 0;
+    const totalEps = animeData.ep_total || "?";
+    document.getElementById("d-ep-fin").innerText = currentEps;
+    document.getElementById("d-ep-total-display").innerText = totalEps;
+    const bar = document.getElementById("d-progress-bar");
+    const pctText = document.getElementById("d-progress-pct");
 
-        // Badges
-        let badgesHtml = "";
-        if (d.airing_status)
-          badgesHtml += `<span class="px-2 py-1 rounded shadow-sm text-xs font-bold border ${d.airing_status === "Currently Airing" ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}"><i class="fas fa-broadcast-tower mr-1.5 opacity-70"></i>${d.airing_status}</span>`;
-        if (d.mal_rating)
-          badgesHtml += `<span class="bg-[#2e51a2] text-white px-2 py-1 rounded shadow-sm text-xs font-bold border border-[#1d3a7a]"><i class="fas fa-star text-yellow-400 mr-1"></i>Score: ${d.mal_rating.toFixed(2)}</span>`;
-        if (d.mal_rank && String(d.mal_rank).toUpperCase() !== "N/A")
-          badgesHtml += `<span class="bg-gray-800 text-white px-2 py-1 rounded shadow-sm text-xs font-bold border border-gray-900">Rank #${d.mal_rank}</span>`;
+    if (animeData.ep_total) {
+      const pct = Math.round((currentEps / animeData.ep_total) * 100);
+      bar.style.width = `${pct}%`;
+      pctText.innerText = `${pct}%`;
+    } else if (currentEps > 0) {
+      bar.style.width = `100%`;
+      bar.classList.add("animate-pulse");
+      pctText.innerText = "Ongoing";
+    } else {
+      bar.style.width = `0%`;
+      pctText.innerText = "0%";
+    }
+  }
 
-        const hasBaha =
-          String(d.source_baha || "").toUpperCase() === "TRUE" ||
-          String(d.source_baha || "").toUpperCase() === "YES" ||
-          String(d.source_baha || "") === "有";
-        if (hasBaha)
-          badgesHtml += `<span class="bg-[#00B4D8] text-white px-2 py-1 rounded shadow-sm text-xs font-bold border border-[#0096C7]"><i class="fas fa-play-circle mr-1"></i>巴哈姆特動畫瘋</span>`;
-
-        document.getElementById("d-badges").innerHTML = badgesHtml;
-
-        // Meta Grid
-        document.getElementById("d-type").innerText = d.airing_type || "-";
-        document.getElementById("d-ep-total").innerText = d.ep_total || "?";
-        document.getElementById("d-airing").innerText = d.airing_status || "-";
-        document.getElementById("d-release").innerText =
-          d.release_date || "TBA";
-        document.getElementById("d-studio").innerText = d.studio || "-";
-        document.getElementById("d-director").innerText = d.director || "-";
-
-        // Genres
-        const genresList = [d.genre_main, d.genre_sub].filter(Boolean);
-        if (genresList.length > 0) {
-          document.getElementById("d-genres").innerHTML = genresList
-            .map(
-              (g) =>
-                `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border border-gray-200">${g}</span>`,
-            )
-            .join("");
-        } else {
-          document.getElementById("d-genres").innerHTML =
-            `<span class="text-sm font-medium text-gray-500">-</span>`;
-        }
-
-        // Characters and Cast
-        document.getElementById("d-seiyuu").innerText = d.seiyuu || "-";
-
-        // Inputs & Tracker UI
-        updateTrackerUI();
-
-        // Safely set dropdowns and text areas
-        let progressVal = d.my_progress;
-        if (progressVal === "Finished") progressVal = "Completed"; // Legacy fix
-
-        if (progressVal)
-          document.getElementById("input-status").value = progressVal;
-        if (d.rating_mine)
-          document.getElementById("input-rating").value = d.rating_mine;
-        if (d.remark) document.getElementById("input-remark").value = d.remark;
-
-        // Music interactive dropdowns
-        if (d.op) document.getElementById("input-op").value = d.op;
-        if (d.ed) document.getElementById("input-ed").value = d.ed;
-        if (d.insert_ost)
-          document.getElementById("input-insert").value = d.insert_ost;
-      }
-
-      function updateTrackerUI() {
-        const currentEps = animeData.ep_fin || 0;
-        const totalEps = animeData.ep_total || "?";
-
-        document.getElementById("d-ep-fin").innerText = currentEps;
-        document.getElementById("d-ep-total-display").innerText = totalEps;
-
-        const bar = document.getElementById("d-progress-bar");
-        const pctText = document.getElementById("d-progress-pct");
-
-        if (animeData.ep_total) {
-          const pct = Math.round((currentEps / animeData.ep_total) * 100);
-          bar.style.width = `${pct}%`;
-          pctText.innerText = `${pct}%`;
-        } else if (currentEps > 0) {
-          // Ongoing effect if total is unknown
-          bar.style.width = `100%`;
-          bar.classList.add("animate-pulse");
-          pctText.innerText = "Ongoing";
-        } else {
-          bar.style.width = `0%`;
-          pctText.innerText = "0%";
-        }
-      }
-
-      // --- Optimistic State Management ---
-      async function optimisticUpdate(change) {
-        const currentEps = animeData.ep_fin || 0;
-        let newEps = currentEps + change;
-
-        // Constraints
-        if (newEps < 0) newEps = 0;
-        if (animeData.ep_total && newEps > animeData.ep_total)
-          newEps = animeData.ep_total;
-        if (newEps === currentEps) return; // No change
-
-        // 1. Optimistic Update
-        animeData.ep_fin = newEps;
-        updateTrackerUI();
-
-        // 2. Background Save
-        try {
-          const res = await fetch(
-            `${API_BASE_URL}/anime/${systemId}/progress`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ep_fin: newEps }),
-            },
-          );
-          if (!res.ok) throw new Error("Failed to save progress");
-        } catch (error) {
-          // Revert on error
-          animeData.ep_fin = currentEps;
-          updateTrackerUI();
-          showToast("Network error. Progress reverted.", true);
-        }
-      }
-
-      // Generic Updater for Dropdowns and Textarea
-      async function updateField(field, value) {
-        let originalValue = animeData[field];
-
-        // Legacy mapping check
-        if (field === "my_progress" && originalValue === "Finished") {
-          originalValue = "Completed";
-        }
-
-        // Only update if changed (prevents empty text area blurring triggering unnecessary API calls)
-        if (
-          originalValue === value ||
-          (originalValue === null && value === "null") ||
-          (!originalValue && !value && value !== 0)
-        )
-          return;
-
-        try {
-          const payload = {};
-          payload[field] = value;
-
-          const res = await fetch(
-            `${API_BASE_URL}/anime/${systemId}/progress`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            },
-          );
-
-          if (!res.ok) throw new Error("Update failed");
-
-          // Update local memory on success
-          animeData[field] = value === "null" ? null : value;
-
-          if (field === "remark") showToast("Notes saved successfully!");
-          else if (["op", "ed", "insert_ost"].includes(field))
-            showToast("Music status updated.");
-          else showToast("Status updated successfully!");
-        } catch (error) {
-          // Revert UI if failed
-          if (field === "my_progress")
-            document.getElementById("input-status").value =
-              originalValue || "null";
-          if (field === "rating_mine")
-            document.getElementById("input-rating").value =
-              originalValue || "null";
-          if (field === "op")
-            document.getElementById("input-op").value = originalValue || "null";
-          if (field === "ed")
-            document.getElementById("input-ed").value = originalValue || "null";
-          if (field === "insert_ost")
-            document.getElementById("input-insert").value =
-              originalValue || "null";
-
-          showToast("Failed to save changes.", true);
-        }
-      }
-
-      // --- Sync Orchestration ---
-      async function handleSync() {
-        const icon = document.getElementById("syncIcon");
-        const btn = document.getElementById("syncBtn");
-
-        icon.classList.add("fa-spin");
-        btn.classList.add("opacity-75", "pointer-events-none");
-        btn.innerText = " Syncing...";
-        btn.prepend(icon);
-
-        try {
-          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
-            method: "POST",
-          });
-          if (response.ok) {
-            icon.classList.remove("fa-spin", "fa-sync-alt");
-            icon.classList.add("fa-check");
-            btn.classList.remove(
-              "bg-brand",
-              "hover:bg-brand-hover",
-              "opacity-75",
-              "pointer-events-none",
-            );
-            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
-            btn.innerText = " Synced!";
-            btn.prepend(icon);
-
-            showToast("Successfully synchronized with Google Sheets!");
-            await loadDetails(); // Refresh specific metadata silently
-
-            setTimeout(() => {
-              icon.classList.remove("fa-check");
-              icon.classList.add("fa-sync-alt");
-              btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
-              btn.classList.add("bg-brand", "hover:bg-brand-hover");
-              btn.innerText = " Sync";
-              btn.prepend(icon);
-            }, 2000);
-          } else {
-            throw new Error((await response.json()).detail);
-          }
-        } catch (error) {
-          icon.classList.remove("fa-spin");
-          btn.classList.remove("opacity-75", "pointer-events-none");
-          btn.innerText = " Sync";
-          btn.prepend(icon);
-
-          showToast(`Sync Error: ${error.message}`, true);
-        }
-      }
-
-      // Initialize
-      document.addEventListener("DOMContentLoaded", () => {
-        loadDetails();
-        loadSearchData(); // Non-blocking background fetch for the search bar
+  async function optimisticUpdate(change) {
+    const currentEps = animeData.ep_fin || 0;
+    let newEps = currentEps + change;
+    if (newEps < 0) newEps = 0;
+    if (animeData.ep_total && newEps > animeData.ep_total)
+      newEps = animeData.ep_total;
+    if (newEps === currentEps) return;
+    animeData.ep_fin = newEps;
+    updateTrackerUI();
+    try {
+      const res = await fetch(`${GLOBAL_API_BASE}/anime/${systemId}/progress`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ep_fin: newEps }),
       });
-    </script>
-  </body>
-</html>
+      if (!res.ok) throw new Error("Save failed");
+    } catch (error) {
+      animeData.ep_fin = currentEps;
+      updateTrackerUI();
+      showToast("Network error. Progress reverted.", true);
+    }
+  }
+
+  async function updateField(field, value) {
+    let originalValue = animeData[field];
+    if (field === "my_progress" && originalValue === "Finished")
+      originalValue = "Completed";
+    if (originalValue === value || (originalValue === null && value === "null"))
+      return;
+    try {
+      const payload = {};
+      payload[field] = value;
+      const res = await fetch(`${GLOBAL_API_BASE}/anime/${systemId}/progress`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      animeData[field] = value === "null" ? null : value;
+      showToast("Field updated successfully!");
+    } catch (error) {
+      document.getElementById(`input-${field.replace("_", "-")}`).value =
+        originalValue || "null";
+      showToast("Failed to save changes.", true);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadDetails);
+</script>
+{% endblock %}
