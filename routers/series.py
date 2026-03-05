@@ -11,6 +11,7 @@ from typing import List
 import models
 import schemas
 from dependencies import get_db
+import services.sheets_client as sheets_client
 
 # Initialize the router with a standard prefix
 router = APIRouter(prefix="/api/series", tags=["Franchise Hubs"])
@@ -97,7 +98,16 @@ def update_series_state(
     if "rating_series" in payload:
         val = payload["rating_series"]
         # Convert JS 'null' strings to true Python None
-        series.rating_series = None if val == "null" else val
+        new_val = None if val == "null" else val
+        series.rating_series = new_val
+
+        try:
+            # Instantly mirror the rating change to Google Sheets
+            sheets_client.update_series_row(
+                system_id, {"rating_series": val if val != "null" else ""}
+            )
+        except Exception as e:
+            print(f"Warning: Could not update Google Sheet for Series Rating: {e}")
 
     db.commit()
     return {"status": "success"}
