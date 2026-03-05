@@ -97,7 +97,7 @@ def update_anime_progress(
     system_id: str, payload: dict = Body(...), db: Session = Depends(get_db)
 ):
     """
-    Dynamically updates allowed fields (ep_fin, my_progress, rating_mine, remark).
+    Dynamically updates allowed fields (ep_fin, my_progress, rating_mine, remark, op, ed, insert_ost).
     This endpoint mirrors the change to Google Sheets immediately to maintain parity.
     """
     anime = (
@@ -109,7 +109,15 @@ def update_anime_progress(
         raise HTTPException(status_code=404, detail="Anime not found.")
 
     # Define fields that the frontend is permitted to update via PATCH
-    allowed_fields = ["ep_fin", "my_progress", "rating_mine", "remark"]
+    allowed_fields = [
+        "ep_fin",
+        "my_progress",
+        "rating_mine",
+        "remark",
+        "op",
+        "ed",
+        "insert_ost",
+    ]
     updated_fields = {}
 
     for field in allowed_fields:

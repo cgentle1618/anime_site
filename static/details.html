@@ -47,6 +47,12 @@
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(10px);
       }
+
+      /* Search Dropdown Z-index management */
+      .search-dropdown {
+        max-height: 400px;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
@@ -101,11 +107,6 @@
                         class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
                         >Modify</a
                       >
-                      <a
-                        href="/delete"
-                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
-                        >Delete</a
-                      >
                     </div>
                   </div>
                 </div>
@@ -113,7 +114,11 @@
             </div>
           </div>
           <div class="flex items-center space-x-4 flex-1 justify-end">
-            <div class="relative w-full max-w-md hidden sm:block">
+            <!-- Global Search Bar with Suggestions -->
+            <div
+              class="relative w-full max-w-md hidden sm:block"
+              id="globalSearchContainer"
+            >
               <div
                 class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
               >
@@ -122,9 +127,19 @@
               <input
                 type="text"
                 id="globalSearchInput"
+                oninput="handleGlobalSearch(this.value)"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
                 placeholder="Search Series or Anime Names..."
+                autocomplete="off"
               />
+
+              <!-- Suggestions Dropdown -->
+              <div
+                id="searchSuggestions"
+                class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-[100] hidden search-dropdown"
+              >
+                <!-- JS Injected Suggestions -->
+              </div>
             </div>
             <button
               onclick="handleSync()"
@@ -205,11 +220,27 @@
                 </h1>
                 <h2
                   id="d-title-en"
-                  class="text-sm sm:text-base text-gray-500 font-medium mb-1"
+                  class="text-sm sm:text-base text-gray-500 font-medium mb-2"
                 >
                   English Title
                 </h2>
-                <h3 id="d-title-roman" class="text-xs text-gray-400 mb-4">
+
+                <div
+                  id="d-from-series-container"
+                  class="hidden mb-1 flex items-center flex-wrap"
+                >
+                  <span
+                    class="text-xs font-bold text-gray-400 uppercase tracking-wider"
+                    >From Series:</span
+                  >
+                  <a
+                    id="d-from-series-name"
+                    href="#"
+                    class="text-sm font-bold text-brand hover:text-brand-hover transition hover:underline ml-1.5"
+                  ></a>
+                </div>
+
+                <h3 id="d-title-roman" class="text-xs text-gray-400 mb-4 mt-1">
                   Romaji Title
                 </h3>
 
@@ -322,55 +353,98 @@
               </div>
             </div>
 
-            <!-- Music & Staff Section -->
+            <!-- Music Section -->
             <div
               class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
             >
               <h3
                 class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
               >
-                <i class="fas fa-music text-brand mr-2"></i> Audio & Cast
+                <i class="fas fa-music text-brand mr-2"></i> Music
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+                    >OP Theme</label
+                  >
+                  <div class="relative">
+                    <select
+                      id="input-op"
+                      onchange="updateField('op', this.value)"
+                      class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
+                    >
+                      <option value="null">-- Select --</option>
+                      <option value="Need">Need</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Done">Done</option>
+                    </select>
+                    <div
+                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                    >
+                      <i class="fas fa-chevron-down text-xs"></i>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+                    >ED Theme</label
+                  >
+                  <div class="relative">
+                    <select
+                      id="input-ed"
+                      onchange="updateField('ed', this.value)"
+                      class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
+                    >
+                      <option value="null">-- Select --</option>
+                      <option value="Need">Need</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Done">Done</option>
+                    </select>
+                    <div
+                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                    >
+                      <i class="fas fa-chevron-down text-xs"></i>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label
+                    class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
+                    >Insert / OST</label
+                  >
+                  <div class="relative">
+                    <select
+                      id="input-insert"
+                      onchange="updateField('insert_ost', this.value)"
+                      class="block w-full pl-3 pr-10 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand font-medium text-gray-800 appearance-none cursor-pointer transition"
+                    >
+                      <option value="null">-- Select --</option>
+                      <option value="Need">Need</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Done">Done</option>
+                    </select>
+                    <div
+                      class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                    >
+                      <i class="fas fa-chevron-down text-xs"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Characters and Cast Section -->
+            <div
+              class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+            >
+              <h3
+                class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
+              >
+                <i class="fas fa-users text-brand mr-2"></i> Characters and Cast
               </h3>
               <div class="space-y-4">
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Opening Theme (OP)
-                  </p>
-                  <p
-                    id="d-op"
-                    class="text-sm text-gray-800 bg-gray-50 p-2.5 rounded-lg border border-gray-100"
-                  >
-                    -
-                  </p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Ending Theme (ED)
-                  </p>
-                  <p
-                    id="d-ed"
-                    class="text-sm text-gray-800 bg-gray-50 p-2.5 rounded-lg border border-gray-100"
-                  >
-                    -
-                  </p>
-                </div>
-                <div>
-                  <p
-                    class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
-                  >
-                    Insert Songs / OST
-                  </p>
-                  <p
-                    id="d-ost"
-                    class="text-sm text-gray-800 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-line"
-                  >
-                    -
-                  </p>
-                </div>
                 <div>
                   <p
                     class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"
@@ -475,7 +549,6 @@
                       <option value="Temp Dropped">Temp Dropped</option>
                       <option value="Dropped">Dropped</option>
                       <option value="Completed">Completed</option>
-                      <option value="Finished">Finished</option>
                       <option value="Plan to Watch">Plan to Watch</option>
                       <option value="Might Watch">Might Watch</option>
                       <option value="Watch When Airs">Watch When Airs</option>
@@ -546,6 +619,15 @@
       </div>
     </main>
 
+    <!-- Scroll to Top Button -->
+    <button
+      id="scrollToTopBtn"
+      onclick="scrollToTop()"
+      class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    >
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
     <!-- Global Toast Notification -->
     <div
       id="toast"
@@ -560,6 +642,10 @@
       const systemId = window.location.pathname.split("/").pop();
       let animeData = null;
 
+      // Global Data variables for Search functionality
+      let allAnimeData = [];
+      let allSeriesData = [];
+
       // --- Universal UI Features ---
       const searchInput = document.getElementById("globalSearchInput");
       searchInput.addEventListener("keypress", function (e) {
@@ -567,6 +653,15 @@
           const query = e.target.value.trim();
           if (query)
             window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        }
+      });
+
+      // Handle clicking outside search container
+      document.addEventListener("click", function (e) {
+        const container = document.getElementById("globalSearchContainer");
+        const suggestions = document.getElementById("searchSuggestions");
+        if (container && !container.contains(e.target)) {
+          suggestions.classList.add("hidden");
         }
       });
 
@@ -592,7 +687,143 @@
         );
       }
 
-      // --- Data Loading ---
+      // --- Scroll to Top Engine ---
+      window.addEventListener("scroll", () => {
+        const btn = document.getElementById("scrollToTopBtn");
+        if (window.scrollY > 300) {
+          btn.classList.remove(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        } else {
+          btn.classList.add(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        }
+      });
+
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // --- Search Suggestions Logic ---
+      function normalize(str) {
+        if (!str) return "";
+        return String(str)
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}]/gu, "");
+      }
+
+      function handleGlobalSearch(query) {
+        const suggestionsDiv = document.getElementById("searchSuggestions");
+        if (!query || query.trim().length < 1) {
+          suggestionsDiv.classList.add("hidden");
+          return;
+        }
+
+        const qNorm = normalize(query);
+        const results = [];
+
+        // 1. Search Series
+        allSeriesData.forEach((s) => {
+          const matchText = [
+            s.series_en,
+            s.series_cn,
+            s.alt_name,
+            s.series_roman,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (normalize(matchText).includes(qNorm)) {
+            results.push({ type: "series", data: s });
+          }
+        });
+
+        // 2. Search Anime
+        allAnimeData.forEach((a) => {
+          const matchText = [
+            a.series_season_cn,
+            a.series_season_en,
+            a.series_en,
+            a.series_season_roman,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (normalize(matchText).includes(qNorm)) {
+            results.push({ type: "anime", data: a });
+          }
+        });
+
+        // Sort & Limit
+        const limitedResults = results.slice(0, 10);
+
+        if (limitedResults.length === 0) {
+          suggestionsDiv.classList.add("hidden");
+          return;
+        }
+
+        suggestionsDiv.innerHTML = limitedResults
+          .map((res) => {
+            if (res.type === "anime") {
+              const a = res.data;
+              const seriesName = a.series_cn || a.series_en;
+              return `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                         onclick="window.location.href='/anime/${a.system_id}'">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
+                        </div>
+                        <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesName}</div>
+                    </div>
+                  `;
+            } else {
+              const s = res.data;
+              return `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                         onclick="window.location.href='/series/${s.system_id}'">
+                        <div class="flex items-center mb-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
+                        </div>
+                        <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
+                    </div>
+                  `;
+            }
+          })
+          .join("");
+
+        suggestionsDiv.classList.remove("hidden");
+      }
+
+      async function loadSearchData() {
+        try {
+          const [animeRes, seriesRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/anime`),
+            fetch(`${API_BASE_URL}/series`),
+          ]);
+          if (animeRes.ok) allAnimeData = await animeRes.json();
+          if (seriesRes.ok) allSeriesData = await seriesRes.json();
+        } catch (e) {
+          console.error("Failed to load background search data.", e);
+        }
+      }
+
+      // --- Data Loading (Page Focus) ---
       async function loadDetails() {
         try {
           const response = await fetch(`${API_BASE_URL}/anime/${systemId}`);
@@ -630,6 +861,40 @@
         document.getElementById("d-title-roman").innerText =
           d.series_season_roman || "";
 
+        // Auto-resolve Series Hub logic
+        if (d.series_en) {
+          const seriesContainer = document.getElementById(
+            "d-from-series-container",
+          );
+          const seriesNameEl = document.getElementById("d-from-series-name");
+
+          // Set fallback immediately
+          seriesNameEl.innerText = d.series_en;
+          seriesContainer.classList.remove("hidden");
+
+          // Look up series details dynamically
+          fetch(
+            `${API_BASE_URL}/series/details/${encodeURIComponent(d.series_en)}`,
+          )
+            .then((res) => res.json())
+            .then((seriesMeta) => {
+              if (seriesMeta && seriesMeta.system_id) {
+                // Display CN name if available, else EN
+                seriesNameEl.innerText =
+                  seriesMeta.series_cn || seriesMeta.series_en;
+                seriesNameEl.href = `/series/${seriesMeta.system_id}`;
+
+                // Keep button logic operational as well
+                const btnSeries = document.getElementById("btn-series-hub");
+                btnSeries.onclick = () =>
+                  (window.location.href = `/series/${seriesMeta.system_id}`);
+                btnSeries.classList.remove("hidden");
+                btnSeries.classList.add("inline-flex");
+              }
+            })
+            .catch(() => {});
+        }
+
         // Cover Image
         const coverImg = document.getElementById("d-cover");
         const fallback = document.getElementById("d-cover-fallback");
@@ -651,24 +916,6 @@
           btnAL.href = d.anilist_link;
           btnAL.classList.remove("hidden");
           btnAL.classList.add("inline-flex");
-        }
-
-        // Auto-resolve Series Hub if it exists
-        if (d.series_en) {
-          fetch(
-            `${API_BASE_URL}/series/details/${encodeURIComponent(d.series_en)}`,
-          )
-            .then((res) => res.json())
-            .then((seriesMeta) => {
-              if (seriesMeta && seriesMeta.system_id) {
-                const btnSeries = document.getElementById("btn-series-hub");
-                btnSeries.onclick = () =>
-                  (window.location.href = `/series/${seriesMeta.system_id}`);
-                btnSeries.classList.remove("hidden");
-                btnSeries.classList.add("inline-flex");
-              }
-            })
-            .catch(() => {}); // Hide silently if no parent series exists
         }
 
         // Badges
@@ -712,21 +959,27 @@
             `<span class="text-sm font-medium text-gray-500">-</span>`;
         }
 
-        // Music & Staff
-        document.getElementById("d-op").innerText = d.op || "-";
-        document.getElementById("d-ed").innerText = d.ed || "-";
-        document.getElementById("d-ost").innerText = d.insert_ost || "-";
+        // Characters and Cast
         document.getElementById("d-seiyuu").innerText = d.seiyuu || "-";
 
         // Inputs & Tracker UI
         updateTrackerUI();
 
-        // Set dropdowns and text areas safely
-        if (d.my_progress)
-          document.getElementById("input-status").value = d.my_progress;
+        // Safely set dropdowns and text areas
+        let progressVal = d.my_progress;
+        if (progressVal === "Finished") progressVal = "Completed"; // Legacy fix
+
+        if (progressVal)
+          document.getElementById("input-status").value = progressVal;
         if (d.rating_mine)
           document.getElementById("input-rating").value = d.rating_mine;
         if (d.remark) document.getElementById("input-remark").value = d.remark;
+
+        // Music interactive dropdowns
+        if (d.op) document.getElementById("input-op").value = d.op;
+        if (d.ed) document.getElementById("input-ed").value = d.ed;
+        if (d.insert_ost)
+          document.getElementById("input-insert").value = d.insert_ost;
       }
 
       function updateTrackerUI() {
@@ -790,13 +1043,18 @@
 
       // Generic Updater for Dropdowns and Textarea
       async function updateField(field, value) {
-        const originalValue = animeData[field];
+        let originalValue = animeData[field];
+
+        // Legacy mapping check
+        if (field === "my_progress" && originalValue === "Finished") {
+          originalValue = "Completed";
+        }
 
         // Only update if changed (prevents empty text area blurring triggering unnecessary API calls)
         if (
           originalValue === value ||
           (originalValue === null && value === "null") ||
-          (!originalValue && !value)
+          (!originalValue && !value && value !== 0)
         )
           return;
 
@@ -819,6 +1077,8 @@
           animeData[field] = value === "null" ? null : value;
 
           if (field === "remark") showToast("Notes saved successfully!");
+          else if (["op", "ed", "insert_ost"].includes(field))
+            showToast("Music status updated.");
           else showToast("Status updated successfully!");
         } catch (error) {
           // Revert UI if failed
@@ -828,6 +1088,14 @@
           if (field === "rating_mine")
             document.getElementById("input-rating").value =
               originalValue || "null";
+          if (field === "op")
+            document.getElementById("input-op").value = originalValue || "null";
+          if (field === "ed")
+            document.getElementById("input-ed").value = originalValue || "null";
+          if (field === "insert_ost")
+            document.getElementById("input-insert").value =
+              originalValue || "null";
+
           showToast("Failed to save changes.", true);
         }
       }
@@ -884,7 +1152,10 @@
       }
 
       // Initialize
-      document.addEventListener("DOMContentLoaded", loadDetails);
+      document.addEventListener("DOMContentLoaded", () => {
+        loadDetails();
+        loadSearchData(); // Non-blocking background fetch for the search bar
+      });
     </script>
   </body>
 </html>
