@@ -1,48 +1,61 @@
 """
 pages.py
-Handles the routing for serving frontend HTML web pages.
-Separates the public-facing dashboard templates from the admin tools.
+Refactored to use Jinja2 Templates.
+Instead of serving static files, we now 'render' templates, allowing
+for a universal layout (base.html) to be shared across all pages.
 """
 
-from fastapi import APIRouter
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 
-# Initialize the router with a tag for grouping in Swagger UI (/docs)
 router = APIRouter(tags=["Frontend Pages"])
+
+# Initialize Jinja2 Templates directory
+# This folder will hold our base layout and page-specific content
+templates = Jinja2Templates(directory="templates")
 
 # ==========================================
 # PUBLIC FRONTEND ROUTES
 # ==========================================
 
 
-@router.get("/", summary="Serve Dashboard")
-def serve_frontend():
-    """Serves the main public dashboard (Currently Watching/Paused)."""
-    return FileResponse("static/index.html")
+@router.get("/", response_class=HTMLResponse, summary="Serve Dashboard")
+async def serve_dashboard(request: Request):
+    """Renders the main dashboard using Jinja2."""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@router.get("/library", summary="Serve Library")
-def serve_library():
-    """Serves the full anime library data grid view."""
-    return FileResponse("static/library.html")
+@router.get("/library", response_class=HTMLResponse, summary="Serve Library")
+async def serve_library(request: Request):
+    """Renders the library view."""
+    return templates.TemplateResponse("library.html", {"request": request})
 
 
-@router.get("/anime/{system_id}", summary="Serve Anime Details")
-def serve_details(system_id: str):
-    """Serves the individual anime details and progress editing page."""
-    return FileResponse("static/details.html")
+@router.get(
+    "/anime/{system_id}", response_class=HTMLResponse, summary="Serve Anime Details"
+)
+async def serve_details(request: Request, system_id: str):
+    """Renders the anime details page."""
+    return templates.TemplateResponse(
+        "details.html", {"request": request, "system_id": system_id}
+    )
 
 
-@router.get("/series/{system_id}", summary="Serve Series Hub")
-def serve_series(system_id: str):
-    """Serves the franchise hub page grouping related anime."""
-    return FileResponse("static/series.html")
+@router.get(
+    "/series/{system_id}", response_class=HTMLResponse, summary="Serve Series Hub"
+)
+async def serve_series(request: Request, system_id: str):
+    """Renders the series hub page."""
+    return templates.TemplateResponse(
+        "series.html", {"request": request, "system_id": system_id}
+    )
 
 
-@router.get("/search", summary="Serve Search Results")
-def serve_search():
-    """Serves the global search results page."""
-    return FileResponse("static/search.html")
+@router.get("/search", response_class=HTMLResponse, summary="Serve Search Results")
+async def serve_search(request: Request):
+    """Renders the global search results page."""
+    return templates.TemplateResponse("search.html", {"request": request})
 
 
 # ==========================================
@@ -50,25 +63,25 @@ def serve_search():
 # ==========================================
 
 
-@router.get("/system", summary="Serve Admin Dashboard")
-def read_admin():
-    """Serves the system administration and logging dashboard."""
-    return FileResponse("static/admin.html")
+@router.get("/system", response_class=HTMLResponse, summary="Serve Admin Dashboard")
+async def read_admin(request: Request):
+    """Renders the administration dashboard."""
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 
-@router.get("/add", summary="Serve Add Entry Page")
-def read_add():
-    """Serves the tool for manually appending new database entries."""
-    return FileResponse("static/add.html")
+@router.get("/add", response_class=HTMLResponse, summary="Serve Add Entry Page")
+async def read_add(request: Request):
+    """Renders the tool for adding new entries."""
+    return templates.TemplateResponse("add.html", {"request": request})
 
 
-@router.get("/modify", summary="Serve Modify Entry Page")
-def read_modify():
-    """Serves the tool for editing existing database entries."""
-    return FileResponse("static/modify.html")
+@router.get("/modify", response_class=HTMLResponse, summary="Serve Modify Entry Page")
+async def read_modify(request: Request):
+    """Renders the edit tool for existing records."""
+    return templates.TemplateResponse("modify.html", {"request": request})
 
 
-@router.get("/delete", summary="Serve Delete Entry Page")
-def read_delete():
-    """Serves the tool for permanently deleting database entries."""
-    return FileResponse("static/delete.html")
+@router.get("/delete", response_class=HTMLResponse, summary="Serve Delete Entry Page")
+async def read_delete(request: Request):
+    """Renders the deletion management tool."""
+    return templates.TemplateResponse("delete.html", {"request": request})
