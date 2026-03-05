@@ -52,6 +52,12 @@
       input[type="number"]::-webkit-inner-spin-button {
         -webkit-appearance: none;
       }
+
+      /* Search Dropdown Z-index management */
+      .search-dropdown {
+        max-height: 400px;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
@@ -106,11 +112,6 @@
                         class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
                         >Modify</a
                       >
-                      <a
-                        href="/delete"
-                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
-                        >Delete</a
-                      >
                     </div>
                   </div>
                 </div>
@@ -118,7 +119,11 @@
             </div>
           </div>
           <div class="flex items-center space-x-4 flex-1 justify-end">
-            <div class="relative w-full max-w-md hidden sm:block">
+            <!-- Global Search Bar with Suggestions -->
+            <div
+              class="relative w-full max-w-md hidden sm:block"
+              id="globalSearchContainer"
+            >
               <div
                 class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
               >
@@ -127,9 +132,19 @@
               <input
                 type="text"
                 id="globalSearchInput"
+                oninput="handleGlobalSearch(this.value)"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
                 placeholder="Search Series or Anime Names..."
+                autocomplete="off"
               />
+
+              <!-- Suggestions Dropdown -->
+              <div
+                id="searchSuggestions"
+                class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-[100] hidden search-dropdown"
+              >
+                <!-- JS Injected Suggestions -->
+              </div>
             </div>
             <button
               onclick="handleSync()"
@@ -163,7 +178,9 @@
       <div id="dashboard-content" class="hidden space-y-12">
         <!-- Active Watching Section -->
         <section>
-          <div class="flex items-center mb-6 border-b border-gray-200 pb-3">
+          <div
+            class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+          >
             <h2 class="text-xl font-bold text-gray-900">
               <i class="fas fa-play-circle text-green-500 mr-2"></i> Active
               Watching
@@ -182,7 +199,9 @@
 
         <!-- Passive Watching Section -->
         <section>
-          <div class="flex items-center mb-6 border-b border-gray-200 pb-3">
+          <div
+            class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+          >
             <h2 class="text-xl font-bold text-gray-900">
               <i class="fas fa-coffee text-blue-500 mr-2"></i> Passive Watching
             </h2>
@@ -200,10 +219,11 @@
 
         <!-- Paused Section -->
         <section>
-          <div class="flex items-center mb-6 border-b border-gray-200 pb-3">
+          <div
+            class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+          >
             <h2 class="text-xl font-bold text-gray-900">
-              <i class="fas fa-pause-circle text-orange-500 mr-2"></i> Paused /
-              Temp Dropped
+              <i class="fas fa-pause-circle text-orange-500 mr-2"></i> Paused
             </h2>
             <span
               id="count-paused"
@@ -216,16 +236,45 @@
             class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
           ></div>
         </section>
+
+        <!-- Temp Dropped Section -->
+        <section>
+          <div
+            class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+          >
+            <h2 class="text-xl font-bold text-gray-900">
+              <i class="fas fa-stop-circle text-red-500 mr-2"></i> Temp Dropped
+            </h2>
+            <span
+              id="count-dropped"
+              class="ml-3 bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-200"
+              >0</span
+            >
+          </div>
+          <div
+            id="grid-dropped"
+            class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+          ></div>
+        </section>
       </div>
     </main>
 
-    <footer class="bg-white border-t border-gray-200 mt-auto">
+    <footer class="bg-white border-t border-gray-200 mt-auto relative z-10">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
       >
         &copy; 2026 CG1618 Anime Database. Dashboard View.
       </div>
     </footer>
+
+    <!-- Scroll to Top Button -->
+    <button
+      id="scrollToTopBtn"
+      onclick="scrollToTop()"
+      class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    >
+      <i class="fas fa-arrow-up"></i>
+    </button>
 
     <!-- Global Toast Notification -->
     <div
@@ -240,6 +289,7 @@
     <script>
       const API_BASE_URL = "/api";
       let allAnimeData = [];
+      let allSeriesData = [];
 
       // --- Universal UI Features ---
       const searchInput = document.getElementById("globalSearchInput");
@@ -248,6 +298,15 @@
           const query = e.target.value.trim();
           if (query)
             window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        }
+      });
+
+      // Handle clicking outside search container
+      document.addEventListener("click", function (e) {
+        const container = document.getElementById("globalSearchContainer");
+        const suggestions = document.getElementById("searchSuggestions");
+        if (container && !container.contains(e.target)) {
+          suggestions.classList.add("hidden");
         }
       });
 
@@ -273,12 +332,143 @@
         );
       }
 
+      // --- Scroll to Top Engine ---
+      window.addEventListener("scroll", () => {
+        const btn = document.getElementById("scrollToTopBtn");
+        if (window.scrollY > 300) {
+          btn.classList.remove(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        } else {
+          btn.classList.add(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        }
+      });
+
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // --- Search Suggestions Logic ---
+      function normalize(str) {
+        if (!str) return "";
+        return String(str)
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}]/gu, "");
+      }
+
+      function handleGlobalSearch(query) {
+        const suggestionsDiv = document.getElementById("searchSuggestions");
+        if (!query || query.trim().length < 1) {
+          suggestionsDiv.classList.add("hidden");
+          return;
+        }
+
+        const qNorm = normalize(query);
+        const results = [];
+
+        // 1. Search Series
+        allSeriesData.forEach((s) => {
+          const matchText = [
+            s.series_en,
+            s.series_cn,
+            s.alt_name,
+            s.series_roman,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (normalize(matchText).includes(qNorm)) {
+            results.push({ type: "series", data: s });
+          }
+        });
+
+        // 2. Search Anime
+        allAnimeData.forEach((a) => {
+          const matchText = [
+            a.series_season_cn,
+            a.series_season_en,
+            a.series_en,
+            a.series_season_roman,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (normalize(matchText).includes(qNorm)) {
+            results.push({ type: "anime", data: a });
+          }
+        });
+
+        // Sort & Limit
+        const limitedResults = results.slice(0, 10);
+
+        if (limitedResults.length === 0) {
+          suggestionsDiv.classList.add("hidden");
+          return;
+        }
+
+        suggestionsDiv.innerHTML = limitedResults
+          .map((res) => {
+            if (res.type === "anime") {
+              const a = res.data;
+              const seriesName = a.series_cn || a.series_en;
+              return `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                         onclick="window.location.href='/anime/${a.system_id}'">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
+                        </div>
+                        <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesName}</div>
+                    </div>
+                  `;
+            } else {
+              const s = res.data;
+              return `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                         onclick="window.location.href='/series/${s.system_id}'">
+                        <div class="flex items-center mb-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
+                        </div>
+                        <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
+                    </div>
+                  `;
+            }
+          })
+          .join("");
+
+        suggestionsDiv.classList.remove("hidden");
+      }
+
       // --- Data Fetching & Organization ---
       async function loadDashboard() {
         try {
-          const res = await fetch(`${API_BASE_URL}/anime`);
-          if (!res.ok) throw new Error("Failed to load anime data");
-          allAnimeData = await res.json();
+          // Fetch both anime and series data for the dashboard and search suggestions
+          const [animeRes, seriesRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/anime`),
+            fetch(`${API_BASE_URL}/series`),
+          ]);
+
+          if (!animeRes.ok || !seriesRes.ok)
+            throw new Error("Failed to load tracking data");
+
+          allAnimeData = await animeRes.json();
+          allSeriesData = await seriesRes.json();
 
           renderDashboard();
 
@@ -300,6 +490,7 @@
         const active = [];
         const passive = [];
         const paused = [];
+        const tempDropped = [];
 
         // Sort recent additions/updates to top
         const sortedData = [...allAnimeData].sort((a, b) => {
@@ -321,11 +512,9 @@
           if (anime.my_progress === "Active Watching") active.push(anime);
           else if (anime.my_progress === "Passive Watching")
             passive.push(anime);
-          else if (
-            anime.my_progress === "Paused" ||
-            anime.my_progress === "Temp Dropped"
-          )
-            paused.push(anime);
+          else if (anime.my_progress === "Paused") paused.push(anime);
+          else if (anime.my_progress === "Temp Dropped")
+            tempDropped.push(anime);
         });
 
         // Update subtitle
@@ -337,6 +526,7 @@
         populateGrid("grid-active", "count-active", active);
         populateGrid("grid-passive", "count-passive", passive);
         populateGrid("grid-paused", "count-paused", paused);
+        populateGrid("grid-dropped", "count-dropped", tempDropped);
       }
 
       function populateGrid(gridId, countId, dataArray) {
@@ -375,7 +565,6 @@
           progressPercent = Math.round((epFin / anime.ep_total) * 100);
           progressStyle = `width: ${progressPercent}%`;
         } else if (epFin > 0) {
-          // Pulse effect for ongoing series without a known total
           progressPercent = "Ongoing";
           progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
         }
@@ -386,6 +575,8 @@
           statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 shadow-sm">${anime.my_progress}</span>`;
         else if (anime.my_progress === "Passive Watching")
           statusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 shadow-sm">${anime.my_progress}</span>`;
+        else if (anime.my_progress === "Temp Dropped")
+          statusBadge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 shadow-sm">${anime.my_progress}</span>`;
         else
           statusBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-200 shadow-sm">${anime.my_progress}</span>`;
 
@@ -397,7 +588,6 @@
           ? `<span class="text-[#00B4D8] ml-2" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>`
           : "";
 
-        // Fallback Image SVG
         const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
 
         return `
@@ -448,7 +638,6 @@
 
       // --- Optimistic State Management ---
       async function optimisticUpdate(sys_id, change) {
-        // 1. Find the local record
         const index = allAnimeData.findIndex((a) => a.system_id === sys_id);
         if (index === -1) return;
 
@@ -456,17 +645,14 @@
         const currentEps = anime.ep_fin || 0;
         let newEps = currentEps + change;
 
-        // Constraints
         if (newEps < 0) newEps = 0;
         if (anime.ep_total && newEps > anime.ep_total) newEps = anime.ep_total;
 
-        if (newEps === currentEps) return; // No change needed
+        if (newEps === currentEps) return;
 
-        // 2. Optimistic Update (Instantly change UI before backend confirms)
         allAnimeData[index].ep_fin = newEps;
-        renderDashboard(); // Re-render the UI instantly
+        renderDashboard();
 
-        // 3. Background API Request
         try {
           const res = await fetch(`${API_BASE_URL}/anime/${sys_id}/progress`, {
             method: "PATCH",
@@ -479,10 +665,9 @@
               (await res.json()).detail || "Failed to sync to database",
             );
         } catch (error) {
-          // 4. Revert on Failure
           console.error("Optimistic Update Failed:", error);
-          allAnimeData[index].ep_fin = currentEps; // Revert memory
-          renderDashboard(); // Re-render to show reverted state
+          allAnimeData[index].ep_fin = currentEps;
+          renderDashboard();
           showToast("Network error. Progress reverted.", true);
         }
       }
@@ -515,7 +700,7 @@
             btn.prepend(icon);
 
             showToast("Successfully synchronized with Google Sheets!");
-            await loadDashboard(); // Silently refresh data
+            await loadDashboard();
 
             setTimeout(() => {
               icon.classList.remove("fa-check");
@@ -538,7 +723,6 @@
         }
       }
 
-      // Initialize
       document.addEventListener("DOMContentLoaded", loadDashboard);
     </script>
     <style>
