@@ -5,7 +5,6 @@ Initializes the FastAPI application and includes modular routers.
 """
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 import database
@@ -21,8 +20,8 @@ app = FastAPI(
     version="1.1.0",
 )
 
-# Mount the 'static' directory for CSS/JS assets.
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# NOTE: The /static mount has been removed to prevent the RuntimeError,
+# as HTML files are now rendered via Jinja2 from the /templates directory.
 
 # Include modular routers
 app.include_router(pages.router)
