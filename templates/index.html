@@ -1,0 +1,301 @@
+{% extends "base.html" %} {% block title %}Dashboard - CG1618 Tracker{% endblock
+%} {% block extra_style %} .card-hover { transition: transform 0.2s ease,
+box-shadow 0.2s ease; } .card-hover:hover { transform: translateY(-4px);
+box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); } @keyframes pulse { 0%, 100% {
+opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+  <!-- Hero / Welcome Section -->
+  <div class="mb-10">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+    <p class="text-gray-500" id="dashboard-subtitle">
+      Loading your active tracking data...
+    </p>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loading" class="flex flex-col items-center justify-center h-48">
+    <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+    <p class="text-gray-500 font-medium">Fetching dashboard...</p>
+  </div>
+
+  <!-- Dashboard Grid -->
+  <div id="dashboard-content" class="hidden space-y-12">
+    <!-- Active Watching Section -->
+    <section>
+      <div
+        class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+      >
+        <h2 class="text-xl font-bold text-gray-900">
+          <i class="fas fa-play-circle text-green-500 mr-2"></i> Active Watching
+        </h2>
+        <span
+          id="count-active"
+          class="ml-3 bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-200"
+          >0</span
+        >
+      </div>
+      <div
+        id="grid-active"
+        class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+      ></div>
+    </section>
+
+    <!-- Passive Watching Section -->
+    <section>
+      <div
+        class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+      >
+        <h2 class="text-xl font-bold text-gray-900">
+          <i class="fas fa-coffee text-blue-500 mr-2"></i> Passive Watching
+        </h2>
+        <span
+          id="count-passive"
+          class="ml-3 bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-blue-200"
+          >0</span
+        >
+      </div>
+      <div
+        id="grid-passive"
+        class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+      ></div>
+    </section>
+
+    <!-- Paused Section -->
+    <section>
+      <div
+        class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+      >
+        <h2 class="text-xl font-bold text-gray-900">
+          <i class="fas fa-pause-circle text-orange-500 mr-2"></i> Paused
+        </h2>
+        <span
+          id="count-paused"
+          class="ml-3 bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-orange-200"
+          >0</span
+        >
+      </div>
+      <div
+        id="grid-paused"
+        class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+      ></div>
+    </section>
+
+    <!-- Temp Dropped Section -->
+    <section>
+      <div
+        class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
+      >
+        <h2 class="text-xl font-bold text-gray-900">
+          <i class="fas fa-stop-circle text-red-500 mr-2"></i> Temp Dropped
+        </h2>
+        <span
+          id="count-dropped"
+          class="ml-3 bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-200"
+          >0</span
+        >
+      </div>
+      <div
+        id="grid-dropped"
+        class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+      ></div>
+    </section>
+  </div>
+</div>
+{% endblock %} {% block extra_scripts %}
+<script>
+  let allAnimeData = [];
+
+  // Hook into the universal sync system from base.html
+  function onSyncComplete() {
+    loadDashboard();
+  }
+
+  // --- Data Fetching & Organization ---
+  async function loadDashboard() {
+    try {
+      const res = await fetch(`${GLOBAL_API_BASE}/anime`);
+
+      if (!res.ok) throw new Error("Failed to load tracking data");
+
+      allAnimeData = await res.json();
+      renderDashboard();
+
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("dashboard-content").classList.remove("hidden");
+    } catch (error) {
+      document.getElementById("loading").innerHTML = `
+            <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+                <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+                <p class="font-bold">Error loading dashboard data.</p>
+                <p class="text-sm mt-1">${error.message}</p>
+            </div>`;
+    }
+  }
+
+  function renderDashboard() {
+    const active = [];
+    const passive = [];
+    const paused = [];
+    const tempDropped = [];
+
+    const sortedData = [...allAnimeData].sort((a, b) => {
+      const titleA = (a.series_season_cn || a.series_en || "").toLowerCase();
+      const titleB = (b.series_season_cn || b.series_en || "").toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+
+    sortedData.forEach((anime) => {
+      if (anime.my_progress === "Active Watching") active.push(anime);
+      else if (anime.my_progress === "Passive Watching") passive.push(anime);
+      else if (anime.my_progress === "Paused") paused.push(anime);
+      else if (anime.my_progress === "Temp Dropped") tempDropped.push(anime);
+    });
+
+    const totalActive = active.length + passive.length;
+    document.getElementById("dashboard-subtitle").innerText =
+      `You are currently tracking ${totalActive} ongoing series.`;
+
+    populateGrid("grid-active", "count-active", active);
+    populateGrid("grid-passive", "count-passive", passive);
+    populateGrid("grid-paused", "count-paused", paused);
+    populateGrid("grid-dropped", "count-dropped", tempDropped);
+  }
+
+  function populateGrid(gridId, countId, dataArray) {
+    const grid = document.getElementById(gridId);
+    document.getElementById(countId).innerText = dataArray.length;
+
+    if (dataArray.length === 0) {
+      grid.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
+                <p class="text-gray-400 font-medium italic"><i class="fas fa-ghost mr-2"></i> Nothing in this category right now.</p>
+            </div>`;
+      return;
+    }
+
+    grid.innerHTML = dataArray
+      .map((anime) => createDashboardCard(anime))
+      .join("");
+  }
+
+  function createDashboardCard(anime) {
+    const title =
+      anime.series_season_cn ||
+      anime.series_season_en ||
+      anime.series_en ||
+      "Unknown Title";
+    const subTitle = anime.series_en || "";
+
+    const epFin = anime.ep_fin || 0;
+    const epTotal = anime.ep_total || "?";
+
+    let progressPercent = 0;
+    let progressStyle = `width: 0%`;
+
+    if (anime.ep_total) {
+      progressPercent = Math.round((epFin / anime.ep_total) * 100);
+      progressStyle = `width: ${progressPercent}%`;
+    } else if (epFin > 0) {
+      progressPercent = "Ongoing";
+      progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
+    }
+
+    let statusBadge = "";
+    if (anime.my_progress === "Active Watching")
+      statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 shadow-sm">${anime.my_progress}</span>`;
+    else if (anime.my_progress === "Passive Watching")
+      statusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 shadow-sm">${anime.my_progress}</span>`;
+    else if (anime.my_progress === "Temp Dropped")
+      statusBadge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 shadow-sm">${anime.my_progress}</span>`;
+    else
+      statusBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-200 shadow-sm">${anime.my_progress}</span>`;
+
+    const hasBaha =
+      String(anime.source_baha || "").toUpperCase() === "TRUE" ||
+      String(anime.source_baha || "").toUpperCase() === "YES" ||
+      String(anime.source_baha || "") === "有";
+    const bahaIcon = hasBaha
+      ? `<span class="text-[#00B4D8] ml-2" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>`
+      : "";
+
+    const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
+
+    return `
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full">
+            <div class="flex p-3 cursor-pointer" onclick="window.location.href='/anime/${anime.system_id}'">
+                <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                    <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
+                </div>
+                <div class="ml-4 flex-1 min-w-0 flex flex-col justify-center">
+                    <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-tight mb-1" title="${title}">${title}</h3>
+                    <p class="text-xs text-gray-500 truncate mb-2" title="${subTitle}">${subTitle}</p>
+                    <div class="flex items-center flex-wrap gap-1.5 mt-auto">
+                        ${statusBadge}
+                        <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm"><i class="fas fa-tv mr-1"></i>${anime.airing_type || "TV"}</span>
+                        ${bahaIcon}
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto">
+                <div class="flex justify-between items-end mb-1.5">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
+                    <span class="text-[10px] font-bold text-brand">${progressPercent}${anime.ep_total ? "%" : ""}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
+                    <div class="bg-brand h-1.5 rounded-full transition-all duration-500" style="${progressStyle}"></div>
+                </div>
+                
+                <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm">
+                    <button onclick="optimisticUpdate('${anime.system_id}', -1)" class="w-8 h-8 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
+                        <i class="fas fa-minus text-xs"></i>
+                    </button>
+                    <div class="font-mono font-bold text-base tracking-wide flex items-baseline justify-center select-none">
+                        <span class="text-gray-900 w-8 text-center">${epFin}</span>
+                        <span class="text-gray-400 mx-1 text-sm">/</span>
+                        <span class="text-gray-500 text-sm w-8 text-center">${epTotal}</span>
+                    </div>
+                    <button onclick="optimisticUpdate('${anime.system_id}', 1)" class="w-8 h-8 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
+                        <i class="fas fa-plus text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+      `;
+  }
+
+  async function optimisticUpdate(sys_id, change) {
+    const index = allAnimeData.findIndex((a) => a.system_id === sys_id);
+    if (index === -1) return;
+
+    const anime = allAnimeData[index];
+    const currentEps = anime.ep_fin || 0;
+    let newEps = currentEps + change;
+
+    if (newEps < 0) newEps = 0;
+    if (anime.ep_total && newEps > anime.ep_total) newEps = anime.ep_total;
+
+    if (newEps === currentEps) return;
+
+    allAnimeData[index].ep_fin = newEps;
+    renderDashboard();
+
+    try {
+      const res = await fetch(`${GLOBAL_API_BASE}/anime/${sys_id}/progress`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ep_fin: newEps }),
+      });
+
+      if (!res.ok) throw new Error("Failed to sync to database");
+    } catch (error) {
+      console.error("Optimistic Update Failed:", error);
+      allAnimeData[index].ep_fin = currentEps;
+      renderDashboard();
+      showToast("Network error. Progress reverted.", true);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadDashboard);
+</script>
+{% endblock %}
