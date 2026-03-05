@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Admin - CG1618 Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Roboto", "Noto Sans TC", "sans-serif"],
+              mono: ["Fira Code", "monospace"],
+            },
+            colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f3f4f6;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+      .card-hover {
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      }
+      .modal-backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+    <!-- Universal Top Navigation Bar -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center space-x-8">
+            <a
+              href="/"
+              class="flex-shrink-0 font-bold text-2xl tracking-wider text-brand"
+              >CG1618</a
+            >
+            <div class="hidden md:block">
+              <div class="flex items-baseline space-x-4">
+                <a
+                  href="/"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Dashboard</a
+                >
+                <a
+                  href="/library"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Library</a
+                >
+
+                <!-- Admin Dropdown (Active State) -->
+                <div class="relative group">
+                  <button
+                    class="bg-brand/10 text-brand px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
+                  >
+                    Admin <i class="fas fa-chevron-down ml-1.5 text-[10px]"></i>
+                  </button>
+                  <div
+                    class="absolute left-0 top-full pt-1 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+                  >
+                    <div
+                      class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
+                    >
+                      <a
+                        href="/system"
+                        class="px-4 py-2.5 text-sm bg-brand text-white font-medium transition border-b border-gray-100"
+                        >Admin</a
+                      >
+                      <a
+                        href="/add"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        >Add</a
+                      >
+                      <a
+                        href="/modify"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        >Modify</a
+                      >
+                      <a
+                        href="/delete"
+                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
+                        >Delete</a
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 flex-1 justify-end">
+            <div class="relative w-full max-w-md hidden sm:block">
+              <div
+                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+              >
+                <i class="fas fa-search text-gray-400"></i>
+              </div>
+              <input
+                type="text"
+                id="globalSearchInput"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search..."
+              />
+            </div>
+            <button
+              onclick="handleSync()"
+              id="syncBtn"
+              class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
+            >
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <div
+        class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4"
+      >
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            System Administration
+          </h1>
+          <p class="text-gray-500">
+            Master command center for database health, audit trails, and data
+            parity.
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <a
+            href="/add"
+            class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+            ><i class="fas fa-plus mr-2 text-emerald-500"></i> New Entry</a
+          >
+          <a
+            href="/modify"
+            class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+            ><i class="fas fa-edit mr-2 text-blue-500"></i> Edit Entry</a
+          >
+          <a
+            href="/delete"
+            class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+            ><i class="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry</a
+          >
+        </div>
+      </div>
+
+      <!-- Middle Row: Diagnostic Controls & Orphan Center -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:col-span-1 flex flex-col gap-4"
+        >
+          <h3 class="text-lg font-bold text-gray-900 mb-2">
+            <i class="fas fa-microchip text-gray-400 mr-2"></i> Diagnostics
+          </h3>
+
+          <button
+            onclick="handleSync()"
+            class="w-full bg-brand/5 hover:bg-brand text-brand hover:text-white border border-brand/10 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
+          >
+            <span class="flex items-center"
+              ><i
+                class="fas fa-sync-alt mr-3 group-hover:rotate-180 transition-transform duration-700"
+              ></i>
+              Force Full Sync</span
+            >
+            <i class="fas fa-chevron-right text-xs opacity-50"></i>
+          </button>
+
+          <button
+            onclick="scanOrphans()"
+            id="btn-scan"
+            class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
+          >
+            <span class="flex items-center"
+              ><i
+                class="fas fa-search-location mr-3 group-hover:scale-110 transition-transform"
+              ></i>
+              Scan for Orphans</span
+            >
+            <i
+              id="scan-icon"
+              class="fas fa-chevron-right text-xs opacity-50"
+            ></i>
+          </button>
+
+          <button
+            onclick="cleanupLogs()"
+            id="btn-cleanup"
+            class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group mt-auto"
+          >
+            <span class="flex items-center"
+              ><i class="fas fa-broom mr-3 text-gray-500"></i> Purge Logs (>30
+              Days)</span
+            >
+            <i
+              id="cleanup-icon"
+              class="fas fa-chevron-right text-xs opacity-50"
+            ></i>
+          </button>
+        </div>
+
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:col-span-2 flex flex-col h-full"
+        >
+          <h3
+            class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
+          >
+            <i class="fas fa-tools text-amber-500 mr-2"></i> Orphan Resolution
+            Center
+          </h3>
+          <div
+            id="orphan-container"
+            class="flex-1 overflow-y-auto min-h-[150px] max-h-[200px] pr-2"
+          >
+            <div
+              class="flex flex-col items-center justify-center h-full text-center py-6"
+            >
+              <i class="fas fa-check-circle text-4xl text-gray-200 mb-3"></i>
+              <p class="text-gray-500 font-medium text-sm">
+                Parity Check required. Scan to detect entries missing from
+                Google Sheets.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit Trails Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Top Left: Recent Sync Logs -->
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+        >
+          <div
+            class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+          >
+            <h3 class="font-bold text-gray-900 flex items-center">
+              <i class="fas fa-history text-brand mr-2"></i> Recent Sync Logs
+            </h3>
+            <button
+              onclick="loadLogs()"
+              class="text-gray-400 hover:text-brand transition"
+            >
+              <i class="fas fa-redo text-sm"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto p-0">
+            <table class="w-full text-sm text-left">
+              <thead
+                class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
+              >
+                <tr>
+                  <th class="px-4 py-3 font-bold uppercase">Time</th>
+                  <th class="px-4 py-3 font-bold uppercase">Type</th>
+                  <th class="px-4 py-3 font-bold uppercase">Status</th>
+                  <th class="px-4 py-3 font-bold uppercase">Metrics (+/U/-)</th>
+                  <th class="px-4 py-3 font-bold uppercase text-right">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="log-table-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="5" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin mr-2"></i> Loading logs...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top Right: Recently Modified Series -->
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+        >
+          <div
+            class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+          >
+            <h3 class="font-bold text-gray-900 flex items-center">
+              <i class="fas fa-layer-group text-purple-500 mr-2"></i> Recently
+              Modified Series
+            </h3>
+            <button
+              onclick="loadRecentActivity()"
+              class="text-gray-400 hover:text-purple-500 transition"
+            >
+              <i class="fas fa-redo text-sm"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto p-0">
+            <table class="w-full text-sm text-left">
+              <thead
+                class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
+              >
+                <tr>
+                  <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
+                    Time
+                  </th>
+                  <th class="px-4 py-3 font-bold uppercase w-1/3">
+                    Series Name
+                  </th>
+                  <th class="px-4 py-3 font-bold uppercase">System ID</th>
+                </tr>
+              </thead>
+              <tbody id="modified-series-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="3" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin mr-2"></i> Loading data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recently Modified Anime Entries(2 columns wide) -->
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px] lg:col-span-2"
+        >
+          <div
+            class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+          >
+            <h3 class="font-bold text-gray-900 flex items-center">
+              <i class="fas fa-edit text-blue-500 mr-2"></i> Recently Modified
+              Anime
+            </h3>
+            <button
+              onclick="loadRecentActivity()"
+              class="text-gray-400 hover:text-blue-500 transition"
+            >
+              <i class="fas fa-redo text-sm"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto p-0">
+            <table class="w-full text-sm text-left">
+              <thead
+                class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
+              >
+                <tr>
+                  <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
+                    Time
+                  </th>
+                  <th class="px-4 py-3 font-bold uppercase w-1/4">
+                    Title (CN)
+                  </th>
+                  <th class="px-4 py-3 font-bold uppercase">Type</th>
+                  <th class="px-4 py-3 font-bold uppercase">Airing Status</th>
+                  <th class="px-4 py-3 font-bold uppercase">Progress</th>
+                  <th class="px-4 py-3 font-bold uppercase">System ID</th>
+                </tr>
+              </thead>
+              <tbody id="modified-anime-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="6" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin mr-2"></i> Loading data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bottom Left: Recently Added -->
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+        >
+          <div
+            class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+          >
+            <h3 class="font-bold text-gray-900 flex items-center">
+              <i class="fas fa-plus-circle text-emerald-500 mr-2"></i> Recently
+              Added
+            </h3>
+            <button
+              onclick="loadRecentActivity()"
+              class="text-gray-400 hover:text-emerald-500 transition"
+            >
+              <i class="fas fa-redo text-sm"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto p-0">
+            <table class="w-full text-sm text-left">
+              <thead
+                class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
+              >
+                <tr>
+                  <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
+                    Time
+                  </th>
+                  <th class="px-4 py-3 font-bold uppercase">Type</th>
+                  <th class="px-4 py-3 font-bold uppercase w-1/3">Title</th>
+                  <th class="px-4 py-3 font-bold uppercase">System ID</th>
+                </tr>
+              </thead>
+              <tbody id="added-table-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="4" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin mr-2"></i> Loading data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bottom Right: Deletion History -->
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+        >
+          <div
+            class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+          >
+            <h3 class="font-bold text-gray-900 flex items-center">
+              <i class="fas fa-trash-restore text-red-500 mr-2"></i> Deletion
+              History
+            </h3>
+            <button
+              onclick="loadDeletedRecords()"
+              class="text-gray-400 hover:text-red-500 transition"
+            >
+              <i class="fas fa-redo text-sm"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto p-0">
+            <table class="w-full text-sm text-left">
+              <thead
+                class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
+              >
+                <tr>
+                  <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
+                    Time
+                  </th>
+                  <th class="px-4 py-3 font-bold uppercase">Type</th>
+                  <th class="px-4 py-3 font-bold uppercase w-1/2">Title</th>
+                </tr>
+              </thead>
+              <tbody id="deleted-table-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="3" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin mr-2"></i> Loading
+                    history...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Sync Log Details Modal -->
+    <div
+      id="log-modal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6"
+    >
+      <div
+        class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onclick="closeLogModal()"
+      ></div>
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative flex flex-col max-h-[90vh] overflow-hidden z-10"
+      >
+        <div
+          class="p-6 border-b border-gray-100 flex justify-between items-center"
+        >
+          <h3 class="text-lg font-bold text-gray-900 flex items-center">
+            <i class="fas fa-file-code text-brand mr-2"></i> Sync Operation
+            Details
+          </h3>
+          <button
+            onclick="closeLogModal()"
+            class="text-gray-400 hover:text-gray-600 transition"
+          >
+            <i class="fas fa-times text-lg"></i>
+          </button>
+        </div>
+        <div id="modal-body" class="p-6 overflow-y-auto bg-gray-50 space-y-4">
+          <!-- Content injected via JS -->
+        </div>
+        <div class="p-4 bg-white border-t border-gray-100 flex justify-end">
+          <button
+            onclick="closeLogModal()"
+            class="bg-gray-900 hover:bg-black text-white px-6 py-2 rounded-lg font-bold text-sm transition shadow-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-6 right-6 z-[200] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
+    >
+      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
+      <span id="toast-msg" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- Logic -->
+    <script>
+      const API_BASE_URL = "/api";
+      let currentLogs = [];
+
+      // --- Universal UI Helpers ---
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        const msg = document.getElementById("toast-msg");
+        const icon = document.getElementById("toast-icon");
+        msg.innerText = message;
+        if (isError) {
+          icon.className =
+            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          toast.classList.replace("bg-red-900", "bg-gray-900");
+        }
+        toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(
+          () => toast.classList.add("translate-y-20", "opacity-0"),
+          3000,
+        );
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        return d.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // --- Log Modal Controls ---
+      function openLogModal(logId) {
+        const log = currentLogs.find((l) => l.id === logId);
+        if (!log) return;
+
+        const body = document.getElementById("modal-body");
+        let detailsHtml = "";
+
+        try {
+          const details = JSON.parse(log.details_json || "{}");
+          const sections = [
+            {
+              key: "added",
+              title: "Records Inserted",
+              color: "text-emerald-600",
+              icon: "fa-plus-circle",
+            },
+            {
+              key: "updated",
+              title: "Records Updated",
+              color: "text-blue-600",
+              icon: "fa-sync",
+            },
+            {
+              key: "deleted",
+              title: "Records Purged",
+              color: "text-red-600",
+              icon: "fa-trash-alt",
+            },
+          ];
+
+          detailsHtml = sections
+            .map((s) => {
+              const items = details[s.key] || [];
+              return `
+                      <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                          <h4 class="font-bold text-sm ${s.color} mb-3 flex items-center justify-between">
+                              <span><i class="fas ${s.icon} mr-2"></i> ${s.title}</span>
+                              <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">${items.length}</span>
+                          </h4>
+                          <div class="max-h-40 overflow-y-auto space-y-1 pr-2">
+                              ${items.length > 0 ? items.map((i) => `<p class="text-xs text-gray-700 border-l-2 border-gray-200 pl-2 py-1">${i}</p>`).join("") : '<p class="text-xs text-gray-400 italic">No records in this category.</p>'}
+                          </div>
+                      </div>
+                  `;
+            })
+            .join("");
+
+          if (log.error_message) {
+            detailsHtml += `
+                      <div class="bg-red-50 border border-red-100 p-4 rounded-xl mt-4">
+                          <h4 class="font-bold text-sm text-red-600 mb-1"><i class="fas fa-exclamation-triangle mr-2"></i> Error Traceback</h4>
+                          <p class="text-xs text-red-800 font-mono whitespace-pre-wrap">${log.error_message}</p>
+                      </div>
+                  `;
+          }
+        } catch (e) {
+          detailsHtml = `<p class="text-xs text-gray-500 italic">No structured details available for this sync operation.</p>`;
+        }
+
+        body.innerHTML = `
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                  <div class="bg-white p-3 rounded-xl border border-gray-200">
+                      <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Status</p>
+                      <p class="text-sm font-bold ${log.status === "success" ? "text-emerald-600" : "text-red-600"}">${log.status.toUpperCase()}</p>
+                  </div>
+                  <div class="bg-white p-3 rounded-xl border border-gray-200">
+                      <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Net Change</p>
+                      <p class="text-sm font-bold text-gray-800 font-mono">
+                          <span class="text-emerald-600">+${log.rows_added}</span> / <span class="text-red-600">-${log.rows_deleted}</span>
+                      </p>
+                  </div>
+              </div>
+              ${detailsHtml}
+          `;
+
+        document.getElementById("log-modal").classList.remove("hidden");
+      }
+
+      function closeLogModal() {
+        document.getElementById("log-modal").classList.add("hidden");
+      }
+
+      // --- Initializers ---
+      async function initializeAdminPanel() {
+        await Promise.all([
+          loadLogs(),
+          loadRecentActivity(),
+          loadDeletedRecords(),
+        ]);
+      }
+
+      // --- Audit Trails ---
+      async function loadLogs() {
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/logs?limit=15`);
+          if (!res.ok) throw new Error("Failed to fetch logs");
+          const data = await res.json();
+
+          currentLogs = data.logs || [];
+
+          const tbody = document.getElementById("log-table-body");
+          if (currentLogs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 italic">No sync logs found.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = currentLogs
+            .map(
+              (log) => `
+                  <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                      <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(log.timestamp)}</td>
+                      <td class="px-4 py-3">
+                          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${log.sync_type === "cron" ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-purple-50 text-purple-600 border-purple-200"}">
+                              ${log.sync_type}
+                          </span>
+                      </td>
+                      <td class="px-4 py-3">
+                          ${log.status === "success" ? '<span class="text-emerald-500"><i class="fas fa-check-circle mr-1"></i> Success</span>' : '<span class="text-red-500"><i class="fas fa-times-circle mr-1"></i> Failed</span>'}
+                      </td>
+                      <td class="px-4 py-3 text-gray-700 font-mono text-xs">
+                          <span class="text-green-600">+${log.rows_added}</span> / 
+                          <span class="text-blue-600">~${log.rows_updated}</span> / 
+                          <span class="text-red-600">-${log.rows_deleted}</span>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                          <button onclick="openLogModal(${log.id})" class="text-brand hover:text-brand-hover font-bold text-xs underline">View Details</button>
+                      </td>
+                  </tr>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      async function loadRecentActivity() {
+        try {
+          const [animeRes, seriesRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/anime`),
+            fetch(`${API_BASE_URL}/series`),
+          ]);
+
+          if (!animeRes.ok || !seriesRes.ok)
+            throw new Error("Failed to fetch data");
+
+          const allAnime = await animeRes.json();
+          const allSeries = await seriesRes.json();
+
+          // Sort for Recently Modified Anime
+          const modifiedAnimeSorted = [...allAnime]
+            .filter((a) => a.updated_at)
+            .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+            .slice(0, 15);
+
+          // Sort for Recently Modified Series
+          const modifiedSeriesSorted = [...allSeries]
+            .filter((s) => s.updated_at)
+            .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+            .slice(0, 15);
+
+          // Sort for Recently Added (Combine both Anime and Series)
+          const mergedAdded = [
+            ...(allAnime || []).map((a) => ({ ...a, __type: "anime" })),
+            ...(allSeries || []).map((s) => ({ ...s, __type: "series" })),
+          ];
+
+          const addedSorted = [...mergedAdded]
+            .filter((i) => i.created_at)
+            .sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime(),
+            )
+            .slice(0, 15);
+
+          renderModifiedAnimeTable(
+            "modified-anime-body",
+            modifiedAnimeSorted,
+            "hover:bg-blue-50",
+          );
+
+          renderSeriesTable(
+            "modified-series-body",
+            modifiedSeriesSorted,
+            "updated_at",
+            "hover:bg-purple-50",
+          );
+
+          renderAddedTable(
+            "added-table-body",
+            addedSorted,
+            "created_at",
+            "hover:bg-emerald-50",
+          );
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      function renderAddedTable(tbodyId, data, dateField, hoverClass) {
+        const tbody = document.getElementById(tbodyId);
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data
+          .map((item) => {
+            const isAnime = item.__type === "anime";
+            const title = isAnime
+              ? item.series_season_cn ||
+                item.series_season_en ||
+                item.series_en ||
+                "Unknown Title"
+              : item.series_cn || item.series_en || "Unknown Series";
+
+            const badgeClass = isAnime
+              ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+              : "bg-purple-50 text-purple-700 border-purple-100";
+
+            const path = isAnime
+              ? `/anime/${item.system_id}`
+              : `/series/${item.system_id}`;
+
+            return `
+                  <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" onclick="window.location.href='${path}'">
+                      <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(item[dateField])}</td>
+                      <td class="px-4 py-3">
+                          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${badgeClass}">
+                              ${item.__type}
+                          </span>
+                      </td>
+                      <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${title}">${title}</td>
+                      <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${item.system_id}</td>
+                  </tr>
+              `;
+          })
+          .join("");
+      }
+
+      function renderModifiedAnimeTable(tbodyId, data, hoverClass) {
+        const tbody = document.getElementById(tbodyId);
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data
+          .map((anime) => {
+            const titleCn =
+              anime.series_season_cn ||
+              anime.series_cn ||
+              anime.series_en ||
+              "-";
+            const type = anime.airing_type || "-";
+            const status = anime.airing_status || "-";
+            const progress = anime.my_progress || "-";
+            return `
+                <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" onclick="window.location.href='/anime/${anime.system_id}'">
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(anime.updated_at)}</td>
+                    <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${titleCn}">${titleCn}</td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${type}</td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${status}</td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${progress}</td>
+                    <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${anime.system_id}</td>
+                </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderSeriesTable(tbodyId, data, dateField, hoverClass) {
+        const tbody = document.getElementById(tbodyId);
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data
+          .map((series) => {
+            const title =
+              series.series_cn || series.series_en || "Unknown Series";
+            return `
+                  <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" onclick="window.location.href='/series/${series.system_id}'">
+                      <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(series[dateField])}</td>
+                      <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${title}">${title}</td>
+                      <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${series.system_id}</td>
+                  </tr>
+              `;
+          })
+          .join("");
+      }
+
+      async function loadDeletedRecords() {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/admin/recent-deleted?limit=15`,
+          );
+          if (!res.ok) throw new Error("Failed to fetch deleted records");
+          const data = await res.json();
+
+          const tbody = document.getElementById("deleted-table-body");
+          if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No recent deletions.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = data
+            .map(
+              (record) => `
+                  <tr class="hover:bg-red-50 transition border-b border-gray-100 last:border-0">
+                      <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(record.deleted_at)}</td>
+                      <td class="px-4 py-3">
+                          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                              ${record.record_type}
+                          </span>
+                      </td>
+                      <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${record.title}">
+                          ${record.title}
+                      </td>
+                  </tr>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      // --- Admin Diagnostics ---
+      async function cleanupLogs() {
+        const btn = document.getElementById("btn-cleanup");
+        const icon = document.getElementById("cleanup-icon");
+
+        btn.classList.add("pointer-events-none", "opacity-70");
+        icon.className = "fas fa-spinner fa-spin";
+
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/admin/logs/cleanup?days=30`,
+            { method: "DELETE" },
+          );
+          const data = await res.json();
+
+          if (!res.ok) throw new Error(data.detail || "Failed to purge logs.");
+
+          showToast(`Success: ${data.message}`);
+          await loadLogs(); // Refresh table
+        } catch (error) {
+          showToast(error.message, true);
+        } finally {
+          btn.classList.remove("pointer-events-none", "opacity-70");
+          icon.className = "fas fa-chevron-right text-xs opacity-50";
+        }
+      }
+
+      async function scanOrphans() {
+        const btn = document.getElementById("btn-scan");
+        const icon = document.getElementById("scan-icon");
+        const container = document.getElementById("orphan-container");
+
+        btn.classList.add("pointer-events-none", "opacity-70");
+        icon.className = "fas fa-spinner fa-spin text-amber-600";
+
+        container.innerHTML = `<div class="flex items-center justify-center h-full"><i class="fas fa-circle-notch fa-spin text-2xl text-amber-500"></i></div>`;
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/orphans`);
+          if (!res.ok) throw new Error("Failed to scan orphans.");
+          const orphans = await res.json();
+
+          if (orphans.length === 0) {
+            container.innerHTML = `
+                      <div class="flex flex-col items-center justify-center h-full text-center py-6">
+                          <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3"></i>
+                          <p class="text-gray-500 font-medium text-sm">Parity Achieved. No orphans detected between Postgres and Sheets.</p>
+                      </div>`;
+          } else {
+            let html = `<div class="space-y-3">`;
+            orphans.forEach((o) => {
+              const title =
+                o.series_season_cn ||
+                o.series_season_en ||
+                o.series_en ||
+                o.system_id;
+              html += `
+                          <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg p-3">
+                              <div class="min-w-0 pr-4">
+                                  <p class="text-sm font-bold text-gray-900 truncate" title="${title}">${title}</p>
+                                  <p class="text-[10px] text-gray-500 font-mono">${o.system_id}</p>
+                              </div>
+                              <button onclick="resolveOrphan('${o.system_id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shrink-0 shadow-sm">
+                                  <i class="fas fa-trash-alt mr-1"></i> Delete
+                              </button>
+                          </div>
+                      `;
+            });
+            html += `</div>`;
+            container.innerHTML = html;
+            showToast(`Found ${orphans.length} orphaned records.`, true);
+          }
+        } catch (error) {
+          container.innerHTML = `<p class="text-red-500 text-center py-4 text-sm font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</p>`;
+        } finally {
+          btn.classList.remove("pointer-events-none", "opacity-70");
+          icon.className = "fas fa-chevron-right text-xs opacity-50";
+        }
+      }
+
+      async function resolveOrphan(sysId) {
+        if (
+          !confirm(
+            "Are you sure you want to permanently delete this orphaned record from the database?",
+          )
+        )
+          return;
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/admin/orphans/${sysId}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error("Failed to delete orphan.");
+
+          showToast("Orphan resolved successfully.");
+          await scanOrphans(); // Rescan
+          await loadDeletedRecords(); // Update deletion history table
+        } catch (error) {
+          showToast(error.message, true);
+        }
+      }
+
+      // --- Sync Orchestration ---
+      async function handleSync() {
+        const btn = document.getElementById("syncBtn");
+        const icon = document.getElementById("syncIcon");
+
+        icon.classList.add("fa-spin");
+        btn.classList.add("opacity-75", "pointer-events-none");
+        btn.innerText = " Syncing...";
+        btn.prepend(icon);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/admin/sync`, {
+            method: "POST",
+          });
+          if (response.ok) {
+            icon.classList.remove("fa-spin", "fa-sync-alt");
+            icon.classList.add("fa-check");
+            btn.classList.remove(
+              "bg-brand",
+              "hover:bg-brand-hover",
+              "opacity-75",
+              "pointer-events-none",
+            );
+            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+            btn.innerText = " Synced!";
+            btn.prepend(icon);
+
+            showToast("Successfully synchronized with Google Sheets!");
+
+            // Refresh logs and tables instantly
+            await Promise.all([
+              loadLogs(),
+              loadRecentActivity(),
+              loadDeletedRecords(),
+            ]);
+
+            setTimeout(() => {
+              icon.classList.remove("fa-check");
+              icon.classList.add("fa-sync-alt");
+              btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+              btn.classList.add("bg-brand", "hover:bg-brand-hover");
+              btn.innerText = " Sync";
+              btn.prepend(icon);
+            }, 2000);
+          } else {
+            // More robust error extraction from FastAPI
+            const errData = await response.json();
+            throw new Error(errData.detail || response.statusText);
+          }
+        } catch (error) {
+          icon.classList.remove("fa-spin");
+          btn.classList.remove("opacity-75", "pointer-events-none");
+          btn.innerText = " Sync";
+          btn.prepend(icon);
+
+          showToast(`Sync Error: ${error.message}`, true);
+        }
+      }
+
+      // Initialize page
+      document.addEventListener("DOMContentLoaded", initializeAdminPanel);
+    </script>
+  </body>
+</html>
