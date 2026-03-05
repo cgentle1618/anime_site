@@ -143,6 +143,43 @@ def manual_add_anime(payload: schemas.AnimeCreate, db: Session = Depends(get_db)
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/series", summary="Add New Series Hub")
+def manual_add_series(
+    payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get_db)
+):
+    """
+    Creates a standalone series hub from the frontend manual prompt.
+    """
+    try:
+        if payload.series_en:
+            existing_series = (
+                db.query(models.AnimeSeries)
+                .filter(models.AnimeSeries.series_en == payload.series_en)
+                .first()
+            )
+            if existing_series:
+                return {"status": "success", "message": "Series already exists."}
+
+        new_series_data = {
+            "system_id": str(uuid.uuid4()),
+            "series_en": payload.series_en,
+            "series_roman": payload.series_roman,
+            "series_cn": payload.series_cn,
+            "rating_series": payload.rating_series,
+            "alt_name": payload.alt_name,
+        }
+
+        sheets_client.append_new_series(new_series_data)
+        sheets_sync.sync_sheet_to_db(db_session=db, sync_type="manual")
+
+        return {
+            "status": "success",
+            "message": "Successfully created new Series Hub.",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/anime/{system_id}", summary="Update Anime Entry")
 def update_anime_entry(
     system_id: str, payload: schemas.AnimeUpdate, db: Session = Depends(get_db)

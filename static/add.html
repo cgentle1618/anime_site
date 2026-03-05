@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add New Entry - CG1618</title>
+    <title>Add New Entry - CG1618 Tracker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -13,14 +13,17 @@
     />
     <!-- Google Fonts -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
+            fontFamily: {
+              sans: ["Roboto", "Noto Sans TC", "sans-serif"],
+              mono: ["Fira Code", "monospace"],
+            },
             colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
           },
         },
@@ -28,7 +31,8 @@
     </script>
     <style>
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: #f3f4f6;
@@ -39,6 +43,10 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #9ca3af;
+      }
+      .modal-backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
       }
     </style>
   </head>
@@ -89,17 +97,17 @@
                       >
                       <a
                         href="/add"
-                        class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition"
+                        class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition border-b border-gray-100"
                         >Add</a
                       >
                       <a
                         href="/modify"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
                         >Modify</a
                       >
                       <a
                         href="/delete"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-red-600 bg-red-50 font-medium transition"
                         >Delete</a
                       >
                     </div>
@@ -119,7 +127,7 @@
                 type="text"
                 id="globalSearchInput"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
-                placeholder="Search Series or Anime Names..."
+                placeholder="Search..."
               />
             </div>
             <button
@@ -136,45 +144,53 @@
 
     <!-- Main Content -->
     <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <div class="mb-8 border-b border-gray-200 pb-4">
-        <h1 class="text-3xl font-bold text-gray-900">
-          <i class="fas fa-plus-square text-brand mr-3"></i>Add New Entry
-        </h1>
-        <p class="text-gray-500 mt-2">
-          Append a completely new anime record directly to the bottom of the
-          Google Sheet.
-        </p>
+      <div
+        class="mb-8 border-b border-gray-200 pb-4 flex justify-between items-end"
+      >
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-plus-square text-brand mr-3"></i>Add New Entry
+          </h1>
+          <p class="text-gray-500 mt-2">
+            Append a completely new anime record directly to the bottom of the
+            Google Sheet.
+          </p>
+        </div>
       </div>
 
       <!-- FULL WIDTH ROW: Manual Entry Append Form -->
       <div
-        class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8"
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8"
       >
         <form
           id="manual-add-form"
           onsubmit="submitManualEntry(event)"
-          class="space-y-8"
+          class="space-y-10"
         >
           <!-- 1. Titles & Naming -->
           <div>
             <h3
-              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
             >
-              <i class="fas fa-heading mr-2 text-gray-400"></i>1. Titles &
-              Naming
+              <i class="fas fa-heading mr-2 text-brand"></i>1. Titles & Naming
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              <div class="sm:col-span-2">
+              <div class="sm:col-span-2 relative">
                 <label
                   class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Series English Name (Primary Group Key)</label
+                  >Series English Name (Hub Key)</label
                 >
                 <input
                   type="text"
                   id="add-series-en"
+                  oninput="handleAutocomplete(this, 'series_en')"
                   placeholder="Optional (Auto-fills from season titles if empty)..."
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  autocomplete="off"
                 />
+                <div
+                  class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                ></div>
               </div>
               <div>
                 <label
@@ -183,7 +199,7 @@
                 >
                 <select
                   id="add-season"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="" selected>-</option>
                   <option value="Season 1">Season 1</option>
@@ -202,7 +218,7 @@
 
             <!-- Visually Distinct Required Title Block -->
             <div
-              class="mt-6 relative bg-rose-50/30 border border-rose-200 rounded-xl p-4 pt-5 shadow-sm"
+              class="mt-6 relative bg-rose-50/30 border border-rose-200 rounded-xl p-5 shadow-sm"
             >
               <div
                 class="absolute -top-2.5 left-4 bg-white px-2 py-0.5 text-[9px] font-bold text-rose-500 uppercase tracking-wider flex items-center shadow-sm border border-rose-200 rounded-md"
@@ -211,7 +227,7 @@
                 required
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <div>
+                <div class="relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                     >Season English Title</label
@@ -219,23 +235,33 @@
                   <input
                     type="text"
                     id="add-season-en"
+                    oninput="handleAutocomplete(this, 'series_season_en')"
                     placeholder="Optional..."
                     class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    autocomplete="off"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
-                <div>
+                <div class="relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >Season Romanized Title</label
+                    >Season Romaji Title</label
                   >
                   <input
                     type="text"
                     id="add-season-roman"
+                    oninput="handleAutocomplete(this, 'series_season_roman')"
                     placeholder="Optional..."
                     class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    autocomplete="off"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
-                <div>
+                <div class="relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                     >Season Chinese Title</label
@@ -243,9 +269,14 @@
                   <input
                     type="text"
                     id="add-season-cn"
+                    oninput="handleAutocomplete(this, 'series_season_cn')"
                     placeholder="Optional..."
                     class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    autocomplete="off"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -254,10 +285,9 @@
           <!-- 2. Status & Ratings -->
           <div>
             <h3
-              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
             >
-              <i class="fas fa-tasks mr-2 text-gray-400"></i>2. Status &
-              Progress
+              <i class="fas fa-tasks mr-2 text-brand"></i>2. Status & Progress
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div>
@@ -267,7 +297,7 @@
                 >
                 <select
                   id="add-progress"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="Might Watch" selected>Might Watch</option>
                   <option value="Plan to Watch">Plan to Watch</option>
@@ -278,7 +308,7 @@
                   <option value="Temp Dropped">Temp Dropped</option>
                   <option value="Dropped">Dropped</option>
                   <option value="Won't Watch">Won't Watch</option>
-                  <option value="Finished">Finished</option>
+                  <option value="Completed">Completed</option>
                 </select>
               </div>
               <div>
@@ -288,7 +318,7 @@
                 >
                 <select
                   id="add-airing-status"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="">-</option>
                   <option value="Not Yet Aired" selected>Not Yet Aired</option>
@@ -306,7 +336,7 @@
                     type="number"
                     id="add-ep-fin"
                     placeholder="0"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                 </div>
                 <div class="w-1/2">
@@ -318,7 +348,7 @@
                     type="number"
                     id="add-ep-total"
                     placeholder="?"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                 </div>
               </div>
@@ -329,7 +359,7 @@
                 >
                 <select
                   id="add-rating"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="">-</option>
                   <option value="S">S</option>
@@ -348,9 +378,9 @@
           <!-- 3. Classification & Broadcast -->
           <div>
             <h3
-              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
             >
-              <i class="fas fa-tags mr-2 text-gray-400"></i>3. Classification
+              <i class="fas fa-tags mr-2 text-brand"></i>3. Classification
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div>
@@ -360,7 +390,7 @@
                 >
                 <select
                   id="add-type"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="" selected>-</option>
                   <option value="TV">TV</option>
@@ -369,6 +399,7 @@
                   <option value="Special">Special</option>
                   <option value="OVA">OVA</option>
                   <option value="OAD">OAD</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
               <div>
@@ -378,7 +409,7 @@
                 >
                 <select
                   id="add-main-spinoff"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="">-</option>
                   <option value="本傳">本傳</option>
@@ -418,9 +449,9 @@
           <!-- 4. Production & Distribution -->
           <div>
             <h3
-              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
             >
-              <i class="fas fa-video mr-2 text-gray-400"></i>4. Production &
+              <i class="fas fa-video mr-2 text-brand"></i>4. Production &
               Distribution
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -432,7 +463,7 @@
                 <div class="flex gap-2">
                   <select
                     id="add-release-season"
-                    class="w-1/3 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
+                    class="w-1/3 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
                   >
                     <option value="">Season</option>
                     <option value="WIN">WIN</option>
@@ -442,7 +473,7 @@
                   </select>
                   <select
                     id="add-release-month"
-                    class="w-1/3 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
+                    class="w-1/3 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
                   >
                     <option value="">Month</option>
                     <option value="JAN">JAN</option>
@@ -462,7 +493,7 @@
                     type="number"
                     id="add-release-year"
                     placeholder="YYYY"
-                    class="w-1/3 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none transition"
+                    class="w-1/3 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none transition"
                   />
                 </div>
               </div>
@@ -474,7 +505,7 @@
                   >Studio</label
                 >
                 <div
-                  class="w-full bg-gray-50 border border-gray-300 focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+                  class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
                   onclick="document.getElementById('add-studio-input').focus()"
                 >
                   <div
@@ -484,7 +515,7 @@
                   <input
                     list="studio-list"
                     id="add-studio-input"
-                    placeholder="Select or type & press Enter..."
+                    placeholder="Select or type..."
                     class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
                     autocomplete="off"
                   />
@@ -501,7 +532,7 @@
                   list="distributor-list"
                   id="add-distributor"
                   placeholder="Select or type..."
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
                 <datalist id="distributor-list">
                   <option value="Muse木棉花"></option>
@@ -528,7 +559,7 @@
                   type="text"
                   id="add-director"
                   placeholder="Optional"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div>
@@ -538,7 +569,7 @@
                 >
                 <select
                   id="add-baha"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="">-</option>
                   <option value="TRUE">TRUE (有)</option>
@@ -552,7 +583,7 @@
                 >
                 <select
                   id="add-netflix"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="">-</option>
                   <option value="TRUE">TRUE (有)</option>
@@ -565,9 +596,9 @@
           <!-- 5. Links, Music, Remarks -->
           <div>
             <h3
-              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+              class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
             >
-              <i class="fas fa-link mr-2 text-gray-400"></i>5. Links, Music, &
+              <i class="fas fa-link mr-2 text-brand"></i>5. Links, Music, &
               Notes
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -580,7 +611,7 @@
                   type="number"
                   id="add-mal-id"
                   placeholder="e.g. 5114"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div>
@@ -592,7 +623,7 @@
                   type="text"
                   id="add-mal-link"
                   placeholder="https://myanimelist.net/..."
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div>
@@ -604,7 +635,7 @@
                   type="text"
                   id="add-anilist-link"
                   placeholder="https://anilist.co/..."
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div class="sm:col-span-2 lg:col-span-3">
@@ -617,7 +648,7 @@
                     <span class="text-xs font-bold text-gray-400 w-6">OP</span>
                     <select
                       id="add-op"
-                      class="flex-1 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                      class="flex-1 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                     >
                       <option value="">-</option>
                       <option value="Need">Need</option>
@@ -629,7 +660,7 @@
                     <span class="text-xs font-bold text-gray-400 w-6">ED</span>
                     <select
                       id="add-ed"
-                      class="flex-1 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                      class="flex-1 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                     >
                       <option value="">-</option>
                       <option value="Need">Need</option>
@@ -641,7 +672,7 @@
                     <span class="text-xs font-bold text-gray-400 w-8">OST</span>
                     <select
                       id="add-insert"
-                      class="flex-1 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                      class="flex-1 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                     >
                       <option value="">-</option>
                       <option value="Need">Need</option>
@@ -660,7 +691,7 @@
                   id="add-remark"
                   rows="2"
                   placeholder="Optional notes..."
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition resize-y"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition resize-y"
                 ></textarea>
               </div>
             </div>
@@ -668,17 +699,13 @@
 
           <!-- Submit Footer -->
           <div
-            class="flex items-center justify-between pt-6 border-t border-gray-100 mt-6"
+            class="flex items-center justify-end pt-6 border-t border-gray-100"
           >
-            <span
-              id="manual-add-status"
-              class="text-sm font-bold hidden"
-            ></span>
             <button
               type="submit"
-              class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition ml-auto flex items-center"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
             >
-              <i class="fas fa-sync mr-2"></i> Add and Sync
+              <i class="fas fa-plus-circle mr-2"></i> Append to Database
             </button>
           </div>
         </form>
@@ -713,8 +740,8 @@
             <span class="font-bold text-gray-800">Series Name</span>,
             <span class="font-bold text-gray-800">Airing Type</span>, and at
             least one
-            <span class="font-bold text-gray-800">Season Title</span> as
-            existing entries in the database. Please verify before adding.
+            <span class="font-bold text-gray-800">Season Title</span> as an
+            existing entry in the database. Please verify before adding.
           </p>
 
           <div
@@ -793,7 +820,7 @@
               class="font-bold text-gray-900"
             ></span>
             does not exist in the database yet. A new Franchise Hub will be
-            created for it.
+            automatically created for it.
           </p>
 
           <div class="space-y-4">
@@ -806,14 +833,15 @@
                 class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-600 space-y-1"
               >
                 <div>
-                  <span class="font-bold inline-block w-28">Chinese Name:</span>
-                  <span id="new-series-cn-display" class="text-gray-900"></span>
+                  <span class="font-bold inline-block w-28">Chinese Name:</span
+                  ><span
+                    id="new-series-cn-display"
+                    class="text-gray-900"
+                  ></span>
                 </div>
                 <div>
-                  <span class="font-bold inline-block w-28"
-                    >Romanized Name:</span
-                  >
-                  <span
+                  <span class="font-bold inline-block w-28">Romaji Name:</span
+                  ><span
                     id="new-series-roman-display"
                     class="text-gray-900"
                   ></span>
@@ -847,14 +875,30 @@
             onclick="confirmNewSeries()"
             class="px-5 py-2.5 bg-brand text-white rounded-lg text-sm font-bold shadow-sm hover:bg-brand-hover transition flex items-center"
           >
-            <i class="fas fa-plus-circle mr-2"></i> Create Series & Add
+            <i class="fas fa-folder-plus mr-2"></i> Create Hub & Add Entry
           </button>
         </div>
       </div>
     </div>
 
+    <!-- Global Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-6 right-6 z-[200] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
+    >
+      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
+      <span id="toast-msg" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- Logic -->
     <script>
       const API_BASE_URL = "/api";
+
+      // Global State for Validation & Autocomplete
+      let allSeriesNames = [];
+      let globalAnimeData = [];
+      let globalSeriesData = [];
+      let pendingPayload = null;
 
       // --- Universal UI Logic ---
       const globalSearchInput = document.getElementById("globalSearchInput");
@@ -868,13 +912,152 @@
         });
       }
 
-      function showStatus(elementId, message, isError = false) {
-        const el = document.getElementById(elementId);
-        el.innerText = message;
-        el.className = `text-sm font-bold ${isError ? "text-red-500" : "text-emerald-600"}`;
-        el.classList.remove("hidden");
-        setTimeout(() => el.classList.add("hidden"), 5000);
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        const msg = document.getElementById("toast-msg");
+        const icon = document.getElementById("toast-icon");
+
+        msg.innerText = message;
+        if (isError) {
+          icon.className =
+            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          toast.classList.replace("bg-red-900", "bg-gray-900");
+        }
+
+        toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(
+          () => toast.classList.add("translate-y-20", "opacity-0"),
+          4000,
+        );
       }
+
+      // Pre-load data for Autocomplete and New Series detection
+      async function loadMetadata() {
+        try {
+          const [seriesRes, animeRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/series`),
+            fetch(`${API_BASE_URL}/anime`),
+          ]);
+          if (seriesRes.ok) {
+            globalSeriesData = await seriesRes.json();
+            allSeriesNames = globalSeriesData
+              .map((s) => s.series_en)
+              .filter(Boolean);
+          }
+          if (animeRes.ok) {
+            globalAnimeData = await animeRes.json();
+          }
+        } catch (e) {
+          console.warn("Failed to load metadata for validation", e);
+        }
+      }
+
+      // --- Autocomplete Feature Logic ---
+      function normalizeStr(str) {
+        if (!str) return "";
+        return str.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+      }
+
+      function handleAutocomplete(inputEl, targetField) {
+        const query = normalizeStr(inputEl.value);
+        const resultsContainer = inputEl.nextElementSibling;
+
+        if (!query) {
+          resultsContainer.classList.add("hidden");
+          return;
+        }
+
+        let suggestions = new Map(); // Use Map to enforce distinct values
+
+        if (targetField === "series_en") {
+          // Search Series Hubs directly
+          globalSeriesData.forEach((s) => {
+            if (normalizeStr(s.series_en).includes(query))
+              suggestions.set(s.series_en, {
+                val: s.series_en,
+                series: s.series_en,
+              });
+            if (normalizeStr(s.series_cn).includes(query) && s.series_en)
+              suggestions.set(s.series_en, {
+                val: s.series_en,
+                series: s.series_en,
+              });
+          });
+          // Search Anime for parent series name
+          globalAnimeData.forEach((a) => {
+            if (normalizeStr(a.series_en).includes(query) && a.series_en)
+              suggestions.set(a.series_en, {
+                val: a.series_en,
+                series: a.series_en,
+              });
+          });
+        } else {
+          // Search specific Anime season titles
+          globalAnimeData.forEach((a) => {
+            const val = a[targetField];
+            if (val && normalizeStr(val).includes(query)) {
+              suggestions.set(val, { val: val, series: a.series_en });
+            }
+          });
+        }
+
+        const filtered = Array.from(suggestions.values()).slice(0, 8); // Top 8 matches
+
+        if (filtered.length === 0) {
+          resultsContainer.classList.add("hidden");
+          return;
+        }
+
+        resultsContainer.innerHTML = filtered
+          .map((item) => {
+            const safeVal = item.val
+              .replace(/'/g, "&#39;")
+              .replace(/"/g, "&quot;");
+            const safeSeries = (item.series || "")
+              .replace(/'/g, "&#39;")
+              .replace(/"/g, "&quot;");
+            return `
+                  <div class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0"
+                       onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}')">
+                      <div class="font-bold text-gray-900 truncate">${item.val}</div>
+                      ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}</div>` : ""}
+                  </div>
+              `;
+          })
+          .join("");
+
+        resultsContainer.classList.remove("hidden");
+      }
+
+      function selectSuggestion(inputId, val, seriesEn) {
+        // Decode HTML entities back for the input field
+        const decodedVal = val.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+        const decodedSeries = seriesEn
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"');
+
+        document.getElementById(inputId).value = decodedVal;
+        document
+          .getElementById(inputId)
+          .nextElementSibling.classList.add("hidden");
+
+        // Smart Autofill: If a season title was clicked, auto-fill the Series Hub name as well
+        if (inputId !== "add-series-en" && decodedSeries) {
+          document.getElementById("add-series-en").value = decodedSeries;
+        }
+      }
+
+      // Hide autocomplete dropdowns when clicking outside
+      document.addEventListener("click", (e) => {
+        document.querySelectorAll(".autocomplete-dropdown").forEach((el) => {
+          if (!el.parentElement.contains(e.target)) {
+            el.classList.add("hidden");
+          }
+        });
+      });
 
       // --- Dynamic Checkbox Generator for Genres ---
       const genreMainOptions = [
@@ -891,7 +1074,7 @@
         "懸疑",
         "恐怖",
         "黑暗",
-        "悲ध्यात्म",
+        "悲傷",
         "校園戀愛喜劇",
         "喜劇",
         "戀愛",
@@ -942,11 +1125,11 @@
           let html = "";
           optionsList.forEach((genre) => {
             html += `
-                      <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
-                          <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
-                          <span class="leading-tight">${genre}</span>
-                      </label>
-                  `;
+              <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
+                  <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
+                  <span class="leading-tight">${genre}</span>
+              </label>
+            `;
           });
           container.innerHTML = html;
         };
@@ -1031,10 +1214,10 @@
         container.innerHTML = Array.from(selectedStudios)
           .map(
             (s) => `
-              <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
-                  ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeStudio(event, '${s}')"></i>
-              </span>
-          `,
+            <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
+                ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeStudio(event, '${s}')"></i>
+            </span>
+        `,
           )
           .join("");
       }
@@ -1073,8 +1256,7 @@
         }
       }
 
-      // --- Feature 4: Manual Append, Duplicate Check, & New Series Check ---
-      let pendingPayload = null;
+      // --- Submission & Validation Flow ---
 
       async function submitManualEntry(e) {
         e.preventDefault();
@@ -1096,6 +1278,7 @@
           return isNaN(val) ? null : val;
         };
 
+        // 1. Data Collection
         let myProgress = getValue("add-progress");
         let epTotal = getInt("add-ep-total");
         let epFin = getInt("add-ep-fin") || 0;
@@ -1104,66 +1287,65 @@
         const seasonRoman = getValue("add-season-roman");
         const seasonCn = getValue("add-season-cn");
 
+        // 2. Client-Side Validations
         if (!seasonEn && !seasonRoman && !seasonCn) {
-          showStatus(
-            "manual-add-status",
-            "Validation Error: At least one Season Title (English, Romanized, or Chinese) must be provided.",
+          showToast(
+            "Validation Error: At least one Season Title (English, Romaji, or Chinese) must be provided.",
             true,
           );
           return;
         }
 
-        // Smart Auto-Fill for Series English Name
         let seriesEn = getValue("add-series-en");
-        if (!seriesEn) {
-          seriesEn = seasonEn || seasonRoman || seasonCn;
-        }
+        if (!seriesEn) seriesEn = seasonEn || seasonRoman || seasonCn;
 
         const rSeason = getValue("add-release-season") || "";
         const rMonth = getValue("add-release-month") || "";
         const rYear = getValue("add-release-year") || "";
 
-        // Validation: Ensure Season and Month are not both selected
         if (rSeason !== "" && rMonth !== "") {
-          showStatus(
-            "manual-add-status",
+          showToast(
             "Validation Error: Release Date cannot have both Season and Month selected.",
             true,
           );
           return;
         }
 
-        // Validation: Ep Fin cannot be greater than Ep Total
         if (epTotal !== null && epFin > epTotal) {
-          showStatus(
-            "manual-add-status",
+          showToast(
             "Validation Error: Episodes Finished cannot exceed Total Episodes.",
             true,
           );
           return;
         }
 
-        // Validation: Mismatched Finished States
-        const cond1 = epTotal !== null && epFin === epTotal;
-        const cond2 = myProgress === "Finished";
+        const cond1 = epTotal !== null && epTotal > 0 && epFin === epTotal;
+        const cond2 = myProgress === "Completed";
 
         if (cond1 !== cond2) {
-          // Exact wording from manual update
           const confirmed = confirm(
             "Have you finished watching this?\nProgress Status doesn't match Episode Count.",
           );
           if (confirmed) {
-            // User confirmed they finished. Align both conditions to true.
-            myProgress = "Finished";
-            document.getElementById("add-progress").value = "Finished";
-            if (epTotal !== null) {
+            myProgress = "Completed";
+            document.getElementById("add-progress").value = "Completed";
+
+            // Gracefully sync Episode variables depending on which one was left blank
+            if (epTotal !== null && epTotal > 0) {
               epFin = epTotal;
+              document.getElementById("add-ep-fin").value = epFin;
+            } else if (epFin > 0) {
+              epTotal = epFin;
+              document.getElementById("add-ep-total").value = epTotal;
+            } else {
+              // If both are empty but user explicitly confirmed it is Completed, default to 1 (Movie/Special)
+              epTotal = 1;
+              epFin = 1;
+              document.getElementById("add-ep-total").value = epTotal;
               document.getElementById("add-ep-fin").value = epFin;
             }
           } else {
-            // User didn't finish, block submission to allow corrections
-            showStatus(
-              "manual-add-status",
+            showToast(
               "Validation Error: Please fix the mismatch between Episodes Finished and My Progress.",
               true,
             );
@@ -1185,6 +1367,7 @@
             ? Array.from(selectedStudios).join(", ")
             : null;
 
+        // 3. Payload Construction
         const payload = {
           system_id: crypto.randomUUID(),
           series_en: seriesEn,
@@ -1220,23 +1403,19 @@
         btn.innerHTML =
           '<i class="fas fa-spinner fa-spin mr-1.5"></i> Validating...';
 
+        // 4. Server-Side Pre-Checks (Orphans/Duplicates)
         try {
-          // 1. Intercept & Check DB via existing endpoint
           if (seriesEn) {
             try {
-              // Get Anime for duplicate checking
               const checkRes = await fetch(
                 `${API_BASE_URL}/anime/by-series/${encodeURIComponent(seriesEn)}`,
               );
               let existingAnime = [];
-              if (checkRes.ok) {
-                existingAnime = await checkRes.json();
-              }
+              if (checkRes.ok) existingAnime = await checkRes.json();
 
-              // Determine if the Series Hub exactly exists
               let seriesHubExists = false;
 
-              // 1. Check local cache first
+              // Uses the locally cached array fetched on DOMContentLoaded
               if (
                 allSeriesNames.some(
                   (n) => n.toLowerCase() === seriesEn.toLowerCase(),
@@ -1244,7 +1423,6 @@
               ) {
                 seriesHubExists = true;
               } else {
-                // 2. Double-check with backend to be absolutely sure (and enforce exact match)
                 try {
                   const seriesCheckRes = await fetch(
                     `${API_BASE_URL}/series/details/${encodeURIComponent(seriesEn)}`,
@@ -1255,9 +1433,8 @@
                       if (
                         (data.series_en || "").toLowerCase() ===
                         seriesEn.toLowerCase()
-                      ) {
+                      )
                         seriesHubExists = true;
-                      }
                     } else if (Array.isArray(data) && data.length > 0) {
                       if (
                         data.some(
@@ -1265,24 +1442,23 @@
                             (d.series_en || "").toLowerCase() ===
                             seriesEn.toLowerCase(),
                         )
-                      ) {
+                      )
                         seriesHubExists = true;
-                      }
                     }
                   }
                 } catch (err) {}
               }
 
               if (!seriesHubExists) {
-                // TRULY NEW SERIES
+                // Trigger New Series Modal
                 pendingPayload = payload;
                 showNewSeriesModal(payload);
                 btn.disabled = false;
                 btn.innerHTML =
-                  '<i class="fas fa-sync mr-1.5"></i> Add and Sync';
+                  '<i class="fas fa-plus-circle mr-2"></i> Append to Database';
                 return;
               } else {
-                // Existing Series -> Run Duplicate Checking for the Anime Entry
+                // Hub Exists -> Check for exact duplicates
                 const safeLower = (val) => (val || "").trim().toLowerCase();
                 const typeMatchVal = safeLower(payload.airing_type);
                 const enMatchVal = safeLower(payload.series_season_en);
@@ -1290,12 +1466,10 @@
                 const romanMatchVal = safeLower(payload.series_season_roman);
 
                 const duplicates = existingAnime.filter((a) => {
-                  // Ensure the anime actually belongs to this exact series (in case of fuzzy backend match)
                   if (
                     (a.series_en || "").toLowerCase() !== seriesEn.toLowerCase()
                   )
                     return false;
-
                   if (safeLower(a.airing_type) !== typeMatchVal) return false;
 
                   const matchEn =
@@ -1314,7 +1488,7 @@
                   showDuplicateModal(payload, duplicates);
                   btn.disabled = false;
                   btn.innerHTML =
-                    '<i class="fas fa-sync mr-1.5"></i> Add and Sync';
+                    '<i class="fas fa-plus-circle mr-2"></i> Append to Database';
                   return;
                 }
               }
@@ -1326,18 +1500,20 @@
             }
           }
 
-          // No duplicates and not a new series -> execute push immediately
+          // 5. Final Execution if no conflicts found
           btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-1.5"></i> Adding & Syncing...';
+            '<i class="fas fa-spinner fa-spin mr-1.5"></i> Appending & Syncing...';
           await executeAppendAndSync(payload, btn);
         } catch (error) {
-          showStatus("manual-add-status", error.message, true);
+          showToast(`Error: ${error.message}`, true);
           btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-sync mr-1.5"></i> Add and Sync';
+          btn.innerHTML =
+            '<i class="fas fa-plus-circle mr-2"></i> Append to Database';
         }
       }
 
-      // --- New Series Modal Logic ---
+      // --- Custom Modal Logic ---
+
       function showNewSeriesModal(payload) {
         document.getElementById("new-series-name-display").innerText =
           payload.series_en;
@@ -1345,8 +1521,7 @@
           payload.series_season_cn || "(Empty)";
         document.getElementById("new-series-roman-display").innerText =
           payload.series_season_roman || "(Empty)";
-        document.getElementById("new-series-alt-input").value = ""; // Reset input
-
+        document.getElementById("new-series-alt-input").value = "";
         document.getElementById("new-series-modal").classList.remove("hidden");
       }
 
@@ -1358,52 +1533,48 @@
       function confirmNewSeries() {
         if (!pendingPayload) return;
         const payloadCopy = pendingPayload;
-
-        // Inject the user's alt_name into the payload object temporarily
         payloadCopy.series_alt_name = document
           .getElementById("new-series-alt-input")
           .value.trim();
 
         closeNewSeriesModal();
-
         const btn = document.querySelector(
           '#manual-add-form button[type="submit"]',
         );
         btn.disabled = true;
         btn.innerHTML =
-          '<i class="fas fa-spinner fa-spin mr-1.5"></i> Adding & Syncing...';
+          '<i class="fas fa-spinner fa-spin mr-1.5"></i> Creating Hub & Syncing...';
         executeAppendAndSync(payloadCopy, btn);
       }
 
-      // --- Duplicate Modal Logic ---
       function showDuplicateModal(newEntry, duplicates) {
         const tbody = document.getElementById("duplicate-table-body");
         let html = `
-              <tr class="bg-emerald-50/70 border-b-2 border-emerald-200">
-                  <td class="px-4 py-3 font-bold text-emerald-700 uppercase text-[10px] tracking-wider sticky left-0 bg-emerald-50/90 backdrop-blur border-r border-emerald-100 shadow-[1px_0_0_0_#d1fae5]"><i class="fas fa-plus-circle mr-1"></i> New Entry</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_en || "-"}</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_season_en || "-"}</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_season_cn || "-"}</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_season || "-"}</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.airing_type || "-"}</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.main_spinoff || "-"}</td>
-                  <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.release_date || "-"}</td>
-              </tr>
-          `;
+            <tr class="bg-emerald-50/70 border-b-2 border-emerald-200">
+                <td class="px-4 py-3 font-bold text-emerald-700 uppercase text-[10px] tracking-wider sticky left-0 bg-emerald-50/90 backdrop-blur border-r border-emerald-100 shadow-[1px_0_0_0_#d1fae5]"><i class="fas fa-plus-circle mr-1"></i> New Entry</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_en || "-"}</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_season_en || "-"}</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_season_cn || "-"}</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.series_season || "-"}</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.airing_type || "-"}</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.main_spinoff || "-"}</td>
+                <td class="px-4 py-3 text-emerald-900 font-bold">${newEntry.release_date || "-"}</td>
+            </tr>
+        `;
 
         duplicates.forEach((d) => {
           html += `
-                  <tr class="hover:bg-gray-50 transition-colors">
-                      <td class="px-4 py-3 font-bold text-amber-600 uppercase text-[10px] tracking-wider sticky left-0 bg-white group-hover:bg-gray-50 border-r border-gray-200 shadow-[1px_0_0_0_#e5e7eb]"><i class="fas fa-database mr-1"></i> Existing</td>
-                      <td class="px-4 py-3 text-gray-700">${d.series_en || "-"}</td>
-                      <td class="px-4 py-3 text-gray-700">${d.series_season_en || "-"}</td>
-                      <td class="px-4 py-3 text-gray-700">${d.series_season_cn || "-"}</td>
-                      <td class="px-4 py-3 text-gray-700">${d.series_season || "-"}</td>
-                      <td class="px-4 py-3 text-gray-700">${d.airing_type || "-"}</td>
-                      <td class="px-4 py-3 text-gray-700">${d.main_spinoff || "-"}</td>
-                      <td class="px-4 py-3 text-gray-700">${d.release_date || "-"}</td>
-                  </tr>
-              `;
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 font-bold text-amber-600 uppercase text-[10px] tracking-wider sticky left-0 bg-white group-hover:bg-gray-50 border-r border-gray-200 shadow-[1px_0_0_0_#e5e7eb]"><i class="fas fa-database mr-1"></i> Existing</td>
+                <td class="px-4 py-3 text-gray-700">${d.series_en || "-"}</td>
+                <td class="px-4 py-3 text-gray-700">${d.series_season_en || "-"}</td>
+                <td class="px-4 py-3 text-gray-700">${d.series_season_cn || "-"}</td>
+                <td class="px-4 py-3 text-gray-700">${d.series_season || "-"}</td>
+                <td class="px-4 py-3 text-gray-700">${d.airing_type || "-"}</td>
+                <td class="px-4 py-3 text-gray-700">${d.main_spinoff || "-"}</td>
+                <td class="px-4 py-3 text-gray-700">${d.release_date || "-"}</td>
+            </tr>
+          `;
         });
 
         tbody.innerHTML = html;
@@ -1425,11 +1596,11 @@
         );
         btn.disabled = true;
         btn.innerHTML =
-          '<i class="fas fa-spinner fa-spin mr-1.5"></i> Adding & Syncing...';
+          '<i class="fas fa-spinner fa-spin mr-1.5"></i> Appending & Syncing...';
         executeAppendAndSync(payloadCopy, btn);
       }
 
-      // --- Final Execution ---
+      // --- Network Execution ---
       async function executeAppendAndSync(payload, btn) {
         try {
           const res = await fetch(`${API_BASE_URL}/admin/add`, {
@@ -1441,6 +1612,7 @@
           const data = await res.json();
           if (!res.ok) throw new Error(data.detail || "Append failed");
 
+          // Save new distributor to datalist
           const distList = document.getElementById("distributor-list");
           if (payload.distributor_tw) {
             const exists = Array.from(distList.options).some(
@@ -1453,6 +1625,7 @@
             }
           }
 
+          // Save new studios to datalist
           let studioUpdated = false;
           selectedStudios.forEach((s) => {
             if (!allStudios.includes(s)) {
@@ -1462,23 +1635,25 @@
           });
           if (studioUpdated) renderStudioDatalist();
 
+          // Reset form UI securely
           selectedStudios.clear();
           renderStudioTags();
-
-          showStatus(
-            "manual-add-status",
-            "Success! Entry appended to Sheet and synced to Database.",
-          );
           document.getElementById("manual-add-form").reset();
+
+          await loadMetadata(); // Refresh global series names cache
+
+          showToast(
+            "Success! Entry permanently appended to Sheet and database synced.",
+          );
         } catch (error) {
-          showStatus("manual-add-status", error.message, true);
+          showToast(`Append Error: ${error.message}`, true);
         } finally {
           btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-sync mr-1.5"></i> Add and Sync';
+          btn.innerHTML =
+            '<i class="fas fa-plus-circle mr-2"></i> Append to Database';
         }
       }
 
-      // --- Universal Sync Helper ---
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
@@ -1493,7 +1668,6 @@
             method: "POST",
           });
           if (response.ok) {
-            // Visual success indicator instead of popup alert
             icon.classList.remove("fa-spin", "fa-sync-alt");
             icon.classList.add("fa-check");
             btn.classList.remove(
@@ -1506,9 +1680,8 @@
             btn.innerText = " Synced!";
             btn.prepend(icon);
 
-            await loadMetadata(); // Reload dropdown choices
+            await loadMetadata(); // Refresh global series names cache
 
-            // Revert button back to normal after 2 seconds
             setTimeout(() => {
               icon.classList.remove("fa-check");
               icon.classList.add("fa-sync-alt");
@@ -1518,23 +1691,21 @@
               btn.prepend(icon);
             }, 2000);
           } else {
-            // Revert button immediately on error
             icon.classList.remove("fa-spin");
             btn.classList.remove("opacity-75", "pointer-events-none");
             btn.innerText = " Sync Sheets";
             btn.prepend(icon);
 
             const data = await response.json();
-            alert(`Sync Error: ${data.detail}`);
+            showToast(`Sync Error: ${data.detail}`, true);
           }
         } catch (error) {
-          // Revert button immediately on error
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75", "pointer-events-none");
           btn.innerText = " Sync Sheets";
           btn.prepend(icon);
 
-          alert("Failed to connect to backend sync.");
+          showToast("Failed to connect to backend sync server.", true);
         }
       }
 
@@ -1542,6 +1713,7 @@
       document.addEventListener("DOMContentLoaded", () => {
         populateGenres();
         setupStudioInput();
+        loadMetadata();
       });
     </script>
   </body>
