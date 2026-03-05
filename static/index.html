@@ -52,15 +52,15 @@
       input[type="number"]::-webkit-inner-spin-button {
         -webkit-appearance: none;
       }
-
-      /* Search Dropdown Z-index management */
       .search-dropdown {
         max-height: 400px;
         overflow-y: auto;
       }
     </style>
   </head>
-  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+  <body
+    class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans relative"
+  >
     <!-- Universal Top Navigation Bar -->
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -104,13 +104,18 @@
                       >
                       <a
                         href="/add"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
                         >Add</a
                       >
                       <a
                         href="/modify"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
                         >Modify</a
+                      >
+                      <a
+                        href="/delete"
+                        class="px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 font-medium transition"
+                        >Delete</a
                       >
                     </div>
                   </div>
@@ -133,7 +138,7 @@
                 type="text"
                 id="globalSearchInput"
                 oninput="handleGlobalSearch(this.value)"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
                 placeholder="Search Series or Anime Names..."
                 autocomplete="off"
               />
@@ -174,7 +179,7 @@
         <p class="text-gray-500 font-medium">Fetching dashboard...</p>
       </div>
 
-      <!-- Dashboard Grid (Populated by JS) -->
+      <!-- Dashboard Grid -->
       <div id="dashboard-content" class="hidden space-y-12">
         <!-- Active Watching Section -->
         <section>
@@ -301,7 +306,6 @@
         }
       });
 
-      // Handle clicking outside search container
       document.addEventListener("click", function (e) {
         const container = document.getElementById("globalSearchContainer");
         const suggestions = document.getElementById("searchSuggestions");
@@ -380,7 +384,8 @@
         }
 
         const qNorm = normalize(query);
-        const results = [];
+        const seriesResults = [];
+        const animeResults = [];
 
         // 1. Search Series
         allSeriesData.forEach((s) => {
@@ -393,7 +398,7 @@
             .filter(Boolean)
             .join(" ");
           if (normalize(matchText).includes(qNorm)) {
-            results.push({ type: "series", data: s });
+            seriesResults.push({ type: "series", data: s });
           }
         });
 
@@ -408,11 +413,12 @@
             .filter(Boolean)
             .join(" ");
           if (normalize(matchText).includes(qNorm)) {
-            results.push({ type: "anime", data: a });
+            animeResults.push({ type: "anime", data: a });
           }
         });
 
-        // Sort & Limit
+        // Priority: Series Hubs first, then Anime entries
+        const results = [...seriesResults, ...animeResults];
         const limitedResults = results.slice(0, 10);
 
         if (limitedResults.length === 0) {
@@ -424,7 +430,14 @@
           .map((res) => {
             if (res.type === "anime") {
               const a = res.data;
-              const seriesName = a.series_cn || a.series_en;
+              // Look up the parent series in allSeriesData to get series_cn
+              const parentSeries = allSeriesData.find(
+                (s) => s.series_en === a.series_en,
+              );
+              const seriesDisplayName = parentSeries
+                ? parentSeries.series_cn || parentSeries.series_en
+                : a.series_en;
+
               return `
                     <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
                          onclick="window.location.href='/anime/${a.system_id}'">
@@ -433,7 +446,7 @@
                             <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
                         </div>
                         <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_en}</div>
-                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesName}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesDisplayName}</div>
                     </div>
                   `;
             } else {
@@ -455,10 +468,22 @@
         suggestionsDiv.classList.remove("hidden");
       }
 
+      async function loadSearchData() {
+        try {
+          const [animeRes, seriesRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/anime`),
+            fetch(`${API_BASE_URL}/series`),
+          ]);
+          if (animeRes.ok) allAnimeData = await animeRes.json();
+          if (seriesRes.ok) allSeriesData = await seriesRes.json();
+        } catch (e) {
+          console.error("Failed to load background search data.", e);
+        }
+      }
+
       // --- Data Fetching & Organization ---
       async function loadDashboard() {
         try {
-          // Fetch both anime and series data for the dashboard and search suggestions
           const [animeRes, seriesRes] = await Promise.all([
             fetch(`${API_BASE_URL}/anime`),
             fetch(`${API_BASE_URL}/series`),
@@ -492,7 +517,6 @@
         const paused = [];
         const tempDropped = [];
 
-        // Sort recent additions/updates to top
         const sortedData = [...allAnimeData].sort((a, b) => {
           const titleA = (
             a.series_season_cn ||
@@ -507,7 +531,6 @@
           return titleA.localeCompare(titleB);
         });
 
-        // Categorize into priority lanes
         sortedData.forEach((anime) => {
           if (anime.my_progress === "Active Watching") active.push(anime);
           else if (anime.my_progress === "Passive Watching")
@@ -517,12 +540,10 @@
             tempDropped.push(anime);
         });
 
-        // Update subtitle
         const totalActive = active.length + passive.length;
         document.getElementById("dashboard-subtitle").innerText =
           `You are currently tracking ${totalActive} ongoing series.`;
 
-        // Render Grids
         populateGrid("grid-active", "count-active", active);
         populateGrid("grid-passive", "count-passive", passive);
         populateGrid("grid-paused", "count-paused", paused);
@@ -557,7 +578,6 @@
         const epFin = anime.ep_fin || 0;
         const epTotal = anime.ep_total || "?";
 
-        // Smart Progress Bar Calculation
         let progressPercent = 0;
         let progressStyle = `width: 0%`;
 
@@ -569,7 +589,6 @@
           progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
         }
 
-        // Badge Styling
         let statusBadge = "";
         if (anime.my_progress === "Active Watching")
           statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 shadow-sm">${anime.my_progress}</span>`;
@@ -592,7 +611,6 @@
 
         return `
             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full">
-                <!-- Top Section: Image & Info -->
                 <div class="flex p-3 cursor-pointer" onclick="window.location.href='/anime/${anime.system_id}'">
                     <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
                         <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
@@ -608,7 +626,6 @@
                     </div>
                 </div>
 
-                <!-- Bottom Section: Progress Controls -->
                 <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto">
                     <div class="flex justify-between items-end mb-1.5">
                         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
@@ -636,7 +653,6 @@
           `;
       }
 
-      // --- Optimistic State Management ---
       async function optimisticUpdate(sys_id, change) {
         const index = allAnimeData.findIndex((a) => a.system_id === sys_id);
         if (index === -1) return;
@@ -672,7 +688,6 @@
         }
       }
 
-      // --- Sync Orchestration ---
       async function handleSync() {
         const icon = document.getElementById("syncIcon");
         const btn = document.getElementById("syncBtn");
