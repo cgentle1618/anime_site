@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Modify Database - CG1618</title>
+    <title>Modify Database - CG1618 Tracker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -13,14 +13,17 @@
     />
     <!-- Google Fonts -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: { sans: ["Roboto", "Noto Sans TC", "sans-serif"] },
+            fontFamily: {
+              sans: ["Roboto", "Noto Sans TC", "sans-serif"],
+              mono: ["Fira Code", "monospace"],
+            },
             colors: { brand: { DEFAULT: "#6366f1", hover: "#4f46e5" } },
           },
         },
@@ -28,7 +31,8 @@
     </script>
     <style>
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: #f3f4f6;
@@ -54,6 +58,10 @@
       .tab-inactive:hover {
         color: #374151;
         border-bottom-color: #d1d5db;
+      }
+      .modal-backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
       }
     </style>
   </head>
@@ -109,7 +117,7 @@
                       >
                       <a
                         href="/modify"
-                        class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition"
+                        class="px-4 py-2.5 text-sm text-brand bg-brand/5 font-medium transition border-b border-gray-100"
                         >Modify</a
                       >
                       <a
@@ -211,7 +219,7 @@
               autocomplete="off"
             />
 
-            <!-- Search Results Dropdown (Moved inside relative wrapper and positioned top-full) -->
+            <!-- Search Results Dropdown -->
             <div
               id="anime-search-results"
               class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"
@@ -226,7 +234,6 @@
           id="anime-edit-container"
           class="bg-white rounded-2xl border border-brand/20 shadow-lg p-6 hidden relative overflow-hidden"
         >
-          <!-- Accent bar -->
           <div class="absolute top-0 left-0 right-0 h-1.5 bg-brand"></div>
 
           <div class="flex justify-between items-center mb-6">
@@ -235,6 +242,7 @@
               Entry
             </h2>
             <button
+              type="button"
               onclick="closeAnimeEditor()"
               class="text-gray-400 hover:text-gray-600 transition"
             >
@@ -270,17 +278,22 @@
                 Naming
               </h3>
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >Series English Name</label
+                    >Series English Name (Hub Key)</label
                   >
                   <input
                     type="text"
                     id="edit-series-en"
+                    oninput="handleAutocomplete(this, 'series_en')"
+                    autocomplete="off"
                     required
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
                 <div>
                   <label
@@ -304,7 +317,7 @@
                     <option value="Season 10">Season 10</option>
                   </select>
                 </div>
-                <div class="sm:col-span-2 lg:col-span-1">
+                <div class="sm:col-span-2 lg:col-span-1 relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                     >Season English Title</label
@@ -312,10 +325,15 @@
                   <input
                     type="text"
                     id="edit-season-en"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    oninput="handleAutocomplete(this, 'series_season_en')"
+                    autocomplete="off"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
-                <div class="sm:col-span-2 lg:col-span-1">
+                <div class="sm:col-span-2 lg:col-span-1 relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                     >Season Romanized Title</label
@@ -323,10 +341,15 @@
                   <input
                     type="text"
                     id="edit-season-roman"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    oninput="handleAutocomplete(this, 'series_season_roman')"
+                    autocomplete="off"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
-                <div class="sm:col-span-2 lg:col-span-1">
+                <div class="sm:col-span-2 lg:col-span-1 relative">
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                     >Season Chinese Title</label
@@ -334,8 +357,13 @@
                   <input
                     type="text"
                     id="edit-season-cn"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    oninput="handleAutocomplete(this, 'series_season_cn')"
+                    autocomplete="off"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -367,7 +395,7 @@
                     <option value="Temp Dropped">Temp Dropped</option>
                     <option value="Dropped">Dropped</option>
                     <option value="Won't Watch">Won't Watch</option>
-                    <option value="Finished">Finished</option>
+                    <option value="Completed">Completed</option>
                   </select>
                 </div>
                 <div>
@@ -394,7 +422,7 @@
                     <input
                       type="number"
                       id="edit-ep-fin"
-                      class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                      class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                     />
                   </div>
                   <div class="w-1/2">
@@ -405,7 +433,7 @@
                     <input
                       type="number"
                       id="edit-ep-total"
-                      class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                      class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                     />
                   </div>
                 </div>
@@ -514,7 +542,7 @@
                   <div class="flex gap-2">
                     <select
                       id="edit-release-season"
-                      class="w-1/3 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
+                      class="w-1/3 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
                     >
                       <option value="">Season</option>
                       <option value="WIN">WIN</option>
@@ -524,7 +552,7 @@
                     </select>
                     <select
                       id="edit-release-month"
-                      class="w-1/3 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
+                      class="w-1/3 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none cursor-pointer transition"
                     >
                       <option value="">Month</option>
                       <option value="JAN">JAN</option>
@@ -544,7 +572,7 @@
                       type="number"
                       id="edit-release-year"
                       placeholder="YYYY"
-                      class="w-1/3 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none transition"
+                      class="w-1/3 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-2 py-2 text-sm outline-none transition"
                     />
                   </div>
                 </div>
@@ -555,7 +583,7 @@
                     >Studio</label
                   >
                   <div
-                    class="w-full bg-gray-50 border border-gray-300 focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+                    class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
                     onclick="
                       document.getElementById('edit-studio-input').focus()
                     "
@@ -583,7 +611,7 @@
                   <input
                     list="edit-distributor-list"
                     id="edit-distributor"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                   <datalist id="edit-distributor-list">
                     <option value="Muse木棉花"></option>
@@ -609,7 +637,7 @@
                   <input
                     type="text"
                     id="edit-director"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                 </div>
                 <div>
@@ -619,7 +647,7 @@
                   >
                   <select
                     id="edit-baha"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                   >
                     <option value="">-</option>
                     <option value="TRUE">TRUE (有)</option>
@@ -633,7 +661,7 @@
                   >
                   <select
                     id="edit-netflix"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                   >
                     <option value="">-</option>
                     <option value="TRUE">TRUE (有)</option>
@@ -660,7 +688,7 @@
                   <input
                     type="number"
                     id="edit-mal-id"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                 </div>
                 <div>
@@ -671,7 +699,7 @@
                   <input
                     type="text"
                     id="edit-mal-link"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                 </div>
                 <div>
@@ -682,7 +710,7 @@
                   <input
                     type="text"
                     id="edit-anilist-link"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
                 </div>
                 <div class="sm:col-span-2 lg:col-span-3">
@@ -697,7 +725,7 @@
                       >
                       <select
                         id="edit-op"
-                        class="flex-1 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                        class="flex-1 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                       >
                         <option value="">-</option>
                         <option value="Need">Need</option>
@@ -711,7 +739,7 @@
                       >
                       <select
                         id="edit-ed"
-                        class="flex-1 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                        class="flex-1 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                       >
                         <option value="">-</option>
                         <option value="Need">Need</option>
@@ -725,7 +753,7 @@
                       >
                       <select
                         id="edit-insert"
-                        class="flex-1 bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                        class="flex-1 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                       >
                         <option value="">-</option>
                         <option value="Need">Need</option>
@@ -743,7 +771,7 @@
                   <textarea
                     id="edit-remark"
                     rows="2"
-                    class="w-full bg-gray-50 border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition resize-y"
+                    class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition resize-y"
                   ></textarea>
                 </div>
               </div>
@@ -751,12 +779,8 @@
 
             <!-- Form Footer -->
             <div
-              class="flex items-center justify-between pt-6 border-t border-gray-100 mt-6"
+              class="flex items-center justify-end pt-6 border-t border-gray-100 mt-6"
             >
-              <span
-                id="edit-anime-status"
-                class="text-sm font-bold hidden"
-              ></span>
               <div class="flex items-center gap-3 ml-auto">
                 <button
                   type="button"
@@ -805,7 +829,7 @@
               autocomplete="off"
             />
 
-            <!-- Search Results Dropdown (Moved inside relative wrapper and positioned top-full) -->
+            <!-- Search Results Dropdown -->
             <div
               id="series-search-results"
               class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"
@@ -828,6 +852,7 @@
               Anime Series
             </h2>
             <button
+              type="button"
               onclick="closeSeriesEditor()"
               class="text-gray-400 hover:text-gray-600 transition"
             >
@@ -864,7 +889,7 @@
                   type="text"
                   id="edit-series-en-name"
                   required
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div>
@@ -874,7 +899,7 @@
                 >
                 <select
                   id="edit-series-rating"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
                 >
                   <option value="">-</option>
                   <option value="S">S</option>
@@ -895,7 +920,7 @@
                 <input
                   type="text"
                   id="edit-series-cn"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div class="sm:col-span-2 lg:col-span-1">
@@ -906,7 +931,7 @@
                 <input
                   type="text"
                   id="edit-series-roman"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
               <div class="sm:col-span-2 lg:col-span-1">
@@ -917,19 +942,15 @@
                 <input
                   type="text"
                   id="edit-series-alt"
-                  class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+                  class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
                 />
               </div>
             </div>
 
             <!-- Form Footer -->
             <div
-              class="flex items-center justify-between pt-6 border-t border-gray-100 mt-6"
+              class="flex items-center justify-end pt-6 border-t border-gray-100 mt-6"
             >
-              <span
-                id="edit-series-status"
-                class="text-sm font-bold hidden"
-              ></span>
               <div class="flex items-center gap-3 ml-auto">
                 <button
                   type="button"
@@ -951,13 +972,126 @@
       </div>
     </main>
 
+    <!-- Scroll to Top Button -->
+    <button
+      id="scrollToTopBtn"
+      onclick="scrollToTop()"
+      class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    >
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Modal 1: Anime New Series Warning -->
+    <div
+      id="anime-new-series-modal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity p-4"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden flex flex-col"
+      >
+        <div
+          class="p-6 border-b border-gray-100 bg-brand/5 flex items-center justify-between shrink-0"
+        >
+          <h2 class="text-xl font-bold text-brand">
+            <i class="fas fa-sparkles mr-2"></i> New Franchise Detected
+          </h2>
+        </div>
+        <div class="p-6 overflow-auto flex-1">
+          <p class="text-sm text-gray-700 font-medium leading-relaxed">
+            You changed the Series English Name to
+            <span class="font-bold text-gray-900" id="new-series-prompt-name"
+              >...</span
+            >, but this series does not exist in the database.
+          </p>
+          <p class="text-sm text-gray-600 mt-4">
+            Would you like to create a new Franchise Hub for it?
+          </p>
+        </div>
+        <div
+          class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
+        >
+          <button
+            onclick="cancelAnimeUpdate()"
+            class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition w-full sm:w-auto"
+          >
+            Cancel
+          </button>
+          <button
+            onclick="proceedAnimeWithoutSeries()"
+            class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-300 transition w-full sm:w-auto"
+          >
+            No Hub Needed
+          </button>
+          <button
+            onclick="createSeriesAndProceedAnime()"
+            class="px-5 py-2.5 bg-brand text-white rounded-lg text-sm font-bold shadow-sm hover:bg-brand-hover transition flex items-center justify-center w-full sm:w-auto"
+          >
+            <i class="fas fa-folder-plus mr-2"></i> Create Hub & Update
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 2: Series Cascade Update -->
+    <div
+      id="series-cascade-modal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity p-4"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden flex flex-col"
+      >
+        <div
+          class="p-6 border-b border-gray-100 bg-purple-50 flex items-center justify-between shrink-0"
+        >
+          <h2 class="text-xl font-bold text-purple-700">
+            <i class="fas fa-link mr-2"></i> Update Connected Entries?
+          </h2>
+        </div>
+        <div class="p-6 overflow-auto flex-1">
+          <p class="text-sm text-gray-700 font-medium leading-relaxed">
+            You are changing the metadata for this Franchise Hub. There are
+            <span class="font-bold text-purple-600" id="series-cascade-count"
+              >0</span
+            >
+            anime entries linked to it.
+          </p>
+          <p class="text-sm text-gray-600 mt-4">
+            Do you want to automatically apply the new Series Name to all
+            connected anime entries so they remain properly linked?
+          </p>
+        </div>
+        <div
+          class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
+        >
+          <button
+            onclick="cancelSeriesUpdate()"
+            class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition w-full sm:w-auto"
+          >
+            Cancel
+          </button>
+          <button
+            onclick="proceedSeriesWithoutCascade()"
+            class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-300 transition w-full sm:w-auto"
+          >
+            Only Update Hub
+          </button>
+          <button
+            onclick="cascadeSeriesUpdate()"
+            class="px-5 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-purple-700 transition flex items-center justify-center w-full sm:w-auto"
+          >
+            <i class="fas fa-sync mr-2"></i> Update Hub & Entries
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Global Delete Confirmation Modal -->
     <div
       id="delete-modal"
-      class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity p-4"
     >
       <div
-        class="bg-white rounded-2xl shadow-2xl border border-red-200 w-11/12 max-w-md overflow-hidden flex flex-col transform scale-95 transition-transform duration-200"
+        class="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-md overflow-hidden flex flex-col transform scale-95 transition-transform duration-200"
         id="delete-modal-box"
       >
         <div
@@ -979,9 +1113,11 @@
             You are about to permanently delete the following record directly
             from the Google Sheet and Database.
           </p>
-          <div class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div
+            class="mt-4 p-4 bg-white rounded-lg border border-red-100 shadow-inner"
+          >
             <div
-              class="text-[10px] font-bold text-gray-400 uppercase mb-1"
+              class="text-[10px] font-bold text-red-400 uppercase mb-1"
               id="delete-target-type"
             >
               Target
@@ -996,27 +1132,87 @@
               ...
             </div>
           </div>
-          <p class="text-sm text-red-600 font-bold mt-4">
+
+          <!-- Dynamic Orphaned Series Checkbox (When deleting Anime) -->
+          <div
+            id="orphan-series-warning"
+            class="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4 hidden"
+          >
+            <label class="flex items-start space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                id="delete-orphan-series-cb"
+                class="mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500 w-4 h-4"
+              />
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-orange-800">
+                  <i class="fas fa-link mr-1"></i> Last Entry in Series!
+                </div>
+                <div class="text-xs text-orange-700 mt-1 leading-snug">
+                  This is the only anime entry attached to
+                  <span class="font-bold" id="orphan-series-name"></span>. Check
+                  this box to also delete the empty Series Hub.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Dynamic Cascade Anime Checkbox (When deleting Series) -->
+          <div
+            id="cascade-anime-warning"
+            class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 hidden"
+          >
+            <label class="flex items-start space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                id="delete-cascade-anime-cb"
+                class="mt-0.5 rounded border-red-400 text-red-600 focus:ring-red-600 w-4 h-4"
+              />
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-red-800">
+                  <i class="fas fa-trash-restore mr-1"></i> Delete Connected
+                  Entries!
+                </div>
+                <div class="text-xs text-red-700 mt-1 leading-snug">
+                  There are
+                  <span class="font-bold" id="cascade-anime-count"></span> anime
+                  entries attached to this hub. Check this box to also delete
+                  ALL of them permanently.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <p class="text-sm text-red-600 font-bold mt-5 text-center">
             This action CANNOT be undone. Are you absolutely sure?
           </p>
         </div>
         <div
-          class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0"
+          class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
         >
           <button
             onclick="closeDeleteModal()"
-            class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition"
+            class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition order-2 sm:order-1"
           >
             Cancel
           </button>
           <button
             id="execute-delete-btn"
-            class="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-red-700 transition flex items-center"
+            class="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-red-700 transition flex items-center justify-center order-1 sm:order-2"
           >
             <i class="fas fa-skull-crossbones mr-2"></i> Yes, Terminate It
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Global Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-6 right-6 z-[200] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
+    >
+      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
+      <span id="toast-msg" class="font-medium text-sm"></span>
     </div>
 
     <script>
@@ -1025,7 +1221,18 @@
       // State
       let allAnime = [];
       let allSeries = [];
-      let currentDeleteTarget = null; // { type: 'anime'|'series', id: '...', name: '...' }
+      let currentDeleteTarget = null;
+      let currentEditingSeriesEn = "";
+
+      // Submission States for Modals
+      let pendingAnimePayload = null;
+      let pendingAnimeSysId = null;
+      let pendingAnimeBtn = null;
+
+      let pendingSeriesPayload = null;
+      let pendingSeriesSysId = null;
+      let pendingSeriesBtn = null;
+      let pendingConnectedAnime = [];
 
       // --- Universal UI Logic ---
       const globalSearchInput = document.getElementById("globalSearchInput");
@@ -1039,14 +1246,61 @@
         });
       }
 
-      function showStatus(elementId, message, isError = false) {
-        const el = document.getElementById(elementId);
-        el.innerText = message;
-        el.className = `text-sm font-bold ${isError ? "text-red-500" : "text-emerald-600"}`;
-        el.classList.remove("hidden");
-        setTimeout(() => el.classList.add("hidden"), 5000);
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        const msg = document.getElementById("toast-msg");
+        const icon = document.getElementById("toast-icon");
+
+        msg.innerText = message;
+        if (isError) {
+          icon.className =
+            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          toast.classList.replace("bg-red-900", "bg-gray-900");
+        }
+
+        toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(
+          () => toast.classList.add("translate-y-20", "opacity-0"),
+          4000,
+        );
       }
 
+      // --- Scroll to Top Engine ---
+      window.addEventListener("scroll", () => {
+        const btn = document.getElementById("scrollToTopBtn");
+        if (window.scrollY > 300) {
+          btn.classList.remove(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        } else {
+          btn.classList.add(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        }
+      });
+
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // --- Tabs ---
       function switchTab(tabName) {
         const animeSec = document.getElementById("section-anime");
         const seriesSec = document.getElementById("section-series");
@@ -1086,7 +1340,6 @@
       // --- Smart Search Normalization ---
       function normalizeStr(str) {
         if (!str) return "";
-        // Convert to lower case and completely strip out spaces and all punctuation (\p{P}) / symbols (\p{S})
         return str.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
       }
 
@@ -1108,7 +1361,97 @@
             .getElementById("series-search-results")
             .classList.add("hidden");
         }
+        document.querySelectorAll(".autocomplete-dropdown").forEach((el) => {
+          if (!el.parentElement.contains(e.target)) {
+            el.classList.add("hidden");
+          }
+        });
       });
+
+      // --- Autocomplete Feature Logic ---
+      function handleAutocomplete(inputEl, targetField) {
+        const query = normalizeStr(inputEl.value);
+        const resultsContainer = inputEl.nextElementSibling;
+
+        if (!query) {
+          resultsContainer.classList.add("hidden");
+          return;
+        }
+
+        let suggestions = new Map();
+
+        if (targetField === "series_en") {
+          allSeries.forEach((s) => {
+            if (normalizeStr(s.series_en).includes(query))
+              suggestions.set(s.series_en, {
+                val: s.series_en,
+                series: s.series_en,
+              });
+            if (normalizeStr(s.series_cn).includes(query) && s.series_en)
+              suggestions.set(s.series_en, {
+                val: s.series_en,
+                series: s.series_en,
+              });
+          });
+          allAnime.forEach((a) => {
+            if (normalizeStr(a.series_en).includes(query) && a.series_en)
+              suggestions.set(a.series_en, {
+                val: a.series_en,
+                series: a.series_en,
+              });
+          });
+        } else {
+          allAnime.forEach((a) => {
+            const val = a[targetField];
+            if (val && normalizeStr(val).includes(query)) {
+              suggestions.set(val, { val: val, series: a.series_en });
+            }
+          });
+        }
+
+        const filtered = Array.from(suggestions.values()).slice(0, 8);
+
+        if (filtered.length === 0) {
+          resultsContainer.classList.add("hidden");
+          return;
+        }
+
+        resultsContainer.innerHTML = filtered
+          .map((item) => {
+            const safeVal = item.val
+              .replace(/'/g, "&#39;")
+              .replace(/"/g, "&quot;");
+            const safeSeries = (item.series || "")
+              .replace(/'/g, "&#39;")
+              .replace(/"/g, "&quot;");
+            return `
+                  <div class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0"
+                       onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}')">
+                      <div class="font-bold text-gray-900 truncate">${item.val}</div>
+                      ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}</div>` : ""}
+                  </div>
+              `;
+          })
+          .join("");
+
+        resultsContainer.classList.remove("hidden");
+      }
+
+      function selectSuggestion(inputId, val, seriesEn) {
+        const decodedVal = val.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+        const decodedSeries = seriesEn
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"');
+
+        document.getElementById(inputId).value = decodedVal;
+        document
+          .getElementById(inputId)
+          .nextElementSibling.classList.add("hidden");
+
+        if (inputId !== "edit-series-en" && decodedSeries) {
+          document.getElementById("edit-series-en").value = decodedSeries;
+        }
+      }
 
       // --- Search & Filtering (Anime) ---
       function filterAnimeSearch() {
@@ -1123,7 +1466,6 @@
           return;
         }
 
-        // Look up any series that match the query (to capture alt_names)
         const matchingSeriesEnNames = new Set(
           allSeries
             .filter((s) => {
@@ -1137,7 +1479,6 @@
             .map((s) => s.series_en),
         );
 
-        // Filter anime entries (Direct match OR Series match)
         const filtered = allAnime
           .filter((a) => {
             const directStr = normalizeStr(
@@ -1203,7 +1544,11 @@
         setVal("edit-season-en", anime.series_season_en);
         setVal("edit-season-roman", anime.series_season_roman);
         setVal("edit-season-cn", anime.series_season_cn);
-        setVal("edit-progress", anime.my_progress);
+
+        let dbProgress = anime.my_progress;
+        if (dbProgress === "Finished") dbProgress = "Completed";
+        setVal("edit-progress", dbProgress);
+
         setVal("edit-airing-status", anime.airing_status);
         setVal("edit-ep-fin", anime.ep_fin);
         setVal("edit-ep-total", anime.ep_total);
@@ -1334,6 +1679,8 @@
           .getElementById("series-edit-container")
           .classList.remove("hidden");
 
+        currentEditingSeriesEn = series.series_en; // Tracking the original name
+
         const setVal = (id, val) =>
           (document.getElementById(id).value = val || "");
         setVal("edit-series-system-id", series.system_id);
@@ -1350,6 +1697,7 @@
           .classList.add("hidden");
         document.getElementById("edit-series-form").reset();
         document.getElementById("series-search-input").value = "";
+        currentEditingSeriesEn = "";
       }
 
       // --- Complex UI Generators ---
@@ -1552,7 +1900,7 @@
       }
 
       // --- Submission Handlers ---
-      async function submitAnimeEdit(e) {
+      function submitAnimeEdit(e) {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
         const sysId = document.getElementById("edit-system-id").value;
@@ -1581,8 +1929,7 @@
           !getValue("edit-season-roman") &&
           !getValue("edit-season-cn")
         ) {
-          showStatus(
-            "edit-anime-status",
+          showToast(
             "Validation Error: At least one Season Title must be provided.",
             true,
           );
@@ -1594,8 +1941,7 @@
         const rYear = getValue("edit-release-year") || "";
 
         if (rSeason !== "" && rMonth !== "") {
-          showStatus(
-            "edit-anime-status",
+          showToast(
             "Validation Error: Release Date cannot have both Season and Month selected.",
             true,
           );
@@ -1603,31 +1949,39 @@
         }
 
         if (epTotal !== null && epFin > epTotal) {
-          showStatus(
-            "edit-anime-status",
+          showToast(
             "Validation Error: Episodes Finished cannot exceed Total Episodes.",
             true,
           );
           return;
         }
 
-        const cond1 = epTotal !== null && epFin === epTotal;
-        const cond2 = myProgress === "Finished";
+        // Smart Completed Validation Fix
+        const cond1 = epTotal !== null && epTotal > 0 && epFin === epTotal;
+        const cond2 = myProgress === "Completed";
 
         if (cond1 !== cond2) {
           const confirmed = confirm(
             "Have you finished watching this?\nProgress Status doesn't match Episode Count.",
           );
           if (confirmed) {
-            myProgress = "Finished";
-            document.getElementById("edit-progress").value = "Finished";
-            if (epTotal !== null) {
+            myProgress = "Completed";
+            document.getElementById("edit-progress").value = "Completed";
+
+            if (epTotal !== null && epTotal > 0) {
               epFin = epTotal;
+              document.getElementById("edit-ep-fin").value = epFin;
+            } else if (epFin > 0) {
+              epTotal = epFin;
+              document.getElementById("edit-ep-total").value = epTotal;
+            } else {
+              epTotal = 1;
+              epFin = 1;
+              document.getElementById("edit-ep-total").value = epTotal;
               document.getElementById("edit-ep-fin").value = epFin;
             }
           } else {
-            showStatus(
-              "edit-anime-status",
+            showToast(
               "Validation Error: Please fix the mismatch between Episodes Finished and My Progress.",
               true,
             );
@@ -1649,7 +2003,9 @@
             ? Array.from(selectedStudios).join(", ")
             : null;
 
+        // GUARANTEE NO MISSING FIELDS TO PREVENT Pydantic 422 Errors
         const payload = {
+          system_id: sysId,
           series_en: getValue("edit-series-en"),
           series_season_en: getValue("edit-season-en"),
           series_season_roman: getValue("edit-season-roman"),
@@ -1665,6 +2021,7 @@
           release_date: finalReleaseDate,
           studio: finalStudioString,
           director: getValue("edit-director"),
+          producer: null, // explicitly defined
           distributor_tw: getValue("edit-distributor"),
           genre_main: getMultiCheckboxValue("edit_genre_main"),
           genre_sub: getMultiCheckboxValue("edit_genre_sub"),
@@ -1675,10 +2032,35 @@
           op: getValue("edit-op"),
           ed: getValue("edit-ed"),
           insert_ost: getValue("edit-insert"),
+          seiyuu: null, // explicitly defined
           source_baha: getValue("edit-baha"),
           source_netflix: getValue("edit-netflix"),
         };
 
+        const newSeriesEn = payload.series_en;
+        const seriesExists = allSeries.some(
+          (s) =>
+            s.series_en.toLowerCase() === (newSeriesEn || "").toLowerCase(),
+        );
+
+        if (newSeriesEn && !seriesExists) {
+          // Intercept for New Series Creation
+          pendingAnimePayload = payload;
+          pendingAnimeSysId = sysId;
+          pendingAnimeBtn = btn;
+
+          document.getElementById("new-series-prompt-name").innerText =
+            newSeriesEn;
+          document
+            .getElementById("anime-new-series-modal")
+            .classList.remove("hidden");
+        } else {
+          // Standard Update
+          executeAnimeUpdate(sysId, payload, btn);
+        }
+      }
+
+      async function executeAnimeUpdate(sysId, payload, btn) {
         btn.disabled = true;
         btn.innerHTML =
           '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
@@ -1692,17 +2074,76 @@
           if (!res.ok)
             throw new Error((await res.json()).detail || "Update failed");
 
-          showStatus("edit-anime-status", "Success! Entry updated and synced.");
+          showToast("Success! Entry updated and synced.");
           await loadDatabase(); // Refresh memory cache
+          closeAnimeEditor();
         } catch (error) {
-          showStatus("edit-anime-status", error.message, true);
+          showToast(error.message, true);
         } finally {
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
         }
       }
 
-      async function submitSeriesEdit(e) {
+      // --- Anime Modal Handlers ---
+      function cancelAnimeUpdate() {
+        document
+          .getElementById("anime-new-series-modal")
+          .classList.add("hidden");
+        pendingAnimePayload = null;
+        pendingAnimeSysId = null;
+        pendingAnimeBtn = null;
+      }
+
+      function proceedAnimeWithoutSeries() {
+        document
+          .getElementById("anime-new-series-modal")
+          .classList.add("hidden");
+        executeAnimeUpdate(
+          pendingAnimeSysId,
+          pendingAnimePayload,
+          pendingAnimeBtn,
+        );
+      }
+
+      async function createSeriesAndProceedAnime() {
+        document
+          .getElementById("anime-new-series-modal")
+          .classList.add("hidden");
+        const btn = pendingAnimeBtn;
+        btn.disabled = true;
+        btn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-1.5"></i> Creating Series...';
+
+        try {
+          // Explicitly supply all keys in payload to satisfy Pydantic Schema and prevent 422
+          const seriesPayload = {
+            system_id: crypto.randomUUID(),
+            series_en: pendingAnimePayload.series_en || null,
+            series_roman: pendingAnimePayload.series_season_roman || null,
+            series_cn: pendingAnimePayload.series_season_cn || null,
+            rating_series: null,
+            alt_name: null,
+          };
+
+          const res = await fetch(`${API_BASE_URL}/admin/series`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(seriesPayload),
+          });
+
+          if (!res.ok) throw new Error("Failed to create new series.");
+
+          // Proceed with updating the Anime
+          await executeAnimeUpdate(pendingAnimeSysId, pendingAnimePayload, btn);
+        } catch (e) {
+          showToast(e.message, true);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+        }
+      }
+
+      function submitSeriesEdit(e) {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
         const sysId = document.getElementById("edit-series-system-id").value;
@@ -1713,6 +2154,7 @@
         };
 
         const payload = {
+          system_id: sysId,
           series_en: getValue("edit-series-en-name"),
           series_roman: getValue("edit-series-roman"),
           series_cn: getValue("edit-series-cn"),
@@ -1720,6 +2162,28 @@
           alt_name: getValue("edit-series-alt"),
         };
 
+        // Check if there are attached anime that need to be cascaded
+        const connectedAnime = allAnime.filter(
+          (a) => a.series_en === currentEditingSeriesEn,
+        );
+
+        if (connectedAnime.length > 0) {
+          pendingSeriesPayload = payload;
+          pendingSeriesSysId = sysId;
+          pendingSeriesBtn = btn;
+          pendingConnectedAnime = connectedAnime;
+
+          document.getElementById("series-cascade-count").innerText =
+            connectedAnime.length;
+          document
+            .getElementById("series-cascade-modal")
+            .classList.remove("hidden");
+        } else {
+          executeSeriesUpdate(sysId, payload, btn);
+        }
+      }
+
+      async function executeSeriesUpdate(sysId, payload, btn) {
         btn.disabled = true;
         btn.innerHTML =
           '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
@@ -1733,37 +2197,160 @@
           if (!res.ok)
             throw new Error((await res.json()).detail || "Update failed");
 
-          showStatus(
-            "edit-series-status",
-            "Success! Series updated and synced.",
-          );
+          showToast("Success! Series updated and synced.");
           await loadDatabase(); // Refresh memory cache
+          closeSeriesEditor();
         } catch (error) {
-          showStatus("edit-series-status", error.message, true);
+          showToast(error.message, true);
         } finally {
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
         }
       }
 
-      // --- Deletion Flow ---
+      // --- Series Modal Handlers ---
+      function cancelSeriesUpdate() {
+        document.getElementById("series-cascade-modal").classList.add("hidden");
+        pendingSeriesPayload = null;
+        pendingSeriesSysId = null;
+        pendingSeriesBtn = null;
+        pendingConnectedAnime = [];
+      }
+
+      function proceedSeriesWithoutCascade() {
+        document.getElementById("series-cascade-modal").classList.add("hidden");
+        executeSeriesUpdate(
+          pendingSeriesSysId,
+          pendingSeriesPayload,
+          pendingSeriesBtn,
+        );
+      }
+
+      async function cascadeSeriesUpdate() {
+        document.getElementById("series-cascade-modal").classList.add("hidden");
+        const btn = pendingSeriesBtn;
+        btn.disabled = true;
+
+        try {
+          let updatedCount = 0;
+          // 1. Update all connected anime entries explicitly providing ALL fields to prevent 422
+          for (let a of pendingConnectedAnime) {
+            updatedCount++;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1.5"></i> Cascading (${updatedCount}/${pendingConnectedAnime.length})...`;
+
+            const animePayload = {
+              system_id: a.system_id,
+              series_en: pendingSeriesPayload.series_en, // <--- The Cascade Value
+              series_season_en: a.series_season_en,
+              series_season_roman: a.series_season_roman,
+              series_season_cn: a.series_season_cn,
+              series_season: a.series_season,
+              airing_type: a.airing_type,
+              my_progress: a.my_progress,
+              airing_status: a.airing_status,
+              ep_total: a.ep_total,
+              ep_fin: a.ep_fin,
+              rating_mine: a.rating_mine,
+              main_spinoff: a.main_spinoff,
+              release_date: a.release_date,
+              studio: a.studio,
+              director: a.director,
+              producer: a.producer || null,
+              distributor_tw: a.distributor_tw,
+              genre_main: a.genre_main,
+              genre_sub: a.genre_sub,
+              remark: a.remark,
+              mal_id: a.mal_id,
+              mal_link: a.mal_link,
+              anilist_link: a.anilist_link,
+              op: a.op,
+              ed: a.ed,
+              insert_ost: a.insert_ost,
+              seiyuu: a.seiyuu || null,
+              source_baha: a.source_baha,
+              source_netflix: a.source_netflix,
+            };
+
+            const res = await fetch(
+              `${API_BASE_URL}/admin/anime/${a.system_id}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(animePayload),
+              },
+            );
+
+            if (!res.ok)
+              console.warn("Failed to cascade to anime: " + a.system_id);
+          }
+
+          // 2. Update the series hub itself
+          await executeSeriesUpdate(
+            pendingSeriesSysId,
+            pendingSeriesPayload,
+            btn,
+          );
+        } catch (e) {
+          showToast("Cascade error: " + e.message, true);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+        }
+      }
+
+      // --- Smart Deletion Flow ---
       function confirmDelete(type) {
-        let id, name;
+        let id, name, seriesEnName;
+
+        const orphanBox = document.getElementById("orphan-series-warning");
+        const cascadeBox = document.getElementById("cascade-anime-warning");
+        const orphanCb = document.getElementById("delete-orphan-series-cb");
+        const cascadeCb = document.getElementById("delete-cascade-anime-cb");
+
+        orphanBox.classList.add("hidden");
+        cascadeBox.classList.add("hidden");
+        if (orphanCb) orphanCb.checked = false;
+        if (cascadeCb) cascadeCb.checked = false;
+
         if (type === "anime") {
           id = document.getElementById("edit-system-id").value;
+          seriesEnName = document.getElementById("edit-series-en").value || "";
           name =
-            document.getElementById("edit-series-en").value || "Unknown Anime";
+            document.getElementById("edit-season-cn").value ||
+            document.getElementById("edit-season-en").value ||
+            seriesEnName ||
+            "Unknown Anime";
+
+          // Check if this is the ONLY anime in the series
+          const siblingCount = allAnime.filter(
+            (a) => a.series_en === seriesEnName,
+          ).length;
+          if (siblingCount === 1) {
+            document.getElementById("orphan-series-name").innerText =
+              seriesEnName;
+            orphanBox.classList.remove("hidden");
+          }
         } else {
           id = document.getElementById("edit-series-system-id").value;
           name =
             document.getElementById("edit-series-en-name").value ||
             "Unknown Series";
+          seriesEnName = name;
+
+          // Check if there are anime attached to this series hub
+          const connectedCount = allAnime.filter(
+            (a) => a.series_en === seriesEnName,
+          ).length;
+          if (connectedCount > 0) {
+            document.getElementById("cascade-anime-count").innerText =
+              connectedCount;
+            cascadeBox.classList.remove("hidden");
+          }
         }
 
-        currentDeleteTarget = { type, id, name };
+        currentDeleteTarget = { type, id, name, series_en: seriesEnName };
 
         document.getElementById("delete-target-type").innerText =
-          type.toUpperCase();
+          type.toUpperCase() + " ENTRY";
         document.getElementById("delete-target-name").innerText = name;
         document.getElementById("delete-target-id").innerText = id;
 
@@ -1791,10 +2378,38 @@
           const originalText = btn.innerHTML;
 
           btn.disabled = true;
-          btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...';
 
           try {
+            // 1. CASCADE DELETIONS
+            const cascadeCb = document.getElementById(
+              "delete-cascade-anime-cb",
+            );
+            if (
+              currentDeleteTarget.type === "series" &&
+              cascadeCb &&
+              cascadeCb.checked
+            ) {
+              const connectedAnime = allAnime.filter(
+                (a) => a.series_en === currentDeleteTarget.series_en,
+              );
+              let deletedCount = 0;
+              for (const anime of connectedAnime) {
+                deletedCount++;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
+                const resAnime = await fetch(
+                  `${API_BASE_URL}/admin/anime/${anime.system_id}`,
+                  { method: "DELETE" },
+                );
+                if (!resAnime.ok)
+                  console.error(
+                    `Failed to delete connected anime: ${anime.system_id}`,
+                  );
+              }
+            }
+
+            // 2. PRIMARY DELETE
+            btn.innerHTML =
+              '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...';
             const res = await fetch(
               `${API_BASE_URL}/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
               {
@@ -1804,20 +2419,41 @@
             if (!res.ok)
               throw new Error((await res.json()).detail || "Delete failed");
 
-            closeDeleteModal();
-
-            if (currentDeleteTarget.type === "anime") {
-              closeAnimeEditor();
-            } else {
-              closeSeriesEditor();
+            // 3. ORPHAN HUB DELETION
+            const orphanCb = document.getElementById("delete-orphan-series-cb");
+            if (
+              currentDeleteTarget.type === "anime" &&
+              orphanCb &&
+              orphanCb.checked
+            ) {
+              const seriesHub = allSeries.find(
+                (s) => s.series_en === currentDeleteTarget.series_en,
+              );
+              if (seriesHub) {
+                btn.innerHTML =
+                  '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Series Hub...';
+                const resSeries = await fetch(
+                  `${API_BASE_URL}/admin/series/${seriesHub.system_id}`,
+                  { method: "DELETE" },
+                );
+                if (!resSeries.ok)
+                  throw new Error(
+                    "Anime deleted, but failed to delete orphaned Series Hub.",
+                  );
+              }
             }
 
+            closeDeleteModal();
+
+            if (currentDeleteTarget.type === "anime") closeAnimeEditor();
+            else closeSeriesEditor();
+
             await loadDatabase(); // Refresh memory cache
-            alert(
+            showToast(
               `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
             );
           } catch (error) {
-            alert("Error: " + error.message);
+            showToast(`Error: ${error.message}`, true);
           } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -1858,25 +2494,25 @@
               icon.classList.add("fa-sync-alt");
               btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
               btn.classList.add("bg-brand", "hover:bg-brand-hover");
-              btn.innerText = " Sync";
+              btn.innerText = " Sync Sheets";
               btn.prepend(icon);
             }, 2000);
           } else {
             icon.classList.remove("fa-spin");
             btn.classList.remove("opacity-75", "pointer-events-none");
-            btn.innerText = " Sync";
+            btn.innerText = " Sync Sheets";
             btn.prepend(icon);
 
             const data = await response.json();
-            alert(`Sync Error: ${data.detail}`);
+            showToast(`Sync Error: ${data.detail}`, true);
           }
         } catch (error) {
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75", "pointer-events-none");
-          btn.innerText = " Sync";
+          btn.innerText = " Sync Sheets";
           btn.prepend(icon);
 
-          alert("Failed to connect to backend sync.");
+          showToast("Failed to connect to backend sync server.", true);
         }
       }
 
