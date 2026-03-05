@@ -132,12 +132,6 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
           >
             Title
           </h3>
-          <p
-            class="text-sm text-gray-500 truncate mt-1"
-            id="del-anime-subtitle"
-          >
-            Subtitle
-          </p>
 
           <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
             <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
@@ -247,8 +241,8 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
         >
           Series Title
         </h3>
-        <p class="text-sm text-gray-500 truncate mb-4" id="del-series-alt">
-          Alt Names
+        <p class="text-sm text-gray-500 truncate mb-4" id="del-series-cn">
+          Series CN Name
         </p>
 
         <div
@@ -537,10 +531,6 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     } else {
       resultsContainer.innerHTML = filtered
         .map((a) => {
-          const safeObj = JSON.stringify(a)
-            .replace(/'/g, "&#39;")
-            .replace(/"/g, "&quot;");
-
           // Applied Correct Anime Priority: CN -> EN -> Roman -> Series EN
           const displayTitle =
             a.series_season_cn ||
@@ -557,14 +547,14 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
             ? parentSeries.series_cn ||
               parentSeries.series_en ||
               parentSeries.series_roman
-            : a.series_en;
+            : a.series_en || "-";
 
           return `
-              <div onclick="selectAnime('${safeObj}')" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+              <div onclick='selectAnime(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0 flex-1 pr-2">
                       <div class="font-bold text-gray-800 text-sm truncate">${displayTitle}</div>
                       <div class="text-[11px] text-gray-500 truncate mt-0.5">
-                          From series: <span class="font-semibold text-gray-700">${seriesDisplayName || "-"}</span> • ${a.airing_type || "-"} • ${a.my_progress || "-"}
+                          From series: <span class="font-semibold text-gray-700">${seriesDisplayName}</span> • ${a.airing_type || "-"} • ${a.my_progress || "-"}
                       </div>
                   </div>
                   <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
@@ -576,10 +566,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectAnime(animeStr) {
-    const anime = JSON.parse(
-      animeStr.replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
-    );
+  function selectAnime(anime) {
     document.getElementById("anime-search-results").classList.add("hidden");
 
     const displayTitle =
@@ -593,24 +580,18 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
       ? parentSeries.series_cn ||
         parentSeries.series_en ||
         parentSeries.series_roman
-      : anime.series_en;
+      : anime.series_en || "-";
 
     document.getElementById("anime-search-input").value = displayTitle;
 
     // Populate Danger Zone Card
     document.getElementById("del-anime-img").src = anime.cover_image_url || "";
     document.getElementById("del-anime-title").innerText = displayTitle;
-    document.getElementById("del-anime-subtitle").innerText =
-      anime.series_season_en ||
-      anime.series_season_roman ||
-      anime.series_en ||
-      "-";
     document.getElementById("del-anime-type").innerText =
       anime.airing_type || "Unknown Type";
     document.getElementById("del-anime-progress").innerText =
       anime.my_progress || "Unknown Progress";
-    document.getElementById("del-anime-series").innerText =
-      seriesDisplayName || "Unknown Series";
+    document.getElementById("del-anime-series").innerText = seriesDisplayName;
     document.getElementById("del-anime-id").innerText = anime.system_id;
 
     document
@@ -649,35 +630,29 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
       resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
       resultsContainer.innerHTML = filtered
-        .map((s) => {
-          const safeObj = JSON.stringify(s)
-            .replace(/'/g, "&#39;")
-            .replace(/"/g, "&quot;");
-          return `
-              <div onclick="selectSeries('${safeObj}')" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+        .map(
+          (s) => `
+              <div onclick='selectSeries(${JSON.stringify(s).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0 flex-1">
                       <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
                       <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || "No Chinese Name"}</div>
                   </div>
                   <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
               </div>
-              `;
-        })
+          `,
+        )
         .join("");
     }
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectSeries(seriesStr) {
-    const series = JSON.parse(
-      seriesStr.replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
-    );
+  function selectSeries(series) {
     document.getElementById("series-search-results").classList.add("hidden");
     document.getElementById("series-search-input").value = series.series_en;
 
     // Populate Danger Zone Card
     document.getElementById("del-series-en").innerText = series.series_en;
-    document.getElementById("del-series-alt").innerText =
+    document.getElementById("del-series-cn").innerText =
       series.series_cn || "No Chinese Name";
     document.getElementById("del-series-id").innerText = series.system_id;
 
