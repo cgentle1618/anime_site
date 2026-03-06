@@ -3,12 +3,11 @@
 box-shadow 0.2s ease; } .card-hover:hover { transform: translateY(-4px);
 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); } .line-clamp-2 { display:
 -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow:
-hidden; } /* Smooth collapse for filter panel */ #advanced-filters { transition:
-max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; overflow: hidden; }
-.filters-closed { max-height: 0; opacity: 0; margin-bottom: 0 !important;
-border-width: 0 !important; padding-top: 0 !important; padding-bottom: 0
-!important; } .filters-open { max-height: 1000px; opacity: 1; } {% endblock %}
-{% block content %}
+hidden; } #advanced-filters { transition: max-height 0.3s ease-in-out, opacity
+0.3s ease-in-out; overflow: hidden; } .filters-closed { max-height: 0; opacity:
+0; margin-bottom: 0 !important; border-width: 0 !important; padding-top: 0
+!important; padding-bottom: 0 !important; } .filters-open { max-height: 1000px;
+opacity: 1; } {% endblock %} {% block content %}
 <!-- Sticky Control Bar (Filters & Sorting) -->
 <div class="bg-white border-b border-gray-200 sticky top-16 z-40 shadow-sm">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -138,489 +137,358 @@ border-width: 0 !important; padding-top: 0 !important; padding-bottom: 0
 </main>
 {% endblock %} {% block extra_scripts %}
 <script>
+  // Expose role from Jinja2 securely
+  const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
   let allAnimeData = [];
   let allSeriesData = [];
   let debounceTimeout;
 
-  // Exact mappings from series.html
   const PROGRESS_GROUPS = {
-    Planned: ["Watch When Airs", "Plan to Watch", "Might Watch"],
-    Completed: ["Completed", "Finished"],
-    Watching: ["Active Watching", "Passive Watching", "Paused"],
-    Dropped: ["Temp Dropped", "Dropped", "Won't Watch"],
+      "Might Watch": ["Might Watch"],
+      "Planned": ["Watch When Airs", "Plan to Watch"],
+      "Watching": ["Active Watching", "Passive Watching", "Paused"],
+      "Completed": ["Completed", "Finished"],
+      "Dropped": ["Temp Dropped", "Dropped", "Won't Watch"]
   };
 
-  const AIRING_TYPE_OPTIONS = [
-    "TV",
-    "Movie",
-    "ONA",
-    "OVA",
-    "OAD",
-    "Special",
-    "Other",
-  ];
+  const AIRING_TYPE_OPTIONS = ["TV", "Movie", "ONA", "OVA", "OAD", "Special", "Other"];
   const AIRING_STATUS_OPTIONS = ["Not Yet Aired", "Airing", "Finished Airing"];
-  const PROGRESS_OPTIONS = ["Planned", "Completed", "Watching", "Dropped"];
+  const PROGRESS_OPTIONS = ["Might Watch", "Planned", "Watching", "Completed", "Dropped"];
   const MAIN_SPINOFF_OPTIONS = ["本傳", "外傳", "總集篇", "Other"];
   const BAHA_OPTIONS = ["有", "無"];
 
-  // Hook into the universal sync system from base.html
-  function onSyncComplete() {
-    loadLibraryData();
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+      loadLibraryData();
 
-  document.addEventListener("DOMContentLoaded", () => {
-    loadLibraryData();
-
-    document
-      .getElementById("localFilterInput")
-      .addEventListener("input", () => {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(applyFiltersAndSort, 300);
+      document.getElementById('localFilterInput').addEventListener('input', () => {
+          clearTimeout(debounceTimeout);
+          debounceTimeout = setTimeout(applyFiltersAndSort, 300);
       });
   });
 
   function toggleFilters() {
-    const panel = document.getElementById("advanced-filters");
-    if (panel.classList.contains("filters-closed")) {
-      panel.classList.replace("filters-closed", "filters-open");
-    } else {
-      panel.classList.replace("filters-open", "filters-closed");
-    }
+      const panel = document.getElementById("advanced-filters");
+      if (panel.classList.contains("filters-closed")) {
+          panel.classList.replace("filters-closed", "filters-open");
+      } else {
+          panel.classList.replace("filters-open", "filters-closed");
+      }
   }
 
   function clearAllFilters() {
-    document
-      .querySelectorAll('#advanced-filters input[type="checkbox"]')
-      .forEach((cb) => (cb.checked = false));
-    applyFiltersAndSort();
+      document.querySelectorAll('#advanced-filters input[type="checkbox"]').forEach(cb => cb.checked = false);
+      applyFiltersAndSort();
   }
 
   function clearAllFiltersAndSearch() {
-    document.getElementById("localFilterInput").value = "";
-    clearAllFilters();
+      document.getElementById('localFilterInput').value = "";
+      clearAllFilters();
   }
 
+  // --- Data Fetching ---
   async function loadLibraryData() {
-    try {
-      const [animeRes, seriesRes] = await Promise.all([
-        fetch(`${GLOBAL_API_BASE}/anime`),
-        fetch(`${GLOBAL_API_BASE}/series`),
-      ]);
+      try {
+          const [animeRes, seriesRes] = await Promise.all([
+              fetch(`/api/anime`),
+              fetch(`/api/series`)
+          ]);
 
-      if (!animeRes.ok || !seriesRes.ok)
-        throw new Error("Failed to load database.");
+          if (!animeRes.ok || !seriesRes.ok) throw new Error("Failed to load database.");
 
-      allAnimeData = await animeRes.json();
-      allSeriesData = await seriesRes.json();
+          allAnimeData = await animeRes.json();
+          allSeriesData = await seriesRes.json();
 
-      document.getElementById("loading").classList.add("hidden");
-      document.getElementById("main-content").classList.remove("hidden");
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
 
-      renderFilterOptions();
-      applyFiltersAndSort();
-    } catch (error) {
-      document.getElementById("loading").innerHTML = `
+          renderFilterOptions();
+          applyFiltersAndSort();
+      } catch (error) {
+          console.error("Library load error:", error);
+          document.getElementById('loading').innerHTML = `
             <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
                 <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
                 <p class="font-bold">Error loading library data.</p>
                 <p class="text-sm mt-1">${error.message}</p>
             </div>`;
-    }
+      }
   }
 
-  // --- Dynamic Filter Checkboxes ---
   function renderFilterOptions() {
-    const active = {
-      airing_type: Array.from(
-        document.querySelectorAll('input[data-filter="airing_type"]:checked'),
-      ).map((e) => e.value),
-      airing_status: Array.from(
-        document.querySelectorAll('input[data-filter="airing_status"]:checked'),
-      ).map((e) => e.value),
-      my_progress: Array.from(
-        document.querySelectorAll('input[data-filter="my_progress"]:checked'),
-      ).map((e) => e.value),
-      main_spinoff: Array.from(
-        document.querySelectorAll('input[data-filter="main_spinoff"]:checked'),
-      ).map((e) => e.value),
-      source_baha: Array.from(
-        document.querySelectorAll('input[data-filter="source_baha"]:checked'),
-      ).map((e) => e.value),
-    };
+      const active = {
+          airing_type: Array.from(document.querySelectorAll('input[data-filter="airing_type"]:checked')).map(e=>e.value),
+          airing_status: Array.from(document.querySelectorAll('input[data-filter="airing_status"]:checked')).map(e=>e.value),
+          my_progress: Array.from(document.querySelectorAll('input[data-filter="my_progress"]:checked')).map(e=>e.value),
+          main_spinoff: Array.from(document.querySelectorAll('input[data-filter="main_spinoff"]:checked')).map(e=>e.value),
+          source_baha: Array.from(document.querySelectorAll('input[data-filter="source_baha"]:checked')).map(e=>e.value)
+      };
 
-    const createCheckboxes = (containerId, title, prop, optionsList) => {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      let html = `<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">${title}</p><div class="space-y-1 max-h-40 overflow-y-auto pr-1">`;
-      html += optionsList
-        .map((val) => {
-          const isChecked =
-            active[prop] && active[prop].includes(val) ? "checked" : "";
-          return `<label class="flex items-start space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1.5 rounded transition"><input type="checkbox" value="${val}" data-filter="${prop}" onchange="applyFiltersAndSort()" ${isChecked} class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5 shadow-sm"> <span class="leading-tight break-words">${val}</span></label>`;
-        })
-        .join("");
-      container.innerHTML = html + `</div>`;
-    };
+      const createCheckboxes = (containerId, title, prop, optionsList) => {
+          const container = document.getElementById(containerId);
+          if (!container) return;
+          let html = `<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">${title}</p><div class="space-y-1 max-h-40 overflow-y-auto pr-1">`;
+          html += optionsList.map(val => {
+              const isChecked = active[prop] && active[prop].includes(val) ? 'checked' : '';
+              return `<label class="flex items-start space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1.5 rounded transition"><input type="checkbox" value="${val}" data-filter="${prop}" onchange="applyFiltersAndSort()" ${isChecked} class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5 shadow-sm"> <span class="leading-tight break-words">${val}</span></label>`;
+          }).join('');
+          container.innerHTML = html + `</div>`;
+      };
 
-    createCheckboxes(
-      "filter-airing-type",
-      "Airing Type",
-      "airing_type",
-      AIRING_TYPE_OPTIONS,
-    );
-    createCheckboxes(
-      "filter-airing-status",
-      "Airing Status",
-      "airing_status",
-      AIRING_STATUS_OPTIONS,
-    );
-    createCheckboxes(
-      "filter-my-progress",
-      "My Progress",
-      "my_progress",
-      PROGRESS_OPTIONS,
-    );
-    createCheckboxes(
-      "filter-main-spinoff",
-      "Main/Spinoff",
-      "main_spinoff",
-      MAIN_SPINOFF_OPTIONS,
-    );
-    createCheckboxes(
-      "filter-source-baha",
-      "Source Baha",
-      "source_baha",
-      BAHA_OPTIONS,
-    );
+      createCheckboxes('filter-airing-type', 'Airing Type', 'airing_type', AIRING_TYPE_OPTIONS);
+      createCheckboxes('filter-airing-status', 'Airing Status', 'airing_status', AIRING_STATUS_OPTIONS);
+      createCheckboxes('filter-my-progress', 'My Progress', 'my_progress', PROGRESS_OPTIONS);
+      createCheckboxes('filter-main-spinoff', 'Main/Spinoff', 'main_spinoff', MAIN_SPINOFF_OPTIONS);
+      createCheckboxes('filter-source-baha', 'Source Baha', 'source_baha', BAHA_OPTIONS);
   }
 
-  // --- Enhanced Search Engine Helpers ---
   function buildSearchString(anime, altName) {
-    let expandedReleaseDate = anime.release_date || "";
-    const rdLower = expandedReleaseDate.toLowerCase();
+      let expandedReleaseDate = anime.release_date || "";
+      const rdLower = expandedReleaseDate.toLowerCase();
 
-    // Inject keywords to allow natural language season queries
-    if (rdLower.includes("spr")) expandedReleaseDate += " spring";
-    if (rdLower.includes("sum")) expandedReleaseDate += " summer";
-    if (rdLower.includes("fal")) expandedReleaseDate += " fall autumn";
-    if (rdLower.includes("win")) expandedReleaseDate += " winter";
+      if (rdLower.includes("spr")) expandedReleaseDate += " spring";
+      if (rdLower.includes("sum")) expandedReleaseDate += " summer";
+      if (rdLower.includes("fal")) expandedReleaseDate += " fall autumn";
+      if (rdLower.includes("win")) expandedReleaseDate += " winter";
 
-    return `${anime.series_season_cn || ""} ${anime.series_season_en || ""} ${anime.series_en || ""} ${anime.series_season_roman || ""} ${expandedReleaseDate} ${altName || ""}`.toLowerCase();
+      return `${anime.series_season_cn || ""} ${anime.series_season_en || ""} ${anime.series_en || ""} ${anime.series_season_roman || ""} ${expandedReleaseDate} ${altName || ""}`.toLowerCase();
   }
 
   function applyFiltersAndSort() {
-    const query = document.getElementById("localFilterInput").value.trim();
-    const getActive = (prop) =>
-      Array.from(
-        document.querySelectorAll(`input[data-filter="${prop}"]:checked`),
-      ).map((cb) => cb.value);
+      const query = document.getElementById('localFilterInput').value.trim();
+      const getActive = (prop) => Array.from(document.querySelectorAll(`input[data-filter="${prop}"]:checked`)).map(cb => cb.value);
 
-    const activeFilters = {
-      airing_type: getActive("airing_type"),
-      airing_status: getActive("airing_status"),
-      my_progress: getActive("my_progress"),
-      main_spinoff: getActive("main_spinoff"),
-      source_baha: getActive("source_baha"),
-    };
-
-    // 1. Filtering Phase
-    let result = allAnimeData.filter((a) => {
-      // A. Advanced Checkbox Validation
-      const check = (prop, activeList) => {
-        if (activeList.length === 0) return true;
-        if (prop === "my_progress") {
-          const actualStatus =
-            a.my_progress === "Finished"
-              ? "Completed"
-              : a.my_progress || "Unknown";
-          const groupMatch = Object.keys(PROGRESS_GROUPS).find((group) =>
-            PROGRESS_GROUPS[group].includes(actualStatus),
-          );
-          return activeList.includes(groupMatch);
-        }
-        if (prop === "airing_type") {
-          let val = a.airing_type ? String(a.airing_type).trim() : "Other";
-          const mappedVal = AIRING_TYPE_OPTIONS.find(
-            (opt) => opt.toLowerCase() === val.toLowerCase(),
-          );
-          return activeList.includes(mappedVal || "Other");
-        }
-        if (prop === "main_spinoff") {
-          let val = a.main_spinoff ? String(a.main_spinoff).trim() : "Other";
-          if (!MAIN_SPINOFF_OPTIONS.includes(val)) val = "Other";
-          return activeList.includes(val);
-        }
-        if (prop === "source_baha") {
-          const hasBaha =
-            String(a.source_baha || "").toUpperCase() === "TRUE" ||
-            String(a.source_baha || "").toUpperCase() === "YES" ||
-            String(a.source_baha || "") === "有";
-          return activeList.includes(hasBaha ? "有" : "無");
-        }
-        return activeList.includes(
-          a[prop] ? String(a[prop]).trim() : "Unknown",
-        );
+      const activeFilters = {
+          airing_type: getActive('airing_type'),
+          airing_status: getActive('airing_status'),
+          my_progress: getActive('my_progress'),
+          main_spinoff: getActive('main_spinoff'),
+          source_baha: getActive('source_baha')
       };
 
-      const passedCheckboxes =
-        check("airing_type", activeFilters.airing_type) &&
-        check("airing_status", activeFilters.airing_status) &&
-        check("my_progress", activeFilters.my_progress) &&
-        check("main_spinoff", activeFilters.main_spinoff) &&
-        check("source_baha", activeFilters.source_baha);
+      let result = allAnimeData.filter(a => {
+          const check = (prop, activeList) => {
+              if (activeList.length === 0) return true;
+              if (prop === 'my_progress') {
+                  const actualStatus = a.my_progress === "Finished" ? "Completed" : (a.my_progress || "Unknown");
+                  const groupMatch = Object.keys(PROGRESS_GROUPS).find(group => PROGRESS_GROUPS[group].includes(actualStatus));
+                  return activeList.includes(groupMatch);
+              }
+              if (prop === 'airing_type') {
+                  let val = a.airing_type ? String(a.airing_type).trim() : "Other";
+                  const mappedVal = AIRING_TYPE_OPTIONS.find(opt => opt.toLowerCase() === val.toLowerCase());
+                  return activeList.includes(mappedVal || "Other");
+              }
+              if (prop === 'main_spinoff') {
+                  let val = a.main_spinoff ? String(a.main_spinoff).trim() : "Other";
+                  if (!MAIN_SPINOFF_OPTIONS.includes(val)) val = "Other";
+                  return activeList.includes(val);
+              }
+              if (prop === 'source_baha') {
+                  const hasBaha = String(a.source_baha || "").toUpperCase() === "TRUE" || String(a.source_baha || "").toUpperCase() === "YES" || String(a.source_baha || "") === "有";
+                  return activeList.includes(hasBaha ? "有" : "無");
+              }
+              return activeList.includes(a[prop] ? String(a[prop]).trim() : "Unknown");
+          };
 
-      if (!passedCheckboxes) return false;
+          const passedCheckboxes = check('airing_type', activeFilters.airing_type) &&
+                                   check('airing_status', activeFilters.airing_status) &&
+                                   check('my_progress', activeFilters.my_progress) &&
+                                   check('main_spinoff', activeFilters.main_spinoff) &&
+                                   check('source_baha', activeFilters.source_baha);
 
-      // B. Robust Search String Validation
-      if (query) {
-        const seriesObj = allSeriesData.find(
-          (s) => s.series_en === a.series_en,
-        );
-        const altName = seriesObj ? seriesObj.alt_name : "";
+          if (!passedCheckboxes) return false;
 
-        const rawSearchStr = buildSearchString(a, altName);
+          if (query) {
+              const seriesObj = allSeriesData.find(s => s.series_en === a.series_en);
+              const altName = seriesObj ? seriesObj.alt_name : "";
+              const rawSearchStr = buildSearchString(a, altName);
 
-        // Method 1: Absolute squashed match (handles "fatestaynight" matching "Fate / Stay Night")
-        const squashedSearchStr = rawSearchStr.replace(/[^\p{L}\p{N}]/gu, "");
-        const squashedQuery = query
-          .toLowerCase()
-          .replace(/[^\p{L}\p{N}]/gu, "");
-        const matchesSquashed = squashedSearchStr.includes(squashedQuery);
+              const squashedSearchStr = rawSearchStr.replace(/[^\p{L}\p{N}]/gu, "");
+              const squashedQuery = query.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+              const matchesSquashed = squashedSearchStr.includes(squashedQuery);
 
-        // Method 2: Tokenized match (handles "Summer 2024" matching "SUM 2024" regardless of order)
-        const queryTokens = query
-          .toLowerCase()
-          .split(/\s+/)
-          .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ""))
-          .filter(Boolean);
-        const spacePreservedSearchStr = rawSearchStr.replace(
-          /[^\p{L}\p{N}\s]/gu,
-          "",
-        );
-        const matchesTokens =
-          queryTokens.length > 0 &&
-          queryTokens.every((token) => spacePreservedSearchStr.includes(token));
+              const queryTokens = query.toLowerCase().split(/\s+/).map(t => t.replace(/[^\p{L}\p{N}]/gu, "")).filter(Boolean);
+              const spacePreservedSearchStr = rawSearchStr.replace(/[^\p{L}\p{N}\s]/gu, "");
+              const matchesTokens = queryTokens.length > 0 && queryTokens.every(token => spacePreservedSearchStr.includes(token));
 
-        return matchesSquashed || matchesTokens;
+              return matchesSquashed || matchesTokens;
+          }
+          return true;
+      });
+
+      const sortVal = document.getElementById('sort-select').value;
+      result.sort((a, b) => {
+          const scoreMap = { "S": 10, "A+": 9, "A": 8, "B": 7, "C": 6, "D": 5, "E": 4, "F": 3 };
+          let titleA = String(a.series_season_cn || a.series_season_en || a.series_en || "").trim().toLowerCase();
+          let titleB = String(b.series_season_cn || b.series_season_en || b.series_en || "").trim().toLowerCase();
+
+          if (sortVal === 'titleAsc') return titleA.localeCompare(titleB);
+          if (sortVal === 'titleDesc') return titleB.localeCompare(titleA);
+          if (sortVal === 'ratingMineDesc') { const sA = scoreMap[a.rating_mine] || 0, sB = scoreMap[b.rating_mine] || 0; if(sA !== sB) return sB - sA; }
+          if (sortVal === 'ratingMineAsc') { const sA = scoreMap[a.rating_mine] || 0, sB = scoreMap[b.rating_mine] || 0; if(sA !== sB) return sA - sB; }
+          if (sortVal === 'malRatingDesc') { if((a.mal_rating || 0) !== (b.mal_rating || 0)) return (b.mal_rating || 0) - (a.mal_rating || 0); }
+          if (sortVal === 'malRatingAsc') { if((a.mal_rating || 0) !== (b.mal_rating || 0)) return (a.mal_rating || 0) - (b.mal_rating || 0); }
+
+          if (sortVal === 'progressCustom') { const map = { 'Active Watching': 1, 'Passive Watching': 2, 'Paused': 3, 'Watch When Airs': 4, 'Plan to Watch': 5, 'Might Watch': 6, 'Temp Dropped': 7, 'Dropped': 8, "Won't Watch": 9, 'Completed': 10 }; let pA = a.my_progress === 'Finished' ? 'Completed' : (a.my_progress || "Unknown"); let pB = b.my_progress === 'Finished' ? 'Completed' : (b.my_progress || "Unknown"); const vA = map[pA] || 99, vB = map[pB] || 99; if(vA !== vB) return vA - vB; }
+          if (sortVal === 'airingStatusCustom') { const map = { 'Not Yet Aired': 1, 'Airing': 2, 'Finished Airing': 3 }; const vA = map[a.airing_status] || 99, vB = map[b.airing_status] || 99; if(vA !== vB) return vA - vB; }
+          if (sortVal === 'mainSpinoffCustom') { const map = { '本傳': 1, '外傳': 2, '總集篇': 3 }; const vA = map[a.main_spinoff] || 99, vB = map[b.main_spinoff] || 99; if(vA !== vB) return vA - vB; }
+
+          return titleA.localeCompare(titleB);
+      });
+
+      document.getElementById('resultCount').innerText = `${result.length} Entries`;
+      const grid = document.getElementById("library-grid");
+      const empty = document.getElementById("empty-state");
+
+      if (result.length === 0) {
+          grid.classList.add("hidden");
+          empty.classList.replace("hidden", "flex");
+      } else {
+          grid.classList.remove("hidden");
+          empty.classList.replace("flex", "hidden");
+          grid.innerHTML = result.map(anime => createLibraryCard(anime)).join("");
       }
-
-      return true;
-    });
-
-    // 2. Sorting Phase
-    const sortVal = document.getElementById("sort-select").value;
-    result.sort((a, b) => {
-      const scoreMap = { S: 10, "A+": 9, A: 8, B: 7, C: 6, D: 5, E: 4, F: 3 };
-
-      let titleA = String(
-        a.series_season_cn || a.series_season_en || a.series_en || "",
-      )
-        .trim()
-        .toLowerCase();
-      let titleB = String(
-        b.series_season_cn || b.series_season_en || b.series_en || "",
-      )
-        .trim()
-        .toLowerCase();
-
-      if (sortVal === "titleAsc") return titleA.localeCompare(titleB);
-      if (sortVal === "titleDesc") return titleB.localeCompare(titleA);
-
-      if (sortVal === "ratingMineDesc") {
-        const sA = scoreMap[a.rating_mine] || 0,
-          sB = scoreMap[b.rating_mine] || 0;
-        if (sA !== sB) return sB - sA;
-      }
-      if (sortVal === "ratingMineAsc") {
-        const sA = scoreMap[a.rating_mine] || 0,
-          sB = scoreMap[b.rating_mine] || 0;
-        if (sA !== sB) return sA - sB;
-      }
-
-      if (sortVal === "malRatingDesc") {
-        if ((a.mal_rating || 0) !== (b.mal_rating || 0))
-          return (b.mal_rating || 0) - (a.mal_rating || 0);
-      }
-      if (sortVal === "malRatingAsc") {
-        if ((a.mal_rating || 0) !== (b.mal_rating || 0))
-          return (a.mal_rating || 0) - (b.mal_rating || 0);
-      }
-
-      if (sortVal === "progressCustom") {
-        const map = {
-          "Active Watching": 1,
-          "Passive Watching": 2,
-          Paused: 3,
-          "Watch When Airs": 4,
-          "Plan to Watch": 5,
-          "Might Watch": 6,
-          "Temp Dropped": 7,
-          Dropped: 8,
-          "Won't Watch": 9,
-          Completed: 10,
-        };
-        let pA =
-            a.my_progress === "Finished"
-              ? "Completed"
-              : a.my_progress || "Unknown",
-          pB =
-            b.my_progress === "Finished"
-              ? "Completed"
-              : b.my_progress || "Unknown";
-        const vA = map[pA] || 99,
-          vB = map[pB] || 99;
-        if (vA !== vB) return vA - vB;
-      }
-      if (sortVal === "airingStatusCustom") {
-        const map = { "Not Yet Aired": 1, Airing: 2, "Finished Airing": 3 };
-        const vA = map[a.airing_status] || 99,
-          vB = map[b.airing_status] || 99;
-        if (vA !== vB) return vA - vB;
-      }
-      if (sortVal === "mainSpinoffCustom") {
-        const map = { 本傳: 1, 外傳: 2, 總集篇: 3 };
-        const vA = map[a.main_spinoff] || 99,
-          vB = map[b.main_spinoff] || 99;
-        if (vA !== vB) return vA - vB;
-      }
-
-      // Alphabetical Title Fallback for ties in other sorting methods
-      return titleA.localeCompare(titleB);
-    });
-
-    // 3. Render Phase
-    document.getElementById("resultCount").innerText =
-      `${result.length} Entries`;
-    const grid = document.getElementById("library-grid");
-    const empty = document.getElementById("empty-state");
-
-    if (result.length === 0) {
-      grid.classList.add("hidden");
-      empty.classList.replace("hidden", "flex");
-    } else {
-      grid.classList.remove("hidden");
-      empty.classList.replace("flex", "hidden");
-
-      // Efficient DOM update
-      grid.innerHTML = result.map((anime) => createLibraryCard(anime)).join("");
-    }
-  }
-
-  function parseReleaseDate(d) {
-    if (!d) return 999999;
-    const s = String(d).toUpperCase();
-    if (s === "TBA" || s === "") return 999999;
-    const yr = s.match(/\d{4}/);
-    if (yr) {
-      let m = 2;
-      if (s.includes("WIN") || s.includes("JAN")) m = 1;
-      else if (s.includes("FEB")) m = 2;
-      else if (s.includes("MAR")) m = 3;
-      else if (s.includes("SPR") || s.includes("APR")) m = 4;
-      else if (s.includes("MAY")) m = 5;
-      else if (s.includes("JUN")) m = 6;
-      else if (s.includes("SUM") || s.includes("JUL")) m = 7;
-      else if (s.includes("AUG")) m = 8;
-      else if (s.includes("SEP")) m = 9;
-      else if (s.includes("FAL") || s.includes("OCT")) m = 10;
-      else if (s.includes("NOV") || s.includes("DEC")) m = 12;
-      return parseInt(yr[0]) * 100 + m;
-    }
-    return 999999;
   }
 
   function createLibraryCard(anime) {
-    const title =
-      anime.series_season_cn ||
-      anime.series_season_en ||
-      anime.series_en ||
-      "Unknown Title";
-    const epFin = anime.ep_fin || 0;
-    const epTotal = anime.ep_total || "?";
+      const title = anime.series_season_cn || anime.series_season_en || anime.series_en || "Unknown Title";
+      const epFin = anime.ep_fin || 0;
+      const epTotal = anime.ep_total || "?";
 
-    let statusColor = "bg-gray-800";
-    if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
-    if (anime.my_progress === "Completed" || anime.my_progress === "Finished")
-      statusColor = "bg-brand";
+      let statusColor = "bg-gray-800";
+      if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
+      if (anime.my_progress === "Completed" || anime.my_progress === "Finished") statusColor = "bg-brand";
 
-    const checkmarkS = [
-      "Completed",
-      "Finished",
-      "Watch When Airs",
-      "Plan to Watch",
-    ];
-    const tildeS = ["Active Watching", "Passive Watching", "Paused"];
-    const crossS = ["Temp Dropped", "Dropped", "Won't Watch"];
+      const progress = anime.my_progress || "";
 
-    let actionIcon = '<i class="fas fa-plus text-[10px]"></i>',
-      btnClass = "bg-brand/10 hover:bg-brand text-brand hover:text-white";
-    let actionTitle = "Set to Plan to Watch";
+      // Dynamic Logic for the Action Button
+      let actionIcon = '';
+      let actionTitle = '';
+      let buttonClass = '';
 
-    if (checkmarkS.includes(anime.my_progress)) {
-      actionIcon = '<i class="fas fa-check text-[10px]"></i>';
-      btnClass =
-        "bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200";
-      actionTitle = "Change Status";
-    } else if (tildeS.includes(anime.my_progress)) {
-      actionIcon =
-        '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
-      btnClass =
-        "bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200";
-      actionTitle = "Change Status";
-    } else if (crossS.includes(anime.my_progress)) {
-      actionIcon = '<i class="fas fa-times text-[10px]"></i>';
-      btnClass =
-        "bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200";
-      actionTitle = "Change Status";
-    }
+      if (progress === "Might Watch") {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent';
+      } else if (progress === "Plan to Watch" || progress === "Watch When Airs") {
+          actionIcon = '<i class="fas fa-ellipsis-h text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-purple-100 hover:bg-purple-500 text-purple-600 hover:text-white border border-purple-200';
+      } else if (["Completed", "Finished"].includes(progress)) {
+          actionIcon = '<i class="fas fa-check text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200';
+      } else if (["Active Watching", "Passive Watching", "Paused"].includes(progress)) {
+          actionIcon = '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200';
+      } else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(progress)) {
+          actionIcon = '<i class="fas fa-times text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200';
+      } else {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200';
+      }
 
-    const fallback = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/></svg>`;
+      const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/></svg>`;
 
-    return `<div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group"><div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'"><img src="${anime.cover_image_url || ""}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallback}'"><div class="absolute top-2 left-2 flex flex-col gap-1">${anime.mal_rating ? `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${anime.mal_rating.toFixed(2)}</span>` : ""}${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ""}</div><div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50"><div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round(((anime.ep_fin || 0) / anime.ep_total) * 100) : (anime.ep_fin || 0) > 0 ? 100 : 0}%"></div></div></div><div class="p-3 flex flex-col flex-1"><h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3><p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p><div class="mt-auto flex items-center justify-between"><span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded shadow-inner">${epFin} / ${epTotal}</span><button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ""}'); event.stopPropagation();" class="w-7 h-7 rounded ${btnClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">${actionIcon}</button></div></div></div>`;
+      // Conditional action HTML based on Admin role
+      let actionButtonHTML = '';
+      if (IS_ADMIN) {
+          actionButtonHTML = `
+          <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ''}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
+              ${actionIcon}
+          </button>`;
+      } else {
+          const guestClass = buttonClass.replace(/hover:[^\s]+/g, '').trim();
+          actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
+      }
+
+      // Safely render MAL Rating
+      let malRatingHtml = '';
+      if (anime.mal_rating) {
+          const ratingNum = Number(anime.mal_rating);
+          if (!isNaN(ratingNum)) {
+              malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
+          }
+      }
+
+      return `
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
+            <!-- Cover Image Container -->
+            <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
+                <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
+
+                <!-- Top Overlay Badges -->
+                <div class="absolute top-2 left-2 flex flex-col gap-1">
+                    ${malRatingHtml}
+                    ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ''}
+                </div>
+
+                <!-- Progress Bar Overlay (Bottom of Image) -->
+                <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
+                    <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : (epFin > 0 ? 100 : 0)}%"></div>
+                </div>
+            </div>
+
+            <!-- Card Content -->
+            <div class="p-3 flex flex-col flex-1">
+                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
+                <p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p>
+
+                <!-- Progress Controls (Bottom) -->
+                <div class="mt-auto flex items-center justify-between">
+                    <span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded shadow-inner">
+                        <span id="card-ep-${anime.system_id}">${epFin}</span> / ${epTotal}
+                    </span>
+                    ${actionButtonHTML}
+                </div>
+            </div>
+        </div>
+      `;
   }
 
-  // Same logic as Series Hub
-  async function handleStatusButton(id, curr) {
-    const pS = [
-      "Completed",
-      "Finished",
-      "Watch When Airs",
-      "Plan to Watch",
-      "Active Watching",
-      "Passive Watching",
-      "Paused",
-      "Temp Dropped",
-      "Dropped",
-      "Won't Watch",
-    ];
-    let next = "Plan to Watch";
-    if (pS.includes(curr)) {
-      if (confirm(`Marked as "${curr}". Change to "Might Watch"?`))
-        next = "Might Watch";
-      else return;
-    }
+  // --- Admin API Handlers ---
+  async function handleStatusButton(sys_id, current_progress) {
+      if (!IS_ADMIN) return;
 
-    const idx = allAnimeData.findIndex((a) => a.system_id === id);
-    if (idx === -1) return;
+      // Determine the target status direction based on the current state
+      let newStatus = current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-    const old = allAnimeData[idx].my_progress;
-    allAnimeData[idx].my_progress = next;
-    applyFiltersAndSort(); // Instantly update UI based on new status
+      // If the show is heavily tracked, prompt the user before aggressively demoting it
+      const strongStatuses = ["Completed", "Finished", "Active Watching", "Passive Watching", "Dropped", "Temp Dropped", "Won't Watch"];
+      if (strongStatuses.includes(current_progress)) {
+          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you really want to demote it to "Might Watch"?`);
+          if (!confirmed) return;
+      }
 
-    try {
-      const res = await fetch(`${GLOBAL_API_BASE}/anime/${id}/progress`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ my_progress: next }),
-      });
-      if (!res.ok) throw new Error();
-      showToast(`Updated to ${next}`);
-    } catch (e) {
-      allAnimeData[idx].my_progress = old;
-      applyFiltersAndSort();
-      showToast("Error syncing.", true);
-    }
+      const index = allAnimeData.findIndex(a => a.system_id === sys_id);
+      if (index === -1) return;
+
+      // Save Original & Optimistically update UI
+      const originalStatus = allAnimeData[index].my_progress;
+      allAnimeData[index].my_progress = newStatus;
+      applyFiltersAndSort(); // Re-render grid instantly to show new button and possible filter movement
+
+      try {
+          // Hardcoded relative route mapping exactly to routers/anime.py
+          const res = await fetch(`/api/anime/${sys_id}/progress`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ my_progress: newStatus })
+          });
+          if (!res.ok) throw new Error("Failed to sync status");
+          if (typeof showToast === 'function') showToast(`Status dynamically updated to ${newStatus}`);
+      } catch (error) {
+          console.error("Status Update Error:", error);
+          // Revert UI on failure
+          allAnimeData[index].my_progress = originalStatus;
+          applyFiltersAndSort();
+          if (typeof showToast === 'function') showToast("Network error. Status reverted.", true);
+      }
   }
 </script>
 {% endblock %}

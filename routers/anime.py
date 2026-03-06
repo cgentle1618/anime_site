@@ -11,7 +11,7 @@ from typing import List
 import models
 import schemas
 import services.sheets_client as sheets_client
-from dependencies import get_db
+from dependencies import get_db, get_current_admin
 
 # Initialize the router with tags for grouping in documentation
 router = APIRouter(prefix="/api/anime", tags=["Anime Management"])
@@ -92,7 +92,11 @@ def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.patch("/{system_id}/progress", summary="Update Progress or Rating")
+@router.patch(
+    "/{system_id}/progress",
+    summary="Update Progress or Rating",
+    dependencies=[Depends(get_current_admin)],
+)
 def update_anime_progress(
     system_id: str, payload: dict = Body(...), db: Session = Depends(get_db)
 ):

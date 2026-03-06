@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% block title %}Delete Records - CG1618 Tracker{%
-endblock %} {% block extra_style %} .tab-active { color: #ef4444; /* red-500 */
+{% extends "base.html" %} {% block title %}Delete Records - CG1618{% endblock %}
+{% block extra_style %} .tab-active { color: #ef4444; /* red-500 */
 border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
 #6b7280; border-bottom-width: 2px; border-bottom-color: transparent; }
 .tab-inactive:hover { color: #374151; border-bottom-color: #d1d5db; }
@@ -38,9 +38,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     </button>
   </div>
 
-  <!-- ========================================== -->
   <!-- SECTION 1: ANIME ENTRIES -->
-  <!-- ========================================== -->
   <div id="section-anime" class="space-y-8 block">
     <!-- Search Panel -->
     <div
@@ -106,7 +104,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
             id="del-anime-img"
             src=""
             class="w-full h-full object-cover"
-            onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'100%\'><rect width=\'100%\' height=\'100%\' fill=\'%23E5E7EB\'/><text x=\'50%\' y=\'50%\' font-family=\'Arial\' font-size=\'10\' fill=\'%236B7280\' dominant-baseline=\\'middle\' text-anchor=\\'middle\'>No Image</text></svg>'"
+            onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100%\\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'10\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'"
           />
         </div>
 
@@ -132,6 +130,12 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
           >
             Title
           </h3>
+          <p
+            class="text-sm text-gray-500 truncate mt-1"
+            id="del-anime-subtitle"
+          >
+            Subtitle
+          </p>
 
           <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
             <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
@@ -241,8 +245,8 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
         >
           Series Title
         </h3>
-        <p class="text-sm text-gray-500 truncate mb-4" id="del-series-cn">
-          Series CN Name
+        <p class="text-sm text-gray-500 truncate mb-4" id="del-series-alt">
+          Alt Names
         </p>
 
         <div
@@ -416,15 +420,10 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // Global State
+  // Global State (API_BASE_URL and showToast are handled by base.html)
   let allAnime = [];
   let allSeries = [];
   let currentDeleteTarget = null; // { type: 'anime'|'series', id: '...', name: '...', series_en: '...' }
-
-  // Hook into base.html sync mechanism
-  function onSyncComplete() {
-    loadDatabase();
-  }
 
   function switchTab(tabName) {
     const animeSec = document.getElementById("section-anime");
@@ -452,13 +451,14 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
   // --- Initial Data Load ---
   async function loadDatabase() {
     try {
-      const resAnime = await fetch(`${GLOBAL_API_BASE}/anime`);
+      const resAnime = await fetch(`/api/anime`);
       if (resAnime.ok) allAnime = await resAnime.json();
 
-      const resSeries = await fetch(`${GLOBAL_API_BASE}/series`);
+      const resSeries = await fetch(`/api/series`);
       if (resSeries.ok) allSeries = await resSeries.json();
     } catch (e) {
-      showToast("Failed to load database for deletion operations.", true);
+      if (typeof showToast === "function")
+        showToast("Failed to load database for deletion operations.", true);
     }
   }
 
@@ -468,7 +468,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     return str.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
   }
 
-  // Hide dropdowns when clicking outside
+  // Hide dropdowns when clicking outside local searches
   document.addEventListener("click", (e) => {
     if (
       !e.target.closest(".search-container-anime") &&
@@ -529,32 +529,15 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     if (filtered.length === 0) {
       resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
+      // PASSING SYSTEM_ID DIRECTLY INSTEAD OF JSON OBJECT
       resultsContainer.innerHTML = filtered
         .map((a) => {
-          // Applied Correct Anime Priority: CN -> EN -> Roman -> Series EN
-          const displayTitle =
-            a.series_season_cn ||
-            a.series_season_en ||
-            a.series_season_roman ||
-            a.series_en ||
-            "Unknown Title";
-
-          // Applied Correct Series Priority: CN -> EN -> Roman
-          const parentSeries = allSeries.find(
-            (s) => s.series_en === a.series_en,
-          );
-          const seriesDisplayName = parentSeries
-            ? parentSeries.series_cn ||
-              parentSeries.series_en ||
-              parentSeries.series_roman
-            : a.series_en || "-";
-
           return `
-              <div onclick='selectAnime(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+              <div onclick="selectAnime('${a.system_id}')" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0 flex-1 pr-2">
-                      <div class="font-bold text-gray-800 text-sm truncate">${displayTitle}</div>
+                      <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en || "Unknown Title"}</div>
                       <div class="text-[11px] text-gray-500 truncate mt-0.5">
-                          From series: <span class="font-semibold text-gray-700">${seriesDisplayName}</span> • ${a.airing_type || "-"} • ${a.my_progress || "-"}
+                          From series: <span class="font-semibold text-gray-700">${a.series_en || "-"}</span>, ${a.airing_type || "-"}, ${a.my_progress || "-"}
                       </div>
                   </div>
                   <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
@@ -566,32 +549,33 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectAnime(anime) {
+  // Look up the anime directly from memory using the system_id
+  function selectAnime(sysId) {
+    const anime = allAnime.find((a) => a.system_id === sysId);
+    if (!anime) return;
+
     document.getElementById("anime-search-results").classList.add("hidden");
-
-    const displayTitle =
-      anime.series_season_cn ||
-      anime.series_season_en ||
-      anime.series_season_roman ||
-      anime.series_en ||
-      "Unknown Title";
-    const parentSeries = allSeries.find((s) => s.series_en === anime.series_en);
-    const seriesDisplayName = parentSeries
-      ? parentSeries.series_cn ||
-        parentSeries.series_en ||
-        parentSeries.series_roman
-      : anime.series_en || "-";
-
-    document.getElementById("anime-search-input").value = displayTitle;
+    document.getElementById("anime-search-input").value =
+      anime.series_season_cn || anime.series_season_en || anime.series_en;
 
     // Populate Danger Zone Card
     document.getElementById("del-anime-img").src = anime.cover_image_url || "";
-    document.getElementById("del-anime-title").innerText = displayTitle;
+    document.getElementById("del-anime-title").innerText =
+      anime.series_season_cn ||
+      anime.series_season_en ||
+      anime.series_en ||
+      "Unknown Title";
+    document.getElementById("del-anime-subtitle").innerText =
+      anime.series_season_en ||
+      anime.series_season_roman ||
+      anime.series_en ||
+      "-";
     document.getElementById("del-anime-type").innerText =
       anime.airing_type || "Unknown Type";
     document.getElementById("del-anime-progress").innerText =
       anime.my_progress || "Unknown Progress";
-    document.getElementById("del-anime-series").innerText = seriesDisplayName;
+    document.getElementById("del-anime-series").innerText =
+      anime.series_en || "Unknown Series";
     document.getElementById("del-anime-id").innerText = anime.system_id;
 
     document
@@ -629,31 +613,40 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     if (filtered.length === 0) {
       resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
+      // PASSING SYSTEM_ID DIRECTLY INSTEAD OF JSON OBJECT
       resultsContainer.innerHTML = filtered
-        .map(
-          (s) => `
-              <div onclick='selectSeries(${JSON.stringify(s).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+        .map((s) => {
+          return `
+              <div onclick="selectSeries('${s.system_id}')" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0 flex-1">
                       <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
-                      <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || "No Chinese Name"}</div>
+                      <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
                   </div>
                   <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
               </div>
-          `,
-        )
+              `;
+        })
         .join("");
     }
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectSeries(series) {
+  // Look up the series directly from memory using the system_id
+  function selectSeries(sysId) {
+    const series = allSeries.find((s) => s.system_id === sysId);
+    if (!series) return;
+
     document.getElementById("series-search-results").classList.add("hidden");
     document.getElementById("series-search-input").value = series.series_en;
 
     // Populate Danger Zone Card
     document.getElementById("del-series-en").innerText = series.series_en;
-    document.getElementById("del-series-cn").innerText =
-      series.series_cn || "No Chinese Name";
+
+    const alts = [series.series_cn, series.series_roman, series.alt_name]
+      .filter(Boolean)
+      .join(" • ");
+    document.getElementById("del-series-alt").innerText =
+      alts || "No alternate names recorded.";
     document.getElementById("del-series-id").innerText = series.system_id;
 
     // Calculate connected anime
@@ -690,10 +683,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
     if (type === "anime") {
       id = document.getElementById("del-anime-id").innerText;
       name = document.getElementById("del-anime-title").innerText;
-
-      // Need to grab the actual english key to check for orphans
-      const animeEntry = allAnime.find((a) => a.system_id === id);
-      seriesEnName = animeEntry ? animeEntry.series_en : "";
+      seriesEnName = document.getElementById("del-anime-series").innerText;
 
       // Smart Logic: Check if this is the ONLY anime in the series
       const siblingCount = allAnime.filter(
@@ -767,7 +757,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
             deletedCount++;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
             const resAnime = await fetch(
-              `${GLOBAL_API_BASE}/admin/anime/${anime.system_id}`,
+              `/api/admin/anime/${anime.system_id}`,
               { method: "DELETE" },
             );
             if (!resAnime.ok)
@@ -781,7 +771,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
         btn.innerHTML =
           '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Primary Target...';
         const res = await fetch(
-          `${GLOBAL_API_BASE}/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+          `/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
           {
             method: "DELETE",
           },
@@ -805,7 +795,7 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
             btn.innerHTML =
               '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Series Hub...';
             const resSeries = await fetch(
-              `${GLOBAL_API_BASE}/admin/series/${seriesHub.system_id}`,
+              `/api/admin/series/${seriesHub.system_id}`,
               { method: "DELETE" },
             );
             if (!resSeries.ok)
@@ -824,18 +814,89 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
         }
 
         await loadDatabase(); // Refresh memory cache
-        showToast(
-          `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
-        );
+
+        if (typeof showToast === "function") {
+          showToast(
+            `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
+          );
+        }
       } catch (error) {
-        showToast(`Error: ${error.message}`, true);
+        if (typeof showToast === "function") {
+          showToast(`Error: ${error.message}`, true);
+        } else {
+          alert(`Error: ${error.message}`);
+        }
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
       }
     });
 
-  // Initialize Page
+  // Unique Sync Function for Delete View (triggers UI lock properly)
+  async function handleSync() {
+    const topBtn = document.getElementById("syncBtn");
+    const topIcon = document.getElementById("syncIcon");
+
+    if (topIcon) topIcon.classList.add("fa-spin");
+    if (topBtn) {
+      topBtn.classList.add("opacity-75", "pointer-events-none");
+      topBtn.innerText = " Syncing...";
+      topBtn.prepend(topIcon);
+    }
+
+    try {
+      const response = await fetch(`/api/admin/sync`, { method: "POST" });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || response.statusText);
+      }
+
+      if (typeof showToast === "function")
+        showToast("Successfully synchronized with Google Sheets!");
+
+      await loadDatabase();
+
+      if (topIcon) {
+        topIcon.classList.remove("fa-spin", "fa-sync-alt");
+        topIcon.classList.add("fa-check");
+      }
+      if (topBtn) {
+        topBtn.classList.remove(
+          "bg-brand",
+          "hover:bg-brand-hover",
+          "opacity-75",
+          "pointer-events-none",
+        );
+        topBtn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+        topBtn.innerText = " Synced!";
+        topBtn.prepend(topIcon);
+      }
+
+      setTimeout(() => {
+        if (topIcon) {
+          topIcon.classList.remove("fa-check");
+          topIcon.classList.add("fa-sync-alt");
+        }
+        if (topBtn) {
+          topBtn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+          topBtn.classList.add("bg-brand", "hover:bg-brand-hover");
+          topBtn.innerText = " Sync Sheets";
+          topBtn.prepend(topIcon);
+        }
+      }, 2000);
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(`Sync Error: ${error.message}`, true);
+
+      if (topIcon) topIcon.classList.remove("fa-spin");
+      if (topBtn) {
+        topBtn.classList.remove("opacity-75", "pointer-events-none");
+        topBtn.innerText = " Sync Sheets";
+        topBtn.prepend(topIcon);
+      }
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", loadDatabase);
 </script>
 {% endblock %}

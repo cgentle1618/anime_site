@@ -17,7 +17,7 @@ content %}
         parity.
       </p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
       <a
         href="/add"
         class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
@@ -28,7 +28,13 @@ content %}
         href="/modify"
         class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
       >
-        <i class="fas fa-edit mr-2 text-blue-500"></i> Edit
+        <i class="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
+      </a>
+      <a
+        href="/delete"
+        class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+      >
+        <i class="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
       </a>
     </div>
   </div>
@@ -42,13 +48,15 @@ content %}
         <i class="fas fa-microchip text-gray-400 mr-2"></i> Diagnostics
       </h3>
 
-      <!-- Uses local forceSync function to animate this specific button -->
+      <!-- Unified handleSync Button -->
       <button
-        onclick="forceSync(this)"
+        id="diagSyncBtn"
+        onclick="handleSync()"
         class="w-full bg-brand/5 hover:bg-brand text-brand hover:text-white border border-brand/10 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
       >
         <span class="flex items-center"
           ><i
+            id="diagSyncIcon"
             class="fas fa-sync-alt mr-3 group-hover:rotate-180 transition-transform duration-700"
           ></i>
           Force Full Sync</span
@@ -368,11 +376,6 @@ content %}
 <script>
   let currentLogs = [];
 
-  // Hooks into base.html global sync button
-  function onSyncComplete() {
-    initializeAdminPanel();
-  }
-
   function formatDate(dateStr) {
     if (!dateStr) return "-";
     const d = new Date(dateStr);
@@ -474,7 +477,7 @@ content %}
   // --- Audit Trails ---
   async function loadLogs() {
     try {
-      const res = await fetch(`${GLOBAL_API_BASE}/admin/logs?limit=15`);
+      const res = await fetch(`/api/admin/logs?limit=15`);
       if (!res.ok) throw new Error("Failed to fetch logs");
       const data = await res.json();
 
@@ -518,8 +521,8 @@ content %}
   async function loadRecentActivity() {
     try {
       const [animeRes, seriesRes] = await Promise.all([
-        fetch(`${GLOBAL_API_BASE}/anime`),
-        fetch(`${GLOBAL_API_BASE}/series`),
+        fetch(`/api/anime`),
+        fetch(`/api/series`),
       ]);
       if (!animeRes.ok || !seriesRes.ok)
         throw new Error("Failed to fetch data");
@@ -582,7 +585,6 @@ content %}
     tbody.innerHTML = data
       .map((item) => {
         const isAnime = item.__type === "anime";
-        // Corrected priority for anime titles
         const title = isAnime
           ? item.series_season_cn ||
             item.series_season_en ||
@@ -621,14 +623,12 @@ content %}
 
     tbody.innerHTML = data
       .map((anime) => {
-        // Bugfix: Accurate priority for title display
         const titleCn =
           anime.series_season_cn ||
           anime.series_season_en ||
           anime.series_season_roman ||
           anime.series_en ||
           "-";
-
         const type = anime.airing_type || "-";
         const status = anime.airing_status || "-";
         const progress = anime.my_progress || "-";
@@ -670,9 +670,7 @@ content %}
 
   async function loadDeletedRecords() {
     try {
-      const res = await fetch(
-        `${GLOBAL_API_BASE}/admin/recent-deleted?limit=15`,
-      );
+      const res = await fetch(`/api/admin/recent-deleted?limit=15`);
       if (!res.ok) throw new Error("Failed to fetch deleted records");
       const data = await res.json();
 
@@ -705,29 +703,6 @@ content %}
   }
 
   // --- Admin Diagnostics ---
-  async function forceSync(btn) {
-    const icon = btn.querySelector("i");
-    icon.classList.add("fa-spin");
-    btn.classList.add("opacity-75", "pointer-events-none");
-
-    try {
-      const response = await fetch(`${GLOBAL_API_BASE}/admin/sync`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || response.statusText);
-      }
-      showToast("Successfully synchronized with Google Sheets!");
-      await initializeAdminPanel();
-    } catch (error) {
-      showToast(`Sync Error: ${error.message}`, true);
-    } finally {
-      icon.classList.remove("fa-spin");
-      btn.classList.remove("opacity-75", "pointer-events-none");
-    }
-  }
-
   async function cleanupLogs() {
     const btn = document.getElementById("btn-cleanup");
     const icon = document.getElementById("cleanup-icon");
@@ -736,16 +711,17 @@ content %}
     icon.className = "fas fa-spinner fa-spin";
 
     try {
-      const res = await fetch(`${GLOBAL_API_BASE}/admin/logs/cleanup?days=30`, {
+      const res = await fetch(`/api/admin/logs/cleanup?days=30`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Failed to purge logs.");
 
-      showToast(`Success: ${data.message}`);
+      if (typeof showToast === "function")
+        showToast(`Success: ${data.message}`);
       await loadLogs();
     } catch (error) {
-      showToast(error.message, true);
+      if (typeof showToast === "function") showToast(error.message, true);
     } finally {
       btn.classList.remove("pointer-events-none", "opacity-70");
       icon.className = "fas fa-chevron-right text-xs opacity-50";
@@ -762,7 +738,7 @@ content %}
     container.innerHTML = `<div class="flex items-center justify-center h-full"><i class="fas fa-circle-notch fa-spin text-2xl text-amber-500"></i></div>`;
 
     try {
-      const res = await fetch(`${GLOBAL_API_BASE}/admin/orphans`);
+      const res = await fetch(`/api/admin/orphans`);
       if (!res.ok) throw new Error("Failed to scan orphans.");
       const orphans = await res.json();
 
@@ -795,7 +771,8 @@ content %}
         });
         html += `</div>`;
         container.innerHTML = html;
-        showToast(`Found ${orphans.length} orphaned records.`, true);
+        if (typeof showToast === "function")
+          showToast(`Found ${orphans.length} orphaned records.`, true);
       }
     } catch (error) {
       container.innerHTML = `<p class="text-red-500 text-center py-4 text-sm font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</p>`;
@@ -814,16 +791,103 @@ content %}
       return;
 
     try {
-      const res = await fetch(`${GLOBAL_API_BASE}/admin/orphans/${sysId}`, {
+      const res = await fetch(`/api/admin/orphans/${sysId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete orphan.");
 
-      showToast("Orphan resolved successfully.");
+      if (typeof showToast === "function")
+        showToast("Orphan resolved successfully.");
       await scanOrphans();
       await loadDeletedRecords();
     } catch (error) {
-      showToast(error.message, true);
+      if (typeof showToast === "function") showToast(error.message, true);
+    }
+  }
+
+  // --- Unified Global Sync Handler ---
+  async function handleSync() {
+    const topBtn = document.getElementById("syncBtn");
+    const topIcon = document.getElementById("syncIcon");
+    const diagBtn = document.getElementById("diagSyncBtn");
+    const diagIcon = document.getElementById("diagSyncIcon");
+
+    // UI Loading State
+    if (topIcon) topIcon.classList.add("fa-spin");
+    if (topBtn) {
+      topBtn.classList.add("opacity-75", "pointer-events-none");
+      topBtn.innerText = " Syncing...";
+      topBtn.prepend(topIcon);
+    }
+    if (diagIcon) diagIcon.classList.add("fa-spin");
+    if (diagBtn) diagBtn.classList.add("opacity-75", "pointer-events-none");
+
+    try {
+      const response = await fetch(`/api/admin/sync`, { method: "POST" });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || response.statusText);
+      }
+
+      if (typeof showToast === "function")
+        showToast("Successfully synchronized with Google Sheets!");
+
+      // Refresh all dashboard tables
+      await initializeAdminPanel();
+
+      // UI Success State
+      if (topIcon) {
+        topIcon.classList.remove("fa-spin", "fa-sync-alt");
+        topIcon.classList.add("fa-check");
+      }
+      if (topBtn) {
+        topBtn.classList.remove(
+          "bg-brand",
+          "hover:bg-brand-hover",
+          "opacity-75",
+          "pointer-events-none",
+        );
+        topBtn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+        topBtn.innerText = " Synced!";
+        topBtn.prepend(topIcon);
+      }
+      if (diagIcon) {
+        diagIcon.classList.remove("fa-spin", "fa-sync-alt");
+        diagIcon.classList.add("fa-check", "text-emerald-500");
+      }
+
+      setTimeout(() => {
+        if (topIcon) {
+          topIcon.classList.remove("fa-check");
+          topIcon.classList.add("fa-sync-alt");
+        }
+        if (topBtn) {
+          topBtn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+          topBtn.classList.add("bg-brand", "hover:bg-brand-hover");
+          topBtn.innerText = " Sync";
+          topBtn.prepend(topIcon);
+        }
+        if (diagIcon) {
+          diagIcon.classList.remove("fa-check", "text-emerald-500");
+          diagIcon.classList.add("fa-sync-alt");
+        }
+        if (diagBtn)
+          diagBtn.classList.remove("opacity-75", "pointer-events-none");
+      }, 2000);
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(`Sync Error: ${error.message}`, true);
+
+      // Revert UI on failure
+      if (topIcon) topIcon.classList.remove("fa-spin");
+      if (topBtn) {
+        topBtn.classList.remove("opacity-75", "pointer-events-none");
+        topBtn.innerText = " Sync";
+        topBtn.prepend(topIcon);
+      }
+      if (diagIcon) diagIcon.classList.remove("fa-spin");
+      if (diagBtn)
+        diagBtn.classList.remove("opacity-75", "pointer-events-none");
     }
   }
 

@@ -1,0 +1,156 @@
+{% extends "base.html" %} {% block title %}Admin Login - CG1618 Tracker{%
+endblock %} {% block content %}
+<div
+  class="flex items-center justify-center min-h-[calc(100vh-130px)] px-4 py-12"
+>
+  <div
+    class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 w-full max-w-md relative overflow-hidden"
+  >
+    <!-- Top decorative bar -->
+    <div class="absolute top-0 left-0 right-0 h-1.5 bg-brand"></div>
+
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-bold text-gray-900 mb-2">
+        <i class="fas fa-lock text-brand mr-2"></i>Admin Access
+      </h1>
+      <p class="text-sm text-gray-500">
+        Sign in to manage the CG1618 database and synchronize with Google
+        Sheets.
+      </p>
+    </div>
+
+    <form id="login-form" class="space-y-6" onsubmit="handleLogin(event)">
+      <div>
+        <label
+          for="username"
+          class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2"
+          >Username</label
+        >
+        <div class="relative">
+          <div
+            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+          >
+            <i class="fas fa-user text-gray-400"></i>
+          </div>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            required
+            autocomplete="username"
+            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand focus:bg-white text-gray-900 transition outline-none"
+            placeholder="Enter admin username"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label
+          for="password"
+          class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2"
+          >Password</label
+        >
+        <div class="relative">
+          <div
+            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+          >
+            <i class="fas fa-key text-gray-400"></i>
+          </div>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand focus:bg-white text-gray-900 transition outline-none"
+            placeholder="••••••••"
+          />
+        </div>
+      </div>
+
+      <div
+        id="error-message"
+        class="hidden text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center"
+      >
+        <i class="fas fa-exclamation-circle mr-2"></i>
+        <span>Invalid credentials.</span>
+      </div>
+
+      <button
+        type="submit"
+        id="submit-btn"
+        class="w-full bg-brand hover:bg-brand-hover text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all flex justify-center items-center"
+      >
+        <span>Authenticate</span>
+        <i class="fas fa-arrow-right ml-2 text-sm"></i>
+      </button>
+    </form>
+
+    <div class="mt-8 pt-6 border-t border-gray-100 text-center">
+      <a
+        href="/"
+        class="text-sm font-medium text-gray-500 hover:text-brand transition"
+        ><i class="fas fa-arrow-left mr-1"></i> Return to Guest View</a
+      >
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_scripts %}
+<script>
+  async function handleLogin(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const btn = document.getElementById("submit-btn");
+    const errorDiv = document.getElementById("error-message");
+
+    // FastAPI's OAuth2PasswordRequestForm requires data to be x-www-form-urlencoded
+    const formData = new URLSearchParams();
+    formData.append("username", form.username.value);
+    formData.append("password", form.password.value);
+
+    // UI Loading State
+    btn.disabled = true;
+    btn.innerHTML =
+      '<i class="fas fa-circle-notch fa-spin mr-2"></i> Verifying...';
+    errorDiv.classList.add("hidden");
+
+    try {
+      const response = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        // Success! The browser automatically stores the HTTP-Only cookie set by the server.
+        btn.classList.replace("bg-brand", "bg-emerald-500");
+        btn.innerHTML = '<i class="fas fa-check mr-2"></i> Access Granted';
+
+        // Redirect to the system admin dashboard
+        setTimeout(() => {
+          window.location.href = "/system";
+        }, 800);
+      } else {
+        // Failure
+        errorDiv.classList.remove("hidden");
+        const errData = await response.json();
+        errorDiv.querySelector("span").innerText =
+          errData.detail || "Authentication failed.";
+        btn.disabled = false;
+        btn.innerHTML =
+          '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
+      }
+    } catch (error) {
+      errorDiv.classList.remove("hidden");
+      errorDiv.querySelector("span").innerText =
+        "Network error. Please try again.";
+      btn.disabled = false;
+      btn.innerHTML =
+        '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
+    }
+  }
+</script>
+{% endblock %}

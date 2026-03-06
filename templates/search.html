@@ -1,10 +1,12 @@
-{% extends "base.html" %} {% block title %}Search Results - CG1618{% endblock %}
-{% block extra_style %} .card-hover { transition: transform 0.2s ease,
-box-shadow 0.2s ease; cursor: pointer; } .card-hover:hover { transform:
+{% extends "base.html" %} {% block title %}Search Results - CG1618 Tracker{%
+endblock %} {% block extra_style %} .card-hover { transition: transform 0.2s
+ease, box-shadow 0.2s ease; cursor: pointer; } .card-hover:hover { transform:
 translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient:
 vertical; overflow: hidden; } {% endblock %} {% block content %}
-<main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+<main
+  class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative"
+>
   <!-- Loading State -->
   <div id="loading" class="flex flex-col items-center justify-center h-64">
     <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
@@ -12,9 +14,9 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
   </div>
 
   <div id="main-content" class="hidden">
-    <!-- Sticky Header -->
+    <!-- Sticky Master Header & Filter Wrapper -->
     <div
-      class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-4 border-b border-gray-200 mb-6"
+      class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-4 mb-8 border-b border-gray-200"
     >
       <div class="flex justify-between items-end">
         <div>
@@ -28,100 +30,113 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
           </p>
         </div>
       </div>
+
+      <!-- Dynamic Series Filter Bar -->
+      <div
+        id="series-filter-wrapper"
+        class="hidden mt-4 pt-4 border-t border-gray-200/60"
+      >
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-filter text-brand text-xs"></i>
+            <span
+              class="text-xs font-bold text-gray-600 uppercase tracking-wider"
+              >Filter by Series</span
+            >
+          </div>
+          <!-- Dynamic Clear Button -->
+          <button
+            id="clear-series-filters"
+            onclick="clearSeriesFilters()"
+            class="hidden text-[10px] font-bold text-red-500 hover:text-red-700 transition uppercase tracking-wider bg-red-50 px-2 py-1 rounded border border-red-100"
+          >
+            <i class="fas fa-times mr-1"></i> Clear Filters
+          </button>
+        </div>
+        <!-- Pills Container with Max Height for broad searches -->
+        <div
+          id="series-filter-pills"
+          class="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-2 pb-1"
+        >
+          <!-- Pills Injected via JS -->
+        </div>
+      </div>
     </div>
 
-    <!-- Dynamic Series Filter Container -->
-    <div
-      id="dynamic-series-filter"
-      class="hidden mb-8 bg-white rounded-xl border border-gray-200 shadow-sm p-5"
-    >
-      <!-- Injected via JS -->
-    </div>
-
-    <div id="resultsContainer" class="flex flex-col gap-8">
+    <!-- Search Results Content -->
+    <div id="resultsContainer" class="flex flex-col gap-10">
       <!-- Sections Injected via JS -->
     </div>
   </div>
 </main>
 {% endblock %} {% block extra_scripts %}
 <script>
+  // Safely expose admin role from Jinja2
+  const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
   let filteredSeries = [];
   let filteredAnime = [];
   let allAnimeData = [];
   let allSeriesData = [];
+  let activeSeriesFilters = new Set(); // Stores active series_en filters
 
-  // Hook into the universal sync system from base.html
+  // Hooks into base.html global sync button
   function onSyncComplete() {
-    performSearch();
+      performSearch();
   }
 
-  // --- Advanced Normalization Engine ---
   function normalizeSearchString(str) {
-    if (!str) return "";
-    // Removes spaces and punctuation. Makes "Sword Art Online" match "swordartonline"
-    return String(str)
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}]/gu, "");
+      if (!str) return "";
+      return String(str).toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
   }
 
-  // --- Data Fetching & Execution ---
   async function performSearch() {
     const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get("q") || "";
+    const query = urlParams.get('q') || "";
 
-    document.getElementById("search-query-display").innerText = `"${query}"`;
-    const searchInput = document.getElementById("globalSearchInput");
-    if (searchInput) searchInput.value = query;
+    document.getElementById('search-query-display').innerText = `"${query}"`;
+    const searchInput = document.getElementById('globalSearchInput');
+    if(searchInput) searchInput.value = query;
 
     try {
       const [animeRes, seriesRes] = await Promise.all([
-        fetch(`${GLOBAL_API_BASE}/anime`),
-        fetch(`${GLOBAL_API_BASE}/series`),
+        fetch(`/api/anime`),
+        fetch(`/api/series`)
       ]);
 
-      if (!animeRes.ok || !seriesRes.ok) throw new Error("Failed to load data");
+      if (!animeRes.ok || !seriesRes.ok) throw new Error("Failed to load data from server.");
 
       allAnimeData = await animeRes.json();
       allSeriesData = await seriesRes.json();
 
       const qNormalized = normalizeSearchString(query);
 
-      // 1. Filter Series Hubs
-      filteredSeries = allSeriesData.filter((s) => {
-        const sEn = normalizeSearchString(s.series_en);
-        const sCn = normalizeSearchString(s.series_cn);
-        const sRo = normalizeSearchString(s.series_roman);
-        const sAlt = normalizeSearchString(s.alt_name);
-        return (
-          sEn.includes(qNormalized) ||
-          sCn.includes(qNormalized) ||
-          sRo.includes(qNormalized) ||
-          sAlt.includes(qNormalized)
-        );
+      // Filter Franchise Hubs
+      filteredSeries = allSeriesData.filter(s => {
+          const sEn = normalizeSearchString(s.series_en);
+          const sCn = normalizeSearchString(s.series_cn);
+          const sRo = normalizeSearchString(s.series_roman);
+          const sAlt = normalizeSearchString(s.alt_name);
+          return sEn.includes(qNormalized) || sCn.includes(qNormalized) || sRo.includes(qNormalized) || sAlt.includes(qNormalized);
       });
 
-      // 2. Filter Anime Entries
-      filteredAnime = allAnimeData.filter((a) => {
-        const aEn = normalizeSearchString(a.series_season_en);
-        const aCn = normalizeSearchString(a.series_season_cn);
-        const aSeriesEn = normalizeSearchString(a.series_en);
-        const aRoman = normalizeSearchString(a.series_season_roman);
-        return (
-          aEn.includes(qNormalized) ||
-          aCn.includes(qNormalized) ||
-          aSeriesEn.includes(qNormalized) ||
-          aRoman.includes(qNormalized)
-        );
+      // Filter Anime Entries
+      filteredAnime = allAnimeData.filter(a => {
+          const aEn = normalizeSearchString(a.series_season_en);
+          const aCn = normalizeSearchString(a.series_season_cn);
+          const aSeriesEn = normalizeSearchString(a.series_en);
+          const aRoman = normalizeSearchString(a.series_season_roman);
+          return aEn.includes(qNormalized) || aCn.includes(qNormalized) || aSeriesEn.includes(qNormalized) || aRoman.includes(qNormalized);
       });
 
-      // 3. Generate Dynamic Filters based on Anime Results
-      generateSeriesFilters();
-
-      // 4. Render Initial Results
+      // Reset filters on a new broad search
+      activeSeriesFilters.clear();
+      renderSeriesFilterBar();
       renderResults();
+
     } catch (error) {
       console.error(error);
-      document.getElementById("loading").innerHTML = `
+      document.getElementById('loading').innerHTML = `
         <div class="w-full text-center text-red-600 py-8 bg-red-50 rounded-xl border border-red-200 max-w-md mx-auto">
             <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
             <p class="font-bold">Error loading search results.</p>
@@ -130,348 +145,340 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
     }
   }
 
-  // --- Dynamic Franchise Filters ---
-  function generateSeriesFilters() {
-    const filterContainer = document.getElementById("dynamic-series-filter");
+  // --- Dynamic Series Filter Logic ---
+  function renderSeriesFilterBar() {
+      // Extract unique series identifiers from the found anime entries
+      const uniqueSeriesEn = [...new Set(filteredAnime.map(a => a.series_en))].filter(Boolean);
+      const wrapper = document.getElementById('series-filter-wrapper');
+      const container = document.getElementById('series-filter-pills');
+      const clearBtn = document.getElementById('clear-series-filters');
 
-    if (filteredAnime.length === 0) {
-      filterContainer.classList.add("hidden");
-      return;
-    }
+      // Hide only if absolute zero series exist in the search results
+      if (uniqueSeriesEn.length === 0) {
+          wrapper.classList.add('hidden');
+          return;
+      }
 
-    // Extract unique parent franchises
-    const uniqueSeries = [
-      ...new Set(filteredAnime.map((a) => a.series_en).filter(Boolean)),
-    ];
+      wrapper.classList.remove('hidden');
 
-    // Hide filter if only 1 (or 0) franchise exists in results
-    if (uniqueSeries.length <= 1) {
-      filterContainer.classList.add("hidden");
-      return;
-    }
+      // Manage "Clear Filters" button visibility
+      if (activeSeriesFilters.size > 0) {
+          clearBtn.classList.remove('hidden');
+      } else {
+          clearBtn.classList.add('hidden');
+      }
 
-    uniqueSeries.sort((a, b) => a.localeCompare(b));
+      // Map to display names and sort alphabetically
+      const pillData = uniqueSeriesEn.map(en => {
+          const sObj = allSeriesData.find(series => series.series_en === en);
+          const displayName = sObj ? (sObj.series_cn || sObj.series_en) : en;
+          return { en, displayName };
+      });
 
-    let html = `
-          <div class="flex justify-between items-center mb-3">
-              <div>
-                  <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide"><i class="fas fa-filter text-brand mr-2"></i> Filter by Franchise</h3>
-                  <p class="text-xs text-gray-500 mt-0.5">Narrow down individual entries by their parent series.</p>
+      pillData.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+      container.innerHTML = pillData.map(series => {
+          const isActive = activeSeriesFilters.has(series.en);
+          const baseClasses = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer select-none shadow-sm flex items-center";
+          const activeClasses = "bg-brand text-white border-brand";
+          const inactiveClasses = "bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand";
+
+          return `
+              <div onclick="toggleSeriesFilter('${series.en.replace(/'/g, "\\'")}')"
+                   class="${baseClasses} ${isActive ? activeClasses : inactiveClasses}">
+                  ${series.displayName}
+                  ${isActive ? '<i class="fas fa-times ml-1.5 opacity-75 hover:opacity-100"></i>' : ''}
               </div>
-              <button onclick="clearSeriesFilters()" class="text-xs font-bold text-red-500 hover:text-red-700 transition bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md">Clear</button>
-          </div>
-          <div class="flex flex-wrap gap-2.5 max-h-40 overflow-y-auto pr-2" id="series-checkbox-group">
-      `;
-
-    uniqueSeries.forEach((seriesName) => {
-      // Look up the CN name for a better display if available
-      const seriesObj = allSeriesData.find((s) => s.series_en === seriesName);
-      const displayName = seriesObj
-        ? seriesObj.series_cn || seriesObj.series_en
-        : seriesName;
-
-      html += `
-              <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 transition">
-                  <input type="checkbox" value="${seriesName}" class="rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5 shadow-sm series-filter-cb" onchange="renderResults()">
-                  <span class="font-medium">${displayName}</span>
-              </label>
           `;
-    });
+      }).join('');
+  }
 
-    html += `</div>`;
-    filterContainer.innerHTML = html;
-    filterContainer.classList.remove("hidden");
+  function toggleSeriesFilter(seriesEn) {
+      if (activeSeriesFilters.has(seriesEn)) {
+          activeSeriesFilters.delete(seriesEn);
+      } else {
+          activeSeriesFilters.add(seriesEn);
+      }
+      // Re-render UI Elements
+      renderSeriesFilterBar();
+      renderResults();
   }
 
   function clearSeriesFilters() {
-    document
-      .querySelectorAll(".series-filter-cb")
-      .forEach((cb) => (cb.checked = false));
-    renderResults();
+      activeSeriesFilters.clear();
+      renderSeriesFilterBar();
+      renderResults();
   }
 
-  // --- Rendering Logic ---
+  // --- Core Rendering Engine ---
   function renderResults() {
-    document.getElementById("loading").classList.add("hidden");
-    document.getElementById("main-content").classList.remove("hidden");
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
 
-    const container = document.getElementById("resultsContainer");
+    const container = document.getElementById('resultsContainer');
     container.innerHTML = "";
 
-    // Apply Franchise check filters to Anime
-    const activeSeriesFilters = Array.from(
-      document.querySelectorAll(".series-filter-cb:checked"),
-    ).map((cb) => cb.value);
+    // Apply active series filters if any are selected
+    const displayAnime = activeSeriesFilters.size > 0
+        ? filteredAnime.filter(a => activeSeriesFilters.has(a.series_en))
+        : filteredAnime;
 
-    let animeToRender = filteredAnime;
-    if (activeSeriesFilters.length > 0) {
-      animeToRender = filteredAnime.filter((a) =>
-        activeSeriesFilters.includes(a.series_en),
-      );
-    }
+    const displaySeries = activeSeriesFilters.size > 0
+        ? filteredSeries.filter(s => activeSeriesFilters.has(s.series_en))
+        : filteredSeries;
 
-    if (filteredSeries.length === 0 && animeToRender.length === 0) {
-      container.innerHTML = `
+    // Handle Empty State after filtering
+    if (displaySeries.length === 0 && displayAnime.length === 0) {
+        container.innerHTML = `
             <div class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-200 border-dashed">
                 <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
-                <p class="text-gray-500 font-medium text-lg">No entries found matching your criteria.</p>
+                <p class="text-gray-500 font-medium text-lg">No entries match your current filters.</p>
             </div>`;
-      return;
+        return;
     }
 
-    // --- Render Series Hubs ---
-    if (filteredSeries.length > 0) {
-      let html = `
+    // 1. Render Series Hubs
+    if (displaySeries.length > 0) {
+        let html = `
             <div>
-                <div class="flex items-center mb-4 border-b border-gray-200 pb-3 pt-2 bg-gray-50/95 backdrop-blur-md">
-                    <h2 class="text-xl font-bold text-gray-900"><i class="fas fa-layer-group text-purple-600 mr-2"></i> Franchise Hubs</h2>
-                    <span class="ml-3 bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-purple-200">${filteredSeries.length}</span>
+                <div class="flex items-center mb-4 border-b border-gray-200 pb-3">
+                    <h2 class="text-xl font-bold text-gray-900"><i class="fas fa-layer-group text-brand mr-2"></i> Franchise Hubs</h2>
+                    <span class="ml-3 bg-brand/10 text-brand px-2.5 py-0.5 rounded-full text-xs font-bold border border-brand/20">${displaySeries.length}</span>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         `;
 
-      filteredSeries.forEach((series) => {
-        const title = series.series_cn || series.series_en || "Unknown Series";
-        html += `
+        displaySeries.forEach(series => {
+            const title = series.series_cn || series.series_en || "Unknown Series";
+            html += `
                 <div class="bg-white rounded-xl border border-gray-200 p-4 card-hover shadow-sm flex items-center justify-between" onclick="window.location.href='/series/${series.system_id}'">
                     <div class="min-w-0 pr-4">
                         <h3 class="text-lg font-bold text-gray-900 truncate">${title}</h3>
-                        <p class="text-sm text-gray-500 truncate">${series.series_en || ""}</p>
+                        <p class="text-sm text-gray-500 truncate">${series.series_en || ''}</p>
                     </div>
-                    <div class="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 border border-purple-100">
+                    <div class="bg-brand/10 text-brand px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0">
                         View Hub <i class="fas fa-arrow-right ml-1"></i>
                     </div>
                 </div>
             `;
-      });
+        });
 
-      html += `</div></div>`;
-      container.innerHTML += html;
+        html += `</div></div>`;
+        container.innerHTML += html;
     }
 
-    // --- Render Anime Entries ---
-    if (animeToRender.length > 0) {
-      let html = `
+    // 2. Render Anime Entries
+    if (displayAnime.length > 0) {
+        let html = `
             <div>
-                <div class="flex items-center mb-4 border-b border-gray-200 pb-3 pt-2 bg-gray-50/95 backdrop-blur-md">
+                <div class="flex items-center mb-4 border-b border-gray-200 pb-3 pt-2">
                     <h2 class="text-xl font-bold text-gray-900"><i class="fas fa-film text-brand mr-2"></i> Individual Entries</h2>
-                    <span class="ml-3 bg-brand/10 text-brand px-2.5 py-0.5 rounded-full text-xs font-bold border border-brand/20">${animeToRender.length}</span>
+                    <span class="ml-3 bg-brand/10 text-brand px-2.5 py-0.5 rounded-full text-xs font-bold border border-brand/20">${displayAnime.length}</span>
                 </div>
                 <div class="flex flex-col gap-8">
         `;
 
-      // Group by format
-      const groups = { TV: [], ONA: [], Movie: [], Other: [] };
+        const groups = { "TV": [], "ONA": [], "Movie": [], "Other": [] };
+        displayAnime.forEach(anime => {
+            const type = (anime.airing_type || "").toUpperCase();
+            if (type === "TV") groups["TV"].push(anime);
+            else if (type === "ONA") groups["ONA"].push(anime);
+            else if (type === "MOVIE") groups["Movie"].push(anime);
+            else groups["Other"].push(anime);
+        });
 
-      animeToRender.forEach((anime) => {
-        const type = (anime.airing_type || "").toUpperCase();
-        if (type === "TV") groups["TV"].push(anime);
-        else if (type === "ONA") groups["ONA"].push(anime);
-        else if (type === "MOVIE") groups["Movie"].push(anime);
-        else groups["Other"].push(anime);
-      });
+        const parseReleaseDate = (dateStr) => {
+            if (!dateStr) return 999999;
+            const str = String(dateStr).trim().toUpperCase();
+            if (str === "TBA" || str === "") return 999999;
 
-      // Sort logic (Release Date)
-      const parseReleaseDate = (dateStr) => {
-        if (!dateStr) return 999999;
-        const str = String(dateStr).trim().toUpperCase();
-        if (str === "TBA" || str === "") return 999999;
+            const yearMatch = str.match(/\d{4}/);
+            if (yearMatch) {
+                const year = parseInt(yearMatch[0], 10);
+                let month = 2;
+                if (str.includes("WIN") || str.includes("JAN")) month = 1;
+                else if (str.includes("SPR") || str.includes("APR")) month = 4;
+                else if (str.includes("SUM") || str.includes("JUL")) month = 7;
+                else if (str.includes("FAL") || str.includes("OCT")) month = 10;
+                return year * 100 + month;
+            }
+            return 999999;
+        };
 
-        const yearMatch = str.match(/\d{4}/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[0], 10);
-          let month = 2;
-          if (str.includes("WIN") || str.includes("JAN")) month = 1;
-          else if (str.includes("SPR") || str.includes("APR")) month = 4;
-          else if (str.includes("SUM") || str.includes("JUL")) month = 7;
-          else if (str.includes("FAL") || str.includes("OCT")) month = 10;
-          else if (str.includes("FEB")) month = 2;
-          else if (str.includes("MAR")) month = 3;
-          else if (str.includes("MAY")) month = 5;
-          else if (str.includes("JUN")) month = 6;
-          else if (str.includes("AUG")) month = 8;
-          else if (str.includes("SEP")) month = 9;
-          else if (str.includes("NOV") || str.includes("DEC")) month = 12;
-          return year * 100 + month;
-        }
-        return 999999;
-      };
+        const sortByReleaseDate = (a, b) => {
+            let valA = parseReleaseDate(a.release_date);
+            let valB = parseReleaseDate(b.release_date);
+            if (valA !== valB) return valA - valB;
+            let titleA = String(a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en || "").trim().toLowerCase();
+            let titleB = String(b.series_season_cn || b.series_season_en || b.series_season_roman || b.series_en || "").trim().toLowerCase();
+            return titleA < titleB ? -1 : (titleA > titleB ? 1 : 0);
+        };
 
-      const sortByReleaseDate = (a, b) => {
-        let valA = parseReleaseDate(a.release_date);
-        let valB = parseReleaseDate(b.release_date);
-        if (valA !== valB) return valA - valB;
-        let titleA = String(
-          a.series_season_cn || a.series_season_en || a.series_en || "",
-        )
-          .trim()
-          .toLowerCase();
-        let titleB = String(
-          b.series_season_cn || b.series_season_en || b.series_en || "",
-        )
-          .trim()
-          .toLowerCase();
-        return titleA < titleB ? -1 : titleA > titleB ? 1 : 0;
-      };
+        groups["TV"].sort(sortByReleaseDate);
+        groups["ONA"].sort(sortByReleaseDate);
+        groups["Movie"].sort(sortByReleaseDate);
+        groups["Other"].sort(sortByReleaseDate);
 
-      groups["TV"].sort(sortByReleaseDate);
-      groups["ONA"].sort(sortByReleaseDate);
-      groups["Movie"].sort(sortByReleaseDate);
-      groups["Other"].sort(sortByReleaseDate);
-
-      // Sub-section renderer
-      const renderSubSection = (title, entries, icon) => {
-        if (entries.length === 0) return "";
-        let subHtml = `
+        const renderSubSection = (title, entries, icon) => {
+            if (entries.length === 0) return "";
+            // Removed sticky sub-headers to prevent collision with master sticky header
+            let subHtml = `
                 <div class="mb-4 last:mb-0">
-                    <div class="flex items-center mb-3 py-2 border-b border-gray-100">
+                    <div class="flex items-center mb-4 py-2 border-b border-gray-100">
                         <h3 class="text-base font-bold text-gray-800 uppercase tracking-wide"><i class="fas ${icon} text-brand mr-2 w-5 text-center"></i> ${title}</h3>
                         <span class="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-[10px] font-bold border border-gray-200">${entries.length}</span>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             `;
-        entries.forEach((anime) => {
-          subHtml += createLibraryCard(anime);
-        });
-        subHtml += `</div></div>`;
-        return subHtml;
-      };
+            entries.forEach(anime => { subHtml += createLibraryCard(anime); });
+            subHtml += `</div></div>`;
+            return subHtml;
+        };
 
-      html += renderSubSection("TV", groups["TV"], "fa-tv");
-      html += renderSubSection("ONA", groups["ONA"], "fa-globe");
-      html += renderSubSection("Movie", groups["Movie"], "fa-film");
-      html += renderSubSection("Other", groups["Other"], "fa-question-circle");
+        html += renderSubSection("TV", groups["TV"], "fa-tv");
+        html += renderSubSection("ONA", groups["ONA"], "fa-globe");
+        html += renderSubSection("Movie", groups["Movie"], "fa-film");
+        html += renderSubSection("Other", groups["Other"], "fa-question-circle");
 
-      html += `</div></div>`;
-      container.innerHTML += html;
+        html += `</div></div>`;
+        container.innerHTML += html;
     }
   }
 
-  // --- Reusable Card Component ---
   function createLibraryCard(anime) {
-    const title =
-      anime.series_season_cn ||
-      anime.series_season_en ||
-      anime.series_en ||
-      "Unknown Title";
-    const epFin = anime.ep_fin || 0;
-    const epTotal = anime.ep_total || "?";
+      const title = anime.series_season_cn || anime.series_season_en || anime.series_en || "Unknown Title";
+      const epFin = anime.ep_fin || 0;
+      const epTotal = anime.ep_total || "?";
 
-    let statusColor = "bg-gray-800";
-    if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
-    if (anime.my_progress === "Completed" || anime.my_progress === "Finished")
-      statusColor = "bg-brand";
+      let statusColor = "bg-gray-800";
+      if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
+      if (anime.my_progress === "Completed" || anime.my_progress === "Finished") statusColor = "bg-brand";
 
-    const checkmarkS = [
-      "Completed",
-      "Finished",
-      "Watch When Airs",
-      "Plan to Watch",
-    ];
-    const tildeS = ["Active Watching", "Passive Watching", "Paused"];
-    const crossS = ["Temp Dropped", "Dropped", "Won't Watch"];
+      const progress = anime.my_progress || "";
 
-    let actionIcon = '<i class="fas fa-plus text-[10px]"></i>',
-      btnClass = "bg-brand/10 hover:bg-brand text-brand hover:text-white";
-    let actionTitle = "Set to Plan to Watch";
+      // Dynamic Logic for the Action Button
+      let actionIcon = '';
+      let actionTitle = '';
+      let buttonClass = '';
 
-    if (checkmarkS.includes(anime.my_progress)) {
-      actionIcon = '<i class="fas fa-check text-[10px]"></i>';
-      btnClass =
-        "bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200";
-      actionTitle = "Change Status";
-    } else if (tildeS.includes(anime.my_progress)) {
-      actionIcon =
-        '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
-      btnClass =
-        "bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200";
-      actionTitle = "Change Status";
-    } else if (crossS.includes(anime.my_progress)) {
-      actionIcon = '<i class="fas fa-times text-[10px]"></i>';
-      btnClass =
-        "bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200";
-      actionTitle = "Change Status";
-    }
+      if (progress === "Might Watch") {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent';
+      } else if (progress === "Plan to Watch" || progress === "Watch When Airs") {
+          actionIcon = '<i class="fas fa-ellipsis-h text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-purple-100 hover:bg-purple-500 text-purple-600 hover:text-white border border-purple-200';
+      } else if (["Completed", "Finished"].includes(progress)) {
+          actionIcon = '<i class="fas fa-check text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200';
+      } else if (["Active Watching", "Passive Watching", "Paused"].includes(progress)) {
+          actionIcon = '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200';
+      } else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(progress)) {
+          actionIcon = '<i class="fas fa-times text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200';
+      } else {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200';
+      }
 
-    const fallback = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
+      const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
 
-    return `
+      let actionButtonHTML = '';
+      if (IS_ADMIN) {
+          actionButtonHTML = `
+          <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ''}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
+              ${actionIcon}
+          </button>`;
+      } else {
+          const guestClass = buttonClass.replace(/hover:[^\s]+/g, '').trim();
+          actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
+      }
+
+      let malRatingHtml = '';
+      if (anime.mal_rating) {
+          const ratingNum = Number(anime.mal_rating);
+          if (!isNaN(ratingNum)) {
+              malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
+          }
+      }
+
+      return `
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
             <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
-                <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallback}'">
-                
+                <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
+
                 <div class="absolute top-2 left-2 flex flex-col gap-1">
-                    ${anime.mal_rating ? `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${anime.mal_rating.toFixed(2)}</span>` : ""}
-                    ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ""}
+                    ${malRatingHtml}
+                    ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ''}
                 </div>
 
                 <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
-                    <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : epFin > 0 ? 100 : 0}%"></div>
+                    <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : (epFin > 0 ? 100 : 0)}%"></div>
                 </div>
             </div>
 
             <div class="p-3 flex flex-col flex-1">
                 <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
                 <p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p>
-                
+
                 <div class="mt-auto flex items-center justify-between">
                     <span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded shadow-inner">
                         <span id="card-ep-${anime.system_id}">${epFin}</span> / ${epTotal}
                     </span>
-                    
-                    <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ""}'); event.stopPropagation();" class="w-7 h-7 rounded ${btnClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
-                        ${actionIcon}
-                    </button>
+                    ${actionButtonHTML}
                 </div>
             </div>
         </div>
       `;
   }
 
-  // --- Dynamic Action Button logic ---
-  async function handleStatusButton(id, curr) {
-    const pS = [
-      "Completed",
-      "Finished",
-      "Watch When Airs",
-      "Plan to Watch",
-      "Active Watching",
-      "Passive Watching",
-      "Paused",
-      "Temp Dropped",
-      "Dropped",
-      "Won't Watch",
-    ];
-    let next = "Plan to Watch";
-    if (pS.includes(curr)) {
-      if (confirm(`Marked as "${curr}". Change to "Might Watch"?`))
-        next = "Might Watch";
-      else return;
-    }
+  // --- Optimistic State Management ---
+  async function handleStatusButton(sys_id, current_progress) {
+      if (!IS_ADMIN) return;
 
-    const idx = filteredAnime.findIndex((a) => a.system_id === id);
-    if (idx === -1) return;
+      // Determine the target status direction based on the current state
+      let newStatus = current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-    const old = filteredAnime[idx].my_progress;
-    filteredAnime[idx].my_progress = next;
-    renderResults(); // Instantly update UI
+      // If the show is heavily tracked, prompt the user before aggressively demoting it
+      const strongStatuses = ["Completed", "Finished", "Active Watching", "Passive Watching", "Paused", "Dropped", "Temp Dropped", "Won't Watch"];
+      if (strongStatuses.includes(current_progress)) {
+          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you really want to demote it to "Might Watch"?`);
+          if (!confirmed) return;
+      }
 
-    try {
-      const res = await fetch(`${GLOBAL_API_BASE}/anime/${id}/progress`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ my_progress: next }),
-      });
-      if (!res.ok) throw new Error();
-      showToast(`Updated to ${next}`);
-    } catch (e) {
-      filteredAnime[idx].my_progress = old;
+      const index = filteredAnime.findIndex(a => a.system_id === sys_id);
+      if (index === -1) return;
+
+      const originalStatus = filteredAnime[index].my_progress;
+      filteredAnime[index].my_progress = newStatus;
+
+      const allIndex = allAnimeData.findIndex(a => a.system_id === sys_id);
+      if(allIndex !== -1) allAnimeData[allIndex].my_progress = newStatus;
+
       renderResults();
-      showToast("Error syncing.", true);
-    }
+
+      try {
+          const res = await fetch(`/api/anime/${sys_id}/progress`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ my_progress: newStatus })
+          });
+          if (!res.ok) throw new Error("Failed to sync status");
+          if (typeof showToast === 'function') showToast(`Status updated to ${newStatus}`);
+      } catch (error) {
+          filteredAnime[index].my_progress = originalStatus;
+          if(allIndex !== -1) allAnimeData[allIndex].my_progress = originalStatus;
+          renderResults();
+          if (typeof showToast === 'function') showToast("Network error. Status reverted.", true);
+      }
   }
 
-  // Initialize page
   document.addEventListener("DOMContentLoaded", performSearch);
 </script>
 {% endblock %}

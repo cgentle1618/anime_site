@@ -1,9 +1,47 @@
+"""
+schemas.py
+Defines Pydantic models for request validation and response serialization.
+Following the DRY (Don't Repeat Yourself) principle with base classes.
+"""
+
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
 # ==========================================
-# BASE SCHEMAS
+# AUTHENTICATION SCHEMAS
+# ==========================================
+
+
+class Token(BaseModel):
+    """Schema for the JWT access token returned on login."""
+
+    access_token: str
+    token_type: str
+
+
+class UserBase(BaseModel):
+    username: str
+
+
+class UserCreate(UserBase):
+    """Schema for creating a new user (requires plain text password)."""
+
+    password: str
+
+
+class UserOut(UserBase):
+    """Schema for returning user data (never includes password!)."""
+
+    id: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# BASE SCHEMAS (DRY Principle)
 # ==========================================
 
 
@@ -14,7 +52,6 @@ class AnimeBase(BaseModel):
     across multiple different schemas.
     """
 
-    system_id: str
     series_en: Optional[str] = None
     series_season_en: Optional[str] = None
     series_season_roman: Optional[str] = None
@@ -49,7 +86,6 @@ class AnimeBase(BaseModel):
 class SeriesBase(BaseModel):
     """Shared fields for Series creation, updating, and reading."""
 
-    system_id: str
     series_en: Optional[str] = None
     series_roman: Optional[str] = None
     series_cn: Optional[str] = None
@@ -68,6 +104,7 @@ class AnimeResponse(AnimeBase):
     Includes API-enriched fields and timestamps not present during manual creation.
     """
 
+    system_id: str
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
     cover_image_url: Optional[str] = None
@@ -75,25 +112,29 @@ class AnimeResponse(AnimeBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True  # Allows Pydantic to read from SQLAlchemy ORM models
+        from_attributes = True
 
 
 class AnimeCreate(AnimeBase):
     """
     Schema for manually adding a new anime entry via the Admin Dashboard.
-    Includes a temporary field to handle brand new Series Hub generation.
+    Includes a temporary field to handle brand new Series Hub generation if the
+    parent franchise does not yet exist.
     """
 
+    system_id: str
     ep_fin: Optional[int] = 0
-    series_alt_name: Optional[str] = None  # Temp field for brand new series
+    series_alt_name: Optional[str] = None
 
 
 class AnimeUpdate(AnimeBase):
     """
     Schema for updating an existing anime entry via the Admin Dashboard.
-    System ID is strictly omitted because it is immutable.
+    The system_id is provided in the update payload to ensure strict schema
+    validation against the Pydantic model.
     """
 
+    system_id: str
     ep_fin: Optional[int] = 0
 
 
@@ -105,6 +146,7 @@ class AnimeUpdate(AnimeBase):
 class AnimeSeriesResponse(SeriesBase):
     """Schema for reading a series hub entry from the database."""
 
+    system_id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -113,9 +155,12 @@ class AnimeSeriesResponse(SeriesBase):
 
 
 class AnimeSeriesUpdate(SeriesBase):
-    """Schema for updating an existing Anime Series entry."""
+    """
+    Schema for updating or manually creating an Anime Series Hub.
+    Requires a system_id to maintain parity between Sheets and Database.
+    """
 
-    pass  # Inherits all fields exactly as they are from SeriesBase
+    system_id: Optional[str] = None
 
 
 # ==========================================
