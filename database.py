@@ -2,6 +2,7 @@
 database.py
 Handles the core SQLAlchemy database configuration, connection engine,
 and session management. Also includes database-level utility functions.
+Configured for both local development and GCP Cloud Run deployment.
 """
 
 import os
@@ -19,17 +20,24 @@ load_dotenv()
 # DATABASE CONNECTION SETUP
 # ==========================================
 
-USER = os.getenv("POSTGRES_USER")
-PASSWORD = os.getenv("POSTGRES_PASSWORD")
-HOST = os.getenv("POSTGRES_HOST")
-PORT = os.getenv("POSTGRES_PORT")
-DB_NAME = os.getenv("POSTGRES_DB")
+# Added default fallbacks for robustness during Docker/Cloud transition
+USER = os.getenv("POSTGRES_USER", "postgres")
+PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+HOST = os.getenv("POSTGRES_HOST", "localhost")
+PORT = os.getenv("POSTGRES_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "anime_site_db")
 
 # Construct the PostgreSQL connection string explicitly
 SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
 
-# Initialize the SQLAlchemy Database Engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Initialize the SQLAlchemy Database Engine with production-ready connection pooling
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,  # Crucial for Cloud SQL: Automatically tests connections before using them
+    pool_recycle=1800,  # Recycle connections every 30 mins to prevent stale connection drops
+)
 
 # Create a localized session factory for dependency injection in FastAPI
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
