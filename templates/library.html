@@ -145,15 +145,16 @@ opacity: 1; } {% endblock %} {% block content %}
   let debounceTimeout;
 
   const PROGRESS_GROUPS = {
-      "Planned": ["Watch When Airs", "Plan to Watch", "Might Watch"],
-      "Completed": ["Completed", "Finished"],
+      "Might Watch": ["Might Watch"],
+      "Planned": ["Watch When Airs", "Plan to Watch"],
       "Watching": ["Active Watching", "Passive Watching", "Paused"],
+      "Completed": ["Completed", "Finished"],
       "Dropped": ["Temp Dropped", "Dropped", "Won't Watch"]
   };
 
   const AIRING_TYPE_OPTIONS = ["TV", "Movie", "ONA", "OVA", "OAD", "Special", "Other"];
   const AIRING_STATUS_OPTIONS = ["Not Yet Aired", "Airing", "Finished Airing"];
-  const PROGRESS_OPTIONS = ["Planned", "Completed", "Watching", "Dropped"];
+  const PROGRESS_OPTIONS = ["Might Watch", "Planned", "Watching", "Completed", "Dropped"];
   const MAIN_SPINOFF_OPTIONS = ["本傳", "外傳", "總集篇", "Other"];
   const BAHA_OPTIONS = ["有", "無"];
 
@@ -188,7 +189,6 @@ opacity: 1; } {% endblock %} {% block content %}
   // --- Data Fetching ---
   async function loadLibraryData() {
       try {
-          // Hardcoding '/api' here prevents any variable shadowing conflicts with base.html
           const [animeRes, seriesRes] = await Promise.all([
               fetch(`/api/anime`),
               fetch(`/api/series`)
@@ -330,7 +330,7 @@ opacity: 1; } {% endblock %} {% block content %}
           if (sortVal === 'malRatingDesc') { if((a.mal_rating || 0) !== (b.mal_rating || 0)) return (b.mal_rating || 0) - (a.mal_rating || 0); }
           if (sortVal === 'malRatingAsc') { if((a.mal_rating || 0) !== (b.mal_rating || 0)) return (a.mal_rating || 0) - (b.mal_rating || 0); }
 
-          if (sortVal === 'progressCustom') { const map = { 'Active Watching': 1, 'Passive Watching': 2, 'Paused': 3, 'Watch When Airs': 4, 'Plan to Watch': 5, 'Might Watch': 6, 'Temp Dropped': 7, 'Dropped': 8, "Won't Watch": 9, 'Completed': 10 }; let pA = a.my_progress === 'Finished' ? 'Completed' : (a.my_progress || "Unknown"), pB = b.my_progress === 'Finished' ? 'Completed' : (b.my_progress || "Unknown"); const vA = map[pA] || 99, vB = map[pB] || 99; if(vA !== vB) return vA - vB; }
+          if (sortVal === 'progressCustom') { const map = { 'Active Watching': 1, 'Passive Watching': 2, 'Paused': 3, 'Watch When Airs': 4, 'Plan to Watch': 5, 'Might Watch': 6, 'Temp Dropped': 7, 'Dropped': 8, "Won't Watch": 9, 'Completed': 10 }; let pA = a.my_progress === 'Finished' ? 'Completed' : (a.my_progress || "Unknown"); let pB = b.my_progress === 'Finished' ? 'Completed' : (b.my_progress || "Unknown"); const vA = map[pA] || 99, vB = map[pB] || 99; if(vA !== vB) return vA - vB; }
           if (sortVal === 'airingStatusCustom') { const map = { 'Not Yet Aired': 1, 'Airing': 2, 'Finished Airing': 3 }; const vA = map[a.airing_status] || 99, vB = map[b.airing_status] || 99; if(vA !== vB) return vA - vB; }
           if (sortVal === 'mainSpinoffCustom') { const map = { '本傳': 1, '外傳': 2, '總集篇': 3 }; const vA = map[a.main_spinoff] || 99, vB = map[b.main_spinoff] || 99; if(vA !== vB) return vA - vB; }
 
@@ -360,27 +360,37 @@ opacity: 1; } {% endblock %} {% block content %}
       if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
       if (anime.my_progress === "Completed" || anime.my_progress === "Finished") statusColor = "bg-brand";
 
-      // Correctly mapped action icon/badge logic based on current progress
-      const checkmarkStatuses = ["Completed", "Finished", "Watch When Airs", "Plan to Watch"];
-      const tildeStatuses = ["Active Watching", "Passive Watching", "Paused"];
-      const crossStatuses = ["Temp Dropped", "Dropped", "Won't Watch"];
+      const progress = anime.my_progress || "";
 
-      let actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
-      let actionTitle = 'Set to Plan to Watch';
-      let buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white';
+      // Dynamic Logic for the Action Button
+      let actionIcon = '';
+      let actionTitle = '';
+      let buttonClass = '';
 
-      if (checkmarkStatuses.includes(anime.my_progress)) {
+      if (progress === "Might Watch") {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent';
+      } else if (progress === "Plan to Watch" || progress === "Watch When Airs") {
+          actionIcon = '<i class="fas fa-ellipsis-h text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-purple-100 hover:bg-purple-500 text-purple-600 hover:text-white border border-purple-200';
+      } else if (["Completed", "Finished"].includes(progress)) {
           actionIcon = '<i class="fas fa-check text-[10px]"></i>';
-          actionTitle = 'Change Status';
+          actionTitle = 'Demote to Might Watch';
           buttonClass = 'bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200';
-      } else if (tildeStatuses.includes(anime.my_progress)) {
+      } else if (["Active Watching", "Passive Watching", "Paused"].includes(progress)) {
           actionIcon = '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
-          actionTitle = 'Change Status';
+          actionTitle = 'Demote to Might Watch';
           buttonClass = 'bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200';
-      } else if (crossStatuses.includes(anime.my_progress)) {
+      } else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(progress)) {
           actionIcon = '<i class="fas fa-times text-[10px]"></i>';
-          actionTitle = 'Change Status';
+          actionTitle = 'Demote to Might Watch';
           buttonClass = 'bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200';
+      } else {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200';
       }
 
       const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/></svg>`;
@@ -393,12 +403,11 @@ opacity: 1; } {% endblock %} {% block content %}
               ${actionIcon}
           </button>`;
       } else {
-          // Guest View: Render badge as a non-clickable div without hover classes
           const guestClass = buttonClass.replace(/hover:[^\s]+/g, '').trim();
           actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
       }
 
-      // Safely render MAL Rating to prevent .toFixed() crash on invalid data
+      // Safely render MAL Rating
       let malRatingHtml = '';
       if (anime.mal_rating) {
           const ratingNum = Number(anime.mal_rating);
@@ -409,23 +418,28 @@ opacity: 1; } {% endblock %} {% block content %}
 
       return `
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
+            <!-- Cover Image Container -->
             <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
                 <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
 
+                <!-- Top Overlay Badges -->
                 <div class="absolute top-2 left-2 flex flex-col gap-1">
                     ${malRatingHtml}
                     ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ''}
                 </div>
 
+                <!-- Progress Bar Overlay (Bottom of Image) -->
                 <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
                     <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : (epFin > 0 ? 100 : 0)}%"></div>
                 </div>
             </div>
 
+            <!-- Card Content -->
             <div class="p-3 flex flex-col flex-1">
                 <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
                 <p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p>
 
+                <!-- Progress Controls (Bottom) -->
                 <div class="mt-auto flex items-center justify-between">
                     <span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded shadow-inner">
                         <span id="card-ep-${anime.system_id}">${epFin}</span> / ${epTotal}
@@ -441,18 +455,14 @@ opacity: 1; } {% endblock %} {% block content %}
   async function handleStatusButton(sys_id, current_progress) {
       if (!IS_ADMIN) return;
 
-      const promptStatuses = [
-          "Completed", "Finished", "Watch When Airs", "Plan to Watch",
-          "Active Watching", "Passive Watching", "Paused",
-          "Temp Dropped", "Dropped", "Won't Watch"
-      ];
-      let newStatus = "Plan to Watch";
+      // Determine the target status direction based on the current state
+      let newStatus = current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-      // If already has a status, prompt to switch to Might Watch
-      if (promptStatuses.includes(current_progress)) {
-          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you want to change it to "Might Watch"?`);
-          if (confirmed) newStatus = "Might Watch";
-          else return;
+      // If the show is heavily tracked, prompt the user before aggressively demoting it
+      const strongStatuses = ["Completed", "Finished", "Active Watching", "Passive Watching", "Dropped", "Temp Dropped", "Won't Watch"];
+      if (strongStatuses.includes(current_progress)) {
+          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you really want to demote it to "Might Watch"?`);
+          if (!confirmed) return;
       }
 
       const index = allAnimeData.findIndex(a => a.system_id === sys_id);
@@ -461,16 +471,17 @@ opacity: 1; } {% endblock %} {% block content %}
       // Save Original & Optimistically update UI
       const originalStatus = allAnimeData[index].my_progress;
       allAnimeData[index].my_progress = newStatus;
-      applyFiltersAndSort();
+      applyFiltersAndSort(); // Re-render grid instantly to show new button and possible filter movement
 
       try {
+          // Hardcoded relative route mapping exactly to routers/anime.py
           const res = await fetch(`/api/anime/${sys_id}/progress`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ my_progress: newStatus })
           });
           if (!res.ok) throw new Error("Failed to sync status");
-          if (typeof showToast === 'function') showToast(`Status updated to ${newStatus}`);
+          if (typeof showToast === 'function') showToast(`Status dynamically updated to ${newStatus}`);
       } catch (error) {
           console.error("Status Update Error:", error);
           // Revert UI on failure
