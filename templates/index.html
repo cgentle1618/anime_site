@@ -1,8 +1,10 @@
 {% extends "base.html" %} {% block title %}Dashboard - CG1618 Tracker{% endblock
 %} {% block extra_style %} .card-hover { transition: transform 0.2s ease,
 box-shadow 0.2s ease; } .card-hover:hover { transform: translateY(-4px);
-box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); } @keyframes pulse { 0%, 100% {
-opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
+box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } } {% endblock
+%} {% block content %}
 <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
   <!-- Hero / Welcome Section -->
   <div class="mb-10">
@@ -217,7 +219,14 @@ opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
                     <i class="fas fa-minus text-xs"></i>
                 </button>
                 <div class="font-mono font-bold text-base tracking-wide flex items-baseline justify-center select-none">
-                    <span class="text-gray-900 w-8 text-center">${epFin}</span>
+                    <input
+                      type="number"
+                      id="ep-input-${anime.system_id}"
+                      onblur="handleDirectEpUpdate('${anime.system_id}', this.value)"
+                      onkeydown="if(event.key==='Enter') this.blur();"
+                      class="text-gray-900 w-10 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                      value="${epFin}"
+                    />
                     <span class="text-gray-400 mx-1 text-sm">/</span>
                     <span class="text-gray-500 text-sm w-8 text-center">${epTotal}</span>
                 </div>
@@ -229,9 +238,9 @@ opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
           interactiveControls = `
             <div class="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[44px]">
                 <div class="font-mono font-bold text-base tracking-wide flex items-baseline justify-center select-none">
-                    <span class="text-gray-900">${epFin}</span>
-                    <span class="text-gray-400 mx-2 text-sm">/</span>
-                    <span class="text-gray-500 text-sm">${epTotal}</span>
+                    <span class="text-gray-900 w-8 text-center">${epFin}</span>
+                    <span class="text-gray-400 mx-1 text-sm">/</span>
+                    <span class="text-gray-500 text-sm w-8 text-center">${epTotal}</span>
                 </div>
             </div>`;
       }
@@ -268,24 +277,64 @@ opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
       `;
   }
 
-  // Action function (Only ever called if IS_ADMIN is true, preventing errors)
-  async function optimisticUpdate(sys_id, change) {
+  // --- Dynamic Input Handlers ---
+  function handleDirectEpUpdate(sys_id, val) {
+      if (!IS_ADMIN) return;
+      let newEps = parseInt(val, 10);
+
+      if (isNaN(newEps)) {
+          renderDashboard(); // Revert invalid input instantly
+          return;
+      }
+      setEpisodeProgress(sys_id, newEps);
+  }
+
+  function optimisticUpdate(sys_id, change) {
       if (!IS_ADMIN) return;
       const index = allAnimeData.findIndex(a => a.system_id === sys_id);
       if (index === -1) return;
 
       const anime = allAnimeData[index];
       const currentEps = anime.ep_fin || 0;
-      let newEps = currentEps + change;
+      const totalEps = anime.ep_total;
+
+      let targetEps = currentEps + change;
+
+      // Silently cap for button clicks to prevent annoying popups
+      if (totalEps && targetEps > totalEps) targetEps = totalEps;
+      if (targetEps < 0) targetEps = 0;
+
+      setEpisodeProgress(sys_id, targetEps);
+  }
+
+  async function setEpisodeProgress(sys_id, newEps) {
+      if (!IS_ADMIN) return;
+      const index = allAnimeData.findIndex(a => a.system_id === sys_id);
+      if (index === -1) return;
+
+      const anime = allAnimeData[index];
+      const currentEps = anime.ep_fin || 0;
+      const totalEps = anime.ep_total;
 
       if (newEps < 0) newEps = 0;
-      if (anime.ep_total && newEps > anime.ep_total) newEps = anime.ep_total;
 
-      if (newEps === currentEps) return;
+      // Warning for Direct Input Overflow
+      if (totalEps && newEps > totalEps) {
+          if (typeof showToast === 'function') showToast(`Warning: Cannot set watched episodes (${newEps}) higher than total (${totalEps}).`, true);
+          renderDashboard(); // Reset UI safely
+          return;
+      }
 
+      if (newEps === currentEps) {
+          renderDashboard(); // Ensure UI is completely clean
+          return;
+      }
+
+      // 1. Optimistic Update
       allAnimeData[index].ep_fin = newEps;
       renderDashboard();
 
+      // 2. Background API Request
       try {
           const res = await fetch(`/api/anime/${sys_id}/progress`, {
               method: 'PATCH',
@@ -294,6 +343,7 @@ opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
           });
 
           if (!res.ok) throw new Error((await res.json()).detail || "Failed to sync to database");
+
       } catch (error) {
           console.error("Optimistic Update Failed:", error);
           allAnimeData[index].ep_fin = currentEps;
@@ -302,7 +352,7 @@ opacity: 1; } 50% { opacity: .5; } } {% endblock %} {% block content %}
       }
   }
 
-  // Admin Sync Button Handler
+  // --- Admin Sync Button Handler ---
   async function handleSync() {
     if (!IS_ADMIN) return;
     const icon = document.getElementById("syncIcon");
