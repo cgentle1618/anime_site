@@ -369,9 +369,22 @@ endblock %} {% block content %}
                 <div
                   class="font-mono font-bold text-2xl tracking-wider flex items-baseline justify-center"
                 >
-                  <span id="d-ep-fin" class="text-gray-900 w-12 text-center"
+                  {% if is_admin %}
+                  <input
+                    type="number"
+                    id="d-ep-fin-input"
+                    onblur="handleDirectEpUpdate(this.value)"
+                    onkeydown="if (event.key === 'Enter') this.blur();"
+                    class="text-gray-900 w-14 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                    value="0"
+                  />
+                  {% else %}
+                  <span
+                    id="d-ep-fin-display"
+                    class="text-gray-900 w-12 text-center"
                     >0</span
                   >
+                  {% endif %}
                   <span class="text-gray-400 mx-1 text-lg">/</span>
                   <span
                     id="d-ep-total-display"
@@ -631,32 +644,82 @@ endblock %} {% block content %}
   function updateTrackerUI() {
       const currentEps = animeData.ep_fin || 0;
       const totalEps = animeData.ep_total || "?";
-      document.getElementById("d-ep-fin").innerText = currentEps;
+
+      // Admin sees input, Guest sees span
+      if (IS_ADMIN) {
+          const epInput = document.getElementById("d-ep-fin-input");
+          if (epInput) epInput.value = currentEps;
+      } else {
+          const epDisplay = document.getElementById("d-ep-fin-display");
+          if (epDisplay) epDisplay.innerText = currentEps;
+      }
+
       document.getElementById("d-ep-total-display").innerText = totalEps;
+
       const bar = document.getElementById("d-progress-bar");
       const pctText = document.getElementById("d-progress-pct");
 
       if (animeData.ep_total) {
           const pct = Math.round((currentEps / animeData.ep_total) * 100);
-          bar.style.width = `${pct}%`; pctText.innerText = `${pct}%`;
+          bar.style.width = `${pct}%`;
+          pctText.innerText = `${pct}%`;
       } else if (currentEps > 0) {
-          bar.style.width = `100%`; bar.classList.add("animate-pulse"); pctText.innerText = "Ongoing";
+          bar.style.width = `100%`;
+          bar.classList.add("animate-pulse");
+          pctText.innerText = "Ongoing";
       } else {
-          bar.style.width = `0%`; pctText.innerText = "0%";
+          bar.style.width = `0%`;
+          pctText.innerText = "0%";
       }
   }
 
-  async function optimisticUpdate(change) {
+  function handleDirectEpUpdate(val) {
+      if (!IS_ADMIN) return;
+      let newEps = parseInt(val, 10);
+      if (isNaN(newEps)) {
+          updateTrackerUI(); // Revert invalid characters instantly
+          return;
+      }
+      setEpisodeProgress(newEps);
+  }
+
+  function optimisticUpdate(change) {
       if (!IS_ADMIN) return;
       const currentEps = animeData.ep_fin || 0;
-      let newEps = currentEps + change;
-      if (newEps < 0) newEps = 0;
-      if (animeData.ep_total && newEps > animeData.ep_total) newEps = animeData.ep_total;
-      if (newEps === currentEps) return;
+      const totalEps = animeData.ep_total;
+      let targetEps = currentEps + change;
 
+      // Silently cap for button clicks to avoid annoying popups
+      if (totalEps && targetEps > totalEps) targetEps = totalEps;
+      if (targetEps < 0) targetEps = 0;
+
+      setEpisodeProgress(targetEps);
+  }
+
+  async function setEpisodeProgress(newEps) {
+      if (!IS_ADMIN) return;
+      const currentEps = animeData.ep_fin || 0;
+      const totalEps = animeData.ep_total;
+
+      if (newEps < 0) newEps = 0;
+
+      // Warning for Direct Input Overflow
+      if (totalEps && newEps > totalEps) {
+          if (typeof showToast === 'function') showToast(`Warning: Cannot set watched episodes (${newEps}) higher than total (${totalEps}).`, true);
+          updateTrackerUI(); // Reset UI
+          return;
+      }
+
+      if (newEps === currentEps) {
+          updateTrackerUI();
+          return;
+      }
+
+      // 1. Optimistic Update
       animeData.ep_fin = newEps;
       updateTrackerUI();
 
+      // 2. Background Save
       try {
           const res = await fetch(`/api/anime/${systemId}/progress`, {
               method: 'PATCH', headers: { 'Content-Type': 'application/json' },
