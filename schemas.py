@@ -1,3 +1,9 @@
+"""
+schemas.py
+Defines Pydantic models for request validation and response serialization.
+Following the DRY (Don't Repeat Yourself) principle with base classes.
+"""
+
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime

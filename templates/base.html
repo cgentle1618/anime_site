@@ -4,18 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}CG1618 Tracker{% endblock %}</title>
-
-    <!-- Tailwind CSS & FontAwesome -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+    <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap"
       rel="stylesheet"
     />
-
     <script>
       tailwind.config = {
         theme: {
@@ -29,13 +29,12 @@
         },
       };
     </script>
-
     <style>
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #f3f4f6; }
       ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-      .search-dropdown { max-height: 450px; overflow-y: auto; }
+      .search-dropdown { max-height: 400px; overflow-y: auto; }
       {% block extra_style %}{% endblock %}
     </style>
   </head>
@@ -66,11 +65,11 @@
                   >Library</a
                 >
 
-                <!-- Admin Dropdown (Visible only if logged in, or always visible but links will be protected later) -->
+                <!-- Admin Dropdown (Only visible to authenticated admins) -->
                 {% if is_admin %}
                 <div class="relative group">
                   <button
-                    class="{% if request.url.path in ['/system', '/add', '/modify', '/delete'] %}bg-gray-100 text-gray-900{% else %}text-gray-600{% endif %} group-hover:text-gray-900 group-hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
+                    class="{% if request.url.path in ['/system', '/add', '/modify', '/delete'] %}bg-brand/10 text-brand{% else %}text-gray-600{% endif %} group-hover:text-gray-900 group-hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
                   >
                     Admin <i class="fas fa-chevron-down ml-1.5 text-[10px]"></i>
                   </button>
@@ -97,7 +96,7 @@
                       >
                       <a
                         href="/delete"
-                        class="px-4 py-2.5 text-sm {% if request.url.path == '/delete' %}text-red-600 bg-red-50{% else %}text-red-500 hover:bg-red-50{% endif %} font-medium transition"
+                        class="px-4 py-2.5 text-sm {% if request.url.path == '/delete' %}text-red-600 bg-red-50{% else %}text-red-500 hover:bg-red-50 hover:text-red-700{% endif %} font-medium transition"
                         >Delete</a
                       >
                     </div>
@@ -107,11 +106,10 @@
               </div>
             </div>
           </div>
-
           <div class="flex items-center space-x-4 flex-1 justify-end">
-            <!-- Global Search -->
+            <!-- Global Search Bar -->
             <div
-              class="relative w-full max-w-xs hidden sm:block"
+              class="relative w-full max-w-md hidden sm:block"
               id="globalSearchContainer"
             >
               <div
@@ -119,40 +117,46 @@
               >
                 <i class="fas fa-search text-gray-400"></i>
               </div>
+              <!-- Guaranteed to trigger global search logic now -->
               <input
                 type="text"
                 id="globalSearchInput"
                 oninput="handleGlobalSearch(this.value)"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
-                placeholder="Search..."
+                class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
+                placeholder="Search Series or Anime Names..."
                 autocomplete="off"
               />
+
+              <!-- Suggestions Dropdown -->
               <div
                 id="searchSuggestions"
                 class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-[100] hidden search-dropdown"
-              ></div>
+              >
+                <!-- JS Injected Suggestions -->
+              </div>
             </div>
 
             {% if is_admin %}
             <button
-              onclick="handleGlobalSync()"
-              id="globalSyncBtn"
+              onclick="handleSync()"
+              id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
-              <i class="fas fa-sync-alt mr-2" id="globalSyncIcon"></i> Sync
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
             </button>
             <button
-              onclick="handleLogout()"
-              class="text-gray-500 hover:text-red-600 px-3 py-2 text-sm font-bold transition"
+              onclick="executeLogout()"
+              class="text-gray-400 hover:text-red-500 transition px-2"
+              title="Sign Out"
             >
-              <i class="fas fa-sign-out-alt"></i>
+              <i class="fas fa-sign-out-alt text-lg"></i>
             </button>
             {% else %}
             <a
               href="/login"
-              class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-bold transition"
+              class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-bold border border-gray-200 transition shadow-sm flex items-center"
             >
-              <i class="fas fa-sign-in-alt mr-2"></i> Admin Login
+              <i class="fas fa-user-shield mr-2"></i> Admin Login
             </a>
             {% endif %}
           </div>
@@ -160,17 +164,37 @@
       </div>
     </nav>
 
-    <main class="flex-1 w-full">{% block content %}{% endblock %}</main>
+    <!-- Main Content Injection -->
+    {% block content %}{% endblock %}
 
-    <footer class="bg-white border-t border-gray-200 mt-auto">
+    <footer class="bg-white border-t border-gray-200 mt-auto relative z-10">
       <div
-        class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center text-sm text-gray-500"
+        class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center items-center gap-2 text-sm text-gray-500"
       >
-        &copy; 2026 CG1618 Anime Database. Guest Mode: View Only.
+        &copy; 2026 CG1618 Anime Database. {% if is_admin %}
+        <span
+          class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+          >Admin Mode</span
+        >
+        {% else %}
+        <span
+          class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+          >Guest Mode (Read-Only)</span
+        >
+        {% endif %}
       </div>
     </footer>
 
-    <!-- Toast Notification -->
+    <!-- Scroll to Top Button -->
+    <button
+      id="scrollToTopBtn"
+      onclick="scrollToTop()"
+      class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+    >
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Global Toast Notification -->
     <div
       id="toast"
       class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
@@ -179,36 +203,210 @@
       <span id="toast-msg" class="font-medium text-sm"></span>
     </div>
 
+    <!-- Universal Scripts -->
     <script>
-      const GLOBAL_API_BASE = "/api";
+      const API_BASE_URL = "/api";
 
-      async function handleLogout() {
+      async function executeLogout() {
         try {
-          const response = await fetch("/api/v1/auth/logout", {
-            method: "POST",
-          });
-          if (response.ok) {
-            window.location.href = "/"; // Redirect to guest dashboard
-          }
-        } catch (error) {
-          console.error("Logout failed", error);
+          const res = await fetch("/api/v1/auth/logout", { method: "POST" });
+          if (res.ok) window.location.href = "/";
+        } catch (e) {
+          console.error("Logout failed", e);
         }
       }
 
       function showToast(message, isError = false) {
         const toast = document.getElementById("toast");
         const msg = document.getElementById("toast-msg");
+        const icon = document.getElementById("toast-icon");
+
         msg.innerText = message;
+        if (isError) {
+          icon.className =
+            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          toast.classList.replace("bg-red-900", "bg-gray-900");
+        }
+
         toast.classList.remove("translate-y-20", "opacity-0");
         setTimeout(
           () => toast.classList.add("translate-y-20", "opacity-0"),
-          4000,
+          3000,
         );
       }
 
-      // Note: Search metadata loading logic is kept here as well
-      // ... (Rest of global search JS from previous versions) ...
+      // Scroll to Top Engine
+      window.addEventListener("scroll", () => {
+        const btn = document.getElementById("scrollToTopBtn");
+        if (window.scrollY > 300) {
+          btn.classList.remove(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.add(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        } else {
+          btn.classList.add(
+            "opacity-0",
+            "translate-y-4",
+            "pointer-events-none",
+          );
+          btn.classList.remove(
+            "opacity-100",
+            "translate-y-0",
+            "pointer-events-auto",
+          );
+        }
+      });
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // ==========================================
+      // UNIVERSAL SEARCH ENGINE
+      // ==========================================
+      let universalSearchAnime = [];
+      let universalSearchSeries = [];
+
+      async function loadUniversalSearchData() {
+        try {
+          const [aRes, sRes] = await Promise.all([
+            fetch("/api/anime"),
+            fetch("/api/series"),
+          ]);
+          if (aRes.ok) universalSearchAnime = await aRes.json();
+          if (sRes.ok) universalSearchSeries = await sRes.json();
+        } catch (e) {
+          console.error("Universal search data failed to load", e);
+        }
+      }
+
+      function normalizeSearchStr(str) {
+        if (!str) return "";
+        return String(str)
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}]/gu, "");
+      }
+
+      function handleGlobalSearch(query) {
+        const suggestionsDiv = document.getElementById("searchSuggestions");
+        if (!query || query.trim().length < 1) {
+          suggestionsDiv.classList.add("hidden");
+          return;
+        }
+
+        const qNorm = normalizeSearchStr(query);
+        const seriesResults = [];
+        const animeResults = [];
+
+        universalSearchSeries.forEach((s) => {
+          const matchText = [
+            s.series_en,
+            s.series_cn,
+            s.alt_name,
+            s.series_roman,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (normalizeSearchStr(matchText).includes(qNorm))
+            seriesResults.push({ type: "series", data: s });
+        });
+
+        universalSearchAnime.forEach((a) => {
+          const matchText = [
+            a.series_season_cn,
+            a.series_season_en,
+            a.series_en,
+            a.series_season_roman,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (normalizeSearchStr(matchText).includes(qNorm))
+            animeResults.push({ type: "anime", data: a });
+        });
+
+        const results = [...seriesResults, ...animeResults].slice(0, 10);
+
+        if (results.length === 0) {
+          suggestionsDiv.classList.add("hidden");
+          return;
+        }
+
+        suggestionsDiv.innerHTML = results
+          .map((res) => {
+            if (res.type === "anime") {
+              const a = res.data;
+              const parentSeries = universalSearchSeries.find(
+                (s) => s.series_en === a.series_en,
+              );
+              const seriesDisplayName = parentSeries
+                ? parentSeries.series_cn ||
+                  parentSeries.series_en ||
+                  parentSeries.series_roman
+                : a.series_en;
+
+              return `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                         onclick="window.location.href='/anime/${a.system_id}'">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
+                        </div>
+                        <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesDisplayName || "-"}</div>
+                    </div>
+                  `;
+            } else {
+              const s = res.data;
+              return `
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                         onclick="window.location.href='/series/${s.system_id}'">
+                        <div class="flex items-center mb-1">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
+                        </div>
+                        <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
+                    </div>
+                  `;
+            }
+          })
+          .join("");
+
+        suggestionsDiv.classList.remove("hidden");
+      }
+
+      // Initialize Universal Search Engine globally
+      document.addEventListener("DOMContentLoaded", loadUniversalSearchData);
+
+      // Search Enter Key Listener
+      const searchInputGlobal = document.getElementById("globalSearchInput");
+      if (searchInputGlobal) {
+        searchInputGlobal.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            const query = e.target.value.trim();
+            if (query)
+              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+          }
+        });
+      }
+
+      // Close suggestions when clicking outside
+      document.addEventListener("click", function (e) {
+        const container = document.getElementById("globalSearchContainer");
+        const suggestions = document.getElementById("searchSuggestions");
+        if (container && !container.contains(e.target)) {
+          suggestions.classList.add("hidden");
+        }
+      });
     </script>
+
     {% block extra_scripts %}{% endblock %}
   </body>
 </html>
