@@ -1,8 +1,27 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text
+"""
+models.py
+Defines the SQLAlchemy ORM models representing the physical tables in the PostgreSQL database.
+"""
+
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text
 from database import Base, get_taipei_now
+import uuid
+
+
+class User(Base):
+    """Represents a registered user (Admin/Guest) in the system."""
+
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(String, default="admin")
 
 
 class AnimeEntry(Base):
+    """Represents a single anime season, movie, or OVA."""
+
     __tablename__ = "anime_entries"
 
     system_id = Column(String, primary_key=True, index=True)
@@ -38,11 +57,14 @@ class AnimeEntry(Base):
     source_baha = Column(String)
     source_netflix = Column(String)
     cover_image_url = Column(String)
+
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
 
 class AnimeSeries(Base):
+    """Represents a high-level Franchise Hub grouping multiple AnimeEntries."""
+
     __tablename__ = "anime_series"
 
     system_id = Column(String, primary_key=True, index=True)
@@ -51,11 +73,14 @@ class AnimeSeries(Base):
     series_cn = Column(String)
     rating_series = Column(String)
     alt_name = Column(String)
+
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
 
 class SyncLog(Base):
+    """Stores the audit trail of synchronization events between Google Sheets and PostgreSQL."""
+
     __tablename__ = "sync_logs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -70,6 +95,8 @@ class SyncLog(Base):
 
 
 class DeletedRecord(Base):
+    """Stores a temporary history of permanently deleted items for administrative tracking."""
+
     __tablename__ = "deleted_records"
 
     id = Column(Integer, primary_key=True, index=True)
