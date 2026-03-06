@@ -6,6 +6,7 @@ Configured for both local development and GCP Cloud Run deployment.
 """
 
 import os
+import urllib.parse
 from datetime import datetime, timedelta
 
 import pytz
@@ -22,7 +23,8 @@ load_dotenv()
 
 # Base credentials needed for both Local and Cloud
 USER = os.getenv("POSTGRES_USER", "postgres")
-PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+RAW_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password").strip()
+PASSWORD = urllib.parse.quote_plus(RAW_PASSWORD)
 DB_NAME = os.getenv("POSTGRES_DB", "anime_site_db")
 
 # GCP Cloud Run injects the Cloud SQL connection path here
