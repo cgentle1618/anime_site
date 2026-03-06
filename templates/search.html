@@ -354,26 +354,37 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
       if (anime.my_progress === "Completed" || anime.my_progress === "Finished") statusColor = "bg-brand";
 
-      const checkmarkStatuses = ["Completed", "Finished", "Watch When Airs", "Plan to Watch"];
-      const tildeStatuses = ["Active Watching", "Passive Watching", "Paused"];
-      const crossStatuses = ["Temp Dropped", "Dropped", "Won't Watch"];
+      const progress = anime.my_progress || "";
 
-      let actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
-      let actionTitle = 'Set to Plan to Watch';
-      let buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent';
+      // Dynamic Logic for the Action Button
+      let actionIcon = '';
+      let actionTitle = '';
+      let buttonClass = '';
 
-      if (checkmarkStatuses.includes(anime.my_progress)) {
+      if (progress === "Might Watch") {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent';
+      } else if (progress === "Plan to Watch" || progress === "Watch When Airs") {
+          actionIcon = '<i class="fas fa-ellipsis-h text-[10px]"></i>';
+          actionTitle = 'Demote to Might Watch';
+          buttonClass = 'bg-purple-100 hover:bg-purple-500 text-purple-600 hover:text-white border border-purple-200';
+      } else if (["Completed", "Finished"].includes(progress)) {
           actionIcon = '<i class="fas fa-check text-[10px]"></i>';
-          actionTitle = 'Change Status';
+          actionTitle = 'Demote to Might Watch';
           buttonClass = 'bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200';
-      } else if (tildeStatuses.includes(anime.my_progress)) {
+      } else if (["Active Watching", "Passive Watching", "Paused"].includes(progress)) {
           actionIcon = '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
-          actionTitle = 'Change Status';
+          actionTitle = 'Demote to Might Watch';
           buttonClass = 'bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200';
-      } else if (crossStatuses.includes(anime.my_progress)) {
+      } else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(progress)) {
           actionIcon = '<i class="fas fa-times text-[10px]"></i>';
-          actionTitle = 'Change Status';
+          actionTitle = 'Demote to Might Watch';
           buttonClass = 'bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200';
+      } else {
+          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+          actionTitle = 'Set to Plan to Watch';
+          buttonClass = 'bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200';
       }
 
       const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
@@ -431,17 +442,14 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
   async function handleStatusButton(sys_id, current_progress) {
       if (!IS_ADMIN) return;
 
-      const promptStatuses = [
-          "Completed", "Finished", "Watch When Airs", "Plan to Watch",
-          "Active Watching", "Passive Watching", "Paused",
-          "Temp Dropped", "Dropped", "Won't Watch"
-      ];
-      let newStatus = "Plan to Watch";
+      // Determine the target status direction based on the current state
+      let newStatus = current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-      if (promptStatuses.includes(current_progress)) {
-          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you want to change it to "Might Watch"?`);
-          if (confirmed) newStatus = "Might Watch";
-          else return;
+      // If the show is heavily tracked, prompt the user before aggressively demoting it
+      const strongStatuses = ["Completed", "Finished", "Active Watching", "Passive Watching", "Paused", "Dropped", "Temp Dropped", "Won't Watch"];
+      if (strongStatuses.includes(current_progress)) {
+          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you really want to demote it to "Might Watch"?`);
+          if (!confirmed) return;
       }
 
       const index = filteredAnime.findIndex(a => a.system_id === sys_id);
