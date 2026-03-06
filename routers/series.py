@@ -10,7 +10,7 @@ from typing import List
 
 import models
 import schemas
-from dependencies import get_db
+from dependencies import get_db, get_current_admin
 import services.sheets_client as sheets_client
 
 # Initialize the router with a standard prefix
@@ -78,7 +78,11 @@ def get_series_details_by_id(system_id: str, db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.patch("/{system_id}", summary="Update Series Overall Rating")
+@router.patch(
+    "/{system_id}",
+    summary="Update Series Overall Rating",
+    dependencies=[Depends(get_current_admin)],
+)
 def update_series_state(
     system_id: str, payload: dict = Body(...), db: Session = Depends(get_db)
 ):

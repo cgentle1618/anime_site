@@ -7,7 +7,7 @@ Includes logic to detect admin status via secure cookies.
 import jwt
 import os
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 # We need the security settings to decode the cookie
@@ -85,7 +85,7 @@ async def serve_search(request: Request):
 async def serve_login(request: Request):
     # If already logged in, don't show login page; go to admin system
     if check_admin_status(request):
-        return HTMLResponse(content="<script>window.location.href='/system';</script>")
+        return RedirectResponse(url="/system", status_code=303)
     return templates.TemplateResponse(
         "login.html", {"request": request, "is_admin": False}
     )
@@ -95,7 +95,8 @@ async def serve_login(request: Request):
 @router.get("/system", response_class=HTMLResponse, summary="Serve Admin Dashboard")
 async def serve_admin(request: Request):
     is_admin = check_admin_status(request)
-    # Phase 3 will handle strict redirection, for now we just pass the flag
+    if not is_admin:
+        return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(
         "admin.html", {"request": request, "is_admin": is_admin}
     )
@@ -104,6 +105,8 @@ async def serve_admin(request: Request):
 @router.get("/add", response_class=HTMLResponse, summary="Serve Add Page")
 async def serve_add(request: Request):
     is_admin = check_admin_status(request)
+    if not is_admin:
+        return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(
         "add.html", {"request": request, "is_admin": is_admin}
     )
@@ -112,6 +115,8 @@ async def serve_add(request: Request):
 @router.get("/modify", response_class=HTMLResponse, summary="Serve Modify Page")
 async def serve_modify(request: Request):
     is_admin = check_admin_status(request)
+    if not is_admin:
+        return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(
         "modify.html", {"request": request, "is_admin": is_admin}
     )
@@ -120,6 +125,8 @@ async def serve_modify(request: Request):
 @router.get("/delete", response_class=HTMLResponse, summary="Serve Delete Page")
 async def serve_delete(request: Request):
     is_admin = check_admin_status(request)
+    if not is_admin:
+        return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(
         "delete.html", {"request": request, "is_admin": is_admin}
     )
