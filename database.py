@@ -20,15 +20,26 @@ load_dotenv()
 # DATABASE CONNECTION SETUP
 # ==========================================
 
-# Added default fallbacks for robustness during Docker/Cloud transition
+# Base credentials needed for both Local and Cloud
 USER = os.getenv("POSTGRES_USER", "postgres")
 PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
-HOST = os.getenv("POSTGRES_HOST", "localhost")
-PORT = os.getenv("POSTGRES_PORT", "5432")
 DB_NAME = os.getenv("POSTGRES_DB", "anime_site_db")
 
-# Construct the PostgreSQL connection string explicitly
-SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
+# GCP Cloud Run injects the Cloud SQL connection path here
+INSTANCE_CONNECTION_NAME = os.getenv("INSTANCE_CONNECTION_NAME")
+
+if INSTANCE_CONNECTION_NAME:
+    # PRODUCTION (GCP Cloud Run via Unix Socket)
+    # SQLAlchemy requires this specific format for psycopg2 unix sockets
+    SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@/{DB_NAME}?host=/cloudsql/{INSTANCE_CONNECTION_NAME}"
+    print(f"🔗 Connecting to Cloud SQL instance: {INSTANCE_CONNECTION_NAME}")
+else:
+    # LOCAL DEVELOPMENT (TCP/IP via Docker Desktop or Localhost)
+    HOST = os.getenv("POSTGRES_HOST", "localhost")
+    PORT = os.getenv("POSTGRES_PORT", "5432")
+    SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
+    print(f"🔗 Connecting to Local PostgreSQL at {HOST}:{PORT}")
+
 
 # Initialize the SQLAlchemy Database Engine with production-ready connection pooling
 engine = create_engine(
