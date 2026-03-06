@@ -10,12 +10,10 @@ import uvicorn
 
 import database
 import models
-from routers import pages, anime, series, admin
+from routers import pages, anime, series, admin, auth
 from services.security import get_password_hash
 
 # Initialize Database Schema
-# In a production environment with frequent changes, we would use Alembic migrations.
-# For now, this ensures our tables (including the new 'users' table) exist.
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(
@@ -40,14 +38,15 @@ async def seed_admin_user():
         )
 
         if not admin_user:
-            # Fallback to 'admin123' only if .env is missing the variable
             admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
 
             print("🚀 [System] No admin detected. Seeding master account...")
+
+            # Using the new native hash function
+            hashed_pwd = get_password_hash(admin_pass)
+
             new_admin = models.User(
-                username="admin",
-                hashed_password=get_password_hash(admin_pass),
-                role="admin",
+                username="admin", hashed_password=hashed_pwd, role="admin"
             )
             db.add(new_admin)
             db.commit()
@@ -69,13 +68,10 @@ async def seed_admin_user():
 app.include_router(pages.router)
 
 # API routes (JSON Endpoints)
-app.include_router(anime.router, prefix="/api/v1")
-app.include_router(series.router, prefix="/api/v1")
-app.include_router(admin.router, prefix="/api/v1")
-
-# Note: We do not mount /static anymore.
-# All CSS/JS is handled via CDNs or internal styles in templates.
+app.include_router(auth.router, prefix="/api/v1")  # Auth uses the new v1 prefix
+app.include_router(anime.router)  # Resolves to /api/anime
+app.include_router(series.router)  # Resolves to /api/series
+app.include_router(admin.router)  # Resolves to /api/admin
 
 if __name__ == "__main__":
-    # Start the server locally
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
