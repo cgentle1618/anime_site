@@ -2,12 +2,16 @@
 sheets_client.py
 Handles direct communication with the Google Sheets API via gspread.
 Includes retry logic for quota limits and raw CRUD operations.
+Configured to support both local files and Cloud-injected environment variables.
 """
 
+import os
+import json
 import time
 import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from typing import Callable, Any, Dict, List
+from google.oauth2.service_account import Credentials
 
 # ==========================================
 # CORE GOOGLE API HELPERS
@@ -38,7 +42,35 @@ def execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) ->
 
 def get_google_spreadsheet() -> gspread.Spreadsheet:
     """Authenticates with Google using the service account and returns the main Spreadsheet object."""
-    gc = gspread.service_account(filename="credentials.json")
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+
+    # 1. Production: Try to load from Environment Variable (GCP Secret Manager)
+    creds_json_str = os.getenv("GOOGLE_CREDENTIALS_JSON")
+
+    if creds_json_str:
+        try:
+            creds_info = json.loads(creds_json_str)
+            credentials = Credentials.from_service_account_info(
+                creds_info, scopes=scopes
+            )
+            gc = gspread.authorize(credentials)
+            print("ℹ️ Authenticated to Google Sheets via Cloud Environment Variables.")
+        except json.JSONDecodeError as e:
+            raise Exception(
+                f"Failed to parse GOOGLE_CREDENTIALS_JSON. Ensure it is a valid JSON string. Error: {e}"
+            )
+    else:
+        # 2. Local Development: Fallback to local file
+        if not os.path.exists("credentials.json"):
+            raise Exception(
+                "Missing credentials! Provide GOOGLE_CREDENTIALS_JSON env var or a credentials.json file."
+            )
+        gc = gspread.service_account(filename="credentials.json")
+        print("ℹ️ Authenticated to Google Sheets via local credentials.json.")
+
     return gc.open("Anime Database")
 
 
