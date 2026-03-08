@@ -355,6 +355,8 @@ gcloud run deploy cg1618-tracker \
 - [x] JWT + HTTP-Only Cookie authentication
 - [x] GCP Cloud Run deployment with Secret Manager
 - [x] Optimistic UI updates with Vanilla JS
+- [ ] Alembic Integration
+- [ ] Github Action (CI/CD)
 - [ ] Cron-based automated scheduled sync
 - [ ] Version 2: Public user accounts and watchlists
 - [ ] Version 2: Enhanced analytics and statistics dashboard
