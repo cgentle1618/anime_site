@@ -8,7 +8,7 @@ on:
 
 # Define variables for the workflow
 env:
-  PROJECT_ID: [cg1618-tracker] # e.g., cg1618-tracker-12345
+  PROJECT_ID: cg1618-tracker # e.g., cg1618-tracker-12345
   REGION: asia-east1
   REPO_NAME: asia-east1-docker.pkg.dev/[YOUR_GCP_PROJECT_ID]/[YOUR_REPO_NAME]/cg1618-tracker
   SERVICE_NAME: cg1618-tracker
