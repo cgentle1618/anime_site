@@ -62,8 +62,9 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    # OVERRIDE the sqlalchemy.url in the config with our dynamic URL
-    config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+    # Escape % signs so configparser doesn't crash on URL-encoded passwords
+    escaped_url = str(SQLALCHEMY_DATABASE_URL).replace("%", "%%")
+    config.set_main_option("sqlalchemy.url", escaped_url)
 
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
