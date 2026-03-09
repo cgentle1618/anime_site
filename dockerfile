@@ -17,6 +17,7 @@ COPY --from=builder /app/requirements.txt .
 RUN pip install --no-cache /wheels/*
 COPY . .
 
-# We use a shell-form CMD to allow environment variable expansion for $PORT
-# We also use "|| exit 1" to ensure the container crashes visibly if migrations fail
-CMD alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips="*"
+# We use a shell-form CMD with a built-in retry loop for Alembic.
+# Cloud SQL Auth Proxy can take a few seconds to start inside Cloud Run.
+# This loop retries the database connection up to 5 times before starting Uvicorn.
+CMD for i in 1 2 3 4 5; do alembic upgrade head && break || sleep 3; done && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips="*"
