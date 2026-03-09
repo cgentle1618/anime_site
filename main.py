@@ -13,13 +13,10 @@ import models
 from routers import pages, anime, series, admin, auth
 from services.security import get_password_hash
 
-# Initialize Database Schema
-models.Base.metadata.create_all(bind=database.engine)
-
 app = FastAPI(
     title="CG1618 Anime Database & Tracker",
     description="A professional-grade backend for anime tracking with RBAC and Google Sheets sync.",
-    version="1.2.0",
+    version="1.1.0",
 )
 
 
