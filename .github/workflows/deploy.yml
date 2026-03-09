@@ -10,7 +10,7 @@ on:
 env:
   PROJECT_ID: Anime-Site-Sync
   REGION: asia-east1
-  REPO_NAME: asia-east1-docker.pkg.dev/anime-site-sync/anime_repo/cg1618-tracker
+  REPO_NAME: asia-east1-docker.pkg.dev/anime-site-sync/anime-repo/cg1618-tracker
   SERVICE_NAME: cg1618-tracker
 
 jobs:
