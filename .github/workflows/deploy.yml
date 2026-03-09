@@ -1,0 +1,54 @@
+name: Deploy to Cloud Run
+
+# This tells GitHub to run this script whenever you push to the 'main' branch
+on:
+  push:
+    branches:
+      - main
+
+# Define variables for the workflow
+env:
+  PROJECT_ID: [cg1618-tracker] # e.g., cg1618-tracker-12345
+  REGION: asia-east1
+  REPO_NAME: asia-east1-docker.pkg.dev/[YOUR_GCP_PROJECT_ID]/[YOUR_REPO_NAME]/cg1618-tracker
+  SERVICE_NAME: cg1618-tracker
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Download your code from the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Log into Google Cloud using the Secret we stored in GitHub
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+
+      # 3. Setup Docker to use Google Artifact Registry
+      - name: Setup Docker Auth
+        run: |-
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      # 4. Build the Docker Image
+      # We use $GITHUB_SHA to tag the image with the unique commit hash
+      - name: Build Docker Image
+        run: |-
+          docker build -t ${{ env.REPO_NAME }}:${{ github.sha }} .
+
+      # 5. Push the Image to Artifact Registry
+      - name: Push Docker Image
+        run: |-
+          docker push ${{ env.REPO_NAME }}:${{ github.sha }}
+
+      # 6. Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REPO_NAME }}:${{ github.sha }}
