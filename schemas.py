@@ -4,7 +4,7 @@ Defines Pydantic models for request validation and response serialization.
 Following the DRY (Don't Repeat Yourself) principle with base classes.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -41,22 +41,57 @@ class UserOut(UserBase):
 
 
 # ==========================================
+# SYSTEM OPTION SCHEMAS (NEW FOR V2)
+# ==========================================
+
+
+class SystemOptionBase(BaseModel):
+    """Base schema for dynamic system dropdown options."""
+
+    category: str
+    option_value: str
+
+
+class SystemOptionCreate(SystemOptionBase):
+    pass
+
+
+class SystemOptionResponse(SystemOptionBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
 # BASE SCHEMAS (DRY Principle)
 # ==========================================
 
 
+class SeriesBase(BaseModel):
+    """Shared fields for Series (Franchise Hubs)."""
+
+    series_en: Optional[str] = None
+    series_roman: Optional[str] = None
+    series_cn: Optional[str] = None
+    rating_series: Optional[str] = None
+    series_alt_name: Optional[str] = None  # Renamed for V2
+
+    # New V2 Fields
+    series_expectation: Optional[str] = None
+    favorite_3x3_slot: Optional[int] = Field(None, ge=1, le=9)
+
+
 class AnimeBase(BaseModel):
-    """
-    Shared fields for Anime creation, updating, and reading.
-    By inheriting this base class, we avoid repeating these 30 fields
-    across multiple different schemas.
-    """
+    """Shared fields for Anime Entries to avoid repeating 30+ fields."""
 
     series_en: Optional[str] = None
     series_season_en: Optional[str] = None
     series_season_roman: Optional[str] = None
     series_season_cn: Optional[str] = None
+    anime_alt_name: Optional[str] = None  # Renamed for V2
     series_season: Optional[str] = None
+
     airing_type: Optional[str] = None
     my_progress: Optional[str] = None
     airing_status: Optional[str] = None
@@ -64,83 +99,57 @@ class AnimeBase(BaseModel):
     ep_fin: Optional[int] = None
     rating_mine: Optional[str] = None
     main_spinoff: Optional[str] = None
-    release_date: Optional[str] = None
+
+    # Updated date fields for V2
+    release_month: Optional[str] = None
+    release_season: Optional[str] = None
+    release_year: Optional[str] = None
+
     studio: Optional[str] = None
     director: Optional[str] = None
     producer: Optional[str] = None
+    music: Optional[str] = None
     distributor_tw: Optional[str] = None
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
+
+    prequel: Optional[str] = None
+    sequel: Optional[str] = None
+    alternative: Optional[str] = None
+
+    # New V2 Metadata
+    watch_order: Optional[float] = None
+    watch_order_rec: Optional[str] = None
     remark: Optional[str] = None
-    mal_id: Optional[int] = None
+
+    mal_id: Optional[str] = None
     mal_link: Optional[str] = None
     anilist_link: Optional[str] = None
+
     op: Optional[str] = None
     ed: Optional[str] = None
     insert_ost: Optional[str] = None
     seiyuu: Optional[str] = None
+
     source_baha: Optional[str] = None
-    source_netflix: Optional[str] = None
+    baha_link: Optional[str] = None
+    source_netflix: Optional[bool] = False
 
-
-class SeriesBase(BaseModel):
-    """Shared fields for Series creation, updating, and reading."""
-
-    series_en: Optional[str] = None
-    series_roman: Optional[str] = None
-    series_cn: Optional[str] = None
-    rating_series: Optional[str] = None
-    alt_name: Optional[str] = None
+    # New V2 Source & Local Image Fields
+    source_other: Optional[str] = None
+    source_other_link: Optional[str] = None
+    cover_image_file: Optional[str] = None
 
 
 # ==========================================
-# ANIME ENTRY SCHEMAS
+# ANIME SERIES HUB SCHEMAS
 # ==========================================
 
 
-class AnimeResponse(AnimeBase):
-    """
-    Schema for reading an anime entry from the database.
-    Includes API-enriched fields and timestamps not present during manual creation.
-    """
+class AnimeSeriesUpdate(SeriesBase):
+    """Schema for updating an Anime Series Hub."""
 
-    system_id: str
-    mal_rating: Optional[float] = None
-    mal_rank: Optional[str] = None
-    cover_image_url: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class AnimeCreate(AnimeBase):
-    """
-    Schema for manually adding a new anime entry via the Admin Dashboard.
-    Includes a temporary field to handle brand new Series Hub generation if the
-    parent franchise does not yet exist.
-    """
-
-    system_id: str
-    ep_fin: Optional[int] = 0
-    series_alt_name: Optional[str] = None
-
-
-class AnimeUpdate(AnimeBase):
-    """
-    Schema for updating an existing anime entry via the Admin Dashboard.
-    The system_id is provided in the update payload to ensure strict schema
-    validation against the Pydantic model.
-    """
-
-    system_id: str
-    ep_fin: Optional[int] = 0
-
-
-# ==========================================
-# SERIES SCHEMAS
-# ==========================================
+    system_id: Optional[str] = None
 
 
 class AnimeSeriesResponse(SeriesBase):
@@ -154,13 +163,26 @@ class AnimeSeriesResponse(SeriesBase):
         from_attributes = True
 
 
-class AnimeSeriesUpdate(SeriesBase):
-    """
-    Schema for updating or manually creating an Anime Series Hub.
-    Requires a system_id to maintain parity between Sheets and Database.
-    """
+# ==========================================
+# ANIME ENTRY SCHEMAS
+# ==========================================
+
+
+class AnimeEntryUpdate(AnimeBase):
+    """Schema for creating or updating an Anime Entry."""
 
     system_id: Optional[str] = None
+
+
+class AnimeEntryResponse(AnimeBase):
+    """Schema for reading an Anime Entry from the database."""
+
+    system_id: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 # ==========================================
@@ -197,9 +219,9 @@ class DeletedRecordResponse(BaseModel):
 
     id: int
     system_id: str
-    record_type: str
-    title: str
+    table_name: str
     deleted_at: datetime
+    data_json: Optional[str] = None
 
     class Config:
         from_attributes = True
