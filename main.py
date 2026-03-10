@@ -1,11 +1,12 @@
 """
 main.py
 The core orchestration file for the CG1618 Anime Database & Tracker.
-Handles app initialization, modular router registration, and admin seeding.
+Handles app initialization, modular router registration, static file serving, and admin seeding.
 """
 
 import os
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 import database
@@ -13,11 +14,28 @@ import models
 from routers import pages, anime, series, admin, auth
 from services.security import get_password_hash
 
+# ==========================================
+# SYSTEM INITIALIZATION (V2 UPDATES)
+# ==========================================
+
+# Ensure our local static directories exist for V2 Image Downloading
+# This prevents crashes when the ImageManager tries to save new covers
+os.makedirs("static/covers", exist_ok=True)
+
 app = FastAPI(
     title="CG1618 Anime Database & Tracker",
-    description="A professional-grade backend for anime tracking with RBAC and Google Sheets sync.",
-    version="1.1.0",
+    description="A professional-grade backend for anime tracking with RBAC and Local Image Serving.",
+    version="2.0.0",
 )
+
+# Mount the static directory so FastAPI can serve local images, CSS, and JS to the frontend
+# Any file in static/covers/123.jpg will be accessible at http://yourdomain/static/covers/123.jpg
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# ==========================================
+# STARTUP EVENTS
+# ==========================================
 
 
 @app.on_event("startup")
@@ -39,7 +57,7 @@ async def seed_admin_user():
 
             print("🚀 [System] No admin detected. Seeding master account...")
 
-            # Using the new native hash function
+            # Using the native hash function
             hashed_pwd = get_password_hash(admin_pass)
 
             new_admin = models.User(
@@ -65,10 +83,7 @@ async def seed_admin_user():
 app.include_router(pages.router)
 
 # API routes (JSON Endpoints)
-app.include_router(auth.router, prefix="/api/v1")  # Auth uses the new v1 prefix
+app.include_router(auth.router, prefix="/api/v1")  # Auth uses the v1 prefix
 app.include_router(anime.router)  # Resolves to /api/anime
 app.include_router(series.router)  # Resolves to /api/series
 app.include_router(admin.router)  # Resolves to /api/admin
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
