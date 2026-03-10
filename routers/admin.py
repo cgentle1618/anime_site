@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 import services.sync as sync_engine
-from database import get_taipei_now, cleanup_old_logs
+from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
 
 # Apply the security dependency globally to all endpoints in this router
@@ -61,7 +61,6 @@ def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
     # 3. Create Anime Entry in DB
     new_anime = models.AnimeEntry(**payload_data)
 
-    # Map the popped field manually since it belongs to the model but not the base schema
     if series_alt_name_trigger:
         new_anime.series_alt_name = series_alt_name_trigger
 
@@ -90,7 +89,7 @@ def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
     # 5. Commit all DB changes (Source of Truth)
     db.commit()
 
-    # 6. Bulk Backup to Google Sheets to maintain parity
+    # 6. Bulk Backup to Google Sheets
     sync_engine.run_full_sync(db, direction="push")
 
     return {
@@ -146,17 +145,81 @@ def delete_anime(system_id: str, db: Session = Depends(get_db)):
     del_log = models.DeletedRecord(
         system_id=system_id,
         table_name="anime_entries",
-        data_json=f'{{"title": "{title}"}}',  # Store a simple JSON with the title for the frontend
+        data_json=f'{{"title": "{title}"}}',
     )
     db.add(del_log)
 
     db.delete(anime)
     db.commit()
 
-    # Update the sheets backup to reflect deletion
     sync_engine.run_full_sync(db, direction="push")
 
     return {"message": "Anime deleted successfully."}
+
+
+# ==========================================
+# SYSTEM OPTIONS (DYNAMIC DROPDOWNS)
+# ==========================================
+
+
+@router.get(
+    "/options/{category}",
+    response_model=List[schemas.SystemOptionResponse],
+    summary="Get Options by Category",
+)
+def get_system_options(category: str, db: Session = Depends(get_db)):
+    """Retrieves all dropdown options for a specific category (e.g., 'studio', 'genre')."""
+    return (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.category == category)
+        .all()
+    )
+
+
+@router.post(
+    "/options", response_model=schemas.SystemOptionResponse, summary="Add System Option"
+)
+def add_system_option(
+    payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
+):
+    """Adds a new dynamic dropdown option to the database."""
+    # Check for duplicates to prevent messy dropdowns
+    existing = (
+        db.query(models.SystemOption)
+        .filter(
+            models.SystemOption.category == payload.category,
+            models.SystemOption.option_value == payload.option_value,
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="This option already exists in the selected category.",
+        )
+
+    new_option = models.SystemOption(**payload.dict())
+    db.add(new_option)
+    db.commit()
+    db.refresh(new_option)  # Reload to get the auto-generated ID
+    return new_option
+
+
+@router.delete("/options/{option_id}", summary="Delete System Option")
+def delete_system_option(option_id: int, db: Session = Depends(get_db)):
+    """Removes a dropdown option from the database."""
+    option = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.id == option_id)
+        .first()
+    )
+    if not option:
+        raise HTTPException(status_code=404, detail="System option not found.")
+
+    db.delete(option)
+    db.commit()
+    return {"message": f"Option '{option.option_value}' deleted successfully."}
 
 
 # ==========================================
@@ -197,7 +260,7 @@ def sync_strong_jikan(db: Session = Depends(get_db)):
 
 
 # ==========================================
-# SYSTEM MAINTENANCE
+# SYSTEM MAINTENANCE (LOGS)
 # ==========================================
 
 
