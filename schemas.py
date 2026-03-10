@@ -168,8 +168,20 @@ class AnimeSeriesResponse(SeriesBase):
 # ==========================================
 
 
+class AnimeEntryCreate(AnimeBase):
+    """
+    Schema for manually adding a new anime entry via the Admin Dashboard.
+    Includes a temporary field to handle brand new Series Hub generation if the
+    parent franchise does not yet exist.
+    """
+
+    system_id: str
+    ep_fin: Optional[int] = 0
+    series_alt_name: Optional[str] = None
+
+
 class AnimeEntryUpdate(AnimeBase):
-    """Schema for creating or updating an Anime Entry."""
+    """Schema for updating an Anime Entry."""
 
     system_id: Optional[str] = None
 
