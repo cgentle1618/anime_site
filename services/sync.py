@@ -7,6 +7,7 @@ Secondary Input (for new rows) and a Read-Only Backup (via bulk overwrites).
 
 import uuid
 import json
+import time
 from sqlalchemy.orm import Session
 
 from database import cleanup_old_logs
@@ -14,6 +15,7 @@ from models import AnimeEntry, AnimeSeries, SyncLog
 
 from services.sync_utils import clean_value, extract_mal_id
 from services.sheets_client import get_all_rows, bulk_overwrite_sheet
+import services.jikan_client as jikan_client
 
 # Define the exact V2 column headers expected in the Google Sheet
 ANIME_HEADERS = [
@@ -340,4 +342,98 @@ def run_full_sync(db: Session, direction: str = "both") -> dict:
         error_msg = str(e)
         print(f"❌ V2 Master Sync Error: {error_msg}")
         log_sync_event(db, sync_type="v2_master_sync", status="failed", error=error_msg)
+        return {"status": "failed", "message": error_msg}
+
+
+def run_strong_jikan_sync(db: Session) -> dict:
+    """
+    Strong Sync Mechanism:
+    Iterates through all anime in the DB with a MAL ID, fetches the latest
+    volatile statistics (rating, rank) from Jikan, and forcefully overwrites the DB.
+    Finally, triggers a DB-to-Sheets push to back up the updated stats.
+    """
+    anime_list = (
+        db.query(AnimeEntry)
+        .filter(AnimeEntry.mal_id.isnot(None), AnimeEntry.mal_id != "")
+        .all()
+    )
+
+    updated_count = 0
+    error_msg = None
+
+    print(
+        f"\n▶️ [Strong Sync] Starting global Jikan update for {len(anime_list)} anime..."
+    )
+
+    try:
+        for anime in anime_list:
+            try:
+                # Handle potential string/float types gracefully
+                mal_id_int = int(float(anime.mal_id))
+
+                # Fetch fresh data from Jikan
+                mal_data = jikan_client.fetch_mal_data(mal_id_int, anime.system_id)
+
+                if mal_data:
+                    # Force overwrite volatile data
+                    if mal_data.get("mal_rating") is not None:
+                        anime.mal_rating = str(mal_data["mal_rating"])
+                    if mal_data.get("mal_rank") is not None:
+                        anime.mal_rank = str(mal_data["mal_rank"])
+
+                    updated_count += 1
+                    print(
+                        f"  └ Updated: {anime.series_en or anime.system_id} (Rating: {anime.mal_rating}, Rank: {anime.mal_rank})"
+                    )
+
+                # Respect Jikan's strict rate limits (~3 requests/sec max, 1.5s is safe for bulk loops)
+                time.sleep(1.5)
+
+            except ValueError:
+                print(
+                    f"⚠️ [Strong Sync] Invalid MAL ID format for {anime.system_id}: {anime.mal_id}"
+                )
+            except Exception as e:
+                print(
+                    f"❌ [Strong Sync] Error fetching data for {anime.system_id}: {e}"
+                )
+
+        # Persist all Jikan updates to PostgreSQL
+        db.commit()
+
+        # Push the updated stats to Google Sheets to maintain backup parity
+        print("▶️ [Strong Sync] Backing up updated stats to Google Sheets...")
+        push_metrics = _push_db_backup_to_sheets(db)
+        if not push_metrics["success"]:
+            error_msg = "Failed to backup Strong Sync results to Sheets."
+
+        # Log the event
+        status = "failed" if error_msg else "success"
+        details = {
+            "type": "strong_sync",
+            "items_updated_from_jikan": updated_count,
+            "sheets_backup": push_metrics["success"],
+        }
+        log_sync_event(
+            db,
+            sync_type="v2_strong_sync",
+            status=status,
+            updated=updated_count,
+            error=error_msg,
+            details_json=json.dumps(details),
+        )
+
+        return {
+            "status": status,
+            "message": (
+                "Strong Sync completed successfully." if not error_msg else error_msg
+            ),
+            "jikan_updated": updated_count,
+        }
+
+    except Exception as e:
+        db.rollback()
+        error_msg = str(e)
+        print(f"❌ [Strong Sync] Critical Error: {error_msg}")
+        log_sync_event(db, sync_type="v2_strong_sync", status="failed", error=error_msg)
         return {"status": "failed", "message": error_msg}

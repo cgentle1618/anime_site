@@ -180,6 +180,22 @@ def sync_with_sheets(direction: str = "both", db: Session = Depends(get_db)):
     return result
 
 
+@router.post("/sync/strong", summary="Strong Sync (Jikan -> DB -> Sheets)")
+def sync_strong_jikan(db: Session = Depends(get_db)):
+    """
+    Triggers the V2 Strong Sync.
+    Scans all anime with a MAL ID, forcefully updates their rating/rank from Jikan,
+    and pushes the updated data to Google Sheets.
+    """
+    print("\n▶️ [POST /sync/strong] Triggering Strong Sync...")
+    result = sync_engine.run_strong_jikan_sync(db)
+
+    if result.get("status") == "failed":
+        raise HTTPException(status_code=500, detail=result.get("message"))
+
+    return result
+
+
 # ==========================================
 # SYSTEM MAINTENANCE
 # ==========================================
