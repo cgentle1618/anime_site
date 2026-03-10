@@ -175,8 +175,7 @@ def _pull_new_manual_entries(db: Session) -> dict:
                 baha_link=clean_value(row.get("baha_link")),
                 source_other=clean_value(row.get("source_other")),
                 source_other_link=clean_value(row.get("source_other_link")),
-                source_netflix=str(row.get("source_netflix", "")).strip().lower()
-                == "true",
+                source_netflix=clean_value(row.get("source_netflix")),
                 cover_image_file=clean_value(row.get("cover_image_file")),
             )
             db.add(new_anime)
@@ -261,7 +260,7 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             a.baha_link,
             a.source_other,
             a.source_other_link,
-            "TRUE" if a.source_netflix else "FALSE",
+            a.source_netflix,
             a.cover_image_file,
         ]
         cleaned_row = ["" if val is None else str(val) for val in row]

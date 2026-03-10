@@ -135,7 +135,7 @@ class AnimeBase(BaseModel):
 
     source_baha: Optional[str] = None
     baha_link: Optional[str] = None
-    source_netflix: Optional[bool] = False
+    source_netflix: Optional[str] = None
 
     # New V2 Source & Local Image Fields
     source_other: Optional[str] = None

@@ -73,7 +73,7 @@ class AnimeEntry(Base):
     baha_link = Column(String)
     source_other = Column(String)
     source_other_link = Column(String)
-    source_netflix = Column(Boolean)
+    source_netflix = Column(String, nullable=True)
 
     cover_image_file = Column(String)
 
