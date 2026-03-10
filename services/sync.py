@@ -13,7 +13,12 @@ from sqlalchemy.orm import Session
 from database import cleanup_old_logs
 from models import AnimeEntry, AnimeSeries, SyncLog
 
-from services.sync_utils import clean_value, extract_mal_id
+from services.sync_utils import (
+    clean_value,
+    extract_mal_id,
+    extract_season_from_title,
+    extract_season_from_cn_title,
+)
 from services.sheets_client import get_all_rows, bulk_overwrite_sheet
 import services.jikan_client as jikan_client
 
@@ -115,6 +120,15 @@ def _pull_new_manual_entries(db: Session) -> dict:
             # This is a brand new manual entry!
             new_id = str(uuid.uuid4())
 
+            # Auto-fill series_season if left blank by scanning titles
+            raw_season = clean_value(row.get("series_season"))
+            if not raw_season:
+                raw_season = extract_season_from_title(
+                    row.get("series_season_en")
+                ) or extract_season_from_title(row.get("series_en"))
+            if not raw_season:
+                raw_season = extract_season_from_cn_title(row.get("series_season_cn"))
+
             new_anime = AnimeEntry(
                 system_id=new_id,
                 series_en=clean_value(row.get("series_en")),
@@ -122,7 +136,7 @@ def _pull_new_manual_entries(db: Session) -> dict:
                 series_season_roman=clean_value(row.get("series_season_roman")),
                 series_season_cn=clean_value(row.get("series_season_cn")),
                 anime_alt_name=clean_value(row.get("anime_alt_name")),
-                series_season=clean_value(row.get("series_season")),
+                series_season=raw_season,
                 airing_type=clean_value(row.get("airing_type")),
                 my_progress=clean_value(row.get("my_progress")),
                 airing_status=clean_value(row.get("airing_status")),

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 import services.sync as sync_engine
+from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
 
@@ -60,6 +61,17 @@ def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
 
     # 3. Create Anime Entry in DB
     new_anime = models.AnimeEntry(**payload_data)
+
+    # Auto-fill series_season if left blank
+    if not new_anime.series_season:
+        derived_season = extract_season_from_title(
+            new_anime.series_season_en
+        ) or extract_season_from_title(new_anime.series_en)
+        if not derived_season:
+            derived_season = extract_season_from_cn_title(new_anime.series_season_cn)
+
+        if derived_season:
+            new_anime.series_season = derived_season
 
     if series_alt_name_trigger:
         new_anime.series_alt_name = series_alt_name_trigger
