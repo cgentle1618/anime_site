@@ -41,42 +41,53 @@ def get_season_from_month(month_num: int) -> str:
 
 def fetch_mal_data(mal_id: int, system_id: str) -> Optional[Dict[str, Any]]:
     """
-    Hits the Jikan API /full endpoint to grab V2 metadata.
-    Downloads the cover image locally and extracts precise date/streaming data.
+    Fetches comprehensive data from Jikan's /anime/{id}/full endpoint.
+    Parses release date, Netflix streaming availability, rating, and rank.
+    Downloads the MAL cover image to local storage asynchronously.
     """
+    if not mal_id:
+        return None
+
     try:
-        # Using the /full endpoint to ensure we get the 'streaming' array
         url = f"https://api.jikan.moe/v4/anime/{mal_id}/full"
         response = requests.get(url, timeout=10)
 
         if response.status_code == 200:
             data = response.json().get("data", {})
 
-            # 1. Parse Image and Download Locally
-            image_url = data.get("images", {}).get("jpg", {}).get("large_image_url")
-            cover_image_file = download_cover_image(image_url, system_id)
+            # 1. Download Cover Image Locally
+            cover_image_file = None
+            images = data.get("images", {})
+            jpg_url = images.get("jpg", {}).get("large_image_url") or images.get(
+                "jpg", {}
+            ).get("image_url")
 
-            # 2. Parse Dates (Aired From)
-            release_year, release_month, release_season = None, None, None
-            aired_from = data.get("aired", {}).get(
-                "from"
-            )  # Format: "2014-10-10T00:00:00+00:00"
+            if jpg_url:
+                cover_image_file = download_cover_image(jpg_url, system_id)
 
-            if aired_from:
+            # 2. Parse Precise Release Dates
+            release_year = None
+            release_month = None
+            release_season = None
+
+            aired = data.get("aired", {})
+            start_date_str = aired.get("from")
+
+            if start_date_str:
                 try:
-                    # Parse ISO format (handling the trailing timezone Z/+00:00 simply by truncating)
-                    dt = datetime.fromisoformat(aired_from.split("T")[0])
+                    dt = datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
                     release_year = str(dt.year)
                     release_month = MONTH_MAP.get(dt.month)
                     release_season = get_season_from_month(dt.month)
                 except (ValueError, TypeError):
                     pass  # Ignore if MAL has malformed date data
 
-            # 3. Parse Streaming (Netflix)
+            # 3. Parse Streaming (Netflix) - V2 Fix: Return String TRUE/FALSE
             streaming_list = data.get("streaming", [])
-            source_netflix = any(
+            netflix_found = any(
                 "netflix" in s.get("name", "").lower() for s in streaming_list
             )
+            source_netflix = "TRUE" if netflix_found else "FALSE"
 
             # 4. Parse Scores
             score = data.get("score")
@@ -94,7 +105,6 @@ def fetch_mal_data(mal_id: int, system_id: str) -> Optional[Dict[str, Any]]:
             }
 
         elif response.status_code == 429:
-            # Jikan enforces a strict rate limit
             print(f"⚠️ [Jikan API] Rate limited when fetching MAL ID {mal_id}")
             return None
         else:
