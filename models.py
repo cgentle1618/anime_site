@@ -3,7 +3,7 @@ models.py
 Defines the SQLAlchemy ORM models representing the physical tables in the PostgreSQL database.
 """
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
 from database import Base, get_taipei_now
 import uuid
 
@@ -29,6 +29,7 @@ class AnimeEntry(Base):
     series_season_en = Column(String)
     series_season_roman = Column(String)
     series_season_cn = Column(String)
+    anime_alt_name = Column(String)
     series_season = Column(String)
     airing_type = Column(String)
     my_progress = Column(String)
@@ -37,26 +38,42 @@ class AnimeEntry(Base):
     ep_fin = Column(Integer)
     rating_mine = Column(String)
     main_spinoff = Column(String)
-    release_date = Column(String)
+
+    release_month = Column(String)
+    release_season = Column(String)
+    release_year = Column(String)
+
     studio = Column(String)
     director = Column(String)
     producer = Column(String)
+    music = Column(String)
     distributor_tw = Column(String)
     genre_main = Column(String)
     genre_sub = Column(String)
-    remark = Column(Text)
-    mal_id = Column(Integer)
+
+    prequel = Column(String)
+    sequel = Column(String)
+    alternative = Column(String)
+    watch_order = Column(Float)
+    watch_order_rec = Column(String)
+    remark = Column(String)
+
+    mal_id = Column(String)
     mal_link = Column(String)
-    mal_rating = Column(Float)
-    mal_rank = Column(String)
     anilist_link = Column(String)
+
     op = Column(String)
     ed = Column(String)
     insert_ost = Column(String)
-    seiyuu = Column(Text)
+    seiyuu = Column(String)
+
     source_baha = Column(String)
-    source_netflix = Column(String)
-    cover_image_url = Column(String)
+    baha_link = Column(String)
+    source_other = Column(String)
+    source_other_link = Column(String)
+    source_netflix = Column(Boolean)
+
+    cover_image_file = Column(String)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
@@ -72,7 +89,9 @@ class AnimeSeries(Base):
     series_roman = Column(String)
     series_cn = Column(String)
     rating_series = Column(String)
-    alt_name = Column(String)
+    series_alt_name = Column(String)
+    series_expectation = Column(String)
+    favorite_3x3_slot = Column(Integer)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
@@ -95,12 +114,22 @@ class SyncLog(Base):
 
 
 class DeletedRecord(Base):
-    """Stores a temporary history of permanently deleted items for administrative tracking."""
+    """Stores a temporary history of permanently deleted items for recovery or sync purposes."""
 
     __tablename__ = "deleted_records"
 
     id = Column(Integer, primary_key=True, index=True)
     system_id = Column(String, index=True)
-    record_type = Column(String)
-    title = Column(String)
+    table_name = Column(String)
     deleted_at = Column(DateTime, default=get_taipei_now)
+    data_json = Column(Text, nullable=True)
+
+
+class SystemOption(Base):
+    """Stores dynamic system options for dropdowns (Studio, Genre, etc.)"""
+
+    __tablename__ = "system_options"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    category = Column(String, index=True)
+    option_value = Column(String)
