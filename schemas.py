@@ -124,6 +124,8 @@ class AnimeBase(BaseModel):
 
     mal_id: Optional[str] = None
     mal_link: Optional[str] = None
+    mal_rating: Optional[str] = None  # <-- Added for Strong Sync
+    mal_rank: Optional[str] = None  # <-- Added for Strong Sync
     anilist_link: Optional[str] = None
 
     op: Optional[str] = None

@@ -23,6 +23,7 @@ from services.sheets_client import get_all_rows, bulk_overwrite_sheet
 import services.jikan_client as jikan_client
 
 # Define the exact V2 column headers expected in the Google Sheet
+# Added mal_rating and mal_rank here!
 ANIME_HEADERS = [
     "system_id",
     "series_en",
@@ -56,6 +57,8 @@ ANIME_HEADERS = [
     "remark",
     "mal_id",
     "mal_link",
+    "mal_rating",
+    "mal_rank",
     "anilist_link",
     "op",
     "ed",
@@ -117,10 +120,9 @@ def _pull_new_manual_entries(db: Session) -> dict:
     anime_rows = get_all_rows("Anime")
     for row in anime_rows:
         if not str(row.get("system_id", "")).strip():
-            # This is a brand new manual entry!
             new_id = str(uuid.uuid4())
 
-            # Auto-fill series_season if left blank by scanning titles
+            # Auto-fill series_season if left blank
             raw_season = clean_value(row.get("series_season"))
             if not raw_season:
                 raw_season = extract_season_from_title(
@@ -162,6 +164,8 @@ def _pull_new_manual_entries(db: Session) -> dict:
                 remark=clean_value(row.get("remark")),
                 mal_id=clean_value(row.get("mal_id")),
                 mal_link=clean_value(row.get("mal_link")),
+                mal_rating=clean_value(row.get("mal_rating")),  # <-- Added
+                mal_rank=clean_value(row.get("mal_rank")),  # <-- Added
                 anilist_link=clean_value(row.get("anilist_link")),
                 op=clean_value(row.get("op")),
                 ed=clean_value(row.get("ed")),
@@ -246,6 +250,8 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             a.remark,
             a.mal_id,
             a.mal_link,
+            a.mal_rating,
+            a.mal_rank,  # <-- Added
             a.anilist_link,
             a.op,
             a.ed,
@@ -258,7 +264,6 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             "TRUE" if a.source_netflix else "FALSE",
             a.cover_image_file,
         ]
-        # Clean nulls into empty strings for Google Sheets
         cleaned_row = ["" if val is None else str(val) for val in row]
         anime_matrix.append(cleaned_row)
 
@@ -302,7 +307,6 @@ def run_full_sync(db: Session, direction: str = "both") -> dict:
     error_msg = None
 
     try:
-        # Step 1: Check Google Sheets for manual entries without a system_id
         if direction in ["both", "pull"]:
             pull_metrics = _pull_new_manual_entries(db)
             total_added = pull_metrics["anime_added"] + pull_metrics["series_added"]
@@ -310,7 +314,6 @@ def run_full_sync(db: Session, direction: str = "both") -> dict:
                 f"📥 Pulled {pull_metrics['anime_added']} new anime and {pull_metrics['series_added']} new series from Sheets."
             )
 
-        # Step 2: Force DB Backup to Google Sheets
         if direction in ["both", "push"]:
             push_metrics = _push_db_backup_to_sheets(db)
             if not push_metrics["success"]:
@@ -323,7 +326,6 @@ def run_full_sync(db: Session, direction: str = "both") -> dict:
                     f"📤 Backed up {push_metrics['anime_backed_up']} anime and {push_metrics['series_backed_up']} series to Sheets."
                 )
 
-        # Step 3: Log Event
         status = "failed" if error_msg else "success"
         details = {
             "direction": direction,
@@ -340,15 +342,11 @@ def run_full_sync(db: Session, direction: str = "both") -> dict:
             error=error_msg,
             details_json=json.dumps(details),
         )
-
-        # Cleanup old logs
         cleanup_old_logs(db, days_to_keep=30)
 
         return {
             "status": status,
             "message": "Sync completed successfully" if not error_msg else error_msg,
-            "added_to_db": total_added,
-            "backed_up_to_sheets": total_updated,
         }
 
     except Exception as e:
@@ -382,14 +380,10 @@ def run_strong_jikan_sync(db: Session) -> dict:
     try:
         for anime in anime_list:
             try:
-                # Handle potential string/float types gracefully
                 mal_id_int = int(float(anime.mal_id))
-
-                # Fetch fresh data from Jikan
                 mal_data = jikan_client.fetch_mal_data(mal_id_int, anime.system_id)
 
                 if mal_data:
-                    # Force overwrite volatile data
                     if mal_data.get("mal_rating") is not None:
                         anime.mal_rating = str(mal_data["mal_rating"])
                     if mal_data.get("mal_rank") is not None:
@@ -400,7 +394,6 @@ def run_strong_jikan_sync(db: Session) -> dict:
                         f"  └ Updated: {anime.series_en or anime.system_id} (Rating: {anime.mal_rating}, Rank: {anime.mal_rank})"
                     )
 
-                # Respect Jikan's strict rate limits (~3 requests/sec max, 1.5s is safe for bulk loops)
                 time.sleep(1.5)
 
             except ValueError:
@@ -412,22 +405,20 @@ def run_strong_jikan_sync(db: Session) -> dict:
                     f"❌ [Strong Sync] Error fetching data for {anime.system_id}: {e}"
                 )
 
-        # Persist all Jikan updates to PostgreSQL
         db.commit()
 
-        # Push the updated stats to Google Sheets to maintain backup parity
         print("▶️ [Strong Sync] Backing up updated stats to Google Sheets...")
         push_metrics = _push_db_backup_to_sheets(db)
         if not push_metrics["success"]:
             error_msg = "Failed to backup Strong Sync results to Sheets."
 
-        # Log the event
         status = "failed" if error_msg else "success"
         details = {
             "type": "strong_sync",
             "items_updated_from_jikan": updated_count,
             "sheets_backup": push_metrics["success"],
         }
+
         log_sync_event(
             db,
             sync_type="v2_strong_sync",
@@ -436,13 +427,11 @@ def run_strong_jikan_sync(db: Session) -> dict:
             error=error_msg,
             details_json=json.dumps(details),
         )
-
         return {
             "status": status,
             "message": (
                 "Strong Sync completed successfully." if not error_msg else error_msg
             ),
-            "jikan_updated": updated_count,
         }
 
     except Exception as e:

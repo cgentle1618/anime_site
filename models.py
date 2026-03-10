@@ -60,6 +60,8 @@ class AnimeEntry(Base):
 
     mal_id = Column(String)
     mal_link = Column(String)
+    mal_rating = Column(String, nullable=True)  # <-- Added for Strong Sync
+    mal_rank = Column(String, nullable=True)  # <-- Added for Strong Sync
     anilist_link = Column(String)
 
     op = Column(String)
