@@ -1,7 +1,8 @@
 """
 sync_utils.py
 Contains utility functions for cleaning and parsing raw data
-extracted from Google Sheets before inserting it into the database.
+extracted from Google Sheets before inserting it into the PostgreSQL database.
+Optimized for V2.
 """
 
 import re
@@ -11,13 +12,21 @@ from typing import Any, Optional, Type
 def clean_value(val: Any, expected_type: Type = str) -> Any:
     """
     Cleans raw Google Sheets cell values.
-    Converts empty strings or None to a proper Python None.
-    Casts values to the specified expected_type (e.g., int, float, str).
+    Converts empty strings or None to a proper Python None (or False for bools).
+    Casts values to the specified expected_type (e.g., int, float, str, bool).
     """
     if val is None or str(val).strip() == "":
+        # For boolean fields (like Netflix source), an empty cell means False
+        if expected_type == bool:
+            return False
         return None
 
     val_str = str(val).strip()
+
+    # Handle Boolean casting (Google Sheets often sends "TRUE" / "FALSE")
+    if expected_type == bool:
+        return val_str.lower() in ["true", "t", "1", "yes", "y"]
+
     try:
         if expected_type == int:
             return int(float(val_str))  # Handles strings like "1.0" gracefully
@@ -25,6 +34,7 @@ def clean_value(val: Any, expected_type: Type = str) -> Any:
             return float(val_str)
     except ValueError:
         return None
+
     return val_str
 
 
@@ -32,12 +42,15 @@ def extract_mal_id(mal_link: str) -> Optional[int]:
     """
     Extracts the numeric MyAnimeList ID from a standard MAL URL.
     Example: 'https://myanimelist.net/anime/5114/Fullmetal_Alchemist' -> 5114
+    Useful when manually pasting links into the backup Google Sheet.
     """
     if not mal_link:
         return None
+
     match = re.search(r"myanimelist\.net/anime/(\d+)", str(mal_link))
     if match:
         return int(match.group(1))
+
     return None
 
 
@@ -61,29 +74,26 @@ def extract_season_from_cn_title(title_cn: str) -> Optional[str]:
     """
     if not title_cn:
         return None
-    # Match '第X季' where X is an Arabic numeral or Chinese character
+
     match = re.search(r"第\s*([一二三四五六七八九十]+|\d+)\s*季", str(title_cn))
 
     if match:
         num_str = match.group(1)
         if num_str.isdigit():
             return f"Season {num_str}"
-
-        # Map Chinese numerals to Arabic
-        cn_to_num = {
-            "一": 1,
-            "二": 2,
-            "三": 3,
-            "四": 4,
-            "五": 5,
-            "六": 6,
-            "七": 7,
-            "八": 8,
-            "九": 9,
-            "十": 10,
-        }
-        num = cn_to_num.get(num_str)
-        if num:
-            return f"Season {num}"
-
+        else:
+            cn_num_map = {
+                "一": "1",
+                "二": "2",
+                "三": "3",
+                "四": "4",
+                "五": "5",
+                "六": "6",
+                "七": "7",
+                "八": "8",
+                "九": "9",
+                "十": "10",
+            }
+            if num_str in cn_num_map:
+                return f"Season {cn_num_map[num_str]}"
     return None
