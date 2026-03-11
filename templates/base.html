@@ -59,10 +59,50 @@
                   class="{% if request.url.path == '/' %}bg-gray-100 text-gray-900{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} px-3 py-2 rounded-md text-sm font-medium transition"
                   >Dashboard</a
                 >
+
+                <!-- Library Dropdown -->
+                <div class="relative group">
+                  <button
+                    class="{% if request.url.path in ['/library'] %}bg-brand/10 text-brand{% else %}text-gray-600{% endif %} group-hover:text-gray-900 group-hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
+                  >
+                    Library
+                    <i class="fas fa-chevron-down ml-1.5 text-[10px]"></i>
+                  </button>
+                  <div
+                    class="absolute left-0 top-full pt-1 w-40 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+                  >
+                    <div
+                      class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
+                    >
+                      <a
+                        href="/library"
+                        class="px-4 py-2.5 text-sm {% if request.url.path == '/library' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
+                        >Library</a
+                      >
+                      <a
+                        href="#"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
+                        >Series Library</a
+                      >
+                      <a
+                        href="#"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
+                        >Seasonal</a
+                      >
+                      <a
+                        href="#"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        >Future Release</a
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Statistics Navigation Link -->
                 <a
-                  href="/library"
-                  class="{% if request.url.path == '/library' %}bg-gray-100 text-gray-900{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} px-3 py-2 rounded-md text-sm font-medium transition"
-                  >Library</a
+                  href="#"
+                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  >Statistics</a
                 >
 
                 <!-- Admin Dropdown (Only visible to authenticated admins) -->
@@ -171,7 +211,7 @@
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center items-center gap-2 text-sm text-gray-500"
       >
-        &copy; 2026 CG1618 Anime Database. {% if is_admin %}
+        &copy; 2026 CG1618 Anime Database v1.1. {% if is_admin %}
         <span
           class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
           >Admin Mode</span
