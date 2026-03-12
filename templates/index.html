@@ -81,32 +81,12 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
         class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
       ></div>
     </section>
-
-    <!-- Temp Dropped Section -->
-    <section>
-      <div
-        class="flex items-center mb-6 border-b border-gray-200 pb-3 pt-4 sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md"
-      >
-        <h2 class="text-xl font-bold text-gray-900">
-          <i class="fas fa-stop-circle text-red-500 mr-2"></i> Temp Dropped
-        </h2>
-        <span
-          id="count-dropped"
-          class="ml-3 bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-200"
-          >0</span
-        >
-      </div>
-      <div
-        id="grid-dropped"
-        class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
-      ></div>
-    </section>
   </div>
 </main>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // Expose the Jinja2 backend variable to the JS environment
-  const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+  // Secure, localized Admin variable to prevent undefined errors
+  const IS_ADMIN_INDEX = {{ 'true' if is_admin else 'false' }};
 
   let allAnimeData = [];
   let allSeriesData = [];
@@ -142,7 +122,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       const active = [];
       const passive = [];
       const paused = [];
-      const tempDropped = [];
 
       const sortedData = [...allAnimeData].sort((a, b) => {
           const titleA = (a.series_season_cn || a.series_en || "").toLowerCase();
@@ -154,7 +133,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           if (anime.my_progress === "Active Watching") active.push(anime);
           else if (anime.my_progress === "Passive Watching") passive.push(anime);
           else if (anime.my_progress === "Paused") paused.push(anime);
-          else if (anime.my_progress === "Temp Dropped") tempDropped.push(anime);
       });
 
       const totalActive = active.length + passive.length;
@@ -163,7 +141,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       populateGrid('grid-active', 'count-active', active);
       populateGrid('grid-passive', 'count-passive', passive);
       populateGrid('grid-paused', 'count-paused', paused);
-      populateGrid('grid-dropped', 'count-dropped', tempDropped);
   }
 
   function populateGrid(gridId, countId, dataArray) {
@@ -182,90 +159,117 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
   }
 
   function createDashboardCard(anime) {
-      const title = anime.series_season_cn || anime.series_season_en || anime.series_en || "Unknown Title";
-      const subTitle = anime.series_en || "";
+      const title = anime.series_season_cn || anime.series_en || "Unknown Title";
+      const subTitle = anime.series_season_en || anime.series_en || "";
 
-      const epFin = anime.ep_fin || 0;
-      const epTotal = anime.ep_total || "?";
+      // V2 Image Rendering with local routing
+      const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
+      const imageUrl = anime.cover_image_file ? `/static/covers/${anime.cover_image_file}` : fallbackSvg;
+
+      // V2 Cumulative Episode Calculations (Now utilizing global utility)
+      const { localFin, localTotal, cumFin, cumTotal, prevEpsTotal } = calculateCumulativeEpisodes(anime, allAnimeData);
 
       let progressPercent = 0;
       let progressStyle = `width: 0%`;
 
-      if (anime.ep_total) {
-          progressPercent = Math.round((epFin / anime.ep_total) * 100);
+      // Progress bar reflects Cumulative totals for better sense of progression
+      if (cumTotal !== "?") {
+          progressPercent = Math.round((cumFin / cumTotal) * 100);
           progressStyle = `width: ${progressPercent}%`;
-      } else if (epFin > 0) {
+      } else if (localFin > 0) {
           progressPercent = "Ongoing";
           progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
       }
 
-      let statusBadge = "";
-      if (anime.my_progress === "Active Watching") statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-200 shadow-sm">${anime.my_progress}</span>`;
-      else if (anime.my_progress === "Passive Watching") statusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 shadow-sm">${anime.my_progress}</span>`;
-      else if (anime.my_progress === "Temp Dropped") statusBadge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 shadow-sm">${anime.my_progress}</span>`;
-      else statusBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-200 shadow-sm">${anime.my_progress}</span>`;
+      // V2 Airing Status Badge
+      let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
+      if (anime.airing_status === "Airing") statusColor = "bg-green-100 text-green-700 border-green-200";
+      else if (anime.airing_status === "Finished Airing") statusColor = "bg-blue-100 text-blue-700 border-blue-200";
+      else if (anime.airing_status === "Not Yet Aired") statusColor = "bg-orange-100 text-orange-700 border-orange-200";
 
-      const hasBaha = String(anime.source_baha || "").toUpperCase() === "TRUE" || String(anime.source_baha || "").toUpperCase() === "YES" || String(anime.source_baha || "") === "有";
-      const bahaIcon = hasBaha ? `<span class="text-[#00B4D8] ml-2" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>` : "";
+      const airingStatusBadge = `<span class="${statusColor} px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[90px] text-center">${anime.airing_status || "Unknown"}</span>`;
 
-      const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
+      // V2 Streaming Icons Logic
+      let streamingIcons = `<div class="flex items-center gap-2 ml-1">`;
+      if (String(anime.source_baha).toUpperCase() === "TRUE" && anime.baha_link) {
+          streamingIcons += `<a href="${anime.baha_link}" target="_blank" onclick="event.stopPropagation()" class="text-[#00B4D8] hover:opacity-80 transition text-sm" title="Watch on Bahamut"><i class="fas fa-play-circle"></i></a>`;
+      } else if (String(anime.source_baha).toUpperCase() === "TRUE") {
+          streamingIcons += `<span class="text-[#00B4D8] text-sm" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>`;
+      }
+
+      if (String(anime.source_netflix).toUpperCase() === "TRUE") {
+          streamingIcons += `<span class="text-[#E50914] font-black text-[13px] leading-none" title="Available on Netflix">N</span>`;
+      }
+
+      if (anime.source_other && anime.source_other_link) {
+          streamingIcons += `<a href="${anime.source_other_link}" target="_blank" onclick="event.stopPropagation()" class="text-purple-600 hover:text-purple-800 transition text-[10px] font-bold uppercase tracking-wide bg-purple-50 px-1.5 py-0.5 rounded" title="Watch on ${anime.source_other}">${anime.source_other}</a>`;
+      } else if (anime.source_other) {
+          streamingIcons += `<span class="text-gray-500 text-[10px] font-bold uppercase tracking-wide bg-gray-100 px-1.5 py-0.5 rounded" title="Available on ${anime.source_other}">${anime.source_other}</span>`;
+      }
+      streamingIcons += `</div>`;
 
       // Conditional Interactive Controls based on Guest/Admin Role
       let interactiveControls = "";
-      if (IS_ADMIN) {
+      if (IS_ADMIN_INDEX) {
+          // Admin Quick Edit Pencil
+          const editPencil = `<button onclick="window.location.href='/modify?id=${anime.system_id}'; event.stopPropagation();" class="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100" title="Quick Edit"><i class="fas fa-pencil-alt text-xs"></i></button>`;
+
           interactiveControls = `
-            <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm">
-                <button onclick="optimisticUpdate('${anime.system_id}', -1); event.stopPropagation();" class="w-8 h-8 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
-                    <i class="fas fa-minus text-xs"></i>
+            ${editPencil}
+            <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+                <button onclick="optimisticUpdate('${anime.system_id}', -1); event.stopPropagation();" class="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
+                    <i class="fas fa-minus text-[10px]"></i>
                 </button>
-                <div class="font-mono font-bold text-base tracking-wide flex items-baseline justify-center select-none">
+                <div class="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap overflow-hidden">
                     <input
                       type="number"
                       id="ep-input-${anime.system_id}"
                       onblur="handleDirectEpUpdate('${anime.system_id}', this.value)"
                       onkeydown="if(event.key==='Enter') this.blur();"
-                      class="text-gray-900 w-10 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
-                      value="${epFin}"
+                      class="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                      value="${localFin}"
                     />
-                    <span class="text-gray-400 mx-1 text-sm">/</span>
-                    <span class="text-gray-500 text-sm w-8 text-center">${epTotal}</span>
+                    <span class="text-gray-400 mx-0.5 text-xs">/</span>
+                    <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
+                    ${prevEpsTotal > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ''}
                 </div>
-                <button onclick="optimisticUpdate('${anime.system_id}', 1); event.stopPropagation();" class="w-8 h-8 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
-                    <i class="fas fa-plus text-xs"></i>
+                <button onclick="optimisticUpdate('${anime.system_id}', 1); event.stopPropagation();" class="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
+                    <i class="fas fa-plus text-[10px]"></i>
                 </button>
             </div>`;
       } else {
           interactiveControls = `
-            <div class="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[44px]">
-                <div class="font-mono font-bold text-base tracking-wide flex items-baseline justify-center select-none">
-                    <span class="text-gray-900 w-8 text-center">${epFin}</span>
-                    <span class="text-gray-400 mx-1 text-sm">/</span>
-                    <span class="text-gray-500 text-sm w-8 text-center">${epTotal}</span>
+            <div class="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
+                <div class="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
+                    <span class="text-gray-900 w-6 text-center">${localFin}</span>
+                    <span class="text-gray-400 mx-0.5 text-xs">/</span>
+                    <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
+                    ${prevEpsTotal > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ''}
                 </div>
             </div>`;
       }
 
       return `
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full cursor-pointer" onclick="window.location.href='/anime/${anime.system_id}'">
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full cursor-pointer relative" onclick="window.location.href='/anime/${anime.system_id}'">
             <div class="flex p-3">
-                <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                    <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
+                <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
+                    <img src="${imageUrl}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
                 </div>
                 <div class="ml-4 flex-1 min-w-0 flex flex-col justify-center">
                     <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-tight mb-1" title="${title}">${title}</h3>
                     <p class="text-xs text-gray-500 truncate mb-2" title="${subTitle}">${subTitle}</p>
                     <div class="flex items-center flex-wrap gap-1.5 mt-auto">
-                        ${statusBadge}
+                        ${airingStatusBadge}
                         <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm"><i class="fas fa-tv mr-1"></i>${anime.airing_type || "TV"}</span>
-                        ${bahaIcon}
+                        ${streamingIcons}
                     </div>
                 </div>
             </div>
 
-            <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto cursor-default" onclick="event.stopPropagation();">
+            <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto cursor-default relative z-10" onclick="event.stopPropagation();">
                 <div class="flex justify-between items-end mb-1.5">
                     <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
-                    <span class="text-[10px] font-bold text-brand">${progressPercent}${anime.ep_total ? '%' : ''}</span>
+                    <span class="text-[10px] font-bold text-brand">${progressPercent}${cumTotal !== "?" ? '%' : ''}</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
                     <div class="bg-brand h-1.5 rounded-full transition-all duration-500" style="${progressStyle}"></div>
@@ -279,59 +283,63 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
   // --- Dynamic Input Handlers ---
   function handleDirectEpUpdate(sys_id, val) {
-      if (!IS_ADMIN) return;
-      let newEps = parseInt(val, 10);
+      if (!IS_ADMIN_INDEX) return;
+      let typedLocal = parseInt(val, 10);
 
-      if (isNaN(newEps)) {
+      if (isNaN(typedLocal)) {
           renderDashboard(); // Revert invalid input instantly
           return;
       }
-      setEpisodeProgress(sys_id, newEps);
+
+      // The input strictly modifies local ep_fin
+      if (typedLocal < 0) typedLocal = 0;
+
+      setEpisodeProgress(sys_id, typedLocal);
   }
 
   function optimisticUpdate(sys_id, change) {
-      if (!IS_ADMIN) return;
+      if (!IS_ADMIN_INDEX) return;
       const index = allAnimeData.findIndex(a => a.system_id === sys_id);
       if (index === -1) return;
 
       const anime = allAnimeData[index];
-      const currentEps = anime.ep_fin || 0;
-      const totalEps = anime.ep_total;
+      const currentLocalEps = anime.ep_fin || 0;
+      const totalLocalEps = anime.ep_total;
 
-      let targetEps = currentEps + change;
+      let targetLocalEps = currentLocalEps + change;
 
-      // Silently cap for button clicks to prevent annoying popups
-      if (totalEps && targetEps > totalEps) targetEps = totalEps;
-      if (targetEps < 0) targetEps = 0;
+      // Silently cap for button clicks to prevent annoying popups based on local caps
+      if (totalLocalEps && targetLocalEps > totalLocalEps) targetLocalEps = totalLocalEps;
+      if (targetLocalEps < 0) targetLocalEps = 0;
 
-      setEpisodeProgress(sys_id, targetEps);
+      setEpisodeProgress(sys_id, targetLocalEps);
   }
 
-  async function setEpisodeProgress(sys_id, newEps) {
-      if (!IS_ADMIN) return;
+  async function setEpisodeProgress(sys_id, newLocalEps) {
+      if (!IS_ADMIN_INDEX) return;
       const index = allAnimeData.findIndex(a => a.system_id === sys_id);
       if (index === -1) return;
 
       const anime = allAnimeData[index];
-      const currentEps = anime.ep_fin || 0;
-      const totalEps = anime.ep_total;
+      const currentLocalEps = anime.ep_fin || 0;
+      const totalLocalEps = anime.ep_total;
 
-      if (newEps < 0) newEps = 0;
+      if (newLocalEps < 0) newLocalEps = 0;
 
-      // Warning for Direct Input Overflow
-      if (totalEps && newEps > totalEps) {
-          if (typeof showToast === 'function') showToast(`Warning: Cannot set watched episodes (${newEps}) higher than total (${totalEps}).`, true);
+      // Warning for Direct Input Overflow (Local Check)
+      if (totalLocalEps && newLocalEps > totalLocalEps) {
+          if (typeof showToast === 'function') showToast(`Warning: Cannot set watched episodes higher than the season's maximum.`, true);
           renderDashboard(); // Reset UI safely
           return;
       }
 
-      if (newEps === currentEps) {
+      if (newLocalEps === currentLocalEps) {
           renderDashboard(); // Ensure UI is completely clean
           return;
       }
 
       // 1. Optimistic Update
-      allAnimeData[index].ep_fin = newEps;
+      allAnimeData[index].ep_fin = newLocalEps;
       renderDashboard();
 
       // 2. Background API Request
@@ -339,62 +347,17 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           const res = await fetch(`/api/anime/${sys_id}/progress`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ep_fin: newEps })
+              body: JSON.stringify({ ep_fin: newLocalEps })
           });
 
           if (!res.ok) throw new Error((await res.json()).detail || "Failed to sync to database");
 
       } catch (error) {
           console.error("Optimistic Update Failed:", error);
-          allAnimeData[index].ep_fin = currentEps;
+          allAnimeData[index].ep_fin = currentLocalEps;
           renderDashboard();
           showToast("Network error. Progress reverted.", true);
       }
-  }
-
-  // --- Admin Sync Button Handler ---
-  async function handleSync() {
-    if (!IS_ADMIN) return;
-    const icon = document.getElementById("syncIcon");
-    const btn = document.getElementById("syncBtn");
-    icon.classList.add("fa-spin");
-    btn.classList.add("opacity-75", "pointer-events-none");
-    btn.innerText = " Syncing...";
-    btn.prepend(icon);
-
-    try {
-      const response = await fetch(`/api/admin/sync`, { method: "POST" });
-      if (response.ok) {
-        icon.classList.remove("fa-spin", "fa-sync-alt");
-        icon.classList.add("fa-check");
-        btn.classList.remove("bg-brand", "hover:bg-brand-hover", "opacity-75", "pointer-events-none");
-        btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
-        btn.innerText = " Synced!";
-        btn.prepend(icon);
-        showToast("Successfully synchronized with Google Sheets!");
-
-        // Refresh both the dashboard data and the global search cache
-        await loadDashboard();
-        if (typeof loadUniversalSearchData === 'function') await loadUniversalSearchData();
-
-        setTimeout(() => {
-            icon.classList.remove("fa-check");
-            icon.classList.add("fa-sync-alt");
-            btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
-            btn.classList.add("bg-brand", "hover:bg-brand-hover");
-            btn.innerText = " Sync";
-            btn.prepend(icon);
-        }, 2000);
-      } else {
-        throw new Error((await response.json()).detail);
-      }
-    } catch (error) {
-      icon.classList.remove("fa-spin");
-      btn.classList.remove("opacity-75", "pointer-events-none");
-      btn.innerText = " Sync";
-      btn.prepend(icon);
-      showToast(`Sync Error: ${error.message}`, true);
-    }
   }
 
   document.addEventListener('DOMContentLoaded', loadDashboard);
