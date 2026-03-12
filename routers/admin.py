@@ -169,6 +169,57 @@ def delete_anime(system_id: str, db: Session = Depends(get_db)):
     return {"message": "Anime deleted successfully."}
 
 
+@router.post("/series", summary="Add New Series Hub")
+def add_series_hub(payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get_db)):
+    """
+    Creates a new Franchise Hub (AnimeSeries) directly in the PostgreSQL database.
+    Then triggers a bulk push to Google Sheets to update the backup.
+    """
+    display_title = (
+        payload.series_en
+        or payload.series_cn
+        or payload.series_roman
+        or "Unknown Series"
+    )
+    print(f"\n▶️ [POST /admin/series] Request to create Hub: {display_title}")
+
+    sys_id = payload.system_id or str(uuid.uuid4())
+
+    # 1. Check if it already exists
+    existing = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == sys_id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400, detail="Series Hub with this system_id already exists."
+        )
+
+    # 2. Create the Hub in the DB
+    new_series = models.AnimeSeries(
+        system_id=sys_id,
+        series_en=payload.series_en,
+        series_roman=payload.series_roman,
+        series_cn=payload.series_cn,
+        rating_series=payload.rating_series,
+        series_alt_name=payload.series_alt_name,
+        series_expectation=payload.series_expectation,
+        favorite_3x3_slot=payload.favorite_3x3_slot,
+    )
+
+    db.add(new_series)
+    db.commit()
+
+    # 3. Bulk Backup to Google Sheets
+    sync_engine.run_full_sync(db, direction="push")
+
+    return {
+        "message": f"Successfully created Series Hub: {display_title}",
+        "system_id": sys_id,
+    }
+
+
 # ==========================================
 # SYSTEM OPTIONS (DYNAMIC DROPDOWNS)
 # ==========================================
@@ -276,21 +327,15 @@ def sync_strong_jikan(db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.get(
-    "/logs",
-    response_model=schemas.PaginatedSyncLogResponse,
-    summary="Get Admin Sync Logs",
-)
+@router.get("/logs", summary="Get Admin Sync Logs")
 def get_admin_logs(limit: int = 50, db: Session = Depends(get_db)):
     """Retrieves recent synchronization logs for the admin dashboard."""
-    logs = (
+    return (
         db.query(models.SyncLog)
         .order_by(models.SyncLog.timestamp.desc())
         .limit(limit)
         .all()
     )
-    total = db.query(models.SyncLog).count()
-    return {"total": total, "logs": logs}
 
 
 @router.get("/deletions", summary="Get Recent Deletions")
