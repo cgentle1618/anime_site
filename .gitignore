@@ -5,3 +5,4 @@ credentials.json
 postgres_anime_data/
 one_time/
 static/covers/
+.vs/
