@@ -276,15 +276,21 @@ def sync_strong_jikan(db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.get("/logs", summary="Get Admin Sync Logs")
+@router.get(
+    "/logs",
+    response_model=schemas.PaginatedSyncLogResponse,
+    summary="Get Admin Sync Logs",
+)
 def get_admin_logs(limit: int = 50, db: Session = Depends(get_db)):
     """Retrieves recent synchronization logs for the admin dashboard."""
-    return (
+    logs = (
         db.query(models.SyncLog)
         .order_by(models.SyncLog.timestamp.desc())
         .limit(limit)
         .all()
     )
+    total = db.query(models.SyncLog).count()
+    return {"total": total, "logs": logs}
 
 
 @router.get("/deletions", summary="Get Recent Deletions")
