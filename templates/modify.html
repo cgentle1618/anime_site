@@ -392,6 +392,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
               </select>
             </div>
 
+            <!-- Dynamic Genres -->
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -553,7 +554,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
               >
                 <option value="">-</option>
                 <option value="TRUE">TRUE (有)</option>
-                <option value="FALSE">FALSE (無)</option>
+                <option value="FALSE" selected>FALSE (無)</option>
               </select>
             </div>
           </div>
@@ -1077,7 +1078,8 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+  const is_admin_val = "{{ 'true' if is_admin else 'false' }}";
+  const IS_ADMIN_MODIFY = is_admin_val === "true";
 
   // Global State
   let allAnime = [];
@@ -1095,855 +1097,1245 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
   let pendingSeriesBtn = null;
   let pendingConnectedAnime = [];
 
-  function onSyncComplete() { loadDatabase(); }
-
   function switchTab(tabName) {
-      const animeSec = document.getElementById('section-anime');
-      const seriesSec = document.getElementById('section-series');
-      const tAnime = document.getElementById('tab-anime');
-      const tSeries = document.getElementById('tab-series');
+    const animeSec = document.getElementById("section-anime");
+    const seriesSec = document.getElementById("section-series");
+    const tAnime = document.getElementById("tab-anime");
+    const tSeries = document.getElementById("tab-series");
 
-      if (tabName === 'anime') {
-          animeSec.classList.remove('hidden');
-          seriesSec.classList.add('hidden');
-          tAnime.className = "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active";
-          tSeries.className = "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive";
-      } else {
-          animeSec.classList.add('hidden');
-          seriesSec.classList.remove('hidden');
-          tAnime.className = "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive";
-          tSeries.className = "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active";
-      }
+    if (tabName === "anime") {
+      animeSec.classList.remove("hidden");
+      seriesSec.classList.add("hidden");
+      tAnime.className =
+        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active";
+      tSeries.className =
+        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive";
+    } else {
+      animeSec.classList.add("hidden");
+      seriesSec.classList.remove("hidden");
+      tAnime.className =
+        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive";
+      tSeries.className =
+        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active";
+    }
   }
 
   // --- Initial Data Load ---
   async function loadDatabase() {
-      try {
-          // Hardcoded direct paths prevent scoping errors
-          const resAnime = await fetch('/api/anime');
-          if (resAnime.ok) allAnime = await resAnime.json();
-
-          const resSeries = await fetch('/api/series');
-          if (resSeries.ok) allSeries = await resSeries.json();
-      } catch (e) {
-          console.error("Failed to load initial data for modify page.", e);
+    try {
+      const resAnime = await fetch("/api/anime");
+      if (resAnime.ok) {
+        const data = await resAnime.json();
+        if (Array.isArray(data)) allAnime = data;
       }
+
+      const resSeries = await fetch("/api/series");
+      if (resSeries.ok) {
+        const data = await resSeries.json();
+        if (Array.isArray(data)) allSeries = data;
+      }
+    } catch (e) {
+      console.error("Failed to load initial data for modify page.", e);
+    }
   }
 
   // --- Smart Search Normalization ---
   function normalizeStr(str) {
-      if (!str) return "";
-      return str.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+    if (!str) return "";
+    return String(str)
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff]/g, "");
   }
 
   // Hide dropdowns when clicking outside
-  document.addEventListener('click', (e) => {
-      if (!e.target.closest('.search-container-anime') && !e.target.closest('#anime-search-results')) {
-          document.getElementById('anime-search-results').classList.add('hidden');
+  document.addEventListener("click", (e) => {
+    if (
+      !e.target.closest(".search-container-anime") &&
+      !e.target.closest("#anime-search-results")
+    ) {
+      document.getElementById("anime-search-results").classList.add("hidden");
+    }
+    if (
+      !e.target.closest(".search-container-series") &&
+      !e.target.closest("#series-search-results")
+    ) {
+      document.getElementById("series-search-results").classList.add("hidden");
+    }
+    document.querySelectorAll(".autocomplete-dropdown").forEach((el) => {
+      if (!el.parentElement.contains(e.target)) {
+        el.classList.add("hidden");
       }
-      if (!e.target.closest('.search-container-series') && !e.target.closest('#series-search-results')) {
-          document.getElementById('series-search-results').classList.add('hidden');
-      }
-      document.querySelectorAll('.autocomplete-dropdown').forEach(el => {
-          if (!el.parentElement.contains(e.target)) {
-              el.classList.add('hidden');
-          }
-      });
+    });
   });
 
   // --- Autocomplete Feature Logic ---
   function handleAutocomplete(inputEl, targetField) {
-      const query = normalizeStr(inputEl.value);
-      const resultsContainer = inputEl.nextElementSibling;
+    const query = normalizeStr(inputEl.value);
+    const resultsContainer = inputEl.nextElementSibling;
 
-      if (!query) {
-          resultsContainer.classList.add('hidden');
-          return;
-      }
+    if (!query) {
+      resultsContainer.classList.add("hidden");
+      return;
+    }
 
-      let suggestions = new Map();
+    let suggestions = new Map();
 
-      if (targetField === 'series_en') {
-          allSeries.forEach(s => {
-              if (normalizeStr(s.series_en).includes(query)) suggestions.set(s.series_en, { val: s.series_en, series: s.series_en });
-              if (normalizeStr(s.series_cn).includes(query) && s.series_en) suggestions.set(s.series_en, { val: s.series_en, series: s.series_en });
+    if (targetField === "series_en") {
+      allSeries.forEach((s) => {
+        if (s.series_en && normalizeStr(s.series_en).includes(query))
+          suggestions.set(s.series_en, {
+            val: s.series_en,
+            series: s.series_en,
           });
-          allAnime.forEach(a => {
-              if (normalizeStr(a.series_en).includes(query) && a.series_en) suggestions.set(a.series_en, { val: a.series_en, series: a.series_en });
+        if (
+          s.series_cn &&
+          normalizeStr(s.series_cn).includes(query) &&
+          s.series_en
+        )
+          suggestions.set(s.series_en, {
+            val: s.series_en,
+            series: s.series_en,
           });
-      } else {
-          allAnime.forEach(a => {
-              const val = a[targetField];
-              if (val && normalizeStr(val).includes(query)) {
-                  suggestions.set(val, { val: val, series: a.series_en });
-              }
+        if (
+          s.series_alt_name &&
+          normalizeStr(s.series_alt_name).includes(query) &&
+          s.series_en
+        )
+          suggestions.set(s.series_en, {
+            val: s.series_en,
+            series: s.series_en,
           });
-      }
+      });
+      allAnime.forEach((a) => {
+        if (a.series_en && normalizeStr(a.series_en).includes(query))
+          suggestions.set(a.series_en, {
+            val: a.series_en,
+            series: a.series_en,
+          });
+        if (
+          a.anime_alt_name &&
+          normalizeStr(a.anime_alt_name).includes(query) &&
+          a.series_en
+        )
+          suggestions.set(a.series_en, {
+            val: a.series_en,
+            series: a.series_en,
+          });
+      });
+    } else {
+      allAnime.forEach((a) => {
+        const val = a[targetField];
+        if (val && normalizeStr(val).includes(query)) {
+          suggestions.set(val, { val: val, series: a.series_en });
+        }
+      });
+    }
 
-      const filtered = Array.from(suggestions.values()).slice(0, 8);
+    const filtered = Array.from(suggestions.values()).slice(0, 8);
 
-      if (filtered.length === 0) {
-          resultsContainer.classList.add('hidden');
-          return;
-      }
+    if (filtered.length === 0) {
+      resultsContainer.classList.add("hidden");
+      return;
+    }
 
-      resultsContainer.innerHTML = filtered.map(item => {
-          const safeVal = item.val.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-          const safeSeries = (item.series || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-          return `
+    // Safely check for nulls before using string replace
+    resultsContainer.innerHTML = filtered
+      .map((item) => {
+        const safeVal = item.val
+          ? String(item.val).replace(/'/g, "&#39;").replace(/"/g, "&quot;")
+          : "";
+        const safeSeries = item.series
+          ? String(item.series).replace(/'/g, "&#39;").replace(/"/g, "&quot;")
+          : "";
+        return `
               <div class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0"
                    onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}')">
                   <div class="font-bold text-gray-900 truncate">${item.val}</div>
-                  ${targetField !== 'series_en' && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}</div>` : ''}
+                  ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}</div>` : ""}
               </div>
           `;
-      }).join('');
+      })
+      .join("");
 
-      resultsContainer.classList.remove('hidden');
+    resultsContainer.classList.remove("hidden");
   }
 
   function selectSuggestion(inputId, val, seriesEn) {
-      const decodedVal = val.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-      const decodedSeries = seriesEn.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+    document.getElementById(inputId).value = val
+      ? String(val)
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+      : "";
+    document.getElementById(inputId).nextElementSibling.classList.add("hidden");
 
-      document.getElementById(inputId).value = decodedVal;
-      document.getElementById(inputId).nextElementSibling.classList.add('hidden');
-
-      if (inputId !== 'edit-series-en' && decodedSeries) {
-          document.getElementById('edit-series-en').value = decodedSeries;
-      }
+    if (inputId !== "edit-series-en" && seriesEn) {
+      document.getElementById("edit-series-en").value = String(seriesEn)
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"');
+    }
   }
 
   // --- Search & Filtering (Anime) ---
   function filterAnimeSearch() {
-      const rawQuery = document.getElementById('anime-search-input').value;
-      const query = normalizeStr(rawQuery);
-      const resultsContainer = document.getElementById('anime-search-results');
+    const rawQuery = document.getElementById("anime-search-input").value;
+    const query = normalizeStr(rawQuery);
+    const resultsContainer = document.getElementById("anime-search-results");
 
-      if (!query) {
-          resultsContainer.classList.add('hidden');
-          return;
-      }
+    if (!query) {
+      resultsContainer.classList.add("hidden");
+      return;
+    }
 
-      const matchingSeriesEnNames = new Set(allSeries.filter(s => {
-          const searchStr = normalizeStr([s.series_en, s.series_cn, s.series_roman, s.alt_name].filter(Boolean).join(''));
+    const matchingSeriesEnNames = new Set(
+      allSeries
+        .filter((s) => {
+          const searchStr = normalizeStr(
+            [s.series_en, s.series_cn, s.series_roman, s.series_alt_name]
+              .filter(Boolean)
+              .join(""),
+          );
           return searchStr.includes(query);
-      }).map(s => s.series_en));
+        })
+        .map((s) => s.series_en),
+    );
 
-      const filtered = allAnime.filter(a => {
-          const directStr = normalizeStr([a.series_en, a.series_season_en, a.series_season_cn, a.series_season_roman].filter(Boolean).join(''));
-          return directStr.includes(query) || matchingSeriesEnNames.has(a.series_en);
-      }).slice(0, 15);
+    const filtered = allAnime
+      .filter((a) => {
+        const directStr = normalizeStr(
+          [
+            a.series_en,
+            a.series_season_en,
+            a.series_season_cn,
+            a.series_season_roman,
+            a.anime_alt_name,
+          ]
+            .filter(Boolean)
+            .join(""),
+        );
+        return (
+          directStr.includes(query) || matchingSeriesEnNames.has(a.series_en)
+        );
+      })
+      .slice(0, 15);
 
-      if (filtered.length === 0) {
-          resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
-      } else {
-          const headerHtml = typeof isRecent !== 'undefined' && isRecent ? `<div class="px-4 py-2 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 sticky top-0"><i class="fas fa-history mr-1"></i> Recent Entries</div>` : '';
-          resultsContainer.innerHTML = headerHtml + filtered.map(a => {
-              const displayTitle = a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en || 'Unknown Title';
-              return `
-              <div onclick='selectAnime(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-brand/5 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+    if (filtered.length === 0) {
+      resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+    } else {
+      resultsContainer.innerHTML = filtered
+        .map((a) => {
+          const displayTitle =
+            a.series_season_cn ||
+            a.series_season_en ||
+            a.series_season_roman ||
+            a.series_en ||
+            "Unknown Title";
+          return `
+              <div onclick="selectAnime('${a.system_id}')" class="p-3 px-4 hover:bg-brand/5 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0 flex-1 pr-2">
                       <div class="font-bold text-gray-800 text-sm truncate">${displayTitle}</div>
                       <div class="text-[11px] text-gray-500 truncate mt-0.5">
-                          From series: <span class="font-semibold text-gray-700">${a.series_en || '-'}</span> • ${a.airing_type || '-'}
+                          From series: <span class="font-semibold text-gray-700">${a.series_en || "-"}</span> • ${a.airing_type || "-"}
                       </div>
                   </div>
                   <i class="fas fa-edit text-brand opacity-0 group-hover:opacity-100 transition shrink-0 ml-2"></i>
               </div>
               `;
-          }).join('');
-      }
-      resultsContainer.classList.remove('hidden');
+        })
+        .join("");
+    }
+    resultsContainer.classList.remove("hidden");
   }
 
   // --- Form Population (Anime) ---
-  function selectAnime(anime) {
-      document.getElementById('anime-search-results').classList.add('hidden');
-      document.getElementById('anime-search-input').value = anime.series_season_cn || anime.series_season_en || anime.series_season_roman || anime.series_en;
-      document.getElementById('anime-edit-container').classList.remove('hidden');
-      document.getElementById('last-updated-display').classList.add('hidden');
+  function selectAnime(sysId) {
+    const anime = allAnime.find((a) => a.system_id === sysId);
+    if (!anime) return;
 
-      const setVal = (id, val) => document.getElementById(id).value = val || '';
+    document.getElementById("anime-search-results").classList.add("hidden");
+    document.getElementById("anime-search-input").value =
+      anime.series_season_cn ||
+      anime.series_season_en ||
+      anime.series_season_roman ||
+      anime.series_en;
+    document.getElementById("anime-edit-container").classList.remove("hidden");
+    document.getElementById("last-updated-display").classList.add("hidden");
 
-      setVal('edit-system-id', anime.system_id);
-      setVal('edit-series-en', anime.series_en);
-      setVal('edit-season', anime.series_season);
-      setVal('edit-season-en', anime.series_season_en);
-      setVal('edit-season-roman', anime.series_season_roman);
-      setVal('edit-season-cn', anime.series_season_cn);
+    const setVal = (id, val) => (document.getElementById(id).value = val || "");
 
-      let dbProgress = anime.my_progress;
-      if (dbProgress === "Finished") dbProgress = "Completed";
-      setVal('edit-progress', dbProgress);
+    setVal("edit-system-id", anime.system_id);
+    setVal("edit-series-en", anime.series_en);
+    setVal("edit-season", anime.series_season);
+    setVal("edit-season-en", anime.series_season_en);
+    setVal("edit-season-roman", anime.series_season_roman);
+    setVal("edit-season-cn", anime.series_season_cn);
 
-      setVal('edit-airing-status', anime.airing_status);
-      setVal('edit-ep-fin', anime.ep_fin);
-      setVal('edit-ep-total', anime.ep_total);
-      setVal('edit-rating', anime.rating_mine);
-      setVal('edit-type', anime.airing_type);
-      setVal('edit-main-spinoff', anime.main_spinoff);
-      setVal('edit-director', anime.director);
-      setVal('edit-distributor', anime.distributor_tw);
-      setVal('edit-baha', anime.source_baha);
-      setVal('edit-netflix', anime.source_netflix);
-      setVal('edit-mal-id', anime.mal_id);
-      setVal('edit-mal-link', anime.mal_link);
-      setVal('edit-anilist-link', anime.anilist_link);
-      setVal('edit-op', anime.op);
-      setVal('edit-ed', anime.ed);
-      setVal('edit-insert', anime.insert_ost);
-      setVal('edit-remark', anime.remark);
+    let dbProgress = anime.my_progress;
+    if (dbProgress === "Finished") dbProgress = "Completed";
+    setVal("edit-progress", dbProgress);
 
-      // Parse Release Date
-      const rd = anime.release_date || "";
-      const rdParts = rd.split(" ");
-      let rS = "", rM = "", rY = "";
-      rdParts.forEach(p => {
-          if (["WIN", "SPR", "SUM", "FAL"].includes(p)) rS = p;
-          else if (["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"].includes(p)) rM = p;
-          else if (!isNaN(parseInt(p))) rY = p;
-      });
-      setVal('edit-release-season', rS);
-      setVal('edit-release-month', rM);
-      setVal('edit-release-year', rY);
+    setVal("edit-airing-status", anime.airing_status);
+    setVal("edit-ep-fin", anime.ep_fin);
+    setVal("edit-ep-total", anime.ep_total);
+    setVal("edit-rating", anime.rating_mine);
+    setVal("edit-type", anime.airing_type);
+    setVal("edit-main-spinoff", anime.main_spinoff);
+    setVal("edit-director", anime.director);
+    setVal("edit-distributor", anime.distributor_tw);
+    setVal("edit-baha", anime.source_baha);
+    setVal("edit-netflix", anime.source_netflix);
+    setVal("edit-mal-id", anime.mal_id);
+    setVal("edit-mal-link", anime.mal_link);
+    setVal("edit-anilist-link", anime.anilist_link);
+    setVal("edit-op", anime.op);
+    setVal("edit-ed", anime.ed);
+    setVal("edit-insert", anime.insert_ost);
+    setVal("edit-remark", anime.remark);
 
-      // Parse Genres
-      const gm = anime.genre_main ? anime.genre_main.split(", ") : [];
-      document.querySelectorAll('input[name="edit_genre_main"]').forEach(cb => cb.checked = gm.includes(cb.value));
+    // Parse Release Date
+    const rd = anime.release_date || "";
+    const rdParts = rd.split(" ");
+    let rS = "",
+      rM = "",
+      rY = "";
+    rdParts.forEach((p) => {
+      if (["WIN", "SPR", "SUM", "FAL"].includes(p)) rS = p;
+      else if (
+        [
+          "JAN",
+          "FEB",
+          "MAR",
+          "APR",
+          "MAY",
+          "JUN",
+          "JUL",
+          "AUG",
+          "SEP",
+          "OCT",
+          "NOV",
+          "DEC",
+        ].includes(p)
+      )
+        rM = p;
+      else if (!isNaN(parseInt(p))) rY = p;
+    });
+    setVal("edit-release-season", rS);
+    setVal("edit-release-month", rM);
+    setVal("edit-release-year", rY);
 
-      const gs = anime.genre_sub ? anime.genre_sub.split(", ") : [];
-      document.querySelectorAll('input[name="edit_genre_sub"]').forEach(cb => cb.checked = gs.includes(cb.value));
+    // Parse Genres
+    const gm = anime.genre_main ? anime.genre_main.split(", ") : [];
+    document
+      .querySelectorAll('input[name="edit_genre_main"]')
+      .forEach((cb) => (cb.checked = gm.includes(cb.value)));
 
-      // Parse Studios
-      selectedStudios.clear();
-      if (anime.studio) anime.studio.split(", ").forEach(s => selectedStudios.add(s.trim()));
-      renderStudioTags();
+    const gs = anime.genre_sub ? anime.genre_sub.split(", ") : [];
+    document
+      .querySelectorAll('input[name="edit_genre_sub"]')
+      .forEach((cb) => (cb.checked = gs.includes(cb.value)));
+
+    // Parse Studios
+    selectedStudios.clear();
+    if (anime.studio)
+      anime.studio.split(", ").forEach((s) => selectedStudios.add(s.trim()));
+    renderStudioTags();
   }
 
   function closeAnimeEditor() {
-      document.getElementById('anime-edit-container').classList.add('hidden');
-      document.getElementById('edit-anime-form').reset();
-      document.getElementById('anime-search-input').value = '';
-      selectedStudios.clear();
-      renderStudioTags();
+    document.getElementById("anime-edit-container").classList.add("hidden");
+    document.getElementById("edit-anime-form").reset();
+    document.getElementById("anime-search-input").value = "";
+    selectedStudios.clear();
+    renderStudioTags();
   }
 
   // --- Search & Filtering (Series) ---
   function filterSeriesSearch() {
-      const rawQuery = document.getElementById('series-search-input').value;
-      const query = normalizeStr(rawQuery);
-      const resultsContainer = document.getElementById('series-search-results');
+    const rawQuery = document.getElementById("series-search-input").value;
+    const query = normalizeStr(rawQuery);
+    const resultsContainer = document.getElementById("series-search-results");
 
-      if (!query) {
-          resultsContainer.classList.add('hidden');
-          return;
-      }
+    if (!query) {
+      resultsContainer.classList.add("hidden");
+      return;
+    }
 
-      const filtered = allSeries.filter(s => {
-          const str = normalizeStr([s.series_en, s.series_cn, s.series_roman, s.alt_name].filter(Boolean).join(''));
-          return str.includes(query);
-      }).slice(0, 15);
+    const filtered = allSeries
+      .filter((s) => {
+        const str = normalizeStr(
+          [s.series_en, s.series_cn, s.series_roman, s.series_alt_name]
+            .filter(Boolean)
+            .join(""),
+        );
+        return str.includes(query);
+      })
+      .slice(0, 15);
 
-      if (filtered.length === 0) {
-          resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
-      } else {
-          resultsContainer.innerHTML = filtered.map(s => `
-              <div onclick='selectSeries(${JSON.stringify(s).replace(/'/g, "&#39;")})' class="p-3 px-4 hover:bg-purple-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+    if (filtered.length === 0) {
+      resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+    } else {
+      resultsContainer.innerHTML = filtered
+        .map(
+          (s) => `
+              <div onclick="selectSeries('${s.system_id}')" class="p-3 px-4 hover:bg-purple-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0">
                       <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
-                      <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || 'No alternate names'}</div>
+                      <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
                   </div>
                   <i class="fas fa-edit text-purple-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-2"></i>
               </div>
-          `).join('');
-      }
-      resultsContainer.classList.remove('hidden');
+          `,
+        )
+        .join("");
+    }
+    resultsContainer.classList.remove("hidden");
   }
 
-  function selectSeries(series) {
-      document.getElementById('series-search-results').classList.add('hidden');
-      document.getElementById('series-search-input').value = series.series_en;
-      document.getElementById('series-edit-container').classList.remove('hidden');
-      document.getElementById('last-updated-display').classList.add('hidden');
+  function selectSeries(sysId) {
+    const series = allSeries.find((s) => s.system_id === sysId);
+    if (!series) return;
 
-      currentEditingSeriesEn = series.series_en;
+    document.getElementById("series-search-results").classList.add("hidden");
+    document.getElementById("series-search-input").value = series.series_en;
+    document.getElementById("series-edit-container").classList.remove("hidden");
+    document.getElementById("last-updated-display").classList.add("hidden");
 
-      const setVal = (id, val) => document.getElementById(id).value = val || '';
-      setVal('edit-series-system-id', series.system_id);
-      setVal('edit-series-en-name', series.series_en);
-      setVal('edit-series-cn', series.series_cn);
-      setVal('edit-series-roman', series.series_roman);
-      setVal('edit-series-alt', series.alt_name);
-      setVal('edit-series-rating', series.rating_series);
+    currentEditingSeriesEn = series.series_en;
+
+    const setVal = (id, val) => (document.getElementById(id).value = val || "");
+    setVal("edit-series-system-id", series.system_id);
+    setVal("edit-series-en-name", series.series_en);
+    setVal("edit-series-cn", series.series_cn);
+    setVal("edit-series-roman", series.series_roman);
+    setVal("edit-series-alt", series.series_alt_name);
+    setVal("edit-series-rating", series.rating_series);
   }
 
   function closeSeriesEditor() {
-      document.getElementById('series-edit-container').classList.add('hidden');
-      document.getElementById('edit-series-form').reset();
-      document.getElementById('series-search-input').value = '';
-      currentEditingSeriesEn = "";
+    document.getElementById("series-edit-container").classList.add("hidden");
+    document.getElementById("edit-series-form").reset();
+    document.getElementById("series-search-input").value = "";
+    currentEditingSeriesEn = "";
   }
 
   // --- Display Success Card ---
   function displayLastUpdated(data, type) {
-      const box = document.getElementById("last-updated-display");
-      const label = document.getElementById("last-updated-label");
-      const title = document.getElementById("last-updated-title");
-      const cn = document.getElementById("last-updated-cn");
-      const en = document.getElementById("last-updated-en");
+    const box = document.getElementById("last-updated-display");
+    const label = document.getElementById("last-updated-label");
+    const title = document.getElementById("last-updated-title");
+    const cn = document.getElementById("last-updated-cn");
+    const en = document.getElementById("last-updated-en");
 
-      if (type === "anime") {
-          label.innerText = "Successfully Updated Anime Entry";
-          title.innerText = data.series_season_cn || data.series_season_en || data.series_en || "Unnamed Entry";
-          if (data.series_season_cn) { cn.innerText = `CN: ${data.series_season_cn}`; cn.classList.remove('hidden'); } else { cn.classList.add('hidden'); }
-          if (data.series_season_en) { en.innerText = `EN: ${data.series_season_en}`; en.classList.remove('hidden'); } else { en.classList.add('hidden'); }
+    if (type === "anime") {
+      label.innerText = "Successfully Updated Anime Entry";
+      title.innerText =
+        data.series_season_cn ||
+        data.series_season_en ||
+        data.series_en ||
+        "Unnamed Entry";
+      if (data.series_season_cn) {
+        cn.innerText = `CN: ${data.series_season_cn}`;
+        cn.classList.remove("hidden");
       } else {
-          label.innerText = "Successfully Updated Franchise Hub";
-          title.innerText = data.series_en || "Unnamed Series";
-          if (data.series_cn) { cn.innerText = `CN: ${data.series_cn}`; cn.classList.remove('hidden'); } else { cn.classList.add('hidden'); }
-          if (data.alt_name) { en.innerText = `ALT: ${data.alt_name}`; en.classList.remove('hidden'); } else { en.classList.add('hidden'); }
+        cn.classList.add("hidden");
       }
+      if (data.series_season_en) {
+        en.innerText = `EN: ${data.series_season_en}`;
+        en.classList.remove("hidden");
+      } else {
+        en.classList.add("hidden");
+      }
+    } else {
+      label.innerText = "Successfully Updated Franchise Hub";
+      title.innerText = data.series_en || "Unnamed Series";
+      if (data.series_cn) {
+        cn.innerText = `CN: ${data.series_cn}`;
+        cn.classList.remove("hidden");
+      } else {
+        cn.classList.add("hidden");
+      }
+      if (data.series_alt_name) {
+        en.innerText = `ALT: ${data.series_alt_name}`;
+        en.classList.remove("hidden");
+      } else {
+        en.classList.add("hidden");
+      }
+    }
 
-      box.classList.remove("hidden");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    box.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // --- Complex UI Generators ---
-  const genreMainOptions = ["日常", "動作", "冒險", "奇幻", "異世界", "轉生", "科幻", "超能力", "超自然", "戲劇", "懸疑", "恐怖", "黑暗", "悲傷", "校園戀愛喜劇", "喜劇", "戀愛", "校園", "運動", "音樂", "百合", "美食", "色情"];
-  const genreSubOptions = ["原創", "爽番", "熱血", "中古奇幻", "純愛", "黨爭", "後宮", "偵探", "青春", "勵志", "溫馨 / 療癒", "悠閒", "感人", "萌妹", "樂隊", "偶像", "政治", "歷史", "軍事", "神話", "生存", "遊戲", "時間相關", "打破第4道牆", "腦洞大開", "惡搞", "電波", "3D動畫", "小劇場", "泡麵番"];
-  let allStudios = ["8bit", "A-1 Pictures", "Bandai Namco Pictures", "BONES", "BUG FILMS", "C2C", "CloverWorks", "CygamesPictures", "David Production", "Doga Kobo (動畫工房)", "domerica", "Drive", "feel.", "Fortiche", "Gekkou 月虹", "Gonzo", "Hayabusa Film", "J.C.STAFF", "Kinema Citrus", "Kyoto Animation", "Lapin Track", "Lerche", "LIDENFILMS", "MADHOUSE", "MAPPA", "OLM", "Orange", "P.A. WORKS", "Passione", "PINE JAM", "Production I.G", "Project No.9", "Science SARU", "Seven Arcs", "SHAFT", "Shin-Ei Animation (新銳動畫)", "SILVER LINK.", "StudioBind", "STUDIO DEEN", "Studio KAI", "Studio Lings", "studio MOTHER", "Studio Pierrot", "SUNRISE", "Telecom Animation Film", "TMS Entertainment", "Toei Animation", "Trigger", "Ufotable", "WHITE FOX", "Wit Studio"];
+  const genreMainOptions = [
+    "日常",
+    "動作",
+    "冒險",
+    "奇幻",
+    "異世界",
+    "轉生",
+    "科幻",
+    "超能力",
+    "超自然",
+    "戲劇",
+    "懸疑",
+    "恐怖",
+    "黑暗",
+    "悲傷",
+    "校園戀愛喜劇",
+    "喜劇",
+    "戀愛",
+    "校園",
+    "運動",
+    "音樂",
+    "百合",
+    "美食",
+    "色情",
+  ];
+  const genreSubOptions = [
+    "原創",
+    "爽番",
+    "熱血",
+    "中古奇幻",
+    "純愛",
+    "黨爭",
+    "後宮",
+    "偵探",
+    "青春",
+    "勵志",
+    "溫馨 / 療癒",
+    "悠閒",
+    "感人",
+    "萌妹",
+    "樂隊",
+    "偶像",
+    "政治",
+    "歷史",
+    "軍事",
+    "神話",
+    "生存",
+    "遊戲",
+    "時間相關",
+    "打破第4道牆",
+    "腦洞大開",
+    "惡搞",
+    "電波",
+    "3D動畫",
+    "小劇場",
+    "泡麵番",
+  ];
+  let allStudios = [
+    "8bit",
+    "A-1 Pictures",
+    "Bandai Namco Pictures",
+    "BONES",
+    "BUG FILMS",
+    "C2C",
+    "CloverWorks",
+    "CygamesPictures",
+    "David Production",
+    "Doga Kobo (動畫工房)",
+    "domerica",
+    "Drive",
+    "feel.",
+    "Fortiche",
+    "Gekkou 月虹",
+    "Gonzo",
+    "Hayabusa Film",
+    "J.C.STAFF",
+    "Kinema Citrus",
+    "Kyoto Animation",
+    "Lapin Track",
+    "Lerche",
+    "LIDENFILMS",
+    "MADHOUSE",
+    "MAPPA",
+    "OLM",
+    "Orange",
+    "P.A. WORKS",
+    "Passione",
+    "PINE JAM",
+    "Production I.G",
+    "Project No.9",
+    "Science SARU",
+    "Seven Arcs",
+    "SHAFT",
+    "Shin-Ei Animation (新銳動畫)",
+    "SILVER LINK.",
+    "StudioBind",
+    "STUDIO DEEN",
+    "Studio KAI",
+    "Studio Lings",
+    "studio MOTHER",
+    "Studio Pierrot",
+    "SUNRISE",
+    "Telecom Animation Film",
+    "TMS Entertainment",
+    "Toei Animation",
+    "Trigger",
+    "Ufotable",
+    "WHITE FOX",
+    "Wit Studio",
+  ];
   let selectedStudios = new Set();
 
   function populateGenres() {
-      const createCheckboxes = (containerId, name, optionsList) => {
-          const container = document.getElementById(containerId);
-          if (!container) return;
-          container.innerHTML = optionsList.map(genre => `
+    const createCheckboxes = (containerId, name, optionsList) => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = optionsList
+        .map(
+          (genre) => `
               <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
                   <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
                   <span class="leading-tight">${genre}</span>
               </label>
-          `).join('');
-      };
-      createCheckboxes('edit-genre-main-container', 'edit_genre_main', genreMainOptions);
-      createCheckboxes('edit-genre-sub-container', 'edit_genre_sub', genreSubOptions);
+          `,
+        )
+        .join("");
+    };
+    createCheckboxes(
+      "edit-genre-main-container",
+      "edit_genre_main",
+      genreMainOptions,
+    );
+    createCheckboxes(
+      "edit-genre-sub-container",
+      "edit_genre_sub",
+      genreSubOptions,
+    );
   }
 
   function renderStudioDatalist() {
-      allStudios.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
-      const dl = document.getElementById('edit-studio-list');
-      if(dl) dl.innerHTML = allStudios.map(s => `<option value="${s}"></option>`).join('');
+    allStudios.sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    );
+    const dl = document.getElementById("edit-studio-list");
+    if (dl)
+      dl.innerHTML = allStudios
+        .map((s) => `<option value="${s}"></option>`)
+        .join("");
   }
 
   function renderStudioTags() {
-      const container = document.getElementById('edit-studio-tags-container');
-      if(!container) return;
-      container.innerHTML = Array.from(selectedStudios).map(s => `
+    const container = document.getElementById("edit-studio-tags-container");
+    if (!container) return;
+    container.innerHTML = Array.from(selectedStudios)
+      .map(
+        (s) => `
           <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
               ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeStudio(event, '${s}')"></i>
           </span>
-      `).join('');
+      `,
+      )
+      .join("");
   }
 
   function addStudio(val) {
-      const cleanVal = val.trim();
-      if (cleanVal && !selectedStudios.has(cleanVal)) {
-          selectedStudios.add(cleanVal);
-          renderStudioTags();
-      }
+    const cleanVal = val.trim();
+    if (cleanVal && !selectedStudios.has(cleanVal)) {
+      selectedStudios.add(cleanVal);
+      renderStudioTags();
+    }
   }
 
   function removeStudio(event, val) {
-      event.stopPropagation();
-      selectedStudios.delete(val);
-      renderStudioTags();
+    event.stopPropagation();
+    selectedStudios.delete(val);
+    renderStudioTags();
   }
 
   function setupStudioInput() {
-      renderStudioDatalist();
-      const studioInput = document.getElementById('edit-studio-input');
-      if(studioInput) {
-          studioInput.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ',') {
-                  e.preventDefault();
-                  addStudio(studioInput.value);
-                  studioInput.value = '';
-              }
-          });
-          studioInput.addEventListener('change', () => {
-              if (studioInput.value.trim() !== '') {
-                  addStudio(studioInput.value);
-                  studioInput.value = '';
-              }
-          });
-      }
+    renderStudioDatalist();
+    const studioInput = document.getElementById("edit-studio-input");
+    if (studioInput) {
+      studioInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault();
+          addStudio(studioInput.value);
+          studioInput.value = "";
+        }
+      });
+      studioInput.addEventListener("change", () => {
+        if (studioInput.value.trim() !== "") {
+          addStudio(studioInput.value);
+          studioInput.value = "";
+        }
+      });
+    }
   }
 
   // --- Submission Handlers ---
   function submitAnimeEdit(e) {
-      e.preventDefault();
-      if (!IS_ADMIN) return;
+    e.preventDefault();
+    if (!IS_ADMIN_MODIFY) return;
 
-      const btn = document.getElementById('anime-update-btn');
-      const sysId = document.getElementById('edit-system-id').value;
+    const btn = document.getElementById("anime-update-btn");
+    const sysId = document.getElementById("edit-system-id").value;
 
-      const getValue = (id) => {
-         const el = document.getElementById(id);
-         return (el && el.value.trim() !== "") ? el.value.trim() : null;
-      };
-      const getMultiCheckboxValue = (name) => {
-         const vals = Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value);
-         return vals.length > 0 ? vals.join(', ') : null;
-      };
-      const getInt = (id) => {
-         const val = parseInt(document.getElementById(id)?.value);
-         return isNaN(val) ? null : val;
-      };
+    const getValue = (id) => {
+      const el = document.getElementById(id);
+      return el && el.value.trim() !== "" ? el.value.trim() : null;
+    };
+    const getMultiCheckboxValue = (name) => {
+      const vals = Array.from(
+        document.querySelectorAll(`input[name="${name}"]:checked`),
+      ).map((cb) => cb.value);
+      return vals.length > 0 ? vals.join(", ") : null;
+    };
+    const getInt = (id) => {
+      const val = parseInt(document.getElementById(id)?.value);
+      return isNaN(val) ? null : val;
+    };
 
-      let myProgress = getValue('edit-progress');
-      let epTotal = getInt('edit-ep-total');
-      let epFin = getInt('edit-ep-fin') || 0;
+    let myProgress = getValue("edit-progress");
+    let epTotal = getInt("edit-ep-total");
+    let epFin = getInt("edit-ep-fin") || 0;
 
-      if (!getValue('edit-season-en') && !getValue('edit-season-roman') && !getValue('edit-season-cn')) {
-          if (typeof showToast === 'function') showToast("Validation Error: At least one Season Title must be provided.", true);
-          return;
-      }
+    if (
+      !getValue("edit-season-en") &&
+      !getValue("edit-season-roman") &&
+      !getValue("edit-season-cn")
+    ) {
+      if (typeof showToast === "function")
+        showToast(
+          "Validation Error: At least one Season Title must be provided.",
+          true,
+        );
+      return;
+    }
 
-      const rSeason = getValue('edit-release-season') || "";
-      const rMonth = getValue('edit-release-month') || "";
-      const rYear = getValue('edit-release-year') || "";
+    const rSeason = getValue("edit-release-season") || "";
+    const rMonth = getValue("edit-release-month") || "";
+    const rYear = getValue("edit-release-year") || "";
 
-      if (rSeason !== "" && rMonth !== "") {
-          if (typeof showToast === 'function') showToast("Validation Error: Release Date cannot have both Season and Month selected.", true);
-          return;
-      }
+    if (rSeason !== "" && rMonth !== "") {
+      if (typeof showToast === "function")
+        showToast(
+          "Validation Error: Release Date cannot have both Season and Month selected.",
+          true,
+        );
+      return;
+    }
 
-      if (epTotal !== null && epFin > epTotal) {
-          if (typeof showToast === 'function') showToast("Validation Error: Episodes Finished cannot exceed Total Episodes.", true);
-          return;
-      }
+    if (epTotal !== null && epFin > epTotal) {
+      if (typeof showToast === "function")
+        showToast(
+          "Validation Error: Episodes Finished cannot exceed Total Episodes.",
+          true,
+        );
+      return;
+    }
 
-      const cond1 = epTotal !== null && epTotal > 0 && epFin === epTotal;
-      const cond2 = myProgress === "Completed";
+    const cond1 = epTotal !== null && epTotal > 0 && epFin === epTotal;
+    const cond2 = myProgress === "Completed";
 
-      if (cond1 !== cond2) {
-          const confirmed = confirm("Have you finished watching this?\nProgress Status doesn't match Episode Count.");
-          if (confirmed) {
-              myProgress = "Completed";
-              document.getElementById('edit-progress').value = "Completed";
+    if (cond1 !== cond2) {
+      const confirmed = confirm(
+        "Have you finished watching this?\nProgress Status doesn't match Episode Count.",
+      );
+      if (confirmed) {
+        myProgress = "Completed";
+        document.getElementById("edit-progress").value = "Completed";
 
-              if (epTotal !== null && epTotal > 0) {
-                  epFin = epTotal;
-                  document.getElementById('edit-ep-fin').value = epFin;
-              } else if (epFin > 0) {
-                  epTotal = epFin;
-                  document.getElementById("edit-ep-total").value = epTotal;
-              } else {
-                  epTotal = 1;
-                  epFin = 1;
-                  document.getElementById("edit-ep-total").value = epTotal;
-                  document.getElementById("edit-ep-fin").value = epFin;
-              }
-          } else {
-              if (typeof showToast === 'function') showToast("Validation Error: Please fix the mismatch between Episodes Finished and My Progress.", true);
-              return;
-          }
-      }
-
-      const releaseDateArr = [rSeason, rMonth, rYear].filter(Boolean);
-      const finalReleaseDate = releaseDateArr.length > 0 ? releaseDateArr.join(' ') : null;
-
-      const leftoverStudio = getValue('edit-studio-input');
-      if (leftoverStudio) {
-          addStudio(leftoverStudio);
-          document.getElementById('edit-studio-input').value = '';
-      }
-      const finalStudioString = selectedStudios.size > 0 ? Array.from(selectedStudios).join(', ') : null;
-
-      const payload = {
-          system_id: sysId,
-          series_en: getValue('edit-series-en'),
-          series_season_en: getValue('edit-season-en'),
-          series_season_roman: getValue('edit-season-roman'),
-          series_season_cn: getValue('edit-season-cn'),
-          series_season: getValue('edit-season'),
-          airing_type: getValue('edit-type'),
-          my_progress: myProgress,
-          airing_status: getValue('edit-airing-status'),
-          ep_total: epTotal,
-          ep_fin: epFin,
-          rating_mine: getValue('edit-rating'),
-          main_spinoff: getValue('edit-main-spinoff'),
-          release_date: finalReleaseDate,
-          studio: finalStudioString,
-          director: getValue('edit-director'),
-          producer: null,
-          distributor_tw: getValue('edit-distributor'),
-          genre_main: getMultiCheckboxValue('edit_genre_main'),
-          genre_sub: getMultiCheckboxValue('edit_genre_sub'),
-          remark: getValue('edit-remark'),
-          mal_id: getInt('edit-mal-id'),
-          mal_link: getValue('edit-mal-link'),
-          anilist_link: getValue('edit-anilist-link'),
-          op: getValue('edit-op'),
-          ed: getValue('edit-ed'),
-          insert_ost: getValue('edit-insert'),
-          seiyuu: null,
-          source_baha: getValue('edit-baha'),
-          source_netflix: getValue('edit-netflix')
-      };
-
-      const newSeriesEn = payload.series_en;
-      const seriesExists = allSeries.some(s => s.series_en.toLowerCase() === (newSeriesEn || "").toLowerCase());
-
-      if (newSeriesEn && !seriesExists) {
-          pendingAnimePayload = payload;
-          pendingAnimeSysId = sysId;
-          pendingAnimeBtn = btn;
-
-          document.getElementById('new-series-prompt-name').innerText = newSeriesEn;
-          document.getElementById('anime-new-series-modal').classList.remove('hidden');
+        if (epTotal !== null && epTotal > 0) {
+          epFin = epTotal;
+          document.getElementById("edit-ep-fin").value = epFin;
+        } else if (epFin > 0) {
+          epTotal = epFin;
+          document.getElementById("edit-ep-total").value = epTotal;
+        } else {
+          epTotal = 1;
+          epFin = 1;
+          document.getElementById("edit-ep-total").value = epTotal;
+          document.getElementById("edit-ep-fin").value = epFin;
+        }
       } else {
-          executeAnimeUpdate(sysId, payload, btn);
+        if (typeof showToast === "function")
+          showToast(
+            "Validation Error: Please fix the mismatch between Episodes Finished and My Progress.",
+            true,
+          );
+        return;
       }
+    }
+
+    const releaseDateArr = [rSeason, rMonth, rYear].filter(Boolean);
+    const finalReleaseDate =
+      releaseDateArr.length > 0 ? releaseDateArr.join(" ") : null;
+
+    const leftoverStudio = getValue("edit-studio-input");
+    if (leftoverStudio) {
+      addStudio(leftoverStudio);
+      document.getElementById("edit-studio-input").value = "";
+    }
+    const finalStudioString =
+      selectedStudios.size > 0 ? Array.from(selectedStudios).join(", ") : null;
+
+    const payload = {
+      system_id: sysId,
+      series_en: getValue("edit-series-en"),
+      series_season_en: getValue("edit-season-en"),
+      series_season_roman: getValue("edit-season-roman"),
+      series_season_cn: getValue("edit-season-cn"),
+      series_season: getValue("edit-season"),
+      airing_type: getValue("edit-type"),
+      my_progress: myProgress,
+      airing_status: getValue("edit-airing-status"),
+      ep_total: epTotal,
+      ep_fin: epFin,
+      rating_mine: getValue("edit-rating"),
+      main_spinoff: getValue("edit-main-spinoff"),
+      release_date: finalReleaseDate,
+      studio: finalStudioString,
+      director: getValue("edit-director"),
+      producer: null,
+      distributor_tw: getValue("edit-distributor"),
+      genre_main: getMultiCheckboxValue("edit_genre_main"),
+      genre_sub: getMultiCheckboxValue("edit_genre_sub"),
+      remark: getValue("edit-remark"),
+      mal_id: getInt("edit-mal-id"),
+      mal_link: getValue("edit-mal-link"),
+      anilist_link: getValue("edit-anilist-link"),
+      op: getValue("edit-op"),
+      ed: getValue("edit-ed"),
+      insert_ost: getValue("edit-insert"),
+      seiyuu: null,
+      source_baha: getValue("edit-baha"),
+      source_netflix: getValue("edit-netflix"),
+    };
+
+    const newSeriesEn = payload.series_en;
+    const seriesExists = allSeries.some(
+      (s) =>
+        s.series_en &&
+        s.series_en.toLowerCase() === (newSeriesEn || "").toLowerCase(),
+    );
+
+    if (newSeriesEn && !seriesExists) {
+      pendingAnimePayload = payload;
+      pendingAnimeSysId = sysId;
+      pendingAnimeBtn = btn;
+
+      document.getElementById("new-series-prompt-name").innerText = newSeriesEn;
+      document
+        .getElementById("anime-new-series-modal")
+        .classList.remove("hidden");
+    } else {
+      executeAnimeUpdate(sysId, payload, btn);
+    }
   }
 
   async function executeAnimeUpdate(sysId, payload, btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
-      if (typeof showToast === 'function') showToast("Pushing updates to Google Sheets & Database...", false, true);
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
+    if (typeof showToast === "function")
+      showToast("Pushing updates to Google Sheets & Database...", false, true);
 
-      try {
-          const res = await fetch(`/api/admin/anime/${sysId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-          });
-          const result = await res.json();
-          if (!res.ok) throw new Error(result.detail || "Update failed");
+    try {
+      const res = await fetch(`/api/admin/anime/${sysId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.detail || "Update failed");
 
-          if (result.data) {
-              displayLastUpdated(result.data, "anime");
-          }
-
-          if (typeof showToast === 'function') showToast("Success! Entry permanently updated and synced.", false, false);
-          await loadDatabase(); // Refresh memory cache
-          closeAnimeEditor();
-      } catch (error) {
-          if (typeof showToast === 'function') showToast(error.message, true, false);
-      } finally {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+      if (result.data) {
+        displayLastUpdated(result.data, "anime");
       }
+
+      if (typeof showToast === "function")
+        showToast(
+          "Success! Entry permanently updated and synced.",
+          false,
+          false,
+        );
+      await loadDatabase(); // Refresh memory cache
+      closeAnimeEditor();
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(error.message, true, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+    }
   }
 
   // --- Anime Modal Handlers ---
   function cancelAnimeUpdate() {
-      document.getElementById('anime-new-series-modal').classList.add('hidden');
-      pendingAnimePayload = null;
-      pendingAnimeSysId = null;
-      pendingAnimeBtn = null;
+    document.getElementById("anime-new-series-modal").classList.add("hidden");
+    pendingAnimePayload = null;
+    pendingAnimeSysId = null;
+    pendingAnimeBtn = null;
   }
 
   function proceedAnimeWithoutSeries() {
-      document.getElementById('anime-new-series-modal').classList.add('hidden');
-      executeAnimeUpdate(pendingAnimeSysId, pendingAnimePayload, pendingAnimeBtn);
+    document.getElementById("anime-new-series-modal").classList.add("hidden");
+    executeAnimeUpdate(pendingAnimeSysId, pendingAnimePayload, pendingAnimeBtn);
   }
 
   async function createSeriesAndProceedAnime() {
-      document.getElementById('anime-new-series-modal').classList.add('hidden');
-      const btn = pendingAnimeBtn;
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Creating Series...';
+    document.getElementById("anime-new-series-modal").classList.add("hidden");
+    const btn = pendingAnimeBtn;
+    btn.disabled = true;
+    btn.innerHTML =
+      '<i class="fas fa-spinner fa-spin mr-1.5"></i> Creating Series...';
 
-      try {
-          const seriesPayload = {
-              system_id: crypto.randomUUID(),
-              series_en: pendingAnimePayload.series_en || null,
-              series_roman: pendingAnimePayload.series_season_roman || null,
-              series_cn: pendingAnimePayload.series_season_cn || null,
-              rating_series: null,
-              alt_name: null
-          };
+    try {
+      const seriesPayload = {
+        system_id: crypto.randomUUID(),
+        series_en: pendingAnimePayload.series_en || null,
+        series_roman: pendingAnimePayload.series_season_roman || null,
+        series_cn: pendingAnimePayload.series_season_cn || null,
+        rating_series: null,
+        series_alt_name: null,
+      };
 
-          const res = await fetch(`/api/admin/series`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(seriesPayload)
-          });
+      const res = await fetch(`/api/admin/series`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(seriesPayload),
+      });
 
-          if (!res.ok) throw new Error("Failed to create new series.");
+      if (!res.ok) throw new Error("Failed to create new series.");
 
-          await executeAnimeUpdate(pendingAnimeSysId, pendingAnimePayload, btn);
-      } catch(e) {
-          if (typeof showToast === 'function') showToast(e.message, true);
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
-      }
+      await executeAnimeUpdate(pendingAnimeSysId, pendingAnimePayload, btn);
+    } catch (e) {
+      if (typeof showToast === "function") showToast(e.message, true);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+    }
   }
 
   function submitSeriesEdit(e) {
-      e.preventDefault();
-      if (!IS_ADMIN) return;
+    e.preventDefault();
+    if (!IS_ADMIN_MODIFY) return;
 
-      const btn = document.getElementById('series-update-btn');
-      const sysId = document.getElementById('edit-series-system-id').value;
+    const btn = document.getElementById("series-update-btn");
+    const sysId = document.getElementById("edit-series-system-id").value;
 
-      const getValue = (id) => {
-         const el = document.getElementById(id);
-         return (el && el.value.trim() !== "") ? el.value.trim() : null;
-      };
+    const getValue = (id) => {
+      const el = document.getElementById(id);
+      return el && el.value.trim() !== "" ? el.value.trim() : null;
+    };
 
-      const payload = {
-          system_id: sysId,
-          series_en: getValue('edit-series-en-name'),
-          series_roman: getValue('edit-series-roman'),
-          series_cn: getValue('edit-series-cn'),
-          rating_series: getValue('edit-series-rating'),
-          alt_name: getValue('edit-series-alt')
-      };
+    const payload = {
+      system_id: sysId,
+      series_en: getValue("edit-series-en-name"),
+      series_roman: getValue("edit-series-roman"),
+      series_cn: getValue("edit-series-cn"),
+      rating_series: getValue("edit-series-rating"),
+      series_alt_name: getValue("edit-series-alt"),
+    };
 
-      const connectedAnime = allAnime.filter(a => a.series_en === currentEditingSeriesEn);
+    const connectedAnime = allAnime.filter(
+      (a) => a.series_en === currentEditingSeriesEn,
+    );
 
-      if (connectedAnime.length > 0 && payload.series_en !== currentEditingSeriesEn) {
-          pendingSeriesPayload = payload;
-          pendingSeriesSysId = sysId;
-          pendingSeriesBtn = btn;
-          pendingConnectedAnime = connectedAnime;
+    if (
+      connectedAnime.length > 0 &&
+      payload.series_en !== currentEditingSeriesEn
+    ) {
+      pendingSeriesPayload = payload;
+      pendingSeriesSysId = sysId;
+      pendingSeriesBtn = btn;
+      pendingConnectedAnime = connectedAnime;
 
-          document.getElementById('series-cascade-count').innerText = connectedAnime.length;
-          document.getElementById('series-cascade-modal').classList.remove('hidden');
-      } else {
-          executeSeriesUpdate(sysId, payload, btn);
-      }
+      document.getElementById("series-cascade-count").innerText =
+        connectedAnime.length;
+      document
+        .getElementById("series-cascade-modal")
+        .classList.remove("hidden");
+    } else {
+      executeSeriesUpdate(sysId, payload, btn);
+    }
   }
 
   async function executeSeriesUpdate(sysId, payload, btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
-      if (typeof showToast === 'function') showToast("Pushing updates to Google Sheets & Database...", false, true);
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
+    if (typeof showToast === "function")
+      showToast("Pushing updates to Google Sheets & Database...", false, true);
 
-      try {
-          const res = await fetch(`/api/admin/series/${sysId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-          });
-          const result = await res.json();
-          if (!res.ok) throw new Error(result.detail || "Update failed");
+    try {
+      const res = await fetch(`/api/admin/series/${sysId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.detail || "Update failed");
 
-          if (result.data) {
-              displayLastUpdated(result.data, "series");
-          }
-
-          if (typeof showToast === 'function') showToast("Success! Series permanently updated and synced.", false, false);
-          await loadDatabase();
-          closeSeriesEditor();
-      } catch (error) {
-          if (typeof showToast === 'function') showToast(error.message, true, false);
-      } finally {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+      if (result.data) {
+        displayLastUpdated(result.data, "series");
       }
+
+      if (typeof showToast === "function")
+        showToast(
+          "Success! Series permanently updated and synced.",
+          false,
+          false,
+        );
+      await loadDatabase();
+      closeSeriesEditor();
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(error.message, true, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+    }
   }
 
   // --- Series Modal Handlers ---
   function cancelSeriesUpdate() {
-      document.getElementById('series-cascade-modal').classList.add('hidden');
-      pendingSeriesPayload = null;
-      pendingSeriesSysId = null;
-      pendingSeriesBtn = null;
-      pendingConnectedAnime = [];
+    document.getElementById("series-cascade-modal").classList.add("hidden");
+    pendingSeriesPayload = null;
+    pendingSeriesSysId = null;
+    pendingSeriesBtn = null;
+    pendingConnectedAnime = [];
   }
 
   function proceedSeriesWithoutCascade() {
-      document.getElementById('series-cascade-modal').classList.add('hidden');
-      executeSeriesUpdate(pendingSeriesSysId, pendingSeriesPayload, pendingSeriesBtn);
+    document.getElementById("series-cascade-modal").classList.add("hidden");
+    executeSeriesUpdate(
+      pendingSeriesSysId,
+      pendingSeriesPayload,
+      pendingSeriesBtn,
+    );
   }
 
   async function cascadeSeriesUpdate() {
-      document.getElementById('series-cascade-modal').classList.add('hidden');
-      const btn = pendingSeriesBtn;
-      btn.disabled = true;
+    document.getElementById("series-cascade-modal").classList.add("hidden");
+    const btn = pendingSeriesBtn;
+    btn.disabled = true;
 
-      try {
-          let updatedCount = 0;
-          if (typeof showToast === 'function') showToast("Cascading updates to all connected anime...", false, true);
+    try {
+      let updatedCount = 0;
+      if (typeof showToast === "function")
+        showToast("Cascading updates to all connected anime...", false, true);
 
-          for (let a of pendingConnectedAnime) {
-              updatedCount++;
-              btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1.5"></i> Cascading (${updatedCount}/${pendingConnectedAnime.length})...`;
+      for (let a of pendingConnectedAnime) {
+        updatedCount++;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1.5"></i> Cascading (${updatedCount}/${pendingConnectedAnime.length})...`;
 
-              const animePayload = {
-                  system_id: a.system_id,
-                  series_en: pendingSeriesPayload.series_en,
-                  series_season_en: a.series_season_en,
-                  series_season_roman: a.series_season_roman,
-                  series_season_cn: a.series_season_cn,
-                  series_season: a.series_season,
-                  airing_type: a.airing_type,
-                  my_progress: a.my_progress,
-                  airing_status: a.airing_status,
-                  ep_total: a.ep_total,
-                  ep_fin: a.ep_fin,
-                  rating_mine: a.rating_mine,
-                  main_spinoff: a.main_spinoff,
-                  release_date: a.release_date,
-                  studio: a.studio,
-                  director: a.director,
-                  producer: a.producer || null,
-                  distributor_tw: a.distributor_tw,
-                  genre_main: a.genre_main,
-                  genre_sub: a.genre_sub,
-                  remark: a.remark,
-                  mal_id: a.mal_id,
-                  mal_link: a.mal_link,
-                  anilist_link: a.anilist_link,
-                  op: a.op,
-                  ed: a.ed,
-                  insert_ost: a.insert_ost,
-                  seiyuu: a.seiyuu || null,
-                  source_baha: a.source_baha,
-                  source_netflix: a.source_netflix
-              };
+        const animePayload = {
+          system_id: a.system_id,
+          series_en: pendingSeriesPayload.series_en,
+          series_season_en: a.series_season_en,
+          series_season_roman: a.series_season_roman,
+          series_season_cn: a.series_season_cn,
+          series_season: a.series_season,
+          airing_type: a.airing_type,
+          my_progress: a.my_progress,
+          airing_status: a.airing_status,
+          ep_total: a.ep_total,
+          ep_fin: a.ep_fin,
+          rating_mine: a.rating_mine,
+          main_spinoff: a.main_spinoff,
+          release_date: a.release_date,
+          studio: a.studio,
+          director: a.director,
+          producer: a.producer || null,
+          distributor_tw: a.distributor_tw,
+          genre_main: a.genre_main,
+          genre_sub: a.genre_sub,
+          remark: a.remark,
+          mal_id: a.mal_id,
+          mal_link: a.mal_link,
+          anilist_link: a.anilist_link,
+          op: a.op,
+          ed: a.ed,
+          insert_ost: a.insert_ost,
+          seiyuu: a.seiyuu || null,
+          source_baha: a.source_baha,
+          source_netflix: a.source_netflix,
+        };
 
-              const res = await fetch(`/api/admin/anime/${a.system_id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(animePayload)
-              });
+        const res = await fetch(`/api/admin/anime/${a.system_id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(animePayload),
+        });
 
-              if (!res.ok) console.warn("Failed to cascade to anime: " + a.system_id);
-          }
-
-          await executeSeriesUpdate(pendingSeriesSysId, pendingSeriesPayload, btn);
-
-      } catch(e) {
-          if (typeof showToast === 'function') showToast("Cascade error: " + e.message, true, false);
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+        if (!res.ok) console.warn("Failed to cascade to anime: " + a.system_id);
       }
+
+      await executeSeriesUpdate(pendingSeriesSysId, pendingSeriesPayload, btn);
+    } catch (e) {
+      if (typeof showToast === "function")
+        showToast("Cascade error: " + e.message, true, false);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+    }
   }
 
   // --- Smart Deletion Flow ---
   function confirmDelete(type) {
-      let id, name, seriesEnName;
+    let id, name, seriesEnName;
 
-      const orphanBox = document.getElementById('orphan-series-warning');
-      const cascadeBox = document.getElementById('cascade-anime-warning');
-      const orphanCb = document.getElementById('delete-orphan-series-cb');
-      const cascadeCb = document.getElementById('delete-cascade-anime-cb');
+    const orphanBox = document.getElementById("orphan-series-warning");
+    const cascadeBox = document.getElementById("cascade-anime-warning");
+    const orphanCb = document.getElementById("delete-orphan-series-cb");
+    const cascadeCb = document.getElementById("delete-cascade-anime-cb");
 
-      orphanBox.classList.add('hidden');
-      cascadeBox.classList.add('hidden');
-      if(orphanCb) orphanCb.checked = false;
-      if(cascadeCb) cascadeCb.checked = false;
+    orphanBox.classList.add("hidden");
+    cascadeBox.classList.add("hidden");
+    if (orphanCb) orphanCb.checked = false;
+    if (cascadeCb) cascadeCb.checked = false;
 
-      if (type === 'anime') {
-          id = document.getElementById('edit-system-id').value;
-          seriesEnName = document.getElementById('edit-series-en').value || "";
-          name = document.getElementById('edit-season-cn').value ||
-                 document.getElementById('edit-season-en').value ||
-                 document.getElementById('edit-season-roman').value ||
-                 seriesEnName || "Unknown Anime";
+    if (type === "anime") {
+      id = document.getElementById("edit-system-id").value;
+      seriesEnName = document.getElementById("edit-series-en").value || "";
+      name =
+        document.getElementById("edit-season-cn").value ||
+        document.getElementById("edit-season-en").value ||
+        document.getElementById("edit-season-roman").value ||
+        seriesEnName ||
+        "Unknown Anime";
 
-          const siblingCount = allAnime.filter(a => a.series_en === seriesEnName).length;
-          if (siblingCount === 1) {
-              document.getElementById('orphan-series-name').innerText = seriesEnName;
-              orphanBox.classList.remove('hidden');
-          }
-      } else {
-          id = document.getElementById('edit-series-system-id').value;
-          name = document.getElementById('edit-series-en-name').value || "Unknown Series";
-          seriesEnName = name;
-
-          const connectedCount = allAnime.filter(a => a.series_en === seriesEnName).length;
-          if (connectedCount > 0) {
-              document.getElementById('cascade-anime-count').innerText = connectedCount;
-              cascadeBox.classList.remove('hidden');
-          }
+      const siblingCount = allAnime.filter(
+        (a) => a.series_en === seriesEnName,
+      ).length;
+      if (siblingCount === 1) {
+        document.getElementById("orphan-series-name").innerText = seriesEnName;
+        orphanBox.classList.remove("hidden");
       }
+    } else {
+      id = document.getElementById("edit-series-system-id").value;
+      name =
+        document.getElementById("edit-series-en-name").value ||
+        "Unknown Series";
+      seriesEnName = name;
 
-      currentDeleteTarget = { type, id, name, series_en: seriesEnName };
+      const connectedCount = allAnime.filter(
+        (a) => a.series_en === seriesEnName,
+      ).length;
+      if (connectedCount > 0) {
+        document.getElementById("cascade-anime-count").innerText =
+          connectedCount;
+        cascadeBox.classList.remove("hidden");
+      }
+    }
 
-      document.getElementById('delete-target-type').innerText = type.toUpperCase() + " ENTRY";
-      document.getElementById('delete-target-name').innerText = name;
-      document.getElementById('delete-target-id').innerText = id;
+    currentDeleteTarget = { type, id, name, series_en: seriesEnName };
 
-      const modal = document.getElementById('delete-modal');
-      const box = document.getElementById('delete-modal-box');
-      modal.classList.remove('hidden');
-      setTimeout(() => box.classList.remove('scale-95'), 10);
+    document.getElementById("delete-target-type").innerText =
+      type.toUpperCase() + " ENTRY";
+    document.getElementById("delete-target-name").innerText = name;
+    document.getElementById("delete-target-id").innerText = id;
+
+    const modal = document.getElementById("delete-modal");
+    const box = document.getElementById("delete-modal-box");
+    modal.classList.remove("hidden");
+    setTimeout(() => box.classList.remove("scale-95"), 10);
   }
 
   function closeDeleteModal() {
-      const modal = document.getElementById('delete-modal');
-      const box = document.getElementById('delete-modal-box');
-      box.classList.add('scale-95');
-      setTimeout(() => {
-          modal.classList.add('hidden');
-          currentDeleteTarget = null;
-      }, 200);
+    const modal = document.getElementById("delete-modal");
+    const box = document.getElementById("delete-modal-box");
+    box.classList.add("scale-95");
+    setTimeout(() => {
+      modal.classList.add("hidden");
+      currentDeleteTarget = null;
+    }, 200);
   }
 
-  document.getElementById('execute-delete-btn').addEventListener('click', async function() {
-      if (!currentDeleteTarget) return;
-      const btn = this;
-      const originalText = btn.innerHTML;
+  // Initialize Page
+  document.addEventListener("DOMContentLoaded", () => {
+    populateGenres();
+    setupStudioInput();
+    loadDatabase();
 
-      btn.disabled = true;
+    const execDeleteBtn = document.getElementById("execute-delete-btn");
+    if (execDeleteBtn) {
+      execDeleteBtn.addEventListener("click", async function () {
+        if (!currentDeleteTarget) return;
+        const btn = this;
+        const originalText = btn.innerHTML;
 
-      try {
-          const cascadeCb = document.getElementById('delete-cascade-anime-cb');
-          if (currentDeleteTarget.type === 'series' && cascadeCb && cascadeCb.checked) {
-              const connectedAnime = allAnime.filter(a => a.series_en === currentDeleteTarget.series_en);
-              let deletedCount = 0;
-              for (const anime of connectedAnime) {
-                  deletedCount++;
-                  btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-                  const resAnime = await fetch(`/api/admin/anime/${anime.system_id}`, { method: 'DELETE' });
-                  if (!resAnime.ok) console.error(`Failed to delete connected anime: ${anime.system_id}`);
-              }
+        btn.disabled = true;
+
+        try {
+          const cascadeCb = document.getElementById("delete-cascade-anime-cb");
+          if (
+            currentDeleteTarget.type === "series" &&
+            cascadeCb &&
+            cascadeCb.checked
+          ) {
+            const connectedAnime = allAnime.filter(
+              (a) => a.series_en === currentDeleteTarget.series_en,
+            );
+            let deletedCount = 0;
+            for (const anime of connectedAnime) {
+              deletedCount++;
+              btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
+              const resAnime = await fetch(
+                `/api/admin/anime/${anime.system_id}`,
+                { method: "DELETE" },
+              );
+              if (!resAnime.ok)
+                console.error(
+                  `Failed to delete connected anime: ${anime.system_id}`,
+                );
+            }
           }
 
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Primary Target...';
-          const res = await fetch(`/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`, {
-              method: 'DELETE'
-          });
-          if (!res.ok) throw new Error((await res.json()).detail || "Primary deletion failed");
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Primary Target...';
+          const res = await fetch(
+            `/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+            {
+              method: "DELETE",
+            },
+          );
+          if (!res.ok)
+            throw new Error(
+              (await res.json()).detail || "Primary deletion failed",
+            );
 
-          const orphanCb = document.getElementById('delete-orphan-series-cb');
-          if (currentDeleteTarget.type === 'anime' && orphanCb && orphanCb.checked) {
-              const seriesHub = allSeries.find(s => s.series_en === currentDeleteTarget.series_en);
-              if (seriesHub) {
-                  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Series Hub...';
-                  const resSeries = await fetch(`/api/admin/series/${seriesHub.system_id}`, { method: 'DELETE' });
-                  if (!resSeries.ok) throw new Error("Anime deleted, but failed to delete orphaned Series Hub.");
-              }
+          const orphanCb = document.getElementById("delete-orphan-series-cb");
+          if (
+            currentDeleteTarget.type === "anime" &&
+            orphanCb &&
+            orphanCb.checked
+          ) {
+            const seriesHub = allSeries.find(
+              (s) => s.series_en === currentDeleteTarget.series_en,
+            );
+            if (seriesHub) {
+              btn.innerHTML =
+                '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Series Hub...';
+              const resSeries = await fetch(
+                `/api/admin/series/${seriesHub.system_id}`,
+                { method: "DELETE" },
+              );
+              if (!resSeries.ok)
+                throw new Error(
+                  "Anime deleted, but failed to delete orphaned Series Hub.",
+                );
+            }
           }
 
           closeDeleteModal();
 
-          if (currentDeleteTarget.type === 'anime') closeAnimeEditor();
+          if (currentDeleteTarget.type === "anime") closeAnimeEditor();
           else closeSeriesEditor();
 
           await loadDatabase();
-          if (typeof showToast === 'function') showToast(`Successfully deleted ${currentDeleteTarget.type} and synced database.`);
-
-      } catch (error) {
-          if (typeof showToast === 'function') showToast(`Error: ${error.message}`, true);
-      } finally {
+          if (typeof showToast === "function")
+            showToast(
+              `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
+            );
+        } catch (error) {
+          if (typeof showToast === "function")
+            showToast(`Error: ${error.message}`, true);
+        } finally {
           btn.disabled = false;
           btn.innerHTML = originalText;
-      }
-  });
-
-  // Initialize Page
-  document.addEventListener('DOMContentLoaded', () => {
-      populateGenres();
-      setupStudioInput();
-      loadDatabase();
+        }
+      });
+    }
   });
 </script>
 {% endblock %}
