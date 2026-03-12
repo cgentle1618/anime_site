@@ -245,7 +245,7 @@ def get_system_options(category: str, db: Session = Depends(get_db)):
 def add_system_option(
     payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
 ):
-    """Adds a new dynamic dropdown option to the database."""
+    """Adds a new dynamic dropdown option to the database and syncs it to Sheets."""
     # Check for duplicates to prevent messy dropdowns
     existing = (
         db.query(models.SystemOption)
@@ -266,12 +266,16 @@ def add_system_option(
     db.add(new_option)
     db.commit()
     db.refresh(new_option)  # Reload to get the auto-generated ID
+
+    # Trigger a DB-to-Sheets backup to maintain parity
+    sync_engine.run_full_sync(db, direction="push")
+
     return new_option
 
 
 @router.delete("/options/{option_id}", summary="Delete System Option")
 def delete_system_option(option_id: int, db: Session = Depends(get_db)):
-    """Removes a dropdown option from the database."""
+    """Removes a dropdown option from the database and syncs the removal to Sheets."""
     option = (
         db.query(models.SystemOption)
         .filter(models.SystemOption.id == option_id)
@@ -282,6 +286,10 @@ def delete_system_option(option_id: int, db: Session = Depends(get_db)):
 
     db.delete(option)
     db.commit()
+
+    # Trigger a DB-to-Sheets backup to maintain parity
+    sync_engine.run_full_sync(db, direction="push")
+
     return {"message": f"Option '{option.option_value}' deleted successfully."}
 
 
