@@ -247,6 +247,9 @@
     <script>
       const API_BASE_URL = "/api";
 
+      // Expose the Jinja2 backend variable to the global JS environment securely
+      const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
       async function executeLogout() {
         try {
           const res = await fetch("/api/v1/auth/logout", { method: "POST" });
@@ -307,6 +310,65 @@
       });
       function scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // ==========================================
+      // GLOBAL UTILITIES
+      // ==========================================
+
+      /**
+       * Calculates Cumulative Episodes strictly for TV/ONA using watch_order.
+       * Globally available to any page that needs to display grand totals.
+       * * @param {Object} anime - The current anime object
+       * @param {Array} animeList - The full dataset array to calculate previous seasons
+       */
+      function calculateCumulativeEpisodes(anime, animeList) {
+          let localFin = anime.ep_fin || 0;
+          let localTotal = anime.ep_total || "?";
+          let prevEpsTotal = 0;
+          let hasUnknownPrev = false;
+
+          // Rule 1: Determine if this is a "First Season" base entry
+          const s = anime.series_season ? anime.series_season.toLowerCase().trim() : "";
+          const isFirstSeason = !s || s === "season 1" || s === "season 1 part 1";
+
+          if (!isFirstSeason && (anime.airing_type === "TV" || anime.airing_type === "ONA")) {
+              const seriesEntries = animeList.filter(a =>
+                  a.series_en === anime.series_en &&
+                  (a.airing_type === "TV" || a.airing_type === "ONA")
+              );
+
+              // Sort safely by watch_order -> fallback to series_season parsing if watch_order is blank
+              seriesEntries.sort((a, b) => {
+                  const orderA = a.watch_order !== null && a.watch_order !== undefined ? parseFloat(a.watch_order) : 9999;
+                  const orderB = b.watch_order !== null && b.watch_order !== undefined ? parseFloat(b.watch_order) : 9999;
+
+                  if (orderA !== orderB) return orderA - orderB;
+
+                  // Fallback: Extract number from "Season X"
+                  const parseSsn = (str) => {
+                      if (!str) return 999;
+                      const match = str.match(/season\s*(\d+)/i);
+                      return match ? parseInt(match[1]) : 999;
+                  };
+                  return parseSsn(a.series_season) - parseSsn(b.series_season);
+              });
+
+              for (const entry of seriesEntries) {
+                  if (entry.system_id === anime.system_id) {
+                      break; // Stop when we reach the current anime timeline-wise
+                  }
+                  // Rule 2: We only care about previous seasons' ep_total (assume fully watched)
+                  prevEpsTotal += (entry.ep_total || 0);
+                  if (!entry.ep_total) hasUnknownPrev = true;
+              }
+          }
+
+          // Rule 3: Add previous totals to the local numbers to get cumulative
+          let cumFin = localFin + prevEpsTotal;
+          let cumTotal = (localTotal === "?" || hasUnknownPrev) ? "?" : (localTotal + prevEpsTotal);
+
+          return { localFin, localTotal, cumFin, cumTotal, prevEpsTotal };
       }
 
       // ==========================================
@@ -393,7 +455,7 @@
                 : a.series_en;
 
               return `
-                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
                          onclick="window.location.href='/anime/${a.system_id}'">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
@@ -406,7 +468,7 @@
             } else {
               const s = res.data;
               return `
-                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" 
+                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
                          onclick="window.location.href='/series/${s.system_id}'">
                         <div class="flex items-center mb-1">
                             <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
@@ -420,6 +482,56 @@
           .join("");
 
         suggestionsDiv.classList.remove("hidden");
+      }
+
+      // --- Admin Sync Button Handler ---
+      async function handleSync() {
+        if (!IS_ADMIN) return;
+        const icon = document.getElementById("syncIcon");
+        const btn = document.getElementById("syncBtn");
+
+        if (!icon || !btn) return;
+
+        icon.classList.add("fa-spin");
+        btn.classList.add("opacity-75", "pointer-events-none");
+        btn.innerText = " Syncing...";
+        btn.prepend(icon);
+
+        try {
+          // V2: Target the specific Sheets Sync endpoint
+          const response = await fetch(`/api/admin/sync/sheets`, { method: "POST" });
+
+          if (response.ok) {
+            icon.classList.remove("fa-spin", "fa-sync-alt");
+            icon.classList.add("fa-check");
+            btn.classList.remove("bg-brand", "hover:bg-brand-hover", "opacity-75", "pointer-events-none");
+            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+            btn.innerText = " Synced!";
+            btn.prepend(icon);
+            showToast("Successfully synchronized with Google Sheets!");
+
+            // Refresh the dashboard data (if on index page) and the global search cache
+            if (typeof loadDashboard === 'function') await loadDashboard();
+            if (typeof loadUniversalSearchData === 'function') await loadUniversalSearchData();
+
+            setTimeout(() => {
+                icon.classList.remove("fa-check");
+                icon.classList.add("fa-sync-alt");
+                btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+                btn.classList.add("bg-brand", "hover:bg-brand-hover");
+                btn.innerText = " Sync";
+                btn.prepend(icon);
+            }, 2000);
+          } else {
+            throw new Error((await response.json()).detail || "Unknown error occurred.");
+          }
+        } catch (error) {
+          icon.classList.remove("fa-spin");
+          btn.classList.remove("opacity-75", "pointer-events-none");
+          btn.innerText = " Sync";
+          btn.prepend(icon);
+          showToast(`Sync Error: ${error.message}`, true);
+        }
       }
 
       // Initialize Universal Search Engine globally
