@@ -6,7 +6,10 @@ endblock %} {% block extra_style %} ::-webkit-scrollbar { width: 6px; height:
 background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); } @keyframes slideIn
 { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform:
 translateY(0); } } .animate-slide-in { animation: slideIn 0.4s
-cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
+cubic-bezier(0.16, 1, 0.3, 1) forwards; } /* Hide scrollbar for tab navigation
+on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } {% endblock
+%} {% block content %}
 <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
   <div
     class="mb-8 border-b border-gray-200 pb-4 flex justify-between items-end"
@@ -64,20 +67,27 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
   </div>
 
   <!-- TABS -->
-  <div class="flex space-x-6 mb-6">
+  <div class="flex space-x-6 mb-6 overflow-x-auto hide-scrollbar">
     <button
       id="tab-btn-anime"
       onclick="switchTab('anime')"
-      class="pb-2 text-base font-bold border-b-2 border-brand text-brand transition uppercase tracking-wide flex items-center"
+      class="pb-2 text-base font-bold border-b-2 border-brand text-brand transition uppercase tracking-wide flex items-center whitespace-nowrap"
     >
       <i class="fas fa-tv mr-2"></i> Add Anime Entry
     </button>
     <button
       id="tab-btn-series"
       onclick="switchTab('series')"
-      class="pb-2 text-base font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition uppercase tracking-wide flex items-center"
+      class="pb-2 text-base font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition uppercase tracking-wide flex items-center whitespace-nowrap"
     >
       <i class="fas fa-layer-group mr-2"></i> Add Series Hub
+    </button>
+    <button
+      id="tab-btn-options"
+      onclick="switchTab('options')"
+      class="pb-2 text-base font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition uppercase tracking-wide flex items-center whitespace-nowrap"
+    >
+      <i class="fas fa-sliders-h mr-2"></i> Add System Option
     </button>
   </div>
 
@@ -199,7 +209,6 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
                 class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
               ></div>
             </div>
-            <!-- V2: New Anime Alt Name Field -->
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
@@ -524,7 +533,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
         </div>
       </div>
 
-      <!-- 5. Relational Navigation [NEW] -->
+      <!-- 5. Relational Navigation -->
       <div class="bg-gray-100 rounded-xl p-5 border border-gray-200">
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-200 pb-2"
@@ -798,7 +807,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
           Definition
         </h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <!-- V2 Features: Added autocomplete for Series Hub Form to prevent duplicates actively -->
+          <!-- Autocomplete for Series Hub Form -->
           <div class="sm:col-span-2 relative">
             <label
               class="block text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1"
@@ -943,9 +952,85 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
       </div>
     </form>
   </div>
+
+  <!-- FORM 3: SYSTEM OPTIONS -->
+  <div
+    id="form-container-options"
+    class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 hidden max-w-2xl"
+  >
+    <form
+      id="manual-add-options-form"
+      onsubmit="submitOptionEntry(event)"
+      class="space-y-8"
+    >
+      <div>
+        <h3
+          class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
+        >
+          <i class="fas fa-sliders-h mr-2 text-brand"></i>Dynamic Dropdown
+          Configuration
+        </h3>
+        <p class="text-xs text-gray-500 mb-6">
+          Add new global options for categories like Studios or Genres. These
+          will immediately become available in the Add/Modify entry forms and
+          will be backed up to Google Sheets.
+        </p>
+
+        <div class="space-y-5">
+          <div>
+            <label
+              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+              ><i class="fas fa-asterisk text-[8px] text-red-400 mr-1"></i>
+              Select Category</label
+            >
+            <select
+              id="add-option-category"
+              required
+              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+            >
+              <option value="" disabled selected>
+                -- Select a target field --
+              </option>
+              <option value="Studio">Studio</option>
+              <option value="Genre Main">Genre Main</option>
+              <option value="Genre Sub">Genre Sub</option>
+              <option value="Distributor TW">Distributor TW</option>
+              <option value="Director">Director</option>
+              <option value="Producer">Producer</option>
+              <option value="Music">Music / Composer</option>
+            </select>
+          </div>
+          <div>
+            <label
+              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+              ><i class="fas fa-asterisk text-[8px] text-red-400 mr-1"></i>
+              Option Value</label
+            >
+            <input
+              type="text"
+              id="add-option-value"
+              required
+              placeholder="e.g. Kyoto Animation, Isekai, Aniplex"
+              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Footer -->
+      <div class="flex items-center justify-end pt-6 border-t border-gray-100">
+        <button
+          type="submit"
+          class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
+        >
+          <i class="fas fa-plus-circle mr-2"></i> Add System Option
+        </button>
+      </div>
+    </form>
+  </div>
 </main>
 
-<!-- Duplicate Warning Modal -->
+<!-- Duplicate Warning Modal (Anime) -->
 <div
   id="duplicate-modal"
   class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity"
@@ -1179,43 +1264,21 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
 <script>
   // --- Tab Switching Logic ---
   function switchTab(tab) {
-    if (tab === "anime") {
-      document
-        .getElementById("tab-btn-anime")
-        .classList.replace("border-transparent", "border-brand");
-      document
-        .getElementById("tab-btn-anime")
-        .classList.replace("text-gray-400", "text-brand");
-      document
-        .getElementById("tab-btn-series")
-        .classList.replace("border-brand", "border-transparent");
-      document
-        .getElementById("tab-btn-series")
-        .classList.replace("text-brand", "text-gray-400");
+    const tabs = ["anime", "series", "options"];
+    tabs.forEach((t) => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const container = document.getElementById(`form-container-${t}`);
 
-      document
-        .getElementById("form-container-anime")
-        .classList.remove("hidden");
-      document.getElementById("form-container-series").classList.add("hidden");
-    } else {
-      document
-        .getElementById("tab-btn-series")
-        .classList.replace("border-transparent", "border-brand");
-      document
-        .getElementById("tab-btn-series")
-        .classList.replace("text-gray-400", "text-brand");
-      document
-        .getElementById("tab-btn-anime")
-        .classList.replace("border-brand", "border-transparent");
-      document
-        .getElementById("tab-btn-anime")
-        .classList.replace("text-brand", "text-gray-400");
-
-      document
-        .getElementById("form-container-series")
-        .classList.remove("hidden");
-      document.getElementById("form-container-anime").classList.add("hidden");
-    }
+      if (t === tab) {
+        btn.classList.replace("border-transparent", "border-brand");
+        btn.classList.replace("text-gray-400", "text-brand");
+        container.classList.remove("hidden");
+      } else {
+        btn.classList.replace("border-brand", "border-transparent");
+        btn.classList.replace("text-brand", "text-gray-400");
+        container.classList.add("hidden");
+      }
+    });
   }
 
   // --- Global State & V2 Dynamic Options ---
@@ -1226,7 +1289,6 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
   let pendingSeriesPayload = null;
   let selectedStudios = new Set();
 
-  // We will map systemOptions to the backend category strings dynamically
   let systemOptions = {
     Studio: [],
     "Genre Main": [],
@@ -1255,7 +1317,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
       }),
     );
 
-    // Populate the UI dynamically instead of hardcoded arrays!
+    // Populate UI dynamically
     populateGenres();
     populateDatalists();
     renderStudioDatalist();
@@ -1552,6 +1614,54 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
 
   // --- Form Submissions ---
 
+  async function submitOptionEntry(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const payload = {
+      category: document.getElementById("add-option-category").value.trim(),
+      option_value: document.getElementById("add-option-value").value.trim(),
+    };
+
+    if (!payload.category || !payload.option_value) {
+      if (typeof showToast === "function")
+        showToast("Please select a category and enter a value.", true);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML =
+      '<i class="fas fa-spinner fa-spin mr-2"></i> Adding & Syncing...';
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/options`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Failed to add system option.");
+      }
+
+      if (typeof showToast === "function")
+        showToast(
+          `Successfully added "${payload.option_value}" to ${payload.category}!`,
+        );
+      e.target.reset();
+
+      // Re-fetch system options so the Anime form is instantly updated!
+      await loadSystemOptions();
+    } catch (err) {
+      if (typeof showToast === "function")
+        showToast(`Error: ${err.message}`, true);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML =
+        '<i class="fas fa-plus-circle mr-2"></i> Add System Option';
+    }
+  }
+
   async function submitSeriesEntry(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
@@ -1614,7 +1724,6 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     try {
-      // Assumes a series addition endpoint exists or will exist matching standard structure
       const res = await fetch(`${API_BASE_URL}/admin/series`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1746,7 +1855,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
     const finalStudioString =
       selectedStudios.size > 0 ? Array.from(selectedStudios).join(", ") : null;
 
-    // 3. Payload Construction (Including V2 Fields)
+    // 3. Payload Construction
     const payload = {
       system_id: crypto.randomUUID(),
       series_en: seriesEn,
@@ -1783,7 +1892,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
       watch_order_rec: getValue("add-watch-order-rec"),
       remark: getValue("add-remark"),
 
-      mal_id: getValue("add-mal-id"), // Pydantic expects string here
+      mal_id: getValue("add-mal-id"),
       mal_link: getValue("add-mal-link"),
       anilist_link: getValue("add-anilist-link"),
       op: getValue("add-op"),
@@ -1792,7 +1901,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
 
       source_baha: getValue("add-baha"),
       baha_link: getValue("add-baha-link"),
-      source_netflix: getValue("add-netflix"), // Fixed: Now sends the raw string ("TRUE"/"FALSE") instead of a boolean
+      source_netflix: getValue("add-netflix"),
       source_other: getValue("add-other"),
       source_other_link: getValue("add-other-link"),
     };
@@ -2057,7 +2166,6 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
       const data = await res.json();
 
       if (!res.ok) {
-        // V2 Fix: Robust parsing for FastAPI/Pydantic 422 Validation Arrays
         let errorMsg = data.detail || "Append failed";
         if (Array.isArray(data.detail)) {
           errorMsg =
@@ -2088,7 +2196,6 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
     } catch (error) {
       if (typeof showToast === "function")
         showToast(`${error.message}`, true, false);
-      // Fallback alert for large validation text that might overflow the toast
       if (error.message.includes("Validation Error")) {
         alert(error.message);
       }
@@ -2126,7 +2233,7 @@ cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content %}
 
   // Initialize Page
   document.addEventListener("DOMContentLoaded", () => {
-    loadSystemOptions(); // Replaces hardcoded populateGenres()
+    loadSystemOptions();
     setupStudioInput();
     loadMetadata();
   });
