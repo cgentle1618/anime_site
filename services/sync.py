@@ -9,6 +9,7 @@ import uuid
 import json
 import time
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_  # <-- ADDED: and_ is needed for the smart query
 
 from database import cleanup_old_logs
 from models import AnimeEntry, AnimeSeries, SyncLog
@@ -23,7 +24,6 @@ from services.sheets_client import get_all_rows, bulk_overwrite_sheet
 import services.jikan_client as jikan_client
 
 # Define the exact V2 column headers expected in the Google Sheet
-# Added mal_rating and mal_rank here!
 ANIME_HEADERS = [
     "system_id",
     "series_en",
@@ -164,8 +164,8 @@ def _pull_new_manual_entries(db: Session) -> dict:
                 remark=clean_value(row.get("remark")),
                 mal_id=clean_value(row.get("mal_id")),
                 mal_link=clean_value(row.get("mal_link")),
-                mal_rating=clean_value(row.get("mal_rating")),  # <-- Added
-                mal_rank=clean_value(row.get("mal_rank")),  # <-- Added
+                mal_rating=clean_value(row.get("mal_rating")),
+                mal_rank=clean_value(row.get("mal_rank")),
                 anilist_link=clean_value(row.get("anilist_link")),
                 op=clean_value(row.get("op")),
                 ed=clean_value(row.get("ed")),
@@ -203,6 +203,108 @@ def _pull_new_manual_entries(db: Session) -> dict:
         db.commit()
 
     return metrics
+
+
+def _soft_fill_missing_data(db: Session) -> int:
+    """
+    Hybrid Approach Mechanism [NEW]:
+    Scans the database for entries that have a MAL ID but are missing critical
+    volatile data (Cover Image, MAL Rating, MAL Rank).
+    Smart Logic: Ignores missing ratings/ranks for "Not Yet Aired" anime, leaving
+    them blank so they auto-fill the moment their status changes to "Currently Airing".
+    """
+    # Query for any anime with a MAL ID but missing critical data
+    anime_list = (
+        db.query(AnimeEntry)
+        .filter(AnimeEntry.mal_id.isnot(None), AnimeEntry.mal_id != "")
+        .filter(
+            or_(
+                # 1. Always fetch if cover image is missing
+                AnimeEntry.cover_image_file == None,
+                AnimeEntry.cover_image_file == "",
+                # 2. Only fetch for missing rating/rank IF it has actually aired
+                and_(
+                    or_(
+                        AnimeEntry.airing_status == None,
+                        AnimeEntry.airing_status != "Not Yet Aired",
+                    ),
+                    or_(
+                        AnimeEntry.mal_rating == None,
+                        AnimeEntry.mal_rating == "",
+                        AnimeEntry.mal_rank == None,
+                        AnimeEntry.mal_rank == "",
+                    ),
+                ),
+            )
+        )
+        .all()
+    )
+
+    filled_count = 0
+
+    if not anime_list:
+        return 0
+
+    print(
+        f"\n▶️ [Soft Fill] Found {len(anime_list)} anime needing missing data. Fetching..."
+    )
+
+    for anime in anime_list:
+        try:
+            mal_id_int = int(float(anime.mal_id))
+            mal_data = jikan_client.fetch_mal_data(mal_id_int, anime.system_id)
+
+            if mal_data:
+                updated = False
+
+                # 1. Cover Image (Mark N/A if missing on Jikan)
+                if not anime.cover_image_file:
+                    if mal_data.get("cover_image_file"):
+                        anime.cover_image_file = mal_data["cover_image_file"]
+                    elif mal_data.get("cover_image_url"):
+                        anime.cover_image_file = mal_data["cover_image_url"]
+                    else:
+                        anime.cover_image_file = "N/A"
+                    updated = True
+
+                # 2. MAL Rating (Leave empty if Not Yet Aired, else mark N/A)
+                if not anime.mal_rating:
+                    val = mal_data.get("mal_rating")
+                    if val is not None:
+                        anime.mal_rating = str(val)
+                        updated = True
+                    elif anime.airing_status != "Not Yet Aired":
+                        anime.mal_rating = "N/A"
+                        updated = True
+
+                # 3. MAL Rank (Leave empty if Not Yet Aired, else mark N/A)
+                if not anime.mal_rank:
+                    val = mal_data.get("mal_rank")
+                    if val is not None:
+                        anime.mal_rank = str(val)
+                        updated = True
+                    elif anime.airing_status != "Not Yet Aired":
+                        anime.mal_rank = "N/A"
+                        updated = True
+
+                if updated:
+                    filled_count += 1
+                    print(f"  └ Soft Filled: {anime.series_en or anime.system_id}")
+
+            # Sleep 1.5 seconds strictly to respect Jikan's API rate limits
+            time.sleep(1.5)
+
+        except ValueError:
+            print(
+                f"⚠️ [Soft Fill] Invalid MAL ID format for {anime.system_id}: {anime.mal_id}"
+            )
+        except Exception as e:
+            print(f"❌ [Soft Fill] Error fetching data for {anime.system_id}: {e}")
+
+    if filled_count > 0:
+        db.commit()
+
+    return filled_count
 
 
 def _push_db_backup_to_sheets(db: Session) -> dict:
@@ -250,7 +352,7 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             a.mal_id,
             a.mal_link,
             a.mal_rating,
-            a.mal_rank,  # <-- Added
+            a.mal_rank,
             a.anilist_link,
             a.op,
             a.ed,
@@ -312,6 +414,12 @@ def run_full_sync(db: Session, direction: str = "both") -> dict:
             print(
                 f"📥 Pulled {pull_metrics['anime_added']} new anime and {pull_metrics['series_added']} new series from Sheets."
             )
+
+            # --- Hybrid Soft Fill (NEW) ---
+            # Now that new rows are pulled into DB, we auto-fill their missing data!
+            filled_count = _soft_fill_missing_data(db)
+            if filled_count > 0:
+                print(f"✨ Auto-filled missing metadata for {filled_count} anime.")
 
         if direction in ["both", "push"]:
             push_metrics = _push_db_backup_to_sheets(db)
