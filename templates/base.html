@@ -508,7 +508,7 @@
             btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
             btn.innerText = " Synced!";
             btn.prepend(icon);
-            showToast("Successfully synchronized with Google Sheets!");
+            showToast("Database updated and backed up to Google Sheets!");
 
             // Refresh the dashboard data (if on index page) and the global search cache
             if (typeof loadDashboard === 'function') await loadDashboard();
