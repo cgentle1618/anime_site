@@ -39,7 +39,7 @@ content %}
     </div>
   </div>
 
-  <!-- Middle Row: Diagnostic Controls & Orphan Center -->
+  <!-- Middle Row: Diagnostic Controls & Data Maintenance -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
     <div
       class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:col-span-1 flex flex-col gap-4"
@@ -48,34 +48,20 @@ content %}
         <i class="fas fa-microchip text-gray-400 mr-2"></i> Diagnostics
       </h3>
 
-      <!-- Unified handleSync Button -->
+      <!-- V2 Strong Sync Button -->
       <button
-        id="diagSyncBtn"
-        onclick="handleSync()"
-        class="w-full bg-brand/5 hover:bg-brand text-brand hover:text-white border border-brand/10 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
+        id="strongSyncBtn"
+        onclick="handleStrongSync()"
+        class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
       >
         <span class="flex items-center"
           ><i
-            id="diagSyncIcon"
-            class="fas fa-sync-alt mr-3 group-hover:rotate-180 transition-transform duration-700"
+            id="strongSyncIcon"
+            class="fas fa-bolt mr-3 group-hover:scale-110 transition-transform duration-300"
           ></i>
-          Force Full Sync</span
+          Strong Sync (MAL Updates)</span
         >
         <i class="fas fa-chevron-right text-xs opacity-50"></i>
-      </button>
-
-      <button
-        onclick="scanOrphans()"
-        id="btn-scan"
-        class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
-      >
-        <span class="flex items-center"
-          ><i
-            class="fas fa-search-location mr-3 group-hover:scale-110 transition-transform"
-          ></i>
-          Scan for Orphans</span
-        >
-        <i id="scan-icon" class="fas fa-chevron-right text-xs opacity-50"></i>
       </button>
 
       <button
@@ -94,27 +80,38 @@ content %}
       </button>
     </div>
 
+    <!-- Data Maintenance Block -->
     <div
       class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:col-span-2 flex flex-col h-full"
     >
       <h3
         class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
       >
-        <i class="fas fa-tools text-amber-500 mr-2"></i> Orphan Resolution
-        Center
+        <i class="fas fa-tools text-amber-500 mr-2"></i> Data Maintenance &
+        Utilities
       </h3>
-      <div
-        id="orphan-container"
-        class="flex-1 overflow-y-auto min-h-[150px] max-h-[200px] pr-2"
-      >
+
+      <div class="flex flex-col gap-6 flex-1">
+        <!-- Set Current Season Tool -->
         <div
-          class="flex flex-col items-center justify-center h-full text-center py-6"
+          class="flex flex-col border border-gray-100 rounded-xl p-4 bg-gray-50 h-full"
         >
-          <i class="fas fa-check-circle text-4xl text-gray-200 mb-3"></i>
-          <p class="text-gray-500 font-medium text-sm">
-            Parity Check required. Scan to detect entries missing from Google
-            Sheets.
+          <h4 class="font-bold text-gray-800 mb-2">
+            <i class="fas fa-calendar-check text-blue-500 mr-2"></i> Set Current
+            Season
+          </h4>
+          <p class="text-xs text-gray-500 mb-4 flex-1">
+            Automatically queries live data to update "Not Yet Aired" entries
+            that have started broadcasting this season.
           </p>
+          <button
+            id="btn-set-season"
+            onclick="handleSetCurrentSeason()"
+            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition shadow-sm flex items-center justify-center"
+          >
+            <i id="season-icon" class="fas fa-magic mr-2"></i> Auto-Fill Missing
+            Data
+          </button>
         </div>
       </div>
     </div>
@@ -494,7 +491,7 @@ content %}
           <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
               <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(log.timestamp)}</td>
               <td class="px-4 py-3">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${log.sync_type === "cron" ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-purple-50 text-purple-600 border-purple-200"}">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${log.sync_type === "v2_master_sync" ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-purple-50 text-purple-600 border-purple-200"}">
                       ${log.sync_type}
                   </span>
               </td>
@@ -670,7 +667,7 @@ content %}
 
   async function loadDeletedRecords() {
     try {
-      const res = await fetch(`/api/admin/recent-deleted?limit=15`);
+      const res = await fetch(`/api/admin/deletions?limit=15`);
       if (!res.ok) throw new Error("Failed to fetch deleted records");
       const data = await res.json();
 
@@ -687,11 +684,11 @@ content %}
                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(record.deleted_at)}</td>
                 <td class="px-4 py-3">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
-                        ${record.record_type}
+                        ${record.table_name === "anime_entries" ? "anime" : "series"}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${record.title}">
-                    ${record.title}
+                <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${JSON.parse(record.data_json || "{}").title || record.system_id}">
+                    ${JSON.parse(record.data_json || "{}").title || record.system_id}
                 </td>
             </tr>
         `,
@@ -702,7 +699,64 @@ content %}
     }
   }
 
-  // --- Admin Diagnostics ---
+  // --- Admin Diagnostics & Utilities ---
+  async function handleStrongSync() {
+    const btn = document.getElementById("strongSyncBtn");
+    const icon = document.getElementById("strongSyncIcon");
+
+    icon.classList.add("fa-spin");
+    btn.classList.add("opacity-75", "pointer-events-none");
+
+    try {
+      const response = await fetch(`/api/admin/sync/strong`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || "Strong Sync failed.");
+      }
+
+      const data = await response.json();
+      if (typeof showToast === "function")
+        showToast(`Success: Updated ${data.jikan_updated} entries.`);
+      await initializeAdminPanel();
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(`Error: ${error.message}`, true);
+    } finally {
+      icon.classList.remove("fa-spin");
+      btn.classList.remove("opacity-75", "pointer-events-none");
+    }
+  }
+
+  async function handleSetCurrentSeason() {
+    const btn = document.getElementById("btn-set-season");
+    const icon = document.getElementById("season-icon");
+
+    icon.classList.remove("fa-magic");
+    icon.classList.add("fa-circle-notch", "fa-spin");
+    btn.classList.add("opacity-75", "pointer-events-none");
+
+    try {
+      const res = await fetch(`/api/admin/set-season`, { method: "POST" });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Failed to set current season.");
+      }
+      const data = await res.json();
+      if (typeof showToast === "function")
+        showToast(data.message || "Season data updated!");
+      await initializeAdminPanel();
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(`Error: ${error.message}`, true);
+    } finally {
+      icon.classList.remove("fa-circle-notch", "fa-spin");
+      icon.classList.add("fa-magic");
+      btn.classList.remove("opacity-75", "pointer-events-none");
+    }
+  }
+
   async function cleanupLogs() {
     const btn = document.getElementById("btn-cleanup");
     const icon = document.getElementById("cleanup-icon");
@@ -725,169 +779,6 @@ content %}
     } finally {
       btn.classList.remove("pointer-events-none", "opacity-70");
       icon.className = "fas fa-chevron-right text-xs opacity-50";
-    }
-  }
-
-  async function scanOrphans() {
-    const btn = document.getElementById("btn-scan");
-    const icon = document.getElementById("scan-icon");
-    const container = document.getElementById("orphan-container");
-
-    btn.classList.add("pointer-events-none", "opacity-70");
-    icon.className = "fas fa-spinner fa-spin text-amber-600";
-    container.innerHTML = `<div class="flex items-center justify-center h-full"><i class="fas fa-circle-notch fa-spin text-2xl text-amber-500"></i></div>`;
-
-    try {
-      const res = await fetch(`/api/admin/orphans`);
-      if (!res.ok) throw new Error("Failed to scan orphans.");
-      const orphans = await res.json();
-
-      if (orphans.length === 0) {
-        container.innerHTML = `
-          <div class="flex flex-col items-center justify-center h-full text-center py-6">
-              <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3"></i>
-              <p class="text-gray-500 font-medium text-sm">Parity Achieved. No orphans detected between Postgres and Sheets.</p>
-          </div>`;
-      } else {
-        let html = `<div class="space-y-3">`;
-        orphans.forEach((o) => {
-          const title =
-            o.series_season_cn ||
-            o.series_season_en ||
-            o.series_season_roman ||
-            o.series_en ||
-            o.system_id;
-          html += `
-              <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <div class="min-w-0 pr-4">
-                      <p class="text-sm font-bold text-gray-900 truncate" title="${title}">${title}</p>
-                      <p class="text-[10px] text-gray-500 font-mono">${o.system_id}</p>
-                  </div>
-                  <button onclick="resolveOrphan('${o.system_id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shrink-0 shadow-sm">
-                      <i class="fas fa-trash-alt mr-1"></i> Delete
-                  </button>
-              </div>
-          `;
-        });
-        html += `</div>`;
-        container.innerHTML = html;
-        if (typeof showToast === "function")
-          showToast(`Found ${orphans.length} orphaned records.`, true);
-      }
-    } catch (error) {
-      container.innerHTML = `<p class="text-red-500 text-center py-4 text-sm font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</p>`;
-    } finally {
-      btn.classList.remove("pointer-events-none", "opacity-70");
-      icon.className = "fas fa-chevron-right text-xs opacity-50";
-    }
-  }
-
-  async function resolveOrphan(sysId) {
-    if (
-      !confirm(
-        "Are you sure you want to permanently delete this orphaned record from the database?",
-      )
-    )
-      return;
-
-    try {
-      const res = await fetch(`/api/admin/orphans/${sysId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete orphan.");
-
-      if (typeof showToast === "function")
-        showToast("Orphan resolved successfully.");
-      await scanOrphans();
-      await loadDeletedRecords();
-    } catch (error) {
-      if (typeof showToast === "function") showToast(error.message, true);
-    }
-  }
-
-  // --- Unified Global Sync Handler ---
-  async function handleSync() {
-    const topBtn = document.getElementById("syncBtn");
-    const topIcon = document.getElementById("syncIcon");
-    const diagBtn = document.getElementById("diagSyncBtn");
-    const diagIcon = document.getElementById("diagSyncIcon");
-
-    // UI Loading State
-    if (topIcon) topIcon.classList.add("fa-spin");
-    if (topBtn) {
-      topBtn.classList.add("opacity-75", "pointer-events-none");
-      topBtn.innerText = " Syncing...";
-      topBtn.prepend(topIcon);
-    }
-    if (diagIcon) diagIcon.classList.add("fa-spin");
-    if (diagBtn) diagBtn.classList.add("opacity-75", "pointer-events-none");
-
-    try {
-      const response = await fetch(`/api/admin/sync`, { method: "POST" });
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || response.statusText);
-      }
-
-      if (typeof showToast === "function")
-        showToast("Successfully synchronized with Google Sheets!");
-
-      // Refresh all dashboard tables
-      await initializeAdminPanel();
-
-      // UI Success State
-      if (topIcon) {
-        topIcon.classList.remove("fa-spin", "fa-sync-alt");
-        topIcon.classList.add("fa-check");
-      }
-      if (topBtn) {
-        topBtn.classList.remove(
-          "bg-brand",
-          "hover:bg-brand-hover",
-          "opacity-75",
-          "pointer-events-none",
-        );
-        topBtn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
-        topBtn.innerText = " Synced!";
-        topBtn.prepend(topIcon);
-      }
-      if (diagIcon) {
-        diagIcon.classList.remove("fa-spin", "fa-sync-alt");
-        diagIcon.classList.add("fa-check", "text-emerald-500");
-      }
-
-      setTimeout(() => {
-        if (topIcon) {
-          topIcon.classList.remove("fa-check");
-          topIcon.classList.add("fa-sync-alt");
-        }
-        if (topBtn) {
-          topBtn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
-          topBtn.classList.add("bg-brand", "hover:bg-brand-hover");
-          topBtn.innerText = " Sync";
-          topBtn.prepend(topIcon);
-        }
-        if (diagIcon) {
-          diagIcon.classList.remove("fa-check", "text-emerald-500");
-          diagIcon.classList.add("fa-sync-alt");
-        }
-        if (diagBtn)
-          diagBtn.classList.remove("opacity-75", "pointer-events-none");
-      }, 2000);
-    } catch (error) {
-      if (typeof showToast === "function")
-        showToast(`Sync Error: ${error.message}`, true);
-
-      // Revert UI on failure
-      if (topIcon) topIcon.classList.remove("fa-spin");
-      if (topBtn) {
-        topBtn.classList.remove("opacity-75", "pointer-events-none");
-        topBtn.innerText = " Sync";
-        topBtn.prepend(topIcon);
-      }
-      if (diagIcon) diagIcon.classList.remove("fa-spin");
-      if (diagBtn)
-        diagBtn.classList.remove("opacity-75", "pointer-events-none");
     }
   }
 
