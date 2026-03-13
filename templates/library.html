@@ -52,6 +52,7 @@ opacity: 1; } {% endblock %} {% block content %}
           >
             <option value="titleAsc" selected>Title (A-Z)</option>
             <option value="titleDesc">Title (Z-A)</option>
+            <option value="releaseAsc">Timeline (Chronological)</option>
             <option value="ratingMineDesc">My Rating (High to Low)</option>
             <option value="ratingMineAsc">My Rating (Low to High)</option>
             <option value="malRatingDesc">MAL Rating (High to Low)</option>
@@ -299,15 +300,22 @@ opacity: 1; } {% endblock %} {% block content %}
   }
 
   function buildSearchString(anime, altName) {
-    let expandedReleaseDate = anime.release_date || "";
-    const rdLower = expandedReleaseDate.toLowerCase();
+    // V2 Smart Search String Builder
+    let v2Year = anime.release_year || "";
+    let v2Season = anime.release_season || "";
+    let v2Month = anime.release_month || "";
 
-    if (rdLower.includes("spr")) expandedReleaseDate += " spring";
-    if (rdLower.includes("sum")) expandedReleaseDate += " summer";
-    if (rdLower.includes("fal")) expandedReleaseDate += " fall autumn";
-    if (rdLower.includes("win")) expandedReleaseDate += " winter";
+    let expandedReleaseDate =
+      `${anime.release_date || ""} ${v2Year} ${v2Season} ${v2Month}`.toLowerCase();
 
-    return `${anime.series_season_cn || ""} ${anime.series_season_en || ""} ${anime.series_en || ""} ${anime.series_season_roman || ""} ${expandedReleaseDate} ${altName || ""}`.toLowerCase();
+    if (expandedReleaseDate.includes("spr")) expandedReleaseDate += " spring";
+    if (expandedReleaseDate.includes("sum")) expandedReleaseDate += " summer";
+    if (expandedReleaseDate.includes("fal"))
+      expandedReleaseDate += " fall autumn";
+    if (expandedReleaseDate.includes("win")) expandedReleaseDate += " winter";
+
+    // Also index the studio for advanced filtering!
+    return `${anime.series_season_cn || ""} ${anime.series_season_en || ""} ${anime.series_en || ""} ${anime.series_season_roman || ""} ${expandedReleaseDate} ${altName || ""} ${anime.studio || ""}`.toLowerCase();
   }
 
   function applyFiltersAndSort() {
@@ -404,6 +412,67 @@ opacity: 1; } {% endblock %} {% block content %}
 
     const sortVal = document.getElementById("sort-select").value;
     result.sort((a, b) => {
+      if (sortVal === "releaseAsc") {
+        const getScore = (anime) => {
+          let year = parseInt(anime.release_year);
+
+          // Fallback for V1 string dates if release_year is missing
+          if (
+            isNaN(year) &&
+            anime.release_date &&
+            anime.release_date !== "TBA"
+          ) {
+            const match = String(anime.release_date).match(/\d{4}/);
+            if (match) year = parseInt(match[0]);
+          }
+
+          // If there is no information about release date, treat it as the far future
+          if (isNaN(year)) return 999999;
+
+          let month = 1; // Default to 1/1 if only release_year exists
+
+          if (anime.release_month) {
+            const mMap = {
+              JAN: 1,
+              FEB: 2,
+              MAR: 3,
+              APR: 4,
+              MAY: 5,
+              JUN: 6,
+              JUL: 7,
+              AUG: 8,
+              SEP: 9,
+              OCT: 10,
+              NOV: 11,
+              DEC: 12,
+            };
+            month = mMap[anime.release_month] || 1;
+          } else if (anime.release_season) {
+            const sMap = { WIN: 1, SPR: 4, SUM: 7, FAL: 10 };
+            month = sMap[anime.release_season] || 1;
+          } else if (anime.release_date) {
+            const str = String(anime.release_date).toUpperCase();
+            if (str.includes("FEB")) month = 2;
+            else if (str.includes("MAR")) month = 3;
+            else if (str.includes("SPR") || str.includes("APR")) month = 4;
+            else if (str.includes("MAY")) month = 5;
+            else if (str.includes("JUN")) month = 6;
+            else if (str.includes("SUM") || str.includes("JUL")) month = 7;
+            else if (str.includes("AUG")) month = 8;
+            else if (str.includes("SEP")) month = 9;
+            else if (str.includes("FAL") || str.includes("OCT")) month = 10;
+            else if (str.includes("NOV")) month = 11;
+            else if (str.includes("DEC")) month = 12;
+          }
+
+          return year * 100 + month;
+        };
+
+        const dateA = getScore(a);
+        const dateB = getScore(b);
+        if (dateA !== dateB) return dateA - dateB;
+      }
+
       const scoreMap = { S: 10, "A+": 9, A: 8, B: 7, C: 6, D: 5, E: 4, F: 3 };
       let titleA = String(
         a.series_season_cn || a.series_season_en || a.series_en || "",
@@ -569,14 +638,42 @@ opacity: 1; } {% endblock %} {% block content %}
       actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
     }
 
-    // Safely render MAL Rating
+    // V2 MAL Score
     let malRatingHtml = "";
-    if (anime.mal_rating) {
+    if (anime.mal_rating && anime.mal_rating !== "N/A") {
       const ratingNum = Number(anime.mal_rating);
       if (!isNaN(ratingNum)) {
-        malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
+        malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow z-10"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
       }
     }
+
+    // V2 Date Extraction
+    let dateStr = "";
+    if (anime.release_year) {
+      dateStr =
+        `${anime.release_season || anime.release_month || ""} ${anime.release_year}`.trim();
+    } else if (anime.release_date) {
+      dateStr = anime.release_date; // V1 Fallback
+    } else {
+      dateStr = "TBA";
+    }
+
+    // V2 Streaming Icons
+    let streamingHtml = "";
+    if (
+      String(anime.source_baha).toUpperCase() === "TRUE" ||
+      String(anime.source_baha) === "有"
+    )
+      streamingHtml += `<i class="fas fa-play-circle text-[#00B4D8]" title="Bahamut"></i>`;
+    if (
+      anime.source_netflix === true ||
+      String(anime.source_netflix).toUpperCase() === "TRUE"
+    )
+      streamingHtml += `<span class="text-[#E50914] font-black text-[11px] leading-none" title="Netflix">N</span>`;
+    if (anime.source_other)
+      streamingHtml += `<i class="fas fa-external-link-alt text-purple-500 text-[10px]" title="${anime.source_other}"></i>`;
+    if (streamingHtml)
+      streamingHtml = `<div class="flex items-center gap-1.5 ml-1.5 pl-1.5 border-l border-gray-300 h-3">${streamingHtml}</div>`;
 
     return `
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
@@ -599,7 +696,12 @@ opacity: 1; } {% endblock %} {% block content %}
             <!-- Card Content -->
             <div class="p-3 flex flex-col flex-1">
                 <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
-                <p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p>
+                <div class="flex flex-wrap items-center text-[11px] text-gray-500 font-medium mb-3 gap-y-1">
+                    <span>${anime.airing_type || "TV"}</span>
+                    <span class="mx-1.5">&bull;</span>
+                    <span>${dateStr}</span>
+                    ${streamingHtml}
+                </div>
 
                 <!-- Progress Controls (Bottom) -->
                 <div class="mt-auto flex items-center justify-between">
