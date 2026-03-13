@@ -5,15 +5,20 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 
 # Install system build dependencies
+# Added libffi-dev which is strictly required to build cryptography/cffi wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     python3-dev \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
     
+# Upgrade pip to ensure full compatibility with modern wheel building standards
+RUN pip install --upgrade pip
+
 COPY requirements.txt .
 
-# FIX 1: Removed --no-deps so pip builds wheels for ALL sub-dependencies as well
+# Build wheels for all sub-dependencies
 RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
 # ==========================================
@@ -31,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/requirements.txt .
 
-# FIX 2: Safely install strictly from the local wheels folder without reaching out to PyPI again
+# Safely install strictly from the local wheels folder without reaching out to PyPI again
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
 
 # Copy application code
