@@ -18,8 +18,8 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
     <div
       class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-4 mb-8 border-b border-gray-200"
     >
-      <div class="flex justify-between items-end">
-        <div>
+      <div class="flex flex-col lg:flex-row justify-between items-start gap-4">
+        <div class="shrink-0">
           <h1 class="text-3xl font-bold text-gray-900">Search Results</h1>
           <p class="text-gray-500 mt-1">
             Showing results for
@@ -29,36 +29,36 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
             ></span>
           </p>
         </div>
-      </div>
 
-      <!-- Dynamic Series Filter Bar -->
-      <div
-        id="series-filter-wrapper"
-        class="hidden mt-4 pt-4 border-t border-gray-200/60"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <i class="fas fa-filter text-brand text-xs"></i>
-            <span
-              class="text-xs font-bold text-gray-600 uppercase tracking-wider"
-              >Filter by Series</span
-            >
-          </div>
-          <!-- Dynamic Clear Button -->
-          <button
-            id="clear-series-filters"
-            onclick="clearSeriesFilters()"
-            class="hidden text-[10px] font-bold text-red-500 hover:text-red-700 transition uppercase tracking-wider bg-red-50 px-2 py-1 rounded border border-red-100"
-          >
-            <i class="fas fa-times mr-1"></i> Clear Filters
-          </button>
-        </div>
-        <!-- Pills Container with Max Height for broad searches -->
+        <!-- Consolidated Filters (Right-aligned on desktop) -->
         <div
-          id="series-filter-pills"
-          class="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-2 pb-1"
+          id="series-filter-wrapper"
+          class="hidden w-full lg:w-auto lg:max-w-[60%] flex flex-col lg:items-end"
         >
-          <!-- Pills Injected via JS -->
+          <div class="flex items-center gap-3 mb-2">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-filter text-brand text-xs"></i>
+              <span
+                class="text-xs font-bold text-gray-600 uppercase tracking-wider"
+                >Filter by Series</span
+              >
+            </div>
+            <!-- Dynamic Clear Button -->
+            <button
+              id="clear-series-filters"
+              onclick="clearSeriesFilters()"
+              class="hidden text-[10px] font-bold text-red-500 hover:text-red-700 transition uppercase tracking-wider bg-red-50 px-2 py-1 rounded border border-red-100"
+            >
+              <i class="fas fa-times mr-1"></i> Clear Filters
+            </button>
+          </div>
+          <!-- Pills Container with Max Height for broad searches -->
+          <div
+            id="series-filter-pills"
+            class="flex flex-wrap lg:justify-end gap-2 max-h-[110px] overflow-y-auto pr-1 w-full"
+          >
+            <!-- Pills Injected via JS -->
+          </div>
         </div>
       </div>
     </div>
