@@ -165,9 +165,9 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         <!-- 1. Titles & Naming -->
         <div>
           <h3
-            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
           >
-            <i class="fas fa-heading mr-2 text-gray-400"></i>1. Titles & Naming
+            <i class="fas fa-heading mr-2 text-brand"></i>1. Titles & Naming
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <div class="sm:col-span-2 relative">
@@ -209,53 +209,79 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
                 <option value="Season 10">Season 10</option>
               </select>
             </div>
-            <div class="sm:col-span-2 lg:col-span-1 relative">
-              <label
-                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                >Season English Title</label
-              >
-              <input
-                type="text"
-                id="edit-season-en"
-                oninput="handleAutocomplete(this, 'series_season_en')"
-                autocomplete="off"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
+
+            <div class="sm:col-span-2 lg:col-span-4 mt-2">
               <div
-                class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
-              ></div>
-            </div>
-            <div class="sm:col-span-2 lg:col-span-1 relative">
-              <label
-                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                >Season Romanized Title</label
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 bg-indigo-50/30 border border-indigo-100 rounded-xl p-5 shadow-sm relative"
               >
-              <input
-                type="text"
-                id="edit-season-roman"
-                oninput="handleAutocomplete(this, 'series_season_roman')"
-                autocomplete="off"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
-              <div
-                class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
-              ></div>
-            </div>
-            <div class="sm:col-span-2 lg:col-span-1 relative">
-              <label
-                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                >Season Chinese Title</label
-              >
-              <input
-                type="text"
-                id="edit-season-cn"
-                oninput="handleAutocomplete(this, 'series_season_cn')"
-                autocomplete="off"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
-              <div
-                class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
-              ></div>
+                <div
+                  class="absolute -top-2.5 left-4 bg-white px-2 py-0.5 text-[9px] font-bold text-indigo-500 uppercase tracking-wider flex items-center shadow-sm border border-indigo-100 rounded-md"
+                >
+                  <i class="fas fa-asterisk mr-1 text-[7px]"></i> Identifiers
+                </div>
+                <div class="relative">
+                  <label
+                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Season English Title</label
+                  >
+                  <input
+                    type="text"
+                    id="edit-season-en"
+                    oninput="handleAutocomplete(this, 'series_season_en')"
+                    autocomplete="off"
+                    class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
+                </div>
+                <div class="relative">
+                  <label
+                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Season Romanized Title</label
+                  >
+                  <input
+                    type="text"
+                    id="edit-season-roman"
+                    oninput="handleAutocomplete(this, 'series_season_roman')"
+                    autocomplete="off"
+                    class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
+                </div>
+                <div class="relative">
+                  <label
+                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                    >Season Chinese Title</label
+                  >
+                  <input
+                    type="text"
+                    id="edit-season-cn"
+                    oninput="handleAutocomplete(this, 'series_season_cn')"
+                    autocomplete="off"
+                    class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+                  />
+                  <div
+                    class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+                  ></div>
+                </div>
+                <!-- V2: Anime Alt Name Field -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
+                    ><i class="fas fa-plus mr-1"></i> Alt / Abbr Name</label
+                  >
+                  <input
+                    type="text"
+                    id="edit-anime-alt"
+                    placeholder="e.g. SAO II"
+                    class="w-full bg-white border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -263,9 +289,9 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         <!-- 2. Status & Ratings -->
         <div>
           <h3
-            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
           >
-            <i class="fas fa-tasks mr-2 text-gray-400"></i>2. Status & Progress
+            <i class="fas fa-tasks mr-2 text-brand"></i>2. Status & Progress
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div>
@@ -283,7 +309,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
                 <option value="Active Watching">Active Watching</option>
                 <option value="Passive Watching">Passive Watching</option>
                 <option value="Paused">Paused</option>
-                <option value="Temp Dropped">Temp Dropped</option>
                 <option value="Dropped">Dropped</option>
                 <option value="Won't Watch">Won't Watch</option>
                 <option value="Completed">Completed</option>
@@ -354,9 +379,9 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         <!-- 3. Classification & Broadcast -->
         <div>
           <h3
-            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
           >
-            <i class="fas fa-tags mr-2 text-gray-400"></i>3. Classification
+            <i class="fas fa-tags mr-2 text-brand"></i>3. Classification
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div>
@@ -372,6 +397,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
                 <option value="ONA">ONA</option>
                 <option value="Movie">Movie</option>
                 <option value="OVA">OVA</option>
+                <option value="OAD">OAD</option>
                 <option value="Special">Special</option>
                 <option value="Other">Other</option>
               </select>
@@ -419,9 +445,9 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         <!-- 4. Production & Distribution -->
         <div>
           <h3
-            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
           >
-            <i class="fas fa-video mr-2 text-gray-400"></i>4. Production &
+            <i class="fas fa-video mr-2 text-brand"></i>4. Production &
             Distribution
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -492,6 +518,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
               <datalist id="edit-studio-list"></datalist>
             </div>
 
+            <!-- V2 Dynamic Datalists -->
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -502,73 +529,127 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
                 id="edit-distributor"
                 class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
               />
-              <datalist id="edit-distributor-list">
-                <option value="Muse木棉花"></option>
-                <option value="羚邦 Ani-One"></option>
-                <option value="曼迪 Mightymedia"></option>
-                <option value="Proware普威爾"></option>
-                <option value="Disney"></option>
-                <option value="NETFLIX"></option>
-                <option value="bilibili"></option>
-                <option value="台灣角川"></option>
-                <option value="ANIPLUS"></option>
-                <option value="東映"></option>
-                <option value="車庫娛樂"></option>
-                <option value="回歸線娛樂"></option>
-                <option value="六六喜喜"></option>
-              </datalist>
+              <datalist id="edit-distributor-list"></datalist>
             </div>
+
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                 >Director</label
               >
               <input
-                type="text"
+                list="edit-director-list"
                 id="edit-director"
                 class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+              <datalist id="edit-director-list"></datalist>
+            </div>
+
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
+                ><i class="fas fa-plus mr-1"></i> Producer</label
+              >
+              <input
+                list="edit-producer-list"
+                id="edit-producer"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+              <datalist id="edit-producer-list"></datalist>
+            </div>
+
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
+                ><i class="fas fa-plus mr-1"></i> Music / Composer</label
+              >
+              <input
+                list="edit-music-list"
+                id="edit-music"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+              <datalist id="edit-music-list"></datalist>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Relational Navigation [NEW] -->
+        <div class="bg-gray-100 rounded-xl p-5 border border-gray-200">
+          <h3
+            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-200 pb-2"
+          >
+            <i class="fas fa-project-diagram mr-2 text-brand"></i>5. Relational
+            & Timeline
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Prequel (Title or ID)</label
+              >
+              <input
+                type="text"
+                id="edit-prequel"
+                class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
               />
             </div>
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                >Source Baha</label
+                >Sequel (Title or ID)</label
               >
-              <select
-                id="edit-baha"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
-              >
-                <option value="">-</option>
-                <option value="TRUE">TRUE (有)</option>
-                <option value="FALSE">FALSE (無)</option>
-              </select>
+              <input
+                type="text"
+                id="edit-sequel"
+                class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
             </div>
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                >Source Netflix</label
+                >Alternative Route(s)</label
               >
-              <select
-                id="edit-netflix"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+              <input
+                type="text"
+                id="edit-alternative"
+                class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Watch Order</label
               >
-                <option value="">-</option>
-                <option value="TRUE">TRUE (有)</option>
-                <option value="FALSE" selected>FALSE (無)</option>
-              </select>
+              <input
+                type="number"
+                step="0.1"
+                id="edit-watch-order"
+                class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Recommended Watch Order</label
+              >
+              <input
+                type="text"
+                id="edit-watch-order-rec"
+                class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
             </div>
           </div>
         </div>
 
-        <!-- 5. Links, Music, Remarks -->
+        <!-- 6. Links, Streaming, Remarks -->
         <div>
           <h3
-            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"
+            class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
           >
-            <i class="fas fa-link mr-2 text-gray-400"></i>5. Links, Music, &
+            <i class="fas fa-link mr-2 text-brand"></i>6. Links, Streaming, &
             Notes
           </h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -602,7 +683,71 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
                 class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
               />
             </div>
-            <div class="sm:col-span-2 lg:col-span-3">
+
+            <!-- V2 Streaming Options -->
+            <div>
+              <label
+                class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1"
+                >Source Baha</label
+              >
+              <select
+                id="edit-baha"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+              >
+                <option value="">-</option>
+                <option value="TRUE">TRUE (有)</option>
+                <option value="FALSE">FALSE (無)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1"
+                >Baha Link</label
+              >
+              <input
+                type="text"
+                id="edit-baha-link"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-[#E50914] uppercase tracking-wider mb-1"
+                >Source Netflix</label
+              >
+              <select
+                id="edit-netflix"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+              >
+                <option value="">-</option>
+                <option value="TRUE">TRUE (有)</option>
+                <option value="FALSE" selected>FALSE (無)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Source Other (Name)</label
+              >
+              <input
+                type="text"
+                id="edit-other"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Source Other Link</label
+              >
+              <input
+                type="text"
+                id="edit-other-link"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
+              />
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-4">
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2"
                 >Music Status (OP / ED / OST)</label
@@ -646,7 +791,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
                 </div>
               </div>
             </div>
-            <div class="sm:col-span-2 lg:col-span-3">
+            <div class="sm:col-span-2 lg:col-span-4">
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                 >Remark / Personal Note</label
@@ -826,6 +971,38 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
               type="text"
               id="edit-series-alt"
               class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+            />
+          </div>
+
+          <!-- V2 Series Fields -->
+          <div>
+            <label
+              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+              >Expectation Level</label
+            >
+            <select
+              id="edit-series-expectation"
+              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+            >
+              <option value="">-</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label
+              class="block text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1"
+              ><i class="fas fa-crown text-[8px] mr-1"></i> Favorite 3x3 Slot
+              (1-9)</label
+            >
+            <input
+              type="number"
+              min="1"
+              max="9"
+              id="edit-series-slot"
+              placeholder="Optional"
+              class="w-full bg-amber-50 border border-amber-200 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
             />
           </div>
         </div>
@@ -1120,6 +1297,40 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     }
   }
 
+  // --- V2 Dynamic System Options ---
+  let systemOptions = {
+    Studio: [],
+    "Genre Main": [],
+    "Genre Sub": [],
+    "Distributor TW": [],
+    Director: [],
+    Producer: [],
+    Music: [],
+  };
+
+  async function loadSystemOptions() {
+    const categories = Object.keys(systemOptions);
+    await Promise.all(
+      categories.map(async (cat) => {
+        try {
+          const res = await fetch(
+            `/api/admin/options/${encodeURIComponent(cat)}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            systemOptions[cat] = data.map((item) => item.option_value);
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch options for ${cat}`);
+        }
+      }),
+    );
+
+    populateGenres();
+    populateDatalists();
+    renderStudioDatalist();
+  }
+
   // --- Initial Data Load ---
   async function loadDatabase() {
     try {
@@ -1133,6 +1344,14 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       if (resSeries.ok) {
         const data = await resSeries.json();
         if (Array.isArray(data)) allSeries = data;
+      }
+
+      // Auto-load if we arrived via "Quick Edit" pencil from Dashboard
+      const urlParams = new URLSearchParams(window.location.search);
+      const editId = urlParams.get("id");
+      if (editId && allAnime.length > 0) {
+        const target = allAnime.find((a) => a.system_id === editId);
+        if (target) selectAnime(target.system_id);
       }
     } catch (e) {
       console.error("Failed to load initial data for modify page.", e);
@@ -1238,7 +1457,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       return;
     }
 
-    // Safely check for nulls before using string replace
     resultsContainer.innerHTML = filtered
       .map((item) => {
         const safeVal = item.val
@@ -1360,14 +1578,19 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     document.getElementById("anime-edit-container").classList.remove("hidden");
     document.getElementById("last-updated-display").classList.add("hidden");
 
-    const setVal = (id, val) => (document.getElementById(id).value = val || "");
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val !== null && val !== undefined ? val : "";
+    };
 
+    // General string fields
     setVal("edit-system-id", anime.system_id);
     setVal("edit-series-en", anime.series_en);
     setVal("edit-season", anime.series_season);
     setVal("edit-season-en", anime.series_season_en);
     setVal("edit-season-roman", anime.series_season_roman);
     setVal("edit-season-cn", anime.series_season_cn);
+    setVal("edit-anime-alt", anime.anime_alt_name);
 
     let dbProgress = anime.my_progress;
     if (dbProgress === "Finished") dbProgress = "Completed";
@@ -1379,10 +1602,36 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     setVal("edit-rating", anime.rating_mine);
     setVal("edit-type", anime.airing_type);
     setVal("edit-main-spinoff", anime.main_spinoff);
+
+    // V2 Date native fields
+    setVal("edit-release-season", anime.release_season);
+    setVal("edit-release-month", anime.release_month);
+    setVal("edit-release-year", anime.release_year);
+
+    // Crew and Distribution
     setVal("edit-director", anime.director);
+    setVal("edit-producer", anime.producer);
+    setVal("edit-music", anime.music);
     setVal("edit-distributor", anime.distributor_tw);
-    setVal("edit-baha", anime.source_baha);
-    setVal("edit-netflix", anime.source_netflix);
+
+    // Relational Fields
+    setVal("edit-prequel", anime.prequel);
+    setVal("edit-sequel", anime.sequel);
+    setVal("edit-alternative", anime.alternative);
+    setVal("edit-watch-order", anime.watch_order);
+    setVal("edit-watch-order-rec", anime.watch_order_rec);
+
+    // Streaming Sources & Links
+    setVal(
+      "edit-baha",
+      String(anime.source_baha).toUpperCase() === "TRUE" ? "TRUE" : "FALSE",
+    );
+    setVal("edit-baha-link", anime.baha_link);
+    setVal("edit-netflix", anime.source_netflix ? "TRUE" : "FALSE");
+    setVal("edit-other", anime.source_other);
+    setVal("edit-other-link", anime.source_other_link);
+
+    // External IDs and Music
     setVal("edit-mal-id", anime.mal_id);
     setVal("edit-mal-link", anime.mal_link);
     setVal("edit-anilist-link", anime.anilist_link);
@@ -1391,38 +1640,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     setVal("edit-insert", anime.insert_ost);
     setVal("edit-remark", anime.remark);
 
-    // Parse Release Date
-    const rd = anime.release_date || "";
-    const rdParts = rd.split(" ");
-    let rS = "",
-      rM = "",
-      rY = "";
-    rdParts.forEach((p) => {
-      if (["WIN", "SPR", "SUM", "FAL"].includes(p)) rS = p;
-      else if (
-        [
-          "JAN",
-          "FEB",
-          "MAR",
-          "APR",
-          "MAY",
-          "JUN",
-          "JUL",
-          "AUG",
-          "SEP",
-          "OCT",
-          "NOV",
-          "DEC",
-        ].includes(p)
-      )
-        rM = p;
-      else if (!isNaN(parseInt(p))) rY = p;
-    });
-    setVal("edit-release-season", rS);
-    setVal("edit-release-month", rM);
-    setVal("edit-release-year", rY);
-
-    // Parse Genres
+    // Checkboxes
     const gm = anime.genre_main ? anime.genre_main.split(", ") : [];
     document
       .querySelectorAll('input[name="edit_genre_main"]')
@@ -1433,11 +1651,13 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       .querySelectorAll('input[name="edit_genre_sub"]')
       .forEach((cb) => (cb.checked = gs.includes(cb.value)));
 
-    // Parse Studios
+    // Studios
     selectedStudios.clear();
     if (anime.studio)
       anime.studio.split(", ").forEach((s) => selectedStudios.add(s.trim()));
     renderStudioTags();
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeAnimeEditor() {
@@ -1501,13 +1721,21 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
 
     currentEditingSeriesEn = series.series_en;
 
-    const setVal = (id, val) => (document.getElementById(id).value = val || "");
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val !== null && val !== undefined ? val : "";
+    };
+
     setVal("edit-series-system-id", series.system_id);
     setVal("edit-series-en-name", series.series_en);
     setVal("edit-series-cn", series.series_cn);
     setVal("edit-series-roman", series.series_roman);
     setVal("edit-series-alt", series.series_alt_name);
     setVal("edit-series-rating", series.rating_series);
+    setVal("edit-series-expectation", series.series_expectation);
+    setVal("edit-series-slot", series.favorite_3x3_slot);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeSeriesEditor() {
@@ -1565,123 +1793,18 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // --- Complex UI Generators ---
-  const genreMainOptions = [
-    "日常",
-    "動作",
-    "冒險",
-    "奇幻",
-    "異世界",
-    "轉生",
-    "科幻",
-    "超能力",
-    "超自然",
-    "戲劇",
-    "懸疑",
-    "恐怖",
-    "黑暗",
-    "悲傷",
-    "校園戀愛喜劇",
-    "喜劇",
-    "戀愛",
-    "校園",
-    "運動",
-    "音樂",
-    "百合",
-    "美食",
-    "色情",
-  ];
-  const genreSubOptions = [
-    "原創",
-    "爽番",
-    "熱血",
-    "中古奇幻",
-    "純愛",
-    "黨爭",
-    "後宮",
-    "偵探",
-    "青春",
-    "勵志",
-    "溫馨 / 療癒",
-    "悠閒",
-    "感人",
-    "萌妹",
-    "樂隊",
-    "偶像",
-    "政治",
-    "歷史",
-    "軍事",
-    "神話",
-    "生存",
-    "遊戲",
-    "時間相關",
-    "打破第4道牆",
-    "腦洞大開",
-    "惡搞",
-    "電波",
-    "3D動畫",
-    "小劇場",
-    "泡麵番",
-  ];
-  let allStudios = [
-    "8bit",
-    "A-1 Pictures",
-    "Bandai Namco Pictures",
-    "BONES",
-    "BUG FILMS",
-    "C2C",
-    "CloverWorks",
-    "CygamesPictures",
-    "David Production",
-    "Doga Kobo (動畫工房)",
-    "domerica",
-    "Drive",
-    "feel.",
-    "Fortiche",
-    "Gekkou 月虹",
-    "Gonzo",
-    "Hayabusa Film",
-    "J.C.STAFF",
-    "Kinema Citrus",
-    "Kyoto Animation",
-    "Lapin Track",
-    "Lerche",
-    "LIDENFILMS",
-    "MADHOUSE",
-    "MAPPA",
-    "OLM",
-    "Orange",
-    "P.A. WORKS",
-    "Passione",
-    "PINE JAM",
-    "Production I.G",
-    "Project No.9",
-    "Science SARU",
-    "Seven Arcs",
-    "SHAFT",
-    "Shin-Ei Animation (新銳動畫)",
-    "SILVER LINK.",
-    "StudioBind",
-    "STUDIO DEEN",
-    "Studio KAI",
-    "Studio Lings",
-    "studio MOTHER",
-    "Studio Pierrot",
-    "SUNRISE",
-    "Telecom Animation Film",
-    "TMS Entertainment",
-    "Toei Animation",
-    "Trigger",
-    "Ufotable",
-    "WHITE FOX",
-    "Wit Studio",
-  ];
+  // --- Dynamic Option UI Generators ---
   let selectedStudios = new Set();
 
   function populateGenres() {
     const createCheckboxes = (containerId, name, optionsList) => {
       const container = document.getElementById(containerId);
       if (!container) return;
+      if (optionsList.length === 0) {
+        container.innerHTML =
+          '<p class="text-xs text-gray-400 italic col-span-2 text-center py-2">No options found. Add them via Admin.</p>';
+        return;
+      }
       container.innerHTML = optionsList
         .map(
           (genre) => `
@@ -1696,22 +1819,37 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     createCheckboxes(
       "edit-genre-main-container",
       "edit_genre_main",
-      genreMainOptions,
+      systemOptions["Genre Main"],
     );
     createCheckboxes(
       "edit-genre-sub-container",
       "edit_genre_sub",
-      genreSubOptions,
+      systemOptions["Genre Sub"],
     );
   }
 
+  function populateDatalists() {
+    const fillList = (listId, options) => {
+      const el = document.getElementById(listId);
+      if (el)
+        el.innerHTML = options
+          .map((opt) => `<option value="${opt}"></option>`)
+          .join("");
+    };
+    fillList("edit-distributor-list", systemOptions["Distributor TW"]);
+    fillList("edit-director-list", systemOptions["Director"]);
+    fillList("edit-producer-list", systemOptions["Producer"]);
+    fillList("edit-music-list", systemOptions["Music"]);
+  }
+
   function renderStudioDatalist() {
-    allStudios.sort((a, b) =>
+    let studioArr = systemOptions["Studio"];
+    studioArr.sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
     );
     const dl = document.getElementById("edit-studio-list");
     if (dl)
-      dl.innerHTML = allStudios
+      dl.innerHTML = studioArr
         .map((s) => `<option value="${s}"></option>`)
         .join("");
   }
@@ -1745,7 +1883,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
   }
 
   function setupStudioInput() {
-    renderStudioDatalist();
     const studioInput = document.getElementById("edit-studio-input");
     if (studioInput) {
       studioInput.addEventListener("keydown", (e) => {
@@ -1786,6 +1923,10 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       const val = parseInt(document.getElementById(id)?.value);
       return isNaN(val) ? null : val;
     };
+    const getFloat = (id) => {
+      const val = parseFloat(document.getElementById(id)?.value);
+      return isNaN(val) ? null : val;
+    };
 
     let myProgress = getValue("edit-progress");
     let epTotal = getInt("edit-ep-total");
@@ -1799,19 +1940,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       if (typeof showToast === "function")
         showToast(
           "Validation Error: At least one Season Title must be provided.",
-          true,
-        );
-      return;
-    }
-
-    const rSeason = getValue("edit-release-season") || "";
-    const rMonth = getValue("edit-release-month") || "";
-    const rYear = getValue("edit-release-year") || "";
-
-    if (rSeason !== "" && rMonth !== "") {
-      if (typeof showToast === "function")
-        showToast(
-          "Validation Error: Release Date cannot have both Season and Month selected.",
           true,
         );
       return;
@@ -1859,10 +1987,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       }
     }
 
-    const releaseDateArr = [rSeason, rMonth, rYear].filter(Boolean);
-    const finalReleaseDate =
-      releaseDateArr.length > 0 ? releaseDateArr.join(" ") : null;
-
     const leftoverStudio = getValue("edit-studio-input");
     if (leftoverStudio) {
       addStudio(leftoverStudio);
@@ -1877,7 +2001,9 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       series_season_en: getValue("edit-season-en"),
       series_season_roman: getValue("edit-season-roman"),
       series_season_cn: getValue("edit-season-cn"),
+      anime_alt_name: getValue("edit-anime-alt"),
       series_season: getValue("edit-season"),
+
       airing_type: getValue("edit-type"),
       my_progress: myProgress,
       airing_status: getValue("edit-airing-status"),
@@ -1885,15 +2011,27 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       ep_fin: epFin,
       rating_mine: getValue("edit-rating"),
       main_spinoff: getValue("edit-main-spinoff"),
-      release_date: finalReleaseDate,
+
+      release_month: getValue("edit-release-month"),
+      release_season: getValue("edit-release-season"),
+      release_year: getValue("edit-release-year"),
+
       studio: finalStudioString,
       director: getValue("edit-director"),
-      producer: null,
+      producer: getValue("edit-producer"),
+      music: getValue("edit-music"),
       distributor_tw: getValue("edit-distributor"),
       genre_main: getMultiCheckboxValue("edit_genre_main"),
       genre_sub: getMultiCheckboxValue("edit_genre_sub"),
+
+      prequel: getValue("edit-prequel"),
+      sequel: getValue("edit-sequel"),
+      alternative: getValue("edit-alternative"),
+      watch_order: getFloat("edit-watch-order"),
+      watch_order_rec: getValue("edit-watch-order-rec"),
       remark: getValue("edit-remark"),
-      mal_id: getInt("edit-mal-id"),
+
+      mal_id: getValue("edit-mal-id"),
       mal_link: getValue("edit-mal-link"),
       anilist_link: getValue("edit-anilist-link"),
       op: getValue("edit-op"),
@@ -1901,8 +2039,21 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       insert_ost: getValue("edit-insert"),
       seiyuu: null,
       source_baha: getValue("edit-baha"),
+      baha_link: getValue("edit-baha-link"),
       source_netflix: getValue("edit-netflix"),
+      source_other: getValue("edit-other"),
+      source_other_link: getValue("edit-other-link"),
     };
+
+    console.log("==========================================");
+    console.log("🛠️ [DEBUG] submitAnimeEdit Triggered");
+    console.log("🛠️ [DEBUG] Payload object:", payload);
+    console.log("🛠️ [DEBUG] source_netflix value:", payload.source_netflix);
+    console.log(
+      "🛠️ [DEBUG] source_netflix typeof:",
+      typeof payload.source_netflix,
+    );
+    console.log("==========================================");
 
     const newSeriesEn = payload.series_en;
     const seriesExists = allSeries.some(
@@ -1938,11 +2089,25 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         body: JSON.stringify(payload),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.detail || "Update failed");
+      if (!res.ok) {
+        console.error("❌ [DEBUG] Backend returned an error!");
+        console.error("❌ [DEBUG] Status:", res.status);
+        console.error("❌ [DEBUG] Error Detail:", result.detail);
 
-      if (result.data) {
-        displayLastUpdated(result.data, "anime");
+        let errorMsg = result.detail || "Update failed";
+        if (Array.isArray(result.detail)) {
+          errorMsg =
+            "Validation Error:\n" +
+            result.detail
+              .map((e) => `[${e.loc.join(" -> ")}]: ${e.msg}`)
+              .join("\n");
+        } else if (typeof result.detail === "object") {
+          errorMsg = JSON.stringify(result.detail);
+        }
+        throw new Error(errorMsg);
       }
+
+      displayLastUpdated(payload, "anime"); // Display local payload
 
       if (typeof showToast === "function")
         showToast(
@@ -1955,6 +2120,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     } catch (error) {
       if (typeof showToast === "function")
         showToast(error.message, true, false);
+      if (error.message.includes("Validation Error")) alert(error.message);
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
@@ -2026,7 +2192,15 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       series_cn: getValue("edit-series-cn"),
       rating_series: getValue("edit-series-rating"),
       series_alt_name: getValue("edit-series-alt"),
+      series_expectation: getValue("edit-series-expectation"),
+      favorite_3x3_slot:
+        parseInt(document.getElementById("edit-series-slot").value) || null,
     };
+
+    console.log("==========================================");
+    console.log("🛠️ [DEBUG] submitSeriesEdit Triggered");
+    console.log("🛠️ [DEBUG] Payload object:", payload);
+    console.log("==========================================");
 
     const connectedAnime = allAnime.filter(
       (a) => a.series_en === currentEditingSeriesEn,
@@ -2064,11 +2238,26 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         body: JSON.stringify(payload),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.detail || "Update failed");
+      if (!res.ok) {
+        console.error(
+          "❌ [DEBUG] Backend returned an error for Series Update!",
+        );
+        console.error("❌ [DEBUG] Error Detail:", result.detail);
 
-      if (result.data) {
-        displayLastUpdated(result.data, "series");
+        let errorMsg = result.detail || "Update failed";
+        if (Array.isArray(result.detail)) {
+          errorMsg =
+            "Validation Error:\n" +
+            result.detail
+              .map((e) => `[${e.loc.join(" -> ")}]: ${e.msg}`)
+              .join("\n");
+        } else if (typeof result.detail === "object") {
+          errorMsg = JSON.stringify(result.detail);
+        }
+        throw new Error(errorMsg);
       }
+
+      displayLastUpdated(payload, "series");
 
       if (typeof showToast === "function")
         showToast(
@@ -2081,6 +2270,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     } catch (error) {
       if (typeof showToast === "function")
         showToast(error.message, true, false);
+      if (error.message.includes("Validation Error")) alert(error.message);
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
@@ -2125,6 +2315,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
           series_season_en: a.series_season_en,
           series_season_roman: a.series_season_roman,
           series_season_cn: a.series_season_cn,
+          anime_alt_name: a.anime_alt_name,
           series_season: a.series_season,
           airing_type: a.airing_type,
           my_progress: a.my_progress,
@@ -2133,7 +2324,9 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
           ep_fin: a.ep_fin,
           rating_mine: a.rating_mine,
           main_spinoff: a.main_spinoff,
-          release_date: a.release_date,
+          release_month: a.release_month,
+          release_season: a.release_season,
+          release_year: a.release_year,
           studio: a.studio,
           director: a.director,
           producer: a.producer || null,
@@ -2149,8 +2342,16 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
           insert_ost: a.insert_ost,
           seiyuu: a.seiyuu || null,
           source_baha: a.source_baha,
+          baha_link: a.baha_link,
           source_netflix: a.source_netflix,
+          source_other: a.source_other,
+          source_other_link: a.source_other_link,
         };
+
+        console.log(
+          `🛠️ [DEBUG] Cascade payload for anime ${a.system_id}:`,
+          animePayload,
+        );
 
         const res = await fetch(`/api/admin/anime/${a.system_id}`, {
           method: "PUT",
@@ -2241,101 +2442,99 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     }, 200);
   }
 
+  document
+    .getElementById("execute-delete-btn")
+    .addEventListener("click", async function () {
+      if (!currentDeleteTarget) return;
+      const btn = this;
+      const originalText = btn.innerHTML;
+
+      btn.disabled = true;
+
+      try {
+        const cascadeCb = document.getElementById("delete-cascade-anime-cb");
+        if (
+          currentDeleteTarget.type === "series" &&
+          cascadeCb &&
+          cascadeCb.checked
+        ) {
+          const connectedAnime = allAnime.filter(
+            (a) => a.series_en === currentDeleteTarget.series_en,
+          );
+          let deletedCount = 0;
+          for (const anime of connectedAnime) {
+            deletedCount++;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
+            const resAnime = await fetch(
+              `/api/admin/anime/${anime.system_id}`,
+              { method: "DELETE" },
+            );
+            if (!resAnime.ok)
+              console.error(
+                `Failed to delete connected anime: ${anime.system_id}`,
+              );
+          }
+        }
+
+        btn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Primary Target...';
+        const res = await fetch(
+          `/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+          {
+            method: "DELETE",
+          },
+        );
+        if (!res.ok)
+          throw new Error(
+            (await res.json()).detail || "Primary deletion failed",
+          );
+
+        const orphanCb = document.getElementById("delete-orphan-series-cb");
+        if (
+          currentDeleteTarget.type === "anime" &&
+          orphanCb &&
+          orphanCb.checked
+        ) {
+          const seriesHub = allSeries.find(
+            (s) => s.series_en === currentDeleteTarget.series_en,
+          );
+          if (seriesHub) {
+            btn.innerHTML =
+              '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Series Hub...';
+            const resSeries = await fetch(
+              `/api/admin/series/${seriesHub.system_id}`,
+              { method: "DELETE" },
+            );
+            if (!resSeries.ok)
+              throw new Error(
+                "Anime deleted, but failed to delete orphaned Series Hub.",
+              );
+          }
+        }
+
+        closeDeleteModal();
+
+        if (currentDeleteTarget.type === "anime") closeAnimeEditor();
+        else closeSeriesEditor();
+
+        await loadDatabase();
+        if (typeof showToast === "function")
+          showToast(
+            `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
+          );
+      } catch (error) {
+        if (typeof showToast === "function")
+          showToast(`Error: ${error.message}`, true);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    });
+
   // Initialize Page
   document.addEventListener("DOMContentLoaded", () => {
-    populateGenres();
-    setupStudioInput();
+    loadSystemOptions();
     loadDatabase();
-
-    const execDeleteBtn = document.getElementById("execute-delete-btn");
-    if (execDeleteBtn) {
-      execDeleteBtn.addEventListener("click", async function () {
-        if (!currentDeleteTarget) return;
-        const btn = this;
-        const originalText = btn.innerHTML;
-
-        btn.disabled = true;
-
-        try {
-          const cascadeCb = document.getElementById("delete-cascade-anime-cb");
-          if (
-            currentDeleteTarget.type === "series" &&
-            cascadeCb &&
-            cascadeCb.checked
-          ) {
-            const connectedAnime = allAnime.filter(
-              (a) => a.series_en === currentDeleteTarget.series_en,
-            );
-            let deletedCount = 0;
-            for (const anime of connectedAnime) {
-              deletedCount++;
-              btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-              const resAnime = await fetch(
-                `/api/admin/anime/${anime.system_id}`,
-                { method: "DELETE" },
-              );
-              if (!resAnime.ok)
-                console.error(
-                  `Failed to delete connected anime: ${anime.system_id}`,
-                );
-            }
-          }
-
-          btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Primary Target...';
-          const res = await fetch(
-            `/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
-            {
-              method: "DELETE",
-            },
-          );
-          if (!res.ok)
-            throw new Error(
-              (await res.json()).detail || "Primary deletion failed",
-            );
-
-          const orphanCb = document.getElementById("delete-orphan-series-cb");
-          if (
-            currentDeleteTarget.type === "anime" &&
-            orphanCb &&
-            orphanCb.checked
-          ) {
-            const seriesHub = allSeries.find(
-              (s) => s.series_en === currentDeleteTarget.series_en,
-            );
-            if (seriesHub) {
-              btn.innerHTML =
-                '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Series Hub...';
-              const resSeries = await fetch(
-                `/api/admin/series/${seriesHub.system_id}`,
-                { method: "DELETE" },
-              );
-              if (!resSeries.ok)
-                throw new Error(
-                  "Anime deleted, but failed to delete orphaned Series Hub.",
-                );
-            }
-          }
-
-          closeDeleteModal();
-
-          if (currentDeleteTarget.type === "anime") closeAnimeEditor();
-          else closeSeriesEditor();
-
-          await loadDatabase();
-          if (typeof showToast === "function")
-            showToast(
-              `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
-            );
-        } catch (error) {
-          if (typeof showToast === "function")
-            showToast(`Error: ${error.message}`, true);
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = originalText;
-        }
-      });
-    }
   });
 </script>
 {% endblock %}
