@@ -1,7 +1,9 @@
 {% extends "base.html" %} {% block title %}Anime Details - CG1618 Tracker{%
 endblock %} {% block extra_style %}
-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; } {%
-endblock %} {% block content %}
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.badge-netflix { background-color: #fee2e2; color: #e11d48; border-color:
+#fecaca; } .badge-other { background-color: #f3f4f6; color: #4b5563;
+border-color: #e5e7eb; } {% endblock %} {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
   <!-- Loading State -->
   <div id="loading" class="flex flex-col items-center justify-center h-64">
@@ -29,19 +31,45 @@ endblock %} {% block content %}
       </ol>
     </nav>
 
+    <!-- Admin Toolbar (Hidden for Guests) -->
+    <div
+      id="admin-toolbar"
+      class="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 hidden shadow-sm"
+    >
+      <div class="flex items-center text-indigo-800 text-sm font-bold">
+        <i class="fas fa-user-shield mr-2"></i> Admin Controls
+      </div>
+      <div class="flex gap-3">
+        <a
+          id="btn-edit"
+          href="#"
+          class="px-4 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-100 transition flex items-center"
+        >
+          <i class="fas fa-edit mr-1.5"></i> Quick Edit
+        </a>
+        <button
+          id="btn-autofill-mal"
+          onclick="autoFillMal()"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition flex items-center"
+        >
+          <i class="fas fa-magic mr-1.5"></i> Auto-Fill Missing Data (Jikan)
+        </button>
+      </div>
+    </div>
+
     <!-- Main Content Layout -->
     <div class="flex flex-col lg:flex-row gap-8 lg:gap-10">
       <!-- Left Column: Cover -->
       <div class="w-full lg:w-64 shrink-0 flex flex-col space-y-6">
         <!-- Cover Image -->
         <div
-          class="w-48 sm:w-56 lg:w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-gray-100 relative self-center lg:self-start"
+          class="w-48 sm:w-56 lg:w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-gray-100 relative self-center lg:self-start group"
         >
           <img
             id="detail-cover"
             src=""
             alt="Cover"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover transition duration-300 group-hover:scale-105"
             onerror="
               this.src =
                 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23f3f4f6%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2214%22 font-weight=%22bold%22 fill=%22%239ca3af%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E'
@@ -70,12 +98,27 @@ endblock %} {% block content %}
                 id="val-rank"
               ></span>
             </span>
+            <!-- V2 Dynamic Streaming Badges -->
             <a
               id="badge-baha"
               target="_blank"
               class="hidden bg-[#00B4D8]/10 text-[#00B4D8] border border-[#00B4D8]/20 px-2.5 py-1 rounded text-xs font-bold flex items-center hover:bg-[#00B4D8]/20 transition cursor-pointer"
             >
               <i class="fas fa-play-circle mr-1.5"></i> 巴哈姆特動畫瘋
+            </a>
+            <div
+              id="badge-netflix"
+              class="hidden badge-netflix px-2.5 py-1 rounded text-xs font-bold border flex items-center"
+            >
+              <i class="fab fa-neos mr-1.5"></i> Netflix
+            </div>
+            <a
+              id="badge-other"
+              target="_blank"
+              class="hidden badge-other px-2.5 py-1 rounded text-xs font-bold border flex items-center hover:bg-gray-200 transition cursor-pointer"
+            >
+              <i class="fas fa-external-link-alt mr-1.5"></i>
+              <span id="badge-other-text">Other</span>
             </a>
           </div>
 
@@ -113,6 +156,13 @@ endblock %} {% block content %}
             >
               <i class="fas fa-external-link-alt mr-1.5"></i> MyAnimeList
             </a>
+            <a
+              id="btn-anilist"
+              target="_blank"
+              class="hidden px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-xs font-bold shadow-sm transition flex items-center"
+            >
+              <i class="fas fa-external-link-alt mr-1.5"></i> AniList
+            </a>
           </div>
         </div>
 
@@ -121,11 +171,33 @@ endblock %} {% block content %}
           class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6 relative overflow-hidden"
         >
           <div class="absolute top-0 left-0 right-0 h-1 bg-brand"></div>
-          <h3
-            class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2"
+          <div
+            class="flex justify-between items-end mb-4 border-b border-gray-100 pb-2"
           >
-            <i class="fas fa-tasks mr-2 text-brand"></i> My Tracker
-          </h3>
+            <h3
+              class="text-sm font-bold text-gray-800 uppercase tracking-wider"
+            >
+              <i class="fas fa-tasks mr-2 text-brand"></i> My Tracker
+            </h3>
+            <!-- V2 Cumulative Progress -->
+            <div
+              id="cumulative-container"
+              class="hidden text-right bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100"
+            >
+              <div
+                class="text-[9px] font-bold text-indigo-500 uppercase tracking-wider"
+              >
+                Cumulative Total
+              </div>
+              <div
+                class="text-sm font-black text-indigo-900"
+                id="cumulative-text"
+              >
+                -- / -- Eps
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
             <div>
               <label
@@ -203,7 +275,7 @@ endblock %} {% block content %}
           </div>
         </div>
 
-        <!-- Information Block -->
+        <!-- Information Block (V2 Expanded) -->
         <div
           class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6"
         >
@@ -222,7 +294,18 @@ endblock %} {% block content %}
                 >-</span
               >
             </div>
-            <div>
+
+            <!-- V2 Conditional Dates -->
+            <div id="grid-release-season-wrapper" class="hidden">
+              <span
+                class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
+                >Release Season</span
+              >
+              <span id="info-season" class="text-sm font-medium text-gray-900"
+                >-</span
+              >
+            </div>
+            <div id="grid-release-date-wrapper" class="hidden">
               <span
                 class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
                 >Release Date</span
@@ -231,6 +314,7 @@ endblock %} {% block content %}
                 >-</span
               >
             </div>
+
             <div>
               <span
                 class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
@@ -249,6 +333,7 @@ endblock %} {% block content %}
                 >-</span
               >
             </div>
+
             <div class="col-span-2 sm:col-span-2">
               <span
                 class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
@@ -267,8 +352,98 @@ endblock %} {% block content %}
                 >-</span
               >
             </div>
+
+            <!-- V2 Production Fields -->
+            <div
+              class="col-span-2 sm:col-span-2 border-t border-gray-50 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
+                >Producer</span
+              >
+              <span id="info-producer" class="text-sm font-medium text-gray-900"
+                >-</span
+              >
+            </div>
+            <div
+              class="col-span-2 sm:col-span-2 border-t border-gray-50 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
+                >Music / Composer</span
+              >
+              <span id="info-music" class="text-sm font-medium text-gray-900"
+                >-</span
+              >
+            </div>
+
+            <!-- V2 Relational Fields -->
+            <div
+              class="col-span-2 sm:col-span-2 border-t border-gray-50 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
+                >Prequel</span
+              >
+              <span id="info-prequel" class="text-sm font-medium text-gray-900"
+                >-</span
+              >
+            </div>
+            <div
+              class="col-span-2 sm:col-span-2 border-t border-gray-50 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
+                >Sequel</span
+              >
+              <span id="info-sequel" class="text-sm font-medium text-gray-900"
+                >-</span
+              >
+            </div>
+            <div
+              class="col-span-2 sm:col-span-4 border-t border-gray-50 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5"
+                >Alternative Route(s)</span
+              >
+              <span
+                id="info-alternative"
+                class="text-sm font-medium text-gray-900"
+                >-</span
+              >
+            </div>
+
+            <!-- V2 Conditional Watch Orders -->
+            <div
+              id="grid-watch-order-wrapper"
+              class="hidden col-span-2 sm:col-span-2 border-t border-brand/10 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-brand font-bold uppercase tracking-wider block mb-0.5"
+                >Watch Order</span
+              >
+              <span
+                id="info-watch-order"
+                class="text-sm font-bold text-gray-900"
+                >-</span
+              >
+            </div>
+            <div
+              id="grid-watch-rec-wrapper"
+              class="hidden col-span-2 sm:col-span-2 border-t border-brand/10 pt-2 mt-1"
+            >
+              <span
+                class="text-[10px] text-brand font-bold uppercase tracking-wider block mb-0.5"
+                >Recommended Order</span
+              >
+              <span id="info-watch-rec" class="text-sm font-bold text-gray-900"
+                >-</span
+              >
+            </div>
           </div>
-          <div class="mt-4">
+
+          <div class="mt-4 pt-4 border-t border-gray-100">
             <span
               class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1.5"
               >Genres</span
@@ -387,10 +562,6 @@ endblock %} {% block content %}
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // Securely grab admin status. Renamed to prevent syntax errors.
-  const is_admin_val = "{{ 'true' if is_admin else 'false' }}";
-  const IS_ADMIN_DETAILS = is_admin_val === "true";
-
   const urlParams = new URLSearchParams(window.location.search);
   let systemId = urlParams.get("id");
   if (!systemId) {
@@ -399,6 +570,7 @@ endblock %} {% block content %}
   }
 
   let animeData = null;
+  let allAnimeList = []; // Used for cumulative calculation
 
   async function loadDetails() {
     if (!systemId) {
@@ -408,11 +580,18 @@ endblock %} {% block content %}
     }
 
     try {
-      const res = await fetch(`/api/anime/${systemId}`);
-      if (!res.ok) throw new Error("Anime not found in database.");
+      // V2: Fetch individual data + all data simultaneously
+      const [resDetail, resAll] = await Promise.all([
+        fetch(`/api/anime/${systemId}`),
+        fetch(`/api/anime`),
+      ]);
 
-      animeData = await res.json();
-      populateUI(animeData);
+      if (!resDetail.ok) throw new Error("Anime not found in database.");
+
+      animeData = await resDetail.json();
+      if (resAll.ok) allAnimeList = await resAll.json();
+
+      populateUI(animeData, allAnimeList);
 
       document.getElementById("loading").classList.add("hidden");
       document.getElementById("details-content").classList.remove("hidden");
@@ -423,8 +602,33 @@ endblock %} {% block content %}
     }
   }
 
-  function populateUI(d) {
-    // Breadcrumbs
+  function populateUI(d, allAnime) {
+    // 1. Admin Tools
+    if (typeof IS_ADMIN !== "undefined" && IS_ADMIN) {
+      document.getElementById("admin-toolbar").classList.remove("hidden");
+      document.getElementById("btn-edit").href = `/modify?id=${d.system_id}`;
+
+      document.getElementById("input-progress").disabled = false;
+      document.getElementById("input-rating").disabled = false;
+      document.getElementById("input-op").disabled = false;
+      document.getElementById("input-ed").disabled = false;
+      document.getElementById("input-insert").disabled = false;
+      document.getElementById("input-seiyuu").disabled = false;
+      document.getElementById("input-remark").disabled = false;
+      document.getElementById("btn-plus").disabled = false;
+      document.getElementById("btn-minus").disabled = false;
+    } else {
+      document
+        .querySelectorAll(
+          'select, textarea, button[id^="btn-plus"], button[id^="btn-minus"]',
+        )
+        .forEach((el) => {
+          el.disabled = true;
+          el.classList.add("opacity-50", "cursor-not-allowed");
+        });
+    }
+
+    // 2. Titles & Headers
     const titleMain =
       d.series_season_cn ||
       d.series_season_en ||
@@ -432,7 +636,6 @@ endblock %} {% block content %}
       "Unknown Title";
     document.getElementById("bc-title").innerText = titleMain;
 
-    // Title Stacking
     document.getElementById("title-cn").innerText = titleMain;
 
     if (d.series_season_en && d.series_season_en !== titleMain) {
@@ -449,7 +652,7 @@ endblock %} {% block content %}
 
     document.getElementById("val-series").innerText = d.series_en || "-";
 
-    // Fetch Series Hub ID to activate button
+    // Fetch Series Hub ID
     if (d.series_en) {
       fetch(`/api/series`)
         .then((r) => r.json())
@@ -464,7 +667,7 @@ endblock %} {% block content %}
         .catch(() => console.warn("Failed to lookup series hub."));
     }
 
-    // Badges
+    // 3. Badges (Status, Score, Streaming)
     const statusBadge = document.getElementById("badge-status");
     statusBadge.innerText = d.airing_status || "Unknown";
     if (d.airing_status === "Airing") {
@@ -488,35 +691,96 @@ endblock %} {% block content %}
       document.getElementById("badge-baha").classList.remove("hidden");
       if (d.baha_link) document.getElementById("badge-baha").href = d.baha_link;
     }
+    if (
+      d.source_netflix === true ||
+      String(d.source_netflix).toUpperCase() === "TRUE"
+    ) {
+      document.getElementById("badge-netflix").classList.remove("hidden");
+    }
+    if (d.source_other) {
+      const badgeOther = document.getElementById("badge-other");
+      badgeOther.classList.remove("hidden");
+      document.getElementById("badge-other-text").innerText = d.source_other;
+      if (d.source_other_link) {
+        badgeOther.href = d.source_other_link;
+      } else {
+        badgeOther.removeAttribute("href");
+        badgeOther.classList.remove("hover:bg-gray-200", "cursor-pointer");
+      }
+    }
 
     if (d.mal_link || d.mal_id) {
       document.getElementById("btn-mal").classList.remove("hidden");
       document.getElementById("btn-mal").href =
         d.mal_link || `https://myanimelist.net/anime/${d.mal_id}`;
     }
-
-    // Information Grid
-    document.getElementById("info-type").innerText = d.airing_type || "-";
-
-    // Smart Date Logic (Compatible with both V1 schema and V2 schema)
-    let dateStr = "-";
-    if (d.release_date) {
-      dateStr = d.release_date;
-    } else {
-      const dateParts = [
-        d.release_season,
-        d.release_month,
-        d.release_year,
-      ].filter(Boolean);
-      if (dateParts.length > 0) dateStr = dateParts.join(" ");
+    if (d.anilist_link) {
+      document.getElementById("btn-anilist").classList.remove("hidden");
+      document.getElementById("btn-anilist").href = d.anilist_link;
     }
-    document.getElementById("info-date").innerText = dateStr;
 
+    // 4. V2 Cumulative Tracker
+    if (
+      typeof calculateCumulativeEpisodes === "function" &&
+      d.series_en &&
+      allAnime.length > 0
+    ) {
+      const cumulative = calculateCumulativeEpisodes(d, allAnime);
+      if (cumulative.total > 0 || cumulative.watched > 0) {
+        document
+          .getElementById("cumulative-container")
+          .classList.remove("hidden");
+        document.getElementById("cumulative-text").innerText =
+          `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
+      }
+    }
+
+    // 5. Information Grid (V2)
+    document.getElementById("info-type").innerText = d.airing_type || "-";
     document.getElementById("info-eps").innerText = d.ep_total || "?";
     document.getElementById("info-status").innerText = d.airing_status || "-";
     document.getElementById("info-studio").innerText = d.studio || "-";
     document.getElementById("info-director").innerText = d.director || "-";
 
+    // V2 Smart Dates
+    if (d.release_season && d.release_year) {
+      document
+        .getElementById("grid-release-season-wrapper")
+        .classList.remove("hidden");
+      document.getElementById("info-season").innerText =
+        `${d.release_season} ${d.release_year}`;
+    }
+    if (d.release_month && d.release_year) {
+      document
+        .getElementById("grid-release-date-wrapper")
+        .classList.remove("hidden");
+      document.getElementById("info-date").innerText =
+        `${d.release_month} ${d.release_year}`;
+    }
+
+    // V2 Producers & Relations
+    document.getElementById("info-producer").innerText = d.producer || "-";
+    document.getElementById("info-music").innerText = d.music || "-";
+    document.getElementById("info-prequel").innerText = d.prequel || "-";
+    document.getElementById("info-sequel").innerText = d.sequel || "-";
+    document.getElementById("info-alternative").innerText =
+      d.alternative || "-";
+
+    // V2 Watch Orders (Hidden if null)
+    if (d.watch_order !== null && d.watch_order !== undefined) {
+      document
+        .getElementById("grid-watch-order-wrapper")
+        .classList.remove("hidden");
+      document.getElementById("info-watch-order").innerText = d.watch_order;
+    }
+    if (d.watch_order_rec) {
+      document
+        .getElementById("grid-watch-rec-wrapper")
+        .classList.remove("hidden");
+      document.getElementById("info-watch-rec").innerText = d.watch_order_rec;
+    }
+
+    // Genres
     const genres = [d.genre_main, d.genre_sub].filter(Boolean).join(", ");
     if (genres) {
       document.getElementById("info-genres").innerHTML = genres
@@ -531,18 +795,19 @@ endblock %} {% block content %}
         '<span class="text-gray-400 text-xs">-</span>';
     }
 
-    // Cover Image (Safe URL encoding to prevent parser crashes)
+    // 6. Cover Image (Safe Fallback)
     const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23f3f4f6%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2214%22 font-weight=%22bold%22 fill=%22%239ca3af%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
 
     let imgUrl = fallbackSvg;
     if (d.cover_image_file && d.cover_image_file !== "N/A") {
       imgUrl = `/static/covers/${d.cover_image_file}`;
     } else if (d.cover_image_url) {
+      // Backwards compat
       imgUrl = d.cover_image_url;
     }
     document.getElementById("detail-cover").src = imgUrl;
 
-    // Inputs and Trackers
+    // 7. Input Mappings
     let prog = d.my_progress;
     if (prog === "Finished") prog = "Completed";
 
@@ -556,23 +821,50 @@ endblock %} {% block content %}
 
     document.getElementById("val-ep-fin").innerText = d.ep_fin || 0;
     document.getElementById("val-ep-total").innerText = d.ep_total || "?";
-
-    // Security Check: Lock UI for Guests
-    if (!IS_ADMIN_DETAILS) {
-      document
-        .querySelectorAll(
-          'select, textarea, button[id^="btn-plus"], button[id^="btn-minus"]',
-        )
-        .forEach((el) => {
-          el.disabled = true;
-          el.classList.add("opacity-50", "cursor-not-allowed");
-        });
-    }
   }
 
   // --- API Handlers ---
+  async function autoFillMal() {
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
+    if (!animeData.mal_id) {
+      if (typeof showToast === "function")
+        showToast("Cannot auto-fill: MAL ID is missing.", true);
+      return;
+    }
+
+    if (
+      !confirm(
+        `Fetch latest data from Jikan API for MAL ID ${animeData.mal_id}? This will softly fill empty fields.`,
+      )
+    )
+      return;
+
+    const btn = document.getElementById("btn-autofill-mal");
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML =
+      '<i class="fas fa-spinner fa-spin mr-1.5"></i> Fetching & Syncing...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`/api/anime/${systemId}/fetch-mal`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || "Failed to fetch MAL data");
+
+      if (typeof showToast === "function")
+        showToast("Auto-fill successful! Reloading page...", false, false);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (e) {
+      if (typeof showToast === "function") showToast(e.message, true);
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+    }
+  }
+
   async function updateEps(change) {
-    if (!IS_ADMIN_DETAILS) return;
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
     let current = animeData.ep_fin || 0;
     let total = animeData.ep_total || null;
     let target = current + change;
@@ -581,7 +873,6 @@ endblock %} {% block content %}
     if (total !== null && target > total) target = total;
     if (target === current) return;
 
-    // Optimistic update
     document.getElementById("val-ep-fin").innerText = target;
     animeData.ep_fin = target;
 
@@ -592,8 +883,17 @@ endblock %} {% block content %}
         body: JSON.stringify({ ep_fin: target }),
       });
       if (!res.ok) throw new Error("Failed to save progress");
+
+      // Re-calculate cumulative silently
+      if (
+        typeof calculateCumulativeEpisodes === "function" &&
+        allAnimeList.length > 0
+      ) {
+        const cumulative = calculateCumulativeEpisodes(animeData, allAnimeList);
+        document.getElementById("cumulative-text").innerText =
+          `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
+      }
     } catch (e) {
-      // Revert on failure
       animeData.ep_fin = current;
       document.getElementById("val-ep-fin").innerText = current;
       if (typeof showToast === "function")
@@ -602,16 +902,20 @@ endblock %} {% block content %}
   }
 
   async function updateField(field, value) {
-    if (!IS_ADMIN_DETAILS) return;
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
     let originalValue = animeData[field];
     if (field === "my_progress" && originalValue === "Finished")
       originalValue = "Completed";
-    if (originalValue === value || (originalValue === null && value === "null"))
+    if (
+      originalValue === value ||
+      (originalValue === null && value === "null") ||
+      (originalValue === "" && value === "")
+    )
       return;
 
     try {
       const payload = {};
-      payload[field] = value === "null" ? null : value;
+      payload[field] = value === "null" || value === "" ? null : value;
       const res = await fetch(`/api/anime/${systemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -623,7 +927,6 @@ endblock %} {% block content %}
       if (typeof showToast === "function")
         showToast("Field updated successfully!");
     } catch (error) {
-      // Revert dropdown UI on failure
       const targetId =
         field === "my_progress"
           ? "input-progress"
