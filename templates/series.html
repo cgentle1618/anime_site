@@ -38,11 +38,23 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
       >
         <!-- Title Block -->
         <div class="flex-1">
-          <div class="flex items-center gap-2 mb-2">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
             <span
               class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold border border-purple-200 tracking-wider uppercase"
               ><i class="fas fa-layer-group mr-1.5"></i> Franchise Hub</span
             >
+            <!-- V2 Badges -->
+            <span
+              id="header-expectation"
+              class="hidden px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider border"
+            ></span>
+            <span
+              id="header-slot"
+              class="hidden bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider border border-yellow-300 shadow-sm"
+              ><i class="fas fa-crown mr-1"></i> 3x3 Slot #<span
+                id="val-slot"
+              ></span
+            ></span>
           </div>
           <h1
             id="s-title-cn"
@@ -240,7 +252,7 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // IS_ADMIN has been removed here because it's globally provided by base.html
+  // IS_ADMIN is globally provided by base.html
   const systemId = "{{ system_id }}";
 
   let seriesData = null;
@@ -454,8 +466,63 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
     const sortVal = document.getElementById("sort-select").value;
     result.sort((a, b) => {
       if (sortVal === "releaseAsc") {
-        const dateA = parseReleaseDate(a.release_date);
-        const dateB = parseReleaseDate(b.release_date);
+        const getScore = (anime) => {
+          let year = parseInt(anime.release_year);
+
+          // Fallback for V1 string dates if release_year is missing
+          if (
+            isNaN(year) &&
+            anime.release_date &&
+            anime.release_date !== "TBA"
+          ) {
+            const match = String(anime.release_date).match(/\d{4}/);
+            if (match) year = parseInt(match[0]);
+          }
+
+          // If there is no information about release date, treat it as the far future
+          if (isNaN(year)) return 999999;
+
+          let month = 1; // Default to 1/1 if only release_year exists
+
+          if (anime.release_month) {
+            const mMap = {
+              JAN: 1,
+              FEB: 2,
+              MAR: 3,
+              APR: 4,
+              MAY: 5,
+              JUN: 6,
+              JUL: 7,
+              AUG: 8,
+              SEP: 9,
+              OCT: 10,
+              NOV: 11,
+              DEC: 12,
+            };
+            month = mMap[anime.release_month] || 1;
+          } else if (anime.release_season) {
+            const sMap = { WIN: 1, SPR: 4, SUM: 7, FAL: 10 };
+            month = sMap[anime.release_season] || 1;
+          } else if (anime.release_date) {
+            const str = String(anime.release_date).toUpperCase();
+            if (str.includes("FEB")) month = 2;
+            else if (str.includes("MAR")) month = 3;
+            else if (str.includes("SPR") || str.includes("APR")) month = 4;
+            else if (str.includes("MAY")) month = 5;
+            else if (str.includes("JUN")) month = 6;
+            else if (str.includes("SUM") || str.includes("JUL")) month = 7;
+            else if (str.includes("AUG")) month = 8;
+            else if (str.includes("SEP")) month = 9;
+            else if (str.includes("FAL") || str.includes("OCT")) month = 10;
+            else if (str.includes("NOV")) month = 11;
+            else if (str.includes("DEC")) month = 12;
+          }
+
+          return year * 100 + month;
+        };
+
+        const dateA = getScore(a);
+        const dateB = getScore(b);
         if (dateA !== dateB) return dateA - dateB;
       }
       if (sortVal === "ratingMineDesc") {
@@ -544,14 +611,44 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
     document.getElementById("s-title-roman").innerText =
       seriesData.series_roman || "";
 
-    if (seriesData.alt_name) {
-      document.getElementById("s-alt-text").innerText = seriesData.alt_name;
+    if (seriesData.alt_name || seriesData.series_alt_name) {
+      document.getElementById("s-alt-text").innerText =
+        seriesData.alt_name || seriesData.series_alt_name;
       document.getElementById("s-alt-names").classList.remove("hidden");
     }
 
     if (seriesData.rating_series) {
       document.getElementById("input-series-rating").value =
         seriesData.rating_series;
+    }
+
+    // V2 Metadata Bindings
+    if (seriesData.series_expectation) {
+      const expEl = document.getElementById("header-expectation");
+      expEl.classList.remove("hidden");
+      if (seriesData.series_expectation === "High") {
+        expEl.className =
+          "bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider border border-red-200";
+        expEl.innerHTML = `<i class="fas fa-fire mr-1"></i> High Expectation`;
+      } else if (seriesData.series_expectation === "Medium") {
+        expEl.className =
+          "bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider border border-blue-200";
+        expEl.innerHTML = `<i class="fas fa-water mr-1"></i> Med Expectation`;
+      } else {
+        expEl.className =
+          "bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider border border-gray-200";
+        expEl.innerHTML = `<i class="fas fa-snowflake mr-1"></i> Low Expectation`;
+      }
+    } else {
+      document.getElementById("header-expectation")?.classList.add("hidden");
+    }
+
+    if (seriesData.favorite_3x3_slot) {
+      document.getElementById("header-slot").classList.remove("hidden");
+      document.getElementById("val-slot").innerText =
+        seriesData.favorite_3x3_slot;
+    } else {
+      document.getElementById("header-slot")?.classList.add("hidden");
     }
 
     if (franchiseAnimeList.length === 0) {
@@ -595,34 +692,6 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
 
     renderFilterOptions();
     applyFiltersAndSort();
-  }
-
-  function parseReleaseDate(dateStr) {
-    if (!dateStr) return 999999;
-    const str = String(dateStr).trim().toUpperCase();
-    if (str === "TBA" || str === "") return 999999;
-
-    const yearMatch = str.match(/\d{4}/);
-    if (yearMatch) {
-      const year = parseInt(yearMatch[0], 10);
-      let month = 2;
-
-      if (str.includes("WIN") || str.includes("JAN")) month = 1;
-      else if (str.includes("FEB")) month = 2;
-      else if (str.includes("MAR")) month = 3;
-      else if (str.includes("SPR") || str.includes("APR")) month = 4;
-      else if (str.includes("MAY")) month = 5;
-      else if (str.includes("JUN")) month = 6;
-      else if (str.includes("SUM") || str.includes("JUL")) month = 7;
-      else if (str.includes("AUG")) month = 8;
-      else if (str.includes("SEP")) month = 9;
-      else if (str.includes("FAL") || str.includes("OCT")) month = 10;
-      else if (str.includes("NOV")) month = 11;
-      else if (str.includes("DEC")) month = 12;
-
-      return year * 100 + month;
-    }
-    return 999999;
   }
 
   function createLibraryCard(anime) {
@@ -681,11 +750,15 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
         "bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200";
     }
 
+    // V2 Image Handling
     const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
+    const imageUrl = anime.cover_image_file
+      ? `/static/covers/${anime.cover_image_file}`
+      : anime.cover_image_url || fallbackSvg;
 
     // Conditional action HTML based on Admin role
     let actionButtonHTML = "";
-    if (IS_ADMIN) {
+    if (typeof IS_ADMIN !== "undefined" && IS_ADMIN) {
       actionButtonHTML = `
           <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ""}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
               ${actionIcon}
@@ -697,17 +770,49 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
 
     // Safely render MAL Rating
     let malRatingHtml = "";
-    if (anime.mal_rating) {
+    if (anime.mal_rating && anime.mal_rating !== "N/A") {
       const ratingNum = Number(anime.mal_rating);
       if (!isNaN(ratingNum)) {
         malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
       }
     }
 
+    // V2 Metadata (Watch Order, Dates, Streaming)
+    let watchOrderHtml = "";
+    if (anime.watch_order !== null && anime.watch_order !== undefined) {
+      watchOrderHtml = `<span class="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded text-[9px] font-bold border border-indigo-200 shadow-sm whitespace-nowrap mr-1 inline-flex items-center"><i class="fas fa-hashtag text-[8px] opacity-75 mr-0.5"></i>${anime.watch_order}</span>`;
+    }
+
+    let streamingHtml = "";
+    if (
+      String(anime.source_baha).toUpperCase() === "TRUE" ||
+      String(anime.source_baha) === "有"
+    )
+      streamingHtml += `<i class="fas fa-play-circle text-[#00B4D8]" title="Bahamut"></i>`;
+    if (
+      anime.source_netflix === true ||
+      String(anime.source_netflix).toUpperCase() === "TRUE"
+    )
+      streamingHtml += `<span class="text-[#E50914] font-black text-[11px] leading-none" title="Netflix">N</span>`;
+    if (anime.source_other)
+      streamingHtml += `<i class="fas fa-external-link-alt text-purple-500 text-[10px]" title="${anime.source_other}"></i>`;
+    if (streamingHtml)
+      streamingHtml = `<div class="flex items-center gap-1.5 ml-1.5 pl-1.5 border-l border-gray-300 h-3">${streamingHtml}</div>`;
+
+    let dateStr = "";
+    if (anime.release_year) {
+      dateStr =
+        `${anime.release_season || anime.release_month || ""} ${anime.release_year}`.trim();
+    } else if (anime.release_date) {
+      dateStr = anime.release_date; // V1 Fallback support
+    } else {
+      dateStr = "TBA";
+    }
+
     return `
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
             <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
-                <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
+                <img src="${imageUrl}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
 
                 <div class="absolute top-2 left-2 flex flex-col gap-1">
                     ${malRatingHtml}
@@ -720,8 +825,15 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
             </div>
 
             <div class="p-3 flex flex-col flex-1">
-                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
-                <p class="text-[11px] text-gray-500 font-medium mb-3">${anime.airing_type || "TV"} &bull; ${anime.release_date || "TBA"}</p>
+                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">
+                    ${watchOrderHtml}${title}
+                </h3>
+                <div class="flex flex-wrap items-center text-[11px] text-gray-500 font-medium mb-3 gap-y-1">
+                    <span>${anime.airing_type || "TV"}</span>
+                    <span class="mx-1.5">&bull;</span>
+                    <span>${dateStr}</span>
+                    ${streamingHtml}
+                </div>
 
                 <div class="mt-auto flex items-center justify-between">
                     <span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded shadow-inner">
@@ -736,7 +848,7 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
   }
 
   async function updateSeriesRating(value) {
-    if (!IS_ADMIN) return;
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
     try {
       const res = await fetch(`/api/series/${systemId}`, {
         method: "PATCH",
@@ -756,7 +868,7 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
 
   // --- Admin API Handlers ---
   async function handleStatusButton(sys_id, current_progress) {
-    if (!IS_ADMIN) return;
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
 
     // Determine the target status direction based on the current state
     let newStatus =
@@ -799,6 +911,7 @@ hidden; } .search-dropdown { max-height: 400px; overflow-y: auto; } {% endblock
     renderSeriesHub(); // Re-render grid instantly to show new button and possible filter movement
 
     try {
+      // V2 BUG FIX: Use the correct backend PATCH route without the /progress suffix
       const res = await fetch(`/api/anime/${sys_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
