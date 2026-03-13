@@ -795,12 +795,19 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
         '<span class="text-gray-400 text-xs">-</span>';
     }
 
-    // 6. Cover Image (Safe Fallback)
+    // 6. Cover Image (Safe Fallback & Smart Switch)
     const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23f3f4f6%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2214%22 font-weight=%22bold%22 fill=%22%239ca3af%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
+
+    const bucketName = "cg1618-anime-covers";
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
 
     let imgUrl = fallbackSvg;
     if (d.cover_image_file && d.cover_image_file !== "N/A") {
-      imgUrl = `/static/covers/${d.cover_image_file}`;
+      imgUrl = isLocalhost
+        ? `/static/covers/${d.cover_image_file}`
+        : `https://storage.googleapis.com/${bucketName}/${d.cover_image_file}`;
     } else if (d.cover_image_url) {
       // Backwards compat
       imgUrl = d.cover_image_url;
