@@ -1,8 +1,8 @@
 """
 sheets_client.py
 Handles direct communication with the Google Sheets API via gspread.
-Includes retry logic for quota limits and raw CRUD operations.
-Configured to support both local files and Cloud-injected environment variables.
+Optimized for V2: Includes Bulk Overwrite methods to treat Google Sheets as a Read-Only Backup,
+while perfectly preserving the original V1 authentication and quota fallback logic.
 """
 
 import os
@@ -28,6 +28,7 @@ def execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) ->
             return func(*args, **kwargs)
         except APIError as e:
             if "429" in str(e):
+                # Using the original 60s multiplier as Jikan/Sheets quotas are strict
                 wait_time = 60 * (attempt + 1)
                 print(
                     f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})..."
@@ -47,7 +48,7 @@ def get_google_spreadsheet() -> gspread.Spreadsheet:
         "https://www.googleapis.com/auth/drive",
     ]
 
-    # 1. Production: Try to load from Environment Variable (GCP Secret Manager)
+    # 1. Production: Try to load from Environment Variable
     creds_json_str = os.getenv("GOOGLE_CREDENTIALS_JSON")
 
     if creds_json_str:
@@ -71,6 +72,11 @@ def get_google_spreadsheet() -> gspread.Spreadsheet:
         gc = gspread.service_account(filename="credentials.json")
         print("ℹ️ Authenticated to Google Sheets via local credentials.json.")
 
+    # Prioritize the explicit ID from .env if it was set to a real ID, otherwise fallback to filename
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+    if sheet_id and sheet_id != "your_id_here":
+        return gc.open_by_key(sheet_id)
+
     return gc.open("Anime Database")
 
 
@@ -79,246 +85,85 @@ def get_google_sheet(sheet_name: str = "Anime") -> gspread.Worksheet:
     return get_google_spreadsheet().worksheet(sheet_name)
 
 
-# ==========================================
-# CRUD OPERATIONS: ANIME
-# ==========================================
-
-
-def append_new_anime(anime_data: dict) -> bool:
-    """Appends a new anime dictionary directly to the bottom of the 'Anime' sheet."""
-    sheet = get_google_sheet("Anime")
-    headers = execute_with_retry(sheet.row_values, 1)
-
-    new_row = []
-    for header in headers:
-        val = anime_data.get(header, "")
-        new_row.append(val if val is not None else "")
-
-    print(
-        f"Appending new row with system_id {anime_data.get('system_id')} to Google Sheets..."
-    )
-    execute_with_retry(sheet.append_row, new_row, value_input_option="USER_ENTERED")
-    return True
-
-
-def update_anime_row(system_id: str, update_data: dict) -> bool:
-    """Overwrites an existing anime row in the 'Anime' sheet matched by system_id."""
-    sheet = get_google_sheet("Anime")
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime sheet is empty.")
-
-    headers = values[0]
+def get_all_rows(tab_name: str) -> List[Dict[str, Any]]:
+    """
+    Fetches all data from a specific tab as a list of dictionaries.
+    Used by the Sync Engine to scan for manual additions (Secondary Input).
+    """
     try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime sheet.")
+        sheet = execute_with_retry(get_google_spreadsheet().worksheet, tab_name)
+        # get_all_records automatically uses the first row as dictionary keys
+        return execute_with_retry(sheet.get_all_records)
+    except WorksheetNotFound:
+        print(f"⚠️ Worksheet '{tab_name}' not found.")
+        return []
 
-    row_idx = None
-    old_row = None
 
-    # Locate the target row
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            # Pad row in case sheet is missing empty trailing columns
-            old_row = row + [""] * (len(headers) - len(row))
-            break
+# ==========================================
+# V2 BULK BACKUP OPERATIONS (DB -> SHEETS)
+# ==========================================
 
-    if not row_idx:
-        raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
 
-    # Construct the updated row, preserving existing data for un-updated columns
-    new_row = []
-    for i, header in enumerate(headers):
-        if header in update_data:
-            val = update_data[header]
-            new_row.append(val if val is not None else "")
-        else:
-            new_row.append(old_row[i])
-
-    print(f"Updating row {row_idx} for anime {system_id} in Google Sheets...")
+def bulk_overwrite_sheet(
+    tab_name: str, headers: List[str], data_matrix: List[List[Any]]
+) -> bool:
+    """
+    V2 Primary Sync Method: Overwrites the entire Google Sheet tab with PostgreSQL data.
+    Extremely efficient: Does the whole backup in just 2 API calls.
+    """
     try:
+        spreadsheet = get_google_spreadsheet()
+        sheet = execute_with_retry(spreadsheet.worksheet, tab_name)
+
+        # 1. Clear everything currently in the sheet to prevent leftover ghost data
+        execute_with_retry(sheet.clear)
+
+        # 2. Combine headers and data
+        full_payload = [headers] + data_matrix
+
+        # 3. Push the entire payload at once starting from A1
         execute_with_retry(
             sheet.update,
-            values=[new_row],
-            range_name=f"A{row_idx}",
+            values=full_payload,
+            range_name="A1",
             value_input_option="USER_ENTERED",
         )
-    except TypeError:  # Fallback for older gspread versions
-        execute_with_retry(
-            sheet.update, f"A{row_idx}", [new_row], value_input_option="USER_ENTERED"
+
+        print(
+            f"✅ Successfully bulk-backed up {len(data_matrix)} rows to '{tab_name}'."
         )
-    return True
+        return True
+    except Exception as e:
+        print(f"❌ Failed to bulk overwrite '{tab_name}': {e}")
+        return False
 
 
-def delete_anime_row(system_id: str) -> bool:
-    """Deletes an entire anime row from the 'Anime' sheet matched by system_id."""
-    sheet = get_google_sheet("Anime")
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime sheet.")
-
-    row_idx = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            break
-
-    if not row_idx:
-        raise ValueError(f"Anime with system_id '{system_id}' not found in Sheets.")
-
-    print(f"Deleting row {row_idx} for anime {system_id} from Google Sheets...")
-    execute_with_retry(sheet.delete_rows, row_idx)
-    return True
+# ==========================================
+# SURGICAL OPERATIONS (For Instant UI Patches)
+# ==========================================
 
 
 def update_anime_field_in_sheet(system_id: str, field_name: str, value: Any) -> bool:
-    """Dynamically updates a single specific cell for a target system_id."""
+    """
+    Dynamically updates a single specific cell for a target system_id.
+    Retained in V2 so that minor frontend updates (like +1 ep_fin) sync instantly
+    without triggering a massive bulk overwrite.
+    """
     sheet = get_google_sheet("Anime")
 
     cell = execute_with_retry(sheet.find, system_id)
     if not cell:
-        raise ValueError(f"system_id {system_id} not found in Google Sheet.")
+        print(f"⚠️ system_id {system_id} not found in Google Sheet. Skipping patch.")
+        return False
 
     headers = execute_with_retry(sheet.row_values, 1)
     try:
         col_index = len(headers) - headers[::-1].index(field_name)
     except ValueError:
-        raise ValueError(f"Column '{field_name}' not found in the header row.")
+        print(f"⚠️ Column '{field_name}' not found in the header row.")
+        return False
 
     execute_with_retry(
         sheet.update_cell, cell.row, col_index, value if value is not None else ""
     )
-    return True
-
-
-# ==========================================
-# CRUD OPERATIONS: SERIES
-# ==========================================
-
-
-def append_new_series(series_data: dict) -> bool:
-    """Appends a completely new Franchise/Series directly to the 'Anime Series' Sheet."""
-    try:
-        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
-    except WorksheetNotFound:
-        print("⚠️ 'Anime Series' tab not found! Cannot append new series.")
-        return False
-
-    headers = execute_with_retry(sheet.row_values, 1)
-
-    # Prevent duplicate Series English Names
-    series_en_to_add = series_data.get("series_en", "").strip()
-    if series_en_to_add:
-        try:
-            en_col_idx = headers.index("series_en")
-            existing_en_names = execute_with_retry(sheet.col_values, en_col_idx + 1)
-
-            if any(
-                series_en_to_add.lower() == existing.strip().lower()
-                for existing in existing_en_names[1:]
-            ):
-                print(
-                    f"⚠️ Series '{series_en_to_add}' already exists in Google Sheets. Skipping duplicate append."
-                )
-                return True
-        except ValueError:
-            pass
-
-    new_row = []
-    for header in headers:
-        val = series_data.get(header, "")
-        new_row.append(val if val is not None else "")
-
-    print(f"Appending new series '{series_en_to_add}' to Google Sheets...")
-    execute_with_retry(sheet.append_row, new_row, value_input_option="USER_ENTERED")
-    return True
-
-
-def update_series_row(system_id: str, update_data: dict) -> bool:
-    """Overwrites an existing series row in the 'Anime Series' sheet matched by system_id."""
-    try:
-        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
-    except Exception:
-        raise ValueError("Anime Series tab not found.")
-
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime Series sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime Series sheet.")
-
-    row_idx = None
-    old_row = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            old_row = row + [""] * (len(headers) - len(row))
-            break
-
-    if not row_idx:
-        raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
-
-    new_row = []
-    for i, header in enumerate(headers):
-        if header in update_data:
-            val = update_data[header]
-            new_row.append(val if val is not None else "")
-        else:
-            new_row.append(old_row[i])
-
-    print(f"Updating row {row_idx} for series {system_id} in Google Sheets...")
-    try:
-        execute_with_retry(
-            sheet.update,
-            values=[new_row],
-            range_name=f"A{row_idx}",
-            value_input_option="USER_ENTERED",
-        )
-    except TypeError:
-        execute_with_retry(
-            sheet.update, f"A{row_idx}", [new_row], value_input_option="USER_ENTERED"
-        )
-    return True
-
-
-def delete_series_row(system_id: str) -> bool:
-    """Deletes an entire series row from the 'Anime Series' sheet matched by system_id."""
-    try:
-        sheet = execute_with_retry(get_google_spreadsheet().worksheet, "Anime Series")
-    except Exception:
-        raise ValueError("Anime Series tab not found.")
-
-    values = execute_with_retry(sheet.get_all_values)
-    if not values:
-        raise ValueError("Anime Series sheet is empty.")
-
-    headers = values[0]
-    try:
-        sys_id_idx = headers.index("system_id")
-    except ValueError:
-        raise ValueError("system_id column not found in Anime Series sheet.")
-
-    row_idx = None
-    for i, row in enumerate(values):
-        if len(row) > sys_id_idx and row[sys_id_idx] == system_id:
-            row_idx = i + 1
-            break
-
-    if not row_idx:
-        raise ValueError(f"Series with system_id '{system_id}' not found in Sheets.")
-
-    print(f"Deleting row {row_idx} for series {system_id} from Google Sheets...")
-    execute_with_retry(sheet.delete_rows, row_idx)
     return True
