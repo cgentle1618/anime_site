@@ -332,6 +332,52 @@ def add_system_option(
     return new_option
 
 
+@router.put(
+    "/options/{option_id}",
+    response_model=schemas.SystemOptionResponse,
+    summary="Update System Option",
+)
+def update_system_option(
+    option_id: int, payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
+):
+    """Updates an existing system option's value and syncs it to Google Sheets."""
+    option = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.id == option_id)
+        .first()
+    )
+    if not option:
+        raise HTTPException(status_code=404, detail="System option not found.")
+
+    # Check for duplicates so they don't rename it to something that already exists
+    existing = (
+        db.query(models.SystemOption)
+        .filter(
+            models.SystemOption.category == payload.category,
+            models.SystemOption.option_value == payload.option_value,
+            models.SystemOption.id != option_id,
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="This option already exists in the selected category.",
+        )
+
+    option.category = payload.category
+    option.option_value = payload.option_value
+
+    db.commit()
+    db.refresh(option)
+
+    # Trigger a DB-to-Sheets backup to maintain parity
+    sync_engine.run_full_sync(db, direction="push")
+
+    return option
+
+
 @router.delete("/options/{option_id}", summary="Delete System Option")
 def delete_system_option(option_id: int, db: Session = Depends(get_db)):
     """Removes a dropdown option from the database and syncs the removal to Sheets."""

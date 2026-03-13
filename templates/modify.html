@@ -6,8 +6,10 @@ border-bottom-width: 2px; border-bottom-color: #6366f1; } .tab-inactive { color:
 .modal-backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to {
 opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
-0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; } {% endblock %} {% block content
-%}
+0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar {
+-ms-overflow-style: none; scrollbar-width: none; } {% endblock %} {% block
+content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
   <div
     class="mb-6 border-b border-gray-200 pb-4 flex justify-between items-end"
@@ -69,20 +71,29 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
   </div>
 
   <!-- Navigation Tabs -->
-  <div class="flex border-b border-gray-200 mb-8">
+  <div
+    class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar"
+  >
     <button
       onclick="switchTab('anime')"
       id="tab-anime"
-      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active"
+      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap"
     >
       <i class="fas fa-film mr-2"></i> Edit Anime Entries
     </button>
     <button
       onclick="switchTab('series')"
       id="tab-series"
-      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive"
+      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
     >
       <i class="fas fa-layer-group mr-2"></i> Edit Anime Series
+    </button>
+    <button
+      onclick="switchTab('options')"
+      id="tab-options"
+      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
+    >
+      <i class="fas fa-sliders-h mr-2"></i> Edit System Options
     </button>
   </div>
 
@@ -1031,6 +1042,148 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       </form>
     </div>
   </div>
+
+  <!-- ========================================== -->
+  <!-- SECTION 3: SYSTEM OPTIONS (NEW) -->
+  <!-- ========================================== -->
+  <div id="section-options" class="space-y-8 hidden">
+    <!-- Category Selection -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 relative"
+    >
+      <label
+        class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-4"
+        >Select Target Category</label
+      >
+      <select
+        id="edit-option-category"
+        onchange="loadCategoryOptionsForEdit()"
+        class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm outline-none cursor-pointer transition"
+      >
+        <option value="" disabled selected>
+          -- Choose a category to manage --
+        </option>
+        <option value="Studio">Studio</option>
+        <option value="Genre Main">Genre Main</option>
+        <option value="Genre Sub">Genre Sub</option>
+        <option value="Distributor TW">Distributor TW</option>
+        <option value="Director">Director</option>
+        <option value="Producer">Producer</option>
+        <option value="Music">Music / Composer</option>
+      </select>
+
+      <!-- Loading State -->
+      <div
+        id="options-edit-loading"
+        class="hidden mt-8 text-center text-gray-500 py-4"
+      >
+        <i class="fas fa-circle-notch fa-spin text-2xl text-brand mb-2"></i>
+        <p class="text-sm font-medium">Fetching options...</p>
+      </div>
+
+      <!-- Results Grid -->
+      <div
+        id="options-edit-list-container"
+        class="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 hidden"
+      >
+        <!-- Dynamically populated options -->
+      </div>
+    </div>
+
+    <!-- Edit Option Form (Hidden by default) -->
+    <div
+      id="option-edit-container"
+      class="bg-white rounded-2xl border border-teal-500/20 shadow-lg p-6 hidden relative overflow-hidden"
+    >
+      <div class="absolute top-0 left-0 right-0 h-1.5 bg-teal-500"></div>
+
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-gray-800">
+          <i class="fas fa-edit text-teal-500 mr-2"></i> Editing System Option
+        </h2>
+        <button
+          type="button"
+          onclick="closeOptionEditor()"
+          class="text-gray-400 hover:text-gray-600 transition"
+        >
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <form
+        id="edit-option-form"
+        onsubmit="submitOptionEdit(event)"
+        class="space-y-6"
+      >
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <!-- ID (Read Only) -->
+          <div
+            class="bg-gray-50 p-4 rounded-xl border border-gray-200 sm:col-span-2"
+          >
+            <label
+              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+              ><i class="fas fa-lock mr-1"></i> Option ID (Immutable)</label
+            >
+            <input
+              type="text"
+              id="edit-option-id"
+              readonly
+              class="w-full bg-gray-100 border-none text-gray-500 font-mono text-sm rounded cursor-not-allowed outline-none"
+            />
+          </div>
+
+          <div>
+            <label
+              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+              >Category</label
+            >
+            <input
+              type="text"
+              id="edit-option-category-input"
+              readonly
+              class="w-full bg-gray-100 border border-gray-200 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed outline-none"
+            />
+          </div>
+
+          <div>
+            <label
+              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+              ><i class="fas fa-asterisk text-[8px] text-red-400 mr-1"></i>
+              Option Value</label
+            >
+            <input
+              type="text"
+              id="edit-option-value"
+              required
+              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 rounded-lg px-3 py-2 text-sm outline-none transition"
+            />
+          </div>
+        </div>
+
+        <!-- Form Footer -->
+        <div
+          class="flex items-center justify-end pt-6 border-t border-gray-100 mt-6"
+        >
+          <div class="flex items-center gap-3 ml-auto">
+            <button
+              type="button"
+              onclick="confirmDelete('options')"
+              class="bg-white border border-red-200 hover:bg-red-50 text-red-600 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
+            >
+              <i class="fas fa-trash-alt mr-2"></i> Delete Option
+            </button>
+            <button
+              type="submit"
+              id="option-update-btn"
+              class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
+            >
+              <i class="fas fa-save mr-2"></i> Update & Sync
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <!-- Modal 1: Anime New Series Warning -->
@@ -1275,26 +1428,20 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
   let pendingConnectedAnime = [];
 
   function switchTab(tabName) {
-    const animeSec = document.getElementById("section-anime");
-    const seriesSec = document.getElementById("section-series");
-    const tAnime = document.getElementById("tab-anime");
-    const tSeries = document.getElementById("tab-series");
-
-    if (tabName === "anime") {
-      animeSec.classList.remove("hidden");
-      seriesSec.classList.add("hidden");
-      tAnime.className =
-        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active";
-      tSeries.className =
-        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive";
-    } else {
-      animeSec.classList.add("hidden");
-      seriesSec.classList.remove("hidden");
-      tAnime.className =
-        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive";
-      tSeries.className =
-        "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active";
-    }
+    const tabs = ["anime", "series", "options"];
+    tabs.forEach((t) => {
+      const sec = document.getElementById(`section-${t}`);
+      const btn = document.getElementById(`tab-${t}`);
+      if (t === tabName) {
+        sec.classList.remove("hidden");
+        btn.className =
+          "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap";
+      } else {
+        sec.classList.add("hidden");
+        btn.className =
+          "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap";
+      }
+    });
   }
 
   // --- V2 Dynamic System Options ---
@@ -1745,6 +1892,126 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
     currentEditingSeriesEn = "";
   }
 
+  // --- Options Editor Logic ---
+  async function loadCategoryOptionsForEdit() {
+    const category = document.getElementById("edit-option-category").value;
+    if (!category) return;
+
+    const container = document.getElementById("options-edit-list-container");
+    const loader = document.getElementById("options-edit-loading");
+
+    container.classList.add("hidden");
+    loader.classList.remove("hidden");
+    closeOptionEditor(); // Close editor if switching category
+
+    try {
+      const res = await fetch(
+        `/api/admin/options/${encodeURIComponent(category)}`,
+      );
+      if (!res.ok) throw new Error("Failed to load options.");
+
+      const options = await res.json();
+
+      if (options.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options currently exist in this category.</div>`;
+      } else {
+        container.innerHTML = options
+          .map((opt) => {
+            const safeVal = opt.option_value
+              .replace(/'/g, "\\'")
+              .replace(/"/g, "&quot;");
+            return `
+                  <div onclick="selectOption('${opt.id}', '${category}', '${safeVal}')" class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-teal-50 hover:border-teal-200 cursor-pointer transition shadow-sm">
+                      <span class="font-bold text-gray-700 text-sm truncate pr-2 group-hover:text-teal-900" title="${opt.option_value}">${opt.option_value}</span>
+                      <i class="fas fa-edit text-teal-400 group-hover:text-teal-600 transition"></i>
+                  </div>
+              `;
+          })
+          .join("");
+      }
+      loader.classList.add("hidden");
+      container.classList.remove("hidden");
+    } catch (error) {
+      loader.classList.add("hidden");
+      container.classList.remove("hidden");
+      container.innerHTML = `<div class="col-span-full text-center text-sm font-bold text-red-500 py-4"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
+    }
+  }
+
+  function selectOption(id, category, value) {
+    document.getElementById("option-edit-container").classList.remove("hidden");
+    document.getElementById("edit-option-id").value = id;
+    document.getElementById("edit-option-category-input").value = category;
+    // Decode HTML entities to correctly show in input
+    document.getElementById("edit-option-value").value = value.replace(
+      /&quot;/g,
+      '"',
+    );
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  function closeOptionEditor() {
+    document.getElementById("option-edit-container").classList.add("hidden");
+    const form = document.getElementById("edit-option-form");
+    if (form) form.reset();
+  }
+
+  async function submitOptionEdit(e) {
+    e.preventDefault();
+    if (!IS_ADMIN_MODIFY) return;
+
+    const btn = document.getElementById("option-update-btn");
+    const id = document.getElementById("edit-option-id").value;
+    const category = document.getElementById(
+      "edit-option-category-input",
+    ).value;
+    const optionValue = document
+      .getElementById("edit-option-value")
+      .value.trim();
+
+    if (!optionValue) {
+      if (typeof showToast === "function")
+        showToast("Validation Error: Option value cannot be empty.", true);
+      return;
+    }
+
+    const payload = {
+      category: category,
+      option_value: optionValue,
+    };
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
+
+    try {
+      const res = await fetch(`/api/admin/options/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.detail || "Failed to update option");
+
+      if (typeof showToast === "function")
+        showToast(
+          `Successfully updated option to "${optionValue}"!`,
+          false,
+          false,
+        );
+
+      closeOptionEditor();
+      await loadCategoryOptionsForEdit(); // Refresh the grid
+      await loadSystemOptions(); // Refresh the global cache for Anime form
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(error.message, true, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update & Sync';
+    }
+  }
+
   // --- Display Success Card ---
   function displayLastUpdated(data, type) {
     const box = document.getElementById("last-updated-display");
@@ -2040,20 +2307,10 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       seiyuu: null,
       source_baha: getValue("edit-baha"),
       baha_link: getValue("edit-baha-link"),
-      source_netflix: getValue("edit-netflix"),
+      source_netflix: getValue("edit-netflix") === "TRUE",
       source_other: getValue("edit-other"),
       source_other_link: getValue("edit-other-link"),
     };
-
-    console.log("==========================================");
-    console.log("🛠️ [DEBUG] submitAnimeEdit Triggered");
-    console.log("🛠️ [DEBUG] Payload object:", payload);
-    console.log("🛠️ [DEBUG] source_netflix value:", payload.source_netflix);
-    console.log(
-      "🛠️ [DEBUG] source_netflix typeof:",
-      typeof payload.source_netflix,
-    );
-    console.log("==========================================");
 
     const newSeriesEn = payload.series_en;
     const seriesExists = allSeries.some(
@@ -2090,10 +2347,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       });
       const result = await res.json();
       if (!res.ok) {
-        console.error("❌ [DEBUG] Backend returned an error!");
-        console.error("❌ [DEBUG] Status:", res.status);
-        console.error("❌ [DEBUG] Error Detail:", result.detail);
-
         let errorMsg = result.detail || "Update failed";
         if (Array.isArray(result.detail)) {
           errorMsg =
@@ -2197,11 +2450,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         parseInt(document.getElementById("edit-series-slot").value) || null,
     };
 
-    console.log("==========================================");
-    console.log("🛠️ [DEBUG] submitSeriesEdit Triggered");
-    console.log("🛠️ [DEBUG] Payload object:", payload);
-    console.log("==========================================");
-
     const connectedAnime = allAnime.filter(
       (a) => a.series_en === currentEditingSeriesEn,
     );
@@ -2239,11 +2487,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       });
       const result = await res.json();
       if (!res.ok) {
-        console.error(
-          "❌ [DEBUG] Backend returned an error for Series Update!",
-        );
-        console.error("❌ [DEBUG] Error Detail:", result.detail);
-
         let errorMsg = result.detail || "Update failed";
         if (Array.isArray(result.detail)) {
           errorMsg =
@@ -2348,11 +2591,6 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
           source_other_link: a.source_other_link,
         };
 
-        console.log(
-          `🛠️ [DEBUG] Cascade payload for anime ${a.system_id}:`,
-          animePayload,
-        );
-
         const res = await fetch(`/api/admin/anime/${a.system_id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -2402,7 +2640,7 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
         document.getElementById("orphan-series-name").innerText = seriesEnName;
         orphanBox.classList.remove("hidden");
       }
-    } else {
+    } else if (type === "series") {
       id = document.getElementById("edit-series-system-id").value;
       name =
         document.getElementById("edit-series-en-name").value ||
@@ -2417,12 +2655,16 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
           connectedCount;
         cascadeBox.classList.remove("hidden");
       }
+    } else if (type === "options") {
+      id = document.getElementById("edit-option-id").value;
+      name = document.getElementById("edit-option-value").value;
+      seriesEnName = null;
     }
 
     currentDeleteTarget = { type, id, name, series_en: seriesEnName };
 
     document.getElementById("delete-target-type").innerText =
-      type.toUpperCase() + " ENTRY";
+      type === "options" ? "SYSTEM OPTION" : type.toUpperCase() + " ENTRY";
     document.getElementById("delete-target-name").innerText = name;
     document.getElementById("delete-target-id").innerText = id;
 
@@ -2452,6 +2694,27 @@ opacity: 1; transform: translateY(0); } } .animate-slide-in { animation: slideIn
       btn.disabled = true;
 
       try {
+        if (currentDeleteTarget.type === "options") {
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
+          const res = await fetch(
+            `/api/admin/options/${currentDeleteTarget.id}`,
+            { method: "DELETE" },
+          );
+          if (!res.ok)
+            throw new Error(
+              (await res.json()).detail || "Failed to delete system option",
+            );
+
+          closeDeleteModal();
+          closeOptionEditor();
+          await loadCategoryOptionsForEdit(); // Refresh the list
+          await loadSystemOptions(); // Refresh global cache
+          if (typeof showToast === "function")
+            showToast(`Successfully deleted option.`);
+          return;
+        }
+
         const cascadeCb = document.getElementById("delete-cascade-anime-cb");
         if (
           currentDeleteTarget.type === "series" &&
