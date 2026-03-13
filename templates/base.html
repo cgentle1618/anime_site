@@ -80,18 +80,18 @@
                         >Library</a
                       >
                       <a
-                        href="#"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
+                        href="/under-development"
+                        class="px-4 py-2.5 text-sm {% if request.url.path == '/under-development' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
                         >Series Library</a
                       >
                       <a
-                        href="#"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
+                        href="/under-development"
+                        class="px-4 py-2.5 text-sm {% if request.url.path == '/under-development' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
                         >Seasonal</a
                       >
                       <a
-                        href="#"
-                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
+                        href="/under-development"
+                        class="px-4 py-2.5 text-sm {% if request.url.path == '/under-development' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition"
                         >Future Release</a
                       >
                     </div>
@@ -100,8 +100,8 @@
 
                 <!-- Statistics Navigation Link -->
                 <a
-                  href="#"
-                  class="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition"
+                  href="/under-development"
+                  class="{% if request.url.path == '/under-development' %}bg-brand/10 text-brand{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} px-3 py-2 rounded-md text-sm font-medium transition"
                   >Statistics</a
                 >
 

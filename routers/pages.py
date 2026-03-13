@@ -81,6 +81,18 @@ async def serve_search(request: Request):
     )
 
 
+@router.get(
+    "/under-development",
+    response_class=HTMLResponse,
+    summary="Serve Under Development Page",
+)
+async def serve_under_development(request: Request):
+    is_admin = check_admin_status(request)
+    return templates.TemplateResponse(
+        "under_development.html", {"request": request, "is_admin": is_admin}
+    )
+
+
 @router.get("/login", response_class=HTMLResponse, summary="Serve Login Portal")
 async def serve_login(request: Request):
     # If already logged in, don't show login page; go to admin system
