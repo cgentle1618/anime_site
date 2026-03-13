@@ -71,8 +71,7 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 </main>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // Safely expose admin role from Jinja2
-  const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+  // IS_ADMIN has been removed here because it's globally provided by base.html
 
   let filteredSeries = [];
   let filteredAnime = [];
@@ -82,29 +81,32 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 
   // Hooks into base.html global sync button
   function onSyncComplete() {
-      performSearch();
+    performSearch();
   }
 
   function normalizeSearchString(str) {
-      if (!str) return "";
-      return String(str).toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    if (!str) return "";
+    return String(str)
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]/gu, "");
   }
 
   async function performSearch() {
     const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('q') || "";
+    const query = urlParams.get("q") || "";
 
-    document.getElementById('search-query-display').innerText = `"${query}"`;
-    const searchInput = document.getElementById('globalSearchInput');
-    if(searchInput) searchInput.value = query;
+    document.getElementById("search-query-display").innerText = `"${query}"`;
+    const searchInput = document.getElementById("globalSearchInput");
+    if (searchInput) searchInput.value = query;
 
     try {
       const [animeRes, seriesRes] = await Promise.all([
         fetch(`/api/anime`),
-        fetch(`/api/series`)
+        fetch(`/api/series`),
       ]);
 
-      if (!animeRes.ok || !seriesRes.ok) throw new Error("Failed to load data from server.");
+      if (!animeRes.ok || !seriesRes.ok)
+        throw new Error("Failed to load data from server.");
 
       allAnimeData = await animeRes.json();
       allSeriesData = await seriesRes.json();
@@ -112,31 +114,40 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       const qNormalized = normalizeSearchString(query);
 
       // Filter Franchise Hubs
-      filteredSeries = allSeriesData.filter(s => {
-          const sEn = normalizeSearchString(s.series_en);
-          const sCn = normalizeSearchString(s.series_cn);
-          const sRo = normalizeSearchString(s.series_roman);
-          const sAlt = normalizeSearchString(s.alt_name);
-          return sEn.includes(qNormalized) || sCn.includes(qNormalized) || sRo.includes(qNormalized) || sAlt.includes(qNormalized);
+      filteredSeries = allSeriesData.filter((s) => {
+        const sEn = normalizeSearchString(s.series_en);
+        const sCn = normalizeSearchString(s.series_cn);
+        const sRo = normalizeSearchString(s.series_roman);
+        const sAlt = normalizeSearchString(s.alt_name);
+        return (
+          sEn.includes(qNormalized) ||
+          sCn.includes(qNormalized) ||
+          sRo.includes(qNormalized) ||
+          sAlt.includes(qNormalized)
+        );
       });
 
       // Filter Anime Entries
-      filteredAnime = allAnimeData.filter(a => {
-          const aEn = normalizeSearchString(a.series_season_en);
-          const aCn = normalizeSearchString(a.series_season_cn);
-          const aSeriesEn = normalizeSearchString(a.series_en);
-          const aRoman = normalizeSearchString(a.series_season_roman);
-          return aEn.includes(qNormalized) || aCn.includes(qNormalized) || aSeriesEn.includes(qNormalized) || aRoman.includes(qNormalized);
+      filteredAnime = allAnimeData.filter((a) => {
+        const aEn = normalizeSearchString(a.series_season_en);
+        const aCn = normalizeSearchString(a.series_season_cn);
+        const aSeriesEn = normalizeSearchString(a.series_en);
+        const aRoman = normalizeSearchString(a.series_season_roman);
+        return (
+          aEn.includes(qNormalized) ||
+          aCn.includes(qNormalized) ||
+          aSeriesEn.includes(qNormalized) ||
+          aRoman.includes(qNormalized)
+        );
       });
 
       // Reset filters on a new broad search
       activeSeriesFilters.clear();
       renderSeriesFilterBar();
       renderResults();
-
     } catch (error) {
       console.error(error);
-      document.getElementById('loading').innerHTML = `
+      document.getElementById("loading").innerHTML = `
         <div class="w-full text-center text-red-600 py-8 bg-red-50 rounded-xl border border-red-200 max-w-md mx-auto">
             <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
             <p class="font-bold">Error loading search results.</p>
@@ -147,99 +158,107 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 
   // --- Dynamic Series Filter Logic ---
   function renderSeriesFilterBar() {
-      // Extract unique series identifiers from the found anime entries
-      const uniqueSeriesEn = [...new Set(filteredAnime.map(a => a.series_en))].filter(Boolean);
-      const wrapper = document.getElementById('series-filter-wrapper');
-      const container = document.getElementById('series-filter-pills');
-      const clearBtn = document.getElementById('clear-series-filters');
+    // Extract unique series identifiers from the found anime entries
+    const uniqueSeriesEn = [
+      ...new Set(filteredAnime.map((a) => a.series_en)),
+    ].filter(Boolean);
+    const wrapper = document.getElementById("series-filter-wrapper");
+    const container = document.getElementById("series-filter-pills");
+    const clearBtn = document.getElementById("clear-series-filters");
 
-      // Hide only if absolute zero series exist in the search results
-      if (uniqueSeriesEn.length === 0) {
-          wrapper.classList.add('hidden');
-          return;
-      }
+    // Hide only if absolute zero series exist in the search results
+    if (uniqueSeriesEn.length === 0) {
+      wrapper.classList.add("hidden");
+      return;
+    }
 
-      wrapper.classList.remove('hidden');
+    wrapper.classList.remove("hidden");
 
-      // Manage "Clear Filters" button visibility
-      if (activeSeriesFilters.size > 0) {
-          clearBtn.classList.remove('hidden');
-      } else {
-          clearBtn.classList.add('hidden');
-      }
+    // Manage "Clear Filters" button visibility
+    if (activeSeriesFilters.size > 0) {
+      clearBtn.classList.remove("hidden");
+    } else {
+      clearBtn.classList.add("hidden");
+    }
 
-      // Map to display names and sort alphabetically
-      const pillData = uniqueSeriesEn.map(en => {
-          const sObj = allSeriesData.find(series => series.series_en === en);
-          const displayName = sObj ? (sObj.series_cn || sObj.series_en) : en;
-          return { en, displayName };
-      });
+    // Map to display names and sort alphabetically
+    const pillData = uniqueSeriesEn.map((en) => {
+      const sObj = allSeriesData.find((series) => series.series_en === en);
+      const displayName = sObj ? sObj.series_cn || sObj.series_en : en;
+      return { en, displayName };
+    });
 
-      pillData.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    pillData.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-      container.innerHTML = pillData.map(series => {
-          const isActive = activeSeriesFilters.has(series.en);
-          const baseClasses = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer select-none shadow-sm flex items-center";
-          const activeClasses = "bg-brand text-white border-brand";
-          const inactiveClasses = "bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand";
+    container.innerHTML = pillData
+      .map((series) => {
+        const isActive = activeSeriesFilters.has(series.en);
+        const baseClasses =
+          "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer select-none shadow-sm flex items-center";
+        const activeClasses = "bg-brand text-white border-brand";
+        const inactiveClasses =
+          "bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand";
 
-          return `
+        return `
               <div onclick="toggleSeriesFilter('${series.en.replace(/'/g, "\\'")}')"
                    class="${baseClasses} ${isActive ? activeClasses : inactiveClasses}">
                   ${series.displayName}
-                  ${isActive ? '<i class="fas fa-times ml-1.5 opacity-75 hover:opacity-100"></i>' : ''}
+                  ${isActive ? '<i class="fas fa-times ml-1.5 opacity-75 hover:opacity-100"></i>' : ""}
               </div>
           `;
-      }).join('');
+      })
+      .join("");
   }
 
   function toggleSeriesFilter(seriesEn) {
-      if (activeSeriesFilters.has(seriesEn)) {
-          activeSeriesFilters.delete(seriesEn);
-      } else {
-          activeSeriesFilters.add(seriesEn);
-      }
-      // Re-render UI Elements
-      renderSeriesFilterBar();
-      renderResults();
+    if (activeSeriesFilters.has(seriesEn)) {
+      activeSeriesFilters.delete(seriesEn);
+    } else {
+      activeSeriesFilters.add(seriesEn);
+    }
+    // Re-render UI Elements
+    renderSeriesFilterBar();
+    renderResults();
   }
 
   function clearSeriesFilters() {
-      activeSeriesFilters.clear();
-      renderSeriesFilterBar();
-      renderResults();
+    activeSeriesFilters.clear();
+    renderSeriesFilterBar();
+    renderResults();
   }
 
   // --- Core Rendering Engine ---
   function renderResults() {
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('main-content').classList.remove('hidden');
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById("main-content").classList.remove("hidden");
 
-    const container = document.getElementById('resultsContainer');
+    const container = document.getElementById("resultsContainer");
     container.innerHTML = "";
 
     // Apply active series filters if any are selected
-    const displayAnime = activeSeriesFilters.size > 0
-        ? filteredAnime.filter(a => activeSeriesFilters.has(a.series_en))
+    const displayAnime =
+      activeSeriesFilters.size > 0
+        ? filteredAnime.filter((a) => activeSeriesFilters.has(a.series_en))
         : filteredAnime;
 
-    const displaySeries = activeSeriesFilters.size > 0
-        ? filteredSeries.filter(s => activeSeriesFilters.has(s.series_en))
+    const displaySeries =
+      activeSeriesFilters.size > 0
+        ? filteredSeries.filter((s) => activeSeriesFilters.has(s.series_en))
         : filteredSeries;
 
     // Handle Empty State after filtering
     if (displaySeries.length === 0 && displayAnime.length === 0) {
-        container.innerHTML = `
+      container.innerHTML = `
             <div class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-200 border-dashed">
                 <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
                 <p class="text-gray-500 font-medium text-lg">No entries match your current filters.</p>
             </div>`;
-        return;
+      return;
     }
 
     // 1. Render Series Hubs
     if (displaySeries.length > 0) {
-        let html = `
+      let html = `
             <div>
                 <div class="flex items-center mb-4 border-b border-gray-200 pb-3">
                     <h2 class="text-xl font-bold text-gray-900"><i class="fas fa-layer-group text-brand mr-2"></i> Franchise Hubs</h2>
@@ -248,28 +267,28 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         `;
 
-        displaySeries.forEach(series => {
-            const title = series.series_cn || series.series_en || "Unknown Series";
-            html += `
+      displaySeries.forEach((series) => {
+        const title = series.series_cn || series.series_en || "Unknown Series";
+        html += `
                 <div class="bg-white rounded-xl border border-gray-200 p-4 card-hover shadow-sm flex items-center justify-between" onclick="window.location.href='/series/${series.system_id}'">
                     <div class="min-w-0 pr-4">
                         <h3 class="text-lg font-bold text-gray-900 truncate">${title}</h3>
-                        <p class="text-sm text-gray-500 truncate">${series.series_en || ''}</p>
+                        <p class="text-sm text-gray-500 truncate">${series.series_en || ""}</p>
                     </div>
                     <div class="bg-brand/10 text-brand px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0">
                         View Hub <i class="fas fa-arrow-right ml-1"></i>
                     </div>
                 </div>
             `;
-        });
+      });
 
-        html += `</div></div>`;
-        container.innerHTML += html;
+      html += `</div></div>`;
+      container.innerHTML += html;
     }
 
     // 2. Render Anime Entries
     if (displayAnime.length > 0) {
-        let html = `
+      let html = `
             <div>
                 <div class="flex items-center mb-4 border-b border-gray-200 pb-3 pt-2">
                     <h2 class="text-xl font-bold text-gray-900"><i class="fas fa-film text-brand mr-2"></i> Individual Entries</h2>
@@ -278,51 +297,67 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
                 <div class="flex flex-col gap-8">
         `;
 
-        const groups = { "TV": [], "ONA": [], "Movie": [], "Other": [] };
-        displayAnime.forEach(anime => {
-            const type = (anime.airing_type || "").toUpperCase();
-            if (type === "TV") groups["TV"].push(anime);
-            else if (type === "ONA") groups["ONA"].push(anime);
-            else if (type === "MOVIE") groups["Movie"].push(anime);
-            else groups["Other"].push(anime);
-        });
+      const groups = { TV: [], ONA: [], Movie: [], Other: [] };
+      displayAnime.forEach((anime) => {
+        const type = (anime.airing_type || "").toUpperCase();
+        if (type === "TV") groups["TV"].push(anime);
+        else if (type === "ONA") groups["ONA"].push(anime);
+        else if (type === "MOVIE") groups["Movie"].push(anime);
+        else groups["Other"].push(anime);
+      });
 
-        const parseReleaseDate = (dateStr) => {
-            if (!dateStr) return 999999;
-            const str = String(dateStr).trim().toUpperCase();
-            if (str === "TBA" || str === "") return 999999;
+      const parseReleaseDate = (dateStr) => {
+        if (!dateStr) return 999999;
+        const str = String(dateStr).trim().toUpperCase();
+        if (str === "TBA" || str === "") return 999999;
 
-            const yearMatch = str.match(/\d{4}/);
-            if (yearMatch) {
-                const year = parseInt(yearMatch[0], 10);
-                let month = 2;
-                if (str.includes("WIN") || str.includes("JAN")) month = 1;
-                else if (str.includes("SPR") || str.includes("APR")) month = 4;
-                else if (str.includes("SUM") || str.includes("JUL")) month = 7;
-                else if (str.includes("FAL") || str.includes("OCT")) month = 10;
-                return year * 100 + month;
-            }
-            return 999999;
-        };
+        const yearMatch = str.match(/\d{4}/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[0], 10);
+          let month = 2;
+          if (str.includes("WIN") || str.includes("JAN")) month = 1;
+          else if (str.includes("SPR") || str.includes("APR")) month = 4;
+          else if (str.includes("SUM") || str.includes("JUL")) month = 7;
+          else if (str.includes("FAL") || str.includes("OCT")) month = 10;
+          return year * 100 + month;
+        }
+        return 999999;
+      };
 
-        const sortByReleaseDate = (a, b) => {
-            let valA = parseReleaseDate(a.release_date);
-            let valB = parseReleaseDate(b.release_date);
-            if (valA !== valB) return valA - valB;
-            let titleA = String(a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en || "").trim().toLowerCase();
-            let titleB = String(b.series_season_cn || b.series_season_en || b.series_season_roman || b.series_en || "").trim().toLowerCase();
-            return titleA < titleB ? -1 : (titleA > titleB ? 1 : 0);
-        };
+      const sortByReleaseDate = (a, b) => {
+        let valA = parseReleaseDate(a.release_date);
+        let valB = parseReleaseDate(b.release_date);
+        if (valA !== valB) return valA - valB;
+        let titleA = String(
+          a.series_season_cn ||
+            a.series_season_en ||
+            a.series_season_roman ||
+            a.series_en ||
+            "",
+        )
+          .trim()
+          .toLowerCase();
+        let titleB = String(
+          b.series_season_cn ||
+            b.series_season_en ||
+            b.series_season_roman ||
+            b.series_en ||
+            "",
+        )
+          .trim()
+          .toLowerCase();
+        return titleA < titleB ? -1 : titleA > titleB ? 1 : 0;
+      };
 
-        groups["TV"].sort(sortByReleaseDate);
-        groups["ONA"].sort(sortByReleaseDate);
-        groups["Movie"].sort(sortByReleaseDate);
-        groups["Other"].sort(sortByReleaseDate);
+      groups["TV"].sort(sortByReleaseDate);
+      groups["ONA"].sort(sortByReleaseDate);
+      groups["Movie"].sort(sortByReleaseDate);
+      groups["Other"].sort(sortByReleaseDate);
 
-        const renderSubSection = (title, entries, icon) => {
-            if (entries.length === 0) return "";
-            // Removed sticky sub-headers to prevent collision with master sticky header
-            let subHtml = `
+      const renderSubSection = (title, entries, icon) => {
+        if (entries.length === 0) return "";
+        // Removed sticky sub-headers to prevent collision with master sticky header
+        let subHtml = `
                 <div class="mb-4 last:mb-0">
                     <div class="flex items-center mb-4 py-2 border-b border-gray-100">
                         <h3 class="text-base font-bold text-gray-800 uppercase tracking-wide"><i class="fas ${icon} text-brand mr-2 w-5 text-center"></i> ${title}</h3>
@@ -330,96 +365,113 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             `;
-            entries.forEach(anime => { subHtml += createLibraryCard(anime); });
-            subHtml += `</div></div>`;
-            return subHtml;
-        };
+        entries.forEach((anime) => {
+          subHtml += createLibraryCard(anime);
+        });
+        subHtml += `</div></div>`;
+        return subHtml;
+      };
 
-        html += renderSubSection("TV", groups["TV"], "fa-tv");
-        html += renderSubSection("ONA", groups["ONA"], "fa-globe");
-        html += renderSubSection("Movie", groups["Movie"], "fa-film");
-        html += renderSubSection("Other", groups["Other"], "fa-question-circle");
+      html += renderSubSection("TV", groups["TV"], "fa-tv");
+      html += renderSubSection("ONA", groups["ONA"], "fa-globe");
+      html += renderSubSection("Movie", groups["Movie"], "fa-film");
+      html += renderSubSection("Other", groups["Other"], "fa-question-circle");
 
-        html += `</div></div>`;
-        container.innerHTML += html;
+      html += `</div></div>`;
+      container.innerHTML += html;
     }
   }
 
   function createLibraryCard(anime) {
-      const title = anime.series_season_cn || anime.series_season_en || anime.series_en || "Unknown Title";
-      const epFin = anime.ep_fin || 0;
-      const epTotal = anime.ep_total || "?";
+    const title =
+      anime.series_season_cn ||
+      anime.series_season_en ||
+      anime.series_en ||
+      "Unknown Title";
+    const epFin = anime.ep_fin || 0;
+    const epTotal = anime.ep_total || "?";
 
-      let statusColor = "bg-gray-800";
-      if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
-      if (anime.my_progress === "Completed" || anime.my_progress === "Finished") statusColor = "bg-brand";
+    let statusColor = "bg-gray-800";
+    if (anime.my_progress === "Active Watching") statusColor = "bg-green-600";
+    if (anime.my_progress === "Completed" || anime.my_progress === "Finished")
+      statusColor = "bg-brand";
 
-      const progress = anime.my_progress || "";
+    const progress = anime.my_progress || "";
 
-      // Dynamic Logic for the Action Button
-      let actionIcon = '';
-      let actionTitle = '';
-      let buttonClass = '';
+    // Dynamic Logic for the Action Button
+    let actionIcon = "";
+    let actionTitle = "";
+    let buttonClass = "";
 
-      if (progress === "Might Watch") {
-          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
-          actionTitle = 'Set to Plan to Watch';
-          buttonClass = 'bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent';
-      } else if (progress === "Plan to Watch" || progress === "Watch When Airs") {
-          actionIcon = '<i class="fas fa-ellipsis-h text-[10px]"></i>';
-          actionTitle = 'Demote to Might Watch';
-          buttonClass = 'bg-purple-100 hover:bg-purple-500 text-purple-600 hover:text-white border border-purple-200';
-      } else if (["Completed", "Finished"].includes(progress)) {
-          actionIcon = '<i class="fas fa-check text-[10px]"></i>';
-          actionTitle = 'Demote to Might Watch';
-          buttonClass = 'bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200';
-      } else if (["Active Watching", "Passive Watching", "Paused"].includes(progress)) {
-          actionIcon = '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
-          actionTitle = 'Demote to Might Watch';
-          buttonClass = 'bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200';
-      } else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(progress)) {
-          actionIcon = '<i class="fas fa-times text-[10px]"></i>';
-          actionTitle = 'Demote to Might Watch';
-          buttonClass = 'bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200';
-      } else {
-          actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
-          actionTitle = 'Set to Plan to Watch';
-          buttonClass = 'bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200';
-      }
+    if (progress === "Might Watch") {
+      actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+      actionTitle = "Set to Plan to Watch";
+      buttonClass =
+        "bg-brand/10 hover:bg-brand text-brand hover:text-white border border-transparent";
+    } else if (progress === "Plan to Watch" || progress === "Watch When Airs") {
+      actionIcon = '<i class="fas fa-ellipsis-h text-[10px]"></i>';
+      actionTitle = "Demote to Might Watch";
+      buttonClass =
+        "bg-purple-100 hover:bg-purple-500 text-purple-600 hover:text-white border border-purple-200";
+    } else if (["Completed", "Finished"].includes(progress)) {
+      actionIcon = '<i class="fas fa-check text-[10px]"></i>';
+      actionTitle = "Demote to Might Watch";
+      buttonClass =
+        "bg-green-100 hover:bg-green-500 text-green-600 hover:text-white border border-green-200";
+    } else if (
+      ["Active Watching", "Passive Watching", "Paused"].includes(progress)
+    ) {
+      actionIcon =
+        '<span class="font-bold leading-none" style="font-size: 14px; margin-top: -2px;">~</span>';
+      actionTitle = "Demote to Might Watch";
+      buttonClass =
+        "bg-blue-100 hover:bg-blue-500 text-blue-600 hover:text-white border border-blue-200";
+    } else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(progress)) {
+      actionIcon = '<i class="fas fa-times text-[10px]"></i>';
+      actionTitle = "Demote to Might Watch";
+      buttonClass =
+        "bg-red-100 hover:bg-red-500 text-red-600 hover:text-white border border-red-200";
+    } else {
+      actionIcon = '<i class="fas fa-plus text-[10px]"></i>';
+      actionTitle = "Set to Plan to Watch";
+      buttonClass =
+        "bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200";
+    }
 
-      const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='12' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
+    // Safe URL encoded SVG fallback
+    const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
 
-      let actionButtonHTML = '';
-      if (IS_ADMIN) {
-          actionButtonHTML = `
-          <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ''}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
+    let actionButtonHTML = "";
+    if (typeof IS_ADMIN !== "undefined" && IS_ADMIN) {
+      actionButtonHTML = `
+          <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ""}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
               ${actionIcon}
           </button>`;
-      } else {
-          const guestClass = buttonClass.replace(/hover:[^\s]+/g, '').trim();
-          actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
-      }
+    } else {
+      const guestClass = buttonClass.replace(/hover:[^\s]+/g, "").trim();
+      actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
+    }
 
-      let malRatingHtml = '';
-      if (anime.mal_rating) {
-          const ratingNum = Number(anime.mal_rating);
-          if (!isNaN(ratingNum)) {
-              malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
-          }
+    let malRatingHtml = "";
+    if (anime.mal_rating) {
+      const ratingNum = Number(anime.mal_rating);
+      if (!isNaN(ratingNum)) {
+        malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
       }
+    }
 
-      return `
+    return `
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
             <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
                 <img src="${anime.cover_image_url || ""}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
 
                 <div class="absolute top-2 left-2 flex flex-col gap-1">
                     ${malRatingHtml}
-                    ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ''}
+                    ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ""}
                 </div>
 
                 <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
-                    <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : (epFin > 0 ? 100 : 0)}%"></div>
+                    <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : epFin > 0 ? 100 : 0}%"></div>
                 </div>
             </div>
 
@@ -440,43 +492,57 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 
   // --- Optimistic State Management ---
   async function handleStatusButton(sys_id, current_progress) {
-      if (!IS_ADMIN) return;
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
 
-      // Determine the target status direction based on the current state
-      let newStatus = current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
+    // Determine the target status direction based on the current state
+    let newStatus =
+      current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-      // If the show is heavily tracked, prompt the user before aggressively demoting it
-      const strongStatuses = ["Completed", "Finished", "Active Watching", "Passive Watching", "Paused", "Dropped", "Temp Dropped", "Won't Watch"];
-      if (strongStatuses.includes(current_progress)) {
-          const confirmed = confirm(`This entry is currently marked as "${current_progress}". Do you really want to demote it to "Might Watch"?`);
-          if (!confirmed) return;
-      }
+    // If the show is heavily tracked, prompt the user before aggressively demoting it
+    const strongStatuses = [
+      "Completed",
+      "Finished",
+      "Active Watching",
+      "Passive Watching",
+      "Paused",
+      "Dropped",
+      "Temp Dropped",
+      "Won't Watch",
+    ];
+    if (strongStatuses.includes(current_progress)) {
+      const confirmed = confirm(
+        `This entry is currently marked as "${current_progress}". Do you really want to demote it to "Might Watch"?`,
+      );
+      if (!confirmed) return;
+    }
 
-      const index = filteredAnime.findIndex(a => a.system_id === sys_id);
-      if (index === -1) return;
+    const index = filteredAnime.findIndex((a) => a.system_id === sys_id);
+    if (index === -1) return;
 
-      const originalStatus = filteredAnime[index].my_progress;
-      filteredAnime[index].my_progress = newStatus;
+    const originalStatus = filteredAnime[index].my_progress;
+    filteredAnime[index].my_progress = newStatus;
 
-      const allIndex = allAnimeData.findIndex(a => a.system_id === sys_id);
-      if(allIndex !== -1) allAnimeData[allIndex].my_progress = newStatus;
+    const allIndex = allAnimeData.findIndex((a) => a.system_id === sys_id);
+    if (allIndex !== -1) allAnimeData[allIndex].my_progress = newStatus;
 
+    renderResults();
+
+    try {
+      const res = await fetch(`/api/anime/${sys_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ my_progress: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to sync status");
+      if (typeof showToast === "function")
+        showToast(`Status updated to ${newStatus}`);
+    } catch (error) {
+      filteredAnime[index].my_progress = originalStatus;
+      if (allIndex !== -1) allAnimeData[allIndex].my_progress = originalStatus;
       renderResults();
-
-      try {
-          const res = await fetch(`/api/anime/${sys_id}/progress`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ my_progress: newStatus })
-          });
-          if (!res.ok) throw new Error("Failed to sync status");
-          if (typeof showToast === 'function') showToast(`Status updated to ${newStatus}`);
-      } catch (error) {
-          filteredAnime[index].my_progress = originalStatus;
-          if(allIndex !== -1) allAnimeData[allIndex].my_progress = originalStatus;
-          renderResults();
-          if (typeof showToast === 'function') showToast("Network error. Status reverted.", true);
-      }
+      if (typeof showToast === "function")
+        showToast("Network error. Status reverted.", true);
+    }
   }
 
   document.addEventListener("DOMContentLoaded", performSearch);
