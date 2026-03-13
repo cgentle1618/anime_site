@@ -138,6 +138,34 @@ def update_anime_full(
     return {"message": "Anime updated successfully", "system_id": system_id}
 
 
+@router.put("/series/{system_id}", summary="Full Update of Series Hub")
+def update_series_full(
+    system_id: str, payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get_db)
+):
+    """
+    Performs a full overwrite of a series hub in the PostgreSQL database.
+    Then performs a bulk push to Google Sheets to maintain the backup.
+    """
+    series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not series:
+        raise HTTPException(status_code=404, detail="Series Hub not found.")
+
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(series, key, value)
+
+    db.commit()
+
+    # Force DB Backup to Google Sheets
+    sync_engine.run_full_sync(db, direction="push")
+
+    return {"message": "Series updated successfully", "system_id": system_id}
+
+
 @router.delete("/anime/{system_id}", summary="Delete Anime Entry")
 def delete_anime(system_id: str, db: Session = Depends(get_db)):
     """
@@ -167,6 +195,37 @@ def delete_anime(system_id: str, db: Session = Depends(get_db)):
     sync_engine.run_full_sync(db, direction="push")
 
     return {"message": "Anime deleted successfully."}
+
+
+@router.delete("/series/{system_id}", summary="Delete Series Hub")
+def delete_series(system_id: str, db: Session = Depends(get_db)):
+    """
+    Deletes a series hub from the PostgreSQL database.
+    The deletion will automatically reflect in Google Sheets on the next bulk sync push.
+    """
+    series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not series:
+        raise HTTPException(status_code=404, detail="Series Hub not found.")
+
+    # Log the deletion for the history dashboard before removing it
+    title = series.series_cn or series.series_en or series.system_id
+    del_log = models.DeletedRecord(
+        system_id=system_id,
+        table_name="anime_series",
+        data_json=f'{{"title": "{title}"}}',
+    )
+    db.add(del_log)
+
+    db.delete(series)
+    db.commit()
+
+    sync_engine.run_full_sync(db, direction="push")
+
+    return {"message": "Series Hub deleted successfully."}
 
 
 @router.post("/series", summary="Add New Series Hub")
