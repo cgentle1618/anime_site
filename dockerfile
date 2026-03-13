@@ -1,20 +1,40 @@
-# ... [Stage 1: Builder remains the same] ...
+# ==========================================
+# STAGE 1: Builder
+# ==========================================
 FROM python:3.11-slim AS builder
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev python3-dev && rm -rf /var/lib/apt/lists/*
+
+# Install system build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+    
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+# FIX 1: Removed --no-deps so pip builds wheels for ALL sub-dependencies as well
+RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
 # ==========================================
 # STAGE 2: Final Runtime
 # ==========================================
 FROM python:3.11-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev && rm -rf /var/lib/apt/lists/*
 
+# Install ONLY runtime dependencies to keep container ultra-lightweight
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the pre-built wheels and requirements from the builder stage
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache /wheels/*
+
+# FIX 2: Safely install strictly from the local wheels folder without reaching out to PyPI again
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
+
+# Copy application code
 COPY . .
 
 # We use a shell-form CMD with a built-in retry loop for Alembic.
