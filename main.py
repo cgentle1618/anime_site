@@ -40,7 +40,6 @@ async def seed_admin_user():
     """
     Industry Standard: Automatic Data Seeding.
     On startup, check if any user exists. If not, create the master admin.
-    (Note: Schema management is now handled exclusively by Alembic via Dockerfile)
     """
     db = database.SessionLocal()
     try:
