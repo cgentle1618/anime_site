@@ -1,13 +1,11 @@
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-
-import os
-import sys
-from logging.config import fileConfig
 
 # Add the root directory to the python path so it can find your modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -26,14 +24,12 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# --- SMART DATABASE URL ROUTING ---
+# Priority 1: Use the exact URL injected by the OS (Google Cloud Run)
+# Priority 2: Fallback to the local database URL from database.py (Localhost)
+db_url = os.getenv("DATABASE_URL", str(SQLALCHEMY_DATABASE_URL))
 
 
 def run_migrations_offline() -> None:
@@ -48,9 +44,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=db_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -63,7 +58,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     # Escape % signs so configparser doesn't crash on URL-encoded passwords
-    escaped_url = str(SQLALCHEMY_DATABASE_URL).replace("%", "%%")
+    escaped_url = db_url.replace("%", "%%")
     config.set_main_option("sqlalchemy.url", escaped_url)
 
     connectable = engine_from_config(
@@ -77,9 +72,3 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-
-
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
