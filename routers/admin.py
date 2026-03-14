@@ -102,7 +102,7 @@ def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
     db.commit()
 
     # 6. Bulk Backup to Google Sheets
-    sync_engine.run_full_sync(db, direction="push")
+    sync_engine.run_v2_basic_sync(db, direction="push")
 
     return {
         "message": f"Successfully added {display_title}",
@@ -133,7 +133,7 @@ def update_anime_full(
     db.commit()
 
     # Force DB Backup to Google Sheets
-    sync_engine.run_full_sync(db, direction="push")
+    sync_engine.run_v2_basic_sync(db, direction="push")
 
     return {"message": "Anime updated successfully", "system_id": system_id}
 
@@ -164,7 +164,7 @@ def delete_anime(system_id: str, db: Session = Depends(get_db)):
     db.delete(anime)
     db.commit()
 
-    sync_engine.run_full_sync(db, direction="push")
+    sync_engine.run_v2_basic_sync(db, direction="push")
 
     return {"message": "Anime deleted successfully."}
 
@@ -212,7 +212,7 @@ def add_series_hub(payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get
     db.commit()
 
     # 3. Bulk Backup to Google Sheets
-    sync_engine.run_full_sync(db, direction="push")
+    sync_engine.run_v2_basic_sync(db, direction="push")
 
     return {
         "message": f"Successfully created Series Hub: {display_title}",
@@ -268,7 +268,7 @@ def add_system_option(
     db.refresh(new_option)  # Reload to get the auto-generated ID
 
     # NEW: Trigger a DB-to-Sheets backup to maintain parity
-    sync_engine.run_full_sync(db, direction="push")
+    sync_engine.run_v2_basic_sync(db, direction="push")
 
     return new_option
 
@@ -288,7 +288,7 @@ def delete_system_option(option_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     # NEW: Trigger a DB-to-Sheets backup to maintain parity
-    sync_engine.run_full_sync(db, direction="push")
+    sync_engine.run_v2_basic_sync(db, direction="push")
 
     return {"message": f"Option '{option.option_value}' deleted successfully."}
 
@@ -306,7 +306,7 @@ def sync_with_sheets(direction: str = "both", db: Session = Depends(get_db)):
     - Pushes the entire DB -> Sheets (Bulk Overwrite).
     """
     print(f"\n▶️ [POST /sync/sheets] Triggering Master Sync (direction: {direction})")
-    result = sync_engine.run_full_sync(db, direction=direction)
+    result = sync_engine.run_v2_basic_sync(db, direction=direction)
 
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
@@ -322,7 +322,7 @@ def sync_strong_jikan(db: Session = Depends(get_db)):
     and pushes the updated data to Google Sheets.
     """
     print("\n▶️ [POST /sync/strong] Triggering Strong Sync...")
-    result = sync_engine.run_strong_jikan_sync(db)
+    result = sync_engine.run_v2_strong_sync(db)
 
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
