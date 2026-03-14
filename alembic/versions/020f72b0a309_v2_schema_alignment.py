@@ -18,76 +18,54 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
-    # 1. COMPREHENSIVE TYPE CONVERSIONS (Fixes "Unknown PG numeric type: 1043")
-    # Floats
+    """Upgrade schema to align with V2 models and fix 1043 errors."""
+
+    # --- 1. ANIME ENTRIES CONVERSIONS ---
+    # We use NULLIF(TRIM()) to safely handle empty strings or spaces
+
+    # Floats (Note: watch_order_rec is strictly omitted to stay String/VARCHAR per schemas.py)
     op.alter_column(
         "anime_entries",
         "watch_order",
-        existing_type=sa.VARCHAR(),
         type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="watch_order::double precision",
-    )
-
-    op.alter_column(
-        "anime_entries",
-        "watch_order_rec",
-        existing_type=sa.VARCHAR(),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="watch_order_rec::double precision",
+        postgresql_using="NULLIF(TRIM(watch_order::text), '')::double precision",
     )
 
     op.alter_column(
         "anime_entries",
         "mal_rating",
-        existing_type=sa.VARCHAR(),
         type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="mal_rating::double precision",
+        postgresql_using="NULLIF(TRIM(mal_rating::text), '')::double precision",
     )
 
     # Integers
+    for col in ["ep_total", "ep_fin", "mal_id", "mal_rank"]:
+        op.alter_column(
+            "anime_entries",
+            col,
+            type_=sa.Integer(),
+            postgresql_using=f"NULLIF(TRIM({col}::text), '')::integer",
+        )
+
+    # Booleans (Perfectly matching models.py requirements)
+    for col in ["source_baha", "source_netflix"]:
+        op.alter_column(
+            "anime_entries",
+            col,
+            type_=sa.Boolean(),
+            postgresql_using=f"NULLIF(TRIM({col}::text), '')::boolean",
+        )
+
+    # --- 2. ANIME SERIES CONVERSIONS ---
     op.alter_column(
-        "anime_entries",
-        "ep_total",
-        existing_type=sa.VARCHAR(),
+        "anime_series",
+        "favorite_3x3_slot",
         type_=sa.Integer(),
-        existing_nullable=True,
-        postgresql_using="ep_total::integer",
+        postgresql_using="NULLIF(TRIM(favorite_3x3_slot::text), '')::integer",
     )
 
-    op.alter_column(
-        "anime_entries",
-        "ep_fin",
-        existing_type=sa.VARCHAR(),
-        type_=sa.Integer(),
-        existing_nullable=True,
-        postgresql_using="ep_fin::integer",
-    )
-
-    # Booleans
-    op.alter_column(
-        "anime_entries",
-        "source_baha",
-        existing_type=sa.VARCHAR(),
-        type_=sa.Boolean(),
-        existing_nullable=True,
-        postgresql_using="source_baha::boolean",
-    )
-
-    op.alter_column(
-        "anime_entries",
-        "source_netflix",
-        existing_type=sa.VARCHAR(),
-        type_=sa.Boolean(),
-        existing_nullable=True,
-        postgresql_using="source_netflix::boolean",
-    )
-
-    # 2. DATA CLEANUP (Fixes UniqueViolation: Key (series_en)=(One Piece) is duplicated)
-    # This deletes duplicate series rows before we try to apply a UNIQUE constraint.
+    # --- 3. DATA CLEANUP & INDEXING ---
+    # Fix duplicate series names before creating unique index
     op.execute(
         """
         DELETE FROM anime_series
@@ -99,16 +77,7 @@ def upgrade() -> None:
     """
     )
 
-    # 3. INDEX ADJUSTMENTS
-    # Use if_exists=True for the drop to ensure a smooth run
-    op.drop_index(
-        op.f("ix_anime_series_series_en"), table_name="anime_series", if_exists=True
-    )
-    op.create_index(
-        op.f("ix_anime_series_series_en"), "anime_series", ["series_en"], unique=True
-    )
-
-    # 4. MISC ALIGNMENTS
+    # --- 4. TEXT ALIGNMENTS ---
     op.alter_column(
         "anime_entries",
         "seiyuu",
@@ -117,73 +86,21 @@ def upgrade() -> None:
         existing_nullable=True,
     )
 
-    op.alter_column(
-        "system_options", "category", existing_type=sa.VARCHAR(), nullable=False
-    )
-    op.alter_column(
-        "system_options", "option_value", existing_type=sa.VARCHAR(), nullable=False
-    )
-
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.alter_column(
-        "system_options", "option_value", existing_type=sa.VARCHAR(), nullable=True
-    )
-    op.alter_column(
-        "system_options", "category", existing_type=sa.VARCHAR(), nullable=True
-    )
     op.drop_index(op.f("ix_anime_series_series_en"), table_name="anime_series")
     op.create_index(
         op.f("ix_anime_series_series_en"), "anime_series", ["series_en"], unique=False
     )
 
-    op.alter_column(
-        "anime_entries",
-        "source_netflix",
-        existing_type=sa.Boolean(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "anime_entries",
-        "source_baha",
-        existing_type=sa.Boolean(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "anime_entries",
-        "ep_fin",
-        existing_type=sa.Integer(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "anime_entries",
-        "ep_total",
-        existing_type=sa.Integer(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "anime_entries",
-        "mal_rating",
-        existing_type=sa.Float(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "anime_entries",
-        "watch_order_rec",
-        existing_type=sa.Float(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "anime_entries",
-        "watch_order",
-        existing_type=sa.Float(),
-        type_=sa.VARCHAR(),
-        existing_nullable=True,
-    )
+    # Simple revert - does not strictly recreate the exact VARCHAR state of data
+    op.alter_column("anime_entries", "watch_order", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "mal_rating", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "ep_total", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "ep_fin", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "mal_id", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "mal_rank", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "source_baha", type_=sa.VARCHAR())
+    op.alter_column("anime_entries", "source_netflix", type_=sa.VARCHAR())
+    op.alter_column("anime_series", "favorite_3x3_slot", type_=sa.VARCHAR())
