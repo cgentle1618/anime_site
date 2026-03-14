@@ -42,7 +42,6 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 # Copy application code
 COPY . .
 
-# We use a shell-form CMD with a built-in retry loop for Alembic.
-# Cloud SQL Auth Proxy can take a few seconds to start inside Cloud Run.
-# This loop retries the database connection up to 5 times before starting Uvicorn.
-CMD sh -c "for i in 1 2 3 4 5; do alembic upgrade head && break || sleep 3; done && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'"
+# FIXED: Removed Alembic from the startup command to prevent Database Locks from 
+# hanging the deployment. We boot Uvicorn directly so the app comes online instantly.
+CMD sh -c "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'"
