@@ -1,7 +1,7 @@
 """clean_v2_baseline
 
 Revision ID: aa47482dcc6c
-Revises: 639f52e4acb5
+Revises: e4f831d8b802
 Create Date: 2026-03-14 17:04:25.366054
 
 """
@@ -14,7 +14,8 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "aa47482dcc6c"
-down_revision: Union[str, Sequence[str], None] = "639f52e4acb5"
+# FIXED: Point to the actual initial baseline file instead of the deleted ghost file
+down_revision: Union[str, Sequence[str], None] = "e4f831d8b802"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
