@@ -6,10 +6,10 @@ Optimized for V2.
 """
 
 import re
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 
-def clean_value(val: Any, expected_type: Type = str) -> Any:
+def clean_value(val: Any, expected_type: type = str) -> Any:
     """
     Cleans raw Google Sheets cell values.
     Converts empty strings or None to a proper Python None (or False for bools).
@@ -25,7 +25,8 @@ def clean_value(val: Any, expected_type: Type = str) -> Any:
 
     # Handle Boolean casting (Google Sheets often sends "TRUE" / "FALSE")
     if expected_type == bool:
-        return val_str.lower() in ["true", "t", "1", "yes", "y"]
+        # Added "有" (Baha) and "1" as common truthy spreadsheet values
+        return val_str.lower() in ["true", "t", "1", "yes", "y", "有"]
 
     try:
         if expected_type == int:
@@ -40,9 +41,8 @@ def clean_value(val: Any, expected_type: Type = str) -> Any:
 
 def extract_mal_id(mal_link: str) -> Optional[int]:
     """
-    Extracts the numeric MyAnimeList ID from a standard MAL URL.
-    Example: 'https://myanimelist.net/anime/5114/Fullmetal_Alchemist' -> 5114
-    Useful when manually pasting links into the backup Google Sheet.
+    Extracts the MAL ID from a MyAnimeList URL.
+    Example: 'https://myanimelist.net/anime/5114/Fullmetal_Alchemist__Brotherhood' -> 5114
     """
     if not mal_link:
         return None
@@ -82,17 +82,18 @@ def extract_season_from_cn_title(title_cn: str) -> Optional[str]:
         if num_str.isdigit():
             return f"Season {num_str}"
         else:
+            # Handle basic Chinese numerals 1-10
             cn_num_map = {
-                "一": "1",
-                "二": "2",
-                "三": "3",
-                "四": "4",
-                "五": "5",
-                "六": "6",
-                "七": "7",
-                "八": "8",
-                "九": "9",
-                "十": "10",
+                "一": 1,
+                "二": 2,
+                "三": 3,
+                "四": 4,
+                "五": 5,
+                "六": 6,
+                "七": 7,
+                "八": 8,
+                "九": 9,
+                "十": 10,
             }
             if num_str in cn_num_map:
                 return f"Season {cn_num_map[num_str]}"
