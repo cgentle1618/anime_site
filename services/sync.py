@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 
 from database import cleanup_old_logs
-from models import AnimeEntry, SyncLog, SystemOption
+from models import AnimeEntry, AnimeSeries, SyncLog, SystemOption
 
 from services.sync_utils import (
     clean_value,
@@ -23,7 +23,7 @@ from services.sync_utils import (
 from services.sheets_client import get_all_rows, bulk_overwrite_sheet
 import services.jikan_client as jikan_client
 
-# Define the exact V2 column headers expected in the Google Sheet
+# Define the exact V2 column headers expected in the Google Sheet and Database
 ANIME_HEADERS = [
     "system_id",
     "series_en",
@@ -31,6 +31,7 @@ ANIME_HEADERS = [
     "series_season_roman",
     "series_season_cn",
     "anime_alt_name",
+    "series_season",
     "airing_type",
     "my_progress",
     "airing_status",
@@ -41,13 +42,22 @@ ANIME_HEADERS = [
     "release_year",
     "release_month",
     "release_season",
-    "release_date",
+    "genre_main",
+    "genre_sub",
+    "prequel",
+    "sequel",
+    "alternative",
+    "watch_order",
+    "watch_order_rec",
     "mal_id",
     "mal_rating",
+    "mal_link",
+    "anilist_link",
     "remark",
     "op",
     "ed",
     "insert_ost",
+    "music",
     "seiyuu",
     "source_baha",
     "baha_link",
@@ -72,9 +82,9 @@ def log_sync_event(
     log = SyncLog(
         sync_type=sync_type,
         status=status,
-        rows_added=added,  # Fixed from items_added
-        rows_updated=updated,  # Fixed from items_updated
-        rows_deleted=deleted,  # Fixed from items_deleted
+        rows_added=added,
+        rows_updated=updated,
+        rows_deleted=deleted,
         error_message=error,
         details_json=details_json,
     )
@@ -113,6 +123,7 @@ def run_v2_basic_sync(db: Session):
                     ),
                     series_season_cn=clean_value(row.get("series_season_cn"), str),
                     anime_alt_name=clean_value(row.get("anime_alt_name"), str),
+                    series_season=clean_value(row.get("series_season"), str),
                     airing_type=clean_value(row.get("airing_type"), str),
                     my_progress=clean_value(row.get("my_progress"), str),
                     airing_status=clean_value(row.get("airing_status"), str),
@@ -123,13 +134,22 @@ def run_v2_basic_sync(db: Session):
                     release_year=clean_value(row.get("release_year"), int),
                     release_month=clean_value(row.get("release_month"), int),
                     release_season=clean_value(row.get("release_season"), str),
-                    release_date=clean_value(row.get("release_date"), str),
+                    genre_main=clean_value(row.get("genre_main"), str),
+                    genre_sub=clean_value(row.get("genre_sub"), str),
+                    prequel=clean_value(row.get("prequel"), str),
+                    sequel=clean_value(row.get("sequel"), str),
+                    alternative=clean_value(row.get("alternative"), str),
+                    watch_order=clean_value(row.get("watch_order"), float),
+                    watch_order_rec=clean_value(row.get("watch_order_rec"), str),
                     mal_id=clean_value(row.get("mal_id"), int),
                     mal_rating=clean_value(row.get("mal_rating"), float),
+                    mal_link=clean_value(row.get("mal_link"), str),
+                    anilist_link=clean_value(row.get("anilist_link"), str),
                     remark=clean_value(row.get("remark"), str),
                     op=clean_value(row.get("op"), str),
                     ed=clean_value(row.get("ed"), str),
                     insert_ost=clean_value(row.get("insert_ost"), str),
+                    music=clean_value(row.get("music"), str),
                     seiyuu=clean_value(row.get("seiyuu"), str),
                     source_baha=clean_value(row.get("source_baha"), str),
                     baha_link=clean_value(row.get("baha_link"), str),
@@ -158,6 +178,7 @@ def run_v2_basic_sync(db: Session):
                     existing.anime_alt_name = clean_value(
                         row.get("anime_alt_name"), str
                     )
+                    existing.series_season = clean_value(row.get("series_season"), str)
                     existing.airing_type = clean_value(row.get("airing_type"), str)
                     existing.my_progress = clean_value(row.get("my_progress"), str)
                     existing.airing_status = clean_value(row.get("airing_status"), str)
@@ -170,13 +191,24 @@ def run_v2_basic_sync(db: Session):
                     existing.release_season = clean_value(
                         row.get("release_season"), str
                     )
-                    existing.release_date = clean_value(row.get("release_date"), str)
+                    existing.genre_main = clean_value(row.get("genre_main"), str)
+                    existing.genre_sub = clean_value(row.get("genre_sub"), str)
+                    existing.prequel = clean_value(row.get("prequel"), str)
+                    existing.sequel = clean_value(row.get("sequel"), str)
+                    existing.alternative = clean_value(row.get("alternative"), str)
+                    existing.watch_order = clean_value(row.get("watch_order"), float)
+                    existing.watch_order_rec = clean_value(
+                        row.get("watch_order_rec"), str
+                    )
                     existing.mal_id = clean_value(row.get("mal_id"), int)
                     existing.mal_rating = clean_value(row.get("mal_rating"), float)
+                    existing.mal_link = clean_value(row.get("mal_link"), str)
+                    existing.anilist_link = clean_value(row.get("anilist_link"), str)
                     existing.remark = clean_value(row.get("remark"), str)
                     existing.op = clean_value(row.get("op"), str)
                     existing.ed = clean_value(row.get("ed"), str)
                     existing.insert_ost = clean_value(row.get("insert_ost"), str)
+                    existing.music = clean_value(row.get("music"), str)
                     existing.seiyuu = clean_value(row.get("seiyuu"), str)
                     existing.source_baha = clean_value(row.get("source_baha"), str)
                     existing.baha_link = clean_value(row.get("baha_link"), str)
@@ -241,12 +273,13 @@ def run_v2_strong_sync(db: Session):
     try:
         print("▶️ [Strong Sync] Identifying items missing MAL ratings...")
         # Target entries with a MAL ID but zero/missing rating to save API calls
+        # Note: Updated to proper SQLAlchemy isnot/is_ logic to prevent warnings
         targets = (
             db.query(AnimeEntry)
             .filter(
                 and_(
-                    AnimeEntry.mal_id != None,
-                    or_(AnimeEntry.mal_rating == 0, AnimeEntry.mal_rating == None),
+                    AnimeEntry.mal_id.isnot(None),
+                    or_(AnimeEntry.mal_rating == 0, AnimeEntry.mal_rating.is_(None)),
                 )
             )
             .all()
