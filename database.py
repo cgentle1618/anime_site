@@ -17,6 +17,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Load environment variables from credentials.json or .env
 load_dotenv()
 
+# --- DEBUG BLOCK ---
+print(
+    f"🚀 [DEBUG] INSTANCE_CONNECTION_NAME from env: '{os.getenv('INSTANCE_CONNECTION_NAME')}'"
+)
+print(f"🚀 [DEBUG] DATABASE_URL from env: '{os.getenv('DATABASE_URL')}'")
+# -------------------
+
 # ==========================================
 # DATABASE CONNECTION SETUP
 # ==========================================
