@@ -43,7 +43,6 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 COPY . .
 
 # We use a shell-form CMD with a built-in retry loop for Alembic.
-# IMPORTANT V2 CHANGE: We replaced '&& uvicorn' with '; uvicorn'.
-# This creates a "Parallel Circuit" ensuring the FastAPI server boots up 
-# even if Alembic encounters a version control mismatch!
-CMD for i in 1 2 3 4 5; do alembic upgrade head && break || sleep 3; done ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips="*"
+# Cloud SQL Auth Proxy can take a few seconds to start inside Cloud Run.
+# This loop retries the database connection up to 5 times before starting Uvicorn.
+CMD sh -c "for i in 1 2 3 4 5; do alembic upgrade head && break || sleep 3; done && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'"
