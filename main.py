@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+from sqlalchemy import text
 
 import database
 import models
@@ -40,9 +41,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     print(
         f"🔥 [CRITICAL 500 ERROR] Failed at: {request.method} {request.url}", flush=True
     )
-    print("👇 --- TRACEBACK BEGIN --- 👇", flush=True)
     traceback.print_exc()
-    print("👆 --- TRACEBACK END --- 👆", flush=True)
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -54,12 +53,67 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Mount the static directory so FastAPI can serve local images
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # ==========================================
 # STARTUP EVENTS
 # ==========================================
+
+
+@app.on_event("startup")
+async def verify_database_connection():
+    """
+    DEBUG DIAGNOSTIC: Runs immediately on container boot.
+    Queries the actual database schema information to prove what tables and column types
+    the Cloud Run instance is physically seeing.
+    """
+    print("🔍 [DB DIAGNOSTICS] Starting pre-flight database check...")
+    db = database.SessionLocal()
+    try:
+        # 1. Print the masked connection URL to ensure we are hitting the right DB
+        safe_url = database.engine.url.render_as_string(hide_password=True)
+        print(f"🔗 [DB DIAGNOSTICS] Connected Engine URL: {safe_url}")
+
+        # 2. Direct query to PostgreSQL's internal schema catalog
+        query = text(
+            """
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'anime_entries';
+        """
+        )
+        result = db.execute(query).fetchall()
+
+        if not result:
+            print(
+                "❌ [DB DIAGNOSTICS] FATAL: Table 'anime_entries' NOT FOUND in this database!"
+            )
+        else:
+            print(
+                f"✅ [DB DIAGNOSTICS] Found 'anime_entries' with {len(result)} columns. Checking suspects..."
+            )
+
+            # The columns most likely to cause the 1043 error
+            suspects = [
+                "watch_order",
+                "watch_order_rec",
+                "mal_rating",
+                "ep_total",
+                "ep_fin",
+                "mal_id",
+                "mal_rank",
+            ]
+
+            for row in result:
+                col_name = row[0]
+                data_type = row[1]
+                if col_name in suspects:
+                    print(
+                        f"   -> Column '{col_name}' is physically typed as: [{data_type}]"
+                    )
+
+    except Exception as e:
+        print(f"❌ [DB DIAGNOSTICS] Failed to run schema diagnostics: {e}")
+    finally:
+        db.close()
 
 
 # DISABLED FOR DEBUGGING: Prevents extra database locks from hanging the deployment
@@ -75,12 +129,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 #         admin_user = (
 #             db.query(models.User).filter(models.User.username == "admin").first()
 #         )
-
+#
 #         if not admin_user:
 #             admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
 #             print("🚀 [System] No admin detected. Seeding master account...")
 #             hashed_pwd = get_password_hash(admin_pass)
-
+#
 #             new_admin = models.User(
 #                 username="admin", hashed_password=hashed_pwd, role="admin"
 #             )
@@ -89,7 +143,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 #             print("✅ [System] Admin user 'admin' created successfully.")
 #         else:
 #             print("ℹ️ [System] Admin account verified.")
-
+#
 #     except Exception as e:
 #         print(f"❌ [System] Critical Error during seeding: {e}")
 #     finally:
@@ -101,10 +155,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ==========================================
 
 app.include_router(pages.router)
-app.include_router(auth.router, prefix="/api/v1")
 app.include_router(anime.router)
 app.include_router(series.router)
 app.include_router(admin.router)
+app.include_router(auth.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
