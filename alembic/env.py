@@ -10,6 +10,8 @@ from alembic import context
 # Add the root directory to the python path so it can find your modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# We import the pre-calculated URL from database.py to ensure
+# Alembic uses the exact same connection logic as FastAPI (Local vs Cloud SQL)
 from database import SQLALCHEMY_DATABASE_URL
 from models import Base
 
@@ -18,24 +20,16 @@ from models import Base
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
 target_metadata = Base.metadata
-
-# --- SMART DATABASE URL ROUTING ---
-# Priority 1: Use the exact URL injected by the OS (Google Cloud Run)
-# Priority 2: Fallback to the local database URL from database.py (Localhost)
-db_url = os.getenv("DATABASE_URL", str(SQLALCHEMY_DATABASE_URL))
 
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     context.configure(
-        url=db_url,
+        url=str(SQLALCHEMY_DATABASE_URL),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -47,17 +41,13 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    # --- DEBUG MESSAGE HERE ---
-    print(
-        f"🚀 [DEBUG] Alembic is attempting to connect using URL: {db_url}", flush=True
-    )
-
-    # Escape % signs so configparser doesn't crash on URL-encoded passwords
-    escaped_url = db_url.replace("%", "%%")
-    config.set_main_option("sqlalchemy.url", escaped_url)
+    # Build a config section that uses the dynamic URL from database.py
+    configuration = config.get_section(config.config_ini_section, {})
+    # Escape % signs for the ConfigParser
+    configuration["sqlalchemy.url"] = str(SQLALCHEMY_DATABASE_URL).replace("%", "%%")
 
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -69,9 +59,8 @@ def run_migrations_online() -> None:
             context.run_migrations()
 
 
-# ==========================================
-# THE EXECUTION BLOCK
-# ==========================================
+# --- THE MISSING POWER SWITCH ---
+# This block actually executes the migration logic
 if context.is_offline_mode():
     run_migrations_offline()
 else:
