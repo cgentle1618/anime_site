@@ -70,11 +70,10 @@ class AnimeEntry(Base):
     seiyuu = Column(String)
 
     source_baha = Column(String)
-    baha_link = Column(String)
+    baha_link = Column(String, nullable=True)
     source_other = Column(String)
     source_other_link = Column(String)
-    source_netflix = Column(String, nullable=True)
-
+    source_netflix = Column(Boolean, default=False)
     cover_image_file = Column(String)
 
     created_at = Column(DateTime, default=get_taipei_now)
