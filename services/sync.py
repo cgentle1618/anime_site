@@ -10,6 +10,7 @@ import json
 import time
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
+import sqlalchemy as sa
 
 from database import cleanup_old_logs
 from models import AnimeEntry, AnimeSeries, SyncLog, SystemOption
@@ -92,7 +93,7 @@ def log_sync_event(
     db.commit()
 
 
-def run_v2_basic_sync(db: Session):
+def run_v2_basic_sync(db: Session, direction: str = "import", **kwargs):
     """
     Performs the basic sync:
     1. Fetches rows from Google Sheets.
@@ -105,7 +106,9 @@ def run_v2_basic_sync(db: Session):
     error_msg = None
 
     try:
-        print("▶️ [Basic Sync] Fetching data from Google Sheets...")
+        print(
+            f"▶️ [Basic Sync] Fetching data from Google Sheets (Direction: {direction})..."
+        )
         rows = get_all_rows()
 
         for row in rows:
@@ -259,7 +262,7 @@ def run_v2_basic_sync(db: Session):
         return {"status": "failed", "message": error_msg}
 
 
-def run_v2_strong_sync(db: Session):
+def run_v2_strong_sync(db: Session, **kwargs):
     """
     Performs the 'Strong' sync:
     1. Iterates through all DB entries that have a MAL ID but NO MAL Rating.
@@ -273,13 +276,18 @@ def run_v2_strong_sync(db: Session):
     try:
         print("▶️ [Strong Sync] Identifying items missing MAL ratings...")
         # Target entries with a MAL ID but zero/missing rating to save API calls
-        # Note: Updated to proper SQLAlchemy isnot/is_ logic to prevent warnings
+        # We cast values to String to safely handle comparisons regardless of DB column types
         targets = (
             db.query(AnimeEntry)
             .filter(
                 and_(
                     AnimeEntry.mal_id.isnot(None),
-                    or_(AnimeEntry.mal_rating == 0, AnimeEntry.mal_rating.is_(None)),
+                    sa.cast(AnimeEntry.mal_id, sa.String) != "",
+                    or_(
+                        sa.cast(AnimeEntry.mal_rating, sa.String) == "0",
+                        sa.cast(AnimeEntry.mal_rating, sa.String) == "0.0",
+                        AnimeEntry.mal_rating.is_(None),
+                    ),
                 )
             )
             .all()

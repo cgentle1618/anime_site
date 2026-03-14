@@ -124,7 +124,7 @@ class AnimeBase(BaseModel):
 
     mal_id: Optional[str] = None
     mal_link: Optional[str] = None
-    mal_rating: Optional[str] = None
+    mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
     anilist_link: Optional[str] = None
 
