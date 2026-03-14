@@ -33,17 +33,7 @@ db_url = os.getenv("DATABASE_URL", str(SQLALCHEMY_DATABASE_URL))
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
+    """Run migrations in 'offline' mode."""
     context.configure(
         url=db_url,
         target_metadata=target_metadata,
@@ -57,6 +47,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    # --- DEBUG MESSAGE HERE ---
+    print(
+        f"🚀 [DEBUG] Alembic is attempting to connect using URL: {db_url}", flush=True
+    )
+
     # Escape % signs so configparser doesn't crash on URL-encoded passwords
     escaped_url = db_url.replace("%", "%%")
     config.set_main_option("sqlalchemy.url", escaped_url)
@@ -72,3 +67,12 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
+
+# ==========================================
+# THE EXECUTION BLOCK
+# ==========================================
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
