@@ -7,13 +7,14 @@ Optimized for V2 (PostgreSQL as Source of Truth).
 
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 import models
 import schemas
 from services.sync import basic_sync, strong_sync, _push_db_backup_to_sheets
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
+from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
 
 # Apply the security dependency globally to all endpoints in this router
@@ -29,11 +30,15 @@ router = APIRouter(
 
 
 @router.post("/add", summary="Add New Anime Entry")
-def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
+def add_anime(
+    payload: schemas.AnimeEntryCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     """
     Appends a new anime entry strictly to the PostgreSQL database (Source of Truth).
     If the Series Hub doesn't exist (based on series_en), it creates a basic one.
-    Finally, it triggers a bulk push to Google Sheets to update the backup.
+    Finally, it triggers a background task to bulk push to Google Sheets to update the backup.
     """
 
     # 1. Check if the parent Series Hub exists. If not, create a basic shell.
@@ -124,12 +129,14 @@ def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
     db.add(new_entry)
     db.commit()
 
-    # 4. Push Backup to Google Sheets
-    print(f"▶️ Admin added entry for {new_entry.series_en}. Pushing backup to Sheets...")
-    _push_db_backup_to_sheets(db)
+    # 4. Push Backup to Google Sheets (IN THE BACKGROUND)
+    print(
+        f"▶️ Admin added entry for {new_entry.series_en}. Queuing background Sheet backup..."
+    )
+    background_tasks.add_task(_push_db_backup_to_sheets, db)
 
     return {
-        "message": "Entry added successfully and backed up to Sheets.",
+        "message": "Entry added successfully and is backing up to Sheets.",
         "system_id": new_entry.system_id,
     }
 
@@ -196,3 +203,14 @@ def get_recent_deletions(limit: int = 50, db: Session = Depends(get_db)):
         .limit(limit)
         .all()
     )
+
+
+@router.delete("/logs/cleanup", summary="Purge Old Logs")
+def cleanup_logs(days: int = 30, db: Session = Depends(get_db)):
+    """Purges sync logs older than the specified number of days."""
+    try:
+        deleted_count = cleanup_old_logs(db, days_to_keep=days)
+        return {"message": f"Successfully deleted {deleted_count} old logs."}
+    except Exception as e:
+        print(f"❌ Failed to cleanup logs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup logs.")
