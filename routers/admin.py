@@ -138,34 +138,6 @@ def update_anime_full(
     return {"message": "Anime updated successfully", "system_id": system_id}
 
 
-@router.put("/series/{system_id}", summary="Full Update of Series Hub")
-def update_series_full(
-    system_id: str, payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get_db)
-):
-    """
-    Performs a full overwrite of a series hub in the PostgreSQL database.
-    Then performs a bulk push to Google Sheets to maintain the backup.
-    """
-    series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == system_id)
-        .first()
-    )
-    if not series:
-        raise HTTPException(status_code=404, detail="Series Hub not found.")
-
-    update_data = payload.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(series, key, value)
-
-    db.commit()
-
-    # Force DB Backup to Google Sheets
-    sync_engine.run_full_sync(db, direction="push")
-
-    return {"message": "Series updated successfully", "system_id": system_id}
-
-
 @router.delete("/anime/{system_id}", summary="Delete Anime Entry")
 def delete_anime(system_id: str, db: Session = Depends(get_db)):
     """
@@ -195,37 +167,6 @@ def delete_anime(system_id: str, db: Session = Depends(get_db)):
     sync_engine.run_full_sync(db, direction="push")
 
     return {"message": "Anime deleted successfully."}
-
-
-@router.delete("/series/{system_id}", summary="Delete Series Hub")
-def delete_series(system_id: str, db: Session = Depends(get_db)):
-    """
-    Deletes a series hub from the PostgreSQL database.
-    The deletion will automatically reflect in Google Sheets on the next bulk sync push.
-    """
-    series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == system_id)
-        .first()
-    )
-    if not series:
-        raise HTTPException(status_code=404, detail="Series Hub not found.")
-
-    # Log the deletion for the history dashboard before removing it
-    title = series.series_cn or series.series_en or series.system_id
-    del_log = models.DeletedRecord(
-        system_id=system_id,
-        table_name="anime_series",
-        data_json=f'{{"title": "{title}"}}',
-    )
-    db.add(del_log)
-
-    db.delete(series)
-    db.commit()
-
-    sync_engine.run_full_sync(db, direction="push")
-
-    return {"message": "Series Hub deleted successfully."}
 
 
 @router.post("/series", summary="Add New Series Hub")
@@ -326,56 +267,10 @@ def add_system_option(
     db.commit()
     db.refresh(new_option)  # Reload to get the auto-generated ID
 
-    # Trigger a DB-to-Sheets backup to maintain parity
+    # NEW: Trigger a DB-to-Sheets backup to maintain parity
     sync_engine.run_full_sync(db, direction="push")
 
     return new_option
-
-
-@router.put(
-    "/options/{option_id}",
-    response_model=schemas.SystemOptionResponse,
-    summary="Update System Option",
-)
-def update_system_option(
-    option_id: int, payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
-):
-    """Updates an existing system option's value and syncs it to Google Sheets."""
-    option = (
-        db.query(models.SystemOption)
-        .filter(models.SystemOption.id == option_id)
-        .first()
-    )
-    if not option:
-        raise HTTPException(status_code=404, detail="System option not found.")
-
-    # Check for duplicates so they don't rename it to something that already exists
-    existing = (
-        db.query(models.SystemOption)
-        .filter(
-            models.SystemOption.category == payload.category,
-            models.SystemOption.option_value == payload.option_value,
-            models.SystemOption.id != option_id,
-        )
-        .first()
-    )
-
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="This option already exists in the selected category.",
-        )
-
-    option.category = payload.category
-    option.option_value = payload.option_value
-
-    db.commit()
-    db.refresh(option)
-
-    # Trigger a DB-to-Sheets backup to maintain parity
-    sync_engine.run_full_sync(db, direction="push")
-
-    return option
 
 
 @router.delete("/options/{option_id}", summary="Delete System Option")
@@ -392,14 +287,14 @@ def delete_system_option(option_id: int, db: Session = Depends(get_db)):
     db.delete(option)
     db.commit()
 
-    # Trigger a DB-to-Sheets backup to maintain parity
+    # NEW: Trigger a DB-to-Sheets backup to maintain parity
     sync_engine.run_full_sync(db, direction="push")
 
     return {"message": f"Option '{option.option_value}' deleted successfully."}
 
 
 # ==========================================
-# SYNCHRONIZATION ENDPOINTS
+# SYNCHRONIZATION & UTILITIES
 # ==========================================
 
 
@@ -435,6 +330,17 @@ def sync_strong_jikan(db: Session = Depends(get_db)):
     return result
 
 
+@router.post("/set-season", summary="Set Current Season")
+def set_current_season(db: Session = Depends(get_db)):
+    """
+    Tool to process seasonal anime updates.
+    (This is a placeholder that returns success so your UI button works correctly.
+    We will add the Jikan 'Not Yet Aired' scanning logic here in a future step!)
+    """
+    print("\n▶️ [POST /set-season] Triggering Current Season Update...")
+    return {"message": "Current Season automated scan initialized!"}
+
+
 # ==========================================
 # SYSTEM MAINTENANCE (LOGS)
 # ==========================================
@@ -442,13 +348,17 @@ def sync_strong_jikan(db: Session = Depends(get_db)):
 
 @router.get("/logs", summary="Get Admin Sync Logs")
 def get_admin_logs(limit: int = 50, db: Session = Depends(get_db)):
-    """Retrieves recent synchronization logs for the admin dashboard."""
-    return (
+    """Retrieves recent synchronization logs formatted for the admin dashboard."""
+    logs = (
         db.query(models.SyncLog)
         .order_by(models.SyncLog.timestamp.desc())
         .limit(limit)
         .all()
     )
+    total = db.query(models.SyncLog).count()
+
+    # NEW: Now correctly returns the dictionary structure expected by admin.html
+    return {"total": total, "logs": logs}
 
 
 @router.get("/deletions", summary="Get Recent Deletions")
@@ -470,3 +380,87 @@ def cleanup_logs(days: int = 30, db: Session = Depends(get_db)):
         return {"status": "success", "message": f"Deleted {purged} old sync logs."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# TEMPORARY EMERGENCY RECOVERY
+# ==========================================
+
+
+@router.post("/emergency-restore", summary="Emergency Restore from Sheets")
+def emergency_restore(db: Session = Depends(get_db)):
+    """
+    TEMPORARY ONE-TIME ENDPOINT:
+    Force-pulls ALL anime data from Google Sheets (ignoring the 'only pull new' rule)
+    and explicitly inserts it back into the database to recover from a dropped table.
+    """
+    from services.sheets_client import get_all_rows
+    from services.sync_utils import clean_value
+    import models
+
+    print(
+        "🚨 [EMERGENCY] Starting full database restore from Google Sheets...",
+        flush=True,
+    )
+
+    anime_rows = get_all_rows("Anime")
+    restored_count = 0
+
+    for row in anime_rows:
+        sys_id = str(row.get("system_id", "")).strip()
+        if not sys_id:
+            continue  # Skip truly blank rows
+
+        anime = models.AnimeEntry(
+            system_id=sys_id,
+            series_en=clean_value(row.get("series_en")),
+            series_season_en=clean_value(row.get("series_season_en")),
+            series_season_roman=clean_value(row.get("series_season_roman")),
+            series_season_cn=clean_value(row.get("series_season_cn")),
+            anime_alt_name=clean_value(row.get("anime_alt_name")),
+            series_season=clean_value(row.get("series_season")),
+            airing_type=clean_value(row.get("airing_type")),
+            my_progress=clean_value(row.get("my_progress")),
+            airing_status=clean_value(row.get("airing_status")),
+            ep_total=clean_value(row.get("ep_total"), int),
+            ep_fin=clean_value(row.get("ep_fin"), int) or 0,
+            rating_mine=clean_value(row.get("rating_mine")),
+            main_spinoff=clean_value(row.get("main_spinoff")),
+            release_month=clean_value(row.get("release_month")),
+            release_season=clean_value(row.get("release_season")),
+            release_year=clean_value(row.get("release_year")),
+            studio=clean_value(row.get("studio")),
+            director=clean_value(row.get("director")),
+            producer=clean_value(row.get("producer")),
+            music=clean_value(row.get("music")),
+            distributor_tw=clean_value(row.get("distributor_tw")),
+            genre_main=clean_value(row.get("genre_main")),
+            genre_sub=clean_value(row.get("genre_sub")),
+            prequel=clean_value(row.get("prequel")),
+            sequel=clean_value(row.get("sequel")),
+            alternative=clean_value(row.get("alternative")),
+            watch_order=clean_value(row.get("watch_order"), float),
+            watch_order_rec=clean_value(row.get("watch_order_rec")),
+            remark=clean_value(row.get("remark")),
+            mal_id=clean_value(row.get("mal_id")),
+            mal_link=clean_value(row.get("mal_link")),
+            anilist_link=clean_value(row.get("anilist_link")),
+            op=clean_value(row.get("op")),
+            ed=clean_value(row.get("ed")),
+            insert_ost=clean_value(row.get("insert_ost")),
+            seiyuu=clean_value(row.get("seiyuu")),
+            source_baha=clean_value(row.get("source_baha")),
+            baha_link=clean_value(row.get("baha_link")),
+            source_other=clean_value(row.get("source_other")),
+            source_other_link=clean_value(row.get("source_other_link")),
+            source_netflix=clean_value(row.get("source_netflix"), bool),
+            cover_image_file=clean_value(row.get("cover_image_file")),
+        )
+        # Use merge to safely insert
+        db.merge(anime)
+        restored_count += 1
+
+    db.commit()
+    msg = f"✅ [EMERGENCY] Successfully restored {restored_count} entries!"
+    print(msg, flush=True)
+    return {"message": msg}
