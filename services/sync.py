@@ -31,7 +31,6 @@ ANIME_HEADERS = [
     "series_season_roman",
     "series_season_cn",
     "anime_alt_name",
-    "series_season",
     "airing_type",
     "my_progress",
     "airing_status",
@@ -39,532 +38,323 @@ ANIME_HEADERS = [
     "ep_fin",
     "rating_mine",
     "main_spinoff",
+    "release_year",
     "release_month",
     "release_season",
-    "release_year",
+    "release_date",
     "studio",
-    "director",
-    "producer",
-    "music",
-    "distributor_tw",
-    "genre_main",
-    "genre_sub",
-    "prequel",
-    "sequel",
-    "alternative",
-    "watch_order",
-    "watch_order_rec",
-    "remark",
-    "mal_id",
-    "mal_link",
-    "anilist_link",
-    "op",
-    "ed",
-    "insert_ost",
-    "seiyuu",
     "source_baha",
-    "baha_link",
+    "source_netflix",
     "source_other",
     "source_other_link",
-    "source_netflix",
+    "watch_order",
+    "watch_order_rec",
+    "genre_main",
+    "genre_sub",
+    "insert_ost",
+    "seiyuu",
+    "remark",
+    "mal_id",
+    "mal_url",
+    "mal_rating",
+    "mal_rank",
     "cover_image_file",
+    "cover_image_url",
+    "jikan_last_updated",
 ]
 
 SERIES_HEADERS = [
     "system_id",
     "series_en",
-    "series_roman",
     "series_cn",
-    "rating_series",
+    "series_roman",
     "series_alt_name",
     "series_expectation",
     "favorite_3x3_slot",
+    "rating_series",
 ]
 
-OPTIONS_HEADERS = ["id", "category", "option_value"]
+# V2 Addition: Keep System Options backed up in Google Sheets
+OPTIONS_HEADERS = ["id", "category", "value"]
 
 
 def log_sync_event(
     db: Session,
     sync_type: str,
     status: str,
-    added: int = 0,
     updated: int = 0,
-    deleted: int = 0,
     error: str = None,
     details_json: str = None,
 ):
-    """Helper to write sync audit trails to the database."""
     log = SyncLog(
         sync_type=sync_type,
         status=status,
-        rows_added=added,
-        rows_updated=updated,
-        rows_deleted=deleted,
+        items_updated=updated,
         error_message=error,
-        details_json=details_json,
+        details=details_json,
     )
     db.add(log)
     db.commit()
 
 
-def _pull_new_manual_entries(db: Session) -> dict:
-    """
-    Secondary Input Mechanism:
-    Scans the Google Sheet for any rows that are manually typed in and lack a 'system_id' (or 'id').
-    Generates a UUID for them, cleans the data, and inserts them into PostgreSQL.
-    """
-    metrics = {"anime_added": 0, "series_added": 0, "options_added": 0}
-
-    # --- 1. Pull New Anime Entries ---
-    anime_rows = get_all_rows("Anime")
-    for row in anime_rows:
-        if not str(row.get("system_id", "")).strip():
-            # This is a brand new manual entry!
-            new_id = str(uuid.uuid4())
-
-            # Auto-fill series_season if left blank by scanning titles
-            raw_season = clean_value(row.get("series_season"))
-            if not raw_season:
-                raw_season = extract_season_from_title(
-                    row.get("series_season_en")
-                ) or extract_season_from_title(row.get("series_en"))
-            if not raw_season:
-                raw_season = extract_season_from_cn_title(row.get("series_season_cn"))
-
-            new_anime = AnimeEntry(
-                system_id=new_id,
-                series_en=clean_value(row.get("series_en")),
-                series_season_en=clean_value(row.get("series_season_en")),
-                series_season_roman=clean_value(row.get("series_season_roman")),
-                series_season_cn=clean_value(row.get("series_season_cn")),
-                anime_alt_name=clean_value(row.get("anime_alt_name")),
-                series_season=raw_season,
-                airing_type=clean_value(row.get("airing_type")),
-                my_progress=clean_value(row.get("my_progress")),
-                airing_status=clean_value(row.get("airing_status")),
-                ep_total=clean_value(row.get("ep_total"), int),
-                ep_fin=clean_value(row.get("ep_fin"), int) or 0,
-                rating_mine=clean_value(row.get("rating_mine")),
-                main_spinoff=clean_value(row.get("main_spinoff")),
-                release_month=clean_value(row.get("release_month")),
-                release_season=clean_value(row.get("release_season")),
-                release_year=clean_value(row.get("release_year")),
-                studio=clean_value(row.get("studio")),
-                director=clean_value(row.get("director")),
-                producer=clean_value(row.get("producer")),
-                music=clean_value(row.get("music")),
-                distributor_tw=clean_value(row.get("distributor_tw")),
-                genre_main=clean_value(row.get("genre_main")),
-                genre_sub=clean_value(row.get("genre_sub")),
-                prequel=clean_value(row.get("prequel")),
-                sequel=clean_value(row.get("sequel")),
-                alternative=clean_value(row.get("alternative")),
-                watch_order=clean_value(row.get("watch_order"), float),
-                watch_order_rec=clean_value(row.get("watch_order_rec")),
-                remark=clean_value(row.get("remark")),
-                mal_id=clean_value(row.get("mal_id")),
-                mal_link=clean_value(row.get("mal_link")),
-                anilist_link=clean_value(row.get("anilist_link")),
-                op=clean_value(row.get("op")),
-                ed=clean_value(row.get("ed")),
-                insert_ost=clean_value(row.get("insert_ost")),
-                seiyuu=clean_value(row.get("seiyuu")),
-                source_baha=clean_value(row.get("source_baha")),
-                baha_link=clean_value(row.get("baha_link")),
-                source_other=clean_value(row.get("source_other")),
-                source_other_link=clean_value(row.get("source_other_link")),
-                source_netflix=str(row.get("source_netflix", "")).strip().lower()
-                == "true",
-                cover_image_file=clean_value(row.get("cover_image_file")),
-            )
-            db.add(new_anime)
-            metrics["anime_added"] += 1
-
-    # --- 2. Pull New Series Entries ---
-    series_rows = get_all_rows("Anime Series")
-    for row in series_rows:
-        if not str(row.get("system_id", "")).strip():
-            new_id = str(uuid.uuid4())
-            new_series = AnimeSeries(
-                system_id=new_id,
-                series_en=clean_value(row.get("series_en")),
-                series_roman=clean_value(row.get("series_roman")),
-                series_cn=clean_value(row.get("series_cn")),
-                rating_series=clean_value(row.get("rating_series")),
-                series_alt_name=clean_value(row.get("series_alt_name")),
-                series_expectation=clean_value(row.get("series_expectation")),
-                favorite_3x3_slot=clean_value(row.get("favorite_3x3_slot"), int),
-            )
-            db.add(new_series)
-            metrics["series_added"] += 1
-
-    # --- 3. Pull New System Options ---
-    options_rows = get_all_rows("Options")
-    for row in options_rows:
-        # Check if the 'id' column is completely empty (meaning you manually typed it in the sheet)
-        if not str(row.get("id", "")).strip():
-            new_option = SystemOption(
-                category=clean_value(row.get("category")),
-                option_value=clean_value(row.get("option_value")),
-            )
-            # Ensure it's not a blank row before adding
-            if new_option.category and new_option.option_value:
-                db.add(new_option)
-                metrics["options_added"] += 1
-
-    if (
-        metrics["anime_added"] > 0
-        or metrics["series_added"] > 0
-        or metrics["options_added"] > 0
-    ):
-        db.commit()
-
-    return metrics
-
-
-def _soft_fill_missing_data(db: Session) -> int:
-    """
-    Hybrid Approach Mechanism [NEW]:
-    Scans the database for entries that have a MAL ID but are missing critical
-    volatile data (Cover Image, MAL Rating, MAL Rank).
-    Smart Logic: Ignores missing ratings/ranks for "Not Yet Aired" anime, leaving
-    them blank so they auto-fill the moment their status changes to "Currently Airing".
-    """
-    anime_list = (
-        db.query(AnimeEntry)
-        .filter(AnimeEntry.mal_id.isnot(None), AnimeEntry.mal_id != "")
-        .filter(
-            or_(
-                AnimeEntry.cover_image_file == None,
-                AnimeEntry.cover_image_file == "",
-                and_(
-                    or_(
-                        AnimeEntry.airing_status == None,
-                        AnimeEntry.airing_status != "Not Yet Aired",
-                    ),
-                    or_(
-                        AnimeEntry.mal_rating == None,
-                        AnimeEntry.mal_rating == "",
-                        AnimeEntry.mal_rank == None,
-                        AnimeEntry.mal_rank == "",
-                    ),
-                ),
-            )
-        )
-        .all()
-    )
-
-    filled_count = 0
-
-    if not anime_list:
-        return 0
-
-    print(
-        f"\n▶️ [Soft Fill] Found {len(anime_list)} anime needing missing data. Fetching..."
-    )
-
-    for anime in anime_list:
-        try:
-            mal_id_int = int(float(anime.mal_id))
-            mal_data = jikan_client.fetch_mal_data(mal_id_int, anime.system_id)
-
-            if mal_data:
-                updated = False
-
-                # 1. Cover Image (Mark N/A if missing on Jikan)
-                if not anime.cover_image_file:
-                    if mal_data.get("cover_image_file"):
-                        anime.cover_image_file = mal_data["cover_image_file"]
-                    elif mal_data.get("cover_image_url"):
-                        anime.cover_image_file = mal_data["cover_image_url"]
-                    else:
-                        anime.cover_image_file = "N/A"
-                    updated = True
-
-                # 2. MAL Rating (Leave empty if Not Yet Aired, else mark N/A)
-                if not anime.mal_rating:
-                    val = mal_data.get("mal_rating")
-                    if val is not None:
-                        anime.mal_rating = str(val)
-                        updated = True
-                    elif anime.airing_status != "Not Yet Aired":
-                        anime.mal_rating = "N/A"
-                        updated = True
-
-                # 3. MAL Rank (Leave empty if Not Yet Aired, else mark N/A)
-                if not anime.mal_rank:
-                    val = mal_data.get("mal_rank")
-                    if val is not None:
-                        anime.mal_rank = str(val)
-                        updated = True
-                    elif anime.airing_status != "Not Yet Aired":
-                        anime.mal_rank = "N/A"
-                        updated = True
-
-                if updated:
-                    filled_count += 1
-                    print(f"  └ Soft Filled: {anime.series_en or anime.system_id}")
-
-            time.sleep(1.5)
-
-        except ValueError:
-            print(
-                f"⚠️ [Soft Fill] Invalid MAL ID format for {anime.system_id}: {anime.mal_id}"
-            )
-        except Exception as e:
-            print(f"❌ [Soft Fill] Error fetching data for {anime.system_id}: {e}")
-
-    if filled_count > 0:
-        db.commit()
-
-    return filled_count
-
-
 def _push_db_backup_to_sheets(db: Session) -> dict:
     """
-    Source of Truth Mechanism:
-    Takes all data currently in the PostgreSQL database and performs a bulk overwrite
-    of the Google Sheets, ensuring the backup perfectly mirrors the DB.
+    Overwrites the Google Sheets entirely with the current state of the PostgreSQL database.
+    This enforces the database as the ultimate Source of Truth.
     """
-    # --- 1. Push Anime Entries ---
-    all_anime = db.query(AnimeEntry).all()
-    anime_matrix = []
+    try:
+        # 1. Push Anime Entries
+        anime_entries = db.query(AnimeEntry).all()
+        anime_data = []
+        for a in anime_entries:
+            row = []
+            for h in ANIME_HEADERS:
+                val = getattr(a, h, "")
+                if val is None:
+                    val = ""
+                row.append(str(val))
+            anime_data.append(row)
+        bulk_overwrite_sheet("Anime", ANIME_HEADERS, anime_data)
 
-    for a in all_anime:
-        row = [
-            a.system_id,
-            a.series_en,
-            a.series_season_en,
-            a.series_season_roman,
-            a.series_season_cn,
-            a.anime_alt_name,
-            a.series_season,
-            a.airing_type,
-            a.my_progress,
-            a.airing_status,
-            a.ep_total,
-            a.ep_fin,
-            a.rating_mine,
-            a.main_spinoff,
-            a.release_month,
-            a.release_season,
-            a.release_year,
-            a.studio,
-            a.director,
-            a.producer,
-            a.music,
-            a.distributor_tw,
-            a.genre_main,
-            a.genre_sub,
-            a.prequel,
-            a.sequel,
-            a.alternative,
-            a.watch_order,
-            a.watch_order_rec,
-            a.remark,
-            a.mal_id,
-            a.mal_link,
-            a.anilist_link,
-            a.op,
-            a.ed,
-            a.insert_ost,
-            a.seiyuu,
-            a.source_baha,
-            a.baha_link,
-            a.source_other,
-            a.source_other_link,
-            "TRUE" if a.source_netflix else "FALSE",
-            a.cover_image_file,
-        ]
-        # Clean nulls into empty strings for Google Sheets
-        cleaned_row = ["" if val is None else str(val) for val in row]
-        anime_matrix.append(cleaned_row)
+        # 2. Push Series Hubs
+        series_entries = db.query(AnimeSeries).all()
+        series_data = []
+        for s in series_entries:
+            row = []
+            for h in SERIES_HEADERS:
+                val = getattr(s, h, "")
+                if val is None:
+                    val = ""
+                row.append(str(val))
+            series_data.append(row)
+        bulk_overwrite_sheet("Series", SERIES_HEADERS, series_data)
 
-    anime_success = bulk_overwrite_sheet("Anime", ANIME_HEADERS, anime_matrix)
+        # 3. Push System Options (V2 Fix: Options matrix syncing)
+        options_entries = db.query(SystemOption).all()
+        options_data = []
+        for o in options_entries:
+            row = []
+            for h in OPTIONS_HEADERS:
+                val = getattr(o, h, "")
+                if val is None:
+                    val = ""
+                row.append(str(val))
+            options_data.append(row)
 
-    # --- 2. Push Series Entries ---
-    all_series = db.query(AnimeSeries).all()
-    series_matrix = []
+        # NOTE: Make sure you have a sheet named "System_Options" created in your Google Sheet!
+        bulk_overwrite_sheet("System_Options", OPTIONS_HEADERS, options_data)
 
-    for s in all_series:
-        row = [
-            s.system_id,
-            s.series_en,
-            s.series_roman,
-            s.series_cn,
-            s.rating_series,
-            s.series_alt_name,
-            s.series_expectation,
-            s.favorite_3x3_slot,
-        ]
-        cleaned_row = ["" if val is None else str(val) for val in row]
-        series_matrix.append(cleaned_row)
-
-    series_success = bulk_overwrite_sheet("Anime Series", SERIES_HEADERS, series_matrix)
-
-    # --- 3. Push System Options ---
-    all_options = db.query(SystemOption).all()
-    options_matrix = []
-
-    for o in all_options:
-        row = [o.id, o.category, o.option_value]
-        cleaned_row = ["" if val is None else str(val) for val in row]
-        options_matrix.append(cleaned_row)
-
-    options_success = bulk_overwrite_sheet("Options", OPTIONS_HEADERS, options_matrix)
-
-    return {
-        "anime_backed_up": len(all_anime) if anime_success else 0,
-        "series_backed_up": len(all_series) if series_success else 0,
-        "options_backed_up": len(all_options) if options_success else 0,
-        "success": anime_success and series_success and options_success,
-    }
+        return {"success": True, "error": None}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
-def run_full_sync(db: Session, direction: str = "both") -> dict:
+def _pull_new_manual_entries(db: Session) -> int:
     """
-    Executes the V2 master synchronization process.
-    'direction' can be 'pull' (only check for manual sheet additions),
-    'push' (only force DB backup to sheets), or 'both' (default).
+    Scans Google Sheets for ANY rows missing a system_id.
+    These are assumed to be "manual additions" by the user directly in Sheets.
+    Pulls them into the DB and generates a new system_id.
     """
-    total_added = 0
-    total_updated = 0
+    added_count = 0
+    try:
+        anime_sheet_rows = get_all_rows("Anime")
+        series_sheet_rows = get_all_rows("Series")
+
+        # Handle Manual Series Additions
+        for row in series_sheet_rows:
+            if not row.get("system_id") or str(row.get("system_id")).strip() == "":
+                new_sys_id = f"SER-{uuid.uuid4().hex[:8].upper()}"
+                new_series = AnimeSeries(
+                    system_id=new_sys_id,
+                    series_en=clean_value(row.get("series_en")),
+                    series_cn=clean_value(row.get("series_cn")),
+                    series_roman=clean_value(row.get("series_roman")),
+                    series_alt_name=clean_value(row.get("series_alt_name")),
+                    series_expectation=clean_value(row.get("series_expectation")),
+                    favorite_3x3_slot=clean_value(row.get("favorite_3x3_slot"), int),
+                    rating_series=clean_value(row.get("rating_series")),
+                )
+                db.add(new_series)
+                added_count += 1
+
+        # Handle Manual Anime Additions
+        for row in anime_sheet_rows:
+            if not row.get("system_id") or str(row.get("system_id")).strip() == "":
+                new_sys_id = f"ANI-{uuid.uuid4().hex[:8].upper()}"
+                new_anime = AnimeEntry(
+                    system_id=new_sys_id,
+                    series_en=clean_value(row.get("series_en")),
+                    series_season_en=clean_value(row.get("series_season_en")),
+                    series_season_roman=clean_value(row.get("series_season_roman")),
+                    series_season_cn=clean_value(row.get("series_season_cn")),
+                    anime_alt_name=clean_value(row.get("anime_alt_name")),
+                    airing_type=clean_value(row.get("airing_type")),
+                    my_progress=clean_value(row.get("my_progress")),
+                    airing_status=clean_value(row.get("airing_status")),
+                    ep_total=clean_value(row.get("ep_total"), int),
+                    ep_fin=clean_value(row.get("ep_fin"), int),
+                    rating_mine=clean_value(row.get("rating_mine")),
+                    main_spinoff=clean_value(row.get("main_spinoff")),
+                    release_year=clean_value(row.get("release_year")),
+                    release_month=clean_value(row.get("release_month")),
+                    release_season=clean_value(row.get("release_season")),
+                    release_date=clean_value(row.get("release_date")),
+                    studio=clean_value(row.get("studio")),
+                    source_baha=clean_value(row.get("source_baha"), bool),
+                    source_netflix=clean_value(row.get("source_netflix"), bool),
+                    source_other=clean_value(row.get("source_other")),
+                    source_other_link=clean_value(row.get("source_other_link")),
+                    watch_order=clean_value(row.get("watch_order"), float),
+                    watch_order_rec=clean_value(row.get("watch_order_rec")),
+                    genre_main=clean_value(row.get("genre_main")),
+                    genre_sub=clean_value(row.get("genre_sub")),
+                    insert_ost=clean_value(row.get("insert_ost")),
+                    seiyuu=clean_value(row.get("seiyuu")),
+                    remark=clean_value(row.get("remark")),
+                    mal_id=clean_value(row.get("mal_id"), int),
+                    mal_url=clean_value(row.get("mal_url")),
+                    mal_rating=clean_value(row.get("mal_rating")),
+                    mal_rank=clean_value(row.get("mal_rank")),
+                    cover_image_file=clean_value(row.get("cover_image_file")),
+                    cover_image_url=clean_value(row.get("cover_image_url")),
+                )
+                db.add(new_anime)
+                added_count += 1
+
+        db.commit()
+        return added_count
+    except Exception as e:
+        db.rollback()
+        raise e
+
+
+def run_full_sync(db: Session, direction: str = "push") -> dict:
+    """
+    Executes a Master Sync.
+    If direction="pull_first", it scans for newly added Google Sheet rows first.
+    Then, it permanently overwrites the Google Sheets with the PostgreSQL DB.
+    """
+    start_time = time.time()
     error_msg = None
+    added_from_sheets = 0
+    push_metrics = {"success": False, "error": "Did not run"}
 
     try:
-        # Step 1: Check Google Sheets for manual entries without a system_id
-        if direction in ["both", "pull"]:
-            pull_metrics = _pull_new_manual_entries(db)
-            total_added = (
-                pull_metrics["anime_added"]
-                + pull_metrics["series_added"]
-                + pull_metrics["options_added"]
-            )
-            print(
-                f"📥 Pulled {pull_metrics['anime_added']} new anime, {pull_metrics['series_added']} new series, and {pull_metrics['options_added']} new options from Sheets."
-            )
+        cleanup_old_logs(db)
 
-        # --- Hybrid Soft Fill (NEW) ---
-        if direction in ["both", "pull"]:
-            filled_count = _soft_fill_missing_data(db)
-            if filled_count > 0:
-                print(f"✨ Auto-filled missing metadata for {filled_count} anime.")
+        if direction == "pull_first":
+            print("⏬ [Master Sync] Pulling new manual entries from Google Sheets...")
+            added_from_sheets = _pull_new_manual_entries(db)
 
-        # Step 2: Force DB Backup to Google Sheets
-        if direction in ["both", "push"]:
-            push_metrics = _push_db_backup_to_sheets(db)
-            if not push_metrics["success"]:
-                error_msg = "Bulk overwrite failed for one or more tabs."
-            else:
-                total_updated = (
-                    push_metrics["anime_backed_up"]
-                    + push_metrics["series_backed_up"]
-                    + push_metrics["options_backed_up"]
-                )
-                print(
-                    f"📤 Backed up {push_metrics['anime_backed_up']} anime, {push_metrics['series_backed_up']} series, and {push_metrics['options_backed_up']} options to Sheets."
-                )
+        print("⏫ [Master Sync] Pushing Database Truth to Google Sheets...")
+        push_metrics = _push_db_backup_to_sheets(db)
+        if not push_metrics["success"]:
+            error_msg = f"Backup to Sheets failed: {push_metrics['error']}"
 
-        # Step 3: Log Event
         status = "failed" if error_msg else "success"
         details = {
+            "type": "master_sync",
             "direction": direction,
-            "items_added_to_db": total_added,
-            "items_backed_up": total_updated,
+            "added_from_sheets": added_from_sheets,
+            "sheets_backup_success": push_metrics["success"],
+            "duration_seconds": round(time.time() - start_time, 2),
         }
 
         log_sync_event(
             db,
             sync_type="v2_master_sync",
             status=status,
-            added=total_added,
-            updated=total_updated,
+            updated=added_from_sheets,
             error=error_msg,
             details_json=json.dumps(details),
         )
 
-        # Cleanup old logs
-        cleanup_old_logs(db, days_to_keep=30)
-
         return {
             "status": status,
-            "message": "Sync completed successfully" if not error_msg else error_msg,
-            "added_to_db": total_added,
-            "backed_up_to_sheets": total_updated,
+            "message": (
+                "Master Sync completed successfully." if not error_msg else error_msg
+            ),
+            "added_from_sheets": added_from_sheets,
         }
-
     except Exception as e:
-        db.rollback()
         error_msg = str(e)
-        print(f"❌ V2 Master Sync Error: {error_msg}")
-        log_sync_event(db, sync_type="v2_master_sync", status="failed", error=error_msg)
+        log_sync_event(db, "v2_master_sync", "failed", 0, error_msg)
         return {"status": "failed", "message": error_msg}
 
 
-def run_strong_jikan_sync(db: Session) -> dict:
+def run_strong_sync(db: Session) -> dict:
     """
-    Strong Sync Mechanism:
-    Iterates through all anime in the DB with a MAL ID, fetches the latest
-    volatile statistics (rating, rank) from Jikan, and forcefully overwrites the DB.
-    Finally, triggers a DB-to-Sheets push to back up the updated stats.
+    Executes a Strong Sync.
+    Crawls MAL (Jikan) for missing data for all entries missing a cover image,
+    MAL rating, or total episodes.
     """
-    anime_list = (
-        db.query(AnimeEntry)
-        .filter(AnimeEntry.mal_id.isnot(None), AnimeEntry.mal_id != "")
-        .all()
-    )
-
     updated_count = 0
     error_msg = None
 
-    print(
-        f"\n▶️ [Strong Sync] Starting global Jikan update for {len(anime_list)} anime..."
-    )
-
     try:
-        for anime in anime_list:
+        print("▶️ [Strong Sync] Identifying targets needing Jikan updates...")
+        targets = (
+            db.query(AnimeEntry)
+            .filter(
+                or_(
+                    AnimeEntry.ep_total == None,
+                    AnimeEntry.cover_image_file == None,
+                    AnimeEntry.mal_rating == None,
+                    and_(
+                        AnimeEntry.airing_status == "Airing", AnimeEntry.mal_id != None
+                    ),
+                )
+            )
+            .all()
+        )
+
+        for anime in targets:
             try:
-                # Handle potential string/float types gracefully
-                mal_id_int = int(float(anime.mal_id))
-
-                # Fetch fresh data from Jikan
-                mal_data = jikan_client.fetch_mal_data(mal_id_int, anime.system_id)
-
-                if mal_data:
-                    # Force overwrite volatile data
-                    if mal_data.get("mal_rating") is not None:
-                        anime.mal_rating = str(mal_data["mal_rating"])
-                    if mal_data.get("mal_rank") is not None:
-                        anime.mal_rank = str(mal_data["mal_rank"])
-
-                    updated_count += 1
-                    print(
-                        f"  └ Updated: {anime.series_en or anime.system_id} (Rating: {anime.mal_rating}, Rank: {anime.mal_rank})"
+                mal_id = anime.mal_id
+                if not mal_id and anime.mal_url:
+                    mal_id = extract_mal_id(anime.mal_url)
+                if not mal_id:
+                    mal_id = jikan_client.search_anime_mal_id(
+                        anime.series_season_en or anime.series_en
                     )
 
-                # Respect Jikan's strict rate limits (~3 requests/sec max, 1.5s is safe for bulk loops)
-                time.sleep(1.5)
+                if mal_id:
+                    anime.mal_id = mal_id
+                    jikan_data = jikan_client.get_anime_details(mal_id)
 
-            except ValueError:
-                print(
-                    f"⚠️ [Strong Sync] Invalid MAL ID format for {anime.system_id}: {anime.mal_id}"
-                )
+                    if jikan_data:
+                        if not anime.ep_total and jikan_data.get("episodes"):
+                            anime.ep_total = jikan_data.get("episodes")
+
+                        anime.mal_rating = (
+                            str(jikan_data.get("score"))
+                            if jikan_data.get("score")
+                            else anime.mal_rating
+                        )
+                        anime.mal_rank = (
+                            str(jikan_data.get("rank"))
+                            if jikan_data.get("rank")
+                            else anime.mal_rank
+                        )
+                        anime.airing_status = (
+                            jikan_data.get("status") or anime.airing_status
+                        )
+
+                        if not anime.cover_image_file and jikan_data.get("image_url"):
+                            anime.cover_image_url = jikan_data.get("image_url")
+
+                        updated_count += 1
+                        time.sleep(1.2)  # Rate limiting to respect Jikan API limits
             except Exception as e:
-                print(
-                    f"❌ [Strong Sync] Error fetching data for {anime.system_id}: {e}"
-                )
+                print(f"⚠️ [Strong Sync] Error fetching data for {anime.system_id}: {e}")
 
-        # Persist all Jikan updates to PostgreSQL
         db.commit()
 
-        # Push the updated stats to Google Sheets to maintain backup parity
         print("▶️ [Strong Sync] Backing up updated stats to Google Sheets...")
         push_metrics = _push_db_backup_to_sheets(db)
         if not push_metrics["success"]:
             error_msg = "Failed to backup Strong Sync results to Sheets."
 
-        # Log the event
         status = "failed" if error_msg else "success"
         details = {
             "type": "strong_sync",
@@ -592,5 +382,5 @@ def run_strong_jikan_sync(db: Session) -> dict:
         db.rollback()
         error_msg = str(e)
         print(f"❌ [Strong Sync] Critical Error: {error_msg}")
-        log_sync_event(db, sync_type="v2_strong_sync", status="failed", error=error_msg)
+        log_sync_event(db, "v2_strong_sync", "failed", 0, error_msg)
         return {"status": "failed", "message": error_msg}
