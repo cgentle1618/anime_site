@@ -7,19 +7,16 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# Add the root directory to the python path so it can find your modules
+# Add the root directory to the python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# We import the pre-calculated URL from database.py to ensure
-# Alembic uses the exact same connection logic as FastAPI (Local vs Cloud SQL)
+# We import the pre-calculated URL from database.py
+# This ensures Alembic and FastAPI always use the exact same connection
 from database import SQLALCHEMY_DATABASE_URL
 from models import Base
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -41,9 +38,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    # Build a config section that uses the dynamic URL from database.py
+    # Build configuration to use the dynamic URL from database.py
     configuration = config.get_section(config.config_ini_section, {})
-    # Escape % signs for the ConfigParser
+
+    # --- FIXED LOGIC ---
+    # We force Alembic to use the URL provided by database.py
     configuration["sqlalchemy.url"] = str(SQLALCHEMY_DATABASE_URL).replace("%", "%%")
 
     connectable = engine_from_config(
@@ -59,8 +58,7 @@ def run_migrations_online() -> None:
             context.run_migrations()
 
 
-# --- THE MISSING POWER SWITCH ---
-# This block actually executes the migration logic
+# Execute migrations
 if context.is_offline_mode():
     run_migrations_offline()
 else:
