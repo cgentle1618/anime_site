@@ -139,7 +139,7 @@ class AnimeBase(BaseModel):
     alternative: Optional[str] = None
 
     watch_order: Optional[float] = None
-    watch_order_rec: Optional[str] = None
+    watch_order_rec: Optional[float] = None
     remark: Optional[str] = None
 
     mal_id: Optional[int] = None
