@@ -41,7 +41,7 @@ class UserOut(UserBase):
 
 
 # ==========================================
-# SYSTEM OPTION SCHEMAS (NEW FOR V2)
+# SYSTEM OPTION SCHEMAS
 # ==========================================
 
 
@@ -64,11 +64,11 @@ class SystemOptionResponse(SystemOptionBase):
 
 
 # ==========================================
-# BASE SCHEMAS (DRY Principle)
+# ANIME SERIES (HUB) SCHEMAS
 # ==========================================
 
 
-class SeriesBase(BaseModel):
+class AnimeSeriesBase(BaseModel):
     """Shared fields for Series (Franchise Hubs)."""
 
     series_en: Optional[str] = None
@@ -76,87 +76,21 @@ class SeriesBase(BaseModel):
     series_cn: Optional[str] = None
     rating_series: Optional[str] = None
     series_alt_name: Optional[str] = None  # Renamed for V2
-
-    # New V2 Fields
     series_expectation: Optional[str] = None
     favorite_3x3_slot: Optional[int] = Field(None, ge=1, le=9)
 
 
-class AnimeBase(BaseModel):
-    """Shared fields for Anime Entries to avoid repeating 30+ fields."""
-
-    series_en: Optional[str] = None
-    series_season_en: Optional[str] = None
-    series_season_roman: Optional[str] = None
-    series_season_cn: Optional[str] = None
-    anime_alt_name: Optional[str] = None  # Renamed for V2
-    series_season: Optional[str] = None
-
-    airing_type: Optional[str] = None
-    my_progress: Optional[str] = None
-    airing_status: Optional[str] = None
-    ep_total: Optional[int] = None
-    ep_fin: Optional[int] = None
-    rating_mine: Optional[str] = None
-    main_spinoff: Optional[str] = None
-
-    # Updated date fields for V2
-    release_month: Optional[str] = None
-    release_season: Optional[str] = None
-    release_year: Optional[str] = None
-
-    studio: Optional[str] = None
-    director: Optional[str] = None
-    producer: Optional[str] = None
-    music: Optional[str] = None
-    distributor_tw: Optional[str] = None
-    genre_main: Optional[str] = None
-    genre_sub: Optional[str] = None
-
-    prequel: Optional[str] = None
-    sequel: Optional[str] = None
-    alternative: Optional[str] = None
-
-    # New V2 Metadata
-    watch_order: Optional[float] = None
-    watch_order_rec: Optional[str] = None
-    remark: Optional[str] = None
-
-    mal_id: Optional[str] = None
-    mal_link: Optional[str] = None
-    mal_rating: Optional[float] = None
-    mal_rank: Optional[str] = None
-    anilist_link: Optional[str] = None
-
-    op: Optional[str] = None
-    ed: Optional[str] = None
-    insert_ost: Optional[str] = None
-    seiyuu: Optional[str] = None
-
-    source_baha: Optional[str] = None
-    baha_link: Optional[str] = None
-    source_netflix: Optional[bool] = None
-
-    # New V2 Source & Local Image Fields
-    source_other: Optional[str] = None
-    source_other_link: Optional[str] = None
-    cover_image_file: Optional[str] = None
+class AnimeSeriesCreate(AnimeSeriesBase):
+    pass
 
 
-# ==========================================
-# ANIME SERIES HUB SCHEMAS
-# ==========================================
-
-
-class AnimeSeriesUpdate(SeriesBase):
+class AnimeSeriesUpdate(AnimeSeriesBase):
     """Schema for updating an Anime Series Hub."""
 
     system_id: Optional[str] = None
 
 
-class AnimeSeriesResponse(SeriesBase):
-    """Schema for reading a series hub entry from the database."""
-
+class AnimeSeriesResponse(AnimeSeriesBase):
     system_id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -166,31 +100,82 @@ class AnimeSeriesResponse(SeriesBase):
 
 
 # ==========================================
-# ANIME ENTRY SCHEMAS
+# ANIME ENTRY (SEASONAL) SCHEMAS
 # ==========================================
 
 
-class AnimeEntryCreate(AnimeBase):
-    """
-    Schema for manually adding a new anime entry via the Admin Dashboard.
-    Includes a temporary field to handle brand new Series Hub generation if the
-    parent franchise does not yet exist.
-    """
+class AnimeBase(BaseModel):
+    series_en: str
+    series_season_en: Optional[str] = None
+    series_season_roman: Optional[str] = None
+    series_season_cn: Optional[str] = None
+    anime_alt_name: Optional[str] = None
 
-    system_id: str
+    series_season: Optional[str] = None
+    airing_type: Optional[str] = None
+    my_progress: Optional[str] = None
+    airing_status: Optional[str] = None
+    ep_total: Optional[int] = 0
+    ep_fin: Optional[int] = 0
+    rating_mine: Optional[str] = None
+    main_spinoff: Optional[str] = "Main"
+
+    release_month: Optional[str] = None
+    release_season: Optional[str] = None
+    release_year: Optional[str] = None
+
+    # Missing Columns found in CSV / DB
+    studio: Optional[str] = None
+    director: Optional[str] = None
+    producer: Optional[str] = None
+    music: Optional[str] = None
+    distributor_tw: Optional[str] = None
+
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+
+    prequel: Optional[str] = None
+    sequel: Optional[str] = None
+    alternative: Optional[str] = None
+
+    watch_order: Optional[float] = None
+    watch_order_rec: Optional[str] = None
+    remark: Optional[str] = None
+
+    mal_id: Optional[int] = None
+    mal_rating: Optional[float] = None
+    mal_rank: Optional[int] = None
+    mal_link: Optional[str] = None
+    anilist_link: Optional[str] = None
+
+    op: Optional[str] = None
+    ed: Optional[str] = None
+    insert_ost: Optional[str] = None
+    seiyuu: Optional[str] = None
+
+    source_baha: Optional[bool] = None
+    baha_link: Optional[str] = None
+    source_netflix: Optional[bool] = False
+    source_other: Optional[str] = None
+    source_other_link: Optional[str] = None
+    cover_image_file: Optional[str] = None
+
+
+class AnimeEntryCreate(AnimeBase):
+    """Schema for adding a new Anime Entry (system_id is optional as it's usually generated)."""
+
+    system_id: Optional[str] = None
     ep_fin: Optional[int] = 0
     series_alt_name: Optional[str] = None
 
 
 class AnimeEntryUpdate(AnimeBase):
-    """Schema for updating an Anime Entry."""
+    """Schema for updating an existing entry."""
 
     system_id: Optional[str] = None
 
 
 class AnimeEntryResponse(AnimeBase):
-    """Schema for reading an Anime Entry from the database."""
-
     system_id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -205,8 +190,6 @@ class AnimeEntryResponse(AnimeBase):
 
 
 class SyncLogResponse(BaseModel):
-    """Schema representing a single synchronization operation log."""
-
     id: int
     timestamp: datetime
     sync_type: str
