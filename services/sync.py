@@ -1,30 +1,37 @@
 """
-services/sync.py
+sync.py
 The master orchestrator for Version 2 synchronization.
 Enforces PostgreSQL as the Source of Truth while treating Google Sheets as a
-Secondary Input (for new rows) and a Read-Only Backup (via bulk overwrites).
+Secondary Input (for manually added rows) and a Read-Only Backup (via bulk overwrites).
+Strictly aligned with models.py and schemas.py typing.
 """
 
 import uuid
 import json
 import time
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-import sqlalchemy as sa
 
-from database import cleanup_old_logs
-from models import AnimeEntry, AnimeSeries, SyncLog, SystemOption
-
+# Adjust imports based on your exact file structure
+from database import get_taipei_now
+from models import AnimeEntry, SyncLog
 from services.sync_utils import (
     clean_value,
-    extract_mal_id,
     extract_season_from_title,
     extract_season_from_cn_title,
 )
-from services.sheets_client import get_all_rows, bulk_overwrite_sheet
+from services.sheets_client import execute_with_retry, bulk_overwrite_sheet
+
+# Assuming get_google_sheet is available in sheets_client to fetch the raw worksheet
+from services.sheets_client import get_google_sheet
 import services.jikan_client as jikan_client
 
-# Define the exact V2 column headers expected in the Google Sheet and Database
+# ==========================================
+# CONSTANTS: EXACT V2 GOOGLE SHEET HEADERS
+# ==========================================
+# These 47 headers exactly match the database columns and the studio_results CSV.
+# The order here dictates the column order when backing up to Google Sheets.
 ANIME_HEADERS = [
     "system_id",
     "series_en",
@@ -40,9 +47,14 @@ ANIME_HEADERS = [
     "ep_fin",
     "rating_mine",
     "main_spinoff",
-    "release_year",
     "release_month",
     "release_season",
+    "release_year",
+    "studio",
+    "director",
+    "producer",
+    "music",
+    "distributor_tw",
     "genre_main",
     "genre_sub",
     "prequel",
@@ -50,23 +62,29 @@ ANIME_HEADERS = [
     "alternative",
     "watch_order",
     "watch_order_rec",
-    "mal_id",
-    "mal_rating",
-    "mal_link",
-    "anilist_link",
     "remark",
+    "mal_id",
+    "mal_link",
+    "mal_rating",
+    "mal_rank",
+    "anilist_link",
     "op",
     "ed",
     "insert_ost",
-    "music",
     "seiyuu",
     "source_baha",
     "baha_link",
-    "source_netflix",
     "source_other",
     "source_other_link",
+    "source_netflix",
     "cover_image_file",
+    "created_at",
+    "updated_at",
 ]
+
+# ==========================================
+# HELPER FUNCTIONS
+# ==========================================
 
 
 def log_sync_event(
@@ -79,8 +97,9 @@ def log_sync_event(
     error: str = None,
     details_json: str = None,
 ):
-    """Utility to record a synchronization event in the database logs."""
-    log = SyncLog(
+    """Logs the sync results into the database audit trail."""
+    new_log = SyncLog(
+        timestamp=get_taipei_now(),
         sync_type=sync_type,
         status=status,
         rows_added=added,
@@ -89,280 +108,379 @@ def log_sync_event(
         error_message=error,
         details_json=details_json,
     )
-    db.add(log)
+    db.add(new_log)
     db.commit()
 
 
-def run_v2_basic_sync(db: Session, direction: str = "import", **kwargs):
-    """
-    Performs the basic sync:
-    1. Fetches rows from Google Sheets.
-    2. Identifies 'new' entries (no system_id).
-    3. Updates 'existing' entries (match by system_id).
-    4. Performs a bulk backup to Google Sheets to ensure headers/IDs are synced.
-    """
-    added_count = 0
-    updated_count = 0
-    error_msg = None
+def _extract_mal_id_from_link(mal_link: str) -> int | None:
+    """Helper to safely extract MAL ID if sync_utils lacks it."""
+    import re
 
+    if not mal_link:
+        return None
+    match = re.search(r"myanimelist\.net/anime/(\d+)", str(mal_link))
+    return int(match.group(1)) if match else None
+
+
+def _format_for_sheet(val: any, expected_type: type) -> str:
+    """Formats Python/SQLAlchemy types cleanly for Google Sheets."""
+    if val is None:
+        return ""
+    if expected_type == bool:
+        return "TRUE" if val else "FALSE"
+    if isinstance(val, datetime):
+        return val.isoformat() + "Z"
+    return str(val)
+
+
+# ==========================================
+# CORE SYNC WORKERS
+# ==========================================
+
+
+def _pull_new_manual_entries(db: Session) -> int:
+    """
+    Pulls data from Google Sheets.
+    If a row has no system_id, it is treated as a new manual entry, parsed, and saved to the DB.
+    """
     try:
-        print(
-            f"▶️ [Basic Sync] Fetching data from Google Sheets (Direction: {direction})..."
-        )
-        rows = get_all_rows()
+        sheet = get_google_sheet("Anime")
+        # Fetch all values, avoiding empty rows
+        all_values = execute_with_retry(sheet.get_all_values)
+        if not all_values or len(all_values) < 2:
+            return 0
 
-        for row in rows:
-            sys_id = row.get("system_id")
+        sheet_headers = all_values[0]
+        data_rows = all_values[1:]
+        added_count = 0
 
-            # 1. ADD NEW ENTRIES
-            if not sys_id or str(sys_id).strip() == "":
-                new_id = str(uuid.uuid4())
+        for row in data_rows:
+            # Pad row to match header length to avoid index errors
+            padded_row = row + [""] * (len(sheet_headers) - len(row))
+            row_data = dict(zip(sheet_headers, padded_row))
+
+            # Only process rows that DO NOT have a system_id (newly added via Google Sheets)
+            if (
+                not row_data.get("system_id")
+                or str(row_data.get("system_id")).strip() == ""
+            ):
+
+                # Verify we at least have an English Series Name before adding
+                if not row_data.get("series_en"):
+                    continue
+
                 new_entry = AnimeEntry(
-                    system_id=new_id,
-                    series_en=clean_value(row.get("series_en"), str),
-                    series_season_en=clean_value(row.get("series_season_en"), str),
+                    system_id=str(uuid.uuid4()),
+                    series_en=clean_value(row_data.get("series_en"), str),
+                    # Title Information
+                    series_season_en=clean_value(row_data.get("series_season_en"), str),
                     series_season_roman=clean_value(
-                        row.get("series_season_roman"), str
+                        row_data.get("series_season_roman"), str
                     ),
-                    series_season_cn=clean_value(row.get("series_season_cn"), str),
-                    anime_alt_name=clean_value(row.get("anime_alt_name"), str),
-                    series_season=clean_value(row.get("series_season"), str),
-                    airing_type=clean_value(row.get("airing_type"), str),
-                    my_progress=clean_value(row.get("my_progress"), str),
-                    airing_status=clean_value(row.get("airing_status"), str),
-                    ep_total=clean_value(row.get("ep_total"), int),
-                    ep_fin=clean_value(row.get("ep_fin"), int),
-                    rating_mine=clean_value(row.get("rating_mine"), float),
-                    main_spinoff=clean_value(row.get("main_spinoff"), str),
-                    release_year=clean_value(row.get("release_year"), int),
-                    release_month=clean_value(row.get("release_month"), int),
-                    release_season=clean_value(row.get("release_season"), str),
-                    genre_main=clean_value(row.get("genre_main"), str),
-                    genre_sub=clean_value(row.get("genre_sub"), str),
-                    prequel=clean_value(row.get("prequel"), str),
-                    sequel=clean_value(row.get("sequel"), str),
-                    alternative=clean_value(row.get("alternative"), str),
-                    watch_order=clean_value(row.get("watch_order"), float),
-                    watch_order_rec=clean_value(row.get("watch_order_rec"), str),
-                    mal_id=clean_value(row.get("mal_id"), int),
-                    mal_rating=clean_value(row.get("mal_rating"), float),
-                    mal_link=clean_value(row.get("mal_link"), str),
-                    anilist_link=clean_value(row.get("anilist_link"), str),
-                    remark=clean_value(row.get("remark"), str),
-                    op=clean_value(row.get("op"), str),
-                    ed=clean_value(row.get("ed"), str),
-                    insert_ost=clean_value(row.get("insert_ost"), str),
-                    music=clean_value(row.get("music"), str),
-                    seiyuu=clean_value(row.get("seiyuu"), str),
-                    source_baha=clean_value(row.get("source_baha"), str),
-                    baha_link=clean_value(row.get("baha_link"), str),
-                    source_netflix=clean_value(row.get("source_netflix"), bool),
-                    source_other=clean_value(row.get("source_other"), str),
-                    source_other_link=clean_value(row.get("source_other_link"), str),
-                    cover_image_file=clean_value(row.get("cover_image_file"), str),
+                    series_season_cn=clean_value(row_data.get("series_season_cn"), str),
+                    anime_alt_name=clean_value(row_data.get("anime_alt_name"), str),
+                    # Format & Status
+                    series_season=clean_value(row_data.get("series_season"), str),
+                    airing_type=clean_value(row_data.get("airing_type"), str),
+                    my_progress=clean_value(row_data.get("my_progress"), str),
+                    airing_status=clean_value(row_data.get("airing_status"), str),
+                    # Progress (ep_total defaults to None if blank)
+                    ep_total=clean_value(row_data.get("ep_total"), int),
+                    ep_fin=clean_value(row_data.get("ep_fin"), int) or 0,
+                    rating_mine=clean_value(row_data.get("rating_mine"), str),
+                    main_spinoff=clean_value(row_data.get("main_spinoff"), str),
+                    # Release Information (All strings in V2)
+                    release_month=clean_value(row_data.get("release_month"), str),
+                    release_season=clean_value(row_data.get("release_season"), str),
+                    release_year=clean_value(row_data.get("release_year"), str),
+                    # Staff & Production
+                    studio=clean_value(row_data.get("studio"), str),
+                    director=clean_value(row_data.get("director"), str),
+                    producer=clean_value(row_data.get("producer"), str),
+                    music=clean_value(row_data.get("music"), str),
+                    distributor_tw=clean_value(row_data.get("distributor_tw"), str),
+                    # Metadata & Themes
+                    genre_main=clean_value(row_data.get("genre_main"), str),
+                    genre_sub=clean_value(row_data.get("genre_sub"), str),
+                    prequel=clean_value(row_data.get("prequel"), str),
+                    sequel=clean_value(row_data.get("sequel"), str),
+                    alternative=clean_value(row_data.get("alternative"), str),
+                    # Timeline
+                    watch_order=clean_value(row_data.get("watch_order"), float),
+                    watch_order_rec=clean_value(row_data.get("watch_order_rec"), float),
+                    remark=clean_value(row_data.get("remark"), str),
+                    # External Stats
+                    mal_id=clean_value(row_data.get("mal_id"), int),
+                    mal_link=clean_value(row_data.get("mal_link"), str),
+                    mal_rating=clean_value(row_data.get("mal_rating"), float),
+                    mal_rank=clean_value(row_data.get("mal_rank"), int),
+                    anilist_link=clean_value(row_data.get("anilist_link"), str),
+                    # Music & Cast
+                    op=clean_value(row_data.get("op"), str),
+                    ed=clean_value(row_data.get("ed"), str),
+                    insert_ost=clean_value(row_data.get("insert_ost"), str),
+                    seiyuu=clean_value(row_data.get("seiyuu"), str),
+                    # Streaming & Assets
+                    source_baha=clean_value(row_data.get("source_baha"), bool),
+                    baha_link=clean_value(row_data.get("baha_link"), str),
+                    source_other=clean_value(row_data.get("source_other"), str),
+                    source_other_link=clean_value(
+                        row_data.get("source_other_link"), str
+                    ),
+                    source_netflix=clean_value(row_data.get("source_netflix"), bool),
+                    cover_image_file=clean_value(row_data.get("cover_image_file"), str),
                 )
                 db.add(new_entry)
                 added_count += 1
 
-            # 2. UPDATE EXISTING ENTRIES
-            else:
-                existing = db.query(AnimeEntry).filter_by(system_id=sys_id).first()
-                if existing:
-                    existing.series_en = clean_value(row.get("series_en"), str)
-                    existing.series_season_en = clean_value(
-                        row.get("series_season_en"), str
-                    )
-                    existing.series_season_roman = clean_value(
-                        row.get("series_season_roman"), str
-                    )
-                    existing.series_season_cn = clean_value(
-                        row.get("series_season_cn"), str
-                    )
-                    existing.anime_alt_name = clean_value(
-                        row.get("anime_alt_name"), str
-                    )
-                    existing.series_season = clean_value(row.get("series_season"), str)
-                    existing.airing_type = clean_value(row.get("airing_type"), str)
-                    existing.my_progress = clean_value(row.get("my_progress"), str)
-                    existing.airing_status = clean_value(row.get("airing_status"), str)
-                    existing.ep_total = clean_value(row.get("ep_total"), int)
-                    existing.ep_fin = clean_value(row.get("ep_fin"), int)
-                    existing.rating_mine = clean_value(row.get("rating_mine"), float)
-                    existing.main_spinoff = clean_value(row.get("main_spinoff"), str)
-                    existing.release_year = clean_value(row.get("release_year"), int)
-                    existing.release_month = clean_value(row.get("release_month"), int)
-                    existing.release_season = clean_value(
-                        row.get("release_season"), str
-                    )
-                    existing.genre_main = clean_value(row.get("genre_main"), str)
-                    existing.genre_sub = clean_value(row.get("genre_sub"), str)
-                    existing.prequel = clean_value(row.get("prequel"), str)
-                    existing.sequel = clean_value(row.get("sequel"), str)
-                    existing.alternative = clean_value(row.get("alternative"), str)
-                    existing.watch_order = clean_value(row.get("watch_order"), float)
-                    existing.watch_order_rec = clean_value(
-                        row.get("watch_order_rec"), str
-                    )
-                    existing.mal_id = clean_value(row.get("mal_id"), int)
-                    existing.mal_rating = clean_value(row.get("mal_rating"), float)
-                    existing.mal_link = clean_value(row.get("mal_link"), str)
-                    existing.anilist_link = clean_value(row.get("anilist_link"), str)
-                    existing.remark = clean_value(row.get("remark"), str)
-                    existing.op = clean_value(row.get("op"), str)
-                    existing.ed = clean_value(row.get("ed"), str)
-                    existing.insert_ost = clean_value(row.get("insert_ost"), str)
-                    existing.music = clean_value(row.get("music"), str)
-                    existing.seiyuu = clean_value(row.get("seiyuu"), str)
-                    existing.source_baha = clean_value(row.get("source_baha"), str)
-                    existing.baha_link = clean_value(row.get("baha_link"), str)
-                    existing.source_netflix = clean_value(
-                        row.get("source_netflix"), bool
-                    )
-                    existing.source_other = clean_value(row.get("source_other"), str)
-                    existing.source_other_link = clean_value(
-                        row.get("source_other_link"), str
-                    )
-                    existing.cover_image_file = clean_value(
-                        row.get("cover_image_file"), str
-                    )
-                    updated_count += 1
-
         db.commit()
+        return added_count
+    except Exception as e:
+        print(f"❌ Error pulling manual entries: {e}")
+        db.rollback()
+        return 0
 
-        # 3. OVERWRITE GOOGLE SHEETS AS BACKUP
-        print("▶️ [Basic Sync] Overwriting Google Sheets for backup...")
+
+def _autofill_missing_data(db: Session) -> int:
+    """
+    Fills in easily calculable missing fields within the database without heavy API calls.
+    """
+    updated_count = 0
+    entries = db.query(AnimeEntry).all()
+
+    for entry in entries:
+        changed = False
+
+        # 1. Autofill MAL ID from link if missing
+        if not entry.mal_id and entry.mal_link:
+            extracted_id = _extract_mal_id_from_link(entry.mal_link)
+            if extracted_id:
+                entry.mal_id = extracted_id
+                changed = True
+
+        # 2. Autofill Series Season from EN Title
+        if not entry.series_season and entry.series_season_en:
+            season_str = extract_season_from_title(entry.series_season_en)
+            if season_str:
+                entry.series_season = season_str
+                changed = True
+
+        # 3. Autofill Series Season from CN Title fallback
+        if not entry.series_season and entry.series_season_cn:
+            season_str = extract_season_from_cn_title(entry.series_season_cn)
+            if season_str:
+                entry.series_season = season_str
+                changed = True
+
+        if changed:
+            updated_count += 1
+
+    db.commit()
+    return updated_count
+
+
+def _push_db_backup_to_sheets(db: Session) -> dict:
+    """
+    Fetches all DB records and performs a bulk overwrite on the Google Sheet.
+    This establishes the Database as the ultimate source of truth.
+    """
+    try:
+        entries = db.query(AnimeEntry).all()
+
+        # Initialize matrix with headers
+        data_matrix = [ANIME_HEADERS]
+
+        for entry in entries:
+            row = [
+                _format_for_sheet(entry.system_id, str),
+                _format_for_sheet(entry.series_en, str),
+                _format_for_sheet(entry.series_season_en, str),
+                _format_for_sheet(entry.series_season_roman, str),
+                _format_for_sheet(entry.series_season_cn, str),
+                _format_for_sheet(entry.anime_alt_name, str),
+                _format_for_sheet(entry.series_season, str),
+                _format_for_sheet(entry.airing_type, str),
+                _format_for_sheet(entry.my_progress, str),
+                _format_for_sheet(entry.airing_status, str),
+                _format_for_sheet(entry.ep_total, int),
+                _format_for_sheet(entry.ep_fin, int),
+                _format_for_sheet(entry.rating_mine, str),
+                _format_for_sheet(entry.main_spinoff, str),
+                _format_for_sheet(entry.release_month, str),
+                _format_for_sheet(entry.release_season, str),
+                _format_for_sheet(entry.release_year, str),
+                _format_for_sheet(entry.studio, str),
+                _format_for_sheet(entry.director, str),
+                _format_for_sheet(entry.producer, str),
+                _format_for_sheet(entry.music, str),
+                _format_for_sheet(entry.distributor_tw, str),
+                _format_for_sheet(entry.genre_main, str),
+                _format_for_sheet(entry.genre_sub, str),
+                _format_for_sheet(entry.prequel, str),
+                _format_for_sheet(entry.sequel, str),
+                _format_for_sheet(entry.alternative, str),
+                _format_for_sheet(entry.watch_order, float),
+                _format_for_sheet(entry.watch_order_rec, float),
+                _format_for_sheet(entry.remark, str),
+                _format_for_sheet(entry.mal_id, int),
+                _format_for_sheet(entry.mal_link, str),
+                _format_for_sheet(entry.mal_rating, float),
+                _format_for_sheet(entry.mal_rank, int),
+                _format_for_sheet(entry.anilist_link, str),
+                _format_for_sheet(entry.op, str),
+                _format_for_sheet(entry.ed, str),
+                _format_for_sheet(entry.insert_ost, str),
+                _format_for_sheet(entry.seiyuu, str),
+                _format_for_sheet(entry.source_baha, bool),
+                _format_for_sheet(entry.baha_link, str),
+                _format_for_sheet(entry.source_other, str),
+                _format_for_sheet(entry.source_other_link, str),
+                _format_for_sheet(entry.source_netflix, bool),
+                _format_for_sheet(entry.cover_image_file, str),
+                _format_for_sheet(entry.created_at, datetime),
+                _format_for_sheet(entry.updated_at, datetime),
+            ]
+            data_matrix.append(row)
+
+        success = bulk_overwrite_sheet("Anime", data_matrix)
+        return {"success": success, "rows": len(entries)}
+
+    except Exception as e:
+        print(f"❌ Error building backup matrix: {e}")
+        return {"success": False, "rows": 0}
+
+
+# ==========================================
+# PUBLIC ORCHESTRATION ENDPOINTS
+# ==========================================
+
+
+def basic_sync(db: Session) -> dict:
+    """
+    Executes the standard daily sync:
+    1. Pulls new manual entries from Google Sheets into DB.
+    2. Autofills missing localized data.
+    3. Overwrites the Google Sheet with the newly structured DB.
+    """
+    print("▶️ [Basic Sync] Starting...")
+    try:
+        added_count = _pull_new_manual_entries(db)
+        print(f"   ↳ Added {added_count} new entries from Sheets.")
+
+        updated_count = _autofill_missing_data(db)
+        print(f"   ↳ Autofilled {updated_count} empty fields.")
+
         push_metrics = _push_db_backup_to_sheets(db)
-        if not push_metrics["success"]:
-            error_msg = "Failed to overwrite Google Sheets backup."
+        print(f"   ↳ Pushed {push_metrics['rows']} rows back to Sheets.")
 
-        status = "failed" if error_msg else "success"
+        success = push_metrics["success"]
+        status = "success" if success else "failed"
+
+        details = {
+            "type": "basic_sync",
+            "added_from_sheets": added_count,
+            "autofilled_in_db": updated_count,
+            "sheets_backup_success": success,
+        }
+
         log_sync_event(
             db,
-            sync_type="v2_basic_sync",
+            sync_type="basic_sync",
             status=status,
             added=added_count,
             updated=updated_count,
-            error=error_msg,
-        )
-
-        return {
-            "status": status,
-            "message": (
-                "Basic Sync completed successfully." if not error_msg else error_msg
-            ),
-            "added": added_count,
-            "updated": updated_count,
-        }
-
-    except Exception as e:
-        db.rollback()
-        error_msg = str(e)
-        print(f"❌ [Basic Sync] FATAL ERROR: {error_msg}")
-        log_sync_event(db, sync_type="v2_basic_sync", status="failed", error=error_msg)
-        return {"status": "failed", "message": error_msg}
-
-
-def run_v2_strong_sync(db: Session, **kwargs):
-    """
-    Performs the 'Strong' sync:
-    1. Iterates through all DB entries that have a MAL ID but NO MAL Rating.
-    2. Fetches metadata from the Jikan (MyAnimeList) API.
-    3. Updates ratings and metadata in the DB.
-    4. Backs up the new data to Google Sheets.
-    """
-    updated_count = 0
-    error_msg = None
-
-    try:
-        print("▶️ [Strong Sync] Identifying items missing MAL ratings...")
-        # Target entries with a MAL ID but zero/missing rating to save API calls
-        # We cast values to String to safely handle comparisons regardless of DB column types
-        targets = (
-            db.query(AnimeEntry)
-            .filter(
-                and_(
-                    AnimeEntry.mal_id.isnot(None),
-                    sa.cast(AnimeEntry.mal_id, sa.String) != "",
-                    or_(
-                        sa.cast(AnimeEntry.mal_rating, sa.String) == "0",
-                        sa.cast(AnimeEntry.mal_rating, sa.String) == "0.0",
-                        AnimeEntry.mal_rating.is_(None),
-                    ),
-                )
-            )
-            .all()
-        )
-
-        for anime in targets:
-            try:
-                j_data = jikan_client.get_anime_by_id(anime.mal_id)
-                if j_data:
-                    anime.mal_rating = j_data.get("score")
-                    # Optionally update other fields like status if empty
-                    if not anime.airing_status:
-                        anime.airing_status = j_data.get("status")
-                    updated_count += 1
-                    time.sleep(1.2)  # Rate limiting to respect Jikan API limits
-            except Exception as e:
-                print(f"⚠️ [Strong Sync] Error fetching data for {anime.system_id}: {e}")
-
-        db.commit()
-
-        print("▶️ [Strong Sync] Backing up updated stats to Google Sheets...")
-        push_metrics = _push_db_backup_to_sheets(db)
-        if not push_metrics["success"]:
-            error_msg = "Failed to backup Strong Sync results to Sheets."
-
-        status = "failed" if error_msg else "success"
-        details = {
-            "type": "strong_sync",
-            "items_updated_from_jikan": updated_count,
-            "sheets_backup": push_metrics["success"],
-        }
-        log_sync_event(
-            db,
-            sync_type="v2_strong_sync",
-            status=status,
-            updated=updated_count,
-            error=error_msg,
+            error=None if success else "Backup push failed",
             details_json=json.dumps(details),
         )
 
         return {
             "status": status,
-            "message": (
-                "Strong Sync completed successfully." if not error_msg else error_msg
-            ),
-            "jikan_updated": updated_count,
+            "message": f"Basic sync completed. Added: {added_count}, Autofilled: {updated_count}",
         }
 
     except Exception as e:
         db.rollback()
         error_msg = str(e)
-        print(f"❌ [Strong Sync] FATAL ERROR: {error_msg}")
-        log_sync_event(db, sync_type="v2_strong_sync", status="failed", error=error_msg)
+        print(f"❌ [Basic Sync] Failed: {error_msg}")
+        log_sync_event(db, "basic_sync", "failed", error=error_msg)
         return {"status": "failed", "message": error_msg}
 
 
-def _push_db_backup_to_sheets(db: Session):
-    """Helper to convert the current PostgreSQL state into a nested list for Google Sheets overwrite."""
+def strong_sync(db: Session) -> dict:
+    """
+    Executes a heavy sync:
+    Contacts Jikan API to fetch and update live stats (Scores, Ranks, Status)
+    for all anime in the DB that have a mal_id, then backs up to Google Sheets.
+    """
+    print("▶️ [Strong Sync] Starting...")
     try:
-        entries = db.query(AnimeEntry).all()
-        data_to_push = []
+        entries = db.query(AnimeEntry).filter(AnimeEntry.mal_id.isnot(None)).all()
+        updated_count = 0
 
-        for e in entries:
-            row = []
-            # We must map attributes to the EXACT order of ANIME_HEADERS
-            for header in ANIME_HEADERS:
-                val = getattr(e, header, "")
-                # Convert booleans to strings for Sheets readability
-                if isinstance(val, bool):
-                    val = str(val)
-                row.append(val)
-            data_to_push.append(row)
+        for entry in entries:
+            try:
+                # Jikan API integration
+                jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
+                if jikan_data:
+                    changed = False
 
-        success = bulk_overwrite_sheet(data_to_push)
-        return {"success": success}
+                    # Update Rating
+                    new_score = clean_value(jikan_data.get("score"), float)
+                    if new_score and entry.mal_rating != new_score:
+                        entry.mal_rating = new_score
+                        changed = True
+
+                    # Update Rank
+                    new_rank = clean_value(jikan_data.get("rank"), int)
+                    if new_rank and entry.mal_rank != new_rank:
+                        entry.mal_rank = new_rank
+                        changed = True
+
+                    # Update Airing Status
+                    jikan_status = jikan_data.get("status")
+                    if jikan_status and entry.airing_status != jikan_status:
+                        entry.airing_status = jikan_status
+                        changed = True
+
+                    if changed:
+                        updated_count += 1
+
+                # Strict Rate Limiting (1.2s per request to avoid Jikan 429 Bans)
+                time.sleep(1.2)
+
+            except Exception as e:
+                print(f"⚠️ [Strong Sync] Jikan Error for {entry.system_id}: {e}")
+
+        db.commit()
+
+        # Push the freshly updated stats to the cloud sheet
+        push_metrics = _push_db_backup_to_sheets(db)
+        success = push_metrics["success"]
+
+        status = "success" if success else "failed"
+        details = {
+            "type": "strong_sync",
+            "jikan_updates": updated_count,
+            "sheets_backup_success": success,
+        }
+
+        log_sync_event(
+            db,
+            sync_type="strong_sync",
+            status=status,
+            updated=updated_count,
+            error=None if success else "Backup push failed",
+            details_json=json.dumps(details),
+        )
+
+        return {
+            "status": status,
+            "message": f"Strong sync completed. Updated {updated_count} entries from Jikan.",
+        }
+
     except Exception as e:
-        print(f"⚠️ [Sheets Backup] Backup failed: {e}")
-        return {"success": False}
+        db.rollback()
+        error_msg = str(e)
+        print(f"❌ [Strong Sync] Failed: {error_msg}")
+        log_sync_event(db, "strong_sync", "failed", error=error_msg)
+        return {"status": "failed", "message": error_msg}

@@ -7,12 +7,12 @@ Optimized for V2 (PostgreSQL as Source of Truth).
 
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 import models
 import schemas
-import services.sync as sync_engine
+from services.sync import basic_sync, strong_sync, _push_db_backup_to_sheets
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
@@ -30,283 +30,130 @@ router = APIRouter(
 
 
 @router.post("/add", summary="Add New Anime Entry")
-def add_anime(payload: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
+def add_anime(
+    payload: schemas.AnimeEntryCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     """
     Appends a new anime entry strictly to the PostgreSQL database (Source of Truth).
-    If the Series Hub doesn't exist (based on series_alt_name), it creates it.
-    Finally, it triggers a bulk push to Google Sheets to update the backup.
+    If the Series Hub doesn't exist (based on series_en), it creates a basic one.
+    Finally, it triggers a background task to bulk push to Google Sheets to update the backup.
     """
-    display_title = (
-        payload.series_season_cn
-        or payload.series_season_en
-        or payload.series_en
-        or payload.system_id
-    )
-    print(f"\n▶️ [POST /add] Request to add: {display_title}")
 
-    # 1. Check if Anime already exists
-    existing = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == payload.system_id)
-        .first()
-    )
-    if existing:
-        raise HTTPException(
-            status_code=400, detail="Anime with this system_id already exists."
-        )
-
-    # 2. Extract the temporary trigger field before DB insertion
-    payload_data = payload.dict(exclude_unset=True)
-    series_alt_name_trigger = payload_data.pop("series_alt_name", None)
-
-    # 3. Create Anime Entry in DB
-    new_anime = models.AnimeEntry(**payload_data)
-
-    # Auto-fill series_season if left blank
-    if not new_anime.series_season:
-        derived_season = extract_season_from_title(
-            new_anime.series_season_en
-        ) or extract_season_from_title(new_anime.series_en)
-        if not derived_season:
-            derived_season = extract_season_from_cn_title(new_anime.series_season_cn)
-
-        if derived_season:
-            new_anime.series_season = derived_season
-
-    if series_alt_name_trigger:
-        new_anime.series_alt_name = series_alt_name_trigger
-
-    db.add(new_anime)
-
-    # 4. Auto-generate Series Hub if missing
-    if series_alt_name_trigger:
-        existing_series = (
-            db.query(models.AnimeSeries)
-            .filter(models.AnimeSeries.series_alt_name == series_alt_name_trigger)
-            .first()
-        )
-
-        if not existing_series:
-            print(
-                f"ℹ️ [Auto-Gen] Creating new Series Hub for '{series_alt_name_trigger}'"
-            )
-            new_series = models.AnimeSeries(
-                system_id=str(uuid.uuid4()),
-                series_alt_name=series_alt_name_trigger,
-                series_en=payload.series_en,
-                series_cn=payload.series_season_cn,
-            )
-            db.add(new_series)
-
-    # 5. Commit all DB changes (Source of Truth)
-    db.commit()
-
-    # 6. Bulk Backup to Google Sheets
-    sync_engine.run_v2_basic_sync(db, direction="push")
-
-    return {
-        "message": f"Successfully added {display_title}",
-        "system_id": payload.system_id,
-    }
-
-
-@router.put("/anime/{system_id}", summary="Full Update of Anime Entry")
-def update_anime_full(
-    system_id: str, payload: schemas.AnimeEntryUpdate, db: Session = Depends(get_db)
-):
-    """
-    Performs a full overwrite of an anime entry in the PostgreSQL database.
-    Then performs a bulk push to Google Sheets to maintain the backup.
-    """
-    anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found.")
-
-    update_data = payload.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(anime, key, value)
-
-    db.commit()
-
-    # Force DB Backup to Google Sheets
-    sync_engine.run_v2_basic_sync(db, direction="push")
-
-    return {"message": "Anime updated successfully", "system_id": system_id}
-
-
-@router.delete("/anime/{system_id}", summary="Delete Anime Entry")
-def delete_anime(system_id: str, db: Session = Depends(get_db)):
-    """
-    Deletes an anime entry from the PostgreSQL database.
-    The deletion will automatically reflect in Google Sheets on the next bulk sync push.
-    """
-    anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found.")
-
-    # Log the deletion for the history dashboard before removing it
-    title = anime.series_season_cn or anime.series_en or anime.system_id
-    del_log = models.DeletedRecord(
-        system_id=system_id,
-        table_name="anime_entries",
-        data_json=f'{{"title": "{title}"}}',
-    )
-    db.add(del_log)
-
-    db.delete(anime)
-    db.commit()
-
-    sync_engine.run_v2_basic_sync(db, direction="push")
-
-    return {"message": "Anime deleted successfully."}
-
-
-@router.post("/series", summary="Add New Series Hub")
-def add_series_hub(payload: schemas.AnimeSeriesUpdate, db: Session = Depends(get_db)):
-    """
-    Creates a new Franchise Hub (AnimeSeries) directly in the PostgreSQL database.
-    Then triggers a bulk push to Google Sheets to update the backup.
-    """
-    display_title = (
-        payload.series_en
-        or payload.series_cn
-        or payload.series_roman
-        or "Unknown Series"
-    )
-    print(f"\n▶️ [POST /admin/series] Request to create Hub: {display_title}")
-
-    sys_id = payload.system_id or str(uuid.uuid4())
-
-    # 1. Check if it already exists
-    existing = (
+    # 1. Check if the parent Series Hub exists. If not, create a basic shell.
+    existing_series = (
         db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == sys_id)
+        .filter(models.AnimeSeries.series_en == payload.series_en)
         .first()
     )
-    if existing:
-        raise HTTPException(
-            status_code=400, detail="Series Hub with this system_id already exists."
-        )
 
-    # 2. Create the Hub in the DB
-    new_series = models.AnimeSeries(
-        system_id=sys_id,
+    if not existing_series:
+        new_series = models.AnimeSeries(
+            system_id=str(uuid.uuid4()),
+            series_en=payload.series_en,
+            series_roman=payload.series_season_roman,  # Fallback
+            series_cn=payload.series_season_cn,  # Fallback
+            series_alt_name=payload.series_alt_name,
+        )
+        db.add(new_series)
+        db.flush()  # Flush to get the series into the session before adding the entry
+
+    # 2. Auto-calculate season if missing
+    calculated_season = payload.series_season
+    if not calculated_season:
+        if payload.series_season_en:
+            calculated_season = extract_season_from_title(payload.series_season_en)
+        elif payload.series_season_cn:
+            calculated_season = extract_season_from_cn_title(payload.series_season_cn)
+
+    # 3. Create the Database Entry
+    new_entry = models.AnimeEntry(
+        system_id=str(uuid.uuid4()),
         series_en=payload.series_en,
-        series_roman=payload.series_roman,
-        series_cn=payload.series_cn,
-        rating_series=payload.rating_series,
-        series_alt_name=payload.series_alt_name,
-        series_expectation=payload.series_expectation,
-        favorite_3x3_slot=payload.favorite_3x3_slot,
+        # Title Information
+        series_season_en=payload.series_season_en,
+        series_season_roman=payload.series_season_roman,
+        series_season_cn=payload.series_season_cn,
+        anime_alt_name=payload.anime_alt_name,
+        # Format & Status
+        series_season=calculated_season,
+        airing_type=payload.airing_type,
+        my_progress=payload.my_progress,
+        airing_status=payload.airing_status,
+        # Progress
+        ep_total=payload.ep_total,
+        ep_fin=payload.ep_fin,
+        rating_mine=payload.rating_mine,
+        main_spinoff=payload.main_spinoff,
+        # Release Information
+        release_month=payload.release_month,
+        release_season=payload.release_season,
+        release_year=payload.release_year,
+        # Staff & Production
+        studio=payload.studio,
+        director=payload.director,
+        producer=payload.producer,
+        music=payload.music,
+        distributor_tw=payload.distributor_tw,
+        # Metadata & Themes
+        genre_main=payload.genre_main,
+        genre_sub=payload.genre_sub,
+        prequel=payload.prequel,
+        sequel=payload.sequel,
+        alternative=payload.alternative,
+        # Timeline
+        watch_order=payload.watch_order,
+        watch_order_rec=payload.watch_order_rec,
+        remark=payload.remark,
+        # External Stats
+        mal_id=payload.mal_id,
+        mal_link=payload.mal_link,
+        mal_rating=payload.mal_rating,
+        mal_rank=payload.mal_rank,
+        anilist_link=payload.anilist_link,
+        # Music & Cast
+        op=payload.op,
+        ed=payload.ed,
+        insert_ost=payload.insert_ost,
+        seiyuu=payload.seiyuu,
+        # Streaming & Assets
+        source_baha=payload.source_baha,
+        baha_link=payload.baha_link,
+        source_other=payload.source_other,
+        source_other_link=payload.source_other_link,
+        source_netflix=payload.source_netflix,
+        cover_image_file=payload.cover_image_file,
     )
 
-    db.add(new_series)
+    db.add(new_entry)
     db.commit()
 
-    # 3. Bulk Backup to Google Sheets
-    sync_engine.run_v2_basic_sync(db, direction="push")
+    # 4. Push Backup to Google Sheets (IN THE BACKGROUND)
+    print(
+        f"▶️ Admin added entry for {new_entry.series_en}. Queuing background Sheet backup..."
+    )
+    background_tasks.add_task(_push_db_backup_to_sheets, db)
 
     return {
-        "message": f"Successfully created Series Hub: {display_title}",
-        "system_id": sys_id,
+        "message": "Entry added successfully and is backing up to Sheets.",
+        "system_id": new_entry.system_id,
     }
 
 
 # ==========================================
-# SYSTEM OPTIONS (DYNAMIC DROPDOWNS)
+# SYNCHRONIZATION TRIGGERS
 # ==========================================
 
 
-@router.get(
-    "/options/{category}",
-    response_model=List[schemas.SystemOptionResponse],
-    summary="Get Options by Category",
-)
-def get_system_options(category: str, db: Session = Depends(get_db)):
-    """Retrieves all dropdown options for a specific category (e.g., 'studio', 'genre')."""
-    return (
-        db.query(models.SystemOption)
-        .filter(models.SystemOption.category == category)
-        .all()
-    )
-
-
-@router.post(
-    "/options", response_model=schemas.SystemOptionResponse, summary="Add System Option"
-)
-def add_system_option(
-    payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
-):
-    """Adds a new dynamic dropdown option to the database and syncs it to Sheets."""
-    # Check for duplicates to prevent messy dropdowns
-    existing = (
-        db.query(models.SystemOption)
-        .filter(
-            models.SystemOption.category == payload.category,
-            models.SystemOption.option_value == payload.option_value,
-        )
-        .first()
-    )
-
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="This option already exists in the selected category.",
-        )
-
-    new_option = models.SystemOption(**payload.dict())
-    db.add(new_option)
-    db.commit()
-    db.refresh(new_option)  # Reload to get the auto-generated ID
-
-    # NEW: Trigger a DB-to-Sheets backup to maintain parity
-    sync_engine.run_v2_basic_sync(db, direction="push")
-
-    return new_option
-
-
-@router.delete("/options/{option_id}", summary="Delete System Option")
-def delete_system_option(option_id: int, db: Session = Depends(get_db)):
-    """Removes a dropdown option from the database and syncs the removal to Sheets."""
-    option = (
-        db.query(models.SystemOption)
-        .filter(models.SystemOption.id == option_id)
-        .first()
-    )
-    if not option:
-        raise HTTPException(status_code=404, detail="System option not found.")
-
-    db.delete(option)
-    db.commit()
-
-    # NEW: Trigger a DB-to-Sheets backup to maintain parity
-    sync_engine.run_v2_basic_sync(db, direction="push")
-
-    return {"message": f"Option '{option.option_value}' deleted successfully."}
-
-
-# ==========================================
-# SYNCHRONIZATION & UTILITIES
-# ==========================================
-
-
-@router.post("/sync/sheets", summary="Master Sync (Sheets <-> DB)")
-def sync_with_sheets(direction: str = "both", db: Session = Depends(get_db)):
+@router.post("/sync/basic", summary="Trigger Basic Sync")
+def trigger_basic_sync(db: Session = Depends(get_db)):
     """
-    Triggers the V2 Master Sync.
-    - Pulls new manual entries (no system_id) from Sheets -> DB.
-    - Pushes the entire DB -> Sheets (Bulk Overwrite).
+    Manually triggers the basic sync workflow.
+    Pulls manual additions from Google Sheets, autofills DB, and pushes backup.
     """
-    print(f"\n▶️ [POST /sync/sheets] Triggering Master Sync (direction: {direction})")
-    result = sync_engine.run_v2_basic_sync(db, direction=direction)
+    print("🔔 Admin requested Basic Sync.")
+    result = basic_sync(db)
 
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
@@ -314,31 +161,19 @@ def sync_with_sheets(direction: str = "both", db: Session = Depends(get_db)):
     return result
 
 
-@router.post("/sync/strong", summary="Strong Sync (Jikan -> DB -> Sheets)")
-def sync_strong_jikan(db: Session = Depends(get_db)):
+@router.post("/sync/strong", summary="Trigger Strong Sync")
+def trigger_strong_sync(db: Session = Depends(get_db)):
     """
-    Triggers the V2 Strong Sync.
-    Scans all anime with a MAL ID, forcefully updates their rating/rank from Jikan,
-    and pushes the updated data to Google Sheets.
+    Manually triggers the strong sync workflow.
+    Calls Jikan API for all relevant entries to update scores and status.
     """
-    print("\n▶️ [POST /sync/strong] Triggering Strong Sync...")
-    result = sync_engine.run_v2_strong_sync(db)
+    print("🔔 Admin requested Strong Sync.")
+    result = strong_sync(db)
 
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
 
     return result
-
-
-@router.post("/set-season", summary="Set Current Season")
-def set_current_season(db: Session = Depends(get_db)):
-    """
-    Tool to process seasonal anime updates.
-    (This is a placeholder that returns success so your UI button works correctly.
-    We will add the Jikan 'Not Yet Aired' scanning logic here in a future step!)
-    """
-    print("\n▶️ [POST /set-season] Triggering Current Season Update...")
-    return {"message": "Current Season automated scan initialized!"}
 
 
 # ==========================================
@@ -346,19 +181,17 @@ def set_current_season(db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.get("/logs", summary="Get Admin Sync Logs")
+@router.get(
+    "/logs", response_model=List[schemas.SyncLogResponse], summary="Get Admin Sync Logs"
+)
 def get_admin_logs(limit: int = 50, db: Session = Depends(get_db)):
-    """Retrieves recent synchronization logs formatted for the admin dashboard."""
-    logs = (
+    """Retrieves recent synchronization logs for the admin dashboard."""
+    return (
         db.query(models.SyncLog)
         .order_by(models.SyncLog.timestamp.desc())
         .limit(limit)
         .all()
     )
-    total = db.query(models.SyncLog).count()
-
-    # NEW: Now correctly returns the dictionary structure expected by admin.html
-    return {"total": total, "logs": logs}
 
 
 @router.get("/deletions", summary="Get Recent Deletions")
@@ -374,93 +207,10 @@ def get_recent_deletions(limit: int = 50, db: Session = Depends(get_db)):
 
 @router.delete("/logs/cleanup", summary="Purge Old Logs")
 def cleanup_logs(days: int = 30, db: Session = Depends(get_db)):
-    """Deletes sync logs older than the specified days to save space."""
+    """Purges sync logs older than the specified number of days."""
     try:
-        purged = cleanup_old_logs(db, days_to_keep=days)
-        return {"status": "success", "message": f"Deleted {purged} old sync logs."}
+        deleted_count = cleanup_old_logs(db, days_to_keep=days)
+        return {"message": f"Successfully deleted {deleted_count} old logs."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ==========================================
-# TEMPORARY EMERGENCY RECOVERY
-# ==========================================
-
-
-@router.post("/emergency-restore", summary="Emergency Restore from Sheets")
-def emergency_restore(db: Session = Depends(get_db)):
-    """
-    TEMPORARY ONE-TIME ENDPOINT:
-    Force-pulls ALL anime data from Google Sheets (ignoring the 'only pull new' rule)
-    and explicitly inserts it back into the database to recover from a dropped table.
-    """
-    from services.sheets_client import get_all_rows
-    from services.sync_utils import clean_value
-    import models
-
-    print(
-        "🚨 [EMERGENCY] Starting full database restore from Google Sheets...",
-        flush=True,
-    )
-
-    anime_rows = get_all_rows("Anime")
-    restored_count = 0
-
-    for row in anime_rows:
-        sys_id = str(row.get("system_id", "")).strip()
-        if not sys_id:
-            continue  # Skip truly blank rows
-
-        anime = models.AnimeEntry(
-            system_id=sys_id,
-            series_en=clean_value(row.get("series_en")),
-            series_season_en=clean_value(row.get("series_season_en")),
-            series_season_roman=clean_value(row.get("series_season_roman")),
-            series_season_cn=clean_value(row.get("series_season_cn")),
-            anime_alt_name=clean_value(row.get("anime_alt_name")),
-            series_season=clean_value(row.get("series_season")),
-            airing_type=clean_value(row.get("airing_type")),
-            my_progress=clean_value(row.get("my_progress")),
-            airing_status=clean_value(row.get("airing_status")),
-            ep_total=clean_value(row.get("ep_total"), int),
-            ep_fin=clean_value(row.get("ep_fin"), int) or 0,
-            rating_mine=clean_value(row.get("rating_mine")),
-            main_spinoff=clean_value(row.get("main_spinoff")),
-            release_month=clean_value(row.get("release_month")),
-            release_season=clean_value(row.get("release_season")),
-            release_year=clean_value(row.get("release_year")),
-            studio=clean_value(row.get("studio")),
-            director=clean_value(row.get("director")),
-            producer=clean_value(row.get("producer")),
-            music=clean_value(row.get("music")),
-            distributor_tw=clean_value(row.get("distributor_tw")),
-            genre_main=clean_value(row.get("genre_main")),
-            genre_sub=clean_value(row.get("genre_sub")),
-            prequel=clean_value(row.get("prequel")),
-            sequel=clean_value(row.get("sequel")),
-            alternative=clean_value(row.get("alternative")),
-            watch_order=clean_value(row.get("watch_order"), float),
-            watch_order_rec=clean_value(row.get("watch_order_rec")),
-            remark=clean_value(row.get("remark")),
-            mal_id=clean_value(row.get("mal_id")),
-            mal_link=clean_value(row.get("mal_link")),
-            anilist_link=clean_value(row.get("anilist_link")),
-            op=clean_value(row.get("op")),
-            ed=clean_value(row.get("ed")),
-            insert_ost=clean_value(row.get("insert_ost")),
-            seiyuu=clean_value(row.get("seiyuu")),
-            source_baha=clean_value(row.get("source_baha")),
-            baha_link=clean_value(row.get("baha_link")),
-            source_other=clean_value(row.get("source_other")),
-            source_other_link=clean_value(row.get("source_other_link")),
-            source_netflix=clean_value(row.get("source_netflix"), bool),
-            cover_image_file=clean_value(row.get("cover_image_file")),
-        )
-        # Use merge to safely insert
-        db.merge(anime)
-        restored_count += 1
-
-    db.commit()
-    msg = f"✅ [EMERGENCY] Successfully restored {restored_count} entries!"
-    print(msg, flush=True)
-    return {"message": msg}
+        print(f"❌ Failed to cleanup logs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup logs.")
