@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+from sqlalchemy import text
 
 import database
 import models
@@ -40,9 +41,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     print(
         f"🔥 [CRITICAL 500 ERROR] Failed at: {request.method} {request.url}", flush=True
     )
-    print("👇 --- TRACEBACK BEGIN --- 👇", flush=True)
     traceback.print_exc()
-    print("👆 --- TRACEBACK END --- 👆", flush=True)
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -54,12 +53,67 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Mount the static directory so FastAPI can serve local images
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # ==========================================
 # STARTUP EVENTS
 # ==========================================
+
+
+@app.on_event("startup")
+async def verify_database_connection():
+    """
+    DEBUG DIAGNOSTIC: Runs immediately on container boot.
+    Queries the actual database schema information to prove what tables and column types
+    the Cloud Run instance is physically seeing.
+    """
+    print("🔍 [DB DIAGNOSTICS] Starting pre-flight database check...")
+    db = database.SessionLocal()
+    try:
+        # 1. Print the masked connection URL to ensure we are hitting the right DB
+        safe_url = database.engine.url.render_as_string(hide_password=True)
+        print(f"🔗 [DB DIAGNOSTICS] Connected Engine URL: {safe_url}")
+
+        # 2. Direct query to PostgreSQL's internal schema catalog
+        query = text(
+            """
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'anime_entries';
+        """
+        )
+        result = db.execute(query).fetchall()
+
+        if not result:
+            print(
+                "❌ [DB DIAGNOSTICS] FATAL: Table 'anime_entries' NOT FOUND in this database!"
+            )
+        else:
+            print(
+                f"✅ [DB DIAGNOSTICS] Found 'anime_entries' with {len(result)} columns. Checking suspects..."
+            )
+
+            # The columns most likely to cause the 1043 error
+            suspects = [
+                "watch_order",
+                "watch_order_rec",
+                "mal_rating",
+                "ep_total",
+                "ep_fin",
+                "mal_id",
+                "mal_rank",
+            ]
+
+            for row in result:
+                col_name = row[0]
+                data_type = row[1]
+                if col_name in suspects:
+                    print(
+                        f"   -> Column '{col_name}' is physically typed as: [{data_type}]"
+                    )
+
+    except Exception as e:
+        print(f"❌ [DB DIAGNOSTICS] Failed to run schema diagnostics: {e}")
+    finally:
+        db.close()
 
 
 @app.on_event("startup")
@@ -100,7 +154,13 @@ async def seed_admin_user():
 # ==========================================
 
 app.include_router(pages.router)
-app.include_router(auth.router, prefix="/api/v1")
 app.include_router(anime.router)
 app.include_router(series.router)
 app.include_router(admin.router)
+app.include_router(auth.router)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
