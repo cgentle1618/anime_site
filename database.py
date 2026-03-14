@@ -36,22 +36,14 @@ USE_LOCAL_OVERRIDE = RAW_DB_URL and "localhost" in RAW_DB_URL
 # --- THE SMART SWITCH LOGIC ---
 if INSTANCE_CONNECTION_NAME:
     # PRODUCTION: GCP Cloud Run via Unix Socket
-    SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@/{DB_NAME}?host=/cloudsql/{INSTANCE_CONNECTION_NAME}"
-    print(
-        f"🔗 [System] Cloud Mode: Connecting via Unix Socket to {INSTANCE_CONNECTION_NAME}"
-    )
+    SQLALCHEMY_DATABASE_URL = f"postgresql+pg8000://{USER}:{PASSWORD}@/{DB_NAME}?unix_sock=/cloudsql/{INSTANCE_CONNECTION_NAME}/.s.PGSQL.5432"
 elif RAW_DB_URL and not USE_LOCAL_OVERRIDE:
-    # CLOUD OVERRIDE: Using a full external URL (if provided in GCP console)
+    # LOCAL CLOUD PROXY: e.g. postgresql://user:pass@127.0.0.1:5432/db
     SQLALCHEMY_DATABASE_URL = RAW_DB_URL
-    print("🔗 [System] Cloud Override: Using provided DATABASE_URL")
 else:
-    # LOCAL DEVELOPMENT: Fallback to local network
-    HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
-    PORT = os.getenv("POSTGRES_PORT", "5432")
-    SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
-    print(f"🏠 [System] Local Mode: Connecting to {HOST}:{PORT}")
+    # FALLBACK LOCAL: Standard local Docker/Postgres
+    SQLALCHEMY_DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@localhost:5432/{DB_NAME}"
 
-# --- FINAL SAFETY CHECK ---
 # If we are in the cloud but still hitting localhost, we force a descriptive crash in the logs
 if os.getenv("K_SERVICE") and "localhost" in SQLALCHEMY_DATABASE_URL:
     print("❌ [CRITICAL] Cloud Run detected but INSTANCE_CONNECTION_NAME is missing!")
@@ -61,12 +53,17 @@ if os.getenv("K_SERVICE") and "localhost" in SQLALCHEMY_DATABASE_URL:
 # ENGINE INITIALIZATION
 # ==========================================
 
+# DEBUGGING: Safely log the connection string without leaking the password
+masked_url = SQLALCHEMY_DATABASE_URL.replace(PASSWORD, "******")
+print(f"🔧 [DB DEBUG] Connecting to: {masked_url}")
+
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
     pool_recycle=1800,
+    echo=True,  # <-- DEBUGGING ACTIVE: Will print raw SQL to Cloud Logs
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -89,10 +86,22 @@ def cleanup_old_logs(db, days_to_keep: int = 30) -> int:
 
     cutoff_date = get_taipei_now() - timedelta(days=days_to_keep)
     try:
-        deleted = db.query(SyncLog).filter(SyncLog.timestamp < cutoff_date).delete()
+        deleted = (
+            db.query(SyncLog)
+            .filter(SyncLog.timestamp < cutoff_date)
+            .delete(synchronize_session=False)
+        )
         db.commit()
         return deleted
     except Exception as e:
         db.rollback()
-        print(f"Error cleaning logs: {e}")
-        return 0
+        raise e
+
+
+def get_db():
+    """Yields a database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
