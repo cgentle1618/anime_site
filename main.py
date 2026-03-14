@@ -5,7 +5,9 @@ Handles app initialization, modular router registration, static file serving, an
 """
 
 import os
-from fastapi import FastAPI
+import traceback
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -26,6 +28,31 @@ app = FastAPI(
     description="A professional-grade backend for anime tracking with RBAC and Local Image Serving.",
     version="2.0.0",
 )
+
+
+# --- THE GLOBAL OSCILLOSCOPE (DEBUGGER) ---
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Catches ANY unhandled 500 error, prints the exact Python traceback to GCP Logs,
+    and returns the error message directly to the browser screen for instant debugging.
+    """
+    print(
+        f"🔥 [CRITICAL 500 ERROR] Failed at: {request.method} {request.url}", flush=True
+    )
+    print("👇 --- TRACEBACK BEGIN --- 👇", flush=True)
+    traceback.print_exc()
+    print("👆 --- TRACEBACK END --- 👆", flush=True)
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "CRITICAL 500 ERROR",
+            "error_message": str(exc),
+            "endpoint": str(request.url),
+        },
+    )
+
 
 # Mount the static directory so FastAPI can serve local images
 app.mount("/static", StaticFiles(directory="static"), name="static")

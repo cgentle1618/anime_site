@@ -38,6 +38,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    print(
+        f"🚀 [ALEMBIC DEBUG] Attempting connection to: {SQLALCHEMY_DATABASE_URL}",
+        flush=True,
+    )
+
     # Build configuration to use the dynamic URL from database.py
     configuration = config.get_section(config.config_ini_section, {})
 
@@ -54,8 +59,17 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
 
-        with context.begin_transaction():
-            context.run_migrations()
+        try:
+            with context.begin_transaction():
+                context.run_migrations()
+            print(
+                "✅ [ALEMBIC SUCCESS] All database migrations applied perfectly!",
+                flush=True,
+            )
+        except Exception as e:
+            print(f"❌ [ALEMBIC FATAL CRASH] Migrations failed to apply:", flush=True)
+            print(str(e), flush=True)
+            raise e
 
 
 # Execute migrations
