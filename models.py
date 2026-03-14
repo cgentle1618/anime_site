@@ -1,6 +1,7 @@
 """
 models.py
 Defines the SQLAlchemy ORM models representing the physical tables in the PostgreSQL database.
+Perfectly aligned with the V2 CSV database exports and schemas.py.
 """
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
@@ -19,87 +20,107 @@ class User(Base):
     role = Column(String, default="admin")
 
 
+class AnimeSeries(Base):
+    """Represents a Series Hub that groups multiple entries/seasons together."""
+
+    __tablename__ = "anime_series"
+
+    # Aligned exactly to the 10 columns found in studio_results_20260314_1747.csv
+    system_id = Column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True
+    )
+    series_en = Column(String, unique=True, index=True)
+    series_roman = Column(String)
+    series_cn = Column(String)
+    rating_series = Column(String)
+    series_alt_name = Column(String)
+    series_expectation = Column(String)
+    favorite_3x3_slot = Column(Integer, nullable=True)
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+
 class AnimeEntry(Base):
-    """Represents a single anime season, movie, or OVA."""
+    """Represents a specific season, movie, or entry within an Anime Series."""
 
     __tablename__ = "anime_entries"
 
-    system_id = Column(String, primary_key=True, index=True)
+    # Aligned exactly to the 47 columns found in studio_results_20260314_1740.csv
+    system_id = Column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True
+    )
     series_en = Column(String, index=True)
+
+    # Title Information
     series_season_en = Column(String)
     series_season_roman = Column(String)
     series_season_cn = Column(String)
     anime_alt_name = Column(String)
+
+    # Format & Status
     series_season = Column(String)
     airing_type = Column(String)
     my_progress = Column(String)
     airing_status = Column(String)
+
+    # Progress Tracking
     ep_total = Column(Integer)
-    ep_fin = Column(Integer)
+    ep_fin = Column(Integer, default=0)
     rating_mine = Column(String)
     main_spinoff = Column(String)
 
-    release_month = Column(String)
-    release_season = Column(String)
-    release_year = Column(String)
+    # Release Information
+    release_month = Column(String, nullable=True)
+    release_season = Column(String, nullable=True)
+    release_year = Column(String, nullable=True)
 
+    # Staff & Production
     studio = Column(String)
     director = Column(String)
     producer = Column(String)
     music = Column(String)
     distributor_tw = Column(String)
+
+    # Metadata & Themes
     genre_main = Column(String)
     genre_sub = Column(String)
-
     prequel = Column(String)
     sequel = Column(String)
     alternative = Column(String)
-    watch_order = Column(Float)
-    watch_order_rec = Column(String)
-    remark = Column(String)
 
-    mal_id = Column(String)
+    # Timeline
+    watch_order = Column(Float, nullable=True)
+    watch_order_rec = Column(Float, nullable=True)
+    remark = Column(Text)
+
+    # External Stats
+    mal_id = Column(Integer, nullable=True)
     mal_link = Column(String)
-    mal_rating = Column(Float, nullable=True)  # <-- Added for Strong Sync
-    mal_rank = Column(String, nullable=True)  # <-- Added for Strong Sync
+    mal_rating = Column(Float, nullable=True)
+    mal_rank = Column(Integer, nullable=True)
     anilist_link = Column(String)
 
+    # Music & Cast
     op = Column(String)
     ed = Column(String)
     insert_ost = Column(String)
     seiyuu = Column(String)
 
-    source_baha = Column(String)
-    baha_link = Column(String, nullable=True)
+    # Streaming & Assets
+    source_baha = Column(Boolean, nullable=True)
+    baha_link = Column(String)
     source_other = Column(String)
     source_other_link = Column(String)
-    source_netflix = Column(Boolean, default=False)
+    source_netflix = Column(Boolean, nullable=True)
     cover_image_file = Column(String)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
 
-class AnimeSeries(Base):
-    """Represents a high-level Franchise Hub grouping multiple AnimeEntries."""
-
-    __tablename__ = "anime_series"
-
-    system_id = Column(String, primary_key=True, index=True)
-    series_en = Column(String, index=True)
-    series_roman = Column(String)
-    series_cn = Column(String)
-    rating_series = Column(String)
-    series_alt_name = Column(String)
-    series_expectation = Column(String)
-    favorite_3x3_slot = Column(Integer)
-
-    created_at = Column(DateTime, default=get_taipei_now)
-    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-
-
 class SyncLog(Base):
-    """Stores the audit trail of synchronization events between Google Sheets and PostgreSQL."""
+    """Stores the audit trail of synchronization events."""
 
     __tablename__ = "sync_logs"
 
@@ -127,10 +148,10 @@ class DeletedRecord(Base):
 
 
 class SystemOption(Base):
-    """Stores dynamic system options for dropdowns (Studio, Genre, etc.)"""
+    """Stores dynamic dropdown options for the frontend (e.g., formats, statuses)."""
 
     __tablename__ = "system_options"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    category = Column(String, index=True)
-    option_value = Column(String)
+    category = Column(String, index=True, nullable=False)
+    option_value = Column(String, nullable=False)
