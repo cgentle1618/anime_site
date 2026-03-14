@@ -30,48 +30,7 @@ def get_all_anime(db: Session = Depends(get_db)):
     Retrieves the complete list of all anime entries stored in the PostgreSQL database.
     Used to populate the main dashboard and library data grids.
     """
-    try:
-        # Attempt the normal fetch
-        return db.query(models.AnimeEntry).all()
-    except Exception as e:
-        error_str = str(e)
-        print(f"CRITICAL DB ERROR ON FETCH: {error_str}")
-        db.rollback()  # Reset the broken transaction state
-
-        # THE DIAGNOSTIC METAL DETECTOR
-        # If the main query fails, we test every single column one by one
-        failed_columns = []
-        for column in models.AnimeEntry.__table__.columns:
-            try:
-                # Attempt to fetch just this ONE column from the database
-                db.query(getattr(models.AnimeEntry, column.name)).first()
-            except Exception as col_e:
-                db.rollback()  # Must rollback after a failure to continue testing
-                failed_columns.append(
-                    {
-                        "column_name": column.name,
-                        "expected_python_type": str(column.type),
-                        "specific_error": str(col_e),
-                    }
-                )
-
-        # Return the exact culprit to the browser network tab
-        if failed_columns:
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "error_type": "Schema Type Mismatch",
-                    "original_error": error_str,
-                    "failed_columns": failed_columns,
-                    "message": "The database handed a VARCHAR to a Python field expecting a Number/Boolean.",
-                },
-            )
-
-        # Fallback if the loop didn't catch a specific column
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database fetch failed, but not on a specific column. Error: {error_str}",
-        )
+    return db.query(models.AnimeEntry).all()
 
 
 @router.get(
@@ -81,91 +40,22 @@ def get_all_anime(db: Session = Depends(get_db)):
 )
 def get_anime_by_series_name(series_name: str, db: Session = Depends(get_db)):
     """
-    Performs a case-insensitive lookup to find all anime entries belonging to a specific series.
+    Performs a case-insensitive lookup for all anime belonging to a specific franchise.
+    Used primarily for displaying the 'Individual Entries' list on the Series Hub page.
     """
-    animes = (
+    return (
         db.query(models.AnimeEntry)
         .filter(models.AnimeEntry.series_en.ilike(f"%{series_name}%"))
         .all()
     )
-    return animes
 
 
-@router.get("/{system_id}", response_model=schemas.AnimeEntryResponse)
-def read_anime(system_id: str, db: Session = Depends(get_db)):
-    """Fetch a specific anime entry by its system_id."""
-    anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if anime is None:
-        raise HTTPException(status_code=404, detail="Anime entry not found")
-    return anime
-
-
-# ==========================================
-# WRITE OPERATIONS
-# ==========================================
-
-
-@router.post("/", response_model=schemas.AnimeEntryResponse)
-def create_anime(anime: schemas.AnimeEntryCreate, db: Session = Depends(get_db)):
-    """Create a new anime entry."""
-    db_anime = models.AnimeEntry(**anime.model_dump(exclude_none=True))
-    db.add(db_anime)
-    db.commit()
-    db.refresh(db_anime)
-    return db_anime
-
-
-@router.put("/{system_id}", response_model=schemas.AnimeEntryResponse)
-def update_anime(
-    system_id: str, anime: schemas.AnimeEntryUpdate, db: Session = Depends(get_db)
-):
-    """Update an existing anime entry."""
-    db_anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if db_anime is None:
-        raise HTTPException(status_code=404, detail="Anime entry not found")
-
-    update_data = anime.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_anime, key, value)
-
-    db.commit()
-    db.refresh(db_anime)
-    return db_anime
-
-
-@router.delete("/{system_id}")
-def delete_anime(system_id: str, db: Session = Depends(get_db)):
-    """Delete an anime entry."""
-    db_anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if db_anime is None:
-        raise HTTPException(status_code=404, detail="Anime entry not found")
-
-    db.delete(db_anime)
-    db.commit()
-    return {"message": "Anime entry deleted successfully"}
-
-
-# ==========================================
-# AUTO-FILL & METADATA
-# ==========================================
-
-
-@router.post("/{system_id}/autofill", summary="Auto-fill Missing MAL Data")
-def autofill_anime_data(system_id: str, db: Session = Depends(get_db)):
+@router.get(
+    "/{system_id}", response_model=schemas.AnimeEntryResponse, summary="Get Anime by ID"
+)
+def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
     """
-    Fetches data from MAL/Jikan API and fills in missing fields in the database.
+    Retrieves a single anime entry by its unique system ID.
     """
     anime = (
         db.query(models.AnimeEntry)
@@ -173,23 +63,143 @@ def autofill_anime_data(system_id: str, db: Session = Depends(get_db)):
         .first()
     )
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime entry not found")
+        raise HTTPException(status_code=404, detail="Anime not found.")
+    return anime
+
+
+@router.get(
+    "/alias/{alias_name}",
+    response_model=schemas.AnimeEntryResponse,
+    summary="Get Anime by Alias",
+)
+def get_anime_details_alias(alias_name: str, db: Session = Depends(get_db)):
+    """
+    Retrieves a single anime entry by its alias/alternative name.
+    """
+    anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.anime_alt_name == alias_name)
+        .first()
+    )
+    if not anime:
+        raise HTTPException(status_code=404, detail="Anime not found.")
+    return anime
+
+
+# ==========================================
+# UPDATE OPERATIONS
+# ==========================================
+
+
+@router.patch("/{system_id}", summary="Update Anime Progress")
+def update_anime_progress(
+    system_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """
+    Updates specific progress or tracking fields for an anime entry.
+    Changes are saved to the database and synced to Google Sheets immediately to maintain parity.
+    """
+    anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not anime:
+        raise HTTPException(status_code=404, detail="Anime not found.")
+
+    # Define fields that the frontend is permitted to update via PATCH
+    allowed_fields = [
+        "ep_fin",
+        "my_progress",
+        "rating_mine",
+        "remark",
+        "op",
+        "ed",
+        "insert_ost",
+    ]
+    updated_fields = {}
+
+    for field in allowed_fields:
+        if field in payload:
+            val = payload[field]
+
+            # Standardize JavaScript 'null' strings back to Python None types
+            if val == "null":
+                val = None
+
+            setattr(anime, field, val)
+            updated_fields[field] = val
+
+    if not updated_fields:
+        raise HTTPException(status_code=400, detail="No valid update fields provided.")
+
+    # Persist changes to PostgreSQL
+    db.commit()
+
+    # Synchronize the specific changed fields directly to Google Sheets
+    try:
+        for field, val in updated_fields.items():
+            sheets_client.update_anime_field_in_sheet(system_id, field, val)
+    except Exception as e:
+        # We handle sheet sync failures silently here to ensure the DB still updates
+        print(f"Sheet Sync Error on Patch: {e}")
+
+    return anime
+
+
+# ==========================================
+# V2 METADATA AUTO-FILL
+# ==========================================
+
+
+@router.post("/{system_id}/fetch-mal", summary="Fetch and Auto-fill Metadata from MAL")
+def fetch_and_fill_mal_data(
+    system_id: str,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """
+    Fetches metadata from Jikan API using the anime's mal_id.
+    Downloads the cover image and applies Basic Sync (only fills empty fields)
+    for release dates and Netflix status.
+    """
+    anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not anime:
+        raise HTTPException(status_code=404, detail="Anime not found.")
 
     if not anime.mal_id:
         raise HTTPException(
-            status_code=400, detail="Cannot auto-fill without a MAL ID."
+            status_code=400, detail="No MAL ID associated with this anime."
         )
 
-    mal_data = jikan_client.fetch_anime_details(anime.mal_id)
+    try:
+        mal_id_int = int(anime.mal_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid MAL ID format.")
+
+    # 1. Fetch data and download image
+    mal_data = jikan_client.fetch_mal_data(mal_id_int, system_id)
     if not mal_data:
         raise HTTPException(
-            status_code=500, detail="Failed to fetch data from Jikan API"
+            status_code=500,
+            detail="Failed to fetch data from Jikan API or rate limited.",
         )
 
     updated_fields = {}
 
-    # Fill missing fields
-    # Dates (Only fill if missing)
+    # 2. Update Cover Image File
+    if mal_data.get("cover_image_file"):
+        anime.cover_image_file = mal_data["cover_image_file"]
+        updated_fields["cover_image_file"] = anime.cover_image_file
+
+    # 3. Apply Basic Sync for Dates (Only fill if missing)
     if not anime.release_year and mal_data.get("release_year"):
         anime.release_year = mal_data["release_year"]
         updated_fields["release_year"] = anime.release_year
@@ -218,12 +228,10 @@ def autofill_anime_data(system_id: str, db: Session = Depends(get_db)):
         for field, val in updated_fields.items():
             sheets_client.update_anime_field_in_sheet(system_id, field, val)
     except Exception as e:
-        print(
-            f"Warning: Failed to sync {updated_fields} to Sheets for {system_id}: {e}"
-        )
+        print(f"Warning: Failed to sync MAL updates to sheets for {system_id}: {e}")
 
     return {
-        "message": "Successfully auto-filled missing data",
-        "updated_fields": updated_fields,
+        "message": "Successfully auto-filled metadata from MAL.",
+        "updated_fields": list(updated_fields.keys()),
         "anime": anime,
     }
