@@ -67,64 +67,12 @@ def add_anime(
         elif payload.series_season_cn:
             calculated_season = extract_season_from_cn_title(payload.series_season_cn)
 
-    # 3. Create the Database Entry
-    new_entry = models.AnimeEntry(
-        system_id=str(uuid.uuid4()),
-        series_en=payload.series_en,
-        # Title Information
-        series_season_en=payload.series_season_en,
-        series_season_roman=payload.series_season_roman,
-        series_season_cn=payload.series_season_cn,
-        anime_alt_name=payload.anime_alt_name,
-        # Format & Status
-        series_season=calculated_season,
-        airing_type=payload.airing_type,
-        my_progress=payload.my_progress,
-        airing_status=payload.airing_status,
-        # Progress
-        ep_total=payload.ep_total,
-        ep_fin=payload.ep_fin,
-        rating_mine=payload.rating_mine,
-        main_spinoff=payload.main_spinoff,
-        # Release Information
-        release_month=payload.release_month,
-        release_season=payload.release_season,
-        release_year=payload.release_year,
-        # Staff & Production
-        studio=payload.studio,
-        director=payload.director,
-        producer=payload.producer,
-        music=payload.music,
-        distributor_tw=payload.distributor_tw,
-        # Metadata & Themes
-        genre_main=payload.genre_main,
-        genre_sub=payload.genre_sub,
-        prequel=payload.prequel,
-        sequel=payload.sequel,
-        alternative=payload.alternative,
-        # Timeline
-        watch_order=payload.watch_order,
-        watch_order_rec=payload.watch_order_rec,
-        remark=payload.remark,
-        # External Stats
-        mal_id=payload.mal_id,
-        mal_link=payload.mal_link,
-        mal_rating=payload.mal_rating,
-        mal_rank=payload.mal_rank,
-        anilist_link=payload.anilist_link,
-        # Music & Cast
-        op=payload.op,
-        ed=payload.ed,
-        insert_ost=payload.insert_ost,
-        seiyuu=payload.seiyuu,
-        # Streaming & Assets
-        source_baha=payload.source_baha,
-        baha_link=payload.baha_link,
-        source_other=payload.source_other,
-        source_other_link=payload.source_other_link,
-        source_netflix=payload.source_netflix,
-        cover_image_file=payload.cover_image_file,
-    )
+    # 3. Create the Database Entry dynamically (DRY Principle)
+    entry_data = payload.model_dump()
+    entry_data["system_id"] = str(uuid.uuid4())
+    entry_data["series_season"] = calculated_season
+
+    new_entry = models.AnimeEntry(**entry_data)
 
     db.add(new_entry)
     db.commit()
