@@ -182,7 +182,7 @@
               id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
-              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Sync
+              <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Backup
             </button>
             <button
               onclick="executeLogout()"
@@ -494,21 +494,21 @@
 
         icon.classList.add("fa-spin");
         btn.classList.add("opacity-75", "pointer-events-none");
-        btn.innerText = " Syncing...";
+        btn.innerText = " Backing up...";
         btn.prepend(icon);
 
         try {
           // V2: Target the specific Sheets Sync endpoint
-          const response = await fetch(`/api/admin/sync/basic`, { method: "POST" });
+          const response = await fetch(`/api/admin/sync/backup`, { method: "POST" });
 
           if (response.ok) {
             icon.classList.remove("fa-spin", "fa-sync-alt");
             icon.classList.add("fa-check");
             btn.classList.remove("bg-brand", "hover:bg-brand-hover", "opacity-75", "pointer-events-none");
             btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
-            btn.innerText = " Synced!";
+            btn.innerText = " Backed up!";
             btn.prepend(icon);
-            showToast("Database updated and backed up to Google Sheets!");
+            showToast("Simple auto fill is done and data is cleaned. Database backed up to Google Sheets!");
 
             // Refresh the dashboard data (if on index page) and the global search cache
             if (typeof loadDashboard === 'function') await loadDashboard();
@@ -519,7 +519,7 @@
                 icon.classList.add("fa-sync-alt");
                 btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
                 btn.classList.add("bg-brand", "hover:bg-brand-hover");
-                btn.innerText = " Sync";
+                btn.innerText = " Backup";
                 btn.prepend(icon);
             }, 2000);
           } else {
@@ -528,7 +528,7 @@
         } catch (error) {
           icon.classList.remove("fa-spin");
           btn.classList.remove("opacity-75", "pointer-events-none");
-          btn.innerText = " Sync";
+          btn.innerText = " Backup";
           btn.prepend(icon);
           showToast(`Sync Error: ${error.message}`, true);
         }
