@@ -149,6 +149,39 @@ def add_series(
     }
 
 
+@router.put("/series/{system_id}", summary="Update Series Hub")
+def update_series_hub(
+    system_id: str,
+    payload: schemas.AnimeSeriesUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Updates an existing Anime Series Hub and queues a Google Sheets backup."""
+    db_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not db_series:
+        raise HTTPException(status_code=404, detail="Series Hub not found.")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data.pop(
+        "system_id", None
+    )  # Prevent accidental overwrites of the primary key
+
+    for key, value in update_data.items():
+        setattr(db_series, key, value)
+
+    db.commit()
+    db.refresh(db_series)
+
+    print(f"▶️ Admin updated Series Hub {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_series_backup_to_sheets, db)
+
+    return {"message": "Series Hub updated successfully.", "system_id": system_id}
+
+
 @router.get(
     "/options/{category}",
     response_model=List[schemas.SystemOptionResponse],
@@ -216,6 +249,54 @@ def add_system_option(
     }
 
 
+@router.put("/options/{option_id}", summary="Update System Option")
+def update_system_option(
+    option_id: int,
+    payload: schemas.SystemOptionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Updates a dynamic system option and queues a Google Sheets backup."""
+    db_option = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.id == option_id)
+        .first()
+    )
+    if not db_option:
+        raise HTTPException(status_code=404, detail="System option not found.")
+
+    # Prevent accidental duplicates during edit
+    if (
+        db_option.category != payload.category
+        or db_option.option_value != payload.option_value
+    ):
+        existing_option = (
+            db.query(models.SystemOption)
+            .filter(
+                models.SystemOption.category == payload.category,
+                models.SystemOption.option_value == payload.option_value,
+            )
+            .first()
+        )
+        if existing_option:
+            raise HTTPException(
+                status_code=400, detail="This option already exists in this category."
+            )
+
+    db_option.category = payload.category
+    db_option.option_value = payload.option_value
+
+    db.commit()
+    db.refresh(db_option)
+
+    print(
+        f"▶️ Admin updated Option {option_id} to '{payload.option_value}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_options_backup_to_sheets, db)
+
+    return {"message": "System option updated successfully.", "id": option_id}
+
+
 @router.delete("/options/{option_id}", summary="Delete System Option")
 def delete_system_option(
     option_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
@@ -241,6 +322,40 @@ def delete_system_option(
     background_tasks.add_task(_push_options_backup_to_sheets, db)
 
     return {"message": "System option deleted successfully.", "id": option_id}
+
+
+@router.put("/anime/{system_id}", summary="Update Anime Entry")
+def update_anime_entry(
+    system_id: str,
+    payload: schemas.AnimeEntryUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Updates an existing Anime entry and queues a Google Sheets backup."""
+    db_anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    # Convert payload to dictionary, ignoring fields that weren't included in the request
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data.pop(
+        "system_id", None
+    )  # Prevent accidental overwrites of the primary key
+
+    for key, value in update_data.items():
+        setattr(db_anime, key, value)
+
+    db.commit()
+    db.refresh(db_anime)
+
+    print(f"▶️ Admin updated Anime Entry {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_db_backup_to_sheets, db)
+
+    return {"message": "Anime entry updated successfully.", "system_id": system_id}
 
 
 @router.delete("/anime/{system_id}", summary="Delete Anime Entry")
