@@ -108,6 +108,45 @@ def add_anime(
     }
 
 
+@router.post("/series", summary="Add New Series Hub")
+def add_series(
+    payload: schemas.AnimeSeriesCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Explicitly adds a new Anime Series Hub to the PostgreSQL database.
+    Triggers a background task to bulk push the updated Series table to Google Sheets.
+    """
+    # 1. Check for duplicates
+    existing_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.series_en == payload.series_en)
+        .first()
+    )
+    if existing_series:
+        raise HTTPException(status_code=400, detail="Series Hub already exists.")
+
+    # 2. Insert into PostgreSQL
+    series_data = payload.model_dump(exclude_none=True)
+    series_data["system_id"] = str(uuid.uuid4())
+
+    new_series = models.AnimeSeries(**series_data)
+    db.add(new_series)
+    db.commit()
+
+    # 3. Push Backup to Google Sheets
+    print(
+        f"▶️ Admin explicitly added Series '{new_series.series_en}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_series_backup_to_sheets, db)
+
+    return {
+        "message": "Series Hub added successfully and is backing up to Sheets.",
+        "system_id": new_series.system_id,
+    }
+
+
 @router.get(
     "/options/{category}",
     response_model=List[schemas.SystemOptionResponse],
