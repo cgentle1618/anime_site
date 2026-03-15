@@ -294,13 +294,10 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       if (!IS_ADMIN_INDEX) return;
       let typedLocal = parseInt(val, 10);
 
-      if (isNaN(typedLocal)) {
+      if (isNaN(typedLocal) || typedLocal < 0) {
           renderDashboard(); // Revert invalid input instantly
           return;
       }
-
-      // The input strictly modifies local ep_fin
-      if (typedLocal < 0) typedLocal = 0;
 
       setEpisodeProgress(sys_id, typedLocal);
   }
@@ -312,13 +309,17 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
       const anime = allAnimeData[index];
       const currentLocalEps = anime.ep_fin || 0;
-      const totalLocalEps = anime.ep_total;
+
+      // Safely parse totalLocalEps handling the "?" placeholder
+      const totalLocalEps = (anime.ep_total !== null && anime.ep_total !== "?") ? parseInt(anime.ep_total, 10) : null;
 
       let targetLocalEps = currentLocalEps + change;
 
       // Silently cap for button clicks to prevent annoying popups based on local caps
-      if (totalLocalEps && targetLocalEps > totalLocalEps) targetLocalEps = totalLocalEps;
+      if (totalLocalEps !== null && targetLocalEps > totalLocalEps) targetLocalEps = totalLocalEps;
       if (targetLocalEps < 0) targetLocalEps = 0;
+
+      if (targetLocalEps === currentLocalEps) return;
 
       setEpisodeProgress(sys_id, targetLocalEps);
   }
@@ -330,41 +331,46 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
       const anime = allAnimeData[index];
       const currentLocalEps = anime.ep_fin || 0;
-      const totalLocalEps = anime.ep_total;
 
-      if (newLocalEps < 0) newLocalEps = 0;
+      // Safely parse totalLocalEps handling the "?" placeholder
+      const totalLocalEps = (anime.ep_total !== null && anime.ep_total !== "?") ? parseInt(anime.ep_total, 10) : null;
+
+      let target = newLocalEps;
+      if (target < 0) target = 0;
 
       // Warning for Direct Input Overflow (Local Check)
-      if (totalLocalEps && newLocalEps > totalLocalEps) {
-          if (typeof showToast === 'function') showToast(`Warning: Cannot set watched episodes higher than the season's maximum.`, true);
+      if (totalLocalEps !== null && target > totalLocalEps) {
+          if (typeof showToast === 'function') showToast(`Warning: Cannot exceed total episodes.`, true);
           renderDashboard(); // Reset UI safely
           return;
       }
 
-      if (newLocalEps === currentLocalEps) {
+      if (target === currentLocalEps) {
           renderDashboard(); // Ensure UI is completely clean
           return;
       }
 
       // 1. Optimistic Update
-      allAnimeData[index].ep_fin = newLocalEps;
+      allAnimeData[index].ep_fin = target;
       renderDashboard();
 
-      // 2. Background API Request
+      // 2. Background API Request (Targeting the correct universal PATCH endpoint)
       try {
-          const res = await fetch(`/api/anime/${sys_id}/progress`, {
+          const res = await fetch(`/api/anime/${sys_id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ep_fin: newLocalEps })
+              body: JSON.stringify({ ep_fin: target })
           });
 
           if (!res.ok) throw new Error((await res.json()).detail || "Failed to sync to database");
+
+          if (typeof showToast === 'function') showToast("Episodes updated successfully!");
 
       } catch (error) {
           console.error("Optimistic Update Failed:", error);
           allAnimeData[index].ep_fin = currentLocalEps;
           renderDashboard();
-          showToast("Network error. Progress reverted.", true);
+          if (typeof showToast === 'function') showToast("Network error. Progress reverted.", true);
       }
   }
 
