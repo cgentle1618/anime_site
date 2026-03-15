@@ -394,8 +394,18 @@ def action_fill(db: Session) -> dict:
             .all()
         )
 
+        total_entries = len(entries)
+        print(
+            f"   ↳ Found {total_entries} entries missing data. Estimated time: {total_entries * 1.2:.1f}s"
+        )
+
         filled_count = 0
-        for entry in entries:
+        for idx, entry in enumerate(entries, 1):
+            title_display = entry.series_en or str(entry.system_id)[:8]
+            print(
+                f"   ↳ [{idx}/{total_entries}] Fetching MAL {entry.mal_id} for '{title_display}'..."
+            )
+
             try:
                 jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
                 if jikan_data:
@@ -416,7 +426,10 @@ def action_fill(db: Session) -> dict:
                             changed = True
 
                     if changed:
+                        print(f"        [+] Successfully filled missing fields.")
                         filled_count += 1
+                    else:
+                        print(f"        [-] No valid missing fields found on Jikan.")
 
                 time.sleep(1.2)  # Jikan Rate Limit
             except Exception as e:
@@ -445,9 +458,19 @@ def action_replace(db: Session) -> dict:
         _autofill_missing_data(db)
 
         entries = db.query(AnimeEntry).filter(AnimeEntry.mal_id.isnot(None)).all()
+        total_entries = len(entries)
+        print(
+            f"   ↳ Found {total_entries} entries to update. Estimated time: {total_entries * 1.2:.1f}s"
+        )
+
         replaced_count = 0
 
-        for entry in entries:
+        for idx, entry in enumerate(entries, 1):
+            title_display = entry.series_en or str(entry.system_id)[:8]
+            print(
+                f"   ↳ [{idx}/{total_entries}] Updating MAL {entry.mal_id} for '{title_display}'..."
+            )
+
             try:
                 jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
                 if jikan_data:
@@ -472,7 +495,10 @@ def action_replace(db: Session) -> dict:
                             changed = True
 
                     if changed:
+                        print(f"        [+] Updated stats/cover successfully.")
                         replaced_count += 1
+                    else:
+                        print(f"        [-] Data already up-to-date.")
 
                 time.sleep(1.2)  # Jikan Rate Limit
             except Exception as e:
