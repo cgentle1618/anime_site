@@ -8,9 +8,10 @@ Optimized for V2 (PostgreSQL as Source of Truth).
 import uuid
 import json
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, requests
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from google.cloud import storage
+import urllib.request
 
 import models
 import schemas
@@ -529,14 +530,18 @@ def cleanup_logs(days: int = 30, db: Session = Depends(get_db)):
 def test_cloud_storage_bucket():
     """
     Diagnostic endpoint to forcefully test if Cloud Run has permission
-    to write to the cg1618-anime-covers bucket.
+    to write to the cg1618-anime-covers bucket, bypassing the requests library.
     """
     try:
-        # 1. Download a random test image (Frieren cover)
+        # 1. Download a random test image using built-in urllib (avoids requests collision)
         test_url = "https://cdn.myanimelist.net/images/anime/1015/138006l.jpg"
-        img_response = requests.get(test_url, timeout=10)
-        img_response.raise_for_status()
-        image_bytes = img_response.content
+        req = urllib.request.Request(
+            test_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+        )
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            image_bytes = response.read()
 
         # 2. Instantiate Google Cloud Storage Client
         client = storage.Client()
