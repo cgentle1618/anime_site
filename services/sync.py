@@ -422,14 +422,18 @@ def action_fill(db: Session) -> dict:
 
                     # Only attempt to extract scores if it's actually released
                     if not is_not_yet_aired:
-                        if not entry.mal_rating and jikan_data.get("score"):
-                            entry.mal_rating = clean_value(
-                                jikan_data.get("score"), float
+                        if entry.mal_rating is None:
+                            new_score = clean_value(jikan_data.get("score"), float)
+                            # Assign 0.0 as sentinel if Jikan has no score (removes NULL to prevent loop)
+                            entry.mal_rating = (
+                                new_score if new_score is not None else 0.0
                             )
                             changed = True
 
-                        if not entry.mal_rank and jikan_data.get("rank"):
-                            entry.mal_rank = clean_value(jikan_data.get("rank"), int)
+                        if entry.mal_rank is None:
+                            new_rank = clean_value(jikan_data.get("rank"), int)
+                            # Assign 0 as sentinel if Jikan has no rank (removes NULL to prevent loop)
+                            entry.mal_rank = new_rank if new_rank is not None else 0
                             changed = True
 
                     # Always attempt to fill missing covers, even if unreleased
@@ -495,14 +499,14 @@ def action_replace(db: Session) -> dict:
                 if jikan_data:
                     changed = False
 
-                    # Unconditional replace for rating and rank
+                    # Unconditional replace for rating and rank (Ensuring robust None checks)
                     new_score = clean_value(jikan_data.get("score"), float)
-                    if new_score and entry.mal_rating != new_score:
+                    if new_score is not None and entry.mal_rating != new_score:
                         entry.mal_rating = new_score
                         changed = True
 
                     new_rank = clean_value(jikan_data.get("rank"), int)
-                    if new_rank and entry.mal_rank != new_rank:
+                    if new_rank is not None and entry.mal_rank != new_rank:
                         entry.mal_rank = new_rank
                         changed = True
 
