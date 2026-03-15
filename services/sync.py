@@ -7,28 +7,22 @@ Strictly aligned with models.py and schemas.py typing.
 """
 
 import uuid
-import json
 import time
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
-from database import get_taipei_now
-import models
+from models import AnimeEntry, AnimeSeries, SystemOption
 import schemas
-from models import AnimeEntry, SyncLog, AnimeSeries
 from services.sync_utils import (
     clean_value,
     extract_season_from_title,
     extract_season_from_cn_title,
 )
-from services.sheets_client import (
-    execute_with_retry,
-    bulk_overwrite_sheet,
-    get_all_rows,
-)
+from services.sheets_client import bulk_overwrite_sheet, get_all_rows
 import services.jikan_client as jikan_client
+from services.image_manager import download_cover_image
 
 # ==========================================
 # CONSTANTS: EXACT V2 GOOGLE SHEET HEADERS
@@ -83,7 +77,6 @@ ANIME_HEADERS = [
     "updated_at",
 ]
 
-# Headers for the AnimeSeries (Hub) Backup
 SERIES_HEADERS = [
     "system_id",
     "series_en",
@@ -97,37 +90,11 @@ SERIES_HEADERS = [
     "updated_at",
 ]
 
-# Headers for the System Options Backup
 OPTIONS_HEADERS = ["id", "category", "option_value"]
 
 # ==========================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (CALCULATION & FORMATTING)
 # ==========================================
-
-
-def log_sync_event(
-    db: Session,
-    sync_type: str,
-    status: str,
-    added: int = 0,
-    updated: int = 0,
-    deleted: int = 0,
-    error: str = None,
-    details_json: str = None,
-):
-    """Logs the sync results into the database audit trail."""
-    new_log = SyncLog(
-        timestamp=get_taipei_now(),
-        sync_type=sync_type,
-        status=status,
-        rows_added=added,
-        rows_updated=updated,
-        rows_deleted=deleted,
-        error_message=error,
-        details_json=details_json,
-    )
-    db.add(new_log)
-    db.commit()
 
 
 def _extract_mal_id_from_link(mal_link: str) -> int | None:
@@ -151,49 +118,20 @@ def _format_for_sheet(val: any, expected_type: type) -> str:
     return str(val)
 
 
-# ==========================================
-# CORE SYNC WORKERS
-# ==========================================
-
-
-def _pull_new_manual_entries(db: Session) -> int:
-    """
-    Pulls data from Google Sheets.
-    If a row has no system_id, it is treated as a new manual entry, parsed, and saved to the DB.
-    """
-    try:
-        data_rows = get_all_rows("Anime")
-        if not data_rows:
-            return 0
-
-        added_count = 0
-
-        for row_data in data_rows:
-            if (
-                not row_data.get("system_id")
-                or str(row_data.get("system_id")).strip() == ""
-            ):
-
-                if not row_data.get("series_en"):
-                    continue
-
-                validated_data = schemas.AnimeSheetSync(**row_data)
-                validated_data.system_id = str(uuid.uuid4())
-
-                new_entry = AnimeEntry(**validated_data.model_dump(exclude_none=True))
-                db.add(new_entry)
-                added_count += 1
-
-        db.commit()
-        return added_count
-    except Exception as e:
-        print(f"❌ Error pulling manual entries: {e}")
-        db.rollback()
-        return 0
+def _extract_jikan_image(jikan_data: dict) -> str | None:
+    """Safely extracts the high-res cover image URL from a Jikan API response."""
+    images = jikan_data.get("images", {})
+    jpg = images.get("jpg", {})
+    return (
+        jpg.get("large_image_url")
+        or jpg.get("image_url")
+        or jikan_data.get("image_url")
+    )
 
 
 def _autofill_missing_data(db: Session) -> int:
     """
+    Core Calculation Step:
     Fills in easily calculable missing fields within the database without heavy API calls.
     """
     updated_count = 0
@@ -202,18 +140,26 @@ def _autofill_missing_data(db: Session) -> int:
     for entry in entries:
         changed = False
 
+        # Fill missing system_id (Edge case safety)
+        if not entry.system_id or str(entry.system_id).strip() == "":
+            entry.system_id = str(uuid.uuid4())
+            changed = True
+
+        # Extract MAL ID from Link
         if not entry.mal_id and entry.mal_link:
             extracted_id = _extract_mal_id_from_link(entry.mal_link)
             if extracted_id:
                 entry.mal_id = extracted_id
                 changed = True
 
+        # Extract Season from English Title
         if not entry.series_season and entry.series_season_en:
             season_str = extract_season_from_title(entry.series_season_en)
             if season_str:
                 entry.series_season = season_str
                 changed = True
 
+        # Extract Season from Chinese Title Fallback
         if not entry.series_season and entry.series_season_cn:
             season_str = extract_season_from_cn_title(entry.series_season_cn)
             if season_str:
@@ -227,11 +173,12 @@ def _autofill_missing_data(db: Session) -> int:
     return updated_count
 
 
+# ==========================================
+# BACKUP WORKERS
+# ==========================================
+
+
 def _push_db_backup_to_sheets(db: Session) -> dict:
-    """
-    Fetches all DB records and performs a bulk overwrite on the Google Sheet.
-    This establishes the Database as the ultimate source of truth for Anime Entries.
-    """
     try:
         entries = db.query(AnimeEntry).all()
         data_matrix = []
@@ -265,8 +212,10 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
                 _format_for_sheet(entry.prequel, str),
                 _format_for_sheet(entry.sequel, str),
                 _format_for_sheet(entry.alternative, str),
-                _format_for_sheet(entry.watch_order, float),
-                _format_for_sheet(entry.watch_order_rec, float),
+                _format_for_sheet(
+                    entry.watch_order, str
+                ),  # string parsing is safest for decimals here
+                _format_for_sheet(entry.watch_order_rec, str),
                 _format_for_sheet(entry.remark, str),
                 _format_for_sheet(entry.mal_id, int),
                 _format_for_sheet(entry.mal_link, str),
@@ -290,20 +239,15 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
 
         success = bulk_overwrite_sheet("Anime", ANIME_HEADERS, data_matrix)
         return {"success": success, "rows": len(entries)}
-
     except Exception as e:
-        print(f"❌ Error building backup matrix: {e}")
+        print(f"❌ Error building Anime backup matrix: {e}")
         return {"success": False, "rows": 0}
 
 
 def _push_series_backup_to_sheets(db: Session) -> dict:
-    """
-    Fetches all AnimeSeries DB records and performs a bulk overwrite to the 'Anime Series' tab.
-    """
     try:
         series_entries = db.query(AnimeSeries).all()
         data_matrix = []
-
         for entry in series_entries:
             row = [
                 _format_for_sheet(entry.system_id, str),
@@ -318,30 +262,21 @@ def _push_series_backup_to_sheets(db: Session) -> dict:
                 _format_for_sheet(entry.updated_at, datetime),
             ]
             data_matrix.append(row)
-
-        # FIXED: Correct tab name from "Series" to "Anime Series"
         success = bulk_overwrite_sheet("Anime Series", SERIES_HEADERS, data_matrix)
         return {"success": success, "rows": len(series_entries)}
-
     except Exception as e:
         print(f"❌ Error building Series backup matrix: {e}")
         return {"success": False, "rows": 0}
 
 
 def _push_options_backup_to_sheets(db: Session) -> dict:
-    """
-    Fetches all SystemOption DB records and performs a bulk overwrite to the 'Options' tab.
-    """
     try:
-        from models import SystemOption
-
         options = (
             db.query(SystemOption)
             .order_by(SystemOption.category, SystemOption.option_value)
             .all()
         )
         data_matrix = []
-
         for opt in options:
             row = [
                 _format_for_sheet(opt.id, int),
@@ -349,13 +284,30 @@ def _push_options_backup_to_sheets(db: Session) -> dict:
                 _format_for_sheet(opt.option_value, str),
             ]
             data_matrix.append(row)
-
         success = bulk_overwrite_sheet("Options", OPTIONS_HEADERS, data_matrix)
         return {"success": success, "rows": len(options)}
-
     except Exception as e:
         print(f"❌ Error building Options backup matrix: {e}")
         return {"success": False, "rows": 0}
+
+
+def _run_full_backup(db: Session) -> dict:
+    """Executes all three backup routines to fully mirror DB to Sheets."""
+    anime_metrics = _push_db_backup_to_sheets(db)
+    series_metrics = _push_series_backup_to_sheets(db)
+    options_metrics = _push_options_backup_to_sheets(db)
+
+    success = (
+        anime_metrics["success"]
+        and series_metrics["success"]
+        and options_metrics["success"]
+    )
+    return {
+        "success": success,
+        "anime_rows": anime_metrics["rows"],
+        "series_rows": series_metrics["rows"],
+        "options_rows": options_metrics["rows"],
+    }
 
 
 # ==========================================
@@ -363,142 +315,232 @@ def _push_options_backup_to_sheets(db: Session) -> dict:
 # ==========================================
 
 
-def basic_sync(db: Session) -> dict:
-    """
-    Executes the standard daily sync:
-    1. Pulls new manual entries from Google Sheets into DB.
-    2. Autofills missing localized data.
-    3. Overwrites the Google Sheet with the newly structured DB (Both Anime AND Series).
-    """
-    print("▶️ [Basic Sync] Starting...")
+def action_backup(db: Session) -> dict:
+    """Action: Backup. Performs Calculation -> Full Backup to Sheets."""
+    print("▶️ [Action: Backup] Starting...")
     try:
-        added_count = _pull_new_manual_entries(db)
-        print(f"   ↳ Added {added_count} new entries from Sheets.")
-
-        updated_count = _autofill_missing_data(db)
-        print(f"   ↳ Autofilled {updated_count} empty fields.")
-
-        # Push backups for ALL tables
-        push_metrics = _push_db_backup_to_sheets(db)
-        series_metrics = _push_series_backup_to_sheets(db)
-        options_metrics = _push_options_backup_to_sheets(db)
-
-        print(
-            f"   ↳ Pushed {push_metrics['rows']} Anime rows, {series_metrics['rows']} Anime Series rows, and {options_metrics['rows']} Options rows back to Sheets."
-        )
-
-        success = (
-            push_metrics["success"]
-            and series_metrics["success"]
-            and options_metrics["success"]
-        )
-        status = "success" if success else "failed"
-
-        details = {
-            "type": "basic_sync",
-            "added_from_sheets": added_count,
-            "autofilled_in_db": updated_count,
-            "sheets_backup_success": success,
-        }
-
-        log_sync_event(
-            db,
-            sync_type="basic_sync",
-            status=status,
-            added=added_count,
-            updated=updated_count,
-            error=None if success else "Backup push failed",
-            details_json=json.dumps(details),
-        )
+        calc_updates = _autofill_missing_data(db)
+        metrics = _run_full_backup(db)
+        status = "success" if metrics["success"] else "failed"
 
         return {
             "status": status,
-            "message": f"Basic sync completed. Added: {added_count}, Autofilled: {updated_count}",
+            "message": f"Backup completed. Calc Updates: {calc_updates}. Backed up {metrics['anime_rows']} Anime, {metrics['series_rows']} Series, {metrics['options_rows']} Options.",
         }
-
     except Exception as e:
         db.rollback()
-        error_msg = str(e)
-        print(f"❌ [Basic Sync] Failed: {error_msg}")
-        log_sync_event(db, "basic_sync", "failed", error=error_msg)
-        return {"status": "failed", "message": error_msg}
+        return {"status": "failed", "message": str(e)}
 
 
-def strong_sync(db: Session) -> dict:
-    """
-    Executes a heavy sync:
-    Contacts Jikan API to fetch and update live stats (Scores, Ranks, Status)
-    for all anime in the DB that have a mal_id, then backs up to Google Sheets.
-    """
-    print("▶️ [Strong Sync] Starting...")
+def action_sync_from_sheets(db: Session) -> dict:
+    """Action: Sync from Sheets. Pulls new manual entries -> Calculation -> Full Backup."""
+    print("▶️ [Action: Sync from Sheets] Starting...")
     try:
-        entries = db.query(AnimeEntry).filter(AnimeEntry.mal_id.isnot(None)).all()
-        updated_count = 0
+        # Pull Phase
+        data_rows = get_all_rows("Anime")
+        added_count = 0
+        if data_rows:
+            for row_data in data_rows:
+                if (
+                    not row_data.get("system_id")
+                    or str(row_data.get("system_id")).strip() == ""
+                ):
+                    if not row_data.get("series_en"):
+                        continue
+                    validated_data = schemas.AnimeSheetSync(**row_data)
+                    validated_data.system_id = str(uuid.uuid4())
+                    new_entry = AnimeEntry(
+                        **validated_data.model_dump(exclude_none=True)
+                    )
+                    db.add(new_entry)
+                    added_count += 1
+            db.commit()
 
-        for entry in entries:
+        # Calculation Phase
+        calc_updates = _autofill_missing_data(db)
+
+        # Backup Phase
+        metrics = _run_full_backup(db)
+        status = "success" if metrics["success"] else "failed"
+
+        return {
+            "status": status,
+            "message": f"Sync from Sheets completed. Added: {added_count}. Calc Updates: {calc_updates}.",
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "failed", "message": str(e)}
+
+
+def action_fill(db: Session) -> dict:
+    """
+    Action: Fill. Calculation -> Finds missing cover, mal_rating, or mal_rank -> Calls Jikan -> Full Backup.
+    Ignores mal_rating/mal_rank if the series is 'Not Yet Aired'.
+    """
+    print("▶️ [Action: Fill] Starting...")
+    try:
+        _autofill_missing_data(db)
+
+        # Find entries with mal_id but missing ONE of the target fields
+        entries = (
+            db.query(AnimeEntry)
+            .filter(
+                AnimeEntry.mal_id.isnot(None),
+                or_(
+                    AnimeEntry.cover_image_file == None,
+                    AnimeEntry.cover_image_file == "",
+                    # Only check for missing scores/ranks if it's NOT "Not Yet Aired"
+                    and_(
+                        or_(
+                            AnimeEntry.airing_status != "Not Yet Aired",
+                            AnimeEntry.airing_status.is_(None),
+                        ),
+                        or_(AnimeEntry.mal_rating == None, AnimeEntry.mal_rank == None),
+                    ),
+                ),
+            )
+            .all()
+        )
+
+        total_entries = len(entries)
+        print(
+            f"   ↳ Found {total_entries} entries missing data. Estimated time: {total_entries * 1.2:.1f}s"
+        )
+
+        filled_count = 0
+        for idx, entry in enumerate(entries, 1):
+            title_display = entry.series_en or str(entry.system_id)[:8]
+            print(
+                f"   ↳ [{idx}/{total_entries}] Fetching MAL {entry.mal_id} for '{title_display}'..."
+            )
+
             try:
-                # Jikan API integration
+                jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
+                if jikan_data:
+                    changed = False
+                    is_not_yet_aired = entry.airing_status == "Not Yet Aired"
+
+                    # Only attempt to extract scores if it's actually released
+                    if not is_not_yet_aired:
+                        if entry.mal_rating is None:
+                            new_score = clean_value(jikan_data.get("score"), float)
+                            # Assign 0.0 as sentinel if Jikan has no score (removes NULL to prevent loop)
+                            entry.mal_rating = (
+                                new_score if new_score is not None else 0.0
+                            )
+                            changed = True
+
+                        if entry.mal_rank is None:
+                            new_rank = clean_value(jikan_data.get("rank"), int)
+                            # Assign 0 as sentinel if Jikan has no rank (removes NULL to prevent loop)
+                            entry.mal_rank = new_rank if new_rank is not None else 0
+                            changed = True
+
+                    # Always attempt to fill missing covers, even if unreleased
+                    if not entry.cover_image_file:
+                        cover_url = _extract_jikan_image(jikan_data)
+                        if cover_url:
+                            # Actually download the image to local/cloud storage instead of just saving the URL
+                            downloaded_path = download_cover_image(
+                                cover_url, entry.system_id
+                            )
+                            if downloaded_path:
+                                entry.cover_image_file = downloaded_path
+                                changed = True
+
+                    if changed:
+                        print(f"        [+] Successfully filled missing fields.")
+                        filled_count += 1
+                    else:
+                        print(f"        [-] No valid missing fields found on Jikan.")
+
+                time.sleep(1.2)  # Jikan Rate Limit
+            except Exception as e:
+                print(f"⚠️ [Fill] Jikan Error for {entry.system_id}: {e}")
+
+        db.commit()
+
+        metrics = _run_full_backup(db)
+        status = "success" if metrics["success"] else "failed"
+
+        return {
+            "status": status,
+            "message": f"Fill completed. Checked and filled missing fields for {filled_count} entries.",
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "failed", "message": str(e)}
+
+
+def action_replace(db: Session) -> dict:
+    """
+    Action: Replace. Calculation -> Updates ALL mal_rating and mal_rank. Fills cover ONLY IF MISSING -> Full Backup.
+    """
+    print("▶️ [Action: Replace] Starting...")
+    try:
+        _autofill_missing_data(db)
+
+        entries = db.query(AnimeEntry).filter(AnimeEntry.mal_id.isnot(None)).all()
+        total_entries = len(entries)
+        print(
+            f"   ↳ Found {total_entries} entries to update. Estimated time: {total_entries * 1.2:.1f}s"
+        )
+
+        replaced_count = 0
+
+        for idx, entry in enumerate(entries, 1):
+            title_display = entry.series_en or str(entry.system_id)[:8]
+            print(
+                f"   ↳ [{idx}/{total_entries}] Updating MAL {entry.mal_id} for '{title_display}'..."
+            )
+
+            try:
                 jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
                 if jikan_data:
                     changed = False
 
-                    # Update Rating
+                    # Unconditional replace for rating and rank (Ensuring robust None checks)
                     new_score = clean_value(jikan_data.get("score"), float)
-                    if new_score and entry.mal_rating != new_score:
+                    if new_score is not None and entry.mal_rating != new_score:
                         entry.mal_rating = new_score
                         changed = True
 
-                    # Update Rank
                     new_rank = clean_value(jikan_data.get("rank"), int)
-                    if new_rank and entry.mal_rank != new_rank:
+                    if new_rank is not None and entry.mal_rank != new_rank:
                         entry.mal_rank = new_rank
                         changed = True
 
-                    # Update Airing Status
-                    jikan_status = jikan_data.get("status")
-                    if jikan_status and entry.airing_status != jikan_status:
-                        entry.airing_status = jikan_status
-                        changed = True
+                    # Conditional fill for cover image (Does not replace existing images)
+                    if not entry.cover_image_file:
+                        cover_url = _extract_jikan_image(jikan_data)
+                        if cover_url:
+                            # Actually download the image to local/cloud storage instead of just saving the URL
+                            downloaded_path = download_cover_image(
+                                cover_url, entry.system_id
+                            )
+                            if downloaded_path:
+                                entry.cover_image_file = downloaded_path
+                                changed = True
 
                     if changed:
-                        updated_count += 1
+                        print(f"        [+] Updated stats/cover successfully.")
+                        replaced_count += 1
+                    else:
+                        print(f"        [-] Data already up-to-date.")
 
-                # Strict Rate Limiting (1.2s per request to avoid Jikan 429 Bans)
-                time.sleep(1.2)
-
+                time.sleep(1.2)  # Jikan Rate Limit
             except Exception as e:
-                print(f"⚠️ [Strong Sync] Jikan Error for {entry.system_id}: {e}")
+                print(f"⚠️ [Replace] Jikan Error for {entry.system_id}: {e}")
 
         db.commit()
 
-        # Push the freshly updated stats to the cloud sheet (Anime only needed here)
-        push_metrics = _push_db_backup_to_sheets(db)
-        success = push_metrics["success"]
-
-        status = "success" if success else "failed"
-        details = {
-            "type": "strong_sync",
-            "jikan_updates": updated_count,
-            "sheets_backup_success": success,
-        }
-
-        log_sync_event(
-            db,
-            sync_type="strong_sync",
-            status=status,
-            updated=updated_count,
-            error=None if success else "Backup push failed",
-            details_json=json.dumps(details),
-        )
+        metrics = _run_full_backup(db)
+        status = "success" if metrics["success"] else "failed"
 
         return {
             "status": status,
-            "message": f"Strong sync completed. Updated {updated_count} entries from Jikan.",
+            "message": f"Replace completed. Replaced/Filled stats for {replaced_count} entries.",
         }
-
     except Exception as e:
         db.rollback()
-        error_msg = str(e)
-        print(f"❌ [Strong Sync] Failed: {error_msg}")
-        log_sync_event(db, "strong_sync", "failed", error=error_msg)
-        return {"status": "failed", "message": error_msg}
+        return {"status": "failed", "message": str(e)}

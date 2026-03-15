@@ -213,10 +213,25 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
                   <i class="fas fa-minus text-xs"></i>
                 </button>
                 <div
-                  class="font-mono text-lg font-bold text-gray-900 w-16 text-center"
+                  class="font-mono text-lg font-bold text-gray-900 min-w-[4rem] text-center flex items-center justify-center"
                 >
-                  <span id="val-ep-fin">0</span
-                  ><span class="text-gray-400 text-sm ml-1"
+                  {% if is_admin %}
+                  <input
+                    type="number"
+                    id="val-ep-fin"
+                    onblur="handleDirectEpUpdate(this.value)"
+                    onkeydown="
+                      if (event.key === 'Enter') {
+                        this.blur();
+                      }
+                    "
+                    class="w-10 text-center bg-transparent focus:outline-none focus:text-brand border-b-2 border-transparent focus:border-brand transition p-0 m-0"
+                    min="0"
+                  />
+                  {% else %}
+                  <span id="val-ep-fin">0</span>
+                  {% endif %}
+                  <span class="text-gray-400 text-sm ml-1 whitespace-nowrap"
                     >/ <span id="val-ep-total">?</span></span
                   >
                 </div>
@@ -826,7 +841,11 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
     document.getElementById("input-seiyuu").value = d.seiyuu || "";
     document.getElementById("input-remark").value = d.remark || "";
 
-    document.getElementById("val-ep-fin").innerText = d.ep_fin || 0;
+    const epFinEl = document.getElementById("val-ep-fin");
+    if (epFinEl) {
+      if (epFinEl.tagName === "INPUT") epFinEl.value = d.ep_fin || 0;
+      else epFinEl.innerText = d.ep_fin || 0;
+    }
     document.getElementById("val-ep-total").innerText = d.ep_total || "?";
   }
 
@@ -880,7 +899,9 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
     if (total !== null && target > total) target = total;
     if (target === current) return;
 
-    document.getElementById("val-ep-fin").innerText = target;
+    const epFinEl = document.getElementById("val-ep-fin");
+    if (epFinEl.tagName === "INPUT") epFinEl.value = target;
+    else epFinEl.innerText = target;
     animeData.ep_fin = target;
 
     try {
@@ -902,7 +923,68 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       }
     } catch (e) {
       animeData.ep_fin = current;
-      document.getElementById("val-ep-fin").innerText = current;
+      if (epFinEl.tagName === "INPUT") epFinEl.value = current;
+      else epFinEl.innerText = current;
+      if (typeof showToast === "function")
+        showToast("Network error. Progress reverted.", true);
+    }
+  }
+
+  async function handleDirectEpUpdate(valStr) {
+    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
+    const val = parseInt(valStr, 10);
+    const current = animeData.ep_fin || 0;
+    const total = animeData.ep_total || null;
+    const epFinEl = document.getElementById("val-ep-fin");
+
+    // Reset to current DB value if they typed letters or negative numbers
+    if (isNaN(val) || val < 0) {
+      if (epFinEl) epFinEl.value = current;
+      return;
+    }
+
+    let target = val;
+
+    // Prevent exceeding the season maximum
+    if (total !== null && target > total) {
+      if (typeof showToast === "function")
+        showToast("Cannot exceed total episodes.", true);
+      if (epFinEl) epFinEl.value = current;
+      return;
+    }
+
+    if (target === current) {
+      if (epFinEl) epFinEl.value = current;
+      return;
+    }
+
+    // Optimistic UI Update
+    animeData.ep_fin = target;
+    if (epFinEl) epFinEl.value = target;
+
+    try {
+      const res = await fetch(`/api/anime/${systemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ep_fin: target }),
+      });
+      if (!res.ok) throw new Error("Failed to save progress");
+
+      if (typeof showToast === "function")
+        showToast("Episodes updated successfully!");
+
+      // Re-calculate cumulative silently
+      if (
+        typeof calculateCumulativeEpisodes === "function" &&
+        allAnimeList.length > 0
+      ) {
+        const cumulative = calculateCumulativeEpisodes(animeData, allAnimeList);
+        document.getElementById("cumulative-text").innerText =
+          `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
+      }
+    } catch (e) {
+      animeData.ep_fin = current;
+      if (epFinEl) epFinEl.value = current;
       if (typeof showToast === "function")
         showToast("Network error. Progress reverted.", true);
     }
