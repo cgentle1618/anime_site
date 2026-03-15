@@ -17,6 +17,7 @@ from services.sync import (
     strong_sync,
     _push_db_backup_to_sheets,
     _push_series_backup_to_sheets,  # NEW: Imported series backup function
+    _push_options_backup_to_sheets,  # NEW: Imported options backup function
 )
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
@@ -173,7 +174,9 @@ def get_system_options(category: str, db: Session = Depends(get_db)):
 
 @router.post("/options", summary="Add System Option")
 def add_system_option(
-    payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
+    payload: schemas.SystemOptionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ):
     """
     Adds a new dynamic dropdown option to the database (e.g., a new Studio or Genre).
@@ -200,6 +203,12 @@ def add_system_option(
 
     db.add(new_option)
     db.commit()
+
+    # Trigger background backup to Google Sheets 'Options' tab
+    print(
+        f"▶️ Admin explicitly added Option '{new_option.option_value}' to '{new_option.category}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_options_backup_to_sheets, db)
 
     return {
         "message": f"Option '{payload.option_value}' added successfully to '{payload.category}'."

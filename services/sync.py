@@ -97,6 +97,9 @@ SERIES_HEADERS = [
     "updated_at",
 ]
 
+# Headers for the System Options Backup
+OPTIONS_HEADERS = ["id", "category", "option_value"]
+
 # ==========================================
 # HELPER FUNCTIONS
 # ==========================================
@@ -325,6 +328,36 @@ def _push_series_backup_to_sheets(db: Session) -> dict:
         return {"success": False, "rows": 0}
 
 
+def _push_options_backup_to_sheets(db: Session) -> dict:
+    """
+    Fetches all SystemOption DB records and performs a bulk overwrite to the 'Options' tab.
+    """
+    try:
+        from models import SystemOption
+
+        options = (
+            db.query(SystemOption)
+            .order_by(SystemOption.category, SystemOption.option_value)
+            .all()
+        )
+        data_matrix = []
+
+        for opt in options:
+            row = [
+                _format_for_sheet(opt.id, int),
+                _format_for_sheet(opt.category, str),
+                _format_for_sheet(opt.option_value, str),
+            ]
+            data_matrix.append(row)
+
+        success = bulk_overwrite_sheet("Options", OPTIONS_HEADERS, data_matrix)
+        return {"success": success, "rows": len(options)}
+
+    except Exception as e:
+        print(f"❌ Error building Options backup matrix: {e}")
+        return {"success": False, "rows": 0}
+
+
 # ==========================================
 # PUBLIC ORCHESTRATION ENDPOINTS
 # ==========================================
@@ -345,14 +378,20 @@ def basic_sync(db: Session) -> dict:
         updated_count = _autofill_missing_data(db)
         print(f"   ↳ Autofilled {updated_count} empty fields.")
 
-        # Push backups for BOTH tables
+        # Push backups for ALL tables
         push_metrics = _push_db_backup_to_sheets(db)
         series_metrics = _push_series_backup_to_sheets(db)
+        options_metrics = _push_options_backup_to_sheets(db)
+
         print(
-            f"   ↳ Pushed {push_metrics['rows']} Anime rows and {series_metrics['rows']} Anime Series rows back to Sheets."
+            f"   ↳ Pushed {push_metrics['rows']} Anime rows, {series_metrics['rows']} Anime Series rows, and {options_metrics['rows']} Options rows back to Sheets."
         )
 
-        success = push_metrics["success"] and series_metrics["success"]
+        success = (
+            push_metrics["success"]
+            and series_metrics["success"]
+            and options_metrics["success"]
+        )
         status = "success" if success else "failed"
 
         details = {
