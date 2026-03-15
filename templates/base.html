@@ -499,7 +499,7 @@
 
         try {
           // V2: Target the specific Sheets Sync endpoint
-          const response = await fetch(`/api/admin/sync/sheets`, { method: "POST" });
+          const response = await fetch(`/api/admin/sync/basic`, { method: "POST" });
 
           if (response.ok) {
             icon.classList.remove("fa-spin", "fa-sync-alt");
