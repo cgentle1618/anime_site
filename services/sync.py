@@ -22,6 +22,7 @@ from services.sync_utils import (
 )
 from services.sheets_client import bulk_overwrite_sheet, get_all_rows
 import services.jikan_client as jikan_client
+from services.image_manager import download_cover_image
 
 # ==========================================
 # CONSTANTS: EXACT V2 GOOGLE SHEET HEADERS
@@ -422,8 +423,13 @@ def action_fill(db: Session) -> dict:
                     if not entry.cover_image_file:
                         cover_url = _extract_jikan_image(jikan_data)
                         if cover_url:
-                            entry.cover_image_file = cover_url
-                            changed = True
+                            # Actually download the image to local/cloud storage instead of just saving the URL
+                            downloaded_path = download_cover_image(
+                                cover_url, entry.system_id
+                            )
+                            if downloaded_path:
+                                entry.cover_image_file = downloaded_path
+                                changed = True
 
                     if changed:
                         print(f"        [+] Successfully filled missing fields.")
@@ -487,12 +493,17 @@ def action_replace(db: Session) -> dict:
                         entry.mal_rank = new_rank
                         changed = True
 
-                    # Conditional fill for cover image
+                    # Conditional fill for cover image (Does not replace existing images)
                     if not entry.cover_image_file:
                         cover_url = _extract_jikan_image(jikan_data)
                         if cover_url:
-                            entry.cover_image_file = cover_url
-                            changed = True
+                            # Actually download the image to local/cloud storage instead of just saving the URL
+                            downloaded_path = download_cover_image(
+                                cover_url, entry.system_id
+                            )
+                            if downloaded_path:
+                                entry.cover_image_file = downloaded_path
+                                changed = True
 
                     if changed:
                         print(f"        [+] Updated stats/cover successfully.")
