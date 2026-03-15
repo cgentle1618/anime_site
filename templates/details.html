@@ -741,7 +741,8 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       allAnime.length > 0
     ) {
       const cumulative = calculateCumulativeEpisodes(d, allAnime);
-      if (cumulative.total > 0 || cumulative.watched > 0) {
+      // FIXED BUG: Show cumulative tracker ONLY if there are previous seasons
+      if (cumulative.prevEpsTotal > 0) {
         document
           .getElementById("cumulative-container")
           .classList.remove("hidden");
