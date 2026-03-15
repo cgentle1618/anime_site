@@ -39,81 +39,73 @@ content %}
     </div>
   </div>
 
-  <!-- Middle Row: Diagnostic Controls & Data Maintenance -->
+  <!-- Middle Row: Synchronization Operations -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    <!-- Action: Sync from Sheets -->
     <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:col-span-1 flex flex-col gap-4"
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full card-hover"
     >
-      <h3 class="text-lg font-bold text-gray-900 mb-2">
-        <i class="fas fa-microchip text-gray-400 mr-2"></i> Diagnostics
+      <h3
+        class="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2 flex items-center"
+      >
+        <i class="fas fa-cloud-download-alt text-emerald-500 w-6"></i> Sync from
+        Sheets
       </h3>
-
-      <!-- V2 Strong Sync Button -->
+      <p class="text-xs text-gray-500 mb-6 flex-1">
+        Pulls new manual entries from Google Sheets into the DB, applies
+        auto-fill and data cleaning calculations, and pushes a full backup.
+      </p>
       <button
-        id="strongSyncBtn"
-        onclick="handleStrongSync()"
-        class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group"
+        id="btn-pull"
+        onclick="handlePull()"
+        class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
-        <span class="flex items-center"
-          ><i
-            id="strongSyncIcon"
-            class="fas fa-bolt mr-3 group-hover:scale-110 transition-transform duration-300"
-          ></i>
-          Strong Sync (MAL Updates)</span
-        >
-        <i class="fas fa-chevron-right text-xs opacity-50"></i>
-      </button>
-
-      <button
-        onclick="cleanupLogs()"
-        id="btn-cleanup"
-        class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 transition px-4 py-3 rounded-xl flex items-center justify-between font-bold group mt-auto"
-      >
-        <span class="flex items-center"
-          ><i class="fas fa-broom mr-3 text-gray-500"></i> Purge Logs (>30
-          Days)</span
-        >
-        <i
-          id="cleanup-icon"
-          class="fas fa-chevron-right text-xs opacity-50"
-        ></i>
+        <i id="icon-pull" class="fas fa-play mr-2"></i> Execute Sync
       </button>
     </div>
 
-    <!-- Data Maintenance Block -->
+    <!-- Action: Fill -->
     <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:col-span-2 flex flex-col h-full"
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full card-hover"
     >
       <h3
-        class="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2"
+        class="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2 flex items-center"
       >
-        <i class="fas fa-tools text-amber-500 mr-2"></i> Data Maintenance &
-        Utilities
+        <i class="fas fa-magic text-blue-500 w-6"></i> Fill Missing Data
       </h3>
+      <p class="text-xs text-gray-500 mb-6 flex-1">
+        Applies calculations, calls Jikan API to strictly fill missing cover
+        images, ratings, and ranks, then pushes a full backup.
+      </p>
+      <button
+        id="btn-fill"
+        onclick="handleFill()"
+        class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
+      >
+        <i id="icon-fill" class="fas fa-play mr-2"></i> Execute Fill
+      </button>
+    </div>
 
-      <div class="flex flex-col gap-6 flex-1">
-        <!-- Set Current Season Tool -->
-        <div
-          class="flex flex-col border border-gray-100 rounded-xl p-4 bg-gray-50 h-full"
-        >
-          <h4 class="font-bold text-gray-800 mb-2">
-            <i class="fas fa-calendar-check text-blue-500 mr-2"></i> Set Current
-            Season
-          </h4>
-          <p class="text-xs text-gray-500 mb-4 flex-1">
-            Automatically queries live data to update "Not Yet Aired" entries
-            that have started broadcasting this season.
-          </p>
-          <button
-            id="btn-set-season"
-            onclick="handleSetCurrentSeason()"
-            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition shadow-sm flex items-center justify-center"
-          >
-            <i id="season-icon" class="fas fa-magic mr-2"></i> Auto-Fill Missing
-            Data
-          </button>
-        </div>
-      </div>
+    <!-- Action: Replace -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full card-hover"
+    >
+      <h3
+        class="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2 flex items-center"
+      >
+        <i class="fas fa-bolt text-amber-500 w-6"></i> Replace All Data
+      </h3>
+      <p class="text-xs text-gray-500 mb-6 flex-1">
+        Applies calculations, forcefully updates all ratings and ranks via Jikan
+        API, fills missing covers, then pushes a full backup.
+      </p>
+      <button
+        id="btn-replace"
+        onclick="handleReplace()"
+        class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
+      >
+        <i id="icon-replace" class="fas fa-play mr-2"></i> Execute Replace
+      </button>
     </div>
   </div>
 
@@ -129,12 +121,22 @@ content %}
         <h3 class="font-bold text-gray-900 flex items-center">
           <i class="fas fa-history text-brand mr-2"></i> Recent Sync Logs
         </h3>
-        <button
-          onclick="loadLogs()"
-          class="text-gray-400 hover:text-brand transition"
-        >
-          <i class="fas fa-redo text-sm"></i>
-        </button>
+        <div class="flex items-center space-x-3">
+          <button
+            onclick="cleanupLogs()"
+            id="btn-cleanup"
+            class="text-gray-500 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 px-2 py-1 rounded transition text-xs font-bold flex items-center shadow-sm"
+            title="Purge logs older than 30 days"
+          >
+            <i id="cleanup-icon" class="fas fa-broom mr-1"></i> Purge Logs
+          </button>
+          <button
+            onclick="loadLogs()"
+            class="text-gray-400 hover:text-brand transition"
+          >
+            <i class="fas fa-redo text-sm"></i>
+          </button>
+        </div>
       </div>
       <div class="flex-1 overflow-auto p-0">
         <table class="w-full text-sm text-left">
@@ -699,70 +701,75 @@ content %}
     }
   }
 
-  // --- Admin Diagnostics & Utilities ---
-  async function handleStrongSync() {
-    const btn = document.getElementById("strongSyncBtn");
-    const icon = document.getElementById("strongSyncIcon");
+  // --- Synchronization Master Wrapper ---
+  async function executeSyncAction(endpoint, btnId, iconId, defaultIconClass) {
+    const btn = document.getElementById(btnId);
+    const icon = document.getElementById(iconId);
 
-    icon.classList.add("fa-spin");
+    // Disable state
+    icon.className = "fas fa-spinner fa-spin mr-2";
     btn.classList.add("opacity-75", "pointer-events-none");
 
     try {
-      const response = await fetch(`/api/admin/sync/strong`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || "Strong Sync failed.");
-      }
-
+      const response = await fetch(endpoint, { method: "POST" });
       const data = await response.json();
-      if (typeof showToast === "function")
-        showToast(`Success: Updated ${data.jikan_updated} entries.`);
-      await initializeAdminPanel();
-    } catch (error) {
-      if (typeof showToast === "function")
-        showToast(`Error: ${error.message}`, true);
-    } finally {
-      icon.classList.remove("fa-spin");
-      btn.classList.remove("opacity-75", "pointer-events-none");
-    }
-  }
 
-  async function handleSetCurrentSeason() {
-    const btn = document.getElementById("btn-set-season");
-    const icon = document.getElementById("season-icon");
-
-    icon.classList.remove("fa-magic");
-    icon.classList.add("fa-circle-notch", "fa-spin");
-    btn.classList.add("opacity-75", "pointer-events-none");
-
-    try {
-      const res = await fetch(`/api/admin/set-season`, { method: "POST" });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Failed to set current season.");
+      if (!response.ok) {
+        throw new Error(
+          data.detail || data.message || "Sync operation failed.",
+        );
       }
-      const data = await res.json();
-      if (typeof showToast === "function")
-        showToast(data.message || "Season data updated!");
+
+      if (typeof showToast === "function") {
+        showToast(`Success: ${data.message}`);
+      }
       await initializeAdminPanel();
     } catch (error) {
-      if (typeof showToast === "function")
+      if (typeof showToast === "function") {
         showToast(`Error: ${error.message}`, true);
+      }
     } finally {
-      icon.classList.remove("fa-circle-notch", "fa-spin");
-      icon.classList.add("fa-magic");
+      // Re-enable state
+      icon.className = `fas ${defaultIconClass} mr-2`;
       btn.classList.remove("opacity-75", "pointer-events-none");
     }
   }
 
+  // Specific Action Triggers
+  function handlePull() {
+    executeSyncAction(
+      "/api/admin/sync/pull",
+      "btn-pull",
+      "icon-pull",
+      "fa-play",
+    );
+  }
+
+  function handleFill() {
+    executeSyncAction(
+      "/api/admin/sync/fill",
+      "btn-fill",
+      "icon-fill",
+      "fa-play",
+    );
+  }
+
+  function handleReplace() {
+    executeSyncAction(
+      "/api/admin/sync/replace",
+      "btn-replace",
+      "icon-replace",
+      "fa-play",
+    );
+  }
+
+  // --- Admin Diagnostics & Utilities ---
   async function cleanupLogs() {
     const btn = document.getElementById("btn-cleanup");
     const icon = document.getElementById("cleanup-icon");
 
     btn.classList.add("pointer-events-none", "opacity-70");
-    icon.className = "fas fa-spinner fa-spin";
+    icon.className = "fas fa-spinner fa-spin mr-1";
 
     try {
       const res = await fetch(`/api/admin/logs/cleanup?days=30`, {
@@ -778,7 +785,7 @@ content %}
       if (typeof showToast === "function") showToast(error.message, true);
     } finally {
       btn.classList.remove("pointer-events-none", "opacity-70");
-      icon.className = "fas fa-chevron-right text-xs opacity-50";
+      icon.className = "fas fa-broom mr-1";
     }
   }
 
