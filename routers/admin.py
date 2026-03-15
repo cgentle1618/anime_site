@@ -6,6 +6,7 @@ Optimized for V2 (PostgreSQL as Source of Truth).
 """
 
 import uuid
+import json
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -16,8 +17,8 @@ from services.sync import (
     basic_sync,
     strong_sync,
     _push_db_backup_to_sheets,
-    _push_series_backup_to_sheets,  # NEW: Imported series backup function
-    _push_options_backup_to_sheets,  # NEW: Imported options backup function
+    _push_series_backup_to_sheets,
+    _push_options_backup_to_sheets,
 )
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
@@ -213,6 +214,68 @@ def add_system_option(
     return {
         "message": f"Option '{payload.option_value}' added successfully to '{payload.category}'."
     }
+
+
+@router.delete("/anime/{system_id}", summary="Delete Anime Entry")
+def delete_anime_entry(
+    system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Deletes an Anime entry, logs it, and updates Google Sheets."""
+    db_anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    # Log the deletion so it appears in the Admin Dashboard logs
+    deleted_record = models.DeletedRecord(
+        system_id=db_anime.system_id,
+        table_name="anime_entries",
+        data_json=json.dumps(
+            {"title": db_anime.series_season_en or db_anime.series_en}
+        ),
+    )
+    db.add(deleted_record)
+
+    db.delete(db_anime)
+    db.commit()
+
+    print(f"▶️ Admin deleted Anime Entry {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_db_backup_to_sheets, db)
+
+    return {"message": "Anime entry deleted successfully.", "system_id": system_id}
+
+
+@router.delete("/series/{system_id}", summary="Delete Series Hub")
+def delete_series_hub(
+    system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Deletes an Anime Series Hub, logs it, and updates Google Sheets."""
+    db_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not db_series:
+        raise HTTPException(status_code=404, detail="Series Hub not found.")
+
+    # Log the deletion so it appears in the Admin Dashboard logs
+    deleted_record = models.DeletedRecord(
+        system_id=db_series.system_id,
+        table_name="anime_series",
+        data_json=json.dumps({"series_en": db_series.series_en}),
+    )
+    db.add(deleted_record)
+
+    db.delete(db_series)
+    db.commit()
+
+    print(f"▶️ Admin deleted Series Hub {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_series_backup_to_sheets, db)
+
+    return {"message": "Series Hub deleted successfully.", "system_id": system_id}
 
 
 # ==========================================
