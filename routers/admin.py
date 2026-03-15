@@ -8,8 +8,9 @@ Optimized for V2 (PostgreSQL as Source of Truth).
 import uuid
 import json
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, requests
 from sqlalchemy.orm import Session
+from google.cloud import storage
 
 import models
 import schemas
@@ -517,3 +518,46 @@ def cleanup_logs(days: int = 30, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"❌ Failed to cleanup logs: {e}")
         raise HTTPException(status_code=500, detail="Failed to cleanup logs.")
+
+
+# ==========================================
+# DIAGNOSTICS & TESTING
+# ==========================================
+
+
+@router.post("/test-bucket", summary="Test GCP Bucket Permissions")
+def test_cloud_storage_bucket():
+    """
+    Diagnostic endpoint to forcefully test if Cloud Run has permission
+    to write to the cg1618-anime-covers bucket.
+    """
+    try:
+        # 1. Download a random test image (Frieren cover)
+        test_url = "https://cdn.myanimelist.net/images/anime/1015/138006l.jpg"
+        img_response = requests.get(test_url, timeout=10)
+        img_response.raise_for_status()
+        image_bytes = img_response.content
+
+        # 2. Instantiate Google Cloud Storage Client
+        client = storage.Client()
+        bucket_name = "cg1618-anime-covers"
+        bucket = client.bucket(bucket_name)
+
+        # 3. Create a test blob
+        blob = bucket.blob("diagnostic_test_image.jpg")
+
+        # 4. Attempt Upload
+        blob.upload_from_string(image_bytes, content_type="image/jpeg")
+
+        return {
+            "status": "success",
+            "message": f"Successfully uploaded diagnostic_test_image.jpg to {bucket_name}!",
+            "public_url": blob.public_url,
+        }
+    except Exception as e:
+        return {
+            "status": "failed",
+            "error_type": str(type(e)),
+            "error_message": str(e),
+            "troubleshooting": "If you see a 403 Forbidden, your Cloud Run Service Account lacks 'Storage Object Admin' permissions.",
+        }
