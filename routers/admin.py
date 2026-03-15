@@ -14,8 +14,10 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from services.sync import (
-    basic_sync,
-    strong_sync,
+    action_backup,
+    action_sync_from_sheets,
+    action_fill,
+    action_replace,
     _push_db_backup_to_sheets,
     _push_series_backup_to_sheets,
     _push_options_backup_to_sheets,
@@ -437,33 +439,43 @@ def delete_series_hub(
 # ==========================================
 
 
-@router.post("/sync/basic", summary="Trigger Basic Sync")
-def trigger_basic_sync(db: Session = Depends(get_db)):
-    """
-    Manually triggers the basic sync workflow.
-    Pulls manual additions from Google Sheets, autofills DB, and pushes backup.
-    """
-    print("🔔 Admin requested Basic Sync.")
-    result = basic_sync(db)
-
+@router.post("/sync/backup", summary="Trigger Full Backup")
+def trigger_backup(db: Session = Depends(get_db)):
+    """Runs calculation formatting and backs up all 3 tables to Google Sheets."""
+    print("🔔 Admin requested Backup.")
+    result = action_backup(db)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
-
     return result
 
 
-@router.post("/sync/strong", summary="Trigger Strong Sync")
-def trigger_strong_sync(db: Session = Depends(get_db)):
-    """
-    Manually triggers the strong sync workflow.
-    Calls Jikan API for all relevant entries to update scores and status.
-    """
-    print("🔔 Admin requested Strong Sync.")
-    result = strong_sync(db)
-
+@router.post("/sync/pull", summary="Trigger Sync from Sheets")
+def trigger_sync_from_sheets(db: Session = Depends(get_db)):
+    """Pulls manual rows from Google Sheets, runs calculations, and backs up."""
+    print("🔔 Admin requested Sync from Sheets.")
+    result = action_sync_from_sheets(db)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
+    return result
 
+
+@router.post("/sync/fill", summary="Trigger Fill Missing API Data")
+def trigger_fill(db: Session = Depends(get_db)):
+    """Calculates missing fields, contacts Jikan API for missing covers/ranks, and backs up."""
+    print("🔔 Admin requested Fill.")
+    result = action_fill(db)
+    if result.get("status") == "failed":
+        raise HTTPException(status_code=500, detail=result.get("message"))
+    return result
+
+
+@router.post("/sync/replace", summary="Trigger Replace API Data")
+def trigger_replace(db: Session = Depends(get_db)):
+    """Calculates missing fields, updates ALL ranks/scores via Jikan API, and backs up."""
+    print("🔔 Admin requested Replace.")
+    result = action_replace(db)
+    if result.get("status") == "failed":
+        raise HTTPException(status_code=500, detail=result.get("message"))
     return result
 
 
