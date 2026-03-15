@@ -171,6 +171,41 @@ def get_system_options(category: str, db: Session = Depends(get_db)):
     return options
 
 
+@router.post("/options", summary="Add System Option")
+def add_system_option(
+    payload: schemas.SystemOptionCreate, db: Session = Depends(get_db)
+):
+    """
+    Adds a new dynamic dropdown option to the database (e.g., a new Studio or Genre).
+    Prevents duplicates from being added to the same category.
+    """
+    # Check if this exact option already exists in this category
+    existing_option = (
+        db.query(models.SystemOption)
+        .filter(
+            models.SystemOption.category == payload.category,
+            models.SystemOption.option_value == payload.option_value,
+        )
+        .first()
+    )
+
+    if existing_option:
+        raise HTTPException(
+            status_code=400, detail="This option already exists in this category."
+        )
+
+    new_option = models.SystemOption(
+        category=payload.category, option_value=payload.option_value
+    )
+
+    db.add(new_option)
+    db.commit()
+
+    return {
+        "message": f"Option '{payload.option_value}' added successfully to '{payload.category}'."
+    }
+
+
 # ==========================================
 # SYNCHRONIZATION TRIGGERS
 # ==========================================
