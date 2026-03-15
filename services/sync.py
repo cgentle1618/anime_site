@@ -15,16 +15,19 @@ from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
 from database import get_taipei_now
+import models
+import schemas
 from models import AnimeEntry, SyncLog
 from services.sync_utils import (
     clean_value,
     extract_season_from_title,
     extract_season_from_cn_title,
 )
-from services.sheets_client import execute_with_retry, bulk_overwrite_sheet
-
-# Assuming get_google_sheet is available in sheets_client to fetch the raw worksheet
-from services.sheets_client import get_google_sheet
+from services.sheets_client import (
+    execute_with_retry,
+    bulk_overwrite_sheet,
+    get_all_rows,
+)
 import services.jikan_client as jikan_client
 
 # ==========================================
@@ -144,21 +147,14 @@ def _pull_new_manual_entries(db: Session) -> int:
     If a row has no system_id, it is treated as a new manual entry, parsed, and saved to the DB.
     """
     try:
-        sheet = get_google_sheet("Anime")
-        # Fetch all values, avoiding empty rows
-        all_values = execute_with_retry(sheet.get_all_values)
-        if not all_values or len(all_values) < 2:
+        # 1. Fetch all rows using the newly updated sheets_client (automatically padded and sanitized)
+        data_rows = get_all_rows("Anime")
+        if not data_rows:
             return 0
 
-        sheet_headers = all_values[0]
-        data_rows = all_values[1:]
         added_count = 0
 
-        for row in data_rows:
-            # Pad row to match header length to avoid index errors
-            padded_row = row + [""] * (len(sheet_headers) - len(row))
-            row_data = dict(zip(sheet_headers, padded_row))
-
+        for row_data in data_rows:
             # Only process rows that DO NOT have a system_id (newly added via Google Sheets)
             if (
                 not row_data.get("system_id")
@@ -169,67 +165,15 @@ def _pull_new_manual_entries(db: Session) -> int:
                 if not row_data.get("series_en"):
                     continue
 
-                new_entry = AnimeEntry(
-                    system_id=str(uuid.uuid4()),
-                    series_en=clean_value(row_data.get("series_en"), str),
-                    # Title Information
-                    series_season_en=clean_value(row_data.get("series_season_en"), str),
-                    series_season_roman=clean_value(
-                        row_data.get("series_season_roman"), str
-                    ),
-                    series_season_cn=clean_value(row_data.get("series_season_cn"), str),
-                    anime_alt_name=clean_value(row_data.get("anime_alt_name"), str),
-                    # Format & Status
-                    series_season=clean_value(row_data.get("series_season"), str),
-                    airing_type=clean_value(row_data.get("airing_type"), str),
-                    my_progress=clean_value(row_data.get("my_progress"), str),
-                    airing_status=clean_value(row_data.get("airing_status"), str),
-                    # Progress (ep_total defaults to None if blank)
-                    ep_total=clean_value(row_data.get("ep_total"), int),
-                    ep_fin=clean_value(row_data.get("ep_fin"), int) or 0,
-                    rating_mine=clean_value(row_data.get("rating_mine"), str),
-                    main_spinoff=clean_value(row_data.get("main_spinoff"), str),
-                    # Release Information (All strings in V2)
-                    release_month=clean_value(row_data.get("release_month"), str),
-                    release_season=clean_value(row_data.get("release_season"), str),
-                    release_year=clean_value(row_data.get("release_year"), str),
-                    # Staff & Production
-                    studio=clean_value(row_data.get("studio"), str),
-                    director=clean_value(row_data.get("director"), str),
-                    producer=clean_value(row_data.get("producer"), str),
-                    music=clean_value(row_data.get("music"), str),
-                    distributor_tw=clean_value(row_data.get("distributor_tw"), str),
-                    # Metadata & Themes
-                    genre_main=clean_value(row_data.get("genre_main"), str),
-                    genre_sub=clean_value(row_data.get("genre_sub"), str),
-                    prequel=clean_value(row_data.get("prequel"), str),
-                    sequel=clean_value(row_data.get("sequel"), str),
-                    alternative=clean_value(row_data.get("alternative"), str),
-                    # Timeline
-                    watch_order=clean_value(row_data.get("watch_order"), float),
-                    watch_order_rec=clean_value(row_data.get("watch_order_rec"), float),
-                    remark=clean_value(row_data.get("remark"), str),
-                    # External Stats
-                    mal_id=clean_value(row_data.get("mal_id"), int),
-                    mal_link=clean_value(row_data.get("mal_link"), str),
-                    mal_rating=clean_value(row_data.get("mal_rating"), float),
-                    mal_rank=clean_value(row_data.get("mal_rank"), int),
-                    anilist_link=clean_value(row_data.get("anilist_link"), str),
-                    # Music & Cast
-                    op=clean_value(row_data.get("op"), str),
-                    ed=clean_value(row_data.get("ed"), str),
-                    insert_ost=clean_value(row_data.get("insert_ost"), str),
-                    seiyuu=clean_value(row_data.get("seiyuu"), str),
-                    # Streaming & Assets
-                    source_baha=clean_value(row_data.get("source_baha"), bool),
-                    baha_link=clean_value(row_data.get("baha_link"), str),
-                    source_other=clean_value(row_data.get("source_other"), str),
-                    source_other_link=clean_value(
-                        row_data.get("source_other_link"), str
-                    ),
-                    source_netflix=clean_value(row_data.get("source_netflix"), bool),
-                    cover_image_file=clean_value(row_data.get("cover_image_file"), str),
-                )
+                # 2. Let Pydantic validate and strictly type-coerce the sanitized dictionary
+                validated_data = schemas.AnimeSheetSync(**row_data)
+
+                # 3. Generate the missing UUID for the new manual entry
+                validated_data.system_id = str(uuid.uuid4())
+
+                # 4. Insert cleanly into SQLAlchemy
+                new_entry = AnimeEntry(**validated_data.model_dump(exclude_none=True))
+
                 db.add(new_entry)
                 added_count += 1
 
