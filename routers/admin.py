@@ -462,10 +462,10 @@ def trigger_sync_from_sheets(db: Session = Depends(get_db)):
 
 
 @router.post("/sync/fill", summary="Trigger Fill Missing API Data")
-def trigger_fill(db: Session = Depends(get_db)):
-    """Calculates missing fields, contacts Jikan API for missing covers/ranks, and backs up."""
-    print("🔔 Admin requested Fill.")
-    result = action_fill(db)
+def trigger_fill(limit: int = 5, db: Session = Depends(get_db)):
+    """Calculates missing fields, contacts Jikan API for missing covers/ranks, and backs up in batches."""
+    print(f"🔔 Admin requested Fill (Batch Limit: {limit}).")
+    result = action_fill(db, limit=limit)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
     return result

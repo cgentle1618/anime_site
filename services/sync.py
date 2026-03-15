@@ -372,46 +372,59 @@ def action_sync_from_sheets(db: Session) -> dict:
         return {"status": "failed", "message": str(e)}
 
 
-def action_fill(db: Session) -> dict:
+def action_fill(db: Session, limit: int = 5) -> dict:
     """
     Action: Fill. Calculation -> Finds missing cover, mal_rating, or mal_rank -> Calls Jikan -> Full Backup.
     Ignores mal_rating/mal_rank if the series is 'Not Yet Aired'.
+    Processes in chunks to prevent Cloud Run timeouts.
     """
-    print("▶️ [Action: Fill] Starting...")
+    print("▶️ [Action: Fill] Starting (Batch Mode)...")
     try:
         _autofill_missing_data(db)
 
-        # Find entries with mal_id but missing ONE of the target fields
-        entries = (
-            db.query(AnimeEntry)
-            .filter(
-                AnimeEntry.mal_id.isnot(None),
-                or_(
-                    AnimeEntry.cover_image_file == None,
-                    AnimeEntry.cover_image_file == "",
-                    # Only check for missing scores/ranks if it's NOT "Not Yet Aired"
-                    and_(
-                        or_(
-                            AnimeEntry.airing_status != "Not Yet Aired",
-                            AnimeEntry.airing_status.is_(None),
-                        ),
-                        or_(AnimeEntry.mal_rating == None, AnimeEntry.mal_rank == None),
+        # Build the query for entries with missing data
+        query = db.query(AnimeEntry).filter(
+            AnimeEntry.mal_id.isnot(None),
+            or_(
+                AnimeEntry.cover_image_file == None,
+                AnimeEntry.cover_image_file == "",
+                # Only check for missing scores/ranks if it's NOT "Not Yet Aired"
+                and_(
+                    or_(
+                        AnimeEntry.airing_status != "Not Yet Aired",
+                        AnimeEntry.airing_status.is_(None),
                     ),
+                    or_(AnimeEntry.mal_rating == None, AnimeEntry.mal_rank == None),
                 ),
-            )
-            .all()
+            ),
         )
 
-        total_entries = len(entries)
+        # Check total remaining before fetching
+        total_missing = query.count()
+        print(f"   ↳ Found {total_missing} total entries missing data.")
+
+        if total_missing == 0:
+            metrics = _run_full_backup(db)
+            status = "success" if metrics["success"] else "failed"
+            return {
+                "status": status,
+                "message": "Fill completed. No more missing data.",
+                "processed": 0,
+                "remaining": 0,
+            }
+
+        # Fetch only a chunk to prevent 504 Timeouts
+        entries = query.limit(limit).all()
+        chunk_size = len(entries)
         print(
-            f"   ↳ Found {total_entries} entries missing data. Estimated time: {total_entries * 1.2:.1f}s"
+            f"   ↳ Processing chunk of {chunk_size} entries. Estimated time: {chunk_size * 2.0:.1f}s"
         )
 
         filled_count = 0
         for idx, entry in enumerate(entries, 1):
             title_display = entry.series_en or str(entry.system_id)[:8]
             print(
-                f"   ↳ [{idx}/{total_entries}] Fetching MAL {entry.mal_id} for '{title_display}'..."
+                f"   ↳ [{idx}/{chunk_size}] Fetching MAL {entry.mal_id} for '{title_display}'..."
             )
 
             try:
@@ -457,19 +470,25 @@ def action_fill(db: Session) -> dict:
                 time.sleep(1.2)  # Jikan Rate Limit
             except Exception as e:
                 print(f"⚠️ [Fill] Jikan Error for {entry.system_id}: {e}")
+                time.sleep(1.2)  # Ensure we respect rate limit even on crash
 
         db.commit()
 
         metrics = _run_full_backup(db)
         status = "success" if metrics["success"] else "failed"
 
+        # Calculate how many are left for the UI to continue the loop
+        remaining = query.count()
+
         return {
             "status": status,
-            "message": f"Fill completed. Checked and filled missing fields for {filled_count} entries.",
+            "message": f"Processed {filled_count} entries. {remaining} left.",
+            "processed": filled_count,
+            "remaining": remaining,
         }
     except Exception as e:
         db.rollback()
-        return {"status": "failed", "message": str(e)}
+        return {"status": "failed", "message": str(e), "processed": 0, "remaining": 0}
 
 
 def action_replace(db: Session) -> dict:

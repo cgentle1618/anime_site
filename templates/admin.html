@@ -60,7 +60,8 @@ content %}
         onclick="handlePull()"
         class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
-        <i id="icon-pull" class="fas fa-play mr-2"></i> Execute Sync
+        <i id="icon-pull" class="fas fa-play mr-2"></i>
+        <span id="text-pull">Execute Sync</span>
       </button>
     </div>
 
@@ -82,7 +83,8 @@ content %}
         onclick="handleFill()"
         class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
-        <i id="icon-fill" class="fas fa-play mr-2"></i> Execute Fill
+        <i id="icon-fill" class="fas fa-play mr-2"></i>
+        <span id="text-fill">Execute Fill</span>
       </button>
     </div>
 
@@ -104,7 +106,8 @@ content %}
         onclick="handleReplace()"
         class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
-        <i id="icon-replace" class="fas fa-play mr-2"></i> Execute Replace
+        <i id="icon-replace" class="fas fa-play mr-2"></i>
+        <span id="text-replace">Execute Replace</span>
       </button>
     </div>
   </div>
@@ -702,26 +705,69 @@ content %}
   }
 
   // --- Synchronization Master Wrapper ---
-  async function executeSyncAction(endpoint, btnId, iconId, defaultIconClass) {
+  async function executeSyncAction(
+    endpoint,
+    btnId,
+    iconId,
+    textId,
+    defaultText,
+    defaultIconClass,
+    isChunked = false,
+  ) {
     const btn = document.getElementById(btnId);
     const icon = document.getElementById(iconId);
+    const textSpan = document.getElementById(textId);
 
     // Disable state
     icon.className = "fas fa-spinner fa-spin mr-2";
     btn.classList.add("opacity-75", "pointer-events-none");
+    if (isChunked) textSpan.innerText = "Starting batch...";
 
     try {
-      const response = await fetch(endpoint, { method: "POST" });
-      const data = await response.json();
+      let keepGoing = true;
+      let totalProcessed = 0;
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail || data.message || "Sync operation failed.",
-        );
-      }
+      while (keepGoing) {
+        const response = await fetch(endpoint, { method: "POST" });
+        const data = await response.json();
 
-      if (typeof showToast === "function") {
-        showToast(`Success: ${data.message}`);
+        if (!response.ok) {
+          throw new Error(
+            data.detail || data.message || "Sync operation failed.",
+          );
+        }
+
+        if (isChunked && data.remaining !== undefined) {
+          totalProcessed += data.processed || 0;
+
+          if (data.remaining > 0) {
+            if (data.processed === 0) {
+              // Safety fallback: If Jikan has no data for the remaining batch, break to prevent infinite loop.
+              keepGoing = false;
+              if (typeof showToast === "function") {
+                showToast(
+                  `Batch paused: Unable to resolve remaining ${data.remaining} entries on MAL.`,
+                  true,
+                );
+              }
+            } else {
+              textSpan.innerText = `Processing... (${data.remaining} left)`;
+              await new Promise((r) => setTimeout(r, 800)); // Small pause between chunks
+            }
+          } else {
+            keepGoing = false;
+            if (typeof showToast === "function") {
+              showToast(
+                `Success: Fill complete! Processed ${totalProcessed} entries.`,
+              );
+            }
+          }
+        } else {
+          keepGoing = false;
+          if (typeof showToast === "function") {
+            showToast(`Success: ${data.message}`);
+          }
+        }
       }
       await initializeAdminPanel();
     } catch (error) {
@@ -731,6 +777,7 @@ content %}
     } finally {
       // Re-enable state
       icon.className = `fas ${defaultIconClass} mr-2`;
+      textSpan.innerText = defaultText;
       btn.classList.remove("opacity-75", "pointer-events-none");
     }
   }
@@ -741,16 +788,21 @@ content %}
       "/api/admin/sync/pull",
       "btn-pull",
       "icon-pull",
+      "text-pull",
+      "Execute Sync",
       "fa-play",
     );
   }
 
   function handleFill() {
     executeSyncAction(
-      "/api/admin/sync/fill",
+      "/api/admin/sync/fill?limit=5",
       "btn-fill",
       "icon-fill",
+      "text-fill",
+      "Execute Fill",
       "fa-play",
+      true,
     );
   }
 
@@ -759,6 +811,8 @@ content %}
       "/api/admin/sync/replace",
       "btn-replace",
       "icon-replace",
+      "text-replace",
+      "Execute Replace",
       "fa-play",
     );
   }
