@@ -15,7 +15,6 @@ from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
 from database import get_taipei_now
-import models
 import schemas
 from models import AnimeEntry, SyncLog
 from services.sync_utils import (
@@ -147,7 +146,6 @@ def _pull_new_manual_entries(db: Session) -> int:
     If a row has no system_id, it is treated as a new manual entry, parsed, and saved to the DB.
     """
     try:
-        # 1. Fetch all rows using the newly updated sheets_client (automatically padded and sanitized)
         data_rows = get_all_rows("Anime")
         if not data_rows:
             return 0
@@ -165,15 +163,12 @@ def _pull_new_manual_entries(db: Session) -> int:
                 if not row_data.get("series_en"):
                     continue
 
-                # 2. Let Pydantic validate and strictly type-coerce the sanitized dictionary
+                # Pydantic validation handles all the messy data coercion instantly
                 validated_data = schemas.AnimeSheetSync(**row_data)
-
-                # 3. Generate the missing UUID for the new manual entry
                 validated_data.system_id = str(uuid.uuid4())
 
-                # 4. Insert cleanly into SQLAlchemy
+                # Unpack directly into SQLAlchemy model
                 new_entry = AnimeEntry(**validated_data.model_dump(exclude_none=True))
-
                 db.add(new_entry)
                 added_count += 1
 
@@ -231,8 +226,8 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
     try:
         entries = db.query(AnimeEntry).all()
 
-        # Initialize matrix with headers
-        data_matrix = [ANIME_HEADERS]
+        # FIXED: Initialize matrix empty; headers are passed separately to bulk_overwrite_sheet
+        data_matrix = []
 
         for entry in entries:
             row = [
@@ -286,7 +281,8 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             ]
             data_matrix.append(row)
 
-        success = bulk_overwrite_sheet("Anime", data_matrix)
+        # FIXED: Pass ANIME_HEADERS as the correct 2nd argument
+        success = bulk_overwrite_sheet("Anime", ANIME_HEADERS, data_matrix)
         return {"success": success, "rows": len(entries)}
 
     except Exception as e:
