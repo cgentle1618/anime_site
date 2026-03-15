@@ -10,7 +10,7 @@ import uuid
 import time
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
 from models import AnimeEntry, AnimeSeries, SystemOption
@@ -375,6 +375,7 @@ def action_sync_from_sheets(db: Session) -> dict:
 def action_fill(db: Session) -> dict:
     """
     Action: Fill. Calculation -> Finds missing cover, mal_rating, or mal_rank -> Calls Jikan -> Full Backup.
+    Ignores mal_rating/mal_rank if the series is 'Not Yet Aired'.
     """
     print("▶️ [Action: Fill] Starting...")
     try:
@@ -388,8 +389,14 @@ def action_fill(db: Session) -> dict:
                 or_(
                     AnimeEntry.cover_image_file == None,
                     AnimeEntry.cover_image_file == "",
-                    AnimeEntry.mal_rating == None,
-                    AnimeEntry.mal_rank == None,
+                    # Only check for missing scores/ranks if it's NOT "Not Yet Aired"
+                    and_(
+                        or_(
+                            AnimeEntry.airing_status != "Not Yet Aired",
+                            AnimeEntry.airing_status.is_(None),
+                        ),
+                        or_(AnimeEntry.mal_rating == None, AnimeEntry.mal_rank == None),
+                    ),
                 ),
             )
             .all()
@@ -411,15 +418,21 @@ def action_fill(db: Session) -> dict:
                 jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
                 if jikan_data:
                     changed = False
+                    is_not_yet_aired = entry.airing_status == "Not Yet Aired"
 
-                    if not entry.mal_rating and jikan_data.get("score"):
-                        entry.mal_rating = clean_value(jikan_data.get("score"), float)
-                        changed = True
+                    # Only attempt to extract scores if it's actually released
+                    if not is_not_yet_aired:
+                        if not entry.mal_rating and jikan_data.get("score"):
+                            entry.mal_rating = clean_value(
+                                jikan_data.get("score"), float
+                            )
+                            changed = True
 
-                    if not entry.mal_rank and jikan_data.get("rank"):
-                        entry.mal_rank = clean_value(jikan_data.get("rank"), int)
-                        changed = True
+                        if not entry.mal_rank and jikan_data.get("rank"):
+                            entry.mal_rank = clean_value(jikan_data.get("rank"), int)
+                            changed = True
 
+                    # Always attempt to fill missing covers, even if unreleased
                     if not entry.cover_image_file:
                         cover_url = _extract_jikan_image(jikan_data)
                         if cover_url:
