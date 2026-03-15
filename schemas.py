@@ -189,6 +189,16 @@ class AnimeEntryResponse(AnimeBase):
 # ==========================================
 
 
+class AnimeSheetSync(AnimeEntryCreate):
+    """
+    Schema strictly for validating and coercing data coming from Google Sheets during Sync operations.
+    Inherits all fields from AnimeEntryCreate (which has ep_fin) and adds timestamp handling.
+    """
+
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 class SyncLogResponse(BaseModel):
     id: int
     timestamp: datetime

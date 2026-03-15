@@ -85,6 +85,38 @@ def get_google_sheet(sheet_name: str = "Anime") -> gspread.Worksheet:
     return get_google_spreadsheet().worksheet(sheet_name)
 
 
+def _pad_row(row: list, target_length: int) -> list:
+    """
+    Helper function to ensure a row has the exact number of columns as the headers.
+    Google Sheets truncates trailing empty cells when fetching data.
+    """
+    return row + [""] * (target_length - len(row))
+
+
+def sanitize_sheet_row(row_dict: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Sanitizes a raw row fetched from Google Sheets before it touches Pydantic or SQLAlchemy.
+    Converts 'TRUE'/'FALSE' to booleans, and empty strings to None to prevent DB cast errors
+    on strict Integer/Float columns.
+    """
+    sanitized = {}
+    for key, value in row_dict.items():
+        if isinstance(value, str):
+            val = value.strip()
+            if val == "":
+                sanitized[key] = None
+            elif val.upper() == "TRUE":
+                sanitized[key] = True
+            elif val.upper() == "FALSE":
+                sanitized[key] = False
+            else:
+                sanitized[key] = val
+        else:
+            sanitized[key] = value
+
+    return sanitized
+
+
 def get_all_rows(tab_name: str) -> List[Dict[str, Any]]:
     """
     Fetches all data from a specific tab as a list of dictionaries.
@@ -92,8 +124,25 @@ def get_all_rows(tab_name: str) -> List[Dict[str, Any]]:
     """
     try:
         sheet = execute_with_retry(get_google_spreadsheet().worksheet, tab_name)
-        # get_all_records automatically uses the first row as dictionary keys
-        return execute_with_retry(sheet.get_all_records)
+        all_values = execute_with_retry(sheet.get_all_values)
+
+        if not all_values or len(all_values) < 2:
+            return []
+
+        headers = all_values[0]
+        data = []
+
+        for row in all_values[1:]:
+            # Ensure row perfectly aligns with headers
+            padded_row = _pad_row(row, len(headers))
+
+            # Map to dictionary
+            raw_row_dict = {headers[i]: padded_row[i] for i in range(len(headers))}
+
+            # Sanitize and append
+            data.append(sanitize_sheet_row(raw_row_dict))
+
+        return data
     except WorksheetNotFound:
         print(f"⚠️ Worksheet '{tab_name}' not found.")
         return []

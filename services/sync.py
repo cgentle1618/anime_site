@@ -15,23 +15,24 @@ from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
 from database import get_taipei_now
-from models import AnimeEntry, SyncLog
+import models
+import schemas
+from models import AnimeEntry, SyncLog, AnimeSeries
 from services.sync_utils import (
     clean_value,
     extract_season_from_title,
     extract_season_from_cn_title,
 )
-from services.sheets_client import execute_with_retry, bulk_overwrite_sheet
-
-# Assuming get_google_sheet is available in sheets_client to fetch the raw worksheet
-from services.sheets_client import get_google_sheet
+from services.sheets_client import (
+    execute_with_retry,
+    bulk_overwrite_sheet,
+    get_all_rows,
+)
 import services.jikan_client as jikan_client
 
 # ==========================================
 # CONSTANTS: EXACT V2 GOOGLE SHEET HEADERS
 # ==========================================
-# These 47 headers exactly match the database columns and the studio_results CSV.
-# The order here dictates the column order when backing up to Google Sheets.
 ANIME_HEADERS = [
     "system_id",
     "series_en",
@@ -81,6 +82,23 @@ ANIME_HEADERS = [
     "created_at",
     "updated_at",
 ]
+
+# Headers for the AnimeSeries (Hub) Backup
+SERIES_HEADERS = [
+    "system_id",
+    "series_en",
+    "series_roman",
+    "series_cn",
+    "rating_series",
+    "series_alt_name",
+    "series_expectation",
+    "favorite_3x3_slot",
+    "created_at",
+    "updated_at",
+]
+
+# Headers for the System Options Backup
+OPTIONS_HEADERS = ["id", "category", "option_value"]
 
 # ==========================================
 # HELPER FUNCTIONS
@@ -144,92 +162,25 @@ def _pull_new_manual_entries(db: Session) -> int:
     If a row has no system_id, it is treated as a new manual entry, parsed, and saved to the DB.
     """
     try:
-        sheet = get_google_sheet("Anime")
-        # Fetch all values, avoiding empty rows
-        all_values = execute_with_retry(sheet.get_all_values)
-        if not all_values or len(all_values) < 2:
+        data_rows = get_all_rows("Anime")
+        if not data_rows:
             return 0
 
-        sheet_headers = all_values[0]
-        data_rows = all_values[1:]
         added_count = 0
 
-        for row in data_rows:
-            # Pad row to match header length to avoid index errors
-            padded_row = row + [""] * (len(sheet_headers) - len(row))
-            row_data = dict(zip(sheet_headers, padded_row))
-
-            # Only process rows that DO NOT have a system_id (newly added via Google Sheets)
+        for row_data in data_rows:
             if (
                 not row_data.get("system_id")
                 or str(row_data.get("system_id")).strip() == ""
             ):
 
-                # Verify we at least have an English Series Name before adding
                 if not row_data.get("series_en"):
                     continue
 
-                new_entry = AnimeEntry(
-                    system_id=str(uuid.uuid4()),
-                    series_en=clean_value(row_data.get("series_en"), str),
-                    # Title Information
-                    series_season_en=clean_value(row_data.get("series_season_en"), str),
-                    series_season_roman=clean_value(
-                        row_data.get("series_season_roman"), str
-                    ),
-                    series_season_cn=clean_value(row_data.get("series_season_cn"), str),
-                    anime_alt_name=clean_value(row_data.get("anime_alt_name"), str),
-                    # Format & Status
-                    series_season=clean_value(row_data.get("series_season"), str),
-                    airing_type=clean_value(row_data.get("airing_type"), str),
-                    my_progress=clean_value(row_data.get("my_progress"), str),
-                    airing_status=clean_value(row_data.get("airing_status"), str),
-                    # Progress (ep_total defaults to None if blank)
-                    ep_total=clean_value(row_data.get("ep_total"), int),
-                    ep_fin=clean_value(row_data.get("ep_fin"), int) or 0,
-                    rating_mine=clean_value(row_data.get("rating_mine"), str),
-                    main_spinoff=clean_value(row_data.get("main_spinoff"), str),
-                    # Release Information (All strings in V2)
-                    release_month=clean_value(row_data.get("release_month"), str),
-                    release_season=clean_value(row_data.get("release_season"), str),
-                    release_year=clean_value(row_data.get("release_year"), str),
-                    # Staff & Production
-                    studio=clean_value(row_data.get("studio"), str),
-                    director=clean_value(row_data.get("director"), str),
-                    producer=clean_value(row_data.get("producer"), str),
-                    music=clean_value(row_data.get("music"), str),
-                    distributor_tw=clean_value(row_data.get("distributor_tw"), str),
-                    # Metadata & Themes
-                    genre_main=clean_value(row_data.get("genre_main"), str),
-                    genre_sub=clean_value(row_data.get("genre_sub"), str),
-                    prequel=clean_value(row_data.get("prequel"), str),
-                    sequel=clean_value(row_data.get("sequel"), str),
-                    alternative=clean_value(row_data.get("alternative"), str),
-                    # Timeline
-                    watch_order=clean_value(row_data.get("watch_order"), float),
-                    watch_order_rec=clean_value(row_data.get("watch_order_rec"), float),
-                    remark=clean_value(row_data.get("remark"), str),
-                    # External Stats
-                    mal_id=clean_value(row_data.get("mal_id"), int),
-                    mal_link=clean_value(row_data.get("mal_link"), str),
-                    mal_rating=clean_value(row_data.get("mal_rating"), float),
-                    mal_rank=clean_value(row_data.get("mal_rank"), int),
-                    anilist_link=clean_value(row_data.get("anilist_link"), str),
-                    # Music & Cast
-                    op=clean_value(row_data.get("op"), str),
-                    ed=clean_value(row_data.get("ed"), str),
-                    insert_ost=clean_value(row_data.get("insert_ost"), str),
-                    seiyuu=clean_value(row_data.get("seiyuu"), str),
-                    # Streaming & Assets
-                    source_baha=clean_value(row_data.get("source_baha"), bool),
-                    baha_link=clean_value(row_data.get("baha_link"), str),
-                    source_other=clean_value(row_data.get("source_other"), str),
-                    source_other_link=clean_value(
-                        row_data.get("source_other_link"), str
-                    ),
-                    source_netflix=clean_value(row_data.get("source_netflix"), bool),
-                    cover_image_file=clean_value(row_data.get("cover_image_file"), str),
-                )
+                validated_data = schemas.AnimeSheetSync(**row_data)
+                validated_data.system_id = str(uuid.uuid4())
+
+                new_entry = AnimeEntry(**validated_data.model_dump(exclude_none=True))
                 db.add(new_entry)
                 added_count += 1
 
@@ -251,21 +202,18 @@ def _autofill_missing_data(db: Session) -> int:
     for entry in entries:
         changed = False
 
-        # 1. Autofill MAL ID from link if missing
         if not entry.mal_id and entry.mal_link:
             extracted_id = _extract_mal_id_from_link(entry.mal_link)
             if extracted_id:
                 entry.mal_id = extracted_id
                 changed = True
 
-        # 2. Autofill Series Season from EN Title
         if not entry.series_season and entry.series_season_en:
             season_str = extract_season_from_title(entry.series_season_en)
             if season_str:
                 entry.series_season = season_str
                 changed = True
 
-        # 3. Autofill Series Season from CN Title fallback
         if not entry.series_season and entry.series_season_cn:
             season_str = extract_season_from_cn_title(entry.series_season_cn)
             if season_str:
@@ -282,13 +230,11 @@ def _autofill_missing_data(db: Session) -> int:
 def _push_db_backup_to_sheets(db: Session) -> dict:
     """
     Fetches all DB records and performs a bulk overwrite on the Google Sheet.
-    This establishes the Database as the ultimate source of truth.
+    This establishes the Database as the ultimate source of truth for Anime Entries.
     """
     try:
         entries = db.query(AnimeEntry).all()
-
-        # Initialize matrix with headers
-        data_matrix = [ANIME_HEADERS]
+        data_matrix = []
 
         for entry in entries:
             row = [
@@ -342,11 +288,73 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             ]
             data_matrix.append(row)
 
-        success = bulk_overwrite_sheet("Anime", data_matrix)
+        success = bulk_overwrite_sheet("Anime", ANIME_HEADERS, data_matrix)
         return {"success": success, "rows": len(entries)}
 
     except Exception as e:
         print(f"❌ Error building backup matrix: {e}")
+        return {"success": False, "rows": 0}
+
+
+def _push_series_backup_to_sheets(db: Session) -> dict:
+    """
+    Fetches all AnimeSeries DB records and performs a bulk overwrite to the 'Anime Series' tab.
+    """
+    try:
+        series_entries = db.query(AnimeSeries).all()
+        data_matrix = []
+
+        for entry in series_entries:
+            row = [
+                _format_for_sheet(entry.system_id, str),
+                _format_for_sheet(entry.series_en, str),
+                _format_for_sheet(entry.series_roman, str),
+                _format_for_sheet(entry.series_cn, str),
+                _format_for_sheet(entry.rating_series, str),
+                _format_for_sheet(entry.series_alt_name, str),
+                _format_for_sheet(entry.series_expectation, str),
+                _format_for_sheet(entry.favorite_3x3_slot, int),
+                _format_for_sheet(entry.created_at, datetime),
+                _format_for_sheet(entry.updated_at, datetime),
+            ]
+            data_matrix.append(row)
+
+        # FIXED: Correct tab name from "Series" to "Anime Series"
+        success = bulk_overwrite_sheet("Anime Series", SERIES_HEADERS, data_matrix)
+        return {"success": success, "rows": len(series_entries)}
+
+    except Exception as e:
+        print(f"❌ Error building Series backup matrix: {e}")
+        return {"success": False, "rows": 0}
+
+
+def _push_options_backup_to_sheets(db: Session) -> dict:
+    """
+    Fetches all SystemOption DB records and performs a bulk overwrite to the 'Options' tab.
+    """
+    try:
+        from models import SystemOption
+
+        options = (
+            db.query(SystemOption)
+            .order_by(SystemOption.category, SystemOption.option_value)
+            .all()
+        )
+        data_matrix = []
+
+        for opt in options:
+            row = [
+                _format_for_sheet(opt.id, int),
+                _format_for_sheet(opt.category, str),
+                _format_for_sheet(opt.option_value, str),
+            ]
+            data_matrix.append(row)
+
+        success = bulk_overwrite_sheet("Options", OPTIONS_HEADERS, data_matrix)
+        return {"success": success, "rows": len(options)}
+
+    except Exception as e:
+        print(f"❌ Error building Options backup matrix: {e}")
         return {"success": False, "rows": 0}
 
 
@@ -360,7 +368,7 @@ def basic_sync(db: Session) -> dict:
     Executes the standard daily sync:
     1. Pulls new manual entries from Google Sheets into DB.
     2. Autofills missing localized data.
-    3. Overwrites the Google Sheet with the newly structured DB.
+    3. Overwrites the Google Sheet with the newly structured DB (Both Anime AND Series).
     """
     print("▶️ [Basic Sync] Starting...")
     try:
@@ -370,10 +378,20 @@ def basic_sync(db: Session) -> dict:
         updated_count = _autofill_missing_data(db)
         print(f"   ↳ Autofilled {updated_count} empty fields.")
 
+        # Push backups for ALL tables
         push_metrics = _push_db_backup_to_sheets(db)
-        print(f"   ↳ Pushed {push_metrics['rows']} rows back to Sheets.")
+        series_metrics = _push_series_backup_to_sheets(db)
+        options_metrics = _push_options_backup_to_sheets(db)
 
-        success = push_metrics["success"]
+        print(
+            f"   ↳ Pushed {push_metrics['rows']} Anime rows, {series_metrics['rows']} Anime Series rows, and {options_metrics['rows']} Options rows back to Sheets."
+        )
+
+        success = (
+            push_metrics["success"]
+            and series_metrics["success"]
+            and options_metrics["success"]
+        )
         status = "success" if success else "failed"
 
         details = {
@@ -453,7 +471,7 @@ def strong_sync(db: Session) -> dict:
 
         db.commit()
 
-        # Push the freshly updated stats to the cloud sheet
+        # Push the freshly updated stats to the cloud sheet (Anime only needed here)
         push_metrics = _push_db_backup_to_sheets(db)
         success = push_metrics["success"]
 

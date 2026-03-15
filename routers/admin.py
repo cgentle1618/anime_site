@@ -6,13 +6,20 @@ Optimized for V2 (PostgreSQL as Source of Truth).
 """
 
 import uuid
+import json
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 import models
 import schemas
-from services.sync import basic_sync, strong_sync, _push_db_backup_to_sheets
+from services.sync import (
+    basic_sync,
+    strong_sync,
+    _push_db_backup_to_sheets,
+    _push_series_backup_to_sheets,
+    _push_options_backup_to_sheets,
+)
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
@@ -48,6 +55,8 @@ def add_anime(
         .first()
     )
 
+    is_new_series = False
+
     if not existing_series:
         new_series = models.AnimeSeries(
             system_id=str(uuid.uuid4()),
@@ -58,6 +67,7 @@ def add_anime(
         )
         db.add(new_series)
         db.flush()  # Flush to get the series into the session before adding the entry
+        is_new_series = True
 
     # 2. Auto-calculate season if missing
     calculated_season = payload.series_season
@@ -67,64 +77,16 @@ def add_anime(
         elif payload.series_season_cn:
             calculated_season = extract_season_from_cn_title(payload.series_season_cn)
 
-    # 3. Create the Database Entry
-    new_entry = models.AnimeEntry(
-        system_id=str(uuid.uuid4()),
-        series_en=payload.series_en,
-        # Title Information
-        series_season_en=payload.series_season_en,
-        series_season_roman=payload.series_season_roman,
-        series_season_cn=payload.series_season_cn,
-        anime_alt_name=payload.anime_alt_name,
-        # Format & Status
-        series_season=calculated_season,
-        airing_type=payload.airing_type,
-        my_progress=payload.my_progress,
-        airing_status=payload.airing_status,
-        # Progress
-        ep_total=payload.ep_total,
-        ep_fin=payload.ep_fin,
-        rating_mine=payload.rating_mine,
-        main_spinoff=payload.main_spinoff,
-        # Release Information
-        release_month=payload.release_month,
-        release_season=payload.release_season,
-        release_year=payload.release_year,
-        # Staff & Production
-        studio=payload.studio,
-        director=payload.director,
-        producer=payload.producer,
-        music=payload.music,
-        distributor_tw=payload.distributor_tw,
-        # Metadata & Themes
-        genre_main=payload.genre_main,
-        genre_sub=payload.genre_sub,
-        prequel=payload.prequel,
-        sequel=payload.sequel,
-        alternative=payload.alternative,
-        # Timeline
-        watch_order=payload.watch_order,
-        watch_order_rec=payload.watch_order_rec,
-        remark=payload.remark,
-        # External Stats
-        mal_id=payload.mal_id,
-        mal_link=payload.mal_link,
-        mal_rating=payload.mal_rating,
-        mal_rank=payload.mal_rank,
-        anilist_link=payload.anilist_link,
-        # Music & Cast
-        op=payload.op,
-        ed=payload.ed,
-        insert_ost=payload.insert_ost,
-        seiyuu=payload.seiyuu,
-        # Streaming & Assets
-        source_baha=payload.source_baha,
-        baha_link=payload.baha_link,
-        source_other=payload.source_other,
-        source_other_link=payload.source_other_link,
-        source_netflix=payload.source_netflix,
-        cover_image_file=payload.cover_image_file,
-    )
+    # 3. Create the Database Entry dynamically (DRY Principle)
+    entry_data = payload.model_dump()
+
+    # Remove 'series_alt_name' as it belongs to AnimeSeries, not AnimeEntry
+    entry_data.pop("series_alt_name", None)
+
+    entry_data["system_id"] = str(uuid.uuid4())
+    entry_data["series_season"] = calculated_season
+
+    new_entry = models.AnimeEntry(**entry_data)
 
     db.add(new_entry)
     db.commit()
@@ -135,10 +97,339 @@ def add_anime(
     )
     background_tasks.add_task(_push_db_backup_to_sheets, db)
 
+    # NEW: If a new series was created, we must also trigger the Series sheet backup!
+    if is_new_series:
+        print(
+            f"▶️ Admin created new series {new_series.series_en}. Queuing background Series backup..."
+        )
+        background_tasks.add_task(_push_series_backup_to_sheets, db)
+
     return {
         "message": "Entry added successfully and is backing up to Sheets.",
         "system_id": new_entry.system_id,
     }
+
+
+@router.post("/series", summary="Add New Series Hub")
+def add_series(
+    payload: schemas.AnimeSeriesCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Explicitly adds a new Anime Series Hub to the PostgreSQL database.
+    Triggers a background task to bulk push the updated Series table to Google Sheets.
+    """
+    # 1. Check for duplicates
+    existing_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.series_en == payload.series_en)
+        .first()
+    )
+    if existing_series:
+        raise HTTPException(status_code=400, detail="Series Hub already exists.")
+
+    # 2. Insert into PostgreSQL
+    series_data = payload.model_dump(exclude_none=True)
+    series_data["system_id"] = str(uuid.uuid4())
+
+    new_series = models.AnimeSeries(**series_data)
+    db.add(new_series)
+    db.commit()
+
+    # 3. Push Backup to Google Sheets
+    print(
+        f"▶️ Admin explicitly added Series '{new_series.series_en}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_series_backup_to_sheets, db)
+
+    return {
+        "message": "Series Hub added successfully and is backing up to Sheets.",
+        "system_id": new_series.system_id,
+    }
+
+
+@router.put("/series/{system_id}", summary="Update Series Hub")
+def update_series_hub(
+    system_id: str,
+    payload: schemas.AnimeSeriesUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Updates an existing Anime Series Hub and queues a Google Sheets backup."""
+    db_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not db_series:
+        raise HTTPException(status_code=404, detail="Series Hub not found.")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data.pop(
+        "system_id", None
+    )  # Prevent accidental overwrites of the primary key
+
+    for key, value in update_data.items():
+        setattr(db_series, key, value)
+
+    db.commit()
+    db.refresh(db_series)
+
+    print(f"▶️ Admin updated Series Hub {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_series_backup_to_sheets, db)
+
+    return {"message": "Series Hub updated successfully.", "system_id": system_id}
+
+
+@router.get(
+    "/options/{category}",
+    response_model=List[schemas.SystemOptionResponse],
+    summary="Get System Options by Category",
+)
+def get_system_options(category: str, db: Session = Depends(get_db)):
+    """
+    Retrieves dynamic dropdown options for a specific category (e.g., 'Studio', 'Genre Main').
+    Used by the frontend Add/Modify forms to populate selection lists.
+    """
+    options = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.category == category)
+        .all()
+    )
+
+    if not options:
+        # We don't raise a 404 here, returning an empty list allows the frontend
+        # to gracefully fall back to a text input or empty dropdown if no options exist yet.
+        return []
+
+    return options
+
+
+@router.post("/options", summary="Add System Option")
+def add_system_option(
+    payload: schemas.SystemOptionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Adds a new dynamic dropdown option to the database (e.g., a new Studio or Genre).
+    Prevents duplicates from being added to the same category.
+    """
+    # Check if this exact option already exists in this category
+    existing_option = (
+        db.query(models.SystemOption)
+        .filter(
+            models.SystemOption.category == payload.category,
+            models.SystemOption.option_value == payload.option_value,
+        )
+        .first()
+    )
+
+    if existing_option:
+        raise HTTPException(
+            status_code=400, detail="This option already exists in this category."
+        )
+
+    new_option = models.SystemOption(
+        category=payload.category, option_value=payload.option_value
+    )
+
+    db.add(new_option)
+    db.commit()
+
+    # Trigger background backup to Google Sheets 'Options' tab
+    print(
+        f"▶️ Admin explicitly added Option '{new_option.option_value}' to '{new_option.category}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_options_backup_to_sheets, db)
+
+    return {
+        "message": f"Option '{payload.option_value}' added successfully to '{payload.category}'."
+    }
+
+
+@router.put("/options/{option_id}", summary="Update System Option")
+def update_system_option(
+    option_id: int,
+    payload: schemas.SystemOptionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Updates a dynamic system option and queues a Google Sheets backup."""
+    db_option = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.id == option_id)
+        .first()
+    )
+    if not db_option:
+        raise HTTPException(status_code=404, detail="System option not found.")
+
+    # Prevent accidental duplicates during edit
+    if (
+        db_option.category != payload.category
+        or db_option.option_value != payload.option_value
+    ):
+        existing_option = (
+            db.query(models.SystemOption)
+            .filter(
+                models.SystemOption.category == payload.category,
+                models.SystemOption.option_value == payload.option_value,
+            )
+            .first()
+        )
+        if existing_option:
+            raise HTTPException(
+                status_code=400, detail="This option already exists in this category."
+            )
+
+    db_option.category = payload.category
+    db_option.option_value = payload.option_value
+
+    db.commit()
+    db.refresh(db_option)
+
+    print(
+        f"▶️ Admin updated Option {option_id} to '{payload.option_value}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_options_backup_to_sheets, db)
+
+    return {"message": "System option updated successfully.", "id": option_id}
+
+
+@router.delete("/options/{option_id}", summary="Delete System Option")
+def delete_system_option(
+    option_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Deletes a dynamic system option and updates Google Sheets."""
+    db_option = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.id == option_id)
+        .first()
+    )
+    if not db_option:
+        raise HTTPException(status_code=404, detail="System option not found.")
+
+    category = db_option.category
+    option_value = db_option.option_value
+
+    db.delete(db_option)
+    db.commit()
+
+    print(
+        f"▶️ Admin deleted Option '{option_value}' from '{category}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_options_backup_to_sheets, db)
+
+    return {"message": "System option deleted successfully.", "id": option_id}
+
+
+@router.put("/anime/{system_id}", summary="Update Anime Entry")
+def update_anime_entry(
+    system_id: str,
+    payload: schemas.AnimeEntryUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Updates an existing Anime entry and queues a Google Sheets backup."""
+    db_anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    # Convert payload to dictionary, ignoring fields that weren't included in the request
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data.pop(
+        "system_id", None
+    )  # Prevent accidental overwrites of the primary key
+
+    for key, value in update_data.items():
+        setattr(db_anime, key, value)
+
+    db.commit()
+    db.refresh(db_anime)
+
+    print(f"▶️ Admin updated Anime Entry {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_db_backup_to_sheets, db)
+
+    return {"message": "Anime entry updated successfully.", "system_id": system_id}
+
+
+@router.delete("/anime/{system_id}", summary="Delete Anime Entry")
+def delete_anime_entry(
+    system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Deletes an Anime entry, logs it, and updates Google Sheets."""
+    db_anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    # Determine the best fallback display name for the deletion log
+    anime_display_name = (
+        db_anime.series_season_en or db_anime.series_en or db_anime.system_id
+    )
+
+    # Log the deletion so it appears in the Admin Dashboard logs
+    deleted_record = models.DeletedRecord(
+        system_id=db_anime.system_id,
+        table_name="anime_entries",
+        data_json=json.dumps({"title": anime_display_name}),
+    )
+    db.add(deleted_record)
+
+    db.delete(db_anime)
+    db.commit()
+
+    print(f"▶️ Admin deleted Anime Entry {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_db_backup_to_sheets, db)
+
+    return {"message": "Anime entry deleted successfully.", "system_id": system_id}
+
+
+@router.delete("/series/{system_id}", summary="Delete Series Hub")
+def delete_series_hub(
+    system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Deletes an Anime Series Hub, logs it, and updates Google Sheets."""
+    db_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.system_id == system_id)
+        .first()
+    )
+    if not db_series:
+        raise HTTPException(status_code=404, detail="Series Hub not found.")
+
+    # Determine the best fallback display name using the requested order
+    series_display_name = (
+        db_series.series_en
+        or db_series.series_cn
+        or db_series.series_roman
+        or db_series.series_alt_name
+        or db_series.system_id
+    )
+
+    # Log the deletion so it appears in the Admin Dashboard logs
+    deleted_record = models.DeletedRecord(
+        system_id=db_series.system_id,
+        table_name="anime_series",
+        data_json=json.dumps({"series_en": series_display_name}),
+    )
+    db.add(deleted_record)
+
+    db.delete(db_series)
+    db.commit()
+
+    print(f"▶️ Admin deleted Series Hub {system_id}. Queuing background backup...")
+    background_tasks.add_task(_push_series_backup_to_sheets, db)
+
+    return {"message": "Series Hub deleted successfully.", "system_id": system_id}
 
 
 # ==========================================
