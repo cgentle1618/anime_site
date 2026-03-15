@@ -371,13 +371,16 @@ def delete_anime_entry(
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
+    # Determine the best fallback display name for the deletion log
+    anime_display_name = (
+        db_anime.series_season_en or db_anime.series_en or db_anime.system_id
+    )
+
     # Log the deletion so it appears in the Admin Dashboard logs
     deleted_record = models.DeletedRecord(
         system_id=db_anime.system_id,
         table_name="anime_entries",
-        data_json=json.dumps(
-            {"title": db_anime.series_season_en or db_anime.series_en}
-        ),
+        data_json=json.dumps({"title": anime_display_name}),
     )
     db.add(deleted_record)
 
@@ -403,11 +406,20 @@ def delete_series_hub(
     if not db_series:
         raise HTTPException(status_code=404, detail="Series Hub not found.")
 
+    # Determine the best fallback display name using the requested order
+    series_display_name = (
+        db_series.series_en
+        or db_series.series_cn
+        or db_series.series_roman
+        or db_series.series_alt_name
+        or db_series.system_id
+    )
+
     # Log the deletion so it appears in the Admin Dashboard logs
     deleted_record = models.DeletedRecord(
         system_id=db_series.system_id,
         table_name="anime_series",
-        data_json=json.dumps({"series_en": db_series.series_en}),
+        data_json=json.dumps({"series_en": series_display_name}),
     )
     db.add(deleted_record)
 
