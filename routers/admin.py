@@ -216,6 +216,33 @@ def add_system_option(
     }
 
 
+@router.delete("/options/{option_id}", summary="Delete System Option")
+def delete_system_option(
+    option_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Deletes a dynamic system option and updates Google Sheets."""
+    db_option = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.id == option_id)
+        .first()
+    )
+    if not db_option:
+        raise HTTPException(status_code=404, detail="System option not found.")
+
+    category = db_option.category
+    option_value = db_option.option_value
+
+    db.delete(db_option)
+    db.commit()
+
+    print(
+        f"▶️ Admin deleted Option '{option_value}' from '{category}'. Queuing background backup..."
+    )
+    background_tasks.add_task(_push_options_backup_to_sheets, db)
+
+    return {"message": "System option deleted successfully.", "id": option_id}
+
+
 @router.delete("/anime/{system_id}", summary="Delete Anime Entry")
 def delete_anime_entry(
     system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
