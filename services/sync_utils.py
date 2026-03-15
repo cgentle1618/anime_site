@@ -12,22 +12,29 @@ from typing import Any, Optional
 def clean_value(val: Any, expected_type: type = str) -> Any:
     """
     Cleans raw Google Sheets cell values.
-    Converts empty strings or None to a proper Python None (or False for bools).
+    Converts empty strings or None to a proper Python None.
     Casts values to the specified expected_type (e.g., int, float, str, bool).
     """
-    if val is None or str(val).strip() == "":
-        # For boolean fields (like Netflix source), an empty cell means False
-        if expected_type == bool:
-            return False
+    # 1. Immediate return for empty data
+    if val is None:
         return None
 
-    val_str = str(val).strip()
+    # 2. Short-circuit: If the value is already exactly the requested type, return it.
+    # (e.g., sheets_client.py already converted it to a native bool or int)
+    if type(val) is expected_type:
+        return val
 
-    # Handle Boolean casting (Google Sheets often sends "TRUE" / "FALSE")
+    # 3. Convert to string and check for emptiness
+    val_str = str(val).strip()
+    if val_str == "":
+        return None
+
+    # 4. Handle Boolean casting (Google Sheets often sends "TRUE" / "FALSE")
     if expected_type == bool:
         # Added "有" (Baha) and "1" as common truthy spreadsheet values
         return val_str.lower() in ["true", "t", "1", "yes", "y", "有"]
 
+    # 5. Handle Numeric casting
     try:
         if expected_type == int:
             return int(float(val_str))  # Handles strings like "1.0" gracefully
@@ -36,6 +43,7 @@ def clean_value(val: Any, expected_type: type = str) -> Any:
     except ValueError:
         return None
 
+    # 6. Default fallback
     return val_str
 
 
