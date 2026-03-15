@@ -69,6 +69,10 @@ def add_anime(
 
     # 3. Create the Database Entry dynamically (DRY Principle)
     entry_data = payload.model_dump()
+
+    # FIXED: Remove 'series_alt_name' as it belongs to AnimeSeries, not AnimeEntry
+    entry_data.pop("series_alt_name", None)
+
     entry_data["system_id"] = str(uuid.uuid4())
     entry_data["series_season"] = calculated_season
 
