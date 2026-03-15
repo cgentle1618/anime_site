@@ -12,7 +12,12 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
-from services.sync import basic_sync, strong_sync, _push_db_backup_to_sheets
+from services.sync import (
+    basic_sync,
+    strong_sync,
+    _push_db_backup_to_sheets,
+    _push_series_backup_to_sheets,  # NEW: Imported series backup function
+)
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
@@ -48,6 +53,8 @@ def add_anime(
         .first()
     )
 
+    is_new_series = False
+
     if not existing_series:
         new_series = models.AnimeSeries(
             system_id=str(uuid.uuid4()),
@@ -58,6 +65,7 @@ def add_anime(
         )
         db.add(new_series)
         db.flush()  # Flush to get the series into the session before adding the entry
+        is_new_series = True
 
     # 2. Auto-calculate season if missing
     calculated_season = payload.series_season
@@ -70,7 +78,7 @@ def add_anime(
     # 3. Create the Database Entry dynamically (DRY Principle)
     entry_data = payload.model_dump()
 
-    # FIXED: Remove 'series_alt_name' as it belongs to AnimeSeries, not AnimeEntry
+    # Remove 'series_alt_name' as it belongs to AnimeSeries, not AnimeEntry
     entry_data.pop("series_alt_name", None)
 
     entry_data["system_id"] = str(uuid.uuid4())
@@ -86,6 +94,13 @@ def add_anime(
         f"▶️ Admin added entry for {new_entry.series_en}. Queuing background Sheet backup..."
     )
     background_tasks.add_task(_push_db_backup_to_sheets, db)
+
+    # NEW: If a new series was created, we must also trigger the Series sheet backup!
+    if is_new_series:
+        print(
+            f"▶️ Admin created new series {new_series.series_en}. Queuing background Series backup..."
+        )
+        background_tasks.add_task(_push_series_backup_to_sheets, db)
 
     return {
         "message": "Entry added successfully and is backing up to Sheets.",

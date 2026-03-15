@@ -15,8 +15,9 @@ from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
 from database import get_taipei_now
+import models
 import schemas
-from models import AnimeEntry, SyncLog
+from models import AnimeEntry, SyncLog, AnimeSeries
 from services.sync_utils import (
     clean_value,
     extract_season_from_title,
@@ -32,8 +33,6 @@ import services.jikan_client as jikan_client
 # ==========================================
 # CONSTANTS: EXACT V2 GOOGLE SHEET HEADERS
 # ==========================================
-# These 47 headers exactly match the database columns and the studio_results CSV.
-# The order here dictates the column order when backing up to Google Sheets.
 ANIME_HEADERS = [
     "system_id",
     "series_en",
@@ -80,6 +79,20 @@ ANIME_HEADERS = [
     "source_other_link",
     "source_netflix",
     "cover_image_file",
+    "created_at",
+    "updated_at",
+]
+
+# Headers for the AnimeSeries (Hub) Backup
+SERIES_HEADERS = [
+    "system_id",
+    "series_en",
+    "series_roman",
+    "series_cn",
+    "rating_series",
+    "series_alt_name",
+    "series_expectation",
+    "favorite_3x3_slot",
     "created_at",
     "updated_at",
 ]
@@ -153,21 +166,17 @@ def _pull_new_manual_entries(db: Session) -> int:
         added_count = 0
 
         for row_data in data_rows:
-            # Only process rows that DO NOT have a system_id (newly added via Google Sheets)
             if (
                 not row_data.get("system_id")
                 or str(row_data.get("system_id")).strip() == ""
             ):
 
-                # Verify we at least have an English Series Name before adding
                 if not row_data.get("series_en"):
                     continue
 
-                # Pydantic validation handles all the messy data coercion instantly
                 validated_data = schemas.AnimeSheetSync(**row_data)
                 validated_data.system_id = str(uuid.uuid4())
 
-                # Unpack directly into SQLAlchemy model
                 new_entry = AnimeEntry(**validated_data.model_dump(exclude_none=True))
                 db.add(new_entry)
                 added_count += 1
@@ -190,21 +199,18 @@ def _autofill_missing_data(db: Session) -> int:
     for entry in entries:
         changed = False
 
-        # 1. Autofill MAL ID from link if missing
         if not entry.mal_id and entry.mal_link:
             extracted_id = _extract_mal_id_from_link(entry.mal_link)
             if extracted_id:
                 entry.mal_id = extracted_id
                 changed = True
 
-        # 2. Autofill Series Season from EN Title
         if not entry.series_season and entry.series_season_en:
             season_str = extract_season_from_title(entry.series_season_en)
             if season_str:
                 entry.series_season = season_str
                 changed = True
 
-        # 3. Autofill Series Season from CN Title fallback
         if not entry.series_season and entry.series_season_cn:
             season_str = extract_season_from_cn_title(entry.series_season_cn)
             if season_str:
@@ -221,12 +227,10 @@ def _autofill_missing_data(db: Session) -> int:
 def _push_db_backup_to_sheets(db: Session) -> dict:
     """
     Fetches all DB records and performs a bulk overwrite on the Google Sheet.
-    This establishes the Database as the ultimate source of truth.
+    This establishes the Database as the ultimate source of truth for Anime Entries.
     """
     try:
         entries = db.query(AnimeEntry).all()
-
-        # FIXED: Initialize matrix empty; headers are passed separately to bulk_overwrite_sheet
         data_matrix = []
 
         for entry in entries:
@@ -281,12 +285,43 @@ def _push_db_backup_to_sheets(db: Session) -> dict:
             ]
             data_matrix.append(row)
 
-        # FIXED: Pass ANIME_HEADERS as the correct 2nd argument
         success = bulk_overwrite_sheet("Anime", ANIME_HEADERS, data_matrix)
         return {"success": success, "rows": len(entries)}
 
     except Exception as e:
         print(f"❌ Error building backup matrix: {e}")
+        return {"success": False, "rows": 0}
+
+
+def _push_series_backup_to_sheets(db: Session) -> dict:
+    """
+    Fetches all AnimeSeries DB records and performs a bulk overwrite to the 'Anime Series' tab.
+    """
+    try:
+        series_entries = db.query(AnimeSeries).all()
+        data_matrix = []
+
+        for entry in series_entries:
+            row = [
+                _format_for_sheet(entry.system_id, str),
+                _format_for_sheet(entry.series_en, str),
+                _format_for_sheet(entry.series_roman, str),
+                _format_for_sheet(entry.series_cn, str),
+                _format_for_sheet(entry.rating_series, str),
+                _format_for_sheet(entry.series_alt_name, str),
+                _format_for_sheet(entry.series_expectation, str),
+                _format_for_sheet(entry.favorite_3x3_slot, int),
+                _format_for_sheet(entry.created_at, datetime),
+                _format_for_sheet(entry.updated_at, datetime),
+            ]
+            data_matrix.append(row)
+
+        # FIXED: Correct tab name from "Series" to "Anime Series"
+        success = bulk_overwrite_sheet("Anime Series", SERIES_HEADERS, data_matrix)
+        return {"success": success, "rows": len(series_entries)}
+
+    except Exception as e:
+        print(f"❌ Error building Series backup matrix: {e}")
         return {"success": False, "rows": 0}
 
 
@@ -300,7 +335,7 @@ def basic_sync(db: Session) -> dict:
     Executes the standard daily sync:
     1. Pulls new manual entries from Google Sheets into DB.
     2. Autofills missing localized data.
-    3. Overwrites the Google Sheet with the newly structured DB.
+    3. Overwrites the Google Sheet with the newly structured DB (Both Anime AND Series).
     """
     print("▶️ [Basic Sync] Starting...")
     try:
@@ -310,10 +345,14 @@ def basic_sync(db: Session) -> dict:
         updated_count = _autofill_missing_data(db)
         print(f"   ↳ Autofilled {updated_count} empty fields.")
 
+        # Push backups for BOTH tables
         push_metrics = _push_db_backup_to_sheets(db)
-        print(f"   ↳ Pushed {push_metrics['rows']} rows back to Sheets.")
+        series_metrics = _push_series_backup_to_sheets(db)
+        print(
+            f"   ↳ Pushed {push_metrics['rows']} Anime rows and {series_metrics['rows']} Anime Series rows back to Sheets."
+        )
 
-        success = push_metrics["success"]
+        success = push_metrics["success"] and series_metrics["success"]
         status = "success" if success else "failed"
 
         details = {
@@ -393,7 +432,7 @@ def strong_sync(db: Session) -> dict:
 
         db.commit()
 
-        # Push the freshly updated stats to the cloud sheet
+        # Push the freshly updated stats to the cloud sheet (Anime only needed here)
         push_metrics = _push_db_backup_to_sheets(db)
         success = push_metrics["success"]
 
