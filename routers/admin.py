@@ -160,6 +160,30 @@ def update_series_hub(
     return {"message": "Series Hub updated successfully.", "system_id": system_id}
 
 
+@router.get(
+    "/options/{category}",
+    response_model=List[schemas.SystemOptionResponse],
+    summary="Get System Options by Category",
+)
+def get_system_options(category: str, db: Session = Depends(get_db)):
+    """
+    Retrieves dynamic dropdown options for a specific category (e.g., 'Studio', 'Genre Main').
+    Used by the frontend Add/Modify forms to populate selection lists.
+    """
+    options = (
+        db.query(models.SystemOption)
+        .filter(models.SystemOption.category == category)
+        .all()
+    )
+
+    if not options:
+        # We don't raise a 404 here, returning an empty list allows the frontend
+        # to gracefully fall back to a text input or empty dropdown if no options exist yet.
+        return []
+
+    return options
+
+
 @router.post("/options", summary="Add System Option")
 def add_system_option(
     payload: schemas.SystemOptionCreate,
