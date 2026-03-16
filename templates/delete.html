@@ -118,7 +118,7 @@ content %}
             id="del-anime-img"
             src=""
             class="w-full h-full object-cover"
-            onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100%\\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'10\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'"
+            onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'10\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'"
           />
         </div>
 
@@ -941,17 +941,16 @@ content %}
           }
         }
 
+        const targetType = currentDeleteTarget.type;
         closeDeleteModal();
 
-        if (currentDeleteTarget.type === "anime") closeAnimeContainer();
-        else if (currentDeleteTarget.type === "series") closeSeriesContainer();
+        if (targetType === "anime") closeAnimeContainer();
+        else if (targetType === "series") closeSeriesContainer();
 
         await loadDatabase(); // Refresh local memory cache immediately
 
         if (typeof showToast === "function") {
-          showToast(
-            `Successfully deleted ${currentDeleteTarget.type} and synced database.`,
-          );
+          showToast(`Successfully deleted ${targetType} and synced database.`);
         }
       } catch (error) {
         if (typeof showToast === "function")
