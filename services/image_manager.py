@@ -19,22 +19,39 @@ COVER_DIR = "static/covers"
 
 
 def get_gcs_client():
-    """Initializes the Google Cloud Storage client using existing credentials."""
+    """
+    Initializes the Google Cloud Storage client.
+    Smartly routes between Cloud Run native identity and local JSON credentials.
+    """
     from google.cloud import storage
     from google.oauth2.service_account import Credentials
 
+    # 1. If running in Cloud Run, ALWAYS use the native Compute Identity.
+    # This prevents the app from accidentally using the Google Sheets JSON key,
+    # which lacks the 'Storage Object Admin' role and causes a 403 Forbidden.
+    if os.getenv("K_SERVICE"):
+        logger.info(
+            "Cloud Run environment detected. Using native IAM identity for GCS."
+        )
+        return storage.Client()
+
+    # 2. If running locally, try to use the JSON credentials (if provided)
     creds_json_str = os.getenv("GOOGLE_CREDENTIALS_JSON")
     if creds_json_str:
         try:
             creds_info = json.loads(creds_json_str)
             credentials = Credentials.from_service_account_info(creds_info)
+            logger.info(
+                "Local environment detected. Using GOOGLE_CREDENTIALS_JSON for GCS."
+            )
             return storage.Client(
                 credentials=credentials, project=creds_info.get("project_id")
             )
         except Exception as e:
             logger.error(f"Failed to parse GOOGLE_CREDENTIALS_JSON for GCS: {e}")
 
-    # Fallback to default compute engine credentials if running directly in GCP
+    # 3. Ultimate fallback
+    logger.info("No explicit credentials found. Falling back to default GCS client.")
     return storage.Client()
 
 
