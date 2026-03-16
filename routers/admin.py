@@ -396,9 +396,9 @@ def trigger_fill(limit: int = 5, db: Session = Depends(get_db)):
 
 
 @router.post("/sync/replace", summary="Trigger Replace API Data")
-def trigger_replace(db: Session = Depends(get_db)):
+def trigger_replace(limit: int = 5, offset: int = 0, db: Session = Depends(get_db)):
     """Calculates missing fields, updates ALL ranks/scores via Jikan API, and backs up."""
-    result = action_replace(db)
+    result = action_replace(db, limit=limit, offset=offset)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
     return result

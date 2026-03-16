@@ -685,6 +685,7 @@ content %}
       tbody.innerHTML = data
         .map((record) => {
           const dataJson = JSON.parse(record.data_json || "{}");
+          // FIXED: Smart fallback to display series_en if title is missing
           const displayTitle =
             dataJson.title || dataJson.series_en || record.system_id;
 
@@ -717,6 +718,7 @@ content %}
     defaultText,
     defaultIconClass,
     isChunked = false,
+    useOffset = false,
   ) {
     const btn = document.getElementById(btnId);
     const icon = document.getElementById(iconId);
@@ -730,9 +732,18 @@ content %}
     try {
       let keepGoing = true;
       let totalProcessed = 0;
+      let currentOffset = 0;
 
       while (keepGoing) {
-        const response = await fetch(endpoint, { method: "POST" });
+        let currentEndpoint = endpoint;
+
+        // Dynamically append the offset query parameter if requested
+        if (useOffset) {
+          const separator = currentEndpoint.includes("?") ? "&" : "?";
+          currentEndpoint += `${separator}offset=${currentOffset}`;
+        }
+
+        const response = await fetch(currentEndpoint, { method: "POST" });
         const data = await response.json();
 
         if (!response.ok) {
@@ -741,12 +752,18 @@ content %}
           );
         }
 
+        // Logic for looped/chunked operations (Fill & Replace)
         if (isChunked && data.remaining !== undefined) {
           totalProcessed += data.processed || 0;
 
+          // Increment the offset if the endpoint relies on it (like Replace)
+          if (useOffset) {
+            currentOffset += data.processed || 0;
+          }
+
           if (data.remaining > 0) {
-            if (data.processed === 0) {
-              // Safety fallback: If Jikan has no data for the remaining batch, break to prevent infinite loop.
+            if (data.processed === 0 && !useOffset) {
+              // Safety fallback for Fill: If Jikan has no data for remaining entries, break to prevent loop.
               keepGoing = false;
               if (typeof showToast === "function") {
                 showToast(
@@ -755,18 +772,21 @@ content %}
                 );
               }
             } else {
+              // Keep looping!
               textSpan.innerText = `Processing... (${data.remaining} left)`;
               await new Promise((r) => setTimeout(r, 800)); // Small pause between chunks
             }
           } else {
+            // Reached 0 remaining!
             keepGoing = false;
             if (typeof showToast === "function") {
               showToast(
-                `Success: Fill complete! Processed ${totalProcessed} entries.`,
+                `Success: Operation complete! Processed ${totalProcessed} entries.`,
               );
             }
           }
         } else {
+          // Standard single-shot operation
           keepGoing = false;
           if (typeof showToast === "function") {
             showToast(`Success: ${data.message}`);
@@ -799,6 +819,7 @@ content %}
   }
 
   function handleFill() {
+    // Fill does NOT use offset because missing items drop out of the query naturally
     executeSyncAction(
       "/api/admin/sync/fill?limit=5",
       "btn-fill",
@@ -806,18 +827,22 @@ content %}
       "text-fill",
       "Execute Fill",
       "fa-play",
-      true,
+      true, // isChunked
+      false, // useOffset
     );
   }
 
   function handleReplace() {
+    // Replace DOES use offset because we iterate through the whole database
     executeSyncAction(
-      "/api/admin/sync/replace",
+      "/api/admin/sync/replace?limit=5",
       "btn-replace",
       "icon-replace",
       "text-replace",
       "Execute Replace",
       "fa-play",
+      true, // isChunked
+      true, // useOffset
     );
   }
 
