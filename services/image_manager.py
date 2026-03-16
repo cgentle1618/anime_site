@@ -131,3 +131,51 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Unexpected error managing image for {system_id}: {e}")
         return None
+
+
+def delete_cover_image(system_id: str) -> None:
+    """
+    Deletes the cover image associated with a system_id from storage.
+    Handles both Google Cloud Storage and local file system gracefully.
+    """
+    if not system_id:
+        return
+
+    filename = f"{system_id}.jpg"
+
+    # Environment detection exactly matching download logic
+    is_cloud_run = os.getenv("K_SERVICE") is not None
+    bucket_name = os.getenv(
+        "GCP_BUCKET_NAME", "cg1618-anime-covers" if is_cloud_run else None
+    )
+
+    try:
+        if bucket_name:
+            # --- CLOUD MODE ---
+            client = get_gcs_client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(filename)
+
+            if blob.exists():
+                blob.delete()
+                logger.info(
+                    f"Successfully deleted image from GCS bucket '{bucket_name}': {filename}"
+                )
+            else:
+                logger.info(
+                    f"Image not found in GCS for deletion (already removed): {filename}"
+                )
+        else:
+            # --- LOCAL MODE ---
+            filepath = os.path.join(COVER_DIR, filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                logger.info(f"Successfully deleted local image: {filename}")
+            else:
+                logger.info(
+                    f"Local image not found for deletion (already removed): {filename}"
+                )
+
+    except Exception as e:
+        # We log the error but do not raise it, so it doesn't crash the parent database transaction
+        logger.error(f"Failed to delete image {filename}: {e}")
