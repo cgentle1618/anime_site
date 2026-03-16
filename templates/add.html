@@ -24,7 +24,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     </div>
   </div>
 
-  <!-- Last Added Display Area -->
   <div id="last-added-display" class="hidden mb-8 animate-slide-in">
     <div
       class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center gap-4 sm:gap-6 relative overflow-hidden"
@@ -66,7 +65,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     </div>
   </div>
 
-  <!-- TABS -->
   <div class="flex space-x-6 mb-6 overflow-x-auto hide-scrollbar">
     <button
       id="tab-btn-anime"
@@ -91,7 +89,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     </button>
   </div>
 
-  <!-- FORM 1: ANIME ENTRY -->
   <div
     id="form-container-anime"
     class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 transition-all"
@@ -101,7 +98,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       onsubmit="submitManualEntry(event)"
       class="space-y-10"
     >
-      <!-- 1. Titles & Naming -->
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -109,7 +105,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           <i class="fas fa-heading mr-2 text-brand"></i>1. Titles & Naming
         </h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div class="sm:col-span-2 relative">
+          <div class="sm:col-span-1 relative">
             <label
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
               >Series English Name (Hub Key)</label
@@ -126,28 +122,50 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
             ></div>
           </div>
-          <div>
-            <label
-              class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-              >Season String</label
-            >
-            <select
-              id="add-season"
-              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
-            >
-              <option value="" selected>-</option>
-              <option value="Season 1">Season 1</option>
-              <option value="Season 2">Season 2</option>
-              <option value="Season 3">Season 3</option>
-              <option value="Season 4">Season 4</option>
-              <option value="Season 5">Season 5</option>
-              <option value="Season 6">Season 6</option>
-              <option value="Season 7">Season 7</option>
-            </select>
+
+          <!-- Split Season / Part Dropdowns -->
+          <div class="sm:col-span-2 grid grid-cols-2 gap-4">
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Season</label
+              >
+              <select
+                id="add-season-num"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+              >
+                <option value="" selected>-</option>
+                <option value="Season 1">Season 1</option>
+                <option value="Season 2">Season 2</option>
+                <option value="Season 3">Season 3</option>
+                <option value="Season 4">Season 4</option>
+                <option value="Season 5">Season 5</option>
+                <option value="Season 6">Season 6</option>
+                <option value="Season 7">Season 7</option>
+                <option value="Season 8">Season 8</option>
+                <option value="Season 9">Season 9</option>
+                <option value="Season 10">Season 10</option>
+              </select>
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
+                >Parts</label
+              >
+              <select
+                id="add-part-num"
+                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none cursor-pointer transition"
+              >
+                <option value="" selected>-</option>
+                <option value="Part 1">Part 1</option>
+                <option value="Part 2">Part 2</option>
+                <option value="Part 3">Part 3</option>
+                <option value="Part 4">Part 4</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- Title Block -->
         <div
           class="mt-6 relative bg-indigo-50/30 border border-indigo-100 rounded-xl p-5 shadow-sm"
         >
@@ -209,7 +227,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
                 class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
               ></div>
             </div>
-            <div>
+            <div class="relative">
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
                 ><i class="fas fa-plus mr-1"></i> Alt / Abbr Name</label
@@ -217,16 +235,19 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               <input
                 type="text"
                 id="add-anime-alt"
+                oninput="handleAutocomplete(this, 'anime_alt_name')"
                 placeholder="e.g. SAO II"
                 class="w-full bg-white border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
                 autocomplete="off"
               />
+              <div
+                class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
+              ></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 2. Status & Ratings -->
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -318,7 +339,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- 3. Classification -->
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -361,7 +381,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             </select>
           </div>
 
-          <!-- Dynamic Genres UI -->
           <div>
             <label
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -397,7 +416,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- 4. Production & Distribution -->
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -449,7 +467,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             </div>
           </div>
 
-          <!-- Dynamic Studio Custom Typable Multi-Select UI -->
           <div>
             <label
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -474,7 +491,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             <datalist id="studio-list"></datalist>
           </div>
 
-          <!-- V2 Dynamic Datalists -->
           <div>
             <label
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -533,7 +549,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- 5. Relational Navigation -->
       <div class="bg-gray-100 rounded-xl p-5 border border-gray-200">
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-200 pb-2"
@@ -585,8 +600,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <input
               type="number"
-              step="0.1"
               id="add-watch-order"
+              step="0.1"
               placeholder="e.g. 1.0, 1.5, 2.0"
               class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
             />
@@ -606,7 +621,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- 6. Links, Streaming, Remarks -->
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -652,7 +666,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             />
           </div>
 
-          <!-- V2 Streaming -->
           <div>
             <label
               class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1"
@@ -777,7 +790,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- Submit Footer -->
       <div class="flex items-center justify-end pt-6 border-t border-gray-100">
         <button
           type="submit"
@@ -789,7 +801,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     </form>
   </div>
 
-  <!-- FORM 2: SERIES HUB -->
   <div
     id="form-container-series"
     class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 hidden"
@@ -807,7 +818,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           Definition
         </h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <!-- Autocomplete for Series Hub Form -->
           <div class="sm:col-span-2 relative">
             <label
               class="block text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1"
@@ -931,9 +941,9 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <input
               type="number"
+              id="add-hub-slot"
               min="1"
               max="9"
-              id="add-hub-slot"
               placeholder="Optional"
               class="w-full bg-amber-50 border border-amber-200 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
             />
@@ -941,7 +951,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- Submit Footer -->
       <div class="flex items-center justify-end pt-6 border-t border-gray-100">
         <button
           type="submit"
@@ -953,7 +962,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     </form>
   </div>
 
-  <!-- FORM 3: SYSTEM OPTIONS -->
   <div
     id="form-container-options"
     class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 hidden max-w-2xl"
@@ -1017,7 +1025,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         </div>
       </div>
 
-      <!-- Submit Footer -->
       <div class="flex items-center justify-end pt-6 border-t border-gray-100">
         <button
           type="submit"
@@ -1030,7 +1037,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   </div>
 </main>
 
-<!-- Duplicate Warning Modal (Anime) -->
 <div
   id="duplicate-modal"
   class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity"
@@ -1080,9 +1086,10 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               <th class="px-4 py-3 font-bold">Release Date</th>
             </tr>
           </thead>
-          <tbody id="duplicate-table-body" class="divide-y divide-gray-200">
-            <!-- Populated by JS -->
-          </tbody>
+          <tbody
+            id="duplicate-table-body"
+            class="divide-y divide-gray-200"
+          ></tbody>
         </table>
       </div>
     </div>
@@ -1105,7 +1112,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   </div>
 </div>
 
-<!-- New Series Detection Modal -->
 <div
   id="new-series-modal"
   class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity p-4"
@@ -1188,7 +1194,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   </div>
 </div>
 
-<!-- Series Hub Duplicate Warning Modal -->
 <div
   id="series-duplicate-modal"
   class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity"
@@ -1236,9 +1241,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           <tbody
             id="series-duplicate-table-body"
             class="divide-y divide-gray-200"
-          >
-            <!-- Populated by JS -->
-          </tbody>
+          ></tbody>
         </table>
       </div>
     </div>
@@ -1486,8 +1489,15 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     } else {
       globalAnimeData.forEach((a) => {
         const val = a[targetField];
-        if (val && normalizeStr(val).includes(query))
-          suggestions.set(val, { val: val, series: a.series_en });
+        if (val && normalizeStr(val).includes(query)) {
+          // Store system_id and season string to distinguish entries in the autofill logic
+          suggestions.set(val + a.system_id, {
+            val: val,
+            series: a.series_en,
+            season: a.series_season,
+            sysId: a.system_id,
+          });
+        }
       });
     }
 
@@ -1503,11 +1513,13 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         const safeSeries = (item.series || "")
           .replace(/'/g, "&#39;")
           .replace(/"/g, "&quot;");
+        const sysId = item.sysId || "";
+
         return `
               <div class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0"
-                   onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}')">
+                   onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}', '${sysId}')">
                   <div class="font-bold text-gray-900 truncate">${item.val}</div>
-                  ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}</div>` : ""}
+                  ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}${item.season ? ` (${item.season})` : ""}</div>` : ""}
               </div>
           `;
       })
@@ -1515,14 +1527,43 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectSuggestion(inputId, val, seriesEn) {
+  function selectSuggestion(inputId, val, seriesEn, systemId = "") {
     const decodedVal = val.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
     const decodedSeries = seriesEn
       .replace(/&#39;/g, "'")
       .replace(/&quot;/g, '"');
+
+    // Fill the current field
     document.getElementById(inputId).value = decodedVal;
     document.getElementById(inputId).nextElementSibling.classList.add("hidden");
-    if (inputId !== "add-series-en" && decodedSeries) {
+
+    // AUTO-FILL LOGIC: If selecting an existing anime entry
+    if (systemId) {
+      const anime = globalAnimeData.find((a) => a.system_id === systemId);
+      if (anime) {
+        document.getElementById("add-series-en").value = anime.series_en || "";
+        document.getElementById("add-season-en").value =
+          anime.series_season_en || "";
+        document.getElementById("add-season-roman").value =
+          anime.series_season_roman || "";
+        document.getElementById("add-season-cn").value =
+          anime.series_season_cn || "";
+        document.getElementById("add-anime-alt").value =
+          anime.anime_alt_name || "";
+
+        // NEW: DISASSEMBLE SEASON STRING (Season X Part Y)
+        const ss = anime.series_season || "";
+        // Match Season and Part independently
+        const sMatch = ss.match(/Season\s\d+/i);
+        const pMatch = ss.match(/Part\s\d+/i);
+
+        document.getElementById("add-season-num").value = sMatch
+          ? sMatch[0]
+          : "";
+        document.getElementById("add-part-num").value = pMatch ? pMatch[0] : "";
+      }
+    } else if (inputId !== "add-series-en" && decodedSeries) {
+      // Fallback for Hub-only selection
       document.getElementById("add-series-en").value = decodedSeries;
     }
   }
@@ -1855,6 +1896,11 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     const finalStudioString =
       selectedStudios.size > 0 ? Array.from(selectedStudios).join(", ") : null;
 
+    // NEW: ASSEMBLE SEASON STRING
+    const sNum = getValue("add-season-num");
+    const pNum = getValue("add-part-num");
+    const finalSeasonString = [sNum, pNum].filter(Boolean).join(" ") || null;
+
     // 3. Payload Construction
     const payload = {
       system_id: crypto.randomUUID(),
@@ -1863,7 +1909,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       series_season_roman: seasonRoman,
       series_season_cn: seasonCn,
       anime_alt_name: getValue("add-anime-alt"),
-      series_season: getValue("add-season"),
+      series_season: finalSeasonString,
 
       airing_type: getValue("add-type"),
       my_progress: myProgress,
