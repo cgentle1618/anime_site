@@ -228,7 +228,6 @@ def action_sync_from_sheets(db: Session) -> dict:
 
 
 def action_fill(db: Session, limit: int = 5) -> dict:
-    # (Kept batched logic from previous version)
     _autofill_missing_data(db)
     query = db.query(AnimeEntry).filter(
         AnimeEntry.mal_id.isnot(None),
@@ -258,7 +257,55 @@ def action_fill(db: Session, limit: int = 5) -> dict:
     return {"status": "success", "remaining": query.count(), "processed": len(entries)}
 
 
-def action_replace(db: Session) -> dict:
-    # (Standard Replace logic)
+def action_replace(db: Session, limit: int = 5, offset: int = 0) -> dict:
+    """
+    Overwrites ALL ratings/ranks for entries with a mal_id, and fills missing covers.
+    Uses 'offset' to prevent infinite loops during chunked processing.
+    """
+    _autofill_missing_data(db)
+
+    # We only process entries that have a valid MAL ID.
+    # Ordered stably by system_id so the pagination/offset works perfectly.
+    query = (
+        db.query(AnimeEntry)
+        .filter(AnimeEntry.mal_id.isnot(None))
+        .order_by(AnimeEntry.system_id)
+    )
+    total_valid = query.count()
+
+    # If we have reached the end of the database
+    if offset >= total_valid:
+        _run_full_backup()
+        return {"status": "success", "remaining": 0, "processed": 0}
+
+    entries = query.offset(offset).limit(limit).all()
+
+    for entry in entries:
+        try:
+            jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
+            if jikan_data:
+                # 1. FORCE OVERWRITE: This replaces existing ratings/ranks with the latest from MAL
+                entry.mal_rating = jikan_data.get("score")
+                entry.mal_rank = jikan_data.get("rank")
+
+                # 2. FILL: Only download cover if it's completely missing
+                if not entry.cover_image_file:
+                    images = jikan_data.get("images", {}).get("jpg", {})
+                    url = images.get("large_image_url") or images.get("image_url")
+                    if url:
+                        path = download_cover_image(url, entry.system_id)
+                        if path:
+                            entry.cover_image_file = path
+
+                entry.updated_at = datetime.utcnow()
+            time.sleep(1.2)
+        except Exception as e:
+            print(f"⚠️ [Replace] Jikan Error for {entry.system_id}: {e}")
+
+    db.commit()
     _run_full_backup()
-    return {"status": "success", "message": "Replace triggered."}
+
+    # Calculate how many are remaining to tell the frontend loop when to stop
+    remaining = max(0, total_valid - (offset + limit))
+
+    return {"status": "success", "remaining": remaining, "processed": len(entries)}
