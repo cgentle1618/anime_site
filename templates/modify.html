@@ -134,7 +134,7 @@ content %}
       </div>
     </div>
 
-    <!-- Edit Anime Form (Hidden by default) -->
+    <!-- Edit Anime Form -->
     <div
       id="anime-edit-container"
       class="bg-white rounded-2xl border border-brand/20 shadow-lg p-6 hidden relative overflow-hidden"
@@ -525,6 +525,7 @@ content %}
               </div>
             </div>
 
+            <!-- UNIVERSAL TYPABLE MULTI-SELECT FIELDS -->
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -541,7 +542,7 @@ content %}
                 <input
                   list="edit-studio-list"
                   id="edit-studio-input"
-                  placeholder="Type & press Enter..."
+                  placeholder="Select or type..."
                   class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
                   autocomplete="off"
                 />
@@ -549,17 +550,29 @@ content %}
               <datalist id="edit-studio-list"></datalist>
             </div>
 
-            <!-- V2 Dynamic Datalists -->
             <div>
               <label
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                 >Distributor (TW)</label
               >
-              <input
-                list="edit-distributor-list"
-                id="edit-distributor"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
+              <div
+                class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+                onclick="
+                  document.getElementById('edit-distributor-input').focus()
+                "
+              >
+                <div
+                  id="edit-distributor-tags-container"
+                  class="flex flex-wrap gap-1.5 empty:hidden"
+                ></div>
+                <input
+                  list="edit-distributor-list"
+                  id="edit-distributor-input"
+                  placeholder="Select or type..."
+                  class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                  autocomplete="off"
+                />
+              </div>
               <datalist id="edit-distributor-list"></datalist>
             </div>
 
@@ -568,11 +581,22 @@ content %}
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
                 >Director</label
               >
-              <input
-                list="edit-director-list"
-                id="edit-director"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
+              <div
+                class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+                onclick="document.getElementById('edit-director-input').focus()"
+              >
+                <div
+                  id="edit-director-tags-container"
+                  class="flex flex-wrap gap-1.5 empty:hidden"
+                ></div>
+                <input
+                  list="edit-director-list"
+                  id="edit-director-input"
+                  placeholder="Select or type..."
+                  class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                  autocomplete="off"
+                />
+              </div>
               <datalist id="edit-director-list"></datalist>
             </div>
 
@@ -581,11 +605,22 @@ content %}
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
                 ><i class="fas fa-plus mr-1"></i> Producer</label
               >
-              <input
-                list="edit-producer-list"
-                id="edit-producer"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
+              <div
+                class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+                onclick="document.getElementById('edit-producer-input').focus()"
+              >
+                <div
+                  id="edit-producer-tags-container"
+                  class="flex flex-wrap gap-1.5 empty:hidden"
+                ></div>
+                <input
+                  list="edit-producer-list"
+                  id="edit-producer-input"
+                  placeholder="Select or type..."
+                  class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                  autocomplete="off"
+                />
+              </div>
               <datalist id="edit-producer-list"></datalist>
             </div>
 
@@ -594,11 +629,22 @@ content %}
                 class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
                 ><i class="fas fa-plus mr-1"></i> Music / Composer</label
               >
-              <input
-                list="edit-music-list"
-                id="edit-music"
-                class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
-              />
+              <div
+                class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+                onclick="document.getElementById('edit-music-input').focus()"
+              >
+                <div
+                  id="edit-music-tags-container"
+                  class="flex flex-wrap gap-1.5 empty:hidden"
+                ></div>
+                <input
+                  list="edit-music-list"
+                  id="edit-music-input"
+                  placeholder="Select or type..."
+                  class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                  autocomplete="off"
+                />
+              </div>
               <datalist id="edit-music-list"></datalist>
             </div>
           </div>
@@ -1447,6 +1493,15 @@ content %}
   let pendingSeriesBtn = null;
   let pendingConnectedAnime = [];
 
+  // NEW: Universal Multi-Select State Manager
+  let multiSelectState = {
+    studio: new Set(),
+    distributor: new Set(),
+    director: new Set(),
+    producer: new Set(),
+    music: new Set(),
+  };
+
   function switchTab(tabName) {
     const tabs = ["anime", "series", "options"];
     tabs.forEach((t) => {
@@ -1464,7 +1519,6 @@ content %}
     });
   }
 
-  // --- V2 Dynamic System Options ---
   let systemOptions = {
     Studio: [],
     "Genre Main": [],
@@ -1495,10 +1549,8 @@ content %}
 
     populateGenres();
     populateDatalists();
-    renderStudioDatalist();
   }
 
-  // --- Initial Data Load ---
   async function loadDatabase() {
     try {
       const resAnime = await fetch("/api/anime");
@@ -1513,7 +1565,6 @@ content %}
         if (Array.isArray(data)) allSeries = data;
       }
 
-      // Auto-load if we arrived via "Quick Edit" pencil from Dashboard
       const urlParams = new URLSearchParams(window.location.search);
       const editId = urlParams.get("id");
       if (editId && allAnime.length > 0) {
@@ -1525,7 +1576,6 @@ content %}
     }
   }
 
-  // --- Smart Search Normalization ---
   function normalizeStr(str) {
     if (!str) return "";
     return String(str)
@@ -1533,7 +1583,6 @@ content %}
       .replace(/[^a-z0-9\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff]/g, "");
   }
 
-  // Hide dropdowns when clicking outside
   document.addEventListener("click", (e) => {
     if (
       !e.target.closest(".search-container-anime") &&
@@ -1553,6 +1602,113 @@ content %}
       }
     });
   });
+
+  // --- Dynamic Checkboxes & Datalists ---
+  function populateGenres() {
+    const createCheckboxes = (containerId, name, optionsList) => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (optionsList.length === 0) {
+        container.innerHTML =
+          '<p class="text-xs text-gray-400 italic col-span-2 text-center py-2">No options found. Add them via Admin.</p>';
+        return;
+      }
+      container.innerHTML = optionsList
+        .map(
+          (genre) => `
+              <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
+                  <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
+                  <span class="leading-tight">${genre}</span>
+              </label>
+          `,
+        )
+        .join("");
+    };
+    createCheckboxes(
+      "edit-genre-main-container",
+      "edit_genre_main",
+      systemOptions["Genre Main"],
+    );
+    createCheckboxes(
+      "edit-genre-sub-container",
+      "edit_genre_sub",
+      systemOptions["Genre Sub"],
+    );
+  }
+
+  // Universal Datalist Populator
+  function populateDatalists() {
+    const fillList = (listId, options) => {
+      const el = document.getElementById(listId);
+      if (el) {
+        let arr = [...options];
+        arr.sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        );
+        el.innerHTML = arr
+          .map((opt) => `<option value="${opt}"></option>`)
+          .join("");
+      }
+    };
+    fillList("edit-distributor-list", systemOptions["Distributor TW"]);
+    fillList("edit-director-list", systemOptions["Director"]);
+    fillList("edit-producer-list", systemOptions["Producer"]);
+    fillList("edit-music-list", systemOptions["Music"]);
+    fillList("edit-studio-list", systemOptions["Studio"]);
+  }
+
+  // --- Universal Typable Multi-Select UI Logic ---
+
+  function renderTags(fieldKey) {
+    const container = document.getElementById(
+      `edit-${fieldKey}-tags-container`,
+    );
+    if (!container) return;
+
+    container.innerHTML = Array.from(multiSelectState[fieldKey])
+      .map((s) => {
+        const safeVal = s.replace(/'/g, "\\'");
+        return `
+          <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
+              ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeTag(event, '${fieldKey}', '${safeVal}')"></i>
+          </span>
+        `;
+      })
+      .join("");
+  }
+
+  function addTag(fieldKey, val) {
+    const cleanVal = val.trim();
+    if (cleanVal && !multiSelectState[fieldKey].has(cleanVal)) {
+      multiSelectState[fieldKey].add(cleanVal);
+      renderTags(fieldKey);
+    }
+  }
+
+  function removeTag(event, fieldKey, val) {
+    event.stopPropagation();
+    multiSelectState[fieldKey].delete(val);
+    renderTags(fieldKey);
+  }
+
+  function setupMultiSelectInput(fieldKey) {
+    const inputEl = document.getElementById(`edit-${fieldKey}-input`);
+    if (inputEl) {
+      inputEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault();
+          addTag(fieldKey, inputEl.value);
+          inputEl.value = "";
+        }
+      });
+      inputEl.addEventListener("change", (e) => {
+        if (inputEl.value.trim() !== "") {
+          addTag(fieldKey, inputEl.value);
+          inputEl.value = "";
+        }
+      });
+    }
+  }
 
   // --- Autocomplete Feature Logic ---
   function handleAutocomplete(inputEl, targetField) {
@@ -1750,7 +1906,6 @@ content %}
       if (el) el.value = val !== null && val !== undefined ? val : "";
     };
 
-    // General string fields
     setVal("edit-system-id", anime.system_id);
     setVal("edit-series-en", anime.series_en);
     setVal("edit-season-en", anime.series_season_en);
@@ -1758,7 +1913,7 @@ content %}
     setVal("edit-season-cn", anime.series_season_cn);
     setVal("edit-anime-alt", anime.anime_alt_name);
 
-    // NEW: DISASSEMBLE SEASON STRING (Season X Part Y)
+    // DISASSEMBLE SEASON STRING (Season X Part Y)
     const ss = anime.series_season || "";
     const sMatch = ss.match(/Season\s\d+/i);
     const pMatch = ss.match(/Part\s\d+/i);
@@ -1776,25 +1931,16 @@ content %}
     setVal("edit-type", anime.airing_type);
     setVal("edit-main-spinoff", anime.main_spinoff);
 
-    // V2 Date native fields
     setVal("edit-release-season", anime.release_season);
     setVal("edit-release-month", anime.release_month);
     setVal("edit-release-year", anime.release_year);
 
-    // Crew and Distribution
-    setVal("edit-director", anime.director);
-    setVal("edit-producer", anime.producer);
-    setVal("edit-music", anime.music);
-    setVal("edit-distributor", anime.distributor_tw);
-
-    // Relational Fields
     setVal("edit-prequel", anime.prequel);
     setVal("edit-sequel", anime.sequel);
     setVal("edit-alternative", anime.alternative);
     setVal("edit-watch-order", anime.watch_order);
     setVal("edit-watch-order-rec", anime.watch_order_rec);
 
-    // Streaming Sources & Links
     setVal(
       "edit-baha",
       String(anime.source_baha).toUpperCase() === "TRUE" ? "TRUE" : "FALSE",
@@ -1804,7 +1950,6 @@ content %}
     setVal("edit-other", anime.source_other);
     setVal("edit-other-link", anime.source_other_link);
 
-    // External IDs and Music
     setVal("edit-mal-id", anime.mal_id);
     setVal("edit-mal-link", anime.mal_link);
     setVal("edit-anilist-link", anime.anilist_link);
@@ -1813,7 +1958,6 @@ content %}
     setVal("edit-insert", anime.insert_ost);
     setVal("edit-remark", anime.remark);
 
-    // Checkboxes
     const gm = anime.genre_main ? anime.genre_main.split(", ") : [];
     document
       .querySelectorAll('input[name="edit_genre_main"]')
@@ -1824,11 +1968,33 @@ content %}
       .querySelectorAll('input[name="edit_genre_sub"]')
       .forEach((cb) => (cb.checked = gs.includes(cb.value)));
 
-    // Studios
-    selectedStudios.clear();
+    // Load Multi-Select Tags from DB String
+    Object.keys(multiSelectState).forEach((key) =>
+      multiSelectState[key].clear(),
+    );
+
     if (anime.studio)
-      anime.studio.split(", ").forEach((s) => selectedStudios.add(s.trim()));
-    renderStudioTags();
+      anime.studio
+        .split(", ")
+        .forEach((s) => multiSelectState.studio.add(s.trim()));
+    if (anime.distributor_tw)
+      anime.distributor_tw
+        .split(", ")
+        .forEach((s) => multiSelectState.distributor.add(s.trim()));
+    if (anime.director)
+      anime.director
+        .split(", ")
+        .forEach((s) => multiSelectState.director.add(s.trim()));
+    if (anime.producer)
+      anime.producer
+        .split(", ")
+        .forEach((s) => multiSelectState.producer.add(s.trim()));
+    if (anime.music)
+      anime.music
+        .split(", ")
+        .forEach((s) => multiSelectState.music.add(s.trim()));
+
+    Object.keys(multiSelectState).forEach((key) => renderTags(key));
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1837,8 +2003,11 @@ content %}
     document.getElementById("anime-edit-container").classList.add("hidden");
     document.getElementById("edit-anime-form").reset();
     document.getElementById("anime-search-input").value = "";
-    selectedStudios.clear();
-    renderStudioTags();
+
+    Object.keys(multiSelectState).forEach((key) => {
+      multiSelectState[key].clear();
+      renderTags(key);
+    });
   }
 
   // --- Search & Filtering (Series) ---
@@ -1928,7 +2097,7 @@ content %}
 
     container.classList.add("hidden");
     loader.classList.remove("hidden");
-    closeOptionEditor(); // Close editor if switching category
+    closeOptionEditor();
 
     try {
       const res = await fetch(
@@ -1968,7 +2137,6 @@ content %}
     document.getElementById("option-edit-container").classList.remove("hidden");
     document.getElementById("edit-option-id").value = id;
     document.getElementById("edit-option-category-input").value = category;
-    // Decode HTML entities to correctly show in input
     document.getElementById("edit-option-value").value = value.replace(
       /&quot;/g,
       '"',
@@ -2027,8 +2195,8 @@ content %}
         );
 
       closeOptionEditor();
-      await loadCategoryOptionsForEdit(); // Refresh the grid
-      await loadSystemOptions(); // Refresh the global cache for Anime form
+      await loadCategoryOptionsForEdit();
+      await loadSystemOptions();
     } catch (error) {
       if (typeof showToast === "function")
         showToast(error.message, true, false);
@@ -2038,7 +2206,6 @@ content %}
     }
   }
 
-  // --- Display Success Card ---
   function displayLastUpdated(data, type) {
     const box = document.getElementById("last-updated-display");
     const label = document.getElementById("last-updated-label");
@@ -2086,114 +2253,6 @@ content %}
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // --- Dynamic Option UI Generators ---
-  let selectedStudios = new Set();
-
-  function populateGenres() {
-    const createCheckboxes = (containerId, name, optionsList) => {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      if (optionsList.length === 0) {
-        container.innerHTML =
-          '<p class="text-xs text-gray-400 italic col-span-2 text-center py-2">No options found. Add them via Admin.</p>';
-        return;
-      }
-      container.innerHTML = optionsList
-        .map(
-          (genre) => `
-              <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
-                  <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
-                  <span class="leading-tight">${genre}</span>
-              </label>
-          `,
-        )
-        .join("");
-    };
-    createCheckboxes(
-      "edit-genre-main-container",
-      "edit_genre_main",
-      systemOptions["Genre Main"],
-    );
-    createCheckboxes(
-      "edit-genre-sub-container",
-      "edit_genre_sub",
-      systemOptions["Genre Sub"],
-    );
-  }
-
-  function populateDatalists() {
-    const fillList = (listId, options) => {
-      const el = document.getElementById(listId);
-      if (el)
-        el.innerHTML = options
-          .map((opt) => `<option value="${opt}"></option>`)
-          .join("");
-    };
-    fillList("edit-distributor-list", systemOptions["Distributor TW"]);
-    fillList("edit-director-list", systemOptions["Director"]);
-    fillList("edit-producer-list", systemOptions["Producer"]);
-    fillList("edit-music-list", systemOptions["Music"]);
-  }
-
-  function renderStudioDatalist() {
-    let studioArr = systemOptions["Studio"];
-    studioArr.sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-    );
-    const dl = document.getElementById("edit-studio-list");
-    if (dl)
-      dl.innerHTML = studioArr
-        .map((s) => `<option value="${s}"></option>`)
-        .join("");
-  }
-
-  function renderStudioTags() {
-    const container = document.getElementById("edit-studio-tags-container");
-    if (!container) return;
-    container.innerHTML = Array.from(selectedStudios)
-      .map(
-        (s) => `
-        <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
-            ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeStudio(event, '${s}')"></i>
-        </span>
-    `,
-      )
-      .join("");
-  }
-
-  function addStudio(val) {
-    const cleanVal = val.trim();
-    if (cleanVal && !selectedStudios.has(cleanVal)) {
-      selectedStudios.add(cleanVal);
-      renderStudioTags();
-    }
-  }
-
-  function removeStudio(event, val) {
-    event.stopPropagation();
-    selectedStudios.delete(val);
-    renderStudioTags();
-  }
-
-  function setupStudioInput() {
-    const studioInput = document.getElementById("edit-studio-input");
-    if (studioInput) {
-      studioInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === ",") {
-          e.preventDefault();
-          addStudio(studioInput.value);
-          studioInput.value = "";
-        }
-      });
-      studioInput.addEventListener("change", (e) => {
-        if (studioInput.value.trim() !== "") {
-          addStudio(studioInput.value);
-          studioInput.value = "";
-        }
-      });
-    }
-  }
-
   // --- Core Submit Execution Logic ---
 
   async function submitAnimeEdit(e) {
@@ -2223,18 +2282,22 @@ content %}
       return isNaN(val) ? null : val;
     };
 
-    // 1. Assemble Season String from Dropdowns
+    // Helper for multi-select extraction
+    const getMultiSelectString = (fieldKey) => {
+      const inputEl = document.getElementById(`edit-${fieldKey}-input`);
+      if (inputEl && inputEl.value.trim()) {
+        addTag(fieldKey, inputEl.value);
+        inputEl.value = "";
+      }
+      return multiSelectState[fieldKey].size > 0
+        ? Array.from(multiSelectState[fieldKey]).join(", ")
+        : null;
+    };
+
+    // Assemble Season String from Dropdowns
     const sNum = getValue("edit-season-num");
     const pNum = getValue("edit-part-num");
     const finalSeasonString = [sNum, pNum].filter(Boolean).join(" ") || null;
-
-    const leftoverStudio = getValue("edit-studio-input");
-    if (leftoverStudio) {
-      addStudio(leftoverStudio);
-      document.getElementById("edit-studio-input").value = "";
-    }
-    const finalStudioString =
-      selectedStudios.size > 0 ? Array.from(selectedStudios).join(", ") : null;
 
     const payload = {
       series_en: getValue("edit-series-en"),
@@ -2256,11 +2319,12 @@ content %}
       release_season: getValue("edit-release-season"),
       release_year: getValue("edit-release-year"),
 
-      studio: finalStudioString,
-      director: getValue("edit-director"),
-      producer: getValue("edit-producer"),
-      music: getValue("edit-music"),
-      distributor_tw: getValue("edit-distributor"),
+      studio: getMultiSelectString("studio"),
+      distributor_tw: getMultiSelectString("distributor"),
+      director: getMultiSelectString("director"),
+      producer: getMultiSelectString("producer"),
+      music: getMultiSelectString("music"),
+
       genre_main: getMultiCheckboxValue("edit_genre_main"),
       genre_sub: getMultiCheckboxValue("edit_genre_sub"),
 
@@ -2432,8 +2496,6 @@ content %}
       displayLastUpdated(payload, "anime");
       closeAnimeEditor();
       await loadDatabase();
-      if (typeof showToast === "function")
-        showToast("Anime entry updated successfully.");
     } catch (e) {
       if (typeof showToast === "function") showToast(e.message, true);
     } finally {
@@ -2502,8 +2564,6 @@ content %}
       displayLastUpdated(payload, "series");
       closeSeriesEditor();
       await loadDatabase();
-      if (typeof showToast === "function")
-        showToast("Series hub updated successfully.");
     } catch (e) {
       if (typeof showToast === "function") showToast(e.message, true);
     } finally {
@@ -2675,7 +2735,7 @@ content %}
   // --- Initialization ---
   document.addEventListener("DOMContentLoaded", () => {
     loadSystemOptions();
-    setupStudioInput();
+    Object.keys(multiSelectState).forEach((key) => setupMultiSelectInput(key));
     loadDatabase();
   });
 </script>
