@@ -1,7 +1,7 @@
 """
 sync.py
 The master orchestrator for Version 2 synchronization.
-Refactored for self-sufficient background sessions.
+Refactored for self-sufficient background sessions and calculation pipelines.
 """
 
 import uuid
@@ -12,10 +12,13 @@ from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
 from models import AnimeEntry, AnimeSeries, SystemOption
-from database import SessionLocal  # NEW: For independent background sessions
+from database import SessionLocal  # For independent background sessions
 import schemas
+
+# Import all utilities for the calculation pipeline
 from services.sync_utils import (
-    clean_value,
+    format_for_sheet,
+    extract_mal_id,
     extract_season_from_title,
     extract_season_from_cn_title,
 )
@@ -91,32 +94,88 @@ SERIES_HEADERS = [
 
 OPTIONS_HEADERS = ["id", "category", "option_value"]
 
+
 # ==========================================
-# HELPER FUNCTIONS
+# CALCULATION PIPELINES
 # ==========================================
 
 
-def _format_for_sheet(val: any, expected_type: type) -> str:
-    if val is None:
-        return ""
-    if expected_type == bool:
-        return "TRUE" if val else "FALSE"
-    if isinstance(val, datetime):
-        return val.isoformat() + "Z"
-    return str(val)
-
-
-def _autofill_missing_data(db: Session) -> int:
+def _run_calculations(db: Session) -> int:
+    """
+    Centralized data cleaning and auto-fill pipeline.
+    Runs before Backup, Fill, and Replace operations.
+    """
     updated_count = 0
     entries = db.query(AnimeEntry).all()
+
     for entry in entries:
         changed = False
+
+        # --- PART 1: DATA CLEANING ---
+
+        # 1a. Trim whitespace and convert empty strings to None universally
+        for key, value in vars(entry).items():
+            if key.startswith("_"):
+                continue  # Skip SQLAlchemy internal state variables
+            if isinstance(value, str):
+                stripped = value.strip()
+                if stripped == "":
+                    setattr(entry, key, None)
+                    changed = True
+                elif stripped != value:
+                    setattr(entry, key, stripped)
+                    changed = True
+
+        # 1b. Enforce Strict Episode Logic
+        if entry.ep_fin is not None and entry.ep_fin < 0:
+            entry.ep_fin = 0
+            changed = True
+
+        if entry.ep_total and entry.ep_fin and entry.ep_fin > entry.ep_total:
+            entry.ep_fin = entry.ep_total
+            changed = True
+
+        if (
+            entry.my_progress == "Completed"
+            and entry.ep_total
+            and entry.ep_fin != entry.ep_total
+        ):
+            entry.ep_fin = entry.ep_total
+            changed = True
+
+        # --- PART 2: AUTO-FILL MISSING DATA ---
+
+        # 2a. Auto-fill missing System ID
         if not entry.system_id:
             entry.system_id = str(uuid.uuid4())
             changed = True
+
+        # 2b. Auto-extract missing MAL ID from Link
+        if not entry.mal_id and entry.mal_link:
+            extracted_id = extract_mal_id(entry.mal_link)
+            if extracted_id:
+                entry.mal_id = extracted_id
+                changed = True
+
+        # 2c. Auto-calculate missing Season String
+        if not entry.series_season:
+            calculated_season = None
+            if entry.series_season_en:
+                calculated_season = extract_season_from_title(entry.series_season_en)
+            elif entry.series_season_cn:
+                calculated_season = extract_season_from_cn_title(entry.series_season_cn)
+
+            if calculated_season:
+                entry.series_season = calculated_season
+                changed = True
+
+        # Track updates
         if changed:
             updated_count += 1
-    db.commit()
+
+    if updated_count > 0:
+        db.commit()
+
     return updated_count
 
 
@@ -133,12 +192,11 @@ def _push_db_backup_to_sheets():
             data_matrix = []
             for entry in entries:
                 row = [
-                    _format_for_sheet(getattr(entry, h, None), str)
+                    format_for_sheet(getattr(entry, h, None), str)
                     for h in ANIME_HEADERS
                 ]
-                # Special formatting for dates/types
-                row[45] = _format_for_sheet(entry.created_at, datetime)
-                row[46] = _format_for_sheet(entry.updated_at, datetime)
+                row[45] = format_for_sheet(entry.created_at, datetime)
+                row[46] = format_for_sheet(entry.updated_at, datetime)
                 data_matrix.append(row)
             success = bulk_overwrite_sheet("Anime", ANIME_HEADERS, data_matrix)
             return {"success": success, "rows": len(entries)}
@@ -155,10 +213,10 @@ def _push_series_backup_to_sheets():
             data_matrix = []
             for s in series_list:
                 row = [
-                    _format_for_sheet(getattr(s, h, None), str) for h in SERIES_HEADERS
+                    format_for_sheet(getattr(s, h, None), str) for h in SERIES_HEADERS
                 ]
-                row[8] = _format_for_sheet(s.created_at, datetime)
-                row[9] = _format_for_sheet(s.updated_at, datetime)
+                row[8] = format_for_sheet(s.created_at, datetime)
+                row[9] = format_for_sheet(s.updated_at, datetime)
                 data_matrix.append(row)
             success = bulk_overwrite_sheet("Anime Series", SERIES_HEADERS, data_matrix)
             return {"success": success, "rows": len(series_list)}
@@ -198,7 +256,7 @@ def _run_full_backup():
 def action_backup(db: Session) -> dict:
     print("▶️ [Action: Backup] Starting...")
     try:
-        _autofill_missing_data(db)
+        _run_calculations(db)
         _run_full_backup()
         return {"status": "success", "message": "Full backup triggered."}
     except Exception as e:
@@ -208,6 +266,8 @@ def action_backup(db: Session) -> dict:
 def action_sync_from_sheets(db: Session) -> dict:
     print("▶️ [Action: Sync from Sheets] Starting...")
     try:
+        # Note: We do NOT run calculations here by instruction.
+        # Sheets sync assumes raw pull. Calculations happen on subsequent backup/fills.
         data_rows = get_all_rows("Anime")
         added_count = 0
         if data_rows:
@@ -228,7 +288,7 @@ def action_sync_from_sheets(db: Session) -> dict:
 
 
 def action_fill(db: Session, limit: int = 5) -> dict:
-    _autofill_missing_data(db)
+    _run_calculations(db)
     query = db.query(AnimeEntry).filter(
         AnimeEntry.mal_id.isnot(None),
         or_(AnimeEntry.cover_image_file == None, AnimeEntry.cover_image_file == ""),
@@ -262,10 +322,8 @@ def action_replace(db: Session, limit: int = 5, offset: int = 0) -> dict:
     Overwrites ALL ratings/ranks for entries with a mal_id, and fills missing covers.
     Uses 'offset' to prevent infinite loops during chunked processing.
     """
-    _autofill_missing_data(db)
+    _run_calculations(db)
 
-    # We only process entries that have a valid MAL ID.
-    # Ordered stably by system_id so the pagination/offset works perfectly.
     query = (
         db.query(AnimeEntry)
         .filter(AnimeEntry.mal_id.isnot(None))
@@ -273,7 +331,6 @@ def action_replace(db: Session, limit: int = 5, offset: int = 0) -> dict:
     )
     total_valid = query.count()
 
-    # If we have reached the end of the database
     if offset >= total_valid:
         _run_full_backup()
         return {"status": "success", "remaining": 0, "processed": 0}
@@ -284,11 +341,9 @@ def action_replace(db: Session, limit: int = 5, offset: int = 0) -> dict:
         try:
             jikan_data = jikan_client.fetch_anime_details(entry.mal_id)
             if jikan_data:
-                # 1. FORCE OVERWRITE: This replaces existing ratings/ranks with the latest from MAL
                 entry.mal_rating = jikan_data.get("score")
                 entry.mal_rank = jikan_data.get("rank")
 
-                # 2. FILL: Only download cover if it's completely missing
                 if not entry.cover_image_file:
                     images = jikan_data.get("images", {}).get("jpg", {})
                     url = images.get("large_image_url") or images.get("image_url")
@@ -305,7 +360,6 @@ def action_replace(db: Session, limit: int = 5, offset: int = 0) -> dict:
     db.commit()
     _run_full_backup()
 
-    # Calculate how many are remaining to tell the frontend loop when to stop
     remaining = max(0, total_valid - (offset + limit))
 
     return {"status": "success", "remaining": remaining, "processed": len(entries)}

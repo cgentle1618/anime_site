@@ -1,53 +1,33 @@
 """
 sync_utils.py
-Contains utility functions for cleaning and parsing raw data
-extracted from Google Sheets before inserting it into the PostgreSQL database.
-Optimized for V2 with "Season X Part Y" support.
+Contains utility functions for parsing, extracting, and formatting data
+moving between Google Sheets and the PostgreSQL database.
+Optimized for V2.
 """
 
 import re
 from typing import Any, Optional
+from datetime import datetime
 
 
-def clean_value(val: Any, expected_type: type = str) -> Any:
+def format_for_sheet(val: Any, expected_type: type) -> str:
     """
-    Cleans raw Google Sheets cell values.
-    Converts empty strings or None to a proper Python None.
-    Casts values to the specified expected_type (e.g., int, float, str, bool).
+    Formats Python/SQLAlchemy data types into Google Sheets compatible strings.
+    Converts Booleans to TRUE/FALSE and datetimes to ISO 8601 strings.
     """
-    # 1. Immediate return for empty data
     if val is None:
-        return None
-
-    # 2. Short-circuit: If the value is already exactly the requested type, return it.
-    if type(val) is expected_type:
-        return val
-
-    # 3. Convert to string and check for emptiness
-    val_str = str(val).strip()
-    if val_str == "":
-        return None
-
-    # 4. Handle Boolean casting
+        return ""
     if expected_type == bool:
-        return val_str.lower() in ["true", "t", "1", "yes", "y", "有"]
-
-    # 5. Handle Numeric casting
-    try:
-        if expected_type == int:
-            return int(float(val_str))
-        if expected_type == float:
-            return float(val_str)
-    except ValueError:
-        return None
-
-    # 6. Default fallback
-    return val_str
+        return "TRUE" if val else "FALSE"
+    if isinstance(val, datetime):
+        return val.isoformat() + "Z"
+    return str(val)
 
 
 def extract_mal_id(mal_link: str) -> Optional[int]:
     """
     Extracts the MAL ID from a MyAnimeList URL.
+    Example: 'https://myanimelist.net/anime/5114/Fullmetal_Alchemist__Brotherhood' -> 5114
     """
     if not mal_link:
         return None
