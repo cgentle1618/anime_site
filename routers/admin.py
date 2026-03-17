@@ -2,7 +2,7 @@
 routers/admin.py
 Handles administrative operations including manual data entry,
 synchronization triggers, and system maintenance.
-Refactored for thread-safe background tasks and persistent storage cleanup.
+Refactored for thread-safe background tasks, storage cleanup, and chunked syncing.
 """
 
 import uuid
@@ -24,7 +24,7 @@ from services.sync import (
     _push_series_backup_to_sheets,
     _push_options_backup_to_sheets,
 )
-from services.image_manager import delete_cover_image  # NEW: Import cleanup utility
+from services.image_manager import delete_cover_image
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
 from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
@@ -49,7 +49,7 @@ def add_anime(
 ):
     """
     Appends a new anime entry strictly to the PostgreSQL database.
-    Refactored to trigger background backups without passing the request-scoped session.
+    Auto-calculates missing seasons/parts using updated sync utilities.
     """
 
     # 1. Check if the parent Series Hub exists. If not, create a basic shell.
@@ -73,7 +73,7 @@ def add_anime(
         db.flush()
         is_new_series = True
 
-    # 2. Auto-calculate season if missing
+    # 2. Auto-calculate season if missing (Now natively supports "Season X Part Y")
     calculated_season = payload.series_season
     if not calculated_season:
         if payload.series_season_en:
@@ -91,7 +91,7 @@ def add_anime(
     db.add(new_entry)
     db.commit()
 
-    # 4. Push Backup to Google Sheets (FIXED: No 'db' passed)
+    # 4. Push Backup to Google Sheets
     background_tasks.add_task(_push_db_backup_to_sheets)
     if is_new_series:
         background_tasks.add_task(_push_series_backup_to_sheets)
@@ -108,7 +108,6 @@ def add_series(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    # Check for duplicates
     existing_series = (
         db.query(models.AnimeSeries)
         .filter(models.AnimeSeries.series_en == payload.series_en)
@@ -123,9 +122,7 @@ def add_series(
     db.add(new_series)
     db.commit()
 
-    # Trigger background backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_series_backup_to_sheets)
-
     return {
         "message": "Series Hub added successfully.",
         "system_id": new_series.system_id,
@@ -154,9 +151,7 @@ def update_series_hub(
         setattr(db_series, key, value)
 
     db.commit()
-    # Trigger background backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_series_backup_to_sheets)
-
     return {"message": "Series Hub updated successfully.", "system_id": system_id}
 
 
@@ -166,21 +161,13 @@ def update_series_hub(
     summary="Get System Options by Category",
 )
 def get_system_options(category: str, db: Session = Depends(get_db)):
-    """
-    Retrieves dynamic dropdown options for a specific category (e.g., 'Studio', 'Genre Main').
-    Used by the frontend Add/Modify forms to populate selection lists.
-    """
     options = (
         db.query(models.SystemOption)
         .filter(models.SystemOption.category == category)
         .all()
     )
-
     if not options:
-        # We don't raise a 404 here, returning an empty list allows the frontend
-        # to gracefully fall back to a text input or empty dropdown if no options exist yet.
         return []
-
     return options
 
 
@@ -208,7 +195,6 @@ def add_system_option(
     db.add(new_option)
     db.commit()
 
-    # Trigger background backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_options_backup_to_sheets)
     return {"message": f"Option '{payload.option_value}' added successfully."}
 
@@ -232,7 +218,6 @@ def update_system_option(
     db_option.option_value = payload.option_value
     db.commit()
 
-    # Trigger background backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_options_backup_to_sheets)
     return {"message": "System option updated successfully."}
 
@@ -252,7 +237,6 @@ def delete_system_option(
     db.delete(db_option)
     db.commit()
 
-    # Trigger background backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_options_backup_to_sheets)
     return {"message": "System option deleted successfully."}
 
@@ -279,9 +263,7 @@ def update_anime_entry(
         setattr(db_anime, key, value)
 
     db.commit()
-    # Trigger background backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_db_backup_to_sheets)
-
     return {"message": "Anime entry updated successfully.", "system_id": system_id}
 
 
@@ -289,7 +271,6 @@ def update_anime_entry(
 def delete_anime_entry(
     system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
-    """Deletes an Anime entry, removes its image from storage, and updates Google Sheets."""
     db_anime = (
         db.query(models.AnimeEntry)
         .filter(models.AnimeEntry.system_id == system_id)
@@ -298,10 +279,8 @@ def delete_anime_entry(
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # 1. Image Cleanup (NEW: Cleanup GCP/Local file)
     delete_cover_image(system_id)
 
-    # 2. Audit Trail Logging
     anime_display_name = (
         db_anime.series_season_en or db_anime.series_en or db_anime.system_id
     )
@@ -312,13 +291,10 @@ def delete_anime_entry(
     )
     db.add(deleted_record)
 
-    # 3. DB Removal
     db.delete(db_anime)
     db.commit()
 
-    # 4. Sheets Backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_db_backup_to_sheets)
-
     return {"message": "Anime entry deleted successfully.", "system_id": system_id}
 
 
@@ -326,7 +302,6 @@ def delete_anime_entry(
 def delete_series_hub(
     system_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
-    """Deletes a Series Hub and cleans up images for all related entries."""
     db_series = (
         db.query(models.AnimeSeries)
         .filter(models.AnimeSeries.system_id == system_id)
@@ -335,7 +310,6 @@ def delete_series_hub(
     if not db_series:
         raise HTTPException(status_code=404, detail="Series Hub not found.")
 
-    # 1. Cascade Image Cleanup (NEW: Remove files for all entries in this series)
     connected_anime = (
         db.query(models.AnimeEntry)
         .filter(models.AnimeEntry.series_en == db_series.series_en)
@@ -344,7 +318,6 @@ def delete_series_hub(
     for anime in connected_anime:
         delete_cover_image(anime.system_id)
 
-    # 2. Audit Trail Logging
     series_display_name = db_series.series_en or db_series.system_id
     deleted_record = models.DeletedRecord(
         system_id=db_series.system_id,
@@ -353,13 +326,10 @@ def delete_series_hub(
     )
     db.add(deleted_record)
 
-    # 3. DB Removal
     db.delete(db_series)
     db.commit()
 
-    # 4. Sheets Backup (FIXED: No 'db' passed)
     background_tasks.add_task(_push_series_backup_to_sheets)
-
     return {"message": "Series Hub deleted successfully.", "system_id": system_id}
 
 
@@ -370,7 +340,6 @@ def delete_series_hub(
 
 @router.post("/sync/backup", summary="Trigger Full Backup")
 def trigger_backup(db: Session = Depends(get_db)):
-    """Runs calculation formatting and backs up all 3 tables to Google Sheets."""
     result = action_backup(db)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
@@ -379,7 +348,6 @@ def trigger_backup(db: Session = Depends(get_db)):
 
 @router.post("/sync/pull", summary="Trigger Sync from Sheets")
 def trigger_sync_from_sheets(db: Session = Depends(get_db)):
-    """Pulls manual rows from Google Sheets, runs calculations, and backs up."""
     result = action_sync_from_sheets(db)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
@@ -388,7 +356,6 @@ def trigger_sync_from_sheets(db: Session = Depends(get_db)):
 
 @router.post("/sync/fill", summary="Trigger Fill Missing API Data")
 def trigger_fill(limit: int = 5, db: Session = Depends(get_db)):
-    """Calculates missing fields and contacts Jikan API in batches to prevent timeouts."""
     result = action_fill(db, limit=limit)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
@@ -397,7 +364,6 @@ def trigger_fill(limit: int = 5, db: Session = Depends(get_db)):
 
 @router.post("/sync/replace", summary="Trigger Replace API Data")
 def trigger_replace(limit: int = 5, offset: int = 0, db: Session = Depends(get_db)):
-    """Calculates missing fields, updates ALL ranks/scores via Jikan API, and backs up."""
     result = action_replace(db, limit=limit, offset=offset)
     if result.get("status") == "failed":
         raise HTTPException(status_code=500, detail=result.get("message"))
@@ -447,10 +413,6 @@ def cleanup_logs(days: int = 30, db: Session = Depends(get_db)):
 
 @router.post("/test-bucket", summary="Test GCP Bucket Permissions")
 def test_cloud_storage_bucket():
-    """
-    Diagnostic endpoint to forcefully test if Cloud Run has permission
-    to write to the cg1618-anime-covers bucket.
-    """
     try:
         test_url = "https://cdn.myanimelist.net/images/anime/1015/138006l.jpg"
         req = urllib.request.Request(
