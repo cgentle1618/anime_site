@@ -467,6 +467,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             </div>
           </div>
 
+          <!-- UNIVERSAL TYPABLE MULTI-SELECT FIELDS -->
           <div>
             <label
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
@@ -496,12 +497,22 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
               >Distributor (TW)</label
             >
-            <input
-              list="distributor-list"
-              id="add-distributor"
-              placeholder="Select or type..."
-              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-            />
+            <div
+              class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+              onclick="document.getElementById('add-distributor-input').focus()"
+            >
+              <div
+                id="distributor-tags-container"
+                class="flex flex-wrap gap-1.5 empty:hidden"
+              ></div>
+              <input
+                list="distributor-list"
+                id="add-distributor-input"
+                placeholder="Select or type..."
+                class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                autocomplete="off"
+              />
+            </div>
             <datalist id="distributor-list"></datalist>
           </div>
 
@@ -510,12 +521,22 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
               >Director</label
             >
-            <input
-              list="director-list"
-              id="add-director"
-              placeholder="Select or type..."
-              class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
-            />
+            <div
+              class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+              onclick="document.getElementById('add-director-input').focus()"
+            >
+              <div
+                id="director-tags-container"
+                class="flex flex-wrap gap-1.5 empty:hidden"
+              ></div>
+              <input
+                list="director-list"
+                id="add-director-input"
+                placeholder="Select or type..."
+                class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                autocomplete="off"
+              />
+            </div>
             <datalist id="director-list"></datalist>
           </div>
 
@@ -524,12 +545,22 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
               ><i class="fas fa-plus mr-1"></i> Producer</label
             >
-            <input
-              list="producer-list"
-              id="add-producer"
-              placeholder="Select or type..."
-              class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
-            />
+            <div
+              class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+              onclick="document.getElementById('add-producer-input').focus()"
+            >
+              <div
+                id="producer-tags-container"
+                class="flex flex-wrap gap-1.5 empty:hidden"
+              ></div>
+              <input
+                list="producer-list"
+                id="add-producer-input"
+                placeholder="Select or type..."
+                class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                autocomplete="off"
+              />
+            </div>
             <datalist id="producer-list"></datalist>
           </div>
 
@@ -538,12 +569,22 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
               ><i class="fas fa-plus mr-1"></i> Music / Composer</label
             >
-            <input
-              list="music-list"
-              id="add-music"
-              placeholder="Select or type..."
-              class="w-full bg-gray-50 border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
-            />
+            <div
+              class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
+              onclick="document.getElementById('add-music-input').focus()"
+            >
+              <div
+                id="music-tags-container"
+                class="flex flex-wrap gap-1.5 empty:hidden"
+              ></div>
+              <input
+                list="music-list"
+                id="add-music-input"
+                placeholder="Select or type..."
+                class="flex-1 bg-transparent text-sm outline-none border-none p-0 focus:ring-0 min-w-[150px]"
+                autocomplete="off"
+              />
+            </div>
             <datalist id="music-list"></datalist>
           </div>
         </div>
@@ -1290,7 +1331,15 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   let globalSeriesData = [];
   let pendingPayload = null;
   let pendingSeriesPayload = null;
-  let selectedStudios = new Set();
+
+  // NEW: Universal Multi-Select State Manager
+  let multiSelectState = {
+    studio: new Set(),
+    distributor: new Set(),
+    director: new Set(),
+    producer: new Set(),
+    music: new Set(),
+  };
 
   let systemOptions = {
     Studio: [],
@@ -1323,7 +1372,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     // Populate UI dynamically
     populateGenres();
     populateDatalists();
-    renderStudioDatalist();
   }
 
   async function loadMetadata() {
@@ -1377,75 +1425,73 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     );
   }
 
+  // NEW: Universal Datalist Populator
   function populateDatalists() {
     const fillList = (listId, options) => {
       const el = document.getElementById(listId);
-      if (el)
-        el.innerHTML = options
+      if (el) {
+        let arr = [...options];
+        arr.sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        );
+        el.innerHTML = arr
           .map((opt) => `<option value="${opt}"></option>`)
           .join("");
+      }
     };
     fillList("distributor-list", systemOptions["Distributor TW"]);
     fillList("director-list", systemOptions["Director"]);
     fillList("producer-list", systemOptions["Producer"]);
     fillList("music-list", systemOptions["Music"]);
+    fillList("studio-list", systemOptions["Studio"]);
   }
 
-  // --- Dynamic Typable Multi-Select for Studios ---
-  function renderStudioDatalist() {
-    let studioArr = systemOptions["Studio"];
-    studioArr.sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-    );
-    const dl = document.getElementById("studio-list");
-    if (dl)
-      dl.innerHTML = studioArr
-        .map((s) => `<option value="${s}"></option>`)
-        .join("");
-  }
+  // --- Universal Typable Multi-Select UI Logic ---
 
-  function renderStudioTags() {
-    const container = document.getElementById("studio-tags-container");
+  function renderTags(fieldKey) {
+    const container = document.getElementById(`${fieldKey}-tags-container`);
     if (!container) return;
-    container.innerHTML = Array.from(selectedStudios)
-      .map(
-        (s) => `
-        <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
-            ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeStudio(event, '${s}')"></i>
-        </span>
-    `,
-      )
+
+    container.innerHTML = Array.from(multiSelectState[fieldKey])
+      .map((s) => {
+        const safeVal = s.replace(/'/g, "\\'");
+        return `
+          <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
+              ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeTag(event, '${fieldKey}', '${safeVal}')"></i>
+          </span>
+        `;
+      })
       .join("");
   }
 
-  function addStudio(val) {
+  function addTag(fieldKey, val) {
     const cleanVal = val.trim();
-    if (cleanVal && !selectedStudios.has(cleanVal)) {
-      selectedStudios.add(cleanVal);
-      renderStudioTags();
+    if (cleanVal && !multiSelectState[fieldKey].has(cleanVal)) {
+      multiSelectState[fieldKey].add(cleanVal);
+      renderTags(fieldKey);
     }
   }
 
-  function removeStudio(event, val) {
+  function removeTag(event, fieldKey, val) {
     event.stopPropagation();
-    selectedStudios.delete(val);
-    renderStudioTags();
+    multiSelectState[fieldKey].delete(val);
+    renderTags(fieldKey);
   }
 
-  function setupStudioInput() {
-    const studioInput = document.getElementById("add-studio-input");
-    if (studioInput) {
-      studioInput.addEventListener("keydown", (e) => {
+  function setupMultiSelectInput(fieldKey) {
+    const inputEl = document.getElementById(`add-${fieldKey}-input`);
+    if (inputEl) {
+      inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === ",") {
           e.preventDefault();
-          addStudio(studioInput.value);
-          studioInput.value = "";
+          addTag(fieldKey, inputEl.value);
+          inputEl.value = "";
         }
       });
-      studioInput.addEventListener("change", (e) => {
-        if (studioInput.value.trim() !== "") {
-          addStudio(studioInput.value);
-          studioInput.value = "";
+      inputEl.addEventListener("change", (e) => {
+        if (inputEl.value.trim() !== "") {
+          addTag(fieldKey, inputEl.value);
+          inputEl.value = "";
         }
       });
     }
@@ -1551,9 +1597,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         document.getElementById("add-anime-alt").value =
           anime.anime_alt_name || "";
 
-        // NEW: DISASSEMBLE SEASON STRING (Season X Part Y)
         const ss = anime.series_season || "";
-        // Match Season and Part independently
         const sMatch = ss.match(/Season\s\d+/i);
         const pMatch = ss.match(/Part\s\d+/i);
 
@@ -1829,6 +1873,18 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       return isNaN(val) ? null : val;
     };
 
+    // Helper for multi-select extraction
+    const getMultiSelectString = (fieldKey) => {
+      const inputEl = document.getElementById(`add-${fieldKey}-input`);
+      if (inputEl && inputEl.value.trim()) {
+        addTag(fieldKey, inputEl.value);
+        inputEl.value = "";
+      }
+      return multiSelectState[fieldKey].size > 0
+        ? Array.from(multiSelectState[fieldKey]).join(", ")
+        : null;
+    };
+
     // 1. Data Collection
     let myProgress = getValue("add-progress");
     let epTotal = getInt("add-ep-total");
@@ -1888,15 +1944,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       }
     }
 
-    const leftoverStudio = getValue("add-studio-input");
-    if (leftoverStudio) {
-      addStudio(leftoverStudio);
-      document.getElementById("add-studio-input").value = "";
-    }
-    const finalStudioString =
-      selectedStudios.size > 0 ? Array.from(selectedStudios).join(", ") : null;
-
-    // NEW: ASSEMBLE SEASON STRING
+    // ASSEMBLE SEASON STRING
     const sNum = getValue("add-season-num");
     const pNum = getValue("add-part-num");
     const finalSeasonString = [sNum, pNum].filter(Boolean).join(" ") || null;
@@ -1923,11 +1971,12 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       release_season: getValue("add-release-season"),
       release_year: getValue("add-release-year"),
 
-      studio: finalStudioString,
-      director: getValue("add-director"),
-      producer: getValue("add-producer"),
-      music: getValue("add-music"),
-      distributor_tw: getValue("add-distributor"),
+      studio: getMultiSelectString("studio"),
+      director: getMultiSelectString("director"),
+      producer: getMultiSelectString("producer"),
+      music: getMultiSelectString("music"),
+      distributor_tw: getMultiSelectString("distributor"),
+
       genre_main: getMultiCheckboxValue("genre_main"),
       genre_sub: getMultiCheckboxValue("genre_sub"),
 
@@ -2227,9 +2276,11 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 
       displayLastAdded(payload);
 
-      // Reset UI
-      selectedStudios.clear();
-      renderStudioTags();
+      // Reset UI universally
+      Object.keys(multiSelectState).forEach((key) => {
+        multiSelectState[key].clear();
+        renderTags(key);
+      });
       document.getElementById("manual-add-form").reset();
       await loadMetadata();
 
@@ -2280,7 +2331,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   // Initialize Page
   document.addEventListener("DOMContentLoaded", () => {
     loadSystemOptions();
-    setupStudioInput();
+    Object.keys(multiSelectState).forEach((key) => setupMultiSelectInput(key));
     loadMetadata();
   });
 </script>
