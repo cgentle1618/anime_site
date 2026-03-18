@@ -25,7 +25,6 @@ class AnimeSeries(Base):
 
     __tablename__ = "anime_series"
 
-    # Aligned exactly to the 10 columns found in studio_results_20260314_1747.csv
     system_id = Column(
         String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True
     )
@@ -46,50 +45,42 @@ class AnimeEntry(Base):
 
     __tablename__ = "anime_entries"
 
-    # Aligned exactly to the 47 columns found in studio_results_20260314_1740.csv
     system_id = Column(
         String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True
     )
     series_en = Column(String, index=True)
 
-    # Title Information
     series_season_en = Column(String)
     series_season_roman = Column(String)
     series_season_cn = Column(String)
     anime_alt_name = Column(String)
 
-    # Format & Status
     series_season = Column(String)
     airing_type = Column(String)
     my_progress = Column(String)
     airing_status = Column(String)
 
-    # Progress Tracking
     ep_total = Column(Integer)
     ep_fin = Column(Integer, default=0)
     rating_mine = Column(String)
     main_spinoff = Column(String)
 
-    # Release Information
     release_month = Column(String, nullable=True)
     release_season = Column(String, nullable=True)
     release_year = Column(String, nullable=True)
 
-    # Staff & Production
     studio = Column(String)
     director = Column(String)
     producer = Column(String)
     music = Column(String)
     distributor_tw = Column(String)
 
-    # Metadata & Themes
     genre_main = Column(String)
     genre_sub = Column(String)
+
     prequel = Column(String)
     sequel = Column(String)
     alternative = Column(String)
-
-    # Timeline
     watch_order = Column(Float, nullable=True)
     watch_order_rec = Column(Float, nullable=True)
     remark = Column(Text)
