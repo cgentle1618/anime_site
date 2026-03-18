@@ -23,10 +23,10 @@ from services.sync import (
     _push_db_backup_to_sheets,
     _push_series_backup_to_sheets,
     _push_options_backup_to_sheets,
+    cleanup_old_logs,  # NEW: Moved from database.py to services.sync
 )
 from services.image_manager import delete_cover_image
 from services.sync_utils import extract_season_from_title, extract_season_from_cn_title
-from database import cleanup_old_logs
 from dependencies import get_db, get_current_admin
 
 # Apply the security dependency globally to all endpoints in this router

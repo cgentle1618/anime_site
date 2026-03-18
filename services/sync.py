@@ -6,13 +6,13 @@ Refactored for self-sufficient background sessions and calculation pipelines.
 
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 
 # Adjust imports based on your exact file structure
-from models import AnimeEntry, AnimeSeries, SystemOption
-from database import SessionLocal  # For independent background sessions
+from models import AnimeEntry, AnimeSeries, SystemOption, SyncLog
+from database import SessionLocal, get_taipei_now  # Generic DB utilities
 import schemas
 
 # Import all utilities for the calculation pipeline
@@ -363,3 +363,24 @@ def action_replace(db: Session, limit: int = 5, offset: int = 0) -> dict:
     remaining = max(0, total_valid - (offset + limit))
 
     return {"status": "success", "remaining": remaining, "processed": len(entries)}
+
+
+# ==========================================
+# SYSTEM MAINTENANCE
+# ==========================================
+
+
+def cleanup_old_logs(db: Session, days_to_keep: int = 30) -> int:
+    """
+    Maintenance utility to prevent log bloat by purging old sync logs.
+    Moved from database.py to maintain separation of concerns.
+    """
+    cutoff_date = get_taipei_now() - timedelta(days=days_to_keep)
+    try:
+        deleted = db.query(SyncLog).filter(SyncLog.timestamp < cutoff_date).delete()
+        db.commit()
+        return deleted
+    except Exception as e:
+        db.rollback()
+        print(f"Error cleaning up logs: {e}")
+        raise e
