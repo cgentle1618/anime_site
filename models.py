@@ -110,6 +110,16 @@ class AnimeEntry(Base):
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
 
+class SystemOption(Base):
+    """Stores dynamic dropdown options for the frontend (e.g., formats, statuses)."""
+
+    __tablename__ = "system_options"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    category = Column(String, index=True, nullable=False)
+    option_value = Column(String, nullable=False)
+
+
 class SyncLog(Base):
     """Stores the audit trail of synchronization events."""
 
@@ -136,13 +146,3 @@ class DeletedRecord(Base):
     table_name = Column(String)
     deleted_at = Column(DateTime, default=get_taipei_now)
     data_json = Column(Text, nullable=True)
-
-
-class SystemOption(Base):
-    """Stores dynamic dropdown options for the frontend (e.g., formats, statuses)."""
-
-    __tablename__ = "system_options"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    category = Column(String, index=True, nullable=False)
-    option_value = Column(String, nullable=False)
