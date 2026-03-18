@@ -1,9 +1,11 @@
 """
 routers/anime.py
 Handles all API endpoints related to individual anime entries.
-Includes data retrieval, progress tracking updates, and MAL metadata auto-fill.
+Includes data retrieval, UI progress tracking updates (PATCH),
+and the surgical MAL metadata Force-Replace function.
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List
@@ -12,13 +14,20 @@ import models
 import schemas
 import services.sheets_client as sheets_client
 import services.jikan_client as jikan_client
+from services.image_manager import download_cover_image
+from services.sync_utils import format_for_sheet
+from database import get_taipei_now
 from dependencies import get_db, get_current_admin
 
-# Initialize the router with tags for grouping in documentation
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize the router with tags for grouping in Swagger documentation
 router = APIRouter(prefix="/api/anime", tags=["Anime Management"])
 
 # ==========================================
-# READ OPERATIONS
+# PUBLIC READ OPERATIONS
 # ==========================================
 
 
@@ -27,8 +36,8 @@ router = APIRouter(prefix="/api/anime", tags=["Anime Management"])
 )
 def get_all_anime(db: Session = Depends(get_db)):
     """
-    Retrieves the complete list of all anime entries stored in the PostgreSQL database.
-    Used to populate the main dashboard and library data grids.
+    Retrieves the complete list of all anime entries.
+    Unprotected: Used to populate the public dashboard and library data grids.
     """
     return db.query(models.AnimeEntry).all()
 
@@ -41,21 +50,23 @@ def get_all_anime(db: Session = Depends(get_db)):
 def get_anime_by_series_name(series_name: str, db: Session = Depends(get_db)):
     """
     Performs a case-insensitive lookup for all anime belonging to a specific franchise.
-    Used primarily for displaying the 'Individual Entries' list on the Series Hub page.
     """
     return (
         db.query(models.AnimeEntry)
         .filter(models.AnimeEntry.series_en.ilike(f"%{series_name}%"))
+        .order_by(models.AnimeEntry.release_year, models.AnimeEntry.release_month)
         .all()
     )
 
 
 @router.get(
-    "/{system_id}", response_model=schemas.AnimeEntryResponse, summary="Get Anime by ID"
+    "/{system_id}",
+    response_model=schemas.AnimeEntryResponse,
+    summary="Get Anime Details",
 )
-def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_anime_details(system_id: str, db: Session = Depends(get_db)):
     """
-    Retrieves a single anime entry by its unique system ID.
+    Retrieves the details of a single anime entry.
     """
     anime = (
         db.query(models.AnimeEntry)
@@ -63,44 +74,29 @@ def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
         .first()
     )
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found.")
+        raise HTTPException(status_code=404, detail="Anime not found")
     return anime
 
 
-@router.get(
-    "/alias/{alias_name}",
+# ==========================================
+# SECURE WRITE OPERATIONS
+# ==========================================
+
+
+@router.patch(
+    "/{system_id}",
     response_model=schemas.AnimeEntryResponse,
-    summary="Get Anime by Alias",
+    summary="Update Anime Entry",
 )
-def get_anime_details_alias(alias_name: str, db: Session = Depends(get_db)):
-    """
-    Retrieves a single anime entry by its alias/alternative name.
-    """
-    anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.anime_alt_name == alias_name)
-        .first()
-    )
-    if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found.")
-    return anime
-
-
-# ==========================================
-# UPDATE OPERATIONS
-# ==========================================
-
-
-@router.patch("/{system_id}", summary="Update Anime Progress")
-def update_anime_progress(
+def update_anime_entry(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
+    admin: dict = Depends(get_current_admin),
 ):
     """
-    Updates specific progress or tracking fields for an anime entry.
-    Changes are saved to the database and synced to Google Sheets immediately to maintain parity.
+    Surgically patches specific fields in an anime entry (e.g., Episode +1, Rating change).
+    Secured by JWT Admin authentication. Instantly syncs changes to Google Sheets.
     """
     anime = (
         db.query(models.AnimeEntry)
@@ -108,63 +104,41 @@ def update_anime_progress(
         .first()
     )
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found.")
+        raise HTTPException(status_code=404, detail="Anime not found")
 
-    # Define fields that the frontend is permitted to update via PATCH
-    allowed_fields = [
-        "ep_fin",
-        "my_progress",
-        "rating_mine",
-        "remark",
-        "op",
-        "ed",
-        "insert_ost",
-    ]
-    updated_fields = {}
+    for key, value in payload.items():
+        if hasattr(anime, key):
+            setattr(anime, key, value)
+            # Sync directly to Google Sheets for instant backup
+            try:
+                sheets_client.update_anime_field_in_sheet(system_id, key, value)
+            except Exception as e:
+                logger.warning(f"Surgical Sheets sync failed for field '{key}': {e}")
 
-    for field in allowed_fields:
-        if field in payload:
-            val = payload[field]
-
-            # Standardize JavaScript 'null' strings back to Python None types
-            if val == "null":
-                val = None
-
-            setattr(anime, field, val)
-            updated_fields[field] = val
-
-    if not updated_fields:
-        raise HTTPException(status_code=400, detail="No valid update fields provided.")
-
-    # Persist changes to PostgreSQL
-    db.commit()
-
-    # Synchronize the specific changed fields directly to Google Sheets
+    # Update timestamp
+    anime.updated_at = get_taipei_now()
     try:
-        for field, val in updated_fields.items():
-            sheets_client.update_anime_field_in_sheet(system_id, field, val)
-    except Exception as e:
-        # We handle sheet sync failures silently here to ensure the DB still updates
-        print(f"Sheet Sync Error on Patch: {e}")
+        updated_at_str = format_for_sheet(anime.updated_at, type(anime.updated_at))
+        sheets_client.update_anime_field_in_sheet(
+            system_id, "updated_at", updated_at_str
+        )
+    except Exception:
+        pass
 
+    db.commit()
+    db.refresh(anime)
     return anime
 
 
-# ==========================================
-# V2 METADATA AUTO-FILL
-# ==========================================
-
-
-@router.post("/{system_id}/fetch-mal", summary="Fetch and Auto-fill Metadata from MAL")
-def fetch_and_fill_mal_data(
+@router.post("/{system_id}/fetch-mal", summary="Force Replace MAL Data")
+def fetch_mal_data(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin),
+    admin: dict = Depends(get_current_admin),
 ):
     """
-    Fetches metadata from Jikan API using the anime's mal_id.
-    Downloads the cover image and applies Basic Sync (only fills empty fields)
-    for release dates and Netflix status.
+    Force-Replaces metadata and cover image for a specific anime using the Jikan API.
+    Overwrites dates, streaming availability, scores, and ranks regardless of current state.
     """
     anime = (
         db.query(models.AnimeEntry)
@@ -172,66 +146,73 @@ def fetch_and_fill_mal_data(
         .first()
     )
     if not anime:
-        raise HTTPException(status_code=404, detail="Anime not found.")
+        raise HTTPException(status_code=404, detail="Anime not found")
 
     if not anime.mal_id:
         raise HTTPException(
-            status_code=400, detail="No MAL ID associated with this anime."
+            status_code=400,
+            detail="Cannot replace data: No valid MAL ID is assigned to this entry.",
         )
 
-    try:
-        mal_id_int = int(anime.mal_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid MAL ID format.")
-
-    # 1. Fetch data and download image
-    mal_data = jikan_client.fetch_mal_data(mal_id_int, system_id)
-    if not mal_data:
+    # 1. Fetch fresh data using our refactored Jikan Client
+    jikan_data = jikan_client.fetch_anime_details(anime.mal_id)
+    if not jikan_data:
         raise HTTPException(
             status_code=500,
-            detail="Failed to fetch data from Jikan API or rate limited.",
+            detail="Failed to retrieve data from the Jikan API. Rate limit may be exceeded.",
         )
 
     updated_fields = {}
 
-    # 2. Update Cover Image File
-    if mal_data.get("cover_image_file"):
-        anime.cover_image_file = mal_data["cover_image_file"]
-        updated_fields["cover_image_file"] = anime.cover_image_file
+    # 2. Force Replace Text Metadata
+    fields_to_update = {
+        "release_year": jikan_data.get("release_year"),
+        "release_month": jikan_data.get("release_month"),
+        "release_season": jikan_data.get("release_season"),
+        "source_netflix": jikan_data.get("source_netflix"),
+        "mal_rating": jikan_data.get("score"),
+        "mal_rank": jikan_data.get("rank"),
+    }
 
-    # 3. Apply Basic Sync for Dates (Only fill if missing)
-    if not anime.release_year and mal_data.get("release_year"):
-        anime.release_year = mal_data["release_year"]
-        updated_fields["release_year"] = anime.release_year
+    for field, new_val in fields_to_update.items():
+        if new_val is not None and getattr(anime, field) != new_val:
+            setattr(anime, field, new_val)
+            updated_fields[field] = new_val
 
-    if not anime.release_month and mal_data.get("release_month"):
-        anime.release_month = mal_data["release_month"]
-        updated_fields["release_month"] = anime.release_month
+    # 3. Force Replace / Download Cover Image
+    images = jikan_data.get("images", {}).get("jpg", {})
+    image_url = images.get("large_image_url") or images.get("image_url")
 
-    if not anime.release_season and mal_data.get("release_season"):
-        anime.release_season = mal_data["release_season"]
-        updated_fields["release_season"] = anime.release_season
+    if image_url:
+        path = download_cover_image(image_url, system_id)
+        if path and anime.cover_image_file != path:
+            anime.cover_image_file = path
+            updated_fields["cover_image_file"] = path
 
-    # 4. Netflix Flag (Only auto-fill to True, never overwrite a manual True to False)
-    if mal_data.get("source_netflix") and not anime.source_netflix:
-        anime.source_netflix = True
-        updated_fields["source_netflix"] = True
-
+    # If absolutely nothing changed, exit early to save DB/Sheet writes
     if not updated_fields:
-        return {"message": "No new data needed to be auto-filled.", "anime": anime}
+        return {
+            "message": "Data is already up to date.",
+            "anime": schemas.AnimeEntryResponse.model_validate(anime),
+        }
 
-    # 5. Commit to PostgreSQL Source of Truth
+    # 4. Update Database
+    anime.updated_at = get_taipei_now()
+    updated_fields["updated_at"] = format_for_sheet(
+        anime.updated_at, type(anime.updated_at)
+    )
     db.commit()
 
-    # 6. Push updates to the Google Sheet backup
+    # 5. Push exact changed fields to Google Sheets dynamically
     try:
         for field, val in updated_fields.items():
             sheets_client.update_anime_field_in_sheet(system_id, field, val)
     except Exception as e:
-        print(f"Warning: Failed to sync MAL updates to sheets for {system_id}: {e}")
+        logger.error(f"Failed to sync replaced Jikan data to Google Sheets: {e}")
+
+    db.refresh(anime)
 
     return {
-        "message": "Successfully auto-filled metadata from MAL.",
-        "updated_fields": list(updated_fields.keys()),
-        "anime": anime,
+        "message": f"Successfully forced-replaced {len(updated_fields) - 1} metadata fields.",
+        "anime": schemas.AnimeEntryResponse.model_validate(anime),
     }
