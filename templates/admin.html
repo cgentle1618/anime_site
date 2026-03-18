@@ -479,11 +479,12 @@ content %}
   // --- Audit Trails ---
   async function loadLogs() {
     try {
-      const res = await fetch(`/api/admin/logs?limit=15`);
+      const res = await fetch(`/api/system/logs?limit=15`);
       if (!res.ok) throw new Error("Failed to fetch logs");
       const data = await res.json();
 
-      currentLogs = data.logs || [];
+      currentLogs = data || []; // The API natively returns the list directly
+
       const tbody = document.getElementById("log-table-body");
       if (currentLogs.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 italic">No sync logs found.</td></tr>`;
@@ -672,7 +673,7 @@ content %}
 
   async function loadDeletedRecords() {
     try {
-      const res = await fetch(`/api/admin/deletions?limit=15`);
+      const res = await fetch(`/api/system/deletions?limit=15`);
       if (!res.ok) throw new Error("Failed to fetch deleted records");
       const data = await res.json();
 
@@ -809,7 +810,7 @@ content %}
   // Specific Action Triggers
   function handlePull() {
     executeSyncAction(
-      "/api/admin/sync/pull",
+      "/api/system/sync/pull",
       "btn-pull",
       "icon-pull",
       "text-pull",
@@ -821,7 +822,7 @@ content %}
   function handleFill() {
     // Fill does NOT use offset because missing items drop out of the query naturally
     executeSyncAction(
-      "/api/admin/sync/fill?limit=5",
+      "/api/system/sync/fill?limit=5",
       "btn-fill",
       "icon-fill",
       "text-fill",
@@ -835,7 +836,7 @@ content %}
   function handleReplace() {
     // Replace DOES use offset because we iterate through the whole database
     executeSyncAction(
-      "/api/admin/sync/replace?limit=5",
+      "/api/system/sync/replace?limit=5",
       "btn-replace",
       "icon-replace",
       "text-replace",
@@ -855,7 +856,7 @@ content %}
     icon.className = "fas fa-spinner fa-spin mr-1";
 
     try {
-      const res = await fetch(`/api/admin/logs/cleanup?days=30`, {
+      const res = await fetch(`/api/system/logs/cleanup?days=30`, {
         method: "DELETE",
       });
       const data = await res.json();

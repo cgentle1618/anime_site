@@ -1534,9 +1534,7 @@ content %}
     await Promise.all(
       categories.map(async (cat) => {
         try {
-          const res = await fetch(
-            `/api/admin/options/${encodeURIComponent(cat)}`,
-          );
+          const res = await fetch(`/api/options/${encodeURIComponent(cat)}`);
           if (res.ok) {
             const data = await res.json();
             systemOptions[cat] = data.map((item) => item.option_value);
@@ -2100,9 +2098,7 @@ content %}
     closeOptionEditor();
 
     try {
-      const res = await fetch(
-        `/api/admin/options/${encodeURIComponent(category)}`,
-      );
+      const res = await fetch(`/api/options/${encodeURIComponent(category)}`);
       if (!res.ok) throw new Error("Failed to load options.");
 
       const options = await res.json();
@@ -2178,7 +2174,7 @@ content %}
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
 
     try {
-      const res = await fetch(`/api/admin/options/${id}`, {
+      const res = await fetch(`/api/options/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2466,7 +2462,7 @@ content %}
         system_id: crypto.randomUUID(),
         series_en: payload.series_en,
       };
-      const resSeries = await fetch(`/api/admin/series`, {
+      const resSeries = await fetch(`/api/series/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(hubPayload),
@@ -2484,7 +2480,7 @@ content %}
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
     btn.disabled = true;
     try {
-      const res = await fetch(`/api/admin/anime/${sysId}`, {
+      const res = await fetch(`/api/anime/${sysId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2552,7 +2548,7 @@ content %}
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
     btn.disabled = true;
     try {
-      const res = await fetch(`/api/admin/series/${sysId}`, {
+      const res = await fetch(`/api/series/${sysId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2656,10 +2652,9 @@ content %}
         if (currentDeleteTarget.type === "options") {
           btn.innerHTML =
             '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
-          const res = await fetch(
-            `/api/admin/options/${currentDeleteTarget.id}`,
-            { method: "DELETE" },
-          );
+          const res = await fetch(`/api/options/${currentDeleteTarget.id}`, {
+            method: "DELETE",
+          });
           if (!res.ok) throw new Error("Failed to delete system option");
           closeDeleteModal();
           closeOptionEditor();
@@ -2682,16 +2677,14 @@ content %}
           for (const anime of connectedAnime) {
             deletedCount++;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-            await fetch(`/api/admin/anime/${anime.system_id}`, {
-              method: "DELETE",
-            });
+            await fetch(`/api/anime/${anime.system_id}`, { method: "DELETE" });
           }
         }
 
         btn.innerHTML =
           '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
         const res = await fetch(
-          `/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+          `/api/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
           { method: "DELETE" },
         );
         if (!res.ok) throw new Error("Primary deletion failed");
@@ -2708,7 +2701,7 @@ content %}
           if (seriesHub) {
             btn.innerHTML =
               '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
-            await fetch(`/api/admin/series/${seriesHub.system_id}`, {
+            await fetch(`/api/series/${seriesHub.system_id}`, {
               method: "DELETE",
             });
           }

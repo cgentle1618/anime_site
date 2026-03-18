@@ -1357,7 +1357,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       categories.map(async (cat) => {
         try {
           const res = await fetch(
-            `${API_BASE_URL}/admin/options/${encodeURIComponent(cat)}`,
+            `${API_BASE_URL}/options/${encodeURIComponent(cat)}`,
           );
           if (res.ok) {
             const data = await res.json();
@@ -1718,7 +1718,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       '<i class="fas fa-spinner fa-spin mr-2"></i> Adding & Syncing...';
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/options`, {
+      const res = await fetch(`${API_BASE_URL}/options/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1809,7 +1809,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/series`, {
+      const res = await fetch(`${API_BASE_URL}/series/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2252,7 +2252,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/add`, {
+      const res = await fetch(`${API_BASE_URL}/anime/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
