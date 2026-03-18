@@ -8,10 +8,15 @@ while perfectly preserving the original V1 authentication and quota fallback log
 import os
 import json
 import time
+import logging
 import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from typing import Callable, Any, Dict, List
 from google.oauth2.service_account import Credentials
+
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # CORE GOOGLE API HELPERS
@@ -30,8 +35,8 @@ def execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) ->
             if "429" in str(e):
                 # Using the original 60s multiplier as Jikan/Sheets quotas are strict
                 wait_time = 60 * (attempt + 1)
-                print(
-                    f"⚠️ Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})..."
+                logger.warning(
+                    f"Google API Quota Exceeded (429). Pausing for {wait_time}s (Attempt {attempt + 1}/{max_retries})..."
                 )
                 time.sleep(wait_time)
             else:
@@ -42,7 +47,10 @@ def execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) ->
 
 
 def get_google_spreadsheet() -> gspread.Spreadsheet:
-    """Authenticates with Google using the service account and returns the main Spreadsheet object."""
+    """
+    Authenticates with Google using the service account and returns the main Spreadsheet object.
+    Intelligently routes between Cloud Environment Variables and local credentials.json.
+    """
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive",
@@ -58,7 +66,9 @@ def get_google_spreadsheet() -> gspread.Spreadsheet:
                 creds_info, scopes=scopes
             )
             gc = gspread.authorize(credentials)
-            print("ℹ️ Authenticated to Google Sheets via Cloud Environment Variables.")
+            logger.info(
+                "Authenticated to Google Sheets via Cloud Environment Variables."
+            )
         except json.JSONDecodeError as e:
             raise Exception(
                 f"Failed to parse GOOGLE_CREDENTIALS_JSON. Ensure it is a valid JSON string. Error: {e}"
@@ -70,7 +80,7 @@ def get_google_spreadsheet() -> gspread.Spreadsheet:
                 "Missing credentials! Provide GOOGLE_CREDENTIALS_JSON env var or a credentials.json file."
             )
         gc = gspread.service_account(filename="credentials.json")
-        print("ℹ️ Authenticated to Google Sheets via local credentials.json.")
+        logger.info("Authenticated to Google Sheets via local credentials.json.")
 
     # Prioritize the explicit ID from .env if it was set to a real ID, otherwise fallback to filename
     sheet_id = os.getenv("GOOGLE_SHEET_ID")
@@ -144,7 +154,7 @@ def get_all_rows(tab_name: str) -> List[Dict[str, Any]]:
 
         return data
     except WorksheetNotFound:
-        print(f"⚠️ Worksheet '{tab_name}' not found.")
+        logger.warning(f"Worksheet '{tab_name}' not found.")
         return []
 
 
@@ -162,7 +172,17 @@ def bulk_overwrite_sheet(
     """
     try:
         spreadsheet = get_google_spreadsheet()
-        sheet = execute_with_retry(spreadsheet.worksheet, tab_name)
+
+        # FIXED: Catch WorksheetNotFound and auto-create the missing tab!
+        try:
+            sheet = execute_with_retry(spreadsheet.worksheet, tab_name)
+        except WorksheetNotFound:
+            logger.warning(f"Worksheet '{tab_name}' not found. Auto-creating it now...")
+            num_rows = max(100, len(data_matrix) + 10)
+            num_cols = max(10, len(headers))
+            sheet = execute_with_retry(
+                spreadsheet.add_worksheet, title=tab_name, rows=num_rows, cols=num_cols
+            )
 
         # 1. Clear everything currently in the sheet to prevent leftover ghost data
         execute_with_retry(sheet.clear)
@@ -178,12 +198,12 @@ def bulk_overwrite_sheet(
             value_input_option="USER_ENTERED",
         )
 
-        print(
-            f"✅ Successfully bulk-backed up {len(data_matrix)} rows to '{tab_name}'."
+        logger.info(
+            f"Successfully bulk-backed up {len(data_matrix)} rows to '{tab_name}'."
         )
         return True
     except Exception as e:
-        print(f"❌ Failed to bulk overwrite '{tab_name}': {e}")
+        logger.error(f"Failed to bulk overwrite '{tab_name}': {e}")
         return False
 
 
@@ -202,14 +222,18 @@ def update_anime_field_in_sheet(system_id: str, field_name: str, value: Any) -> 
 
     cell = execute_with_retry(sheet.find, system_id)
     if not cell:
-        print(f"⚠️ system_id {system_id} not found in Google Sheet. Skipping patch.")
+        logger.warning(
+            f"system_id {system_id} not found in Google Sheet. Skipping patch."
+        )
         return False
 
     headers = execute_with_retry(sheet.row_values, 1)
     try:
-        col_index = len(headers) - headers[::-1].index(field_name)
+        # Simplified Column Math: Because header keys are strictly unique,
+        # we can just find its index and add 1 (gspread uses 1-based indexing)
+        col_index = headers.index(field_name) + 1
     except ValueError:
-        print(f"⚠️ Column '{field_name}' not found in the header row.")
+        logger.warning(f"Column '{field_name}' not found in the header row.")
         return False
 
     execute_with_retry(
