@@ -1,24 +1,33 @@
 """
 dependencies.py
 Contains reusable FastAPI dependencies used across different routers.
+Centralizes database session management and security middleware.
 """
 
-from typing import Generator
 import os
 import jwt
+from typing import Generator, Dict, Any
 from fastapi import Request, HTTPException, status
 from sqlalchemy.orm import Session
+
 from database import SessionLocal
 
+# ==========================================
+# SECURITY CONFIGURATION
+# ==========================================
+# Defines the cryptographic keys used for JWT token signing and verification.
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_secret_key_change_me_in_prod")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 
+# ==========================================
+# DATABASE DEPENDENCIES
+# ==========================================
 def get_db() -> Generator[Session, None, None]:
     """
     Dependency function that yields a database session for a single request.
-    Ensures the session is cleanly closed after the request completes,
-    preventing database connection leaks and timeouts.
+    Ensures the session is cleanly closed after the HTTP request completes,
+    preventing connection leaks and database timeouts.
     """
     db = SessionLocal()
     try:
@@ -27,15 +36,23 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_current_admin(request: Request) -> dict:
+# ==========================================
+# AUTHENTICATION & RBAC DEPENDENCIES
+# ==========================================
+def get_current_admin(request: Request) -> Dict[str, Any]:
     """
-    Dependency that extracts the JWT from the HTTP-Only cookie,
-    verifies it, and ensures the user has the 'admin' role.
-    Raises a 401 Unauthorized error if validation fails.
+    Security middleware for Role-Based Access Control (RBAC).
+
+    Mechanism:
+    1. Extracts the JWT from the secure, HTTP-Only 'access_token' cookie.
+    2. Cryptographically verifies the token using the SECRET_KEY.
+    3. Enforces that the authenticated user explicitly possesses the 'admin' role.
+
+    Raises a 401 Unauthorized exception if any validation step fails.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Could not validate credentials or insufficient permissions",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -44,12 +61,15 @@ def get_current_admin(request: Request) -> dict:
         raise credentials_exception
 
     try:
-        # Remove 'Bearer ' prefix
+        # Strip the 'Bearer ' prefix to isolate the raw JWT
         token_str = token.split(" ")[1]
         payload = jwt.decode(token_str, SECRET_KEY, algorithms=[ALGORITHM])
+
         role: str = payload.get("role")
         if role != "admin":
             raise credentials_exception
+
         return payload
+
     except jwt.PyJWTError:
         raise credentials_exception
