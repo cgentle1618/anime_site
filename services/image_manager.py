@@ -7,8 +7,10 @@ Supports Google Cloud Storage for cloud deployments and local storage for develo
 import os
 import json
 import logging
-import urllib.request
+import requests
 from typing import Optional
+from google.cloud import storage
+from google.oauth2.service_account import Credentials
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -18,17 +20,21 @@ logger = logging.getLogger(__name__)
 COVER_DIR = "static/covers"
 
 
-def get_gcs_client():
+def _get_active_bucket_name() -> Optional[str]:
+    """
+    Determines the active Google Cloud Storage bucket.
+    Returns the bucket name if running in Cloud Run, otherwise None (Local Mode).
+    """
+    is_cloud_run = os.getenv("K_SERVICE") is not None
+    return os.getenv("GCP_BUCKET_NAME", "cg1618-anime-covers" if is_cloud_run else None)
+
+
+def get_gcs_client() -> storage.Client:
     """
     Initializes the Google Cloud Storage client.
-    Smartly routes between Cloud Run native identity and local JSON credentials.
+    Smartly routes between Cloud Run native IAM identity and local JSON credentials.
     """
-    from google.cloud import storage
-    from google.oauth2.service_account import Credentials
-
     # 1. If running in Cloud Run, ALWAYS use the native Compute Identity.
-    # This prevents the app from accidentally using the Google Sheets JSON key,
-    # which lacks the 'Storage Object Admin' role and causes a 403 Forbidden.
     if os.getenv("K_SERVICE"):
         logger.info(
             "Cloud Run environment detected. Using native IAM identity for GCS."
@@ -57,8 +63,7 @@ def get_gcs_client():
 
 def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
     """
-    Downloads an image from a URL using urllib to avoid namespace collisions,
-    and saves it to GCS (if in Cloud Run) or Local Storage.
+    Downloads an image using the 'requests' library and saves it to GCS or Local Storage.
     Optimized to check existence BEFORE downloading to prevent 504 Timeouts.
     """
     if not image_url:
@@ -66,14 +71,7 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
 
     filename = f"{system_id}.jpg"
     content_type = "image/jpeg"
-
-    # Cloud Run automatically injects 'K_SERVICE' into the environment
-    is_cloud_run = os.getenv("K_SERVICE") is not None
-
-    # Default to your specific bucket if on Cloud Run, otherwise rely on ENV or None
-    bucket_name = os.getenv(
-        "GCP_BUCKET_NAME", "cg1618-anime-covers" if is_cloud_run else None
-    )
+    bucket_name = _get_active_bucket_name()
 
     try:
         # ==========================================
@@ -102,12 +100,13 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
         # ==========================================
         # STEP 2: DOWNLOAD THE IMAGE
         # ==========================================
-        req = urllib.request.Request(
+        response = requests.get(
             image_url,
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            timeout=10,
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            image_bytes = response.read()
+        response.raise_for_status()
+        image_bytes = response.content
 
         # ==========================================
         # STEP 3: SAVE TO PERSISTENT STORAGE
@@ -125,7 +124,7 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
             logger.info(f"Successfully saved cover locally: {filename}")
             return filename
 
-    except urllib.error.URLError as e:
+    except requests.RequestException as e:
         logger.error(f"Network error downloading image {image_url}: {e}")
         return None
     except Exception as e:
@@ -142,12 +141,7 @@ def delete_cover_image(system_id: str) -> None:
         return
 
     filename = f"{system_id}.jpg"
-
-    # Environment detection exactly matching download logic
-    is_cloud_run = os.getenv("K_SERVICE") is not None
-    bucket_name = os.getenv(
-        "GCP_BUCKET_NAME", "cg1618-anime-covers" if is_cloud_run else None
-    )
+    bucket_name = _get_active_bucket_name()
 
     try:
         if bucket_name:
@@ -177,5 +171,5 @@ def delete_cover_image(system_id: str) -> None:
                 )
 
     except Exception as e:
-        # We log the error but do not raise it, so it doesn't crash the parent database transaction
+        # Log error but do not raise, preventing parent DB transaction crashes
         logger.error(f"Failed to delete image {filename}: {e}")
