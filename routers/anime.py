@@ -2,11 +2,13 @@
 routers/anime.py
 Handles all API endpoints related to individual anime entries.
 Includes data retrieval, UI progress tracking updates (PATCH),
-and the surgical MAL metadata Force-Replace function.
+the surgical MAL metadata Force-Replace function, and the full CRUD lifecycle.
 """
 
+import uuid
+import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -14,8 +16,13 @@ import models
 import schemas
 import services.sheets_client as sheets_client
 import services.jikan_client as jikan_client
-from services.image_manager import download_cover_image
-from services.sync_utils import format_for_sheet
+from services.image_manager import download_cover_image, delete_cover_image
+from services.sync_utils import (
+    format_for_sheet,
+    extract_season_from_title,
+    extract_season_from_cn_title,
+)
+from services.sync import _push_db_backup_to_sheets, _push_series_backup_to_sheets
 from database import get_taipei_now
 from dependencies import get_db, get_current_admin
 
@@ -27,7 +34,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/anime", tags=["Anime Management"])
 
 # ==========================================
-# PUBLIC READ OPERATIONS
+# PUBLIC READ OPERATIONS (Unprotected)
 # ==========================================
 
 
@@ -37,7 +44,7 @@ router = APIRouter(prefix="/api/anime", tags=["Anime Management"])
 def get_all_anime(db: Session = Depends(get_db)):
     """
     Retrieves the complete list of all anime entries.
-    Unprotected: Used to populate the public dashboard and library data grids.
+    Used to populate the public dashboard and library data grids.
     """
     return db.query(models.AnimeEntry).all()
 
@@ -79,14 +86,105 @@ def get_anime_details(system_id: str, db: Session = Depends(get_db)):
 
 
 # ==========================================
-# SECURE WRITE OPERATIONS
+# SECURE WRITE OPERATIONS (Admin Only)
 # ==========================================
+
+
+@router.post("/", summary="Add New Anime Entry")
+def add_anime(
+    payload: schemas.AnimeEntryCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Creates a new anime entry in the PostgreSQL database.
+    Auto-calculates missing seasons/parts, and creates a parent Series Hub if one doesn't exist.
+    """
+    # 1. Check if the parent Series Hub exists. If not, create a basic shell.
+    existing_series = (
+        db.query(models.AnimeSeries)
+        .filter(models.AnimeSeries.series_en == payload.series_en)
+        .first()
+    )
+
+    is_new_series = False
+
+    if not existing_series:
+        new_series = models.AnimeSeries(
+            system_id=str(uuid.uuid4()),
+            series_en=payload.series_en,
+            series_roman=payload.series_season_roman,
+            series_cn=payload.series_season_cn,
+            series_alt_name=payload.series_alt_name,
+        )
+        db.add(new_series)
+        db.flush()
+        is_new_series = True
+
+    # 2. Auto-calculate season if missing
+    calculated_season = payload.series_season
+    if not calculated_season:
+        if payload.series_season_en:
+            calculated_season = extract_season_from_title(payload.series_season_en)
+        elif payload.series_season_cn:
+            calculated_season = extract_season_from_cn_title(payload.series_season_cn)
+
+    # 3. Create the Database Entry
+    entry_data = payload.model_dump()
+    entry_data.pop("series_alt_name", None)
+    entry_data["system_id"] = str(uuid.uuid4())
+    entry_data["series_season"] = calculated_season
+
+    new_entry = models.AnimeEntry(**entry_data)
+    db.add(new_entry)
+    db.commit()
+
+    # 4. Push Backup to Google Sheets asynchronously
+    background_tasks.add_task(_push_db_backup_to_sheets)
+    if is_new_series:
+        background_tasks.add_task(_push_series_backup_to_sheets)
+
+    return {
+        "message": "Entry added successfully and is backing up to Sheets.",
+        "system_id": new_entry.system_id,
+    }
+
+
+@router.put("/{system_id}", summary="Full Update Anime Entry")
+def full_update_anime_entry(
+    system_id: str,
+    payload: schemas.AnimeEntryUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Performs a full overwrite of an anime entry's metadata.
+    """
+    db_anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data.pop("system_id", None)
+
+    for key, value in update_data.items():
+        setattr(db_anime, key, value)
+
+    db.commit()
+    background_tasks.add_task(_push_db_backup_to_sheets)
+    return {"message": "Anime entry updated successfully.", "system_id": system_id}
 
 
 @router.patch(
     "/{system_id}",
     response_model=schemas.AnimeEntryResponse,
-    summary="Update Anime Entry",
+    summary="Quick Update Anime Progress",
 )
 def update_anime_entry(
     system_id: str,
@@ -96,7 +194,7 @@ def update_anime_entry(
 ):
     """
     Surgically patches specific fields in an anime entry (e.g., Episode +1, Rating change).
-    Secured by JWT Admin authentication. Instantly syncs changes to Google Sheets.
+    Instantly syncs the specific changes directly to Google Sheets without a full backup load.
     """
     anime = (
         db.query(models.AnimeEntry)
@@ -216,3 +314,41 @@ def fetch_mal_data(
         "message": f"Successfully forced-replaced {len(updated_fields) - 1} metadata fields.",
         "anime": schemas.AnimeEntryResponse.model_validate(anime),
     }
+
+
+@router.delete("/{system_id}", summary="Delete Anime Entry")
+def delete_anime_entry(
+    system_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Deletes an anime entry, cleans up its local cover image, logs the deletion,
+    and resyncs the state to Google Sheets.
+    """
+    db_anime = (
+        db.query(models.AnimeEntry)
+        .filter(models.AnimeEntry.system_id == system_id)
+        .first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    delete_cover_image(system_id)
+
+    anime_display_name = (
+        db_anime.series_season_en or db_anime.series_en or db_anime.system_id
+    )
+    deleted_record = models.DeletedRecord(
+        system_id=db_anime.system_id,
+        table_name="anime_entries",
+        data_json=json.dumps({"title": anime_display_name}),
+    )
+    db.add(deleted_record)
+
+    db.delete(db_anime)
+    db.commit()
+
+    background_tasks.add_task(_push_db_backup_to_sheets)
+    return {"message": "Anime entry deleted successfully.", "system_id": system_id}
