@@ -52,7 +52,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
           onclick="autoFillMal()"
           class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition flex items-center"
         >
-          <i class="fas fa-magic mr-1.5"></i> Auto-Fill Missing Data (Jikan)
+          <i class="fas fa-magic mr-1.5"></i> Autofill & Update
         </button>
       </div>
     </div>
@@ -853,18 +853,20 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
   // --- API Handlers ---
   async function autoFillMal() {
     if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
-    if (!animeData.mal_id) {
+    if (!animeData.mal_id && !animeData.mal_link) {
       if (typeof showToast === "function")
-        showToast("Cannot auto-fill: MAL ID is missing.", true);
+        showToast(
+          "Cannot auto-fill: Both MAL ID and MAL Link are missing.",
+          true,
+        );
       return;
     }
 
-    if (
-      !confirm(
-        `Fetch latest data from Jikan API for MAL ID ${animeData.mal_id}? This will softly fill empty fields.`,
-      )
-    )
-      return;
+    const promptMsg = animeData.mal_id
+      ? `Fetch latest data from Jikan API for MAL ID ${animeData.mal_id}? This will softly fill empty fields.`
+      : `Extract MAL ID from link and fetch latest data from Jikan API? This will softly fill empty fields.`;
+
+    if (!confirm(promptMsg)) return;
 
     const btn = document.getElementById("btn-autofill-mal");
     const originalHTML = btn.innerHTML;

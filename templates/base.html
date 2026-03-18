@@ -498,8 +498,8 @@
         btn.prepend(icon);
 
         try {
-          // V2: Target the specific Sheets Sync endpoint
-          const response = await fetch(`/api/admin/sync/backup`, { method: "POST" });
+          // V2: Target the specific Sheets Sync endpoint (Updated to System Router)
+          const response = await fetch(`/api/system/sync/backup`, { method: "POST" });
 
           if (response.ok) {
             icon.classList.remove("fa-spin", "fa-sync-alt");
