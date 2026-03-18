@@ -21,6 +21,7 @@ from services.sync_utils import (
     format_for_sheet,
     extract_season_from_title,
     extract_season_from_cn_title,
+    extract_mal_id,
 )
 from services.sync import _push_db_backup_to_sheets, _push_series_backup_to_sheets
 from database import get_taipei_now
@@ -247,10 +248,20 @@ def fetch_mal_data(
         raise HTTPException(status_code=404, detail="Anime not found")
 
     if not anime.mal_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot replace data: No valid MAL ID is assigned to this entry.",
-        )
+        if anime.mal_link:
+            extracted_id = extract_mal_id(anime.mal_link)
+            if extracted_id:
+                anime.mal_id = extracted_id
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot replace data: Failed to extract a valid MAL ID from the provided link.",
+                )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot replace data: No valid MAL ID or MAL Link is assigned to this entry.",
+            )
 
     # 1. Fetch fresh data using our refactored Jikan Client
     jikan_data = jikan_client.fetch_anime_details(anime.mal_id)
