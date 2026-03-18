@@ -5,19 +5,17 @@ Handles app initialization, modular router registration, static file serving, an
 """
 
 import os
-import traceback
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 import database
 import models
-from routers import pages, anime, series, admin, auth
+from routers import pages, anime, series, options, system, auth
 from services.security import get_password_hash
 
 # ==========================================
-# SYSTEM INITIALIZATION (V2 UPDATES)
+# SYSTEM INITIALIZATION
 # ==========================================
 
 # Ensure our local static directories exist for V2 Image Downloading
@@ -29,33 +27,9 @@ app = FastAPI(
     version="2.0.0",
 )
 
-
-# --- THE GLOBAL OSCILLOSCOPE (DEBUGGER) ---
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """
-    Catches ANY unhandled 500 error, prints the exact Python traceback to GCP Logs,
-    and returns the error message directly to the browser screen for instant debugging.
-    """
-    print(
-        f"🔥 [CRITICAL 500 ERROR] Failed at: {request.method} {request.url}", flush=True
-    )
-    print("👇 --- TRACEBACK BEGIN --- 👇", flush=True)
-    traceback.print_exc()
-    print("👆 --- TRACEBACK END --- 👆", flush=True)
-
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": "CRITICAL 500 ERROR",
-            "error_message": str(exc),
-            "endpoint": str(request.url),
-        },
-    )
-
-
 # Mount the static directory so FastAPI can serve local images
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # ==========================================
 # STARTUP EVENTS
@@ -99,13 +73,18 @@ async def seed_admin_user():
 # ROUTER INCLUSION
 # ==========================================
 
+# Frontend Pages
 app.include_router(pages.router)
+
+# Authentication
 app.include_router(auth.router, prefix="/api/v1")
+
+# V2 Resource-Based Routers
 app.include_router(anime.router)
 app.include_router(series.router)
-app.include_router(admin.router)
+app.include_router(options.router)
+app.include_router(system.router)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

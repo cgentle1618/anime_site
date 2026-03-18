@@ -735,9 +735,7 @@ content %}
     loader.classList.remove("hidden");
 
     try {
-      const res = await fetch(
-        `/api/admin/options/${encodeURIComponent(category)}`,
-      );
+      const res = await fetch(`/api/options/${encodeURIComponent(category)}`);
       if (!res.ok) throw new Error("Failed to load options from the database.");
 
       const options = await res.json();
@@ -862,10 +860,9 @@ content %}
         if (currentDeleteTarget.type === "options") {
           btn.innerHTML =
             '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
-          const res = await fetch(
-            `/api/admin/options/${currentDeleteTarget.id}`,
-            { method: "DELETE" },
-          );
+          const res = await fetch(`/api/options/${currentDeleteTarget.id}`, {
+            method: "DELETE",
+          });
           if (!res.ok)
             throw new Error(
               (await res.json()).detail || "Failed to delete system option",
@@ -894,10 +891,9 @@ content %}
           for (const anime of connectedAnime) {
             deletedCount++;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-            const resAnime = await fetch(
-              `/api/admin/anime/${anime.system_id}`,
-              { method: "DELETE" },
-            );
+            const resAnime = await fetch(`/api/anime/${anime.system_id}`, {
+              method: "DELETE",
+            });
             if (!resAnime.ok)
               console.error(
                 `Failed to cascade delete connected anime: ${anime.system_id}`,
@@ -909,7 +905,7 @@ content %}
         btn.innerHTML =
           '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
         const res = await fetch(
-          `/api/admin/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+          `/api/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
           { method: "DELETE" },
         );
         if (!res.ok)
@@ -931,7 +927,7 @@ content %}
             btn.innerHTML =
               '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
             const resSeries = await fetch(
-              `/api/admin/series/${seriesHub.system_id}`,
+              `/api/series/${seriesHub.system_id}`,
               { method: "DELETE" },
             );
             if (!resSeries.ok)
