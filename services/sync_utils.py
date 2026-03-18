@@ -26,8 +26,10 @@ def format_for_sheet(val: Any, expected_type: type) -> str:
 
 def extract_mal_id(mal_link: str) -> Optional[int]:
     """
-    Extracts the MAL ID from a MyAnimeList URL.
-    Example: 'https://myanimelist.net/anime/5114/Fullmetal_Alchemist__Brotherhood' -> 5114
+    Extracts the MyAnimeList (MAL) ID from a standard MAL URL.
+
+    Example:
+        'https://myanimelist.net/anime/5114/Fullmetal_Alchemist__Brotherhood' -> 5114
     """
     if not mal_link:
         return None
@@ -43,7 +45,9 @@ def extract_season_from_title(title_en: str) -> Optional[str]:
     """
     Extracts season and part information from an English title.
     Matches patterns like 'Season 2' or 'Season 3 Part 2'.
-    Returns formatted string: 'Season X Part Y' or 'Season X'
+
+    Returns:
+        Formatted string: 'Season X Part Y' or 'Season X', or None.
     """
     if not title_en:
         return None
@@ -59,8 +63,11 @@ def extract_season_from_title(title_en: str) -> Optional[str]:
 def extract_season_from_cn_title(title_cn: str) -> Optional[str]:
     """
     Extracts season and part information from a Chinese title.
-    Example: '某科學的超電磁砲 第2季 第1部' -> 'Season 2 Part 1'
-    Example: '進擊的巨人 Final Season Part 2' -> 'Season 4 Part 2' (Special handling for 'Final')
+    Translates Chinese numerals into standard English representations.
+
+    Examples:
+        '某科學的超電磁砲 第2季 第1部' -> 'Season 2 Part 1'
+        '進擊的巨人 Final Season Part 2' -> 'Season 4 Part 2'
     """
     if not title_cn:
         return None

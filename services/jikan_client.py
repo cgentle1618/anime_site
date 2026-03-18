@@ -1,13 +1,20 @@
 """
 jikan_client.py
 Handles all interactions with the external Jikan API (MyAnimeList's Unofficial API).
-Used to fetch missing metadata, parse V2 release dates/streaming, and trigger image downloads.
+Strictly responsible for fetching and parsing external JSON data.
 """
 
+import logging
 import requests
 from typing import Optional, Dict, Any
 from datetime import datetime
-from services.image_manager import download_cover_image
+
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Constants for MyAnimeList's Unofficial API
+JIKAN_BASE_URL = "https://api.jikan.moe/v4"
 
 # Mapping for V2 strict month format
 MONTH_MAP = {
@@ -27,7 +34,7 @@ MONTH_MAP = {
 
 
 def get_season_from_month(month_num: int) -> str:
-    """Helper to determine the anime season based on release month."""
+    """Helper to determine the standard anime broadcasting season based on release month."""
     if month_num in [1, 2, 3]:
         return "WIN"
     if month_num in [4, 5, 6]:
@@ -41,90 +48,89 @@ def get_season_from_month(month_num: int) -> str:
 
 def fetch_anime_details(mal_id: int) -> Optional[Dict[str, Any]]:
     """
-    Core function to fetch raw anime details from Jikan API.
-    Handles the HTTP request, timeout, and rate limit detection.
-    Returns the inner 'data' dictionary from the response.
+    Fetches anime details from Jikan and parses the data into our V2 internal schema.
+    Includes strict timeouts and exception handling to survive Jikan's heavy rate-limiting.
     """
+    if not mal_id:
+        return None
+
+    # We use the /full endpoint to get both core stats and streaming links in one call
+    url = f"{JIKAN_BASE_URL}/anime/{mal_id}/full"
+
     try:
-        url = f"https://api.jikan.moe/v4/anime/{mal_id}/full"
-        response = requests.get(url, timeout=10)
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json().get("data", {})
 
-        if response.status_code == 200:
-            payload = response.json()
-            return payload.get("data", {})
+        # ==========================================
+        # PARSE DATES & SEASONS
+        # ==========================================
+        release_year = ""
+        release_month = ""
+        release_season = ""
 
-        elif response.status_code == 429:
-            print(f"⚠️ [Jikan API] Rate limited when fetching MAL ID {mal_id}")
-            return None
+        aired = data.get("aired", {})
+        from_date_str = aired.get("from")
+
+        if from_date_str:
+            try:
+                # Jikan usually returns ISO 8601 strings: "2009-04-05T00:00:00+00:00"
+                dt = datetime.fromisoformat(from_date_str.replace("Z", "+00:00"))
+                release_year = str(dt.year)
+                release_month = MONTH_MAP.get(dt.month, "")
+                release_season = get_season_from_month(dt.month)
+            except (ValueError, TypeError):
+                logger.warning(
+                    f"Malformed date string from Jikan for MAL ID {mal_id}: {from_date_str}"
+                )
+                pass
+
+        # ==========================================
+        # PARSE STREAMING (NETFLIX)
+        # ==========================================
+        streaming_list = data.get("streaming", [])
+        # Returns a standard Python Boolean, aligning with our strict SQL models
+        source_netflix = any(
+            "netflix" in s.get("name", "").lower() for s in streaming_list
+        )
+
+        # ==========================================
+        # PARSE SCORES & IMAGES
+        # ==========================================
+        score = data.get("score")
+        rank = data.get("rank")
+
+        # We pass the raw image dictionaries back to the orchestrator,
+        # which will decide if it actually needs to trigger a download.
+        images = data.get("images", {})
+
+        return {
+            "release_year": release_year,
+            "release_month": release_month,
+            "release_season": release_season,
+            "source_netflix": source_netflix,
+            "score": score,
+            "rank": rank,
+            "images": images,
+        }
+
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 429:
+            logger.warning(f"Jikan Rate Limit Exceeded (429) for MAL ID {mal_id}")
+        elif response.status_code == 404:
+            logger.warning(f"Anime not found (404) on Jikan for MAL ID {mal_id}")
         else:
-            print(
-                f"⚠️ [Jikan API] Failed with status {response.status_code} for MAL ID {mal_id}"
-            )
-            return None
-
-    except requests.RequestException as e:
-        print(f"⚠️ [Jikan API] Connection error for MAL ID {mal_id}: {e}")
+            logger.error(f"HTTP Error fetching from Jikan for MAL ID {mal_id}: {e}")
         return None
-
-
-def fetch_mal_data(mal_id: int, system_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Fetches data and parses it strictly for the frontend /fetch-mal autofill UI.
-    Downloads the cover image locally.
-    """
-    # Use the core fetch function to get the raw data
-    data = fetch_anime_details(mal_id)
-
-    if not data:
+    except requests.exceptions.RequestException as e:
+        logger.error(
+            f"Network/Timeout Error connecting to Jikan for MAL ID {mal_id}: {e}"
+        )
         return None
-
-    # 1. Download & Save Cover Image
-    images = data.get("images", {})
-    jpg = images.get("jpg", {})
-    image_url = (
-        jpg.get("large_image_url") or jpg.get("image_url") or data.get("image_url")
-    )
-
-    cover_image_file = None
-    if image_url:
-        # Download the image locally and get the relative path
-        cover_image_file = download_cover_image(image_url, system_id)
-
-    # 2. Parse Dates (V2 Strict String Formatting)
-    release_year = ""
-    release_month = ""
-    release_season = ""
-
-    aired = data.get("aired", {})
-    from_date_str = aired.get("from")
-
-    if from_date_str:
-        try:
-            # Jikan usually returns ISO 8601 strings for "from": "2009-04-05T00:00:00+00:00"
-            # Sometimes it's just "2009-04-05" depending on the endpoint depth
-            dt = datetime.fromisoformat(from_date_str.replace("Z", "+00:00"))
-            release_year = str(dt.year)
-            release_month = MONTH_MAP.get(dt.month, "")
-            release_season = get_season_from_month(dt.month)
-        except (ValueError, TypeError):
-            pass  # Ignore if MAL has malformed date data
-
-    # 3. Parse Streaming (Netflix) - V2 Fix: Return String TRUE/FALSE
-    streaming_list = data.get("streaming", [])
-    netflix_found = any("netflix" in s.get("name", "").lower() for s in streaming_list)
-    source_netflix = "TRUE" if netflix_found else "FALSE"
-
-    # 4. Parse Scores
-    score = data.get("score")
-    rank = data.get("rank")
-    rank_str = str(rank) if rank is not None else "N/A"
-
-    return {
-        "cover_image_file": cover_image_file,
-        "release_year": release_year,
-        "release_month": release_month,
-        "release_season": release_season,
-        "source_netflix": source_netflix,
-        "mal_rating": score,
-        "mal_rank": rank_str,
-    }
+    except Exception as e:
+        logger.error(f"Unexpected parsing error for MAL ID {mal_id}: {e}")
+        return None
