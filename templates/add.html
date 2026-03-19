@@ -55,9 +55,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       </div>
       <button
         type="button"
-        onclick="
-          document.getElementById('last-added-display').classList.add('hidden')
-        "
+        data-action="close-last-added"
         class="absolute top-3 right-3 text-emerald-400 hover:text-emerald-600 transition bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-sm border border-emerald-100"
       >
         <i class="fas fa-times"></i>
@@ -68,21 +66,24 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   <div class="flex space-x-6 mb-6 overflow-x-auto hide-scrollbar">
     <button
       id="tab-btn-anime"
-      onclick="switchTab('anime')"
+      data-action="switch-tab"
+      data-tab="anime"
       class="pb-2 text-base font-bold border-b-2 border-brand text-brand transition uppercase tracking-wide flex items-center whitespace-nowrap"
     >
       <i class="fas fa-tv mr-2"></i> Add Anime Entry
     </button>
     <button
       id="tab-btn-series"
-      onclick="switchTab('series')"
+      data-action="switch-tab"
+      data-tab="series"
       class="pb-2 text-base font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition uppercase tracking-wide flex items-center whitespace-nowrap"
     >
       <i class="fas fa-layer-group mr-2"></i> Add Series Hub
     </button>
     <button
       id="tab-btn-options"
-      onclick="switchTab('options')"
+      data-action="switch-tab"
+      data-tab="options"
       class="pb-2 text-base font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-700 transition uppercase tracking-wide flex items-center whitespace-nowrap"
     >
       <i class="fas fa-sliders-h mr-2"></i> Add System Option
@@ -93,11 +94,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     id="form-container-anime"
     class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 transition-all"
   >
-    <form
-      id="manual-add-form"
-      onsubmit="submitManualEntry(event)"
-      class="space-y-10"
-    >
+    <form id="manual-add-form" class="space-y-10">
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -113,7 +110,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             <input
               type="text"
               id="add-series-en"
-              oninput="handleAutocomplete(this, 'series_en')"
+              data-autocomplete="series_en"
               placeholder="Optional (Auto-fills from season titles if empty)..."
               class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
               autocomplete="off"
@@ -184,7 +181,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               <input
                 type="text"
                 id="add-season-en"
-                oninput="handleAutocomplete(this, 'series_season_en')"
+                data-autocomplete="series_season_en"
                 placeholder="Optional..."
                 class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 autocomplete="off"
@@ -201,7 +198,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               <input
                 type="text"
                 id="add-season-roman"
-                oninput="handleAutocomplete(this, 'series_season_roman')"
+                data-autocomplete="series_season_roman"
                 placeholder="Optional..."
                 class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 autocomplete="off"
@@ -218,7 +215,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               <input
                 type="text"
                 id="add-season-cn"
-                oninput="handleAutocomplete(this, 'series_season_cn')"
+                data-autocomplete="series_season_cn"
                 placeholder="Optional..."
                 class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                 autocomplete="off"
@@ -235,7 +232,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               <input
                 type="text"
                 id="add-anime-alt"
-                oninput="handleAutocomplete(this, 'anime_alt_name')"
+                data-autocomplete="anime_alt_name"
                 placeholder="e.g. SAO II"
                 class="w-full bg-white border border-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg px-3 py-2 text-sm outline-none transition"
                 autocomplete="off"
@@ -475,7 +472,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <div
               class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-              onclick="document.getElementById('add-studio-input').focus()"
+              data-action="focus-multi"
+              data-target="add-studio-input"
             >
               <div
                 id="studio-tags-container"
@@ -499,7 +497,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <div
               class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-              onclick="document.getElementById('add-distributor-input').focus()"
+              data-action="focus-multi"
+              data-target="add-distributor-input"
             >
               <div
                 id="distributor-tags-container"
@@ -523,7 +522,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <div
               class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-              onclick="document.getElementById('add-director-input').focus()"
+              data-action="focus-multi"
+              data-target="add-director-input"
             >
               <div
                 id="director-tags-container"
@@ -547,7 +547,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <div
               class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-              onclick="document.getElementById('add-producer-input').focus()"
+              data-action="focus-multi"
+              data-target="add-producer-input"
             >
               <div
                 id="producer-tags-container"
@@ -571,7 +572,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             >
             <div
               class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-              onclick="document.getElementById('add-music-input').focus()"
+              data-action="focus-multi"
+              data-target="add-music-input"
             >
               <div
                 id="music-tags-container"
@@ -846,11 +848,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     id="form-container-series"
     class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 hidden"
   >
-    <form
-      id="manual-add-series-form"
-      onsubmit="submitSeriesEntry(event)"
-      class="space-y-8"
-    >
+    <form id="manual-add-series-form" class="space-y-8">
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -869,7 +867,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
               type="text"
               id="add-hub-en"
               required
-              oninput="handleSeriesHubAutocomplete(this)"
+              data-autocomplete-series="true"
               autocomplete="off"
               placeholder="e.g. Attack on Titan"
               class="w-full bg-indigo-50 border border-indigo-200 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
@@ -886,7 +884,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             <input
               type="text"
               id="add-hub-cn"
-              oninput="handleSeriesHubAutocomplete(this)"
+              data-autocomplete-series="true"
               autocomplete="off"
               placeholder="e.g. 進擊的巨人"
               class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
@@ -903,7 +901,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             <input
               type="text"
               id="add-hub-roman"
-              oninput="handleSeriesHubAutocomplete(this)"
+              data-autocomplete-series="true"
               autocomplete="off"
               placeholder="e.g. Shingeki no Kyojin"
               class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
@@ -920,7 +918,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             <input
               type="text"
               id="add-hub-alt"
-              oninput="handleSeriesHubAutocomplete(this)"
+              data-autocomplete-series="true"
               autocomplete="off"
               placeholder="e.g. AOT"
               class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
@@ -1007,11 +1005,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     id="form-container-options"
     class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 mb-8 hidden max-w-2xl"
   >
-    <form
-      id="manual-add-options-form"
-      onsubmit="submitOptionEntry(event)"
-      class="space-y-8"
-    >
+    <form id="manual-add-options-form" class="space-y-8">
       <div>
         <h3
           class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4 border-b border-gray-100 pb-2"
@@ -1093,7 +1087,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         Detected
       </h2>
       <button
-        onclick="closeDuplicateModal()"
+        data-action="close-dup-modal"
         class="text-amber-500 hover:text-amber-700 transition"
       >
         <i class="fas fa-times text-xl"></i>
@@ -1138,13 +1132,13 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       class="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0"
     >
       <button
-        onclick="closeDuplicateModal()"
+        data-action="close-dup-modal"
         class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition"
       >
         Cancel
       </button>
       <button
-        onclick="confirmAddDuplicate()"
+        data-action="confirm-dup-modal"
         class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-700 transition flex items-center"
       >
         <i class="fas fa-check-double mr-2"></i> Continue Adding
@@ -1167,7 +1161,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         <i class="fas fa-sparkles mr-2"></i> New Franchise Detected
       </h2>
       <button
-        onclick="closeNewSeriesModal()"
+        data-action="close-new-series-modal"
         class="text-gray-400 hover:text-gray-600 transition"
       >
         <i class="fas fa-times text-xl"></i>
@@ -1220,13 +1214,13 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       class="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0"
     >
       <button
-        onclick="closeNewSeriesModal()"
+        data-action="close-new-series-modal"
         class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition"
       >
         Cancel
       </button>
       <button
-        onclick="confirmNewSeries()"
+        data-action="confirm-new-series"
         class="px-5 py-2.5 bg-brand text-white rounded-lg text-sm font-bold shadow-sm hover:bg-brand-hover transition flex items-center"
       >
         <i class="fas fa-folder-plus mr-2"></i> Create Hub & Add Entry
@@ -1250,7 +1244,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
         Detected
       </h2>
       <button
-        onclick="closeSeriesDuplicateModal()"
+        data-action="close-series-dup-modal"
         class="text-amber-500 hover:text-amber-700 transition"
       >
         <i class="fas fa-times text-xl"></i>
@@ -1290,13 +1284,13 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       class="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0"
     >
       <button
-        onclick="closeSeriesDuplicateModal()"
+        data-action="close-series-dup-modal"
         class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition"
       >
         Cancel
       </button>
       <button
-        onclick="confirmAddSeriesDuplicate()"
+        data-action="confirm-series-dup"
         class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-700 transition flex items-center"
       >
         <i class="fas fa-check-double mr-2"></i> Continue Adding
@@ -1306,6 +1300,142 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
+  // --- Global State ---
+  const state = {
+    allSeriesNames: [],
+    globalAnimeData: [],
+    globalSeriesData: [],
+    pendingPayload: null,
+    pendingSeriesPayload: null,
+    multiSelectState: {
+      studio: new Set(),
+      distributor: new Set(),
+      director: new Set(),
+      producer: new Set(),
+      music: new Set(),
+    },
+    systemOptions: {
+      Studio: [],
+      "Genre Main": [],
+      "Genre Sub": [],
+      "Distributor TW": [],
+      Director: [],
+      Producer: [],
+      Music: [],
+    },
+  };
+
+  const pageDOM = {};
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // DOM Caching
+    pageDOM.formAnime = document.getElementById("manual-add-form");
+    pageDOM.formSeries = document.getElementById("manual-add-series-form");
+    pageDOM.formOptions = document.getElementById("manual-add-options-form");
+    pageDOM.lastAddedDisplay = document.getElementById("last-added-display");
+    pageDOM.dupModal = document.getElementById("duplicate-modal");
+    pageDOM.newSeriesModal = document.getElementById("new-series-modal");
+    pageDOM.seriesDupModal = document.getElementById("series-duplicate-modal");
+
+    // Form Event Listeners
+    if (pageDOM.formAnime)
+      pageDOM.formAnime.addEventListener("submit", submitManualEntry);
+    if (pageDOM.formSeries)
+      pageDOM.formSeries.addEventListener("submit", submitSeriesEntry);
+    if (pageDOM.formOptions)
+      pageDOM.formOptions.addEventListener("submit", submitOptionEntry);
+
+    // Global Click Event Delegation
+    document.addEventListener("click", (e) => {
+      // Handle Autocomplete Dropdown closing
+      if (!e.target.closest(".relative")) {
+        document
+          .querySelectorAll(".autocomplete-dropdown")
+          .forEach((el) => el.classList.add("hidden"));
+      }
+
+      const actionEl = e.target.closest("[data-action]");
+      if (!actionEl) return;
+
+      const action = actionEl.dataset.action;
+
+      if (action === "switch-tab") switchTab(actionEl.dataset.tab);
+      else if (action === "close-last-added")
+        pageDOM.lastAddedDisplay.classList.add("hidden");
+      else if (action === "focus-multi") {
+        const targetInput = document.getElementById(actionEl.dataset.target);
+        if (targetInput) targetInput.focus();
+      } else if (action === "remove-tag") {
+        e.stopPropagation();
+        state.multiSelectState[actionEl.dataset.field].delete(
+          actionEl.dataset.val,
+        );
+        renderTags(actionEl.dataset.field);
+      } else if (action === "select-suggestion") {
+        selectSuggestion(
+          actionEl.dataset.input,
+          actionEl.dataset.val,
+          actionEl.dataset.series,
+          actionEl.dataset.sysid,
+        );
+      } else if (action === "fill-series-existing") {
+        fillSeriesHubExisting(
+          actionEl.dataset.input,
+          actionEl.dataset.en,
+          actionEl.dataset.cn,
+          actionEl.dataset.roman,
+          actionEl.dataset.alt,
+        );
+      }
+      // Modals
+      else if (action === "close-dup-modal") closeDuplicateModal();
+      else if (action === "confirm-dup-modal") confirmAddDuplicate();
+      else if (action === "close-new-series-modal") closeNewSeriesModal();
+      else if (action === "confirm-new-series") confirmNewSeries();
+      else if (action === "close-series-dup-modal") closeSeriesDuplicateModal();
+      else if (action === "confirm-series-dup") confirmAddSeriesDuplicate();
+    });
+
+    // Global Input Event Delegation (Autocomplete & Multiselect)
+    document.addEventListener("input", (e) => {
+      if (e.target.hasAttribute("data-autocomplete")) {
+        handleAutocomplete(e.target, e.target.dataset.autocomplete);
+      } else if (e.target.hasAttribute("data-autocomplete-series")) {
+        handleSeriesHubAutocomplete(e.target);
+      }
+    });
+
+    // Initialize multi-select inputs for Enter/Comma events
+    Object.keys(state.multiSelectState).forEach((key) => {
+      const inputEl = document.getElementById(`add-${key}-input`);
+      if (inputEl) {
+        inputEl.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            const cleanVal = inputEl.value.trim();
+            if (cleanVal && !state.multiSelectState[key].has(cleanVal)) {
+              state.multiSelectState[key].add(cleanVal);
+              renderTags(key);
+            }
+            inputEl.value = "";
+          }
+        });
+        inputEl.addEventListener("change", () => {
+          const cleanVal = inputEl.value.trim();
+          if (cleanVal && !state.multiSelectState[key].has(cleanVal)) {
+            state.multiSelectState[key].add(cleanVal);
+            renderTags(key);
+          }
+          inputEl.value = "";
+        });
+      }
+    });
+
+    // Initial Load
+    loadSystemOptions();
+    loadMetadata();
+  });
+
   // --- Tab Switching Logic ---
   function switchTab(tab) {
     const tabs = ["anime", "series", "options"];
@@ -1325,51 +1455,21 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     });
   }
 
-  // --- Global State & V2 Dynamic Options ---
-  let allSeriesNames = [];
-  let globalAnimeData = [];
-  let globalSeriesData = [];
-  let pendingPayload = null;
-  let pendingSeriesPayload = null;
-
-  // NEW: Universal Multi-Select State Manager
-  let multiSelectState = {
-    studio: new Set(),
-    distributor: new Set(),
-    director: new Set(),
-    producer: new Set(),
-    music: new Set(),
-  };
-
-  let systemOptions = {
-    Studio: [],
-    "Genre Main": [],
-    "Genre Sub": [],
-    "Distributor TW": [],
-    Director: [],
-    Producer: [],
-    Music: [],
-  };
-
   async function loadSystemOptions() {
-    const categories = Object.keys(systemOptions);
+    const categories = Object.keys(state.systemOptions);
     await Promise.all(
       categories.map(async (cat) => {
         try {
-          const res = await fetch(
-            `${API_BASE_URL}/options/${encodeURIComponent(cat)}`,
-          );
+          const res = await fetch(`/api/options/${encodeURIComponent(cat)}`);
           if (res.ok) {
             const data = await res.json();
-            systemOptions[cat] = data.map((item) => item.option_value);
+            state.systemOptions[cat] = data.map((item) => item.option_value);
           }
         } catch (e) {
           console.warn(`Failed to fetch options for ${cat}`);
         }
       }),
     );
-
-    // Populate UI dynamically
     populateGenres();
     populateDatalists();
   }
@@ -1377,16 +1477,16 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   async function loadMetadata() {
     try {
       const [seriesRes, animeRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/series`),
-        fetch(`${API_BASE_URL}/anime`),
+        fetch(`/api/series`),
+        fetch(`/api/anime`),
       ]);
       if (seriesRes.ok) {
-        globalSeriesData = await seriesRes.json();
-        allSeriesNames = globalSeriesData
+        state.globalSeriesData = await seriesRes.json();
+        state.allSeriesNames = state.globalSeriesData
           .map((s) => s.series_en)
           .filter(Boolean);
       }
-      if (animeRes.ok) globalAnimeData = await animeRes.json();
+      if (animeRes.ok) state.globalAnimeData = await animeRes.json();
     } catch (e) {
       console.warn("Failed to load metadata for validation");
     }
@@ -1402,30 +1502,29 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           '<p class="text-xs text-gray-400 italic col-span-2 text-center py-2">No options found. Add them via Admin.</p>';
         return;
       }
-      let html = "";
-      optionsList.forEach((genre) => {
-        html += `
+      container.innerHTML = optionsList
+        .map(
+          (genre) => `
           <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
               <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
               <span class="leading-tight">${genre}</span>
           </label>
-        `;
-      });
-      container.innerHTML = html;
+        `,
+        )
+        .join("");
     };
     createCheckboxes(
       "genre-main-container",
       "genre_main",
-      systemOptions["Genre Main"],
+      state.systemOptions["Genre Main"],
     );
     createCheckboxes(
       "genre-sub-container",
       "genre_sub",
-      systemOptions["Genre Sub"],
+      state.systemOptions["Genre Sub"],
     );
   }
 
-  // NEW: Universal Datalist Populator
   function populateDatalists() {
     const fillList = (listId, options) => {
       const el = document.getElementById(listId);
@@ -1439,62 +1538,28 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           .join("");
       }
     };
-    fillList("distributor-list", systemOptions["Distributor TW"]);
-    fillList("director-list", systemOptions["Director"]);
-    fillList("producer-list", systemOptions["Producer"]);
-    fillList("music-list", systemOptions["Music"]);
-    fillList("studio-list", systemOptions["Studio"]);
+    fillList("distributor-list", state.systemOptions["Distributor TW"]);
+    fillList("director-list", state.systemOptions["Director"]);
+    fillList("producer-list", state.systemOptions["Producer"]);
+    fillList("music-list", state.systemOptions["Music"]);
+    fillList("studio-list", state.systemOptions["Studio"]);
   }
 
   // --- Universal Typable Multi-Select UI Logic ---
-
   function renderTags(fieldKey) {
     const container = document.getElementById(`${fieldKey}-tags-container`);
     if (!container) return;
 
-    container.innerHTML = Array.from(multiSelectState[fieldKey])
+    container.innerHTML = Array.from(state.multiSelectState[fieldKey])
       .map((s) => {
-        const safeVal = s.replace(/'/g, "\\'");
+        const safeVal = s.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
         return `
           <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
-              ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeTag(event, '${fieldKey}', '${safeVal}')"></i>
+              ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" data-action="remove-tag" data-field="${fieldKey}" data-val="${safeVal}"></i>
           </span>
         `;
       })
       .join("");
-  }
-
-  function addTag(fieldKey, val) {
-    const cleanVal = val.trim();
-    if (cleanVal && !multiSelectState[fieldKey].has(cleanVal)) {
-      multiSelectState[fieldKey].add(cleanVal);
-      renderTags(fieldKey);
-    }
-  }
-
-  function removeTag(event, fieldKey, val) {
-    event.stopPropagation();
-    multiSelectState[fieldKey].delete(val);
-    renderTags(fieldKey);
-  }
-
-  function setupMultiSelectInput(fieldKey) {
-    const inputEl = document.getElementById(`add-${fieldKey}-input`);
-    if (inputEl) {
-      inputEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === ",") {
-          e.preventDefault();
-          addTag(fieldKey, inputEl.value);
-          inputEl.value = "";
-        }
-      });
-      inputEl.addEventListener("change", (e) => {
-        if (inputEl.value.trim() !== "") {
-          addTag(fieldKey, inputEl.value);
-          inputEl.value = "";
-        }
-      });
-    }
   }
 
   // --- Autocomplete Engine (Anime Entries) ---
@@ -1513,7 +1578,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 
     let suggestions = new Map();
     if (targetField === "series_en") {
-      globalSeriesData.forEach((s) => {
+      state.globalSeriesData.forEach((s) => {
         if (normalizeStr(s.series_en).includes(query))
           suggestions.set(s.series_en, {
             val: s.series_en,
@@ -1525,7 +1590,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             series: s.series_en,
           });
       });
-      globalAnimeData.forEach((a) => {
+      state.globalAnimeData.forEach((a) => {
         if (normalizeStr(a.series_en).includes(query) && a.series_en)
           suggestions.set(a.series_en, {
             val: a.series_en,
@@ -1533,10 +1598,9 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           });
       });
     } else {
-      globalAnimeData.forEach((a) => {
+      state.globalAnimeData.forEach((a) => {
         const val = a[targetField];
         if (val && normalizeStr(val).includes(query)) {
-          // Store system_id and season string to distinguish entries in the autofill logic
           suggestions.set(val + a.system_id, {
             val: val,
             series: a.series_en,
@@ -1555,15 +1619,16 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 
     resultsContainer.innerHTML = filtered
       .map((item) => {
-        const safeVal = item.val.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+        const safeVal = item.val
+          .replace(/'/g, "&apos;")
+          .replace(/"/g, "&quot;");
         const safeSeries = (item.series || "")
-          .replace(/'/g, "&#39;")
+          .replace(/'/g, "&apos;")
           .replace(/"/g, "&quot;");
         const sysId = item.sysId || "";
 
         return `
-              <div class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0"
-                   onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}', '${sysId}')">
+              <div data-action="select-suggestion" data-input="${inputEl.id}" data-val="${safeVal}" data-series="${safeSeries}" data-sysid="${sysId}" class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0">
                   <div class="font-bold text-gray-900 truncate">${item.val}</div>
                   ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}${item.season ? ` (${item.season})` : ""}</div>` : ""}
               </div>
@@ -1573,19 +1638,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectSuggestion(inputId, val, seriesEn, systemId = "") {
-    const decodedVal = val.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-    const decodedSeries = seriesEn
-      .replace(/&#39;/g, "'")
+  function selectSuggestion(inputId, valRaw, seriesEnRaw, systemId = "") {
+    const val = valRaw.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+    const seriesEn = seriesEnRaw
+      .replace(/&apos;/g, "'")
       .replace(/&quot;/g, '"');
 
-    // Fill the current field
-    document.getElementById(inputId).value = decodedVal;
+    document.getElementById(inputId).value = val;
     document.getElementById(inputId).nextElementSibling.classList.add("hidden");
 
-    // AUTO-FILL LOGIC: If selecting an existing anime entry
     if (systemId) {
-      const anime = globalAnimeData.find((a) => a.system_id === systemId);
+      const anime = state.globalAnimeData.find((a) => a.system_id === systemId);
       if (anime) {
         document.getElementById("add-series-en").value = anime.series_en || "";
         document.getElementById("add-season-en").value =
@@ -1606,13 +1669,12 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           : "";
         document.getElementById("add-part-num").value = pMatch ? pMatch[0] : "";
       }
-    } else if (inputId !== "add-series-en" && decodedSeries) {
-      // Fallback for Hub-only selection
-      document.getElementById("add-series-en").value = decodedSeries;
+    } else if (inputId !== "add-series-en" && seriesEn) {
+      document.getElementById("add-series-en").value = seriesEn;
     }
   }
 
-  // --- V2: Suggestion Engine for Series Hub ---
+  // --- Suggestion Engine for Series Hub ---
   function handleSeriesHubAutocomplete(inputEl) {
     const query = normalizeStr(inputEl.value);
     const resultsContainer = inputEl.nextElementSibling;
@@ -1623,8 +1685,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 
     let suggestions = new Map();
 
-    // Search across all naming permutations to catch ANY overlaps
-    globalSeriesData.forEach((s) => {
+    state.globalSeriesData.forEach((s) => {
       const en = normalizeStr(s.series_en);
       const cn = normalizeStr(s.series_cn);
       const roman = normalizeStr(s.series_roman);
@@ -1656,16 +1717,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 
     resultsContainer.innerHTML = filtered
       .map((item) => {
-        const safeEn = item.en.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-        const safeCn = item.cn.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+        const safeEn = item.en.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+        const safeCn = item.cn.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
         const safeRoman = item.roman
-          .replace(/'/g, "&#39;")
+          .replace(/'/g, "&apos;")
           .replace(/"/g, "&quot;");
-        const safeAlt = item.alt.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+        const safeAlt = item.alt
+          .replace(/'/g, "&apos;")
+          .replace(/"/g, "&quot;");
 
         return `
-              <div class="px-3 py-2 bg-amber-50/80 hover:bg-amber-100 cursor-pointer text-sm text-amber-900 transition border-b border-amber-200/50 last:border-0"
-                   onclick="fillSeriesHubExisting('${inputEl.id}', '${safeEn}', '${safeCn}', '${safeRoman}', '${safeAlt}')">
+              <div data-action="fill-series-existing" data-input="${inputEl.id}" data-en="${safeEn}" data-cn="${safeCn}" data-roman="${safeRoman}" data-alt="${safeAlt}" class="px-3 py-2 bg-amber-50/80 hover:bg-amber-100 cursor-pointer text-sm text-amber-900 transition border-b border-amber-200/50 last:border-0">
                   <div class="font-bold truncate flex items-center"><i class="fas fa-exclamation-circle text-amber-500 mr-2"></i> Hub Exists: ${item.val}</div>
                   ${item.cn && item.cn !== item.val ? `<div class="text-[10px] text-amber-700/80 truncate mt-0.5">${item.cn}</div>` : ""}
                   ${item.alt ? `<div class="text-[10px] text-amber-700/80 truncate mt-0.5">Alt: ${item.alt}</div>` : ""}
@@ -1676,29 +1738,29 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     resultsContainer.classList.remove("hidden");
   }
 
-  function fillSeriesHubExisting(inputId, en, cn, roman, alt) {
-    document.getElementById("add-hub-en").value = en;
-    document.getElementById("add-hub-cn").value = cn;
-    document.getElementById("add-hub-roman").value = roman;
-    document.getElementById("add-hub-alt").value = alt;
+  function fillSeriesHubExisting(inputId, enRaw, cnRaw, romanRaw, altRaw) {
+    document.getElementById("add-hub-en").value = enRaw
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"');
+    document.getElementById("add-hub-cn").value = cnRaw
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"');
+    document.getElementById("add-hub-roman").value = romanRaw
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"');
+    document.getElementById("add-hub-alt").value = altRaw
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"');
     document.getElementById(inputId).nextElementSibling.classList.add("hidden");
 
-    if (typeof showToast === "function") {
+    if (typeof showToast === "function")
       showToast(
         "Warning: This Franchise Hub already exists in the database.",
         true,
       );
-    }
   }
 
-  document.addEventListener("click", (e) => {
-    document.querySelectorAll(".autocomplete-dropdown").forEach((el) => {
-      if (!el.parentElement.contains(e.target)) el.classList.add("hidden");
-    });
-  });
-
   // --- Form Submissions ---
-
   async function submitOptionEntry(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
@@ -1718,7 +1780,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       '<i class="fas fa-spinner fa-spin mr-2"></i> Adding & Syncing...';
 
     try {
-      const res = await fetch(`${API_BASE_URL}/options/`, {
+      const res = await fetch(`/api/options/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1734,8 +1796,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
           `Successfully added "${payload.option_value}" to ${payload.category}!`,
         );
       e.target.reset();
-
-      // Re-fetch system options so the Anime form is instantly updated!
       await loadSystemOptions();
     } catch (err) {
       if (typeof showToast === "function")
@@ -1774,12 +1834,11 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     const cnMatch = safeLower(payload.series_cn);
     const romanMatch = safeLower(payload.series_roman);
 
-    const duplicates = globalSeriesData.filter((s) => {
+    const duplicates = state.globalSeriesData.filter((s) => {
       const sEn = safeLower(s.series_en);
       const sCn = safeLower(s.series_cn);
       const sRoman = safeLower(s.series_roman);
 
-      // Cross-reference any inputted name against any existing name combination
       if (enMatch && (enMatch === sEn || enMatch === sCn || enMatch === sRoman))
         return true;
       if (cnMatch && (cnMatch === sEn || cnMatch === sCn || cnMatch === sRoman))
@@ -1794,7 +1853,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     });
 
     if (duplicates.length > 0) {
-      pendingSeriesPayload = payload;
+      state.pendingSeriesPayload = payload;
       showSeriesDuplicateModal(payload, duplicates);
       btn.disabled = false;
       btn.innerHTML =
@@ -1809,15 +1868,13 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     try {
-      const res = await fetch(`${API_BASE_URL}/series/`, {
+      const res = await fetch(`/api/series/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        if (res.status === 404)
-          throw new Error("Series endpoint not implemented yet in backend.");
         const data = await res.json();
         let errorMsg = data.detail || "Append failed";
         if (Array.isArray(data.detail)) {
@@ -1826,22 +1883,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             data.detail
               .map((e) => `[${e.loc.join(" -> ")}]: ${e.msg}`)
               .join("\n");
-        } else if (typeof data.detail === "object") {
-          errorMsg = JSON.stringify(data.detail);
         }
         throw new Error(errorMsg);
       }
 
       if (typeof showToast === "function")
         showToast("Franchise Hub created successfully!");
-      document.getElementById("manual-add-series-form").reset();
+      pageDOM.formSeries.reset();
       await loadMetadata();
     } catch (err) {
       if (typeof showToast === "function")
         showToast(`Error: ${err.message}`, true);
-      if (err.message.includes("Validation Error")) {
-        alert(err.message);
-      }
     } finally {
       btn.disabled = false;
       btn.innerHTML =
@@ -1873,19 +1925,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       return isNaN(val) ? null : val;
     };
 
-    // Helper for multi-select extraction
     const getMultiSelectString = (fieldKey) => {
       const inputEl = document.getElementById(`add-${fieldKey}-input`);
       if (inputEl && inputEl.value.trim()) {
-        addTag(fieldKey, inputEl.value);
+        state.multiSelectState[fieldKey].add(inputEl.value.trim());
         inputEl.value = "";
       }
-      return multiSelectState[fieldKey].size > 0
-        ? Array.from(multiSelectState[fieldKey]).join(", ")
+      return state.multiSelectState[fieldKey].size > 0
+        ? Array.from(state.multiSelectState[fieldKey]).join(", ")
         : null;
     };
 
-    // 1. Data Collection
     let myProgress = getValue("add-progress");
     let epTotal = getInt("add-ep-total");
     let epFin = getInt("add-ep-fin") || 0;
@@ -1894,7 +1944,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     const seasonRoman = getValue("add-season-roman");
     const seasonCn = getValue("add-season-cn");
 
-    // 2. Client-Side Validations
     if (!seasonEn && !seasonRoman && !seasonCn) {
       showToast(
         "Validation Error: At least one Season Title (English, Romaji, or Chinese) must be provided.",
@@ -1944,12 +1993,10 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       }
     }
 
-    // ASSEMBLE SEASON STRING
     const sNum = getValue("add-season-num");
     const pNum = getValue("add-part-num");
     const finalSeasonString = [sNum, pNum].filter(Boolean).join(" ") || null;
 
-    // 3. Payload Construction
     const payload = {
       system_id: crypto.randomUUID(),
       series_en: seriesEn,
@@ -1958,7 +2005,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       series_season_cn: seasonCn,
       anime_alt_name: getValue("add-anime-alt"),
       series_season: finalSeasonString,
-
       airing_type: getValue("add-type"),
       my_progress: myProgress,
       airing_status: getValue("add-airing-status"),
@@ -1966,37 +2012,31 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       ep_fin: epFin,
       rating_mine: getValue("add-rating"),
       main_spinoff: getValue("add-main-spinoff"),
-
       release_month: getValue("add-release-month"),
       release_season: getValue("add-release-season"),
       release_year: getValue("add-release-year"),
-
       studio: getMultiSelectString("studio"),
       director: getMultiSelectString("director"),
       producer: getMultiSelectString("producer"),
       music: getMultiSelectString("music"),
       distributor_tw: getMultiSelectString("distributor"),
-
       genre_main: getMultiCheckboxValue("genre_main"),
       genre_sub: getMultiCheckboxValue("genre_sub"),
-
       prequel: getValue("add-prequel"),
       sequel: getValue("add-sequel"),
       alternative: getValue("add-alternative"),
       watch_order: getFloat("add-watch-order"),
       watch_order_rec: getValue("add-watch-order-rec"),
       remark: getValue("add-remark"),
-
       mal_id: getValue("add-mal-id"),
       mal_link: getValue("add-mal-link"),
       anilist_link: getValue("add-anilist-link"),
       op: getValue("add-op"),
       ed: getValue("add-ed"),
       insert_ost: getValue("add-insert"),
-
-      source_baha: getValue("add-baha"),
+      source_baha: getValue("add-baha") === "TRUE",
       baha_link: getValue("add-baha-link"),
-      source_netflix: getValue("add-netflix"),
+      source_netflix: getValue("add-netflix") === "TRUE",
       source_other: getValue("add-other"),
       source_other_link: getValue("add-other-link"),
     };
@@ -2005,96 +2045,49 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     btn.innerHTML =
       '<i class="fas fa-spinner fa-spin mr-1.5"></i> Validating...';
 
-    // 4. Server-Side Pre-Checks
     try {
       if (seriesEn) {
-        try {
-          const checkRes = await fetch(
-            `${API_BASE_URL}/anime/by-series/${encodeURIComponent(seriesEn)}`,
-          );
-          let existingAnime = [];
-          if (checkRes.ok) existingAnime = await checkRes.json();
+        let seriesHubExists = state.allSeriesNames.some(
+          (n) => n.toLowerCase() === seriesEn.toLowerCase(),
+        );
 
-          let seriesHubExists = false;
-          if (
-            allSeriesNames.some(
-              (n) => n.toLowerCase() === seriesEn.toLowerCase(),
-            )
-          ) {
-            seriesHubExists = true;
-          } else {
-            try {
-              const seriesCheckRes = await fetch(
-                `${API_BASE_URL}/series/details/${encodeURIComponent(seriesEn)}`,
-              );
-              if (seriesCheckRes.ok) {
-                const data = await seriesCheckRes.json();
-                if (data && !Array.isArray(data) && data.system_id) {
-                  if (
-                    (data.series_en || "").toLowerCase() ===
-                    seriesEn.toLowerCase()
-                  )
-                    seriesHubExists = true;
-                } else if (Array.isArray(data) && data.length > 0) {
-                  if (
-                    data.some(
-                      (d) =>
-                        (d.series_en || "").toLowerCase() ===
-                        seriesEn.toLowerCase(),
-                    )
-                  )
-                    seriesHubExists = true;
-                }
-              }
-            } catch (err) {}
-          }
+        if (!seriesHubExists) {
+          state.pendingPayload = payload;
+          showNewSeriesModal(payload);
+          btn.disabled = false;
+          btn.innerHTML =
+            '<i class="fas fa-plus-circle mr-2"></i> Append Anime Entry';
+          return;
+        } else {
+          const safeLower = (val) => (val || "").trim().toLowerCase();
+          const typeMatchVal = safeLower(payload.airing_type);
+          const enMatchVal = safeLower(payload.series_season_en);
+          const cnMatchVal = safeLower(payload.series_season_cn);
+          const romanMatchVal = safeLower(payload.series_season_roman);
 
-          if (!seriesHubExists) {
-            pendingPayload = payload;
-            showNewSeriesModal(payload);
+          const duplicates = state.globalAnimeData.filter((a) => {
+            if ((a.series_en || "").toLowerCase() !== seriesEn.toLowerCase())
+              return false;
+            if (safeLower(a.airing_type) !== typeMatchVal) return false;
+            return (
+              (enMatchVal && safeLower(a.series_season_en) === enMatchVal) ||
+              (cnMatchVal && safeLower(a.series_season_cn) === cnMatchVal) ||
+              (romanMatchVal &&
+                safeLower(a.series_season_roman) === romanMatchVal)
+            );
+          });
+
+          if (duplicates.length > 0) {
+            state.pendingPayload = payload;
+            showDuplicateModal(payload, duplicates);
             btn.disabled = false;
             btn.innerHTML =
               '<i class="fas fa-plus-circle mr-2"></i> Append Anime Entry';
             return;
-          } else {
-            const safeLower = (val) => (val || "").trim().toLowerCase();
-            const typeMatchVal = safeLower(payload.airing_type);
-            const enMatchVal = safeLower(payload.series_season_en);
-            const cnMatchVal = safeLower(payload.series_season_cn);
-            const romanMatchVal = safeLower(payload.series_season_roman);
-
-            const duplicates = existingAnime.filter((a) => {
-              if ((a.series_en || "").toLowerCase() !== seriesEn.toLowerCase())
-                return false;
-              if (safeLower(a.airing_type) !== typeMatchVal) return false;
-              const matchEn =
-                enMatchVal && safeLower(a.series_season_en) === enMatchVal;
-              const matchCn =
-                cnMatchVal && safeLower(a.series_season_cn) === cnMatchVal;
-              const matchRoman =
-                romanMatchVal &&
-                safeLower(a.series_season_roman) === romanMatchVal;
-              return matchEn || matchCn || matchRoman;
-            });
-
-            if (duplicates.length > 0) {
-              pendingPayload = payload;
-              showDuplicateModal(payload, duplicates);
-              btn.disabled = false;
-              btn.innerHTML =
-                '<i class="fas fa-plus-circle mr-2"></i> Append Anime Entry';
-              return;
-            }
           }
-        } catch (err) {
-          console.warn(
-            "Could not verify series/duplicates. Proceeding normally.",
-            err,
-          );
         }
       }
 
-      // 5. Final Execution
       btn.innerHTML =
         '<i class="fas fa-spinner fa-spin mr-1.5"></i> Appending & Syncing...';
       await executeAppendAndSync(payload, btn);
@@ -2116,17 +2109,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     document.getElementById("new-series-roman-display").innerText =
       payload.series_season_roman || "(Empty)";
     document.getElementById("new-series-alt-input").value = "";
-    document.getElementById("new-series-modal").classList.remove("hidden");
+    pageDOM.newSeriesModal.classList.remove("hidden");
   }
 
   function closeNewSeriesModal() {
-    document.getElementById("new-series-modal").classList.add("hidden");
-    pendingPayload = null;
+    pageDOM.newSeriesModal.classList.add("hidden");
+    state.pendingPayload = null;
   }
 
   function confirmNewSeries() {
-    if (!pendingPayload) return;
-    const payloadCopy = pendingPayload;
+    if (!state.pendingPayload) return;
+    const payloadCopy = state.pendingPayload;
     payloadCopy.series_alt_name = document
       .getElementById("new-series-alt-input")
       .value.trim();
@@ -2176,17 +2169,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       `;
     });
     tbody.innerHTML = html;
-    document.getElementById("duplicate-modal").classList.remove("hidden");
+    pageDOM.dupModal.classList.remove("hidden");
   }
 
   function closeDuplicateModal() {
-    document.getElementById("duplicate-modal").classList.add("hidden");
-    pendingPayload = null;
+    pageDOM.dupModal.classList.add("hidden");
+    state.pendingPayload = null;
   }
 
   function confirmAddDuplicate() {
-    if (!pendingPayload) return;
-    const payloadCopy = pendingPayload;
+    if (!state.pendingPayload) return;
+    const payloadCopy = state.pendingPayload;
     closeDuplicateModal();
     const btn = document.querySelector(
       '#manual-add-form button[type="submit"]',
@@ -2220,19 +2213,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       `;
     });
     tbody.innerHTML = html;
-    document
-      .getElementById("series-duplicate-modal")
-      .classList.remove("hidden");
+    pageDOM.seriesDupModal.classList.remove("hidden");
   }
 
   function closeSeriesDuplicateModal() {
-    document.getElementById("series-duplicate-modal").classList.add("hidden");
-    pendingSeriesPayload = null;
+    pageDOM.seriesDupModal.classList.add("hidden");
+    state.pendingSeriesPayload = null;
   }
 
   function confirmAddSeriesDuplicate() {
-    if (!pendingSeriesPayload) return;
-    const payloadCopy = pendingSeriesPayload;
+    if (!state.pendingSeriesPayload) return;
+    const payloadCopy = state.pendingSeriesPayload;
     closeSeriesDuplicateModal();
     const btn = document.querySelector(
       '#manual-add-series-form button[type="submit"]',
@@ -2242,17 +2233,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
 
   // --- Execution ---
   async function executeAppendAndSync(payload, btn) {
-    if (btn.innerHTML.indexOf("Creating Hub") === -1) {
-      if (typeof showToast === "function")
-        showToast(
-          "Appending entry to PostgreSQL and backing up to Sheets...",
-          false,
-          true,
-        );
-    }
-
     try {
-      const res = await fetch(`${API_BASE_URL}/anime/`, {
+      const res = await fetch(`/api/anime/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2268,20 +2250,17 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
             data.detail
               .map((e) => `[${e.loc.join(" -> ")}]: ${e.msg}`)
               .join("\n");
-        } else if (typeof data.detail === "object") {
-          errorMsg = JSON.stringify(data.detail);
         }
         throw new Error(errorMsg);
       }
 
       displayLastAdded(payload);
 
-      // Reset UI universally
-      Object.keys(multiSelectState).forEach((key) => {
-        multiSelectState[key].clear();
+      Object.keys(state.multiSelectState).forEach((key) => {
+        state.multiSelectState[key].clear();
         renderTags(key);
       });
-      document.getElementById("manual-add-form").reset();
+      pageDOM.formAnime.reset();
       await loadMetadata();
 
       if (typeof showToast === "function")
@@ -2293,9 +2272,7 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
     } catch (error) {
       if (typeof showToast === "function")
         showToast(`${error.message}`, true, false);
-      if (error.message.includes("Validation Error")) {
-        alert(error.message);
-      }
+      if (error.message.includes("Validation Error")) alert(error.message);
     } finally {
       btn.disabled = false;
       btn.innerHTML =
@@ -2304,7 +2281,6 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
   }
 
   function displayLastAdded(data) {
-    const box = document.getElementById("last-added-display");
     document.getElementById("last-added-title").innerText =
       data.series_en || "Unnamed Series";
 
@@ -2324,15 +2300,8 @@ on mobile */ .hide-scrollbar::-webkit-scrollbar { display: none; }
       en.classList.add("hidden");
     }
 
-    box.classList.remove("hidden");
+    pageDOM.lastAddedDisplay.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
-
-  // Initialize Page
-  document.addEventListener("DOMContentLoaded", () => {
-    loadSystemOptions();
-    Object.keys(multiSelectState).forEach((key) => setupMultiSelectInput(key));
-    loadMetadata();
-  });
 </script>
 {% endblock %}

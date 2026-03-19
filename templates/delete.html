@@ -28,21 +28,24 @@ content %}
     class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar"
   >
     <button
-      onclick="switchTab('anime')"
+      data-action="switch-tab"
+      data-tab="anime"
       id="tab-anime"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap"
     >
       <i class="fas fa-film mr-2"></i> Delete Anime Entries
     </button>
     <button
-      onclick="switchTab('series')"
+      data-action="switch-tab"
+      data-tab="series"
       id="tab-series"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
     >
       <i class="fas fa-layer-group mr-2"></i> Delete Anime Series
     </button>
     <button
-      onclick="switchTab('options')"
+      data-action="switch-tab"
+      data-tab="options"
       id="tab-options"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
     >
@@ -71,7 +74,6 @@ content %}
         <input
           type="text"
           id="anime-search-input"
-          oninput="filterAnimeSearch()"
           placeholder="Type Series English Name, Chinese Title, Alt Names, etc..."
           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition"
           autocomplete="off"
@@ -100,7 +102,7 @@ content %}
           Target for Deletion
         </h2>
         <button
-          onclick="closeAnimeContainer()"
+          data-action="close-anime"
           class="text-red-400 hover:text-red-700 transition"
         >
           <i class="fas fa-times text-xl"></i>
@@ -118,7 +120,10 @@ content %}
             id="del-anime-img"
             src=""
             class="w-full h-full object-cover"
-            onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\\'100%\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23E5E7EB\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'10\\' fill=\\'%236B7280\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>No Image</text></svg>'"
+            onerror="
+              this.src =
+                'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E'
+            "
           />
         </div>
 
@@ -181,7 +186,8 @@ content %}
       <div class="mt-6 flex justify-end">
         <button
           type="button"
-          onclick="confirmDelete('anime')"
+          data-action="confirm-delete"
+          data-type="anime"
           class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 hover:shadow-red-500/40 w-full sm:w-auto justify-center"
         >
           <i class="fas fa-trash-alt mr-2"></i> Erase Entry Permanently
@@ -211,7 +217,6 @@ content %}
         <input
           type="text"
           id="series-search-input"
-          oninput="filterSeriesSearch()"
           placeholder="Type Series English Name, Chinese Title, etc..."
           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition"
           autocomplete="off"
@@ -240,7 +245,7 @@ content %}
           Series Hub for Deletion
         </h2>
         <button
-          onclick="closeSeriesContainer()"
+          data-action="close-series"
           class="text-red-400 hover:text-red-700 transition"
         >
           <i class="fas fa-times text-xl"></i>
@@ -304,7 +309,8 @@ content %}
       <div class="mt-6 flex justify-end">
         <button
           type="button"
-          onclick="confirmDelete('series')"
+          data-action="confirm-delete"
+          data-type="series"
           class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 hover:shadow-red-500/40 w-full sm:w-auto justify-center"
         >
           <i class="fas fa-trash-alt mr-2"></i> Erase Series Hub Permanently
@@ -326,7 +332,6 @@ content %}
       >
       <select
         id="delete-option-category"
-        onchange="loadCategoryOptions()"
         class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm outline-none cursor-pointer transition"
       >
         <option value="" disabled selected>
@@ -378,7 +383,7 @@ content %}
         Deletion
       </h2>
       <button
-        onclick="closeDeleteModal()"
+        data-action="close-modal"
         class="text-red-400 hover:text-red-600 transition"
       >
         <i class="fas fa-times text-xl"></i>
@@ -465,7 +470,7 @@ content %}
       class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
     >
       <button
-        onclick="closeDeleteModal()"
+        data-action="close-modal"
         class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition order-2 sm:order-1"
       >
         Cancel
@@ -481,14 +486,128 @@ content %}
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // Global State
-  let allAnime = [];
-  let allSeries = [];
-  let currentDeleteTarget = null; // { type: 'anime'|'series'|'options', id: '...', name: '...', series_en: '...', category: '...' }
+  // --- State & DOM Management ---
+  const state = {
+    allAnime: [],
+    allSeries: [],
+    currentDeleteTarget: null,
+    debounceTimeout: null,
+  };
+
+  const pageDOM = {};
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Cache DOM Elements
+    pageDOM.tabAnime = document.getElementById("tab-anime");
+    pageDOM.tabSeries = document.getElementById("tab-series");
+    pageDOM.tabOptions = document.getElementById("tab-options");
+
+    pageDOM.secAnime = document.getElementById("section-anime");
+    pageDOM.secSeries = document.getElementById("section-series");
+    pageDOM.secOptions = document.getElementById("section-options");
+
+    pageDOM.animeInput = document.getElementById("anime-search-input");
+    pageDOM.animeResults = document.getElementById("anime-search-results");
+    pageDOM.animeContainer = document.getElementById("anime-delete-container");
+    pageDOM.delAnimeImg = document.getElementById("del-anime-img");
+    pageDOM.delAnimeTitle = document.getElementById("del-anime-title");
+    pageDOM.delAnimeSubtitle = document.getElementById("del-anime-subtitle");
+    pageDOM.delAnimeType = document.getElementById("del-anime-type");
+    pageDOM.delAnimeProgress = document.getElementById("del-anime-progress");
+    pageDOM.delAnimeSeries = document.getElementById("del-anime-series");
+    pageDOM.delAnimeId = document.getElementById("del-anime-id");
+
+    pageDOM.seriesInput = document.getElementById("series-search-input");
+    pageDOM.seriesResults = document.getElementById("series-search-results");
+    pageDOM.seriesContainer = document.getElementById(
+      "series-delete-container",
+    );
+    pageDOM.delSeriesEn = document.getElementById("del-series-en");
+    pageDOM.delSeriesAlt = document.getElementById("del-series-alt");
+    pageDOM.delSeriesId = document.getElementById("del-series-id");
+    pageDOM.delSeriesCount = document.getElementById("del-series-count");
+
+    pageDOM.optCategory = document.getElementById("delete-option-category");
+    pageDOM.optLoading = document.getElementById("options-loading");
+    pageDOM.optContainer = document.getElementById("options-list-container");
+
+    pageDOM.modal = document.getElementById("delete-modal");
+    pageDOM.modalBox = document.getElementById("delete-modal-box");
+    pageDOM.targetType = document.getElementById("delete-target-type");
+    pageDOM.targetName = document.getElementById("delete-target-name");
+    pageDOM.targetId = document.getElementById("delete-target-id");
+    pageDOM.orphanWarning = document.getElementById("orphan-series-warning");
+    pageDOM.orphanCb = document.getElementById("delete-orphan-series-cb");
+    pageDOM.orphanName = document.getElementById("orphan-series-name");
+    pageDOM.cascadeWarning = document.getElementById("cascade-anime-warning");
+    pageDOM.cascadeCb = document.getElementById("delete-cascade-anime-cb");
+    pageDOM.cascadeCount = document.getElementById("cascade-anime-count");
+    pageDOM.btnExecute = document.getElementById("execute-delete-btn");
+
+    // Event Listeners
+    pageDOM.animeInput.addEventListener("input", () => {
+      clearTimeout(state.debounceTimeout);
+      state.debounceTimeout = setTimeout(filterAnimeSearch, 250);
+    });
+
+    pageDOM.seriesInput.addEventListener("input", () => {
+      clearTimeout(state.debounceTimeout);
+      state.debounceTimeout = setTimeout(filterSeriesSearch, 250);
+    });
+
+    pageDOM.optCategory.addEventListener("change", loadCategoryOptions);
+    pageDOM.btnExecute.addEventListener("click", executeDelete);
+
+    // Global Click Delegation
+    document.addEventListener("click", handleGlobalClick);
+
+    loadDatabase();
+  });
+
+  function handleGlobalClick(e) {
+    // Hide dropdowns when clicking outside
+    if (
+      !e.target.closest(".search-container-anime") &&
+      !e.target.closest("#anime-search-results")
+    ) {
+      pageDOM.animeResults.classList.add("hidden");
+    }
+    if (
+      !e.target.closest(".search-container-series") &&
+      !e.target.closest("#series-search-results")
+    ) {
+      pageDOM.seriesResults.classList.add("hidden");
+    }
+
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+
+    const action = actionEl.dataset.action;
+
+    if (action === "switch-tab") {
+      switchTab(actionEl.dataset.tab);
+    } else if (action === "select-anime") {
+      selectAnime(actionEl.dataset.id);
+    } else if (action === "select-series") {
+      selectSeries(actionEl.dataset.id);
+    } else if (action === "close-anime") {
+      closeAnimeContainer();
+    } else if (action === "close-series") {
+      closeSeriesContainer();
+    } else if (action === "close-modal") {
+      closeDeleteModal();
+    } else if (action === "confirm-delete") {
+      confirmDelete(
+        actionEl.dataset.type,
+        actionEl.dataset.id,
+        actionEl.dataset.name,
+        actionEl.dataset.category,
+      );
+    }
+  }
 
   function switchTab(tabName) {
     const tabs = ["anime", "series", "options"];
-
     tabs.forEach((t) => {
       const sec = document.getElementById(`section-${t}`);
       const btn = document.getElementById(`tab-${t}`);
@@ -513,49 +632,31 @@ content %}
         fetch(`/api/series`),
       ]);
 
-      if (resAnime.ok) allAnime = await resAnime.json();
-      if (resSeries.ok) allSeries = await resSeries.json();
+      if (resAnime.ok) state.allAnime = await resAnime.json();
+      if (resSeries.ok) state.allSeries = await resSeries.json();
     } catch (e) {
       if (typeof showToast === "function")
         showToast("Failed to load database for deletion operations.", true);
     }
   }
 
-  // --- Smart Search Normalization ---
   function normalizeStr(str) {
     if (!str) return "";
     return str.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
   }
 
-  // Hide dropdowns when clicking outside local searches
-  document.addEventListener("click", (e) => {
-    if (
-      !e.target.closest(".search-container-anime") &&
-      !e.target.closest("#anime-search-results")
-    ) {
-      document.getElementById("anime-search-results").classList.add("hidden");
-    }
-    if (
-      !e.target.closest(".search-container-series") &&
-      !e.target.closest("#series-search-results")
-    ) {
-      document.getElementById("series-search-results").classList.add("hidden");
-    }
-  });
-
   // --- Search & Filtering (Anime) ---
   function filterAnimeSearch() {
-    const rawQuery = document.getElementById("anime-search-input").value;
+    const rawQuery = pageDOM.animeInput.value;
     const query = normalizeStr(rawQuery);
-    const resultsContainer = document.getElementById("anime-search-results");
 
     if (!query) {
-      resultsContainer.classList.add("hidden");
+      pageDOM.animeResults.classList.add("hidden");
       return;
     }
 
     const matchingSeriesEnNames = new Set(
-      allSeries
+      state.allSeries
         .filter((s) => {
           const searchStr = normalizeStr(
             [s.series_en, s.series_cn, s.series_roman, s.alt_name]
@@ -567,7 +668,7 @@ content %}
         .map((s) => s.series_en),
     );
 
-    const filtered = allAnime
+    const filtered = state.allAnime
       .filter((a) => {
         const directStr = normalizeStr(
           [
@@ -586,12 +687,12 @@ content %}
       .slice(0, 15);
 
     if (filtered.length === 0) {
-      resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+      pageDOM.animeResults.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
-      resultsContainer.innerHTML = filtered
+      pageDOM.animeResults.innerHTML = filtered
         .map(
           (a) => `
-          <div onclick="selectAnime('${a.system_id}')" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+          <div data-action="select-anime" data-id="${a.system_id}" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
               <div class="min-w-0 flex-1 pr-2">
                   <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en || "Unknown Title"}</div>
                   <div class="text-[11px] text-gray-500 truncate mt-0.5">
@@ -604,63 +705,69 @@ content %}
         )
         .join("");
     }
-    resultsContainer.classList.remove("hidden");
+    pageDOM.animeResults.classList.remove("hidden");
   }
 
   function selectAnime(sysId) {
-    const anime = allAnime.find((a) => a.system_id === sysId);
+    const anime = state.allAnime.find((a) => a.system_id === sysId);
     if (!anime) return;
 
-    document.getElementById("anime-search-results").classList.add("hidden");
-    document.getElementById("anime-search-input").value =
+    pageDOM.animeResults.classList.add("hidden");
+    pageDOM.animeInput.value =
       anime.series_season_cn || anime.series_season_en || anime.series_en;
 
-    // V2 Change: Fallback explicitly relies on static/covers path
-    const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23E5E7EB'/><text x='50%' y='50%' font-family='Arial' font-size='10' fill='%236B7280' font-weight='bold' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>`;
-    document.getElementById("del-anime-img").src = anime.cover_image_file
-      ? `/static/covers/${anime.cover_image_file}`
-      : fallbackSvg;
+    // V2 Smart Image Routing (Local vs Cloud)
+    const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
+    const bucketName = "cg1618-anime-covers";
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
 
-    document.getElementById("del-anime-title").innerText =
+    let imageUrl = fallbackSvg;
+    if (anime.cover_image_file && anime.cover_image_file !== "N/A") {
+      imageUrl = isLocalhost
+        ? `/static/covers/${anime.cover_image_file}`
+        : `https://storage.googleapis.com/${bucketName}/${anime.cover_image_file}`;
+    } else if (anime.cover_image_url) {
+      imageUrl = anime.cover_image_url;
+    }
+
+    pageDOM.delAnimeImg.src = imageUrl;
+    pageDOM.delAnimeTitle.innerText =
       anime.series_season_cn ||
       anime.series_season_en ||
       anime.series_en ||
       "Unknown Title";
-    document.getElementById("del-anime-subtitle").innerText =
+    pageDOM.delAnimeSubtitle.innerText =
       anime.series_season_en ||
       anime.series_season_roman ||
       anime.series_en ||
       "-";
-    document.getElementById("del-anime-type").innerText =
-      anime.airing_type || "Unknown Type";
-    document.getElementById("del-anime-progress").innerText =
+    pageDOM.delAnimeType.innerText = anime.airing_type || "Unknown Type";
+    pageDOM.delAnimeProgress.innerText =
       anime.my_progress || "Unknown Progress";
-    document.getElementById("del-anime-series").innerText =
-      anime.series_en || "Unknown Series";
-    document.getElementById("del-anime-id").innerText = anime.system_id;
+    pageDOM.delAnimeSeries.innerText = anime.series_en || "Unknown Series";
+    pageDOM.delAnimeId.innerText = anime.system_id;
 
-    document
-      .getElementById("anime-delete-container")
-      .classList.remove("hidden");
+    pageDOM.animeContainer.classList.remove("hidden");
   }
 
   function closeAnimeContainer() {
-    document.getElementById("anime-delete-container").classList.add("hidden");
-    document.getElementById("anime-search-input").value = "";
+    pageDOM.animeContainer.classList.add("hidden");
+    pageDOM.animeInput.value = "";
   }
 
   // --- Search & Filtering (Series) ---
   function filterSeriesSearch() {
-    const rawQuery = document.getElementById("series-search-input").value;
+    const rawQuery = pageDOM.seriesInput.value;
     const query = normalizeStr(rawQuery);
-    const resultsContainer = document.getElementById("series-search-results");
 
     if (!query) {
-      resultsContainer.classList.add("hidden");
+      pageDOM.seriesResults.classList.add("hidden");
       return;
     }
 
-    const filtered = allSeries
+    const filtered = state.allSeries
       .filter((s) => {
         const str = normalizeStr(
           [s.series_en, s.series_cn, s.series_roman, s.alt_name]
@@ -672,12 +779,12 @@ content %}
       .slice(0, 15);
 
     if (filtered.length === 0) {
-      resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+      pageDOM.seriesResults.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
-      resultsContainer.innerHTML = filtered
+      pageDOM.seriesResults.innerHTML = filtered
         .map(
           (s) => `
-          <div onclick="selectSeries('${s.system_id}')" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+          <div data-action="select-series" data-id="${s.system_id}" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
               <div class="min-w-0 flex-1">
                   <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
                   <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
@@ -688,51 +795,44 @@ content %}
         )
         .join("");
     }
-    resultsContainer.classList.remove("hidden");
+    pageDOM.seriesResults.classList.remove("hidden");
   }
 
   function selectSeries(sysId) {
-    const series = allSeries.find((s) => s.system_id === sysId);
+    const series = state.allSeries.find((s) => s.system_id === sysId);
     if (!series) return;
 
-    document.getElementById("series-search-results").classList.add("hidden");
-    document.getElementById("series-search-input").value = series.series_en;
+    pageDOM.seriesResults.classList.add("hidden");
+    pageDOM.seriesInput.value = series.series_en;
 
-    document.getElementById("del-series-en").innerText = series.series_en;
+    pageDOM.delSeriesEn.innerText = series.series_en;
     const alts = [series.series_cn, series.series_roman, series.alt_name]
       .filter(Boolean)
       .join(" • ");
-    document.getElementById("del-series-alt").innerText =
-      alts || "No alternate names recorded.";
-    document.getElementById("del-series-id").innerText = series.system_id;
+    pageDOM.delSeriesAlt.innerText = alts || "No alternate names recorded.";
+    pageDOM.delSeriesId.innerText = series.system_id;
 
     // Calculate connected anime
-    const connectedCount = allAnime.filter(
+    const connectedCount = state.allAnime.filter(
       (a) => a.series_en === series.series_en,
     ).length;
-    document.getElementById("del-series-count").innerText =
-      `${connectedCount} Entry(s)`;
+    pageDOM.delSeriesCount.innerText = `${connectedCount} Entry(s)`;
 
-    document
-      .getElementById("series-delete-container")
-      .classList.remove("hidden");
+    pageDOM.seriesContainer.classList.remove("hidden");
   }
 
   function closeSeriesContainer() {
-    document.getElementById("series-delete-container").classList.add("hidden");
-    document.getElementById("series-search-input").value = "";
+    pageDOM.seriesContainer.classList.add("hidden");
+    pageDOM.seriesInput.value = "";
   }
 
   // --- Dynamic System Options Fetching ---
   async function loadCategoryOptions() {
-    const category = document.getElementById("delete-option-category").value;
+    const category = pageDOM.optCategory.value;
     if (!category) return;
 
-    const container = document.getElementById("options-list-container");
-    const loader = document.getElementById("options-loading");
-
-    container.classList.add("hidden");
-    loader.classList.remove("hidden");
+    pageDOM.optContainer.classList.add("hidden");
+    pageDOM.optLoading.classList.remove("hidden");
 
     try {
       const res = await fetch(`/api/options/${encodeURIComponent(category)}`);
@@ -741,15 +841,15 @@ content %}
       const options = await res.json();
 
       if (options.length === 0) {
-        container.innerHTML = `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options currently exist in this category.</div>`;
+        pageDOM.optContainer.innerHTML = `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options currently exist in this category.</div>`;
       } else {
-        container.innerHTML = options
+        pageDOM.optContainer.innerHTML = options
           .map((opt) => {
             const safeVal = opt.option_value.replace(/'/g, "\\'");
             return `
                   <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm">
                       <span class="font-bold text-gray-700 text-sm truncate pr-2 group-hover:text-red-900" title="${opt.option_value}">${opt.option_value}</span>
-                      <button onclick="confirmDelete('options', '${opt.id}', '${safeVal}', '${category}')" class="text-gray-400 hover:text-red-600 transition shrink-0 bg-white shadow-sm border border-gray-200 w-8 h-8 rounded-md flex items-center justify-center">
+                      <button data-action="confirm-delete" data-type="options" data-id="${opt.id}" data-name="${safeVal}" data-category="${category}" class="text-gray-400 hover:text-red-600 transition shrink-0 bg-white shadow-sm border border-gray-200 w-8 h-8 rounded-md flex items-center justify-center">
                           <i class="fas fa-trash-alt"></i>
                       </button>
                   </div>
@@ -757,12 +857,12 @@ content %}
           })
           .join("");
       }
-      loader.classList.add("hidden");
-      container.classList.remove("hidden");
+      pageDOM.optLoading.classList.add("hidden");
+      pageDOM.optContainer.classList.remove("hidden");
     } catch (error) {
-      loader.classList.add("hidden");
-      container.classList.remove("hidden");
-      container.innerHTML = `<div class="col-span-full text-center text-sm font-bold text-red-500 py-4"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
+      pageDOM.optLoading.classList.add("hidden");
+      pageDOM.optContainer.classList.remove("hidden");
+      pageDOM.optContainer.innerHTML = `<div class="col-span-full text-center text-sm font-bold text-red-500 py-4"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
     }
   }
 
@@ -770,194 +870,176 @@ content %}
   function confirmDelete(type, optId = null, optName = null, optCat = null) {
     let id, name, seriesEnName;
 
-    const orphanBox = document.getElementById("orphan-series-warning");
-    const cascadeBox = document.getElementById("cascade-anime-warning");
-    const orphanCb = document.getElementById("delete-orphan-series-cb");
-    const cascadeCb = document.getElementById("delete-cascade-anime-cb");
-
-    orphanBox.classList.add("hidden");
-    cascadeBox.classList.add("hidden");
-    if (orphanCb) orphanCb.checked = false;
-    if (cascadeCb) cascadeCb.checked = false;
+    pageDOM.orphanWarning.classList.add("hidden");
+    pageDOM.cascadeWarning.classList.add("hidden");
+    if (pageDOM.orphanCb) pageDOM.orphanCb.checked = false;
+    if (pageDOM.cascadeCb) pageDOM.cascadeCb.checked = false;
 
     if (type === "anime") {
-      id = document.getElementById("del-anime-id").innerText;
-      name = document.getElementById("del-anime-title").innerText;
-      seriesEnName = document.getElementById("del-anime-series").innerText;
+      id = pageDOM.delAnimeId.innerText;
+      name = pageDOM.delAnimeTitle.innerText;
+      seriesEnName = pageDOM.delAnimeSeries.innerText;
 
       // Smart Logic: Check if this is the ONLY anime in the series
-      const siblingCount = allAnime.filter(
+      const siblingCount = state.allAnime.filter(
         (a) => a.series_en === seriesEnName,
       ).length;
       if (siblingCount === 1) {
-        document.getElementById("orphan-series-name").innerText = seriesEnName;
-        orphanBox.classList.remove("hidden");
+        pageDOM.orphanName.innerText = seriesEnName;
+        pageDOM.orphanWarning.classList.remove("hidden");
       }
 
-      document.getElementById("delete-target-type").innerText = "ANIME ENTRY";
-      document.getElementById("delete-target-id").innerText = id;
+      pageDOM.targetType.innerText = "ANIME ENTRY";
+      pageDOM.targetId.innerText = id;
     } else if (type === "series") {
-      id = document.getElementById("del-series-id").innerText;
-      name = document.getElementById("del-series-en").innerText;
+      id = pageDOM.delSeriesId.innerText;
+      name = pageDOM.delSeriesEn.innerText;
       seriesEnName = name;
 
       // Smart Logic: Check if there are anime attached to this series hub
-      const connectedCount = allAnime.filter(
+      const connectedCount = state.allAnime.filter(
         (a) => a.series_en === seriesEnName,
       ).length;
       if (connectedCount > 0) {
-        document.getElementById("cascade-anime-count").innerText =
-          connectedCount;
-        cascadeBox.classList.remove("hidden");
+        pageDOM.cascadeCount.innerText = connectedCount;
+        pageDOM.cascadeWarning.classList.remove("hidden");
       }
 
-      document.getElementById("delete-target-type").innerText = "SERIES HUB";
-      document.getElementById("delete-target-id").innerText = id;
+      pageDOM.targetType.innerText = "SERIES HUB";
+      pageDOM.targetId.innerText = id;
     } else if (type === "options") {
       id = optId;
       name = optName;
-      document.getElementById("delete-target-type").innerText =
-        `SYSTEM OPTION (${optCat})`;
-      document.getElementById("delete-target-id").innerText =
-        `Database ID: ${id}`;
+      pageDOM.targetType.innerText = `SYSTEM OPTION (${optCat})`;
+      pageDOM.targetId.innerText = `Database ID: ${id}`;
     }
 
-    currentDeleteTarget = {
+    state.currentDeleteTarget = {
       type,
       id,
       name,
       series_en: seriesEnName,
       category: optCat,
     };
-    document.getElementById("delete-target-name").innerText = name;
+    pageDOM.targetName.innerText = name;
 
-    const modal = document.getElementById("delete-modal");
-    const box = document.getElementById("delete-modal-box");
-    modal.classList.remove("hidden");
-    setTimeout(() => box.classList.remove("scale-95"), 10);
+    pageDOM.modal.classList.remove("hidden");
+    setTimeout(() => pageDOM.modalBox.classList.remove("scale-95"), 10);
   }
 
   function closeDeleteModal() {
-    const modal = document.getElementById("delete-modal");
-    const box = document.getElementById("delete-modal-box");
-    box.classList.add("scale-95");
+    pageDOM.modalBox.classList.add("scale-95");
     setTimeout(() => {
-      modal.classList.add("hidden");
-      currentDeleteTarget = null;
+      pageDOM.modal.classList.add("hidden");
+      state.currentDeleteTarget = null;
     }, 200);
   }
 
-  document
-    .getElementById("execute-delete-btn")
-    .addEventListener("click", async function () {
-      if (!currentDeleteTarget) return;
-      const btn = this;
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
+  async function executeDelete() {
+    if (!state.currentDeleteTarget) return;
+    const btn = pageDOM.btnExecute;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
 
-      try {
-        // --- Path A: System Options Deletion ---
-        if (currentDeleteTarget.type === "options") {
-          btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
-          const res = await fetch(`/api/options/${currentDeleteTarget.id}`, {
-            method: "DELETE",
-          });
-          if (!res.ok)
-            throw new Error(
-              (await res.json()).detail || "Failed to delete system option",
-            );
-
-          closeDeleteModal();
-          loadCategoryOptions(); // Refresh UI list instantly
-          if (typeof showToast === "function")
-            showToast(`Successfully deleted "${currentDeleteTarget.name}"!`);
-          return;
-        }
-
-        // --- Path B: Relational Data Deletion (Anime/Series) ---
-
-        // 1. CASCADE DELETIONS FIRST (When deleting a Series Hub)
-        const cascadeCb = document.getElementById("delete-cascade-anime-cb");
-        if (
-          currentDeleteTarget.type === "series" &&
-          cascadeCb &&
-          cascadeCb.checked
-        ) {
-          const connectedAnime = allAnime.filter(
-            (a) => a.series_en === currentDeleteTarget.series_en,
-          );
-          let deletedCount = 0;
-          for (const anime of connectedAnime) {
-            deletedCount++;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-            const resAnime = await fetch(`/api/anime/${anime.system_id}`, {
-              method: "DELETE",
-            });
-            if (!resAnime.ok)
-              console.error(
-                `Failed to cascade delete connected anime: ${anime.system_id}`,
-              );
-          }
-        }
-
-        // 2. DELETE PRIMARY TARGET
+    try {
+      // --- Path A: System Options Deletion ---
+      if (state.currentDeleteTarget.type === "options") {
         btn.innerHTML =
-          '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
+          '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
         const res = await fetch(
-          `/api/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+          `/api/options/${state.currentDeleteTarget.id}`,
           { method: "DELETE" },
         );
         if (!res.ok)
           throw new Error(
-            (await res.json()).detail || "Primary deletion failed",
+            (await res.json()).detail || "Failed to delete system option",
           );
 
-        // 3. ORPHAN HUB DELETION LAST (When deleting an Anime)
-        const orphanCb = document.getElementById("delete-orphan-series-cb");
-        if (
-          currentDeleteTarget.type === "anime" &&
-          orphanCb &&
-          orphanCb.checked
-        ) {
-          const seriesHub = allSeries.find(
-            (s) => s.series_en === currentDeleteTarget.series_en,
-          );
-          if (seriesHub) {
-            btn.innerHTML =
-              '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
-            const resSeries = await fetch(
-              `/api/series/${seriesHub.system_id}`,
-              { method: "DELETE" },
-            );
-            if (!resSeries.ok)
-              throw new Error(
-                "Anime deleted, but failed to delete orphaned Series Hub.",
-              );
-          }
-        }
-
-        const targetType = currentDeleteTarget.type;
         closeDeleteModal();
-
-        if (targetType === "anime") closeAnimeContainer();
-        else if (targetType === "series") closeSeriesContainer();
-
-        await loadDatabase(); // Refresh local memory cache immediately
-
-        if (typeof showToast === "function") {
-          showToast(`Successfully deleted ${targetType} and synced database.`);
-        }
-      } catch (error) {
+        loadCategoryOptions(); // Refresh UI list instantly
         if (typeof showToast === "function")
-          showToast(`Error: ${error.message}`, true);
-        else alert(`Error: ${error.message}`);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+          showToast(
+            `Successfully deleted "${state.currentDeleteTarget.name}"!`,
+          );
+        return;
       }
-    });
 
-  document.addEventListener("DOMContentLoaded", loadDatabase);
+      // --- Path B: Relational Data Deletion (Anime/Series) ---
+
+      // 1. CASCADE DELETIONS FIRST (When deleting a Series Hub)
+      if (
+        state.currentDeleteTarget.type === "series" &&
+        pageDOM.cascadeCb &&
+        pageDOM.cascadeCb.checked
+      ) {
+        const connectedAnime = state.allAnime.filter(
+          (a) => a.series_en === state.currentDeleteTarget.series_en,
+        );
+        let deletedCount = 0;
+        for (const anime of connectedAnime) {
+          deletedCount++;
+          btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
+          const resAnime = await fetch(`/api/anime/${anime.system_id}`, {
+            method: "DELETE",
+          });
+          if (!resAnime.ok)
+            console.error(
+              `Failed to cascade delete connected anime: ${anime.system_id}`,
+            );
+        }
+      }
+
+      // 2. DELETE PRIMARY TARGET
+      btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
+      const res = await fetch(
+        `/api/${state.currentDeleteTarget.type}/${state.currentDeleteTarget.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok)
+        throw new Error((await res.json()).detail || "Primary deletion failed");
+
+      // 3. ORPHAN HUB DELETION LAST (When deleting an Anime)
+      if (
+        state.currentDeleteTarget.type === "anime" &&
+        pageDOM.orphanCb &&
+        pageDOM.orphanCb.checked
+      ) {
+        const seriesHub = state.allSeries.find(
+          (s) => s.series_en === state.currentDeleteTarget.series_en,
+        );
+        if (seriesHub) {
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
+          const resSeries = await fetch(`/api/series/${seriesHub.system_id}`, {
+            method: "DELETE",
+          });
+          if (!resSeries.ok)
+            throw new Error(
+              "Anime deleted, but failed to delete orphaned Series Hub.",
+            );
+        }
+      }
+
+      const targetType = state.currentDeleteTarget.type;
+      closeDeleteModal();
+
+      if (targetType === "anime") closeAnimeContainer();
+      else if (targetType === "series") closeSeriesContainer();
+
+      await loadDatabase(); // Refresh local memory cache immediately
+
+      if (typeof showToast === "function") {
+        showToast(`Successfully deleted ${targetType} and synced database.`);
+      }
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(`Error: ${error.message}`, true);
+      else alert(`Error: ${error.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
 </script>
 {% endblock %}

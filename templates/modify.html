@@ -58,11 +58,7 @@ content %}
       </div>
       <button
         type="button"
-        onclick="
-          document
-            .getElementById('last-updated-display')
-            .classList.add('hidden')
-        "
+        data-action="close-last-updated"
         class="absolute top-3 right-3 text-emerald-400 hover:text-emerald-600 transition bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-sm border border-emerald-100"
       >
         <i class="fas fa-times"></i>
@@ -75,21 +71,24 @@ content %}
     class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar"
   >
     <button
-      onclick="switchTab('anime')"
+      data-action="switch-tab"
+      data-tab="anime"
       id="tab-anime"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap"
     >
       <i class="fas fa-film mr-2"></i> Edit Anime Entries
     </button>
     <button
-      onclick="switchTab('series')"
+      data-action="switch-tab"
+      data-tab="series"
       id="tab-series"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
     >
       <i class="fas fa-layer-group mr-2"></i> Edit Anime Series
     </button>
     <button
-      onclick="switchTab('options')"
+      data-action="switch-tab"
+      data-tab="options"
       id="tab-options"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
     >
@@ -118,7 +117,6 @@ content %}
         <input
           type="text"
           id="anime-search-input"
-          oninput="filterAnimeSearch()"
           placeholder="Type Series English Name, Chinese Title, Alt Names, etc..."
           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition"
           autocomplete="off"
@@ -147,18 +145,14 @@ content %}
         </h2>
         <button
           type="button"
-          onclick="closeAnimeEditor()"
+          data-action="close-anime-editor"
           class="text-gray-400 hover:text-gray-600 transition"
         >
           <i class="fas fa-times text-xl"></i>
         </button>
       </div>
 
-      <form
-        id="edit-anime-form"
-        onsubmit="submitAnimeEdit(event)"
-        class="space-y-8"
-      >
+      <form id="edit-anime-form" class="space-y-8">
         <!-- 0. System ID (Read Only) -->
         <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
           <label
@@ -189,7 +183,7 @@ content %}
               <input
                 type="text"
                 id="edit-series-en"
-                oninput="handleAutocomplete(this, 'series_en')"
+                data-autocomplete="series_en"
                 autocomplete="off"
                 required
                 class="w-full bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
@@ -258,7 +252,7 @@ content %}
                   <input
                     type="text"
                     id="edit-season-en"
-                    oninput="handleAutocomplete(this, 'series_season_en')"
+                    data-autocomplete="series_season_en"
                     autocomplete="off"
                     class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
@@ -274,7 +268,7 @@ content %}
                   <input
                     type="text"
                     id="edit-season-roman"
-                    oninput="handleAutocomplete(this, 'series_season_roman')"
+                    data-autocomplete="series_season_roman"
                     autocomplete="off"
                     class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
@@ -290,7 +284,7 @@ content %}
                   <input
                     type="text"
                     id="edit-season-cn"
-                    oninput="handleAutocomplete(this, 'series_season_cn')"
+                    data-autocomplete="series_season_cn"
                     autocomplete="off"
                     class="w-full bg-white border border-gray-300 focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-2 text-sm outline-none transition"
                   />
@@ -298,7 +292,6 @@ content %}
                     class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden"
                   ></div>
                 </div>
-                <!-- V2: Anime Alt Name Field -->
                 <div>
                   <label
                     class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 text-purple-600"
@@ -533,7 +526,8 @@ content %}
               >
               <div
                 class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-                onclick="document.getElementById('edit-studio-input').focus()"
+                data-action="focus-multi"
+                data-target="edit-studio-input"
               >
                 <div
                   id="edit-studio-tags-container"
@@ -557,9 +551,8 @@ content %}
               >
               <div
                 class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-                onclick="
-                  document.getElementById('edit-distributor-input').focus()
-                "
+                data-action="focus-multi"
+                data-target="edit-distributor-input"
               >
                 <div
                   id="edit-distributor-tags-container"
@@ -583,7 +576,8 @@ content %}
               >
               <div
                 class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-                onclick="document.getElementById('edit-director-input').focus()"
+                data-action="focus-multi"
+                data-target="edit-director-input"
               >
                 <div
                   id="edit-director-tags-container"
@@ -607,7 +601,8 @@ content %}
               >
               <div
                 class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-                onclick="document.getElementById('edit-producer-input').focus()"
+                data-action="focus-multi"
+                data-target="edit-producer-input"
               >
                 <div
                   id="edit-producer-tags-container"
@@ -631,7 +626,8 @@ content %}
               >
               <div
                 class="w-full bg-gray-50 border border-gray-300 focus-within:bg-white focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 rounded-lg px-2 py-1.5 min-h-[38px] flex flex-wrap items-center gap-1.5 transition cursor-text"
-                onclick="document.getElementById('edit-music-input').focus()"
+                data-action="focus-multi"
+                data-target="edit-music-input"
               >
                 <div
                   id="edit-music-tags-container"
@@ -889,7 +885,8 @@ content %}
           <div class="flex items-center gap-3 ml-auto">
             <button
               type="button"
-              onclick="confirmDelete('anime')"
+              data-action="confirm-delete"
+              data-type="anime"
               class="bg-white border border-red-200 hover:bg-red-50 text-red-600 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
             >
               <i class="fas fa-trash-alt mr-2"></i> Delete Entry
@@ -928,7 +925,6 @@ content %}
         <input
           type="text"
           id="series-search-input"
-          oninput="filterSeriesSearch()"
           placeholder="Type Series English Name, Chinese Title, etc..."
           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition"
           autocomplete="off"
@@ -958,18 +954,14 @@ content %}
         </h2>
         <button
           type="button"
-          onclick="closeSeriesEditor()"
+          data-action="close-series-editor"
           class="text-gray-400 hover:text-gray-600 transition"
         >
           <i class="fas fa-times text-xl"></i>
         </button>
       </div>
 
-      <form
-        id="edit-series-form"
-        onsubmit="submitSeriesEdit(event)"
-        class="space-y-6"
-      >
+      <form id="edit-series-form" class="space-y-6">
         <!-- 0. System ID (Read Only) -->
         <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
           <label
@@ -1091,7 +1083,8 @@ content %}
           <div class="flex items-center gap-3 ml-auto">
             <button
               type="button"
-              onclick="confirmDelete('series')"
+              data-action="confirm-delete"
+              data-type="series"
               class="bg-white border border-red-200 hover:bg-red-50 text-red-600 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
             >
               <i class="fas fa-trash-alt mr-2"></i> Delete Series
@@ -1123,7 +1116,6 @@ content %}
       >
       <select
         id="edit-option-category"
-        onchange="loadCategoryOptionsForEdit()"
         class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm outline-none cursor-pointer transition"
       >
         <option value="" disabled selected>
@@ -1169,18 +1161,14 @@ content %}
         </h2>
         <button
           type="button"
-          onclick="closeOptionEditor()"
+          data-action="close-option-editor"
           class="text-gray-400 hover:text-gray-600 transition"
         >
           <i class="fas fa-times text-xl"></i>
         </button>
       </div>
 
-      <form
-        id="edit-option-form"
-        onsubmit="submitOptionEdit(event)"
-        class="space-y-6"
-      >
+      <form id="edit-option-form" class="space-y-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <!-- ID (Read Only) -->
           <div
@@ -1233,7 +1221,8 @@ content %}
           <div class="flex items-center gap-3 ml-auto">
             <button
               type="button"
-              onclick="confirmDelete('options')"
+              data-action="confirm-delete"
+              data-type="options"
               class="bg-white border border-red-200 hover:bg-red-50 text-red-600 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center"
             >
               <i class="fas fa-trash-alt mr-2"></i> Delete Option
@@ -1282,19 +1271,19 @@ content %}
       class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
     >
       <button
-        onclick="cancelAnimeUpdate()"
+        data-action="cancel-anime-update"
         class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition w-full sm:w-auto"
       >
         Cancel
       </button>
       <button
-        onclick="proceedAnimeWithoutSeries()"
+        data-action="proceed-anime-without-series"
         class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-300 transition w-full sm:w-auto"
       >
         No Hub Needed
       </button>
       <button
-        onclick="createSeriesAndProceedAnime()"
+        data-action="create-series-and-proceed-anime"
         class="px-5 py-2.5 bg-brand text-white rounded-lg text-sm font-bold shadow-sm hover:bg-brand-hover transition flex items-center justify-center w-full sm:w-auto"
       >
         <i class="fas fa-folder-plus mr-2"></i> Create Hub & Update
@@ -1335,19 +1324,19 @@ content %}
       class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
     >
       <button
-        onclick="cancelSeriesUpdate()"
+        data-action="cancel-series-update"
         class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition w-full sm:w-auto"
       >
         Cancel
       </button>
       <button
-        onclick="proceedSeriesWithoutCascade()"
+        data-action="proceed-series-without-cascade"
         class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-300 transition w-full sm:w-auto"
       >
         Only Update Hub
       </button>
       <button
-        onclick="cascadeSeriesUpdate()"
+        data-action="cascade-series-update"
         class="px-5 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-purple-700 transition flex items-center justify-center w-full sm:w-auto"
       >
         <i class="fas fa-sync mr-2"></i> Update Hub & Entries
@@ -1373,7 +1362,7 @@ content %}
         Deletion
       </h2>
       <button
-        onclick="closeDeleteModal()"
+        data-action="close-delete-modal"
         class="text-red-400 hover:text-red-600 transition"
       >
         <i class="fas fa-times text-xl"></i>
@@ -1458,7 +1447,7 @@ content %}
       class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
     >
       <button
-        onclick="closeDeleteModal()"
+        data-action="close-delete-modal"
         class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition order-2 sm:order-1"
       >
         Cancel
@@ -1477,30 +1466,189 @@ content %}
   const is_admin_val = "{{ 'true' if is_admin else 'false' }}";
   const IS_ADMIN_MODIFY = is_admin_val === "true";
 
-  // Global State
-  let allAnime = [];
-  let allSeries = [];
-  let currentDeleteTarget = null;
-  let currentEditingSeriesEn = "";
-
-  // Submission States for Modals
-  let pendingAnimePayload = null;
-  let pendingAnimeSysId = null;
-  let pendingAnimeBtn = null;
-
-  let pendingSeriesPayload = null;
-  let pendingSeriesSysId = null;
-  let pendingSeriesBtn = null;
-  let pendingConnectedAnime = [];
-
-  // NEW: Universal Multi-Select State Manager
-  let multiSelectState = {
-    studio: new Set(),
-    distributor: new Set(),
-    director: new Set(),
-    producer: new Set(),
-    music: new Set(),
+  // --- Global State ---
+  const state = {
+    allAnime: [],
+    allSeries: [],
+    currentDeleteTarget: null,
+    currentEditingSeriesEn: "",
+    pendingAnimePayload: null,
+    pendingAnimeSysId: null,
+    pendingAnimeBtn: null,
+    pendingSeriesPayload: null,
+    pendingSeriesSysId: null,
+    pendingSeriesBtn: null,
+    pendingConnectedAnime: [],
+    debounceTimeout: null,
+    multiSelectState: {
+      studio: new Set(),
+      distributor: new Set(),
+      director: new Set(),
+      producer: new Set(),
+      music: new Set(),
+    },
+    systemOptions: {
+      Studio: [],
+      "Genre Main": [],
+      "Genre Sub": [],
+      "Distributor TW": [],
+      Director: [],
+      Producer: [],
+      Music: [],
+    },
   };
+
+  const pageDOM = {};
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Cache DOM Elements
+    pageDOM.animeInput = document.getElementById("anime-search-input");
+    pageDOM.animeResults = document.getElementById("anime-search-results");
+    pageDOM.seriesInput = document.getElementById("series-search-input");
+    pageDOM.seriesResults = document.getElementById("series-search-results");
+
+    pageDOM.animeEditContainer = document.getElementById(
+      "anime-edit-container",
+    );
+    pageDOM.seriesEditContainer = document.getElementById(
+      "series-edit-container",
+    );
+    pageDOM.optionEditContainer = document.getElementById(
+      "option-edit-container",
+    );
+
+    pageDOM.editAnimeForm = document.getElementById("edit-anime-form");
+    pageDOM.editSeriesForm = document.getElementById("edit-series-form");
+    pageDOM.editOptionForm = document.getElementById("edit-option-form");
+
+    pageDOM.optCategory = document.getElementById("edit-option-category");
+    pageDOM.optContainer = document.getElementById(
+      "options-edit-list-container",
+    );
+    pageDOM.optLoading = document.getElementById("options-edit-loading");
+
+    pageDOM.lastUpdatedDisplay = document.getElementById(
+      "last-updated-display",
+    );
+
+    // Modal Elements
+    pageDOM.animeModal = document.getElementById("anime-new-series-modal");
+    pageDOM.seriesModal = document.getElementById("series-cascade-modal");
+    pageDOM.deleteModal = document.getElementById("delete-modal");
+    pageDOM.deleteModalBox = document.getElementById("delete-modal-box");
+    pageDOM.btnExecuteDelete = document.getElementById("execute-delete-btn");
+
+    // Event Delegation for Forms
+    if (pageDOM.editAnimeForm)
+      pageDOM.editAnimeForm.addEventListener("submit", submitAnimeEdit);
+    if (pageDOM.editSeriesForm)
+      pageDOM.editSeriesForm.addEventListener("submit", submitSeriesEdit);
+    if (pageDOM.editOptionForm)
+      pageDOM.editOptionForm.addEventListener("submit", submitOptionEdit);
+
+    // Event Delegation for Inputs
+    document.addEventListener("input", handleGlobalInput);
+
+    // Event Delegation for Clicks
+    document.addEventListener("click", handleGlobalClick);
+
+    // Event Delegation for Select Changes
+    document.addEventListener("change", (e) => {
+      if (e.target.id === "edit-option-category") {
+        loadCategoryOptionsForEdit();
+      }
+    });
+
+    // Initialize Multi-Selects
+    Object.keys(state.multiSelectState).forEach((key) =>
+      setupMultiSelectInput(key),
+    );
+
+    // Initialize Data
+    loadSystemOptions();
+    loadDatabase();
+  });
+
+  function handleGlobalInput(e) {
+    if (e.target.id === "anime-search-input") {
+      clearTimeout(state.debounceTimeout);
+      state.debounceTimeout = setTimeout(filterAnimeSearch, 250);
+    } else if (e.target.id === "series-search-input") {
+      clearTimeout(state.debounceTimeout);
+      state.debounceTimeout = setTimeout(filterSeriesSearch, 250);
+    } else if (e.target.hasAttribute("data-autocomplete")) {
+      handleAutocomplete(e.target, e.target.dataset.autocomplete);
+    }
+  }
+
+  function handleGlobalClick(e) {
+    // Hide dropdowns when clicking outside local searches
+    if (
+      !e.target.closest(".search-container-anime") &&
+      !e.target.closest("#anime-search-results")
+    ) {
+      pageDOM.animeResults?.classList.add("hidden");
+    }
+    if (
+      !e.target.closest(".search-container-series") &&
+      !e.target.closest("#series-search-results")
+    ) {
+      pageDOM.seriesResults?.classList.add("hidden");
+    }
+    document.querySelectorAll(".autocomplete-dropdown").forEach((el) => {
+      if (!el.parentElement.contains(e.target)) {
+        el.classList.add("hidden");
+      }
+    });
+
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+
+    const action = actionEl.dataset.action;
+
+    if (action === "switch-tab") switchTab(actionEl.dataset.tab);
+    else if (action === "close-last-updated")
+      pageDOM.lastUpdatedDisplay.classList.add("hidden");
+    else if (action === "focus-multi") {
+      const targetInput = document.getElementById(actionEl.dataset.target);
+      if (targetInput) targetInput.focus();
+    } else if (action === "remove-tag")
+      removeTag(e, actionEl.dataset.field, actionEl.dataset.val);
+    else if (action === "select-suggestion")
+      selectSuggestion(
+        actionEl.dataset.input,
+        actionEl.dataset.val,
+        actionEl.dataset.series,
+      );
+    else if (action === "select-anime") selectAnime(actionEl.dataset.id);
+    else if (action === "select-series") selectSeries(actionEl.dataset.id);
+    else if (action === "select-option")
+      selectOption(
+        actionEl.dataset.id,
+        actionEl.dataset.category,
+        actionEl.dataset.val,
+      );
+    else if (action === "close-anime-editor") closeAnimeEditor();
+    else if (action === "close-series-editor") closeSeriesEditor();
+    else if (action === "close-option-editor") closeOptionEditor();
+    else if (action === "confirm-delete")
+      confirmDelete(
+        actionEl.dataset.type,
+        actionEl.dataset.id,
+        actionEl.dataset.val,
+        actionEl.dataset.category,
+      );
+    else if (action === "close-delete-modal") closeDeleteModal();
+    else if (action === "cancel-anime-update") cancelAnimeUpdate();
+    else if (action === "proceed-anime-without-series")
+      proceedAnimeWithoutSeries();
+    else if (action === "create-series-and-proceed-anime")
+      createSeriesAndProceedAnime();
+    else if (action === "cancel-series-update") cancelSeriesUpdate();
+    else if (action === "proceed-series-without-cascade")
+      proceedSeriesWithoutCascade();
+    else if (action === "cascade-series-update") cascadeSeriesUpdate();
+  }
 
   function switchTab(tabName) {
     const tabs = ["anime", "series", "options"];
@@ -1519,25 +1667,15 @@ content %}
     });
   }
 
-  let systemOptions = {
-    Studio: [],
-    "Genre Main": [],
-    "Genre Sub": [],
-    "Distributor TW": [],
-    Director: [],
-    Producer: [],
-    Music: [],
-  };
-
   async function loadSystemOptions() {
-    const categories = Object.keys(systemOptions);
+    const categories = Object.keys(state.systemOptions);
     await Promise.all(
       categories.map(async (cat) => {
         try {
           const res = await fetch(`/api/options/${encodeURIComponent(cat)}`);
           if (res.ok) {
             const data = await res.json();
-            systemOptions[cat] = data.map((item) => item.option_value);
+            state.systemOptions[cat] = data.map((item) => item.option_value);
           }
         } catch (e) {
           console.warn(`Failed to fetch options for ${cat}`);
@@ -1551,22 +1689,25 @@ content %}
 
   async function loadDatabase() {
     try {
-      const resAnime = await fetch("/api/anime");
+      const [resAnime, resSeries] = await Promise.all([
+        fetch(`/api/anime`),
+        fetch(`/api/series`),
+      ]);
+
       if (resAnime.ok) {
         const data = await resAnime.json();
-        if (Array.isArray(data)) allAnime = data;
+        if (Array.isArray(data)) state.allAnime = data;
       }
 
-      const resSeries = await fetch("/api/series");
       if (resSeries.ok) {
         const data = await resSeries.json();
-        if (Array.isArray(data)) allSeries = data;
+        if (Array.isArray(data)) state.allSeries = data;
       }
 
       const urlParams = new URLSearchParams(window.location.search);
       const editId = urlParams.get("id");
-      if (editId && allAnime.length > 0) {
-        const target = allAnime.find((a) => a.system_id === editId);
+      if (editId && state.allAnime.length > 0) {
+        const target = state.allAnime.find((a) => a.system_id === editId);
         if (target) selectAnime(target.system_id);
       }
     } catch (e) {
@@ -1581,26 +1722,6 @@ content %}
       .replace(/[^a-z0-9\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff]/g, "");
   }
 
-  document.addEventListener("click", (e) => {
-    if (
-      !e.target.closest(".search-container-anime") &&
-      !e.target.closest("#anime-search-results")
-    ) {
-      document.getElementById("anime-search-results").classList.add("hidden");
-    }
-    if (
-      !e.target.closest(".search-container-series") &&
-      !e.target.closest("#series-search-results")
-    ) {
-      document.getElementById("series-search-results").classList.add("hidden");
-    }
-    document.querySelectorAll(".autocomplete-dropdown").forEach((el) => {
-      if (!el.parentElement.contains(e.target)) {
-        el.classList.add("hidden");
-      }
-    });
-  });
-
   // --- Dynamic Checkboxes & Datalists ---
   function populateGenres() {
     const createCheckboxes = (containerId, name, optionsList) => {
@@ -1614,27 +1735,26 @@ content %}
       container.innerHTML = optionsList
         .map(
           (genre) => `
-              <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
-                  <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
-                  <span class="leading-tight">${genre}</span>
-              </label>
-          `,
+          <label class="flex items-start space-x-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-200 p-1.5 rounded transition">
+              <input type="checkbox" name="${name}" value="${genre}" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5">
+              <span class="leading-tight">${genre}</span>
+          </label>
+      `,
         )
         .join("");
     };
     createCheckboxes(
       "edit-genre-main-container",
       "edit_genre_main",
-      systemOptions["Genre Main"],
+      state.systemOptions["Genre Main"],
     );
     createCheckboxes(
       "edit-genre-sub-container",
       "edit_genre_sub",
-      systemOptions["Genre Sub"],
+      state.systemOptions["Genre Sub"],
     );
   }
 
-  // Universal Datalist Populator
   function populateDatalists() {
     const fillList = (listId, options) => {
       const el = document.getElementById(listId);
@@ -1648,11 +1768,11 @@ content %}
           .join("");
       }
     };
-    fillList("edit-distributor-list", systemOptions["Distributor TW"]);
-    fillList("edit-director-list", systemOptions["Director"]);
-    fillList("edit-producer-list", systemOptions["Producer"]);
-    fillList("edit-music-list", systemOptions["Music"]);
-    fillList("edit-studio-list", systemOptions["Studio"]);
+    fillList("edit-distributor-list", state.systemOptions["Distributor TW"]);
+    fillList("edit-director-list", state.systemOptions["Director"]);
+    fillList("edit-producer-list", state.systemOptions["Producer"]);
+    fillList("edit-music-list", state.systemOptions["Music"]);
+    fillList("edit-studio-list", state.systemOptions["Studio"]);
   }
 
   // --- Universal Typable Multi-Select UI Logic ---
@@ -1663,12 +1783,12 @@ content %}
     );
     if (!container) return;
 
-    container.innerHTML = Array.from(multiSelectState[fieldKey])
+    container.innerHTML = Array.from(state.multiSelectState[fieldKey])
       .map((s) => {
-        const safeVal = s.replace(/'/g, "\\'");
+        const safeVal = s.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
         return `
           <span class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[11px] font-bold flex items-center shadow-sm whitespace-nowrap">
-              ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" onclick="removeTag(event, '${fieldKey}', '${safeVal}')"></i>
+              ${s} <i class="fas fa-times ml-1.5 cursor-pointer hover:text-red-500 transition-colors" data-action="remove-tag" data-field="${fieldKey}" data-val="${safeVal}"></i>
           </span>
         `;
       })
@@ -1677,15 +1797,16 @@ content %}
 
   function addTag(fieldKey, val) {
     const cleanVal = val.trim();
-    if (cleanVal && !multiSelectState[fieldKey].has(cleanVal)) {
-      multiSelectState[fieldKey].add(cleanVal);
+    if (cleanVal && !state.multiSelectState[fieldKey].has(cleanVal)) {
+      state.multiSelectState[fieldKey].add(cleanVal);
       renderTags(fieldKey);
     }
   }
 
-  function removeTag(event, fieldKey, val) {
+  function removeTag(event, fieldKey, valRaw) {
     event.stopPropagation();
-    multiSelectState[fieldKey].delete(val);
+    const val = valRaw.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+    state.multiSelectState[fieldKey].delete(val);
     renderTags(fieldKey);
   }
 
@@ -1721,7 +1842,7 @@ content %}
     let suggestions = new Map();
 
     if (targetField === "series_en") {
-      allSeries.forEach((s) => {
+      state.allSeries.forEach((s) => {
         if (s.series_en && normalizeStr(s.series_en).includes(query))
           suggestions.set(s.series_en, {
             val: s.series_en,
@@ -1746,7 +1867,7 @@ content %}
             series: s.series_en,
           });
       });
-      allAnime.forEach((a) => {
+      state.allAnime.forEach((a) => {
         if (a.series_en && normalizeStr(a.series_en).includes(query))
           suggestions.set(a.series_en, {
             val: a.series_en,
@@ -1763,7 +1884,7 @@ content %}
           });
       });
     } else {
-      allAnime.forEach((a) => {
+      state.allAnime.forEach((a) => {
         const val = a[targetField];
         if (val && normalizeStr(val).includes(query)) {
           suggestions.set(val, { val: val, series: a.series_en });
@@ -1781,14 +1902,13 @@ content %}
     resultsContainer.innerHTML = filtered
       .map((item) => {
         const safeVal = item.val
-          ? String(item.val).replace(/'/g, "&#39;").replace(/"/g, "&quot;")
+          ? String(item.val).replace(/'/g, "&apos;").replace(/"/g, "&quot;")
           : "";
         const safeSeries = item.series
-          ? String(item.series).replace(/'/g, "&#39;").replace(/"/g, "&quot;")
+          ? String(item.series).replace(/'/g, "&apos;").replace(/"/g, "&quot;")
           : "";
         return `
-              <div class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0"
-                   onclick="selectSuggestion('${inputEl.id}', '${safeVal}', '${safeSeries}')">
+              <div data-action="select-suggestion" data-input="${inputEl.id}" data-val="${safeVal}" data-series="${safeSeries}" class="px-3 py-2 hover:bg-brand/10 cursor-pointer text-sm text-gray-700 transition border-b border-gray-50 last:border-0">
                   <div class="font-bold text-gray-900 truncate">${item.val}</div>
                   ${targetField !== "series_en" && item.series ? `<div class="text-[10px] text-gray-500 truncate mt-0.5">Series: ${item.series}</div>` : ""}
               </div>
@@ -1799,34 +1919,31 @@ content %}
     resultsContainer.classList.remove("hidden");
   }
 
-  function selectSuggestion(inputId, val, seriesEn) {
-    document.getElementById(inputId).value = val
-      ? String(val)
-          .replace(/&#39;/g, "'")
-          .replace(/&quot;/g, '"')
-      : "";
+  function selectSuggestion(inputId, valRaw, seriesEnRaw) {
+    const val = valRaw.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+    const seriesEn = seriesEnRaw
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"');
+    document.getElementById(inputId).value = val;
     document.getElementById(inputId).nextElementSibling.classList.add("hidden");
 
     if (inputId !== "edit-series-en" && seriesEn) {
-      document.getElementById("edit-series-en").value = String(seriesEn)
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"');
+      document.getElementById("edit-series-en").value = seriesEn;
     }
   }
 
   // --- Search & Filtering (Anime) ---
   function filterAnimeSearch() {
-    const rawQuery = document.getElementById("anime-search-input").value;
+    const rawQuery = pageDOM.animeInput.value;
     const query = normalizeStr(rawQuery);
-    const resultsContainer = document.getElementById("anime-search-results");
 
     if (!query) {
-      resultsContainer.classList.add("hidden");
+      pageDOM.animeResults.classList.add("hidden");
       return;
     }
 
     const matchingSeriesEnNames = new Set(
-      allSeries
+      state.allSeries
         .filter((s) => {
           const searchStr = normalizeStr(
             [s.series_en, s.series_cn, s.series_roman, s.series_alt_name]
@@ -1838,7 +1955,7 @@ content %}
         .map((s) => s.series_en),
     );
 
-    const filtered = allAnime
+    const filtered = state.allAnime
       .filter((a) => {
         const directStr = normalizeStr(
           [
@@ -1858,9 +1975,9 @@ content %}
       .slice(0, 15);
 
     if (filtered.length === 0) {
-      resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+      pageDOM.animeResults.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
-      resultsContainer.innerHTML = filtered
+      pageDOM.animeResults.innerHTML = filtered
         .map((a) => {
           const displayTitle =
             a.series_season_cn ||
@@ -1869,7 +1986,7 @@ content %}
             a.series_en ||
             "Unknown Title";
           return `
-              <div onclick="selectAnime('${a.system_id}')" class="p-3 px-4 hover:bg-brand/5 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+              <div data-action="select-anime" data-id="${a.system_id}" class="p-3 px-4 hover:bg-brand/5 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0 flex-1 pr-2">
                       <div class="font-bold text-gray-800 text-sm truncate">${displayTitle}</div>
                       <div class="text-[11px] text-gray-500 truncate mt-0.5">
@@ -1878,26 +1995,26 @@ content %}
                   </div>
                   <i class="fas fa-edit text-brand opacity-0 group-hover:opacity-100 transition shrink-0 ml-2"></i>
               </div>
-              `;
+          `;
         })
         .join("");
     }
-    resultsContainer.classList.remove("hidden");
+    pageDOM.animeResults.classList.remove("hidden");
   }
 
   // --- Form Population (Anime) ---
   function selectAnime(sysId) {
-    const anime = allAnime.find((a) => a.system_id === sysId);
+    const anime = state.allAnime.find((a) => a.system_id === sysId);
     if (!anime) return;
 
-    document.getElementById("anime-search-results").classList.add("hidden");
-    document.getElementById("anime-search-input").value =
+    pageDOM.animeResults.classList.add("hidden");
+    pageDOM.animeInput.value =
       anime.series_season_cn ||
       anime.series_season_en ||
       anime.series_season_roman ||
       anime.series_en;
-    document.getElementById("anime-edit-container").classList.remove("hidden");
-    document.getElementById("last-updated-display").classList.add("hidden");
+    pageDOM.animeEditContainer.classList.remove("hidden");
+    pageDOM.lastUpdatedDisplay.classList.add("hidden");
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
@@ -1911,7 +2028,7 @@ content %}
     setVal("edit-season-cn", anime.series_season_cn);
     setVal("edit-anime-alt", anime.anime_alt_name);
 
-    // DISASSEMBLE SEASON STRING (Season X Part Y)
+    // DISASSEMBLE SEASON STRING
     const ss = anime.series_season || "";
     const sMatch = ss.match(/Season\s\d+/i);
     const pMatch = ss.match(/Part\s\d+/i);
@@ -1966,60 +2083,58 @@ content %}
       .querySelectorAll('input[name="edit_genre_sub"]')
       .forEach((cb) => (cb.checked = gs.includes(cb.value)));
 
-    // Load Multi-Select Tags from DB String
-    Object.keys(multiSelectState).forEach((key) =>
-      multiSelectState[key].clear(),
+    Object.keys(state.multiSelectState).forEach((key) =>
+      state.multiSelectState[key].clear(),
     );
 
     if (anime.studio)
       anime.studio
         .split(", ")
-        .forEach((s) => multiSelectState.studio.add(s.trim()));
+        .forEach((s) => state.multiSelectState.studio.add(s.trim()));
     if (anime.distributor_tw)
       anime.distributor_tw
         .split(", ")
-        .forEach((s) => multiSelectState.distributor.add(s.trim()));
+        .forEach((s) => state.multiSelectState.distributor.add(s.trim()));
     if (anime.director)
       anime.director
         .split(", ")
-        .forEach((s) => multiSelectState.director.add(s.trim()));
+        .forEach((s) => state.multiSelectState.director.add(s.trim()));
     if (anime.producer)
       anime.producer
         .split(", ")
-        .forEach((s) => multiSelectState.producer.add(s.trim()));
+        .forEach((s) => state.multiSelectState.producer.add(s.trim()));
     if (anime.music)
       anime.music
         .split(", ")
-        .forEach((s) => multiSelectState.music.add(s.trim()));
+        .forEach((s) => state.multiSelectState.music.add(s.trim()));
 
-    Object.keys(multiSelectState).forEach((key) => renderTags(key));
+    Object.keys(state.multiSelectState).forEach((key) => renderTags(key));
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeAnimeEditor() {
-    document.getElementById("anime-edit-container").classList.add("hidden");
-    document.getElementById("edit-anime-form").reset();
-    document.getElementById("anime-search-input").value = "";
+    pageDOM.animeEditContainer.classList.add("hidden");
+    pageDOM.editAnimeForm.reset();
+    pageDOM.animeInput.value = "";
 
-    Object.keys(multiSelectState).forEach((key) => {
-      multiSelectState[key].clear();
+    Object.keys(state.multiSelectState).forEach((key) => {
+      state.multiSelectState[key].clear();
       renderTags(key);
     });
   }
 
   // --- Search & Filtering (Series) ---
   function filterSeriesSearch() {
-    const rawQuery = document.getElementById("series-search-input").value;
+    const rawQuery = pageDOM.seriesInput.value;
     const query = normalizeStr(rawQuery);
-    const resultsContainer = document.getElementById("series-search-results");
 
     if (!query) {
-      resultsContainer.classList.add("hidden");
+      pageDOM.seriesResults.classList.add("hidden");
       return;
     }
 
-    const filtered = allSeries
+    const filtered = state.allSeries
       .filter((s) => {
         const str = normalizeStr(
           [s.series_en, s.series_cn, s.series_roman, s.series_alt_name]
@@ -2031,12 +2146,12 @@ content %}
       .slice(0, 15);
 
     if (filtered.length === 0) {
-      resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+      pageDOM.seriesResults.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     } else {
-      resultsContainer.innerHTML = filtered
+      pageDOM.seriesResults.innerHTML = filtered
         .map(
           (s) => `
-              <div onclick="selectSeries('${s.system_id}')" class="p-3 px-4 hover:bg-purple-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
+              <div data-action="select-series" data-id="${s.system_id}" class="p-3 px-4 hover:bg-purple-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
                   <div class="min-w-0">
                       <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
                       <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
@@ -2047,19 +2162,19 @@ content %}
         )
         .join("");
     }
-    resultsContainer.classList.remove("hidden");
+    pageDOM.seriesResults.classList.remove("hidden");
   }
 
   function selectSeries(sysId) {
-    const series = allSeries.find((s) => s.system_id === sysId);
+    const series = state.allSeries.find((s) => s.system_id === sysId);
     if (!series) return;
 
-    document.getElementById("series-search-results").classList.add("hidden");
-    document.getElementById("series-search-input").value = series.series_en;
-    document.getElementById("series-edit-container").classList.remove("hidden");
-    document.getElementById("last-updated-display").classList.add("hidden");
+    pageDOM.seriesResults.classList.add("hidden");
+    pageDOM.seriesInput.value = series.series_en;
+    pageDOM.seriesEditContainer.classList.remove("hidden");
+    pageDOM.lastUpdatedDisplay.classList.add("hidden");
 
-    currentEditingSeriesEn = series.series_en;
+    state.currentEditingSeriesEn = series.series_en;
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
@@ -2079,22 +2194,19 @@ content %}
   }
 
   function closeSeriesEditor() {
-    document.getElementById("series-edit-container").classList.add("hidden");
-    document.getElementById("edit-series-form").reset();
-    document.getElementById("series-search-input").value = "";
-    currentEditingSeriesEn = "";
+    pageDOM.seriesEditContainer.classList.add("hidden");
+    pageDOM.editSeriesForm.reset();
+    pageDOM.seriesInput.value = "";
+    state.currentEditingSeriesEn = "";
   }
 
   // --- Options Editor Logic ---
   async function loadCategoryOptionsForEdit() {
-    const category = document.getElementById("edit-option-category").value;
+    const category = pageDOM.optCategory.value;
     if (!category) return;
 
-    const container = document.getElementById("options-edit-list-container");
-    const loader = document.getElementById("options-edit-loading");
-
-    container.classList.add("hidden");
-    loader.classList.remove("hidden");
+    pageDOM.optContainer.classList.add("hidden");
+    pageDOM.optLoading.classList.remove("hidden");
     closeOptionEditor();
 
     try {
@@ -2104,15 +2216,15 @@ content %}
       const options = await res.json();
 
       if (options.length === 0) {
-        container.innerHTML = `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options currently exist in this category.</div>`;
+        pageDOM.optContainer.innerHTML = `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options currently exist in this category.</div>`;
       } else {
-        container.innerHTML = options
+        pageDOM.optContainer.innerHTML = options
           .map((opt) => {
             const safeVal = opt.option_value
-              .replace(/'/g, "\\'")
+              .replace(/'/g, "&apos;")
               .replace(/"/g, "&quot;");
             return `
-                  <div onclick="selectOption('${opt.id}', '${category}', '${safeVal}')" class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-teal-50 hover:border-teal-200 cursor-pointer transition shadow-sm">
+                  <div data-action="select-option" data-id="${opt.id}" data-category="${category}" data-val="${safeVal}" class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-teal-50 hover:border-teal-200 cursor-pointer transition shadow-sm">
                       <span class="font-bold text-gray-700 text-sm truncate pr-2 group-hover:text-teal-900" title="${opt.option_value}">${opt.option_value}</span>
                       <i class="fas fa-edit text-teal-400 group-hover:text-teal-600 transition"></i>
                   </div>
@@ -2120,30 +2232,28 @@ content %}
           })
           .join("");
       }
-      loader.classList.add("hidden");
-      container.classList.remove("hidden");
+      pageDOM.optLoading.classList.add("hidden");
+      pageDOM.optContainer.classList.remove("hidden");
     } catch (error) {
-      loader.classList.add("hidden");
-      container.classList.remove("hidden");
-      container.innerHTML = `<div class="col-span-full text-center text-sm font-bold text-red-500 py-4"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
+      pageDOM.optLoading.classList.add("hidden");
+      pageDOM.optContainer.classList.remove("hidden");
+      pageDOM.optContainer.innerHTML = `<div class="col-span-full text-center text-sm font-bold text-red-500 py-4"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
     }
   }
 
-  function selectOption(id, category, value) {
-    document.getElementById("option-edit-container").classList.remove("hidden");
+  function selectOption(id, category, valueRaw) {
+    pageDOM.optionEditContainer.classList.remove("hidden");
     document.getElementById("edit-option-id").value = id;
     document.getElementById("edit-option-category-input").value = category;
-    document.getElementById("edit-option-value").value = value.replace(
-      /&quot;/g,
-      '"',
-    );
+    document.getElementById("edit-option-value").value = valueRaw
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"');
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
 
   function closeOptionEditor() {
-    document.getElementById("option-edit-container").classList.add("hidden");
-    const form = document.getElementById("edit-option-form");
-    if (form) form.reset();
+    pageDOM.optionEditContainer.classList.add("hidden");
+    if (pageDOM.editOptionForm) pageDOM.editOptionForm.reset();
   }
 
   async function submitOptionEdit(e) {
@@ -2165,10 +2275,7 @@ content %}
       return;
     }
 
-    const payload = {
-      category: category,
-      option_value: optionValue,
-    };
+    const payload = { category: category, option_value: optionValue };
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Updating...';
@@ -2203,7 +2310,7 @@ content %}
   }
 
   function displayLastUpdated(data, type) {
-    const box = document.getElementById("last-updated-display");
+    const box = pageDOM.lastUpdatedDisplay;
     const label = document.getElementById("last-updated-label");
     const title = document.getElementById("last-updated-title");
     const cn = document.getElementById("last-updated-cn");
@@ -2222,6 +2329,7 @@ content %}
       } else {
         cn.classList.add("hidden");
       }
+
       if (data.series_season_en) {
         en.innerText = `EN: ${data.series_season_en}`;
         en.classList.remove("hidden");
@@ -2237,6 +2345,7 @@ content %}
       } else {
         cn.classList.add("hidden");
       }
+
       if (data.series_alt_name) {
         en.innerText = `ALT: ${data.series_alt_name}`;
         en.classList.remove("hidden");
@@ -2278,19 +2387,17 @@ content %}
       return isNaN(val) ? null : val;
     };
 
-    // Helper for multi-select extraction
     const getMultiSelectString = (fieldKey) => {
       const inputEl = document.getElementById(`edit-${fieldKey}-input`);
       if (inputEl && inputEl.value.trim()) {
         addTag(fieldKey, inputEl.value);
         inputEl.value = "";
       }
-      return multiSelectState[fieldKey].size > 0
-        ? Array.from(multiSelectState[fieldKey]).join(", ")
+      return state.multiSelectState[fieldKey].size > 0
+        ? Array.from(state.multiSelectState[fieldKey]).join(", ")
         : null;
     };
 
-    // Assemble Season String from Dropdowns
     const sNum = getValue("edit-season-num");
     const pNum = getValue("edit-part-num");
     const finalSeasonString = [sNum, pNum].filter(Boolean).join(" ") || null;
@@ -2338,14 +2445,18 @@ content %}
       ed: getValue("edit-ed"),
       insert_ost: getValue("edit-insert"),
 
-      source_baha: getValue("edit-baha"),
+      source_baha:
+        getValue("edit-baha") === "TRUE"
+          ? true
+          : getValue("edit-baha") === "FALSE"
+            ? false
+            : null,
       baha_link: getValue("edit-baha-link"),
       source_netflix: getValue("edit-netflix") === "TRUE" ? true : false,
       source_other: getValue("edit-other"),
       source_other_link: getValue("edit-other-link"),
     };
 
-    // Validation & Series Check
     if (
       !payload.series_season_en &&
       !payload.series_season_roman &&
@@ -2367,20 +2478,18 @@ content %}
       document.getElementById("edit-series-en").value = payload.series_en;
     }
 
-    const seriesExists = allSeries.some(
+    const seriesExists = state.allSeries.some(
       (s) =>
         (s.series_en || "").toLowerCase() === payload.series_en.toLowerCase(),
     );
 
     if (!seriesExists) {
-      pendingAnimePayload = payload;
-      pendingAnimeSysId = sysId;
-      pendingAnimeBtn = btn;
+      state.pendingAnimePayload = payload;
+      state.pendingAnimeSysId = sysId;
+      state.pendingAnimeBtn = btn;
       document.getElementById("new-series-prompt-name").innerText =
         payload.series_en;
-      document
-        .getElementById("anime-new-series-modal")
-        .classList.remove("hidden");
+      pageDOM.animeModal.classList.remove("hidden");
       return;
     }
 
@@ -2411,20 +2520,18 @@ content %}
       favorite_3x3_slot: parseInt(getValue("edit-series-slot")) || null,
     };
 
-    if (newSeriesEn && newSeriesEn !== currentEditingSeriesEn) {
-      const connected = allAnime.filter(
-        (a) => a.series_en === currentEditingSeriesEn,
+    if (newSeriesEn && newSeriesEn !== state.currentEditingSeriesEn) {
+      const connected = state.allAnime.filter(
+        (a) => a.series_en === state.currentEditingSeriesEn,
       );
       if (connected.length > 0) {
-        pendingSeriesPayload = payload;
-        pendingSeriesSysId = sysId;
-        pendingSeriesBtn = btn;
-        pendingConnectedAnime = connected;
+        state.pendingSeriesPayload = payload;
+        state.pendingSeriesSysId = sysId;
+        state.pendingSeriesBtn = btn;
+        state.pendingConnectedAnime = connected;
         document.getElementById("series-cascade-count").innerText =
           connected.length;
-        document
-          .getElementById("series-cascade-modal")
-          .classList.remove("hidden");
+        pageDOM.seriesModal.classList.remove("hidden");
         return;
       }
     }
@@ -2435,24 +2542,24 @@ content %}
   // --- Modal Logic (Cascades & Prompts) ---
 
   function cancelAnimeUpdate() {
-    document.getElementById("anime-new-series-modal").classList.add("hidden");
-    pendingAnimePayload = null;
-    pendingAnimeSysId = null;
-    pendingAnimeBtn = null;
+    pageDOM.animeModal.classList.add("hidden");
+    state.pendingAnimePayload = null;
+    state.pendingAnimeSysId = null;
+    state.pendingAnimeBtn = null;
   }
 
   async function proceedAnimeWithoutSeries() {
-    const payload = pendingAnimePayload;
-    const sysId = pendingAnimeSysId;
-    const btn = pendingAnimeBtn;
+    const payload = state.pendingAnimePayload;
+    const sysId = state.pendingAnimeSysId;
+    const btn = state.pendingAnimeBtn;
     cancelAnimeUpdate();
     await executeAnimeUpdate(sysId, payload, btn);
   }
 
   async function createSeriesAndProceedAnime() {
-    const payload = pendingAnimePayload;
-    const sysId = pendingAnimeSysId;
-    const btn = pendingAnimeBtn;
+    const payload = state.pendingAnimePayload;
+    const sysId = state.pendingAnimeSysId;
+    const btn = state.pendingAnimeBtn;
     cancelAnimeUpdate();
     btn.innerHTML =
       '<i class="fas fa-spinner fa-spin mr-1.5"></i> Creating Hub & Updating...';
@@ -2501,26 +2608,26 @@ content %}
   }
 
   function cancelSeriesUpdate() {
-    document.getElementById("series-cascade-modal").classList.add("hidden");
-    pendingSeriesPayload = null;
-    pendingSeriesSysId = null;
-    pendingSeriesBtn = null;
-    pendingConnectedAnime = [];
+    pageDOM.seriesModal.classList.add("hidden");
+    state.pendingSeriesPayload = null;
+    state.pendingSeriesSysId = null;
+    state.pendingSeriesBtn = null;
+    state.pendingConnectedAnime = [];
   }
 
   async function proceedSeriesWithoutCascade() {
-    const payload = pendingSeriesPayload;
-    const sysId = pendingSeriesSysId;
-    const btn = pendingSeriesBtn;
+    const payload = state.pendingSeriesPayload;
+    const sysId = state.pendingSeriesSysId;
+    const btn = state.pendingSeriesBtn;
     cancelSeriesUpdate();
     await executeSeriesUpdate(sysId, payload, btn);
   }
 
   async function cascadeSeriesUpdate() {
-    const payload = pendingSeriesPayload;
-    const sysId = pendingSeriesSysId;
-    const btn = pendingSeriesBtn;
-    const connected = pendingConnectedAnime;
+    const payload = state.pendingSeriesPayload;
+    const sysId = state.pendingSeriesSysId;
+    const btn = state.pendingSeriesBtn;
+    const connected = state.pendingConnectedAnime;
     cancelSeriesUpdate();
     btn.innerHTML =
       '<i class="fas fa-spinner fa-spin mr-1.5"></i> Cascading...';
@@ -2570,7 +2677,7 @@ content %}
 
   // --- Deletion Flow inside Modify Forms ---
 
-  function confirmDelete(type) {
+  function confirmDelete(type, optId = null, optVal = null, optCat = null) {
     let id, name, seriesEnName;
     const orphanBox = document.getElementById("orphan-series-warning");
     const cascadeBox = document.getElementById("cascade-anime-warning");
@@ -2590,20 +2697,20 @@ content %}
         document.getElementById("edit-series-en").value;
       seriesEnName = document.getElementById("edit-series-en").value;
 
-      const siblingCount = allAnime.filter(
+      const siblingCount = state.allAnime.filter(
         (a) => a.series_en === seriesEnName,
       ).length;
       if (siblingCount === 1) {
         document.getElementById("orphan-series-name").innerText = seriesEnName;
         orphanBox.classList.remove("hidden");
       }
-      document.getElementById("delete-target-type").innerText = "ANIME ENTRY";
+      pageDOM.targetType.innerText = "ANIME ENTRY";
     } else if (type === "series") {
       id = document.getElementById("edit-series-system-id").value;
       name = document.getElementById("edit-series-en-name").value;
       seriesEnName = name;
 
-      const connectedCount = allAnime.filter(
+      const connectedCount = state.allAnime.filter(
         (a) => a.series_en === seriesEnName,
       ).length;
       if (connectedCount > 0) {
@@ -2611,125 +2718,114 @@ content %}
           connectedCount;
         cascadeBox.classList.remove("hidden");
       }
-      document.getElementById("delete-target-type").innerText = "SERIES HUB";
+      pageDOM.targetType.innerText = "SERIES HUB";
     } else if (type === "options") {
-      id = document.getElementById("edit-option-id").value;
-      name = document.getElementById("edit-option-value").value;
-      const cat = document.getElementById("edit-option-category-input").value;
-      document.getElementById("delete-target-type").innerText =
-        `SYSTEM OPTION (${cat})`;
+      id = optId || document.getElementById("edit-option-id").value;
+      name = optVal || document.getElementById("edit-option-value").value;
+      const cat =
+        optCat || document.getElementById("edit-option-category-input").value;
+      pageDOM.targetType.innerText = `SYSTEM OPTION (${cat})`;
     }
 
-    document.getElementById("delete-target-name").innerText = name || "Unknown";
-    document.getElementById("delete-target-id").innerText = id;
+    pageDOM.targetName.innerText = name || "Unknown";
+    pageDOM.targetId.innerText = id;
 
-    currentDeleteTarget = { type, id, name, series_en: seriesEnName };
-    const modal = document.getElementById("delete-modal");
-    const box = document.getElementById("delete-modal-box");
-    modal.classList.remove("hidden");
-    setTimeout(() => box.classList.remove("scale-95"), 10);
+    state.currentDeleteTarget = { type, id, name, series_en: seriesEnName };
+
+    pageDOM.modal.classList.remove("hidden");
+    setTimeout(() => pageDOM.modalBox.classList.remove("scale-95"), 10);
   }
 
   function closeDeleteModal() {
-    const modal = document.getElementById("delete-modal");
-    const box = document.getElementById("delete-modal-box");
-    box.classList.add("scale-95");
+    pageDOM.modalBox.classList.add("scale-95");
     setTimeout(() => {
-      modal.classList.add("hidden");
-      currentDeleteTarget = null;
+      pageDOM.modal.classList.add("hidden");
+      state.currentDeleteTarget = null;
     }, 200);
   }
 
-  document
-    .getElementById("execute-delete-btn")
-    ?.addEventListener("click", async function () {
-      if (!currentDeleteTarget) return;
-      const btn = this;
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
+  pageDOM.btnExecuteDelete?.addEventListener("click", async function () {
+    if (!state.currentDeleteTarget) return;
+    const btn = this;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
 
-      try {
-        if (currentDeleteTarget.type === "options") {
-          btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
-          const res = await fetch(`/api/options/${currentDeleteTarget.id}`, {
-            method: "DELETE",
-          });
-          if (!res.ok) throw new Error("Failed to delete system option");
-          closeDeleteModal();
-          closeOptionEditor();
-          loadCategoryOptionsForEdit();
-          if (typeof showToast === "function")
-            showToast(`Successfully deleted option.`);
-          return;
-        }
-
-        const cascadeCb = document.getElementById("delete-cascade-anime-cb");
-        if (
-          currentDeleteTarget.type === "series" &&
-          cascadeCb &&
-          cascadeCb.checked
-        ) {
-          const connectedAnime = allAnime.filter(
-            (a) => a.series_en === currentDeleteTarget.series_en,
-          );
-          let deletedCount = 0;
-          for (const anime of connectedAnime) {
-            deletedCount++;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-            await fetch(`/api/anime/${anime.system_id}`, { method: "DELETE" });
-          }
-        }
-
+    try {
+      if (state.currentDeleteTarget.type === "options") {
         btn.innerHTML =
-          '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
+          '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
         const res = await fetch(
-          `/api/${currentDeleteTarget.type}/${currentDeleteTarget.id}`,
+          `/api/options/${state.currentDeleteTarget.id}`,
           { method: "DELETE" },
         );
-        if (!res.ok) throw new Error("Primary deletion failed");
-
-        const orphanCb = document.getElementById("delete-orphan-series-cb");
-        if (
-          currentDeleteTarget.type === "anime" &&
-          orphanCb &&
-          orphanCb.checked
-        ) {
-          const seriesHub = allSeries.find(
-            (s) => s.series_en === currentDeleteTarget.series_en,
-          );
-          if (seriesHub) {
-            btn.innerHTML =
-              '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
-            await fetch(`/api/series/${seriesHub.system_id}`, {
-              method: "DELETE",
-            });
-          }
-        }
-
-        const targetType = currentDeleteTarget.type;
+        if (!res.ok) throw new Error("Failed to delete system option");
         closeDeleteModal();
-
-        if (targetType === "anime") closeAnimeEditor();
-        else if (targetType === "series") closeSeriesEditor();
-
-        await loadDatabase();
+        closeOptionEditor();
+        loadCategoryOptionsForEdit();
         if (typeof showToast === "function")
-          showToast(`Successfully deleted ${targetType}.`);
-      } catch (error) {
-        if (typeof showToast === "function")
-          showToast(`Error: ${error.message}`, true);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+          showToast(`Successfully deleted option.`);
+        return;
       }
-    });
 
-  // --- Initialization ---
-  document.addEventListener("DOMContentLoaded", () => {
-    loadSystemOptions();
-    Object.keys(multiSelectState).forEach((key) => setupMultiSelectInput(key));
-    loadDatabase();
+      const cascadeCb = document.getElementById("delete-cascade-anime-cb");
+      if (
+        state.currentDeleteTarget.type === "series" &&
+        cascadeCb &&
+        cascadeCb.checked
+      ) {
+        const connectedAnime = state.allAnime.filter(
+          (a) => a.series_en === state.currentDeleteTarget.series_en,
+        );
+        let deletedCount = 0;
+        for (const anime of connectedAnime) {
+          deletedCount++;
+          btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
+          await fetch(`/api/anime/${anime.system_id}`, { method: "DELETE" });
+        }
+      }
+
+      btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
+      const res = await fetch(
+        `/api/${state.currentDeleteTarget.type}/${state.currentDeleteTarget.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error("Primary deletion failed");
+
+      const orphanCb = document.getElementById("delete-orphan-series-cb");
+      if (
+        state.currentDeleteTarget.type === "anime" &&
+        orphanCb &&
+        orphanCb.checked
+      ) {
+        const seriesHub = state.allSeries.find(
+          (s) => s.series_en === state.currentDeleteTarget.series_en,
+        );
+        if (seriesHub) {
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
+          await fetch(`/api/series/${seriesHub.system_id}`, {
+            method: "DELETE",
+          });
+        }
+      }
+
+      const targetType = state.currentDeleteTarget.type;
+      closeDeleteModal();
+
+      if (targetType === "anime") closeAnimeEditor();
+      else if (targetType === "series") closeSeriesEditor();
+
+      await loadDatabase();
+      if (typeof showToast === "function")
+        showToast(`Successfully deleted ${targetType}.`);
+    } catch (error) {
+      if (typeof showToast === "function")
+        showToast(`Error: ${error.message}`, true);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   });
 </script>
 {% endblock %}
