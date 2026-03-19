@@ -57,7 +57,7 @@ content %}
       </p>
       <button
         id="btn-pull"
-        onclick="handlePull()"
+        data-action="sync-pull"
         class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
         <i id="icon-pull" class="fas fa-play mr-2"></i>
@@ -80,7 +80,7 @@ content %}
       </p>
       <button
         id="btn-fill"
-        onclick="handleFill()"
+        data-action="sync-fill"
         class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
         <i id="icon-fill" class="fas fa-play mr-2"></i>
@@ -103,7 +103,7 @@ content %}
       </p>
       <button
         id="btn-replace"
-        onclick="handleReplace()"
+        data-action="sync-replace"
         class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
       >
         <i id="icon-replace" class="fas fa-play mr-2"></i>
@@ -126,7 +126,7 @@ content %}
         </h3>
         <div class="flex items-center space-x-3">
           <button
-            onclick="cleanupLogs()"
+            data-action="cleanup-logs"
             id="btn-cleanup"
             class="text-gray-500 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 px-2 py-1 rounded transition text-xs font-bold flex items-center shadow-sm"
             title="Purge logs older than 30 days"
@@ -134,7 +134,7 @@ content %}
             <i id="cleanup-icon" class="fas fa-broom mr-1"></i> Purge Logs
           </button>
           <button
-            onclick="loadLogs()"
+            data-action="refresh-logs"
             class="text-gray-400 hover:text-brand transition"
           >
             <i class="fas fa-redo text-sm"></i>
@@ -177,7 +177,7 @@ content %}
           Series
         </h3>
         <button
-          onclick="loadRecentActivity()"
+          data-action="refresh-activity"
           class="text-gray-400 hover:text-purple-500 transition"
         >
           <i class="fas fa-redo text-sm"></i>
@@ -218,7 +218,7 @@ content %}
           <i class="fas fa-edit text-blue-500 mr-2"></i> Modified Anime
         </h3>
         <button
-          onclick="loadRecentActivity()"
+          data-action="refresh-activity"
           class="text-gray-400 hover:text-blue-500 transition"
         >
           <i class="fas fa-redo text-sm"></i>
@@ -263,7 +263,7 @@ content %}
           Added
         </h3>
         <button
-          onclick="loadRecentActivity()"
+          data-action="refresh-activity"
           class="text-gray-400 hover:text-emerald-500 transition"
         >
           <i class="fas fa-redo text-sm"></i>
@@ -306,7 +306,7 @@ content %}
           History
         </h3>
         <button
-          onclick="loadDeletedRecords()"
+          data-action="refresh-deletions"
           class="text-gray-400 hover:text-red-500 transition"
         >
           <i class="fas fa-redo text-sm"></i>
@@ -345,7 +345,7 @@ content %}
 >
   <div
     class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-    onclick="closeLogModal()"
+    data-action="close-modal"
   ></div>
   <div
     class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative flex flex-col max-h-[90vh] overflow-hidden z-10"
@@ -355,7 +355,7 @@ content %}
         <i class="fas fa-file-code text-brand mr-2"></i> Sync Operation Details
       </h3>
       <button
-        onclick="closeLogModal()"
+        data-action="close-modal"
         class="text-gray-400 hover:text-gray-600 transition"
       >
         <i class="fas fa-times text-lg"></i>
@@ -366,7 +366,7 @@ content %}
     </div>
     <div class="p-4 bg-white border-t border-gray-100 flex justify-end">
       <button
-        onclick="closeLogModal()"
+        data-action="close-modal"
         class="bg-gray-900 hover:bg-black text-white px-6 py-2 rounded-lg font-bold text-sm transition shadow-sm"
       >
         Close
@@ -376,7 +376,50 @@ content %}
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  let currentLogs = [];
+  // --- State & DOM Management ---
+  const state = {
+    currentLogs: [],
+  };
+
+  const pageDOM = {};
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Cache DOM Elements
+    pageDOM.logTableBody = document.getElementById("log-table-body");
+    pageDOM.modifiedSeriesBody = document.getElementById(
+      "modified-series-body",
+    );
+    pageDOM.modifiedAnimeBody = document.getElementById("modified-anime-body");
+    pageDOM.addedTableBody = document.getElementById("added-table-body");
+    pageDOM.deletedTableBody = document.getElementById("deleted-table-body");
+    pageDOM.logModal = document.getElementById("log-modal");
+    pageDOM.modalBody = document.getElementById("modal-body");
+    pageDOM.btnCleanup = document.getElementById("btn-cleanup");
+    pageDOM.iconCleanup = document.getElementById("cleanup-icon");
+
+    // Global Click Event Delegation
+    document.addEventListener("click", (e) => {
+      const actionEl = e.target.closest("[data-action]");
+      if (!actionEl) return;
+
+      const action = actionEl.dataset.action;
+
+      if (action === "sync-pull") handlePull();
+      else if (action === "sync-fill") handleFill();
+      else if (action === "sync-replace") handleReplace();
+      else if (action === "cleanup-logs") cleanupLogs();
+      else if (action === "refresh-logs") loadLogs();
+      else if (action === "refresh-activity") loadRecentActivity();
+      else if (action === "refresh-deletions") loadDeletedRecords();
+      else if (action === "close-modal") closeLogModal();
+      else if (action === "view-log")
+        openLogModal(parseInt(actionEl.dataset.id, 10));
+      else if (action === "navigate")
+        window.location.href = actionEl.dataset.url;
+    });
+
+    initializeAdminPanel();
+  });
 
   function formatDate(dateStr) {
     if (!dateStr) return "-";
@@ -391,10 +434,9 @@ content %}
 
   // --- Log Modal Controls ---
   function openLogModal(logId) {
-    const log = currentLogs.find((l) => l.id === logId);
+    const log = state.currentLogs.find((l) => l.id === logId);
     if (!log) return;
 
-    const body = document.getElementById("modal-body");
     let detailsHtml = "";
 
     try {
@@ -449,7 +491,7 @@ content %}
       detailsHtml = `<p class="text-xs text-gray-500 italic">No structured details available for this sync operation.</p>`;
     }
 
-    body.innerHTML = `
+    pageDOM.modalBody.innerHTML = `
       <div class="grid grid-cols-2 gap-4 mb-4">
           <div class="bg-white p-3 rounded-xl border border-gray-200">
               <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Status</p>
@@ -464,11 +506,11 @@ content %}
       </div>
       ${detailsHtml}
     `;
-    document.getElementById("log-modal").classList.remove("hidden");
+    pageDOM.logModal.classList.remove("hidden");
   }
 
   function closeLogModal() {
-    document.getElementById("log-modal").classList.add("hidden");
+    pageDOM.logModal.classList.add("hidden");
   }
 
   // --- Initializers ---
@@ -483,15 +525,14 @@ content %}
       if (!res.ok) throw new Error("Failed to fetch logs");
       const data = await res.json();
 
-      currentLogs = data || []; // The API natively returns the list directly
+      state.currentLogs = data || [];
 
-      const tbody = document.getElementById("log-table-body");
-      if (currentLogs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 italic">No sync logs found.</td></tr>`;
+      if (state.currentLogs.length === 0) {
+        pageDOM.logTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 italic">No sync logs found.</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = currentLogs
+      pageDOM.logTableBody.innerHTML = state.currentLogs
         .map(
           (log) => `
           <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
@@ -510,7 +551,7 @@ content %}
                   <span class="text-red-600">-${log.rows_deleted}</span>
               </td>
               <td class="px-4 py-3 text-right">
-                  <button onclick="openLogModal(${log.id})" class="text-brand hover:text-brand-hover font-bold text-xs underline">View Details</button>
+                  <button data-action="view-log" data-id="${log.id}" class="text-brand hover:text-brand-hover font-bold text-xs underline">View Details</button>
               </td>
           </tr>
       `,
@@ -557,18 +598,18 @@ content %}
         .slice(0, 15);
 
       renderModifiedAnimeTable(
-        "modified-anime-body",
+        pageDOM.modifiedAnimeBody,
         modifiedAnimeSorted,
         "hover:bg-blue-50",
       );
       renderSeriesTable(
-        "modified-series-body",
+        pageDOM.modifiedSeriesBody,
         modifiedSeriesSorted,
         "updated_at",
         "hover:bg-purple-50",
       );
       renderAddedTable(
-        "added-table-body",
+        pageDOM.addedTableBody,
         addedSorted,
         "created_at",
         "hover:bg-emerald-50",
@@ -578,14 +619,14 @@ content %}
     }
   }
 
-  function renderAddedTable(tbodyId, data, dateField, hoverClass) {
-    const tbody = document.getElementById(tbodyId);
+  function renderAddedTable(tbodyEl, data, dateField, hoverClass) {
+    if (!tbodyEl) return;
     if (data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
+      tbodyEl.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = data
+    tbodyEl.innerHTML = data
       .map((item) => {
         const isAnime = item.__type === "anime";
         const title = isAnime
@@ -604,7 +645,7 @@ content %}
           : `/series/${item.system_id}`;
 
         return `
-            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" onclick="window.location.href='${path}'">
+            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" data-action="navigate" data-url="${path}">
                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(item[dateField])}</td>
                 <td class="px-4 py-3">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${badgeClass}">${item.__type}</span>
@@ -617,14 +658,14 @@ content %}
       .join("");
   }
 
-  function renderModifiedAnimeTable(tbodyId, data, hoverClass) {
-    const tbody = document.getElementById(tbodyId);
+  function renderModifiedAnimeTable(tbodyEl, data, hoverClass) {
+    if (!tbodyEl) return;
     if (data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
+      tbodyEl.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = data
+    tbodyEl.innerHTML = data
       .map((anime) => {
         const titleCn =
           anime.series_season_cn ||
@@ -637,7 +678,7 @@ content %}
         const progress = anime.my_progress || "-";
 
         return `
-            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" onclick="window.location.href='/anime/${anime.system_id}'">
+            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" data-action="navigate" data-url="/anime/${anime.system_id}">
                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(anime.updated_at)}</td>
                 <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${titleCn}">${titleCn}</td>
                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${type}</td>
@@ -650,18 +691,18 @@ content %}
       .join("");
   }
 
-  function renderSeriesTable(tbodyId, data, dateField, hoverClass) {
-    const tbody = document.getElementById(tbodyId);
+  function renderSeriesTable(tbodyEl, data, dateField, hoverClass) {
+    if (!tbodyEl) return;
     if (data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
+      tbodyEl.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = data
+    tbodyEl.innerHTML = data
       .map((series) => {
         const title = series.series_cn || series.series_en || "Unknown Series";
         return `
-            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" onclick="window.location.href='/series/${series.system_id}'">
+            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" data-action="navigate" data-url="/series/${series.system_id}">
                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(series[dateField])}</td>
                 <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${title}">${title}</td>
                 <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${series.system_id}</td>
@@ -677,16 +718,14 @@ content %}
       if (!res.ok) throw new Error("Failed to fetch deleted records");
       const data = await res.json();
 
-      const tbody = document.getElementById("deleted-table-body");
       if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No recent deletions.</td></tr>`;
+        pageDOM.deletedTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No recent deletions.</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = data
+      pageDOM.deletedTableBody.innerHTML = data
         .map((record) => {
           const dataJson = JSON.parse(record.data_json || "{}");
-          // FIXED: Smart fallback to display series_en if title is missing
           const displayTitle =
             dataJson.title || dataJson.series_en || record.system_id;
 
@@ -820,7 +859,6 @@ content %}
   }
 
   function handleFill() {
-    // Fill does NOT use offset because missing items drop out of the query naturally
     executeSyncAction(
       "/api/system/sync/fill?limit=5",
       "btn-fill",
@@ -834,7 +872,6 @@ content %}
   }
 
   function handleReplace() {
-    // Replace DOES use offset because we iterate through the whole database
     executeSyncAction(
       "/api/system/sync/replace?limit=5",
       "btn-replace",
@@ -849,11 +886,10 @@ content %}
 
   // --- Admin Diagnostics & Utilities ---
   async function cleanupLogs() {
-    const btn = document.getElementById("btn-cleanup");
-    const icon = document.getElementById("cleanup-icon");
-
-    btn.classList.add("pointer-events-none", "opacity-70");
-    icon.className = "fas fa-spinner fa-spin mr-1";
+    if (pageDOM.btnCleanup)
+      pageDOM.btnCleanup.classList.add("pointer-events-none", "opacity-70");
+    if (pageDOM.iconCleanup)
+      pageDOM.iconCleanup.className = "fas fa-spinner fa-spin mr-1";
 
     try {
       const res = await fetch(`/api/system/logs/cleanup?days=30`, {
@@ -868,11 +904,14 @@ content %}
     } catch (error) {
       if (typeof showToast === "function") showToast(error.message, true);
     } finally {
-      btn.classList.remove("pointer-events-none", "opacity-70");
-      icon.className = "fas fa-broom mr-1";
+      if (pageDOM.btnCleanup)
+        pageDOM.btnCleanup.classList.remove(
+          "pointer-events-none",
+          "opacity-70",
+        );
+      if (pageDOM.iconCleanup)
+        pageDOM.iconCleanup.className = "fas fa-broom mr-1";
     }
   }
-
-  document.addEventListener("DOMContentLoaded", initializeAdminPanel);
 </script>
 {% endblock %}
