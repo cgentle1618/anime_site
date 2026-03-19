@@ -49,7 +49,6 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
         </a>
         <button
           id="btn-autofill-mal"
-          onclick="autoFillMal()"
           class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition flex items-center"
         >
           <i class="fas fa-magic mr-1.5"></i> Autofill & Update
@@ -207,7 +206,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
               <div class="flex items-center gap-3">
                 <button
                   id="btn-minus"
-                  onclick="updateEps(-1)"
+                  data-action="ep-minus"
                   class="w-9 h-9 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition shadow-sm"
                 >
                   <i class="fas fa-minus text-xs"></i>
@@ -219,12 +218,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
                   <input
                     type="number"
                     id="val-ep-fin"
-                    onblur="handleDirectEpUpdate(this.value)"
-                    onkeydown="
-                      if (event.key === 'Enter') {
-                        this.blur();
-                      }
-                    "
+                    data-action="ep-input"
                     class="w-10 text-center bg-transparent focus:outline-none focus:text-brand border-b-2 border-transparent focus:border-brand transition p-0 m-0"
                     min="0"
                   />
@@ -237,7 +231,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
                 </div>
                 <button
                   id="btn-plus"
-                  onclick="updateEps(1)"
+                  data-action="ep-plus"
                   class="w-9 h-9 rounded bg-brand/10 text-brand hover:bg-brand hover:text-white flex items-center justify-center transition shadow-sm"
                 >
                   <i class="fas fa-plus text-xs"></i>
@@ -251,7 +245,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
               >
               <select
                 id="input-progress"
-                onchange="updateField('my_progress', this.value)"
+                data-update-field="my_progress"
                 class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none cursor-pointer focus:border-brand transition"
               >
                 <option value="Might Watch">Might Watch</option>
@@ -273,7 +267,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
               >
               <select
                 id="input-rating"
-                onchange="updateField('rating_mine', this.value)"
+                data-update-field="rating_mine"
                 class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none cursor-pointer focus:border-brand transition"
               >
                 <option value="null">--</option>
@@ -484,7 +478,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
               >
               <select
                 id="input-op"
-                onchange="updateField('op', this.value)"
+                data-update-field="op"
                 class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none cursor-pointer focus:border-brand transition"
               >
                 <option value="null">-- Select</option>
@@ -500,7 +494,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
               >
               <select
                 id="input-ed"
-                onchange="updateField('ed', this.value)"
+                data-update-field="ed"
                 class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none cursor-pointer focus:border-brand transition"
               >
                 <option value="null">-- Select</option>
@@ -516,7 +510,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
               >
               <select
                 id="input-insert"
-                onchange="updateField('insert_ost', this.value)"
+                data-update-field="insert_ost"
                 class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none cursor-pointer focus:border-brand transition"
               >
                 <option value="null">-- Select</option>
@@ -544,7 +538,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
           <textarea
             id="input-seiyuu"
             rows="3"
-            onblur="updateField('seiyuu', this.value)"
+            data-update-field="seiyuu"
             class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none resize-y focus:border-brand transition"
             placeholder="List important voice actors here..."
           ></textarea>
@@ -566,7 +560,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
           <textarea
             id="input-remark"
             rows="4"
-            onblur="updateField('remark', this.value)"
+            data-update-field="remark"
             class="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm outline-none resize-y focus:border-brand transition"
             placeholder="Write your thoughts, reviews, or remarks here..."
           ></textarea>
@@ -577,61 +571,125 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
+  // Setup isolated state object
   const urlParams = new URLSearchParams(window.location.search);
-  let systemId = urlParams.get("id");
-  if (!systemId) {
+  let extractedId = urlParams.get("id");
+  if (!extractedId) {
     const pathParts = window.location.pathname.split("/");
-    systemId = pathParts[pathParts.length - 1];
+    extractedId = pathParts[pathParts.length - 1];
   }
 
-  let animeData = null;
-  let allAnimeList = []; // Used for cumulative calculation
+  const state = {
+    sysId: extractedId,
+    animeData: null,
+    allAnimeList: [],
+  };
+
+  // Cache DOM elements
+  const pageDOM = {
+    loading: document.getElementById("loading"),
+    content: document.getElementById("details-content"),
+    bcTitle: document.getElementById("bc-title"),
+    adminToolbar: document.getElementById("admin-toolbar"),
+    btnEdit: document.getElementById("btn-edit"),
+    btnAutofillMal: document.getElementById("btn-autofill-mal"),
+    titleCn: document.getElementById("title-cn"),
+    titleEn: document.getElementById("title-en"),
+    titleRoman: document.getElementById("title-roman"),
+    valSeries: document.getElementById("val-series"),
+    btnHub: document.getElementById("btn-hub"),
+    badgeStatus: document.getElementById("badge-status"),
+    badgeScore: document.getElementById("badge-score"),
+    valScore: document.getElementById("val-score"),
+    valRank: document.getElementById("val-rank"),
+    badgeBaha: document.getElementById("badge-baha"),
+    badgeNetflix: document.getElementById("badge-netflix"),
+    badgeOther: document.getElementById("badge-other"),
+    badgeOtherText: document.getElementById("badge-other-text"),
+    btnMal: document.getElementById("btn-mal"),
+    btnAnilist: document.getElementById("btn-anilist"),
+    cumulativeContainer: document.getElementById("cumulative-container"),
+    cumulativeText: document.getElementById("cumulative-text"),
+    infoType: document.getElementById("info-type"),
+    infoEps: document.getElementById("info-eps"),
+    infoStatus: document.getElementById("info-status"),
+    infoStudio: document.getElementById("info-studio"),
+    infoDirector: document.getElementById("info-director"),
+    gridReleaseSeasonWrapper: document.getElementById(
+      "grid-release-season-wrapper",
+    ),
+    infoSeason: document.getElementById("info-season"),
+    gridReleaseDateWrapper: document.getElementById(
+      "grid-release-date-wrapper",
+    ),
+    infoDate: document.getElementById("info-date"),
+    infoProducer: document.getElementById("info-producer"),
+    infoMusic: document.getElementById("info-music"),
+    infoPrequel: document.getElementById("info-prequel"),
+    infoSequel: document.getElementById("info-sequel"),
+    infoAlternative: document.getElementById("info-alternative"),
+    gridWatchOrderWrapper: document.getElementById("grid-watch-order-wrapper"),
+    infoWatchOrder: document.getElementById("info-watch-order"),
+    gridWatchRecWrapper: document.getElementById("grid-watch-rec-wrapper"),
+    infoWatchRec: document.getElementById("info-watch-rec"),
+    infoGenres: document.getElementById("info-genres"),
+    detailCover: document.getElementById("detail-cover"),
+    inputProgress: document.getElementById("input-progress"),
+    inputRating: document.getElementById("input-rating"),
+    inputOp: document.getElementById("input-op"),
+    inputEd: document.getElementById("input-ed"),
+    inputInsert: document.getElementById("input-insert"),
+    inputSeiyuu: document.getElementById("input-seiyuu"),
+    inputRemark: document.getElementById("input-remark"),
+    valEpFin: document.getElementById("val-ep-fin"),
+    valEpTotal: document.getElementById("val-ep-total"),
+    btnPlus: document.getElementById("btn-plus"),
+    btnMinus: document.getElementById("btn-minus"),
+  };
 
   async function loadDetails() {
-    if (!systemId) {
-      document.getElementById("loading").innerHTML =
+    if (!state.sysId) {
+      pageDOM.loading.innerHTML =
         '<p class="text-red-500 font-bold">Error: No ID provided.</p>';
       return;
     }
 
     try {
-      // V2: Fetch individual data + all data simultaneously
       const [resDetail, resAll] = await Promise.all([
-        fetch(`/api/anime/${systemId}`),
+        fetch(`/api/anime/${state.sysId}`),
         fetch(`/api/anime`),
       ]);
 
       if (!resDetail.ok) throw new Error("Anime not found in database.");
 
-      animeData = await resDetail.json();
-      if (resAll.ok) allAnimeList = await resAll.json();
+      state.animeData = await resDetail.json();
+      if (resAll.ok) state.allAnimeList = await resAll.json();
 
-      populateUI(animeData, allAnimeList);
+      populateUI(state.animeData, state.allAnimeList);
 
-      document.getElementById("loading").classList.add("hidden");
-      document.getElementById("details-content").classList.remove("hidden");
+      pageDOM.loading.classList.add("hidden");
+      pageDOM.content.classList.remove("hidden");
     } catch (error) {
       console.error(error);
-      document.getElementById("loading").innerHTML =
-        `<p class="text-red-500 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</p>`;
+      pageDOM.loading.innerHTML = `<p class="text-red-500 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</p>`;
     }
   }
 
   function populateUI(d, allAnime) {
     // 1. Admin Tools
     if (typeof IS_ADMIN !== "undefined" && IS_ADMIN) {
-      document.getElementById("admin-toolbar").classList.remove("hidden");
-      document.getElementById("btn-edit").href = `/modify?id=${d.system_id}`;
+      pageDOM.adminToolbar.classList.remove("hidden");
+      pageDOM.btnEdit.href = `/modify?id=${d.system_id}`;
 
-      document.getElementById("input-progress").disabled = false;
-      document.getElementById("input-rating").disabled = false;
-      document.getElementById("input-op").disabled = false;
-      document.getElementById("input-ed").disabled = false;
-      document.getElementById("input-insert").disabled = false;
-      document.getElementById("input-seiyuu").disabled = false;
-      document.getElementById("input-remark").disabled = false;
-      document.getElementById("btn-plus").disabled = false;
-      document.getElementById("btn-minus").disabled = false;
+      pageDOM.inputProgress.disabled = false;
+      pageDOM.inputRating.disabled = false;
+      pageDOM.inputOp.disabled = false;
+      pageDOM.inputEd.disabled = false;
+      pageDOM.inputInsert.disabled = false;
+      pageDOM.inputSeiyuu.disabled = false;
+      pageDOM.inputRemark.disabled = false;
+      if (pageDOM.btnPlus) pageDOM.btnPlus.disabled = false;
+      if (pageDOM.btnMinus) pageDOM.btnMinus.disabled = false;
     } else {
       document
         .querySelectorAll(
@@ -649,23 +707,22 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       d.series_season_en ||
       d.series_en ||
       "Unknown Title";
-    document.getElementById("bc-title").innerText = titleMain;
-
-    document.getElementById("title-cn").innerText = titleMain;
+    pageDOM.bcTitle.innerText = titleMain;
+    pageDOM.titleCn.innerText = titleMain;
 
     if (d.series_season_en && d.series_season_en !== titleMain) {
-      document.getElementById("title-en").innerText = d.series_season_en;
+      pageDOM.titleEn.innerText = d.series_season_en;
     } else {
-      document.getElementById("title-en").classList.add("hidden");
+      pageDOM.titleEn.classList.add("hidden");
     }
 
     if (d.series_season_roman) {
-      document.getElementById("title-roman").innerText = d.series_season_roman;
+      pageDOM.titleRoman.innerText = d.series_season_roman;
     } else {
-      document.getElementById("title-roman").classList.add("hidden");
+      pageDOM.titleRoman.classList.add("hidden");
     }
 
-    document.getElementById("val-series").innerText = d.series_en || "-";
+    pageDOM.valSeries.innerText = d.series_en || "-";
 
     // Fetch Series Hub ID
     if (d.series_en) {
@@ -674,64 +731,64 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
         .then((seriesList) => {
           const hub = seriesList.find((s) => s.series_en === d.series_en);
           if (hub) {
-            document.getElementById("btn-hub").classList.remove("hidden");
-            document.getElementById("btn-hub").href =
-              `/series/${hub.system_id}`;
+            pageDOM.btnHub.classList.remove("hidden");
+            pageDOM.btnHub.href = `/series/${hub.system_id}`;
           }
         })
         .catch(() => console.warn("Failed to lookup series hub."));
     }
 
     // 3. Badges (Status, Score, Streaming)
-    const statusBadge = document.getElementById("badge-status");
-    statusBadge.innerText = d.airing_status || "Unknown";
+    pageDOM.badgeStatus.innerText = d.airing_status || "Unknown";
     if (d.airing_status === "Airing") {
-      statusBadge.className =
+      pageDOM.badgeStatus.className =
         "bg-green-100 text-green-700 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider";
     } else if (d.airing_status === "Not Yet Aired") {
-      statusBadge.className =
+      pageDOM.badgeStatus.className =
         "bg-orange-100 text-orange-700 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider";
     } else {
-      statusBadge.className =
+      pageDOM.badgeStatus.className =
         "bg-blue-100 text-blue-700 px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider";
     }
 
     if (d.mal_rating || d.mal_rank) {
-      document.getElementById("badge-score").classList.remove("hidden");
-      document.getElementById("val-score").innerText = d.mal_rating || "N/A";
-      document.getElementById("val-rank").innerText = d.mal_rank || "N/A";
+      pageDOM.badgeScore.classList.remove("hidden");
+      pageDOM.valScore.innerText = d.mal_rating || "N/A";
+      pageDOM.valRank.innerText = d.mal_rank || "N/A";
     }
 
     if (String(d.source_baha).toUpperCase() === "TRUE") {
-      document.getElementById("badge-baha").classList.remove("hidden");
-      if (d.baha_link) document.getElementById("badge-baha").href = d.baha_link;
+      pageDOM.badgeBaha.classList.remove("hidden");
+      if (d.baha_link) pageDOM.badgeBaha.href = d.baha_link;
     }
     if (
       d.source_netflix === true ||
       String(d.source_netflix).toUpperCase() === "TRUE"
     ) {
-      document.getElementById("badge-netflix").classList.remove("hidden");
+      pageDOM.badgeNetflix.classList.remove("hidden");
     }
     if (d.source_other) {
-      const badgeOther = document.getElementById("badge-other");
-      badgeOther.classList.remove("hidden");
-      document.getElementById("badge-other-text").innerText = d.source_other;
+      pageDOM.badgeOther.classList.remove("hidden");
+      pageDOM.badgeOtherText.innerText = d.source_other;
       if (d.source_other_link) {
-        badgeOther.href = d.source_other_link;
+        pageDOM.badgeOther.href = d.source_other_link;
       } else {
-        badgeOther.removeAttribute("href");
-        badgeOther.classList.remove("hover:bg-gray-200", "cursor-pointer");
+        pageDOM.badgeOther.removeAttribute("href");
+        pageDOM.badgeOther.classList.remove(
+          "hover:bg-gray-200",
+          "cursor-pointer",
+        );
       }
     }
 
     if (d.mal_link || d.mal_id) {
-      document.getElementById("btn-mal").classList.remove("hidden");
-      document.getElementById("btn-mal").href =
+      pageDOM.btnMal.classList.remove("hidden");
+      pageDOM.btnMal.href =
         d.mal_link || `https://myanimelist.net/anime/${d.mal_id}`;
     }
     if (d.anilist_link) {
-      document.getElementById("btn-anilist").classList.remove("hidden");
-      document.getElementById("btn-anilist").href = d.anilist_link;
+      pageDOM.btnAnilist.classList.remove("hidden");
+      pageDOM.btnAnilist.href = d.anilist_link;
     }
 
     // 4. V2 Cumulative Tracker
@@ -741,65 +798,50 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       allAnime.length > 0
     ) {
       const cumulative = calculateCumulativeEpisodes(d, allAnime);
-      // FIXED BUG: Show cumulative tracker ONLY if there are previous seasons
       if (cumulative.prevEpsTotal > 0) {
-        document
-          .getElementById("cumulative-container")
-          .classList.remove("hidden");
-        document.getElementById("cumulative-text").innerText =
-          `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
+        pageDOM.cumulativeContainer.classList.remove("hidden");
+        pageDOM.cumulativeText.innerText = `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
       }
     }
 
     // 5. Information Grid (V2)
-    document.getElementById("info-type").innerText = d.airing_type || "-";
-    document.getElementById("info-eps").innerText = d.ep_total || "?";
-    document.getElementById("info-status").innerText = d.airing_status || "-";
-    document.getElementById("info-studio").innerText = d.studio || "-";
-    document.getElementById("info-director").innerText = d.director || "-";
+    pageDOM.infoType.innerText = d.airing_type || "-";
+    pageDOM.infoEps.innerText = d.ep_total || "?";
+    pageDOM.infoStatus.innerText = d.airing_status || "-";
+    pageDOM.infoStudio.innerText = d.studio || "-";
+    pageDOM.infoDirector.innerText = d.director || "-";
 
     // V2 Smart Dates
     if (d.release_season && d.release_year) {
-      document
-        .getElementById("grid-release-season-wrapper")
-        .classList.remove("hidden");
-      document.getElementById("info-season").innerText =
-        `${d.release_season} ${d.release_year}`;
+      pageDOM.gridReleaseSeasonWrapper.classList.remove("hidden");
+      pageDOM.infoSeason.innerText = `${d.release_season} ${d.release_year}`;
     }
     if (d.release_month && d.release_year) {
-      document
-        .getElementById("grid-release-date-wrapper")
-        .classList.remove("hidden");
-      document.getElementById("info-date").innerText =
-        `${d.release_month} ${d.release_year}`;
+      pageDOM.gridReleaseDateWrapper.classList.remove("hidden");
+      pageDOM.infoDate.innerText = `${d.release_month} ${d.release_year}`;
     }
 
     // V2 Producers & Relations
-    document.getElementById("info-producer").innerText = d.producer || "-";
-    document.getElementById("info-music").innerText = d.music || "-";
-    document.getElementById("info-prequel").innerText = d.prequel || "-";
-    document.getElementById("info-sequel").innerText = d.sequel || "-";
-    document.getElementById("info-alternative").innerText =
-      d.alternative || "-";
+    pageDOM.infoProducer.innerText = d.producer || "-";
+    pageDOM.infoMusic.innerText = d.music || "-";
+    pageDOM.infoPrequel.innerText = d.prequel || "-";
+    pageDOM.infoSequel.innerText = d.sequel || "-";
+    pageDOM.infoAlternative.innerText = d.alternative || "-";
 
     // V2 Watch Orders (Hidden if null)
     if (d.watch_order !== null && d.watch_order !== undefined) {
-      document
-        .getElementById("grid-watch-order-wrapper")
-        .classList.remove("hidden");
-      document.getElementById("info-watch-order").innerText = d.watch_order;
+      pageDOM.gridWatchOrderWrapper.classList.remove("hidden");
+      pageDOM.infoWatchOrder.innerText = d.watch_order;
     }
     if (d.watch_order_rec) {
-      document
-        .getElementById("grid-watch-rec-wrapper")
-        .classList.remove("hidden");
-      document.getElementById("info-watch-rec").innerText = d.watch_order_rec;
+      pageDOM.gridWatchRecWrapper.classList.remove("hidden");
+      pageDOM.infoWatchRec.innerText = d.watch_order_rec;
     }
 
     // Genres
     const genres = [d.genre_main, d.genre_sub].filter(Boolean).join(", ");
     if (genres) {
-      document.getElementById("info-genres").innerHTML = genres
+      pageDOM.infoGenres.innerHTML = genres
         .split(",")
         .map(
           (g) =>
@@ -807,7 +849,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
         )
         .join("");
     } else {
-      document.getElementById("info-genres").innerHTML =
+      pageDOM.infoGenres.innerHTML =
         '<span class="text-gray-400 text-xs">-</span>';
     }
 
@@ -825,35 +867,34 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
         ? `/static/covers/${d.cover_image_file}`
         : `https://storage.googleapis.com/${bucketName}/${d.cover_image_file}`;
     } else if (d.cover_image_url) {
-      // Backwards compat
       imgUrl = d.cover_image_url;
     }
-    document.getElementById("detail-cover").src = imgUrl;
+    pageDOM.detailCover.src = imgUrl;
 
     // 7. Input Mappings
     let prog = d.my_progress;
     if (prog === "Finished") prog = "Completed";
 
-    document.getElementById("input-progress").value = prog || "Plan to Watch";
-    document.getElementById("input-rating").value = d.rating_mine || "null";
-    document.getElementById("input-op").value = d.op || "null";
-    document.getElementById("input-ed").value = d.ed || "null";
-    document.getElementById("input-insert").value = d.insert_ost || "null";
-    document.getElementById("input-seiyuu").value = d.seiyuu || "";
-    document.getElementById("input-remark").value = d.remark || "";
+    pageDOM.inputProgress.value = prog || "Plan to Watch";
+    pageDOM.inputRating.value = d.rating_mine || "null";
+    pageDOM.inputOp.value = d.op || "null";
+    pageDOM.inputEd.value = d.ed || "null";
+    pageDOM.inputInsert.value = d.insert_ost || "null";
+    pageDOM.inputSeiyuu.value = d.seiyuu || "";
+    pageDOM.inputRemark.value = d.remark || "";
 
-    const epFinEl = document.getElementById("val-ep-fin");
-    if (epFinEl) {
-      if (epFinEl.tagName === "INPUT") epFinEl.value = d.ep_fin || 0;
-      else epFinEl.innerText = d.ep_fin || 0;
+    if (pageDOM.valEpFin) {
+      if (pageDOM.valEpFin.tagName === "INPUT")
+        pageDOM.valEpFin.value = d.ep_fin || 0;
+      else pageDOM.valEpFin.innerText = d.ep_fin || 0;
     }
-    document.getElementById("val-ep-total").innerText = d.ep_total || "?";
+    pageDOM.valEpTotal.innerText = d.ep_total || "?";
   }
 
   // --- API Handlers ---
   async function autoFillMal() {
     if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
-    if (!animeData.mal_id && !animeData.mal_link) {
+    if (!state.animeData.mal_id && !state.animeData.mal_link) {
       if (typeof showToast === "function")
         showToast(
           "Cannot auto-fill: Both MAL ID and MAL Link are missing.",
@@ -862,20 +903,19 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       return;
     }
 
-    const promptMsg = animeData.mal_id
-      ? `Fetch latest data from Jikan API for MAL ID ${animeData.mal_id}? This will softly fill empty fields.`
+    const promptMsg = state.animeData.mal_id
+      ? `Fetch latest data from Jikan API for MAL ID ${state.animeData.mal_id}? This will softly fill empty fields.`
       : `Extract MAL ID from link and fetch latest data from Jikan API? This will softly fill empty fields.`;
 
     if (!confirm(promptMsg)) return;
 
-    const btn = document.getElementById("btn-autofill-mal");
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML =
+    const originalHTML = pageDOM.btnAutofillMal.innerHTML;
+    pageDOM.btnAutofillMal.innerHTML =
       '<i class="fas fa-spinner fa-spin mr-1.5"></i> Fetching & Syncing...';
-    btn.disabled = true;
+    pageDOM.btnAutofillMal.disabled = true;
 
     try {
-      const res = await fetch(`/api/anime/${systemId}/fetch-mal`, {
+      const res = await fetch(`/api/anime/${state.sysId}/fetch-mal`, {
         method: "POST",
       });
       const data = await res.json();
@@ -887,28 +927,27 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       setTimeout(() => window.location.reload(), 1500);
     } catch (e) {
       if (typeof showToast === "function") showToast(e.message, true);
-      btn.innerHTML = originalHTML;
-      btn.disabled = false;
+      pageDOM.btnAutofillMal.innerHTML = originalHTML;
+      pageDOM.btnAutofillMal.disabled = false;
     }
   }
 
   async function updateEps(change) {
     if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
-    let current = animeData.ep_fin || 0;
-    let total = animeData.ep_total || null;
+    let current = state.animeData.ep_fin || 0;
+    let total = state.animeData.ep_total || null;
     let target = current + change;
 
     if (target < 0) target = 0;
     if (total !== null && target > total) target = total;
     if (target === current) return;
 
-    const epFinEl = document.getElementById("val-ep-fin");
-    if (epFinEl.tagName === "INPUT") epFinEl.value = target;
-    else epFinEl.innerText = target;
-    animeData.ep_fin = target;
+    if (pageDOM.valEpFin.tagName === "INPUT") pageDOM.valEpFin.value = target;
+    else pageDOM.valEpFin.innerText = target;
+    state.animeData.ep_fin = target;
 
     try {
-      const res = await fetch(`/api/anime/${systemId}`, {
+      const res = await fetch(`/api/anime/${state.sysId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ep_fin: target }),
@@ -918,16 +957,19 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       // Re-calculate cumulative silently
       if (
         typeof calculateCumulativeEpisodes === "function" &&
-        allAnimeList.length > 0
+        state.allAnimeList.length > 0
       ) {
-        const cumulative = calculateCumulativeEpisodes(animeData, allAnimeList);
-        document.getElementById("cumulative-text").innerText =
-          `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
+        const cumulative = calculateCumulativeEpisodes(
+          state.animeData,
+          state.allAnimeList,
+        );
+        pageDOM.cumulativeText.innerText = `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
       }
     } catch (e) {
-      animeData.ep_fin = current;
-      if (epFinEl.tagName === "INPUT") epFinEl.value = current;
-      else epFinEl.innerText = current;
+      state.animeData.ep_fin = current;
+      if (pageDOM.valEpFin.tagName === "INPUT")
+        pageDOM.valEpFin.value = current;
+      else pageDOM.valEpFin.innerText = current;
       if (typeof showToast === "function")
         showToast("Network error. Progress reverted.", true);
     }
@@ -936,13 +978,12 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
   async function handleDirectEpUpdate(valStr) {
     if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
     const val = parseInt(valStr, 10);
-    const current = animeData.ep_fin || 0;
-    const total = animeData.ep_total || null;
-    const epFinEl = document.getElementById("val-ep-fin");
+    const current = state.animeData.ep_fin || 0;
+    const total = state.animeData.ep_total || null;
 
     // Reset to current DB value if they typed letters or negative numbers
     if (isNaN(val) || val < 0) {
-      if (epFinEl) epFinEl.value = current;
+      if (pageDOM.valEpFin) pageDOM.valEpFin.value = current;
       return;
     }
 
@@ -952,21 +993,21 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
     if (total !== null && target > total) {
       if (typeof showToast === "function")
         showToast("Cannot exceed total episodes.", true);
-      if (epFinEl) epFinEl.value = current;
+      if (pageDOM.valEpFin) pageDOM.valEpFin.value = current;
       return;
     }
 
     if (target === current) {
-      if (epFinEl) epFinEl.value = current;
+      if (pageDOM.valEpFin) pageDOM.valEpFin.value = current;
       return;
     }
 
     // Optimistic UI Update
-    animeData.ep_fin = target;
-    if (epFinEl) epFinEl.value = target;
+    state.animeData.ep_fin = target;
+    if (pageDOM.valEpFin) pageDOM.valEpFin.value = target;
 
     try {
-      const res = await fetch(`/api/anime/${systemId}`, {
+      const res = await fetch(`/api/anime/${state.sysId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ep_fin: target }),
@@ -979,15 +1020,17 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
       // Re-calculate cumulative silently
       if (
         typeof calculateCumulativeEpisodes === "function" &&
-        allAnimeList.length > 0
+        state.allAnimeList.length > 0
       ) {
-        const cumulative = calculateCumulativeEpisodes(animeData, allAnimeList);
-        document.getElementById("cumulative-text").innerText =
-          `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
+        const cumulative = calculateCumulativeEpisodes(
+          state.animeData,
+          state.allAnimeList,
+        );
+        pageDOM.cumulativeText.innerText = `${cumulative.cumFin} / ${cumulative.cumTotal} Eps`;
       }
     } catch (e) {
-      animeData.ep_fin = current;
-      if (epFinEl) epFinEl.value = current;
+      state.animeData.ep_fin = current;
+      if (pageDOM.valEpFin) pageDOM.valEpFin.value = current;
       if (typeof showToast === "function")
         showToast("Network error. Progress reverted.", true);
     }
@@ -995,7 +1038,7 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
 
   async function updateField(field, value) {
     if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
-    let originalValue = animeData[field];
+    let originalValue = state.animeData[field];
     if (field === "my_progress" && originalValue === "Finished")
       originalValue = "Completed";
     if (
@@ -1008,14 +1051,14 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
     try {
       const payload = {};
       payload[field] = value === "null" || value === "" ? null : value;
-      const res = await fetch(`/api/anime/${systemId}`, {
+      const res = await fetch(`/api/anime/${state.sysId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Update failed");
 
-      animeData[field] = payload[field];
+      state.animeData[field] = payload[field];
       if (typeof showToast === "function")
         showToast("Field updated successfully!");
     } catch (error) {
@@ -1034,6 +1077,60 @@ border-color: #e5e7eb; } {% endblock %} {% block content %}
     }
   }
 
-  document.addEventListener("DOMContentLoaded", loadDetails);
+  // --- Event Delegation Initialization ---
+  document.addEventListener("DOMContentLoaded", () => {
+    loadDetails();
+
+    // Click Delegation
+    pageDOM.content.addEventListener("click", (e) => {
+      // AutoFill Button
+      const btnAutofill = e.target.closest("#btn-autofill-mal");
+      if (btnAutofill) {
+        autoFillMal();
+        return;
+      }
+
+      // Generic actions
+      const actionEl = e.target.closest("[data-action]");
+      if (actionEl) {
+        if (actionEl.dataset.action === "ep-minus") updateEps(-1);
+        if (actionEl.dataset.action === "ep-plus") updateEps(1);
+      }
+    });
+
+    // Centralized Field Update Handler
+    const handleFieldChange = (e) => {
+      const fieldEl = e.target.closest("[data-update-field]");
+      if (fieldEl) {
+        updateField(fieldEl.dataset.updateField, fieldEl.value);
+      }
+    };
+
+    // Change Delegation for Selects
+    pageDOM.content.addEventListener("change", (e) => {
+      if (e.target.tagName === "SELECT") handleFieldChange(e);
+    });
+
+    // Focusout Delegation for Inputs and Textareas
+    pageDOM.content.addEventListener("focusout", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+        if (e.target.dataset.action === "ep-input") {
+          handleDirectEpUpdate(e.target.value);
+        } else {
+          handleFieldChange(e);
+        }
+      }
+    });
+
+    // Keydown Delegation (Enter to blur)
+    pageDOM.content.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const el =
+          e.target.closest('[data-action="ep-input"]') ||
+          e.target.closest("[data-update-field]");
+        if (el && el.tagName === "INPUT") el.blur();
+      }
+    });
+  });
 </script>
 {% endblock %}

@@ -57,8 +57,9 @@
                 <a
                   href="/"
                   class="{% if request.url.path == '/' %}bg-gray-100 text-gray-900{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} px-3 py-2 rounded-md text-sm font-medium transition"
-                  >Dashboard</a
                 >
+                  Dashboard
+                </a>
 
                 <!-- Library Dropdown -->
                 <div class="relative group">
@@ -81,17 +82,17 @@
                       >
                       <a
                         href="/under-development"
-                        class="px-4 py-2.5 text-sm {% if request.url.path == '/under-development' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
                         >Series Library</a
                       >
                       <a
                         href="/under-development"
-                        class="px-4 py-2.5 text-sm {% if request.url.path == '/under-development' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition border-b border-gray-100"
                         >Seasonal</a
                       >
                       <a
                         href="/under-development"
-                        class="px-4 py-2.5 text-sm {% if request.url.path == '/under-development' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition"
+                        class="px-4 py-2.5 text-sm text-gray-700 hover:bg-brand/5 hover:text-brand font-medium transition"
                         >Future Release</a
                       >
                     </div>
@@ -102,8 +103,9 @@
                 <a
                   href="/under-development"
                   class="{% if request.url.path == '/under-development' %}bg-brand/10 text-brand{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} px-3 py-2 rounded-md text-sm font-medium transition"
-                  >Statistics</a
                 >
+                  Statistics
+                </a>
 
                 <!-- Admin Dropdown (Only visible to authenticated admins) -->
                 {% if is_admin %}
@@ -146,6 +148,7 @@
               </div>
             </div>
           </div>
+
           <div class="flex items-center space-x-4 flex-1 justify-end">
             <!-- Global Search Bar -->
             <div
@@ -157,17 +160,13 @@
               >
                 <i class="fas fa-search text-gray-400"></i>
               </div>
-              <!-- Guaranteed to trigger global search logic now -->
               <input
                 type="text"
                 id="globalSearchInput"
-                oninput="handleGlobalSearch(this.value)"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand sm:text-sm transition"
                 placeholder="Search Series or Anime Names..."
                 autocomplete="off"
               />
-
-              <!-- Suggestions Dropdown -->
               <div
                 id="searchSuggestions"
                 class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-[100] hidden search-dropdown"
@@ -178,14 +177,13 @@
 
             {% if is_admin %}
             <button
-              onclick="handleSync()"
               id="syncBtn"
               class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition shadow-sm"
             >
               <i class="fas fa-sync-alt mr-2" id="syncIcon"></i> Backup
             </button>
             <button
-              onclick="executeLogout()"
+              id="logoutBtn"
               class="text-gray-400 hover:text-red-500 transition px-2"
               title="Sign Out"
             >
@@ -207,11 +205,12 @@
     <!-- Main Content Injection -->
     {% block content %}{% endblock %}
 
+    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto relative z-10">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center items-center gap-2 text-sm text-gray-500"
       >
-        &copy; 2026 CG1618 Anime Database v1.1. {% if is_admin %}
+        &copy; 2026 CG1618 Anime Database v2.0. {% if is_admin %}
         <span
           class="bg-brand/10 text-brand px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
           >Admin Mode</span
@@ -228,7 +227,6 @@
     <!-- Scroll to Top Button -->
     <button
       id="scrollToTopBtn"
-      onclick="scrollToTop()"
       class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
     >
       <i class="fas fa-arrow-up"></i>
@@ -245,137 +243,104 @@
 
     <!-- Universal Scripts -->
     <script>
+      // ==========================================
+      // GLOBAL CONSTANTS & STATE
+      // ==========================================
       const API_BASE_URL = "/api";
-
-      // Expose the Jinja2 backend variable to the global JS environment securely
       const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 
-      async function executeLogout() {
-        try {
-          const res = await fetch("/api/v1/auth/logout", { method: "POST" });
-          if (res.ok) window.location.href = "/";
-        } catch (e) {
-          console.error("Logout failed", e);
-        }
-      }
+      let universalSearchAnime = [];
+      let universalSearchSeries = [];
 
-      function showToast(message, isError = false) {
-        const toast = document.getElementById("toast");
-        const msg = document.getElementById("toast-msg");
-        const icon = document.getElementById("toast-icon");
-
-        msg.innerText = message;
-        if (isError) {
-          icon.className =
-            "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
-          toast.classList.replace("bg-gray-900", "bg-red-900");
-        } else {
-          icon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
-          toast.classList.replace("bg-red-900", "bg-gray-900");
-        }
-
-        toast.classList.remove("translate-y-20", "opacity-0");
-        setTimeout(
-          () => toast.classList.add("translate-y-20", "opacity-0"),
-          3000,
-        );
-      }
-
-      // Scroll to Top Engine
-      window.addEventListener("scroll", () => {
-        const btn = document.getElementById("scrollToTopBtn");
-        if (window.scrollY > 300) {
-          btn.classList.remove(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.add(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        } else {
-          btn.classList.add(
-            "opacity-0",
-            "translate-y-4",
-            "pointer-events-none",
-          );
-          btn.classList.remove(
-            "opacity-100",
-            "translate-y-0",
-            "pointer-events-auto",
-          );
-        }
-      });
-      function scrollToTop() {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      // DOM Cache
+      const DOM = {
+        toast: document.getElementById("toast"),
+        toastMsg: document.getElementById("toast-msg"),
+        toastIcon: document.getElementById("toast-icon"),
+        scrollBtn: document.getElementById("scrollToTopBtn"),
+        globalSearchInput: document.getElementById("globalSearchInput"),
+        searchSuggestions: document.getElementById("searchSuggestions"),
+        globalSearchContainer: document.getElementById("globalSearchContainer"),
+        syncBtn: document.getElementById("syncBtn"),
+        syncIcon: document.getElementById("syncIcon"),
+        logoutBtn: document.getElementById("logoutBtn")
+      };
 
       // ==========================================
       // GLOBAL UTILITIES
       // ==========================================
 
-      /**
-       * Calculates Cumulative Episodes strictly for TV/ONA using watch_order.
-       * Globally available to any page that needs to display grand totals.
-       * * @param {Object} anime - The current anime object
-       * @param {Array} animeList - The full dataset array to calculate previous seasons
-       */
+      // Debounce Utility for performance
+      const debounce = (func, delay = 250) => {
+        let timeoutId;
+        return (...args) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => func(...args), delay);
+        };
+      };
+
+      // Toast Notification System
+      function showToast(message, isError = false) {
+        if (!DOM.toast) return;
+
+        DOM.toastMsg.innerText = message;
+        if (isError) {
+          DOM.toastIcon.className = "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
+          DOM.toast.classList.replace("bg-gray-900", "bg-red-900");
+        } else {
+          DOM.toastIcon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
+          DOM.toast.classList.replace("bg-red-900", "bg-gray-900");
+        }
+
+        DOM.toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(() => DOM.toast.classList.add("translate-y-20", "opacity-0"), 3000);
+      }
+
+      // Cumulative Episodes Calculator (Used globally by details/index pages)
       function calculateCumulativeEpisodes(anime, animeList) {
-          let localFin = anime.ep_fin || 0;
-          let localTotal = anime.ep_total || "?";
-          let prevEpsTotal = 0;
-          let hasUnknownPrev = false;
+        let localFin = anime.ep_fin || 0;
+        let localTotal = anime.ep_total || "?";
+        let prevEpsTotal = 0;
+        let hasUnknownPrev = false;
 
-          // Rule 1: Determine if this is a "First Season" base entry
-          const s = anime.series_season ? anime.series_season.toLowerCase().trim() : "";
-          const isFirstSeason = !s || s === "season 1" || s === "season 1 part 1";
+        const s = anime.series_season ? anime.series_season.toLowerCase().trim() : "";
+        const isFirstSeason = !s || s === "season 1" || s === "season 1 part 1";
 
-          if (!isFirstSeason && (anime.airing_type === "TV" || anime.airing_type === "ONA")) {
-              const seriesEntries = animeList.filter(a =>
-                  a.series_en === anime.series_en &&
-                  (a.airing_type === "TV" || a.airing_type === "ONA")
-              );
+        if (!isFirstSeason && (anime.airing_type === "TV" || anime.airing_type === "ONA")) {
+          const seriesEntries = animeList.filter(a =>
+            a.series_en === anime.series_en &&
+            (a.airing_type === "TV" || a.airing_type === "ONA")
+          );
 
-              // Sort safely by watch_order -> fallback to series_season parsing if watch_order is blank
-              seriesEntries.sort((a, b) => {
-                  const orderA = a.watch_order !== null && a.watch_order !== undefined ? parseFloat(a.watch_order) : 9999;
-                  const orderB = b.watch_order !== null && b.watch_order !== undefined ? parseFloat(b.watch_order) : 9999;
+          seriesEntries.sort((a, b) => {
+            const orderA = a.watch_order !== null && a.watch_order !== undefined ? parseFloat(a.watch_order) : 9999;
+            const orderB = b.watch_order !== null && b.watch_order !== undefined ? parseFloat(b.watch_order) : 9999;
+            if (orderA !== orderB) return orderA - orderB;
 
-                  if (orderA !== orderB) return orderA - orderB;
+            const parseSsn = (str) => {
+              if (!str) return 999;
+              const match = str.match(/season\s*(\d+)/i);
+              return match ? parseInt(match[1]) : 999;
+            };
+            return parseSsn(a.series_season) - parseSsn(b.series_season);
+          });
 
-                  // Fallback: Extract number from "Season X"
-                  const parseSsn = (str) => {
-                      if (!str) return 999;
-                      const match = str.match(/season\s*(\d+)/i);
-                      return match ? parseInt(match[1]) : 999;
-                  };
-                  return parseSsn(a.series_season) - parseSsn(b.series_season);
-              });
-
-              for (const entry of seriesEntries) {
-                  if (entry.system_id === anime.system_id) {
-                      break; // Stop when we reach the current anime timeline-wise
-                  }
-                  // Rule 2: We only care about previous seasons' ep_total (assume fully watched)
-                  prevEpsTotal += (entry.ep_total || 0);
-                  if (!entry.ep_total) hasUnknownPrev = true;
-              }
+          for (const entry of seriesEntries) {
+            if (entry.system_id === anime.system_id) break;
+            prevEpsTotal += (entry.ep_total || 0);
+            if (!entry.ep_total) hasUnknownPrev = true;
           }
+        }
 
-          // Rule 3: Add previous totals to the local numbers to get cumulative
-          let cumFin = localFin + prevEpsTotal;
-          let cumTotal = (localTotal === "?" || hasUnknownPrev) ? "?" : (localTotal + prevEpsTotal);
+        let cumFin = localFin + prevEpsTotal;
+        let cumTotal = (localTotal === "?" || hasUnknownPrev) ? "?" : (localTotal + prevEpsTotal);
 
-          return { localFin, localTotal, cumFin, cumTotal, prevEpsTotal };
+        return { localFin, localTotal, cumFin, cumTotal, prevEpsTotal };
       }
 
       // ==========================================
       // UNIVERSAL SEARCH ENGINE
       // ==========================================
-      let universalSearchAnime = [];
-      let universalSearchSeries = [];
 
       async function loadUniversalSearchData() {
         try {
@@ -390,17 +355,16 @@
         }
       }
 
-      function normalizeSearchStr(str) {
+      const normalizeSearchStr = (str) => {
         if (!str) return "";
-        return String(str)
-          .toLowerCase()
-          .replace(/[^\p{L}\p{N}]/gu, "");
-      }
+        return String(str).toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+      };
 
-      function handleGlobalSearch(query) {
-        const suggestionsDiv = document.getElementById("searchSuggestions");
+      const handleGlobalSearch = (query) => {
+        if (!DOM.searchSuggestions) return;
+
         if (!query || query.trim().length < 1) {
-          suggestionsDiv.classList.add("hidden");
+          DOM.searchSuggestions.classList.add("hidden");
           return;
         }
 
@@ -409,152 +373,153 @@
         const animeResults = [];
 
         universalSearchSeries.forEach((s) => {
-          const matchText = [
-            s.series_en,
-            s.series_cn,
-            s.alt_name,
-            s.series_roman,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          if (normalizeSearchStr(matchText).includes(qNorm))
-            seriesResults.push({ type: "series", data: s });
+          const matchText = [s.series_en, s.series_cn, s.alt_name, s.series_roman].filter(Boolean).join(" ");
+          if (normalizeSearchStr(matchText).includes(qNorm)) seriesResults.push({ type: "series", data: s });
         });
 
         universalSearchAnime.forEach((a) => {
-          const matchText = [
-            a.series_season_cn,
-            a.series_season_en,
-            a.series_en,
-            a.series_season_roman,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          if (normalizeSearchStr(matchText).includes(qNorm))
-            animeResults.push({ type: "anime", data: a });
+          const matchText = [a.series_season_cn, a.series_season_en, a.series_en, a.series_season_roman].filter(Boolean).join(" ");
+          if (normalizeSearchStr(matchText).includes(qNorm)) animeResults.push({ type: "anime", data: a });
         });
 
         const results = [...seriesResults, ...animeResults].slice(0, 10);
 
         if (results.length === 0) {
-          suggestionsDiv.classList.add("hidden");
+          DOM.searchSuggestions.classList.add("hidden");
           return;
         }
 
-        suggestionsDiv.innerHTML = results
-          .map((res) => {
-            if (res.type === "anime") {
-              const a = res.data;
-              const parentSeries = universalSearchSeries.find(
-                (s) => s.series_en === a.series_en,
-              );
-              const seriesDisplayName = parentSeries
-                ? parentSeries.series_cn ||
-                  parentSeries.series_en ||
-                  parentSeries.series_roman
-                : a.series_en;
+        DOM.searchSuggestions.innerHTML = results.map((res) => {
+          if (res.type === "anime") {
+            const a = res.data;
+            const parentSeries = universalSearchSeries.find((s) => s.series_en === a.series_en);
+            const seriesDisplayName = parentSeries
+              ? parentSeries.series_cn || parentSeries.series_en || parentSeries.series_roman
+              : a.series_en;
 
-              return `
-                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
-                         onclick="window.location.href='/anime/${a.system_id}'">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
-                            <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
-                        </div>
-                        <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en}</div>
-                        <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesDisplayName || "-"}</div>
-                    </div>
-                  `;
-            } else {
-              const s = res.data;
-              return `
-                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
-                         onclick="window.location.href='/series/${s.system_id}'">
-                        <div class="flex items-center mb-1">
-                            <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
-                        </div>
-                        <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
-                        <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
-                    </div>
-                  `;
-            }
-          })
-          .join("");
-
-        suggestionsDiv.classList.remove("hidden");
-      }
-
-      // --- Admin Sync Button Handler ---
-      async function handleSync() {
-        if (!IS_ADMIN) return;
-        const icon = document.getElementById("syncIcon");
-        const btn = document.getElementById("syncBtn");
-
-        if (!icon || !btn) return;
-
-        icon.classList.add("fa-spin");
-        btn.classList.add("opacity-75", "pointer-events-none");
-        btn.innerText = " Backing up...";
-        btn.prepend(icon);
-
-        try {
-          // V2: Target the specific Sheets Sync endpoint (Updated to System Router)
-          const response = await fetch(`/api/system/sync/backup`, { method: "POST" });
-
-          if (response.ok) {
-            icon.classList.remove("fa-spin", "fa-sync-alt");
-            icon.classList.add("fa-check");
-            btn.classList.remove("bg-brand", "hover:bg-brand-hover", "opacity-75", "pointer-events-none");
-            btn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
-            btn.innerText = " Backed up!";
-            btn.prepend(icon);
-            showToast("Simple auto fill is done and data is cleaned. Database backed up to Google Sheets!");
-
-            // Refresh the dashboard data (if on index page) and the global search cache
-            if (typeof loadDashboard === 'function') await loadDashboard();
-            if (typeof loadUniversalSearchData === 'function') await loadUniversalSearchData();
-
-            setTimeout(() => {
-                icon.classList.remove("fa-check");
-                icon.classList.add("fa-sync-alt");
-                btn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
-                btn.classList.add("bg-brand", "hover:bg-brand-hover");
-                btn.innerText = " Backup";
-                btn.prepend(icon);
-            }, 2000);
+            return `
+              <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" onclick="window.location.href='/anime/${a.system_id}'">
+                  <div class="flex items-center justify-between mb-1">
+                      <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
+                      <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
+                  </div>
+                  <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en}</div>
+                  <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesDisplayName || "-"}</div>
+              </div>
+            `;
           } else {
-            throw new Error((await response.json()).detail || "Unknown error occurred.");
+            const s = res.data;
+            return `
+              <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" onclick="window.location.href='/series/${s.system_id}'">
+                  <div class="flex items-center mb-1">
+                      <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
+                  </div>
+                  <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
+                  <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
+              </div>
+            `;
           }
-        } catch (error) {
-          icon.classList.remove("fa-spin");
-          btn.classList.remove("opacity-75", "pointer-events-none");
-          btn.innerText = " Backup";
-          btn.prepend(icon);
-          showToast(`Sync Error: ${error.message}`, true);
+        }).join("");
+
+        DOM.searchSuggestions.classList.remove("hidden");
+      };
+
+      // ==========================================
+      // EVENT LISTENERS & HANDLERS
+      // ==========================================
+
+      document.addEventListener("DOMContentLoaded", () => {
+        loadUniversalSearchData();
+
+        // 1. Scroll to Top Listener
+        if (DOM.scrollBtn) {
+          window.addEventListener("scroll", () => {
+            const isVisible = window.scrollY > 300;
+            DOM.scrollBtn.classList.toggle("opacity-0", !isVisible);
+            DOM.scrollBtn.classList.toggle("translate-y-4", !isVisible);
+            DOM.scrollBtn.classList.toggle("pointer-events-none", !isVisible);
+            DOM.scrollBtn.classList.toggle("opacity-100", isVisible);
+            DOM.scrollBtn.classList.toggle("translate-y-0", isVisible);
+            DOM.scrollBtn.classList.toggle("pointer-events-auto", isVisible);
+          });
+          DOM.scrollBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
         }
-      }
 
-      // Initialize Universal Search Engine globally
-      document.addEventListener("DOMContentLoaded", loadUniversalSearchData);
+        // 2. Global Search Listeners (with Debounce)
+        if (DOM.globalSearchInput) {
+          DOM.globalSearchInput.addEventListener("input", debounce((e) => handleGlobalSearch(e.target.value), 250));
+          DOM.globalSearchInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+              const query = e.target.value.trim();
+              if (query) window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            }
+          });
+        }
 
-      // Search Enter Key Listener
-      const searchInputGlobal = document.getElementById("globalSearchInput");
-      if (searchInputGlobal) {
-        searchInputGlobal.addEventListener("keypress", function (e) {
-          if (e.key === "Enter") {
-            const query = e.target.value.trim();
-            if (query)
-              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        // 3. Close suggestions when clicking outside
+        document.addEventListener("click", (e) => {
+          if (DOM.globalSearchContainer && !DOM.globalSearchContainer.contains(e.target) && DOM.searchSuggestions) {
+            DOM.searchSuggestions.classList.add("hidden");
           }
         });
-      }
 
-      // Close suggestions when clicking outside
-      document.addEventListener("click", function (e) {
-        const container = document.getElementById("globalSearchContainer");
-        const suggestions = document.getElementById("searchSuggestions");
-        if (container && !container.contains(e.target)) {
-          suggestions.classList.add("hidden");
+        // 4. Logout Handler
+        if (DOM.logoutBtn) {
+          DOM.logoutBtn.addEventListener("click", async () => {
+            try {
+              const res = await fetch("/api/v1/auth/logout", { method: "POST" });
+              if (res.ok) window.location.href = "/";
+            } catch (e) {
+              console.error("Logout failed", e);
+            }
+          });
+        }
+
+        // 5. Admin Sync Tool Handler
+        if (DOM.syncBtn && DOM.syncIcon) {
+          DOM.syncBtn.addEventListener("click", async () => {
+            if (!IS_ADMIN) return;
+
+            DOM.syncIcon.classList.add("fa-spin");
+            DOM.syncBtn.classList.add("opacity-75", "pointer-events-none");
+            DOM.syncBtn.innerText = " Backing up...";
+            DOM.syncBtn.prepend(DOM.syncIcon);
+
+            try {
+              const response = await fetch(`/api/system/sync/backup`, { method: "POST" });
+
+              if (response.ok) {
+                DOM.syncIcon.classList.remove("fa-spin", "fa-sync-alt");
+                DOM.syncIcon.classList.add("fa-check");
+                DOM.syncBtn.classList.remove("bg-brand", "hover:bg-brand-hover", "opacity-75", "pointer-events-none");
+                DOM.syncBtn.classList.add("bg-emerald-500", "hover:bg-emerald-600");
+                DOM.syncBtn.innerText = " Backed up!";
+                DOM.syncBtn.prepend(DOM.syncIcon);
+
+                showToast("Database backed up securely to Google Sheets!");
+
+                if (typeof loadDashboard === 'function') await loadDashboard();
+                await loadUniversalSearchData();
+
+                setTimeout(() => {
+                  DOM.syncIcon.classList.remove("fa-check");
+                  DOM.syncIcon.classList.add("fa-sync-alt");
+                  DOM.syncBtn.classList.remove("bg-emerald-500", "hover:bg-emerald-600");
+                  DOM.syncBtn.classList.add("bg-brand", "hover:bg-brand-hover");
+                  DOM.syncBtn.innerText = " Backup";
+                  DOM.syncBtn.prepend(DOM.syncIcon);
+                }, 2000);
+              } else {
+                throw new Error((await response.json()).detail || "Unknown error occurred.");
+              }
+            } catch (error) {
+              DOM.syncIcon.classList.remove("fa-spin");
+              DOM.syncBtn.classList.remove("opacity-75", "pointer-events-none");
+              DOM.syncBtn.innerText = " Backup";
+              DOM.syncBtn.prepend(DOM.syncIcon);
+              showToast(`Sync Error: ${error.message}`, true);
+            }
+          });
         }
       });
     </script>

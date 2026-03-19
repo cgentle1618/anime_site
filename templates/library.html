@@ -24,6 +24,7 @@ opacity: 1; } {% endblock %} {% block content %}
           id="localFilterInput"
           class="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand focus:bg-white sm:text-sm transition shadow-inner"
           placeholder="Filter library (Title, Alt Name, Season, Date)..."
+          autocomplete="off"
         />
       </div>
 
@@ -32,7 +33,7 @@ opacity: 1; } {% endblock %} {% block content %}
         class="flex flex-wrap justify-center items-center gap-3 w-full md:w-auto"
       >
         <button
-          onclick="toggleFilters()"
+          id="btn-toggle-filters"
           class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold border border-gray-200 transition flex items-center shadow-sm"
         >
           <i class="fas fa-sliders-h mr-2"></i> Advanced Filters
@@ -47,7 +48,6 @@ opacity: 1; } {% endblock %} {% block content %}
           >
           <select
             id="sort-select"
-            onchange="applyFiltersAndSort()"
             class="bg-transparent border-none text-gray-900 text-sm focus:ring-0 cursor-pointer font-medium outline-none py-1.5 pr-8"
           >
             <option value="titleAsc" selected>Title (A-Z)</option>
@@ -93,7 +93,7 @@ opacity: 1; } {% endblock %} {% block content %}
           <i class="fas fa-check-square text-brand mr-2"></i> Filter Categories
         </h3>
         <button
-          onclick="clearAllFilters()"
+          id="btn-clear-filters"
           class="text-xs font-bold text-red-500 hover:text-red-700 transition underline"
         >
           Clear All Checks
@@ -128,7 +128,7 @@ opacity: 1; } {% endblock %} {% block content %}
         No anime match your filters.
       </p>
       <button
-        onclick="clearAllFiltersAndSearch()"
+        id="btn-reset-search"
         class="mt-4 text-brand font-bold hover:underline bg-brand/5 px-4 py-2 rounded-lg border border-brand/20 transition"
       >
         Reset All Filters & Search
@@ -138,9 +138,14 @@ opacity: 1; } {% endblock %} {% block content %}
 </main>
 {% endblock %} {% block extra_scripts %}
 <script>
-  let allAnimeData = [];
-  let allSeriesData = [];
-  let debounceTimeout;
+  const IS_ADMIN_LIBRARY = typeof IS_ADMIN !== "undefined" ? IS_ADMIN : false;
+
+  // --- State Management ---
+  const state = {
+    allAnimeData: [],
+    allSeriesData: [],
+    debounceTimeout: null,
+  };
 
   const PROGRESS_GROUPS = {
     "Might Watch": ["Might Watch"],
@@ -170,23 +175,70 @@ opacity: 1; } {% endblock %} {% block content %}
   const MAIN_SPINOFF_OPTIONS = ["本傳", "外傳", "總集篇", "Other"];
   const BAHA_OPTIONS = ["有", "無"];
 
-  document.addEventListener("DOMContentLoaded", () => {
-    loadLibraryData();
+  // --- DOM Cache ---
+  const pageDOM = {}; // Populated in DOMContentLoaded
 
-    document
-      .getElementById("localFilterInput")
-      .addEventListener("input", () => {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(applyFiltersAndSort, 300);
-      });
+  document.addEventListener("DOMContentLoaded", () => {
+    // Initialize DOM Cache
+    pageDOM.loading = document.getElementById("loading");
+    pageDOM.mainContent = document.getElementById("main-content");
+    pageDOM.filterInput = document.getElementById("localFilterInput");
+    pageDOM.sortSelect = document.getElementById("sort-select");
+    pageDOM.resultCount = document.getElementById("resultCount");
+    pageDOM.advancedFilters = document.getElementById("advanced-filters");
+    pageDOM.grid = document.getElementById("library-grid");
+    pageDOM.emptyState = document.getElementById("empty-state");
+    pageDOM.btnToggleFilters = document.getElementById("btn-toggle-filters");
+    pageDOM.btnClearFilters = document.getElementById("btn-clear-filters");
+    pageDOM.btnResetSearch = document.getElementById("btn-reset-search");
+
+    // Initialize Event Listeners
+    pageDOM.btnToggleFilters.addEventListener("click", toggleFilters);
+    pageDOM.btnClearFilters.addEventListener("click", clearAllFilters);
+    pageDOM.btnResetSearch.addEventListener("click", clearAllFiltersAndSearch);
+    pageDOM.sortSelect.addEventListener("change", applyFiltersAndSort);
+
+    pageDOM.filterInput.addEventListener("input", () => {
+      clearTimeout(state.debounceTimeout);
+      state.debounceTimeout = setTimeout(applyFiltersAndSort, 300);
+    });
+
+    // Event Delegation for Main Content (Cards & Filter Checkboxes)
+    pageDOM.mainContent.addEventListener("change", (e) => {
+      if (e.target.matches("input[data-filter]")) {
+        applyFiltersAndSort();
+      }
+    });
+
+    pageDOM.mainContent.addEventListener("click", (e) => {
+      const statusBtn = e.target.closest('[data-action="update-status"]');
+      if (statusBtn) {
+        e.stopPropagation();
+        handleStatusButton(statusBtn.dataset.id, statusBtn.dataset.progress);
+        return;
+      }
+
+      const viewDetailsEl = e.target.closest('[data-action="view-details"]');
+      if (viewDetailsEl) {
+        window.location.href = `/anime/${viewDetailsEl.dataset.id}`;
+      }
+    });
+
+    // Load Data
+    loadLibraryData();
   });
 
   function toggleFilters() {
-    const panel = document.getElementById("advanced-filters");
-    if (panel.classList.contains("filters-closed")) {
-      panel.classList.replace("filters-closed", "filters-open");
+    if (pageDOM.advancedFilters.classList.contains("filters-closed")) {
+      pageDOM.advancedFilters.classList.replace(
+        "filters-closed",
+        "filters-open",
+      );
     } else {
-      panel.classList.replace("filters-open", "filters-closed");
+      pageDOM.advancedFilters.classList.replace(
+        "filters-open",
+        "filters-closed",
+      );
     }
   }
 
@@ -198,7 +250,7 @@ opacity: 1; } {% endblock %} {% block content %}
   }
 
   function clearAllFiltersAndSearch() {
-    document.getElementById("localFilterInput").value = "";
+    pageDOM.filterInput.value = "";
     clearAllFilters();
   }
 
@@ -213,17 +265,17 @@ opacity: 1; } {% endblock %} {% block content %}
       if (!animeRes.ok || !seriesRes.ok)
         throw new Error("Failed to load database.");
 
-      allAnimeData = await animeRes.json();
-      allSeriesData = await seriesRes.json();
+      state.allAnimeData = await animeRes.json();
+      state.allSeriesData = await seriesRes.json();
 
-      document.getElementById("loading").classList.add("hidden");
-      document.getElementById("main-content").classList.remove("hidden");
+      pageDOM.loading.classList.add("hidden");
+      pageDOM.mainContent.classList.remove("hidden");
 
       renderFilterOptions();
       applyFiltersAndSort();
     } catch (error) {
       console.error("Library load error:", error);
-      document.getElementById("loading").innerHTML = `
+      pageDOM.loading.innerHTML = `
             <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
                 <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
                 <p class="font-bold">Error loading library data.</p>
@@ -259,7 +311,7 @@ opacity: 1; } {% endblock %} {% block content %}
         .map((val) => {
           const isChecked =
             active[prop] && active[prop].includes(val) ? "checked" : "";
-          return `<label class="flex items-start space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1.5 rounded transition"><input type="checkbox" value="${val}" data-filter="${prop}" onchange="applyFiltersAndSort()" ${isChecked} class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5 shadow-sm"> <span class="leading-tight break-words">${val}</span></label>`;
+          return `<label class="flex items-start space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1.5 rounded transition"><input type="checkbox" value="${val}" data-filter="${prop}" ${isChecked} class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand w-3.5 h-3.5 shadow-sm"> <span class="leading-tight break-words">${val}</span></label>`;
         })
         .join("");
       container.innerHTML = html + `</div>`;
@@ -317,7 +369,7 @@ opacity: 1; } {% endblock %} {% block content %}
   }
 
   function applyFiltersAndSort() {
-    const query = document.getElementById("localFilterInput").value.trim();
+    const query = pageDOM.filterInput.value.trim();
     const getActive = (prop) =>
       Array.from(
         document.querySelectorAll(`input[data-filter="${prop}"]:checked`),
@@ -331,7 +383,7 @@ opacity: 1; } {% endblock %} {% block content %}
       source_baha: getActive("source_baha"),
     };
 
-    let result = allAnimeData.filter((a) => {
+    let result = state.allAnimeData.filter((a) => {
       const check = (prop, activeList) => {
         if (activeList.length === 0) return true;
         if (prop === "my_progress") {
@@ -378,7 +430,7 @@ opacity: 1; } {% endblock %} {% block content %}
       if (!passedCheckboxes) return false;
 
       if (query) {
-        const seriesObj = allSeriesData.find(
+        const seriesObj = state.allSeriesData.find(
           (s) => s.series_en === a.series_en,
         );
         const altName = seriesObj ? seriesObj.alt_name : "";
@@ -408,13 +460,12 @@ opacity: 1; } {% endblock %} {% block content %}
       return true;
     });
 
-    const sortVal = document.getElementById("sort-select").value;
+    const sortVal = pageDOM.sortSelect.value;
     result.sort((a, b) => {
-      if (sortVal === "releaseAsc") {
+      if (sortVal === "releaseAsc" || sortVal === "releaseDesc") {
         const getScore = (anime) => {
           let year = parseInt(anime.release_year);
 
-          // Fallback for V1 string dates if release_year is missing
           if (
             isNaN(year) &&
             anime.release_date &&
@@ -424,10 +475,9 @@ opacity: 1; } {% endblock %} {% block content %}
             if (match) year = parseInt(match[0]);
           }
 
-          // If there is no information about release date, treat it as the far future
-          if (isNaN(year)) return 999999;
+          if (isNaN(year)) return sortVal === "releaseDesc" ? -999999 : 999999;
 
-          let month = 1; // Default to 1/1 if only release_year exists
+          let month = 1;
 
           if (anime.release_month) {
             const mMap = {
@@ -468,7 +518,8 @@ opacity: 1; } {% endblock %} {% block content %}
 
         const dateA = getScore(a);
         const dateB = getScore(b);
-        if (dateA !== dateB) return dateA - dateB;
+        if (dateA !== dateB)
+          return sortVal === "releaseDesc" ? dateB - dateA : dateA - dateB;
       }
 
       const scoreMap = { S: 10, "A+": 9, A: 8, B: 7, C: 6, D: 5, E: 4, F: 3 };
@@ -485,6 +536,7 @@ opacity: 1; } {% endblock %} {% block content %}
 
       if (sortVal === "titleAsc") return titleA.localeCompare(titleB);
       if (sortVal === "titleDesc") return titleB.localeCompare(titleA);
+
       if (sortVal === "ratingMineDesc") {
         const sA = scoreMap[a.rating_mine] || 0,
           sB = scoreMap[b.rating_mine] || 0;
@@ -545,18 +597,17 @@ opacity: 1; } {% endblock %} {% block content %}
       return titleA.localeCompare(titleB);
     });
 
-    document.getElementById("resultCount").innerText =
-      `${result.length} Entries`;
-    const grid = document.getElementById("library-grid");
-    const empty = document.getElementById("empty-state");
+    pageDOM.resultCount.innerText = `${result.length} Entries`;
 
     if (result.length === 0) {
-      grid.classList.add("hidden");
-      empty.classList.replace("hidden", "flex");
+      pageDOM.grid.classList.add("hidden");
+      pageDOM.emptyState.classList.replace("hidden", "flex");
     } else {
-      grid.classList.remove("hidden");
-      empty.classList.replace("flex", "hidden");
-      grid.innerHTML = result.map((anime) => createLibraryCard(anime)).join("");
+      pageDOM.grid.classList.remove("hidden");
+      pageDOM.emptyState.classList.replace("flex", "hidden");
+      pageDOM.grid.innerHTML = result
+        .map((anime) => createLibraryCard(anime))
+        .join("");
     }
   }
 
@@ -616,11 +667,10 @@ opacity: 1; } {% endblock %} {% block content %}
         "bg-gray-100 hover:bg-gray-500 text-gray-600 hover:text-white border border-gray-200";
     }
 
-    // Conditional action HTML based on Admin role
     let actionButtonHTML = "";
-    if (typeof IS_ADMIN !== "undefined" && IS_ADMIN) {
+    if (IS_ADMIN_LIBRARY) {
       actionButtonHTML = `
-          <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ""}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
+          <button data-action="update-status" data-id="${anime.system_id}" data-progress="${anime.my_progress || ""}" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
               ${actionIcon}
           </button>`;
     } else {
@@ -629,8 +679,6 @@ opacity: 1; } {% endblock %} {% block content %}
     }
 
     const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
-
-    // V2 Smart Image Routing (Local vs Cloud)
     const bucketName = "cg1618-anime-covers";
     const isLocalhost =
       window.location.hostname === "localhost" ||
@@ -642,30 +690,27 @@ opacity: 1; } {% endblock %} {% block content %}
         ? `/static/covers/${anime.cover_image_file}`
         : `https://storage.googleapis.com/${bucketName}/${anime.cover_image_file}`;
     } else if (anime.cover_image_url) {
-      imageUrl = anime.cover_image_url; // V1 fallback support
+      imageUrl = anime.cover_image_url;
     }
 
-    // V2 MAL Score
     let malRatingHtml = "";
     if (anime.mal_rating && anime.mal_rating !== "N/A") {
       const ratingNum = Number(anime.mal_rating);
       if (!isNaN(ratingNum)) {
-        malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow z-10"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
+        malRatingHtml = `<span class="bg-[#2e51a2]/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow"><i class="fas fa-star text-yellow-400 mr-1"></i>${ratingNum.toFixed(2)}</span>`;
       }
     }
 
-    // V2 Date Extraction
     let dateStr = "";
     if (anime.release_year) {
       dateStr =
         `${anime.release_season || anime.release_month || ""} ${anime.release_year}`.trim();
     } else if (anime.release_date) {
-      dateStr = anime.release_date; // V1 Fallback
+      dateStr = anime.release_date;
     } else {
       dateStr = "TBA";
     }
 
-    // V2 Streaming Icons
     let streamingHtml = "";
     if (
       String(anime.source_baha).toUpperCase() === "TRUE" ||
@@ -685,24 +730,26 @@ opacity: 1; } {% endblock %} {% block content %}
     return `
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
             <!-- Cover Image Container -->
-            <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
+            <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" data-action="view-details" data-id="${anime.system_id}">
                 <img src="${imageUrl}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
 
                 <!-- Top Overlay Badges -->
-                <div class="absolute top-2 left-2 flex flex-col gap-1">
+                <div class="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
                     ${malRatingHtml}
                     ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ""}
                 </div>
 
                 <!-- Progress Bar Overlay (Bottom of Image) -->
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
+                <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50 pointer-events-none">
                     <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : epFin > 0 ? 100 : 0}%"></div>
                 </div>
             </div>
 
             <!-- Card Content -->
             <div class="p-3 flex flex-col flex-1">
-                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">${title}</h3>
+                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" data-action="view-details" data-id="${anime.system_id}" title="${title}">
+                    ${title}
+                </h3>
                 <div class="flex flex-wrap items-center text-[11px] text-gray-500 font-medium mb-3 gap-y-1">
                     <span>${anime.airing_type || "TV"}</span>
                     <span class="mx-1.5">&bull;</span>
@@ -724,13 +771,11 @@ opacity: 1; } {% endblock %} {% block content %}
 
   // --- Admin API Handlers ---
   async function handleStatusButton(sys_id, current_progress) {
-    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
+    if (!IS_ADMIN_LIBRARY) return;
 
-    // Determine the target status direction based on the current state
     let newStatus =
       current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-    // If the show is heavily tracked, prompt the user before aggressively demoting it
     const strongStatuses = [
       "Completed",
       "Finished",
@@ -748,13 +793,13 @@ opacity: 1; } {% endblock %} {% block content %}
       if (!confirmed) return;
     }
 
-    const index = allAnimeData.findIndex((a) => a.system_id === sys_id);
+    const index = state.allAnimeData.findIndex((a) => a.system_id === sys_id);
     if (index === -1) return;
 
     // Save Original & Optimistically update UI
-    const originalStatus = allAnimeData[index].my_progress;
-    allAnimeData[index].my_progress = newStatus;
-    applyFiltersAndSort(); // Re-render grid instantly to show new button and possible filter movement
+    const originalStatus = state.allAnimeData[index].my_progress;
+    state.allAnimeData[index].my_progress = newStatus;
+    applyFiltersAndSort(); // Re-render grid instantly
 
     try {
       const res = await fetch(`/api/anime/${sys_id}`, {
@@ -768,7 +813,7 @@ opacity: 1; } {% endblock %} {% block content %}
     } catch (error) {
       console.error("Status Update Error:", error);
       // Revert UI on failure
-      allAnimeData[index].my_progress = originalStatus;
+      state.allAnimeData[index].my_progress = originalStatus;
       applyFiltersAndSort();
       if (typeof showToast === "function")
         showToast("Network error. Status reverted.", true);

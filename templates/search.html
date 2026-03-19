@@ -46,7 +46,6 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
             <!-- Dynamic Clear Button -->
             <button
               id="clear-series-filters"
-              onclick="clearSeriesFilters()"
               class="hidden text-[10px] font-bold text-red-500 hover:text-red-700 transition uppercase tracking-wider bg-red-50 px-2 py-1 rounded border border-red-100"
             >
               <i class="fas fa-times mr-1"></i> Clear Filters
@@ -71,18 +70,80 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 </main>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // IS_ADMIN has been removed here because it's globally provided by base.html
+  const IS_ADMIN_SEARCH = typeof IS_ADMIN !== "undefined" ? IS_ADMIN : false;
 
-  let filteredSeries = [];
-  let filteredAnime = [];
-  let allAnimeData = [];
-  let allSeriesData = [];
-  let activeSeriesFilters = new Set(); // Stores active series_en filters
+  // --- State Management ---
+  const state = {
+    allAnimeData: [],
+    allSeriesData: [],
+    filteredSeries: [],
+    filteredAnime: [],
+    activeSeriesFilters: new Set(),
+  };
 
-  // Hooks into base.html global sync button
-  function onSyncComplete() {
+  // --- DOM Cache ---
+  const pageDOM = {};
+
+  // Map the base.html global sync hook to refresh search results
+  window.loadDashboard = performSearch;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Initialize DOM Cache
+    pageDOM.loading = document.getElementById("loading");
+    pageDOM.mainContent = document.getElementById("main-content");
+    pageDOM.searchQueryDisplay = document.getElementById(
+      "search-query-display",
+    );
+    pageDOM.seriesFilterWrapper = document.getElementById(
+      "series-filter-wrapper",
+    );
+    pageDOM.seriesFilterPills = document.getElementById("series-filter-pills");
+    pageDOM.resultsContainer = document.getElementById("resultsContainer");
+
+    // Unified Event Delegation for Main Content
+    pageDOM.mainContent.addEventListener("click", (e) => {
+      // Clear Filters Button
+      const clearBtn = e.target.closest("#clear-series-filters");
+      if (clearBtn) {
+        clearSeriesFilters();
+        return;
+      }
+
+      // Toggle Filter Pill
+      const filterPill = e.target.closest(
+        '[data-action="toggle-series-filter"]',
+      );
+      if (filterPill) {
+        toggleSeriesFilter(filterPill.dataset.series);
+        return;
+      }
+
+      // Update Progress Status
+      const statusBtn = e.target.closest('[data-action="update-status"]');
+      if (statusBtn) {
+        e.stopPropagation();
+        handleStatusButton(statusBtn.dataset.id, statusBtn.dataset.progress);
+        return;
+      }
+
+      // View Anime Details
+      const viewDetailsEl = e.target.closest('[data-action="view-details"]');
+      if (viewDetailsEl) {
+        window.location.href = `/anime/${viewDetailsEl.dataset.id}`;
+        return;
+      }
+
+      // View Series Hub
+      const viewSeriesEl = e.target.closest('[data-action="view-series"]');
+      if (viewSeriesEl) {
+        window.location.href = `/series/${viewSeriesEl.dataset.id}`;
+        return;
+      }
+    });
+
+    // Execute Search on Load
     performSearch();
-  }
+  });
 
   function normalizeSearchString(str) {
     if (!str) return "";
@@ -91,11 +152,14 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       .replace(/[^\p{L}\p{N}]/gu, "");
   }
 
+  // --- Core Fetching & Search Logic ---
   async function performSearch() {
     const urlParams = new URLSearchParams(window.location.search);
     const query = urlParams.get("q") || "";
 
-    document.getElementById("search-query-display").innerText = `"${query}"`;
+    pageDOM.searchQueryDisplay.innerText = `"${query}"`;
+
+    // Update global search input if present in base.html
     const searchInput = document.getElementById("globalSearchInput");
     if (searchInput) searchInput.value = query;
 
@@ -108,13 +172,13 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       if (!animeRes.ok || !seriesRes.ok)
         throw new Error("Failed to load data from server.");
 
-      allAnimeData = await animeRes.json();
-      allSeriesData = await seriesRes.json();
+      state.allAnimeData = await animeRes.json();
+      state.allSeriesData = await seriesRes.json();
 
       const qNormalized = normalizeSearchString(query);
 
       // Filter Franchise Hubs
-      filteredSeries = allSeriesData.filter((s) => {
+      state.filteredSeries = state.allSeriesData.filter((s) => {
         const sEn = normalizeSearchString(s.series_en);
         const sCn = normalizeSearchString(s.series_cn);
         const sRo = normalizeSearchString(s.series_roman);
@@ -128,7 +192,7 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       });
 
       // Filter Anime Entries
-      filteredAnime = allAnimeData.filter((a) => {
+      state.filteredAnime = state.allAnimeData.filter((a) => {
         const aEn = normalizeSearchString(a.series_season_en);
         const aCn = normalizeSearchString(a.series_season_cn);
         const aSeriesEn = normalizeSearchString(a.series_en);
@@ -142,12 +206,12 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       });
 
       // Reset filters on a new broad search
-      activeSeriesFilters.clear();
+      state.activeSeriesFilters.clear();
       renderSeriesFilterBar();
       renderResults();
     } catch (error) {
       console.error(error);
-      document.getElementById("loading").innerHTML = `
+      pageDOM.loading.innerHTML = `
         <div class="w-full text-center text-red-600 py-8 bg-red-50 rounded-xl border border-red-200 max-w-md mx-auto">
             <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
             <p class="font-bold">Error loading search results.</p>
@@ -158,24 +222,21 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 
   // --- Dynamic Series Filter Logic ---
   function renderSeriesFilterBar() {
-    // Extract unique series identifiers from the found anime entries
     const uniqueSeriesEn = [
-      ...new Set(filteredAnime.map((a) => a.series_en)),
+      ...new Set(state.filteredAnime.map((a) => a.series_en)),
     ].filter(Boolean);
-    const wrapper = document.getElementById("series-filter-wrapper");
-    const container = document.getElementById("series-filter-pills");
     const clearBtn = document.getElementById("clear-series-filters");
 
     // Hide only if absolute zero series exist in the search results
     if (uniqueSeriesEn.length === 0) {
-      wrapper.classList.add("hidden");
+      pageDOM.seriesFilterWrapper.classList.add("hidden");
       return;
     }
 
-    wrapper.classList.remove("hidden");
+    pageDOM.seriesFilterWrapper.classList.remove("hidden");
 
     // Manage "Clear Filters" button visibility
-    if (activeSeriesFilters.size > 0) {
+    if (state.activeSeriesFilters.size > 0) {
       clearBtn.classList.remove("hidden");
     } else {
       clearBtn.classList.add("hidden");
@@ -183,16 +244,18 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 
     // Map to display names and sort alphabetically
     const pillData = uniqueSeriesEn.map((en) => {
-      const sObj = allSeriesData.find((series) => series.series_en === en);
+      const sObj = state.allSeriesData.find(
+        (series) => series.series_en === en,
+      );
       const displayName = sObj ? sObj.series_cn || sObj.series_en : en;
       return { en, displayName };
     });
 
     pillData.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-    container.innerHTML = pillData
+    pageDOM.seriesFilterPills.innerHTML = pillData
       .map((series) => {
-        const isActive = activeSeriesFilters.has(series.en);
+        const isActive = state.activeSeriesFilters.has(series.en);
         const baseClasses =
           "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer select-none shadow-sm flex items-center";
         const activeClasses = "bg-brand text-white border-brand";
@@ -200,55 +263,56 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
           "bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand";
 
         return `
-              <div onclick="toggleSeriesFilter('${series.en.replace(/'/g, "\\'")}')"
-                   class="${baseClasses} ${isActive ? activeClasses : inactiveClasses}">
-                  ${series.displayName}
-                  ${isActive ? '<i class="fas fa-times ml-1.5 opacity-75 hover:opacity-100"></i>' : ""}
-              </div>
-          `;
+            <div data-action="toggle-series-filter" data-series="${series.en.replace(/'/g, "&apos;")}" class="${baseClasses} ${isActive ? activeClasses : inactiveClasses}">
+                ${series.displayName}
+                ${isActive ? '<i class="fas fa-times ml-1.5 opacity-75 hover:opacity-100"></i>' : ""}
+            </div>
+        `;
       })
       .join("");
   }
 
-  function toggleSeriesFilter(seriesEn) {
-    if (activeSeriesFilters.has(seriesEn)) {
-      activeSeriesFilters.delete(seriesEn);
+  function toggleSeriesFilter(seriesEnRaw) {
+    const seriesEn = seriesEnRaw.replace(/&apos;/g, "'");
+    if (state.activeSeriesFilters.has(seriesEn)) {
+      state.activeSeriesFilters.delete(seriesEn);
     } else {
-      activeSeriesFilters.add(seriesEn);
+      state.activeSeriesFilters.add(seriesEn);
     }
-    // Re-render UI Elements
     renderSeriesFilterBar();
     renderResults();
   }
 
   function clearSeriesFilters() {
-    activeSeriesFilters.clear();
+    state.activeSeriesFilters.clear();
     renderSeriesFilterBar();
     renderResults();
   }
 
   // --- Core Rendering Engine ---
   function renderResults() {
-    document.getElementById("loading").classList.add("hidden");
-    document.getElementById("main-content").classList.remove("hidden");
-
-    const container = document.getElementById("resultsContainer");
-    container.innerHTML = "";
+    pageDOM.loading.classList.add("hidden");
+    pageDOM.mainContent.classList.remove("hidden");
+    pageDOM.resultsContainer.innerHTML = "";
 
     // Apply active series filters if any are selected
     const displayAnime =
-      activeSeriesFilters.size > 0
-        ? filteredAnime.filter((a) => activeSeriesFilters.has(a.series_en))
-        : filteredAnime;
+      state.activeSeriesFilters.size > 0
+        ? state.filteredAnime.filter((a) =>
+            state.activeSeriesFilters.has(a.series_en),
+          )
+        : state.filteredAnime;
 
     const displaySeries =
-      activeSeriesFilters.size > 0
-        ? filteredSeries.filter((s) => activeSeriesFilters.has(s.series_en))
-        : filteredSeries;
+      state.activeSeriesFilters.size > 0
+        ? state.filteredSeries.filter((s) =>
+            state.activeSeriesFilters.has(s.series_en),
+          )
+        : state.filteredSeries;
 
-    // Handle Empty State after filtering
+    // Handle Empty State
     if (displaySeries.length === 0 && displayAnime.length === 0) {
-      container.innerHTML = `
+      pageDOM.resultsContainer.innerHTML = `
             <div class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-200 border-dashed">
                 <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
                 <p class="text-gray-500 font-medium text-lg">No entries match your current filters.</p>
@@ -270,7 +334,6 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       displaySeries.forEach((series) => {
         const title = series.series_cn || series.series_en || "Unknown Series";
 
-        // V2 Expectation / Slot Badges
         let badgeHtml = "";
         if (series.favorite_3x3_slot) {
           badgeHtml = `<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-[9px] font-bold border border-yellow-300 ml-2 shadow-sm"><i class="fas fa-crown"></i> 3x3 Slot #${series.favorite_3x3_slot}</span>`;
@@ -279,7 +342,7 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
         }
 
         html += `
-                <div class="bg-white rounded-xl border border-gray-200 p-4 card-hover shadow-sm flex items-center justify-between" onclick="window.location.href='/series/${series.system_id}'">
+                <div class="bg-white rounded-xl border border-gray-200 p-4 card-hover shadow-sm flex items-center justify-between cursor-pointer" data-action="view-series" data-id="${series.system_id}">
                     <div class="min-w-0 pr-4">
                         <div class="flex items-center mb-0.5">
                             <h3 class="text-lg font-bold text-gray-900 truncate">${title}</h3>
@@ -295,7 +358,7 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       });
 
       html += `</div></div>`;
-      container.innerHTML += html;
+      pageDOM.resultsContainer.innerHTML += html;
     }
 
     // 2. Render Anime Entries
@@ -321,8 +384,6 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       // V2 Smart Date Parsing Logic
       const parseReleaseDate = (anime) => {
         let year = parseInt(anime.release_year);
-
-        // Fallback to V1 parsing if V2 year isn't directly available
         if (isNaN(year) && anime.release_date && anime.release_date !== "TBA") {
           const match = String(anime.release_date).match(/\d{4}/);
           if (match) year = parseInt(match[0]);
@@ -398,7 +459,6 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
 
       const renderSubSection = (title, entries, icon) => {
         if (entries.length === 0) return "";
-        // Removed sticky sub-headers to prevent collision with master sticky header
         let subHtml = `
                 <div class="mb-4 last:mb-0">
                     <div class="flex items-center mb-4 py-2 border-b border-gray-100">
@@ -420,7 +480,7 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       html += renderSubSection("Other", groups["Other"], "fa-question-circle");
 
       html += `</div></div>`;
-      container.innerHTML += html;
+      pageDOM.resultsContainer.innerHTML += html;
     }
   }
 
@@ -481,9 +541,9 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
     }
 
     let actionButtonHTML = "";
-    if (typeof IS_ADMIN !== "undefined" && IS_ADMIN) {
+    if (IS_ADMIN_SEARCH) {
       actionButtonHTML = `
-          <button onclick="handleStatusButton('${anime.system_id}', '${anime.my_progress || ""}'); event.stopPropagation();" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
+          <button data-action="update-status" data-id="${anime.system_id}" data-progress="${anime.my_progress || ""}" class="w-7 h-7 rounded ${buttonClass} transition flex items-center justify-center shadow-sm" title="${actionTitle}">
               ${actionIcon}
           </button>`;
     } else {
@@ -491,7 +551,6 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       actionButtonHTML = `<div class="w-7 h-7 rounded ${guestClass} opacity-80 flex items-center justify-center shadow-sm cursor-default">${actionIcon}</div>`;
     }
 
-    // V2 Smart Image Routing (Local vs Cloud)
     const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
     const bucketName = "cg1618-anime-covers";
     const isLocalhost =
@@ -504,10 +563,9 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
         ? `/static/covers/${anime.cover_image_file}`
         : `https://storage.googleapis.com/${bucketName}/${anime.cover_image_file}`;
     } else if (anime.cover_image_url) {
-      imageUrl = anime.cover_image_url; // V1 fallback support
+      imageUrl = anime.cover_image_url;
     }
 
-    // V2 MAL Score & Watch Order
     let malRatingHtml = "";
     if (anime.mal_rating && anime.mal_rating !== "N/A") {
       const ratingNum = Number(anime.mal_rating);
@@ -516,23 +574,16 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       }
     }
 
-    let watchOrderHtml = "";
-    if (anime.watch_order !== null && anime.watch_order !== undefined) {
-      watchOrderHtml = `<span class="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded text-[9px] font-bold border border-indigo-200 shadow-sm whitespace-nowrap mr-1 inline-flex items-center"><i class="fas fa-hashtag text-[8px] opacity-75 mr-0.5"></i>${anime.watch_order}</span>`;
-    }
-
-    // V2 Date Extraction
     let dateStr = "";
     if (anime.release_year) {
       dateStr =
         `${anime.release_season || anime.release_month || ""} ${anime.release_year}`.trim();
     } else if (anime.release_date) {
-      dateStr = anime.release_date; // V1 Fallback
+      dateStr = anime.release_date;
     } else {
       dateStr = "TBA";
     }
 
-    // V2 Streaming Icons
     let streamingHtml = "";
     if (
       String(anime.source_baha).toUpperCase() === "TRUE" ||
@@ -550,23 +601,27 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       streamingHtml = `<div class="flex items-center gap-1.5 ml-1.5 pl-1.5 border-l border-gray-300 h-3">${streamingHtml}</div>`;
 
     return `
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group">
-            <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden" onclick="window.location.href='/anime/${anime.system_id}'">
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full group" data-action="view-details" data-id="${anime.system_id}">
+            <!-- Cover Image Container -->
+            <div class="relative w-full aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden">
                 <img src="${imageUrl}" alt="Cover" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onerror="this.src='${fallbackSvg}'">
 
-                <div class="absolute top-2 left-2 flex flex-col gap-1">
+                <!-- Top Overlay Badges -->
+                <div class="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
                     ${malRatingHtml}
                     ${anime.rating_mine ? `<span class="bg-yellow-400/90 backdrop-blur-sm text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">My: ${anime.rating_mine}</span>` : ""}
                 </div>
 
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50">
+                <!-- Progress Bar Overlay (Bottom of Image) -->
+                <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-900/50 pointer-events-none">
                     <div class="h-full ${statusColor}" style="width: ${anime.ep_total ? Math.round((epFin / anime.ep_total) * 100) : epFin > 0 ? 100 : 0}%"></div>
                 </div>
             </div>
 
+            <!-- Card Content -->
             <div class="p-3 flex flex-col flex-1">
-                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" onclick="window.location.href='/anime/${anime.system_id}'" title="${title}">
-                    ${watchOrderHtml}${title}
+                <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-snug mb-1 cursor-pointer hover:text-brand" title="${title}">
+                    ${title}
                 </h3>
                 <div class="flex flex-wrap items-center text-[11px] text-gray-500 font-medium mb-3 gap-y-1">
                     <span>${anime.airing_type || "TV"}</span>
@@ -575,6 +630,7 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
                     ${streamingHtml}
                 </div>
 
+                <!-- Progress Controls (Bottom) -->
                 <div class="mt-auto flex items-center justify-between">
                     <span class="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded shadow-inner">
                         <span id="card-ep-${anime.system_id}">${epFin}</span> / ${epTotal}
@@ -586,15 +642,13 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       `;
   }
 
-  // --- Optimistic State Management ---
+  // --- Admin API Handlers ---
   async function handleStatusButton(sys_id, current_progress) {
-    if (typeof IS_ADMIN === "undefined" || !IS_ADMIN) return;
+    if (!IS_ADMIN_SEARCH) return;
 
-    // Determine the target status direction based on the current state
     let newStatus =
       current_progress === "Might Watch" ? "Plan to Watch" : "Might Watch";
 
-    // If the show is heavily tracked, prompt the user before aggressively demoting it
     const strongStatuses = [
       "Completed",
       "Finished",
@@ -612,19 +666,21 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       if (!confirmed) return;
     }
 
-    const index = filteredAnime.findIndex((a) => a.system_id === sys_id);
+    const index = state.filteredAnime.findIndex((a) => a.system_id === sys_id);
     if (index === -1) return;
 
-    const originalStatus = filteredAnime[index].my_progress;
-    filteredAnime[index].my_progress = newStatus;
+    // Optimistically update UI
+    const originalStatus = state.filteredAnime[index].my_progress;
+    state.filteredAnime[index].my_progress = newStatus;
 
-    const allIndex = allAnimeData.findIndex((a) => a.system_id === sys_id);
-    if (allIndex !== -1) allAnimeData[allIndex].my_progress = newStatus;
+    const allIndex = state.allAnimeData.findIndex(
+      (a) => a.system_id === sys_id,
+    );
+    if (allIndex !== -1) state.allAnimeData[allIndex].my_progress = newStatus;
 
     renderResults();
 
     try {
-      // V2 BUG FIX: Sent to correct endpoint without /progress
       const res = await fetch(`/api/anime/${sys_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -634,14 +690,13 @@ vertical; overflow: hidden; } {% endblock %} {% block content %}
       if (typeof showToast === "function")
         showToast(`Status updated to ${newStatus}`);
     } catch (error) {
-      filteredAnime[index].my_progress = originalStatus;
-      if (allIndex !== -1) allAnimeData[allIndex].my_progress = originalStatus;
+      state.filteredAnime[index].my_progress = originalStatus;
+      if (allIndex !== -1)
+        state.allAnimeData[allIndex].my_progress = originalStatus;
       renderResults();
       if (typeof showToast === "function")
         showToast("Network error. Status reverted.", true);
     }
   }
-
-  document.addEventListener("DOMContentLoaded", performSearch);
 </script>
 {% endblock %}

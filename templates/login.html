@@ -19,7 +19,7 @@ endblock %} {% block content %}
       </p>
     </div>
 
-    <form id="login-form" class="space-y-6" onsubmit="handleLogin(event)">
+    <form id="login-form" class="space-y-6">
       <div>
         <label
           for="username"
@@ -37,9 +37,8 @@ endblock %} {% block content %}
             id="username"
             name="username"
             required
-            autocomplete="username"
-            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand focus:bg-white text-gray-900 transition outline-none"
-            placeholder="Enter admin username"
+            class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand sm:text-sm transition"
+            placeholder="admin"
           />
         </div>
       </div>
@@ -61,8 +60,7 @@ endblock %} {% block content %}
             id="password"
             name="password"
             required
-            autocomplete="current-password"
-            class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand focus:bg-white text-gray-900 transition outline-none"
+            class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand sm:text-sm transition"
             placeholder="••••••••"
           />
         </div>
@@ -70,87 +68,91 @@ endblock %} {% block content %}
 
       <div
         id="error-message"
-        class="hidden text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center"
+        class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center"
       >
         <i class="fas fa-exclamation-circle mr-2"></i>
-        <span>Invalid credentials.</span>
+        <span class="font-medium"></span>
       </div>
 
-      <button
-        type="submit"
-        id="submit-btn"
-        class="w-full bg-brand hover:bg-brand-hover text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all flex justify-center items-center"
-      >
-        <span>Authenticate</span>
-        <i class="fas fa-arrow-right ml-2 text-sm"></i>
-      </button>
+      <div>
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand transition-all"
+        >
+          <span>Authenticate</span>
+          <i class="fas fa-arrow-right ml-2 text-sm"></i>
+        </button>
+      </div>
     </form>
-
-    <div class="mt-8 pt-6 border-t border-gray-100 text-center">
-      <a
-        href="/"
-        class="text-sm font-medium text-gray-500 hover:text-brand transition"
-        ><i class="fas fa-arrow-left mr-1"></i> Return to Guest View</a
-      >
-    </div>
   </div>
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  async function handleLogin(event) {
-    event.preventDefault();
+  document.addEventListener("DOMContentLoaded", () => {
+    // 1. Cache DOM Elements
+    const DOM = {
+      loginForm: document.getElementById("login-form"),
+      submitBtn: document.getElementById("submit-btn"),
+      errorDiv: document.getElementById("error-message"),
+      errorSpan: document.querySelector("#error-message span"),
+    };
 
-    const form = event.target;
-    const btn = document.getElementById("submit-btn");
-    const errorDiv = document.getElementById("error-message");
+    if (DOM.loginForm) {
+      // 2. Attach Event Listener (Separation of Concerns)
+      DOM.loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    // FastAPI's OAuth2PasswordRequestForm requires data to be x-www-form-urlencoded
-    const formData = new URLSearchParams();
-    formData.append("username", form.username.value);
-    formData.append("password", form.password.value);
+        const formData = new URLSearchParams(new FormData(DOM.loginForm));
 
-    // UI Loading State
-    btn.disabled = true;
-    btn.innerHTML =
-      '<i class="fas fa-circle-notch fa-spin mr-2"></i> Verifying...';
-    errorDiv.classList.add("hidden");
+        // Disable state
+        DOM.submitBtn.disabled = true;
+        DOM.submitBtn.innerHTML =
+          '<i class="fas fa-circle-notch fa-spin mr-2"></i> Verifying...';
+        DOM.errorDiv.classList.add("hidden");
 
-    try {
-      const response = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData,
+        try {
+          const response = await fetch("/api/v1/auth/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: formData,
+          });
+
+          if (response.ok) {
+            // Success! The browser automatically stores the HTTP-Only cookie set by the server.
+            DOM.submitBtn.classList.replace("bg-brand", "bg-emerald-500");
+            DOM.submitBtn.classList.replace(
+              "hover:bg-brand-hover",
+              "hover:bg-emerald-600",
+            );
+            DOM.submitBtn.innerHTML =
+              '<i class="fas fa-check mr-2"></i> Access Granted';
+
+            // Redirect to the system admin dashboard
+            setTimeout(() => {
+              window.location.href = "/system";
+            }, 800);
+          } else {
+            // Failure
+            DOM.errorDiv.classList.remove("hidden");
+            const errData = await response.json();
+            DOM.errorSpan.innerText =
+              errData.detail || "Authentication failed.";
+            DOM.submitBtn.disabled = false;
+            DOM.submitBtn.innerHTML =
+              '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
+          }
+        } catch (error) {
+          DOM.errorDiv.classList.remove("hidden");
+          DOM.errorSpan.innerText = "Network error. Please try again.";
+          DOM.submitBtn.disabled = false;
+          DOM.submitBtn.innerHTML =
+            '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
+        }
       });
-
-      if (response.ok) {
-        // Success! The browser automatically stores the HTTP-Only cookie set by the server.
-        btn.classList.replace("bg-brand", "bg-emerald-500");
-        btn.innerHTML = '<i class="fas fa-check mr-2"></i> Access Granted';
-
-        // Redirect to the system admin dashboard
-        setTimeout(() => {
-          window.location.href = "/system";
-        }, 800);
-      } else {
-        // Failure
-        errorDiv.classList.remove("hidden");
-        const errData = await response.json();
-        errorDiv.querySelector("span").innerText =
-          errData.detail || "Authentication failed.";
-        btn.disabled = false;
-        btn.innerHTML =
-          '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
-      }
-    } catch (error) {
-      errorDiv.classList.remove("hidden");
-      errorDiv.querySelector("span").innerText =
-        "Network error. Please try again.";
-      btn.disabled = false;
-      btn.innerHTML =
-        '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
     }
-  }
+  });
 </script>
 {% endblock %}
