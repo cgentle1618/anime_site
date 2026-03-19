@@ -95,17 +95,68 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
   };
 
   // DOM Cache
-  const pageDOM = {
-      loading: document.getElementById('loading'),
-      content: document.getElementById('dashboard-content'),
-      subtitle: document.getElementById('dashboard-subtitle'),
-      gridActive: document.getElementById('grid-active'),
-      gridPassive: document.getElementById('grid-passive'),
-      gridPaused: document.getElementById('grid-paused'),
-      countActive: document.getElementById('count-active'),
-      countPassive: document.getElementById('count-passive'),
-      countPaused: document.getElementById('count-paused')
-  };
+  const pageDOM = {};
+
+  document.addEventListener('DOMContentLoaded', () => {
+      // Cache DOM Elements
+      pageDOM.loading = document.getElementById('loading');
+      pageDOM.content = document.getElementById('dashboard-content');
+      pageDOM.subtitle = document.getElementById('dashboard-subtitle');
+      pageDOM.gridActive = document.getElementById('grid-active');
+      pageDOM.gridPassive = document.getElementById('grid-passive');
+      pageDOM.gridPaused = document.getElementById('grid-paused');
+      pageDOM.countActive = document.getElementById('count-active');
+      pageDOM.countPassive = document.getElementById('count-passive');
+      pageDOM.countPaused = document.getElementById('count-paused');
+
+      // Master Click Delegator
+      pageDOM.content.addEventListener('click', (e) => {
+          // Allow normal navigation for actual anchor links (like streaming links)
+          if (e.target.closest('a')) return;
+
+          const actionEl = e.target.closest('[data-action]');
+          if (!actionEl) return;
+
+          const action = actionEl.dataset.action;
+          const id = actionEl.dataset.id;
+
+          switch (action) {
+              case 'ignore-click':
+                  // Prevents the view-details click from triggering on the bottom bar
+                  break;
+              case 'view-details':
+                  window.location.href = `/anime/${id}`;
+                  break;
+              case 'edit-anime':
+                  window.location.href = `/modify?id=${id}`;
+                  break;
+              case 'ep-minus':
+                  optimisticUpdate(id, -1);
+                  break;
+              case 'ep-plus':
+                  optimisticUpdate(id, 1);
+                  break;
+          }
+      });
+
+      // Master Keydown Delegator (Enter key on Ep input)
+      pageDOM.content.addEventListener('keydown', (e) => {
+          const actionEl = e.target.closest('[data-action="ep-input"]');
+          if (actionEl && e.key === 'Enter') {
+              actionEl.blur(); // Trigger focusout
+          }
+      });
+
+      // Master Focusout Delegator (When user finishes typing in Ep input)
+      pageDOM.content.addEventListener('focusout', (e) => {
+          const actionEl = e.target.closest('[data-action="ep-input"]');
+          if (actionEl) {
+              handleDirectEpUpdate(actionEl.dataset.id, actionEl.value);
+          }
+      });
+
+      loadDashboard();
+  });
 
   // --- Data Fetching & Organization ---
   async function loadDashboard() {
@@ -189,12 +240,13 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           imageUrl = anime.cover_image_url; // V1 fallback support
       }
 
-      // V2 Cumulative Episode Calculations
+      // V2 Cumulative Episode Calculations (Now utilizing global utility)
       const { localFin, localTotal, cumFin, cumTotal, prevEpsTotal } = calculateCumulativeEpisodes(anime, state.animeData);
 
       let progressPercent = 0;
       let progressStyle = `width: 0%`;
 
+      // Progress bar reflects Cumulative totals for better sense of progression
       if (cumTotal !== "?") {
           progressPercent = Math.round((cumFin / cumTotal) * 100);
           progressStyle = `width: ${progressPercent}%`;
@@ -202,8 +254,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           progressPercent = "Ongoing";
           progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
       }
-
-      const percentText = progressPercent === "Ongoing" ? "Ongoing" : `${progressPercent}%`;
 
       // V2 Airing Status Badge
       let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
@@ -232,11 +282,14 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       }
       streamingIcons += `</div>`;
 
-      // Conditional Interactive Controls
+      // Conditional Interactive Controls based on Guest/Admin Role
       let interactiveControls = "";
       if (IS_ADMIN_INDEX) {
+          // Admin Quick Edit Pencil
+          const editPencil = `<button data-action="edit-anime" data-id="${anime.system_id}" class="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100" title="Quick Edit"><i class="fas fa-pencil-alt text-xs"></i></button>`;
+
           interactiveControls = `
-            <button data-action="edit-anime" data-id="${anime.system_id}" class="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100" title="Quick Edit"><i class="fas fa-pencil-alt text-xs"></i></button>
+            ${editPencil}
             <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
                 <button data-action="ep-minus" data-id="${anime.system_id}" class="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
                     <i class="fas fa-minus text-[10px]"></i>
@@ -251,6 +304,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
                     />
                     <span class="text-gray-400 mx-0.5 text-xs">/</span>
                     <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
+                    ${prevEpsTotal > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ''}
                 </div>
                 <button data-action="ep-plus" data-id="${anime.system_id}" class="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
                     <i class="fas fa-plus text-[10px]"></i>
@@ -263,6 +317,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
                     <span class="text-gray-900 w-6 text-center">${localFin}</span>
                     <span class="text-gray-400 mx-0.5 text-xs">/</span>
                     <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
+                    ${prevEpsTotal > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ''}
                 </div>
             </div>`;
       }
@@ -286,11 +341,8 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
             <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto cursor-default relative z-10" data-action="ignore-click">
                 <div class="flex justify-between items-end mb-1.5">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
-                        ${prevEpsTotal > 0 ? `<span class="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded tracking-wider border border-indigo-100" title="Cumulative Total">CUM: ${cumFin} / ${cumTotal}</span>` : ''}
-                    </div>
-                    <span class="text-[10px] font-bold text-brand">${percentText}</span>
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
+                    <span class="text-[10px] font-bold text-brand">${progressPercent}${cumTotal !== "?" ? '%' : ''}</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
                     <div class="bg-brand h-1.5 rounded-full transition-all duration-500" style="${progressStyle}"></div>
@@ -325,8 +377,10 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
       let targetLocalEps = currentLocalEps + change;
 
+      // Silently cap for button clicks to prevent annoying popups based on local caps
       if (totalLocalEps !== null && targetLocalEps > totalLocalEps) targetLocalEps = totalLocalEps;
       if (targetLocalEps < 0) targetLocalEps = 0;
+
       if (targetLocalEps === currentLocalEps) return;
 
       setEpisodeProgress(sys_id, targetLocalEps);
@@ -345,12 +399,12 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
       if (totalLocalEps !== null && target > totalLocalEps) {
           if (typeof showToast === 'function') showToast(`Warning: Cannot exceed total episodes.`, true);
-          renderDashboard();
+          renderDashboard(); // Reset UI safely
           return;
       }
 
       if (target === currentLocalEps) {
-          renderDashboard();
+          renderDashboard(); // Ensure UI is completely clean
           return;
       }
 
@@ -358,7 +412,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       state.animeData[index].ep_fin = target;
       renderDashboard();
 
-      // 2. Background API Request
+      // 2. Background API Request (Targeting the correct universal PATCH endpoint)
       try {
           const res = await fetch(`/api/anime/${sys_id}`, {
               method: 'PATCH',
@@ -367,6 +421,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           });
 
           if (!res.ok) throw new Error((await res.json()).detail || "Failed to sync to database");
+
           if (typeof showToast === 'function') showToast("Episodes updated successfully!");
 
       } catch (error) {
@@ -376,56 +431,5 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           if (typeof showToast === 'function') showToast("Network error. Progress reverted.", true);
       }
   }
-
-  // --- Event Delegation Initialization ---
-  document.addEventListener('DOMContentLoaded', () => {
-      loadDashboard();
-
-      // Master Click Delegator
-      pageDOM.content.addEventListener('click', (e) => {
-          // Allow normal navigation for actual anchor links
-          if (e.target.closest('a')) return;
-
-          const actionEl = e.target.closest('[data-action]');
-          if (!actionEl) return;
-
-          const action = actionEl.dataset.action;
-          const id = actionEl.dataset.id;
-
-          switch (action) {
-              case 'ignore-click':
-                  // Prevents the view-details click from triggering on the bottom bar
-                  break;
-              case 'view-details':
-                  window.location.href = `/anime/${id}`;
-                  break;
-              case 'edit-anime':
-                  window.location.href = `/modify?id=${id}`;
-                  break;
-              case 'ep-minus':
-                  optimisticUpdate(id, -1);
-                  break;
-              case 'ep-plus':
-                  optimisticUpdate(id, 1);
-                  break;
-          }
-      });
-
-      // Master Keydown Delegator (Enter key on Ep input)
-      pageDOM.content.addEventListener('keydown', (e) => {
-          const actionEl = e.target.closest('[data-action="ep-input"]');
-          if (actionEl && e.key === 'Enter') {
-              actionEl.blur(); // Trigger focusout
-          }
-      });
-
-      // Master Focusout Delegator (When user finishes typing in Ep input)
-      pageDOM.content.addEventListener('focusout', (e) => {
-          const actionEl = e.target.closest('[data-action="ep-input"]');
-          if (actionEl) {
-              handleDirectEpUpdate(actionEl.dataset.id, actionEl.value);
-          }
-      });
-  });
 </script>
 {% endblock %}
