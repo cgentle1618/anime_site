@@ -88,8 +88,24 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
   // Secure, localized Admin variable to prevent undefined errors
   const IS_ADMIN_INDEX = {{ 'true' if is_admin else 'false' }};
 
-  let allAnimeData = [];
-  let allSeriesData = [];
+  // State Management
+  const state = {
+      animeData: [],
+      seriesData: []
+  };
+
+  // DOM Cache
+  const pageDOM = {
+      loading: document.getElementById('loading'),
+      content: document.getElementById('dashboard-content'),
+      subtitle: document.getElementById('dashboard-subtitle'),
+      gridActive: document.getElementById('grid-active'),
+      gridPassive: document.getElementById('grid-passive'),
+      gridPaused: document.getElementById('grid-paused'),
+      countActive: document.getElementById('count-active'),
+      countPassive: document.getElementById('count-passive'),
+      countPaused: document.getElementById('count-paused')
+  };
 
   // --- Data Fetching & Organization ---
   async function loadDashboard() {
@@ -101,15 +117,15 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
           if (!animeRes.ok || !seriesRes.ok) throw new Error("Failed to load tracking data");
 
-          allAnimeData = await animeRes.json();
-          allSeriesData = await seriesRes.json();
+          state.animeData = await animeRes.json();
+          state.seriesData = await seriesRes.json();
 
           renderDashboard();
 
-          document.getElementById('loading').classList.add('hidden');
-          document.getElementById('dashboard-content').classList.remove('hidden');
+          pageDOM.loading.classList.add('hidden');
+          pageDOM.content.classList.remove('hidden');
       } catch (error) {
-          document.getElementById('loading').innerHTML = `
+          pageDOM.loading.innerHTML = `
             <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
                 <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
                 <p class="font-bold">Error loading dashboard data.</p>
@@ -123,7 +139,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       const passive = [];
       const paused = [];
 
-      const sortedData = [...allAnimeData].sort((a, b) => {
+      const sortedData = [...state.animeData].sort((a, b) => {
           const titleA = (a.series_season_cn || a.series_en || "").toLowerCase();
           const titleB = (b.series_season_cn || b.series_en || "").toLowerCase();
           return titleA.localeCompare(titleB);
@@ -136,26 +152,25 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       });
 
       const totalActive = active.length + passive.length;
-      document.getElementById('dashboard-subtitle').innerText = `Tracking ${totalActive} ongoing series.`;
+      pageDOM.subtitle.innerText = `Tracking ${totalActive} ongoing series.`;
 
-      populateGrid('grid-active', 'count-active', active);
-      populateGrid('grid-passive', 'count-passive', passive);
-      populateGrid('grid-paused', 'count-paused', paused);
+      populateGrid(pageDOM.gridActive, pageDOM.countActive, active);
+      populateGrid(pageDOM.gridPassive, pageDOM.countPassive, passive);
+      populateGrid(pageDOM.gridPaused, pageDOM.countPaused, paused);
   }
 
-  function populateGrid(gridId, countId, dataArray) {
-      const grid = document.getElementById(gridId);
-      document.getElementById(countId).innerText = dataArray.length;
+  function populateGrid(gridElement, countElement, dataArray) {
+      countElement.innerText = dataArray.length;
 
       if (dataArray.length === 0) {
-          grid.innerHTML = `
+          gridElement.innerHTML = `
             <div class="col-span-full flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
                 <p class="text-gray-400 font-medium italic"><i class="fas fa-ghost mr-2"></i> Nothing in this category right now.</p>
             </div>`;
           return;
       }
 
-      grid.innerHTML = dataArray.map(anime => createDashboardCard(anime)).join('');
+      gridElement.innerHTML = dataArray.map(anime => createDashboardCard(anime)).join('');
   }
 
   function createDashboardCard(anime) {
@@ -174,13 +189,12 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           imageUrl = anime.cover_image_url; // V1 fallback support
       }
 
-      // V2 Cumulative Episode Calculations (Now utilizing global utility)
-      const { localFin, localTotal, cumFin, cumTotal, prevEpsTotal } = calculateCumulativeEpisodes(anime, allAnimeData);
+      // V2 Cumulative Episode Calculations
+      const { localFin, localTotal, cumFin, cumTotal, prevEpsTotal } = calculateCumulativeEpisodes(anime, state.animeData);
 
       let progressPercent = 0;
       let progressStyle = `width: 0%`;
 
-      // Progress bar reflects Cumulative totals for better sense of progression
       if (cumTotal !== "?") {
           progressPercent = Math.round((cumFin / cumTotal) * 100);
           progressStyle = `width: ${progressPercent}%`;
@@ -188,6 +202,8 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           progressPercent = "Ongoing";
           progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
       }
+
+      const percentText = progressPercent === "Ongoing" ? "Ongoing" : `${progressPercent}%`;
 
       // V2 Airing Status Badge
       let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
@@ -200,7 +216,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       // V2 Streaming Icons Logic
       let streamingIcons = `<div class="flex items-center gap-2 ml-1">`;
       if (String(anime.source_baha).toUpperCase() === "TRUE" && anime.baha_link) {
-          streamingIcons += `<a href="${anime.baha_link}" target="_blank" onclick="event.stopPropagation()" class="text-[#00B4D8] hover:opacity-80 transition text-sm" title="Watch on Bahamut"><i class="fas fa-play-circle"></i></a>`;
+          streamingIcons += `<a href="${anime.baha_link}" target="_blank" class="text-[#00B4D8] hover:opacity-80 transition text-sm" title="Watch on Bahamut"><i class="fas fa-play-circle"></i></a>`;
       } else if (String(anime.source_baha).toUpperCase() === "TRUE") {
           streamingIcons += `<span class="text-[#00B4D8] text-sm" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>`;
       }
@@ -210,38 +226,33 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       }
 
       if (anime.source_other && anime.source_other_link) {
-          streamingIcons += `<a href="${anime.source_other_link}" target="_blank" onclick="event.stopPropagation()" class="text-purple-600 hover:text-purple-800 transition text-[10px] font-bold uppercase tracking-wide bg-purple-50 px-1.5 py-0.5 rounded" title="Watch on ${anime.source_other}">${anime.source_other}</a>`;
+          streamingIcons += `<a href="${anime.source_other_link}" target="_blank" class="text-purple-600 hover:text-purple-800 transition text-[10px] font-bold uppercase tracking-wide bg-purple-50 px-1.5 py-0.5 rounded" title="Watch on ${anime.source_other}">${anime.source_other}</a>`;
       } else if (anime.source_other) {
           streamingIcons += `<span class="text-gray-500 text-[10px] font-bold uppercase tracking-wide bg-gray-100 px-1.5 py-0.5 rounded" title="Available on ${anime.source_other}">${anime.source_other}</span>`;
       }
       streamingIcons += `</div>`;
 
-      // Conditional Interactive Controls based on Guest/Admin Role
+      // Conditional Interactive Controls
       let interactiveControls = "";
       if (IS_ADMIN_INDEX) {
-          // Admin Quick Edit Pencil
-          const editPencil = `<button onclick="window.location.href='/modify?id=${anime.system_id}'; event.stopPropagation();" class="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100" title="Quick Edit"><i class="fas fa-pencil-alt text-xs"></i></button>`;
-
           interactiveControls = `
-            ${editPencil}
+            <button data-action="edit-anime" data-id="${anime.system_id}" class="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100" title="Quick Edit"><i class="fas fa-pencil-alt text-xs"></i></button>
             <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
-                <button onclick="optimisticUpdate('${anime.system_id}', -1); event.stopPropagation();" class="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
+                <button data-action="ep-minus" data-id="${anime.system_id}" class="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
                     <i class="fas fa-minus text-[10px]"></i>
                 </button>
                 <div class="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap overflow-hidden">
                     <input
                       type="number"
-                      id="ep-input-${anime.system_id}"
-                      onblur="handleDirectEpUpdate('${anime.system_id}', this.value)"
-                      onkeydown="if(event.key==='Enter') this.blur();"
+                      data-action="ep-input"
+                      data-id="${anime.system_id}"
                       class="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                       value="${localFin}"
                     />
                     <span class="text-gray-400 mx-0.5 text-xs">/</span>
                     <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
-                    ${prevEpsTotal > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ''}
                 </div>
-                <button onclick="optimisticUpdate('${anime.system_id}', 1); event.stopPropagation();" class="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
+                <button data-action="ep-plus" data-id="${anime.system_id}" class="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
                     <i class="fas fa-plus text-[10px]"></i>
                 </button>
             </div>`;
@@ -252,13 +263,12 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
                     <span class="text-gray-900 w-6 text-center">${localFin}</span>
                     <span class="text-gray-400 mx-0.5 text-xs">/</span>
                     <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
-                    ${prevEpsTotal > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ''}
                 </div>
             </div>`;
       }
 
       return `
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full cursor-pointer relative" onclick="window.location.href='/anime/${anime.system_id}'">
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full cursor-pointer relative" data-action="view-details" data-id="${anime.system_id}">
             <div class="flex p-3">
                 <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
                     <img src="${imageUrl}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
@@ -274,10 +284,13 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
                 </div>
             </div>
 
-            <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto cursor-default relative z-10" onclick="event.stopPropagation();">
+            <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto cursor-default relative z-10" data-action="ignore-click">
                 <div class="flex justify-between items-end mb-1.5">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
-                    <span class="text-[10px] font-bold text-brand">${progressPercent}${cumTotal !== "?" ? '%' : ''}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
+                        ${prevEpsTotal > 0 ? `<span class="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded tracking-wider border border-indigo-100" title="Cumulative Total">CUM: ${cumFin} / ${cumTotal}</span>` : ''}
+                    </div>
+                    <span class="text-[10px] font-bold text-brand">${percentText}</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
                     <div class="bg-brand h-1.5 rounded-full transition-all duration-500" style="${progressStyle}"></div>
@@ -292,33 +305,28 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
   // --- Dynamic Input Handlers ---
   function handleDirectEpUpdate(sys_id, val) {
       if (!IS_ADMIN_INDEX) return;
-      let typedLocal = parseInt(val, 10);
+      const typedLocal = parseInt(val, 10);
 
       if (isNaN(typedLocal) || typedLocal < 0) {
           renderDashboard(); // Revert invalid input instantly
           return;
       }
-
       setEpisodeProgress(sys_id, typedLocal);
   }
 
   function optimisticUpdate(sys_id, change) {
       if (!IS_ADMIN_INDEX) return;
-      const index = allAnimeData.findIndex(a => a.system_id === sys_id);
+      const index = state.animeData.findIndex(a => a.system_id === sys_id);
       if (index === -1) return;
 
-      const anime = allAnimeData[index];
+      const anime = state.animeData[index];
       const currentLocalEps = anime.ep_fin || 0;
-
-      // Safely parse totalLocalEps handling the "?" placeholder
       const totalLocalEps = (anime.ep_total !== null && anime.ep_total !== "?") ? parseInt(anime.ep_total, 10) : null;
 
       let targetLocalEps = currentLocalEps + change;
 
-      // Silently cap for button clicks to prevent annoying popups based on local caps
       if (totalLocalEps !== null && targetLocalEps > totalLocalEps) targetLocalEps = totalLocalEps;
       if (targetLocalEps < 0) targetLocalEps = 0;
-
       if (targetLocalEps === currentLocalEps) return;
 
       setEpisodeProgress(sys_id, targetLocalEps);
@@ -326,35 +334,31 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
   async function setEpisodeProgress(sys_id, newLocalEps) {
       if (!IS_ADMIN_INDEX) return;
-      const index = allAnimeData.findIndex(a => a.system_id === sys_id);
+      const index = state.animeData.findIndex(a => a.system_id === sys_id);
       if (index === -1) return;
 
-      const anime = allAnimeData[index];
+      const anime = state.animeData[index];
       const currentLocalEps = anime.ep_fin || 0;
-
-      // Safely parse totalLocalEps handling the "?" placeholder
       const totalLocalEps = (anime.ep_total !== null && anime.ep_total !== "?") ? parseInt(anime.ep_total, 10) : null;
 
-      let target = newLocalEps;
-      if (target < 0) target = 0;
+      let target = Math.max(0, newLocalEps);
 
-      // Warning for Direct Input Overflow (Local Check)
       if (totalLocalEps !== null && target > totalLocalEps) {
           if (typeof showToast === 'function') showToast(`Warning: Cannot exceed total episodes.`, true);
-          renderDashboard(); // Reset UI safely
+          renderDashboard();
           return;
       }
 
       if (target === currentLocalEps) {
-          renderDashboard(); // Ensure UI is completely clean
+          renderDashboard();
           return;
       }
 
       // 1. Optimistic Update
-      allAnimeData[index].ep_fin = target;
+      state.animeData[index].ep_fin = target;
       renderDashboard();
 
-      // 2. Background API Request (Targeting the correct universal PATCH endpoint)
+      // 2. Background API Request
       try {
           const res = await fetch(`/api/anime/${sys_id}`, {
               method: 'PATCH',
@@ -363,17 +367,65 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
           });
 
           if (!res.ok) throw new Error((await res.json()).detail || "Failed to sync to database");
-
           if (typeof showToast === 'function') showToast("Episodes updated successfully!");
 
       } catch (error) {
           console.error("Optimistic Update Failed:", error);
-          allAnimeData[index].ep_fin = currentLocalEps;
+          state.animeData[index].ep_fin = currentLocalEps;
           renderDashboard();
           if (typeof showToast === 'function') showToast("Network error. Progress reverted.", true);
       }
   }
 
-  document.addEventListener('DOMContentLoaded', loadDashboard);
+  // --- Event Delegation Initialization ---
+  document.addEventListener('DOMContentLoaded', () => {
+      loadDashboard();
+
+      // Master Click Delegator
+      pageDOM.content.addEventListener('click', (e) => {
+          // Allow normal navigation for actual anchor links
+          if (e.target.closest('a')) return;
+
+          const actionEl = e.target.closest('[data-action]');
+          if (!actionEl) return;
+
+          const action = actionEl.dataset.action;
+          const id = actionEl.dataset.id;
+
+          switch (action) {
+              case 'ignore-click':
+                  // Prevents the view-details click from triggering on the bottom bar
+                  break;
+              case 'view-details':
+                  window.location.href = `/anime/${id}`;
+                  break;
+              case 'edit-anime':
+                  window.location.href = `/modify?id=${id}`;
+                  break;
+              case 'ep-minus':
+                  optimisticUpdate(id, -1);
+                  break;
+              case 'ep-plus':
+                  optimisticUpdate(id, 1);
+                  break;
+          }
+      });
+
+      // Master Keydown Delegator (Enter key on Ep input)
+      pageDOM.content.addEventListener('keydown', (e) => {
+          const actionEl = e.target.closest('[data-action="ep-input"]');
+          if (actionEl && e.key === 'Enter') {
+              actionEl.blur(); // Trigger focusout
+          }
+      });
+
+      // Master Focusout Delegator (When user finishes typing in Ep input)
+      pageDOM.content.addEventListener('focusout', (e) => {
+          const actionEl = e.target.closest('[data-action="ep-input"]');
+          if (actionEl) {
+              handleDirectEpUpdate(actionEl.dataset.id, actionEl.value);
+          }
+      });
+  });
 </script>
 {% endblock %}
