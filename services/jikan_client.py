@@ -66,6 +66,16 @@ def fetch_anime_details(mal_id: int) -> Optional[Dict[str, Any]]:
         response.raise_for_status()
         data = response.json().get("data", {})
 
+        ep_total = data.get("episodes")
+
+        airing_type = data.get("type", "")
+
+        airing_status = data.get("status", "")
+        if airing_status == "Not yet aired":
+            airing_status = "Not Yet Aired"
+        elif airing_status == "currently airing":
+            airing_status = "Airing"
+
         # ==========================================
         # PARSE DATES & SEASONS
         # ==========================================
@@ -109,6 +119,9 @@ def fetch_anime_details(mal_id: int) -> Optional[Dict[str, Any]]:
         images = data.get("images", {})
 
         return {
+            "airing_type": airing_type,
+            "airing_status": airing_status,
+            "ep_total": ep_total,
             "release_year": release_year,
             "release_month": release_month,
             "release_season": release_season,
