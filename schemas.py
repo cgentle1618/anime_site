@@ -7,6 +7,7 @@ Following the DRY (Don't Repeat Yourself) principle with base classes.
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from uuid import UUID
 
 # ==========================================
 # AUTHENTICATION SCHEMAS
@@ -33,7 +34,7 @@ class UserCreate(UserBase):
 class UserOut(UserBase):
     """Schema for returning user data (never includes password!)."""
 
-    id: str
+    id: UUID
     role: str
 
     class Config:
@@ -64,34 +65,41 @@ class SystemOptionResponse(SystemOptionBase):
 
 
 # ==========================================
-# ANIME SERIES (HUB) SCHEMAS
+# FRANCHISE SCHEMAS
 # ==========================================
 
 
-class AnimeSeriesBase(BaseModel):
-    """Shared fields for Series (Franchise Hubs)."""
+class FranchiseBase(BaseModel):
+    """Base schema for top-level Franchise entries."""
 
-    series_en: Optional[str] = None
-    series_roman: Optional[str] = None
-    series_cn: Optional[str] = None
-    rating_series: Optional[str] = None
-    series_alt_name: Optional[str] = None
-    series_expectation: Optional[str] = None
-    favorite_3x3_slot: Optional[int] = Field(None, ge=1, le=9)
+    franchise_type: Optional[str] = None
+    franchise_name_en: Optional[str] = None
+    franchise_name_cn: Optional[str] = None
+    franchise_name_romanji: Optional[str] = None
+    franchise_name_jp: Optional[str] = None
+    franchise_name_alt: Optional[str] = None
+    my_rating: Optional[str] = None
+    franchise_expectation: Optional[str] = "Low"
+    favorite_3x3_slot: Optional[int] = None
+    remark: Optional[str] = None
 
 
-class AnimeSeriesCreate(AnimeSeriesBase):
+class FranchiseCreate(FranchiseBase):
+    """Schema for creating a new Franchise."""
+
     pass
 
 
-class AnimeSeriesUpdate(AnimeSeriesBase):
-    """Schema for updating an Anime Series Hub."""
+class FranchiseUpdate(FranchiseBase):
+    """Schema for updating an existing Franchise. Allows passing the ID in the body."""
 
-    system_id: Optional[str] = None
+    system_id: Optional[UUID] = None
 
 
-class AnimeSeriesResponse(AnimeSeriesBase):
-    system_id: str
+class FranchiseResponse(FranchiseBase):
+    """Schema for returning Franchise data to the client."""
+
+    system_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -100,82 +108,134 @@ class AnimeSeriesResponse(AnimeSeriesBase):
 
 
 # ==========================================
-# ANIME ENTRY (SEASONAL) SCHEMAS
+# SERIES SCHEMAS
+# ==========================================
+
+
+class SeriesBase(BaseModel):
+    """Base schema for the intermediate Series layer."""
+
+    franchise_id: Optional[UUID] = None
+    series_name_en: Optional[str] = None
+    series_name_cn: Optional[str] = None
+    series_name_alt: Optional[str] = None
+
+
+class SeriesCreate(SeriesBase):
+    """Schema for creating a new Series."""
+
+    pass
+
+
+class SeriesUpdate(SeriesBase):
+    """Schema for updating an existing Series."""
+
+    system_id: Optional[UUID] = None
+
+
+class SeriesResponse(SeriesBase):
+    """Schema for returning Series data to the client."""
+
+    system_id: UUID
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# ANIME SCHEMAS
 # ==========================================
 
 
 class AnimeBase(BaseModel):
-    """Shared core fields for individual Anime Entries."""
+    """Base schema encompassing all editable fields for an Anime entry."""
 
-    series_en: str
-    series_season_en: Optional[str] = None
-    series_season_roman: Optional[str] = None
-    series_season_cn: Optional[str] = None
-    anime_alt_name: Optional[str] = None
-    series_season: Optional[str] = None
+    # Relationships
+    franchise_id: Optional[UUID] = None
+    series_id: Optional[UUID] = None
 
+    # Naming
+    anime_name_en: Optional[str] = None
+    anime_name_cn: Optional[str] = None
+    anime_name_romanji: Optional[str] = None
+    anime_name_jp: Optional[str] = None
+    anime_name_alt: Optional[str] = None
+
+    # Progress & Status
     airing_type: Optional[str] = None
-    my_progress: Optional[str] = None
+    watching_status: str = "Might Watch"
     airing_status: Optional[str] = None
-    ep_total: Optional[int] = 0
+    ep_total: Optional[int] = None
     ep_fin: Optional[int] = 0
-    rating_mine: Optional[str] = None
-    main_spinoff: Optional[str] = "Main"
+    my_rating: Optional[str] = None
+    is_main: Optional[str] = None
 
-    genre_main: Optional[str] = None
-    genre_sub: Optional[str] = None
-
+    # Release Information
     release_month: Optional[str] = None
     release_season: Optional[str] = None
     release_year: Optional[str] = None
 
+    # Production
     studio: Optional[str] = None
     director: Optional[str] = None
     producer: Optional[str] = None
     music: Optional[str] = None
     distributor_tw: Optional[str] = None
-    seiyuu: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
 
-    prequel: Optional[str] = None
-    sequel: Optional[str] = None
+    # Ordering & Links
+    prequel_id: Optional[UUID] = None
+    sequel_id: Optional[UUID] = None
     alternative: Optional[str] = None
     watch_order: Optional[float] = None
-    watch_order_rec: Optional[float] = None
-
     remark: Optional[str] = None
+
+    # Official Links
+    official_link: Optional[str] = None
+    twitter_link: Optional[str] = None
+
+    # External Databases
+    mal_id: Optional[int] = None
+    mal_link: Optional[str] = None
+    mal_rating: Optional[float] = None
+    mal_rank: Optional[str] = None
+    anilist_link: Optional[str] = None
+    anilist_rating: Optional[str] = None
+
+    # Music & Cast
     op: Optional[str] = None
     ed: Optional[str] = None
     insert_ost: Optional[str] = None
-    cover_image_file: Optional[str] = None
+    seiyuu: Optional[str] = None
 
-    mal_id: Optional[int] = None
-    mal_rating: Optional[float] = None
-    mal_rank: Optional[int] = None
-    mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
+    # Sources
     source_baha: Optional[bool] = None
     baha_link: Optional[str] = None
-    source_netflix: Optional[bool] = False
     source_other: Optional[str] = None
     source_other_link: Optional[str] = None
+    source_netflix: Optional[bool] = False
+
+    # Media
+    cover_image_file: Optional[str] = None
 
 
-class AnimeEntryCreate(AnimeBase):
-    """Schema for adding a new Anime Entry."""
+class AnimeCreate(AnimeBase):
+    """Schema for creating a new Anime entry."""
 
-    system_id: Optional[str] = None
-    ep_fin: Optional[int] = 0
-    series_alt_name: Optional[str] = None
+    pass
 
 
-class AnimeEntryUpdate(AnimeBase):
-    """Schema for updating an existing entry."""
+class AnimeUpdate(AnimeBase):
+    """Schema for updating an existing Anime entry."""
 
-    system_id: Optional[str] = None
+    system_id: Optional[UUID] = None
 
 
-class AnimeEntryResponse(AnimeBase):
-    system_id: str
+class AnimeResponse(AnimeBase):
+    """Schema for returning Anime data to the client."""
+
+    system_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -188,11 +248,22 @@ class AnimeEntryResponse(AnimeBase):
 # ==========================================
 
 
-class AnimeSheetSync(AnimeEntryCreate):
-    """
-    Schema strictly for validating and coercing data coming from Google Sheets during Sync operations.
-    Inherits all fields from AnimeEntryCreate and adds timestamp handling.
-    """
+class FranchiseSheetSync(FranchiseCreate):
+    """Schema for Google Sheets Franchise Sync operations."""
+
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class SeriesSheetSync(SeriesCreate):
+    """Schema for Google Sheets Series Sync operations."""
+
+    # Series doesn't currently track created_at/updated_at in the model but we can extend if needed.
+    pass
+
+
+class AnimeSheetSync(AnimeCreate):
+    """Schema for Google Sheets Anime Sync operations."""
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
