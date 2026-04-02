@@ -270,7 +270,6 @@
       // GLOBAL UTILITIES
       // ==========================================
 
-      // Debounce Utility for performance
       const debounce = (func, delay = 250) => {
         let timeoutId;
         return (...args) => {
@@ -296,7 +295,6 @@
         setTimeout(() => DOM.toast.classList.add("translate-y-20", "opacity-0"), 3000);
       }
 
-      // Cumulative Episodes Calculator (Used globally by details/index pages)
       function calculateCumulativeEpisodes(anime, animeList) {
         let localFin = anime.ep_fin || 0;
         let localTotal = anime.ep_total || "?";
