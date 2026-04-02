@@ -46,6 +46,39 @@ class Franchise(Base):
     series = relationship("Series", back_populates="franchise")
     animes = relationship("Anime", back_populates="franchise")
 
+    # --- Data Control: Fallback Logic ---
+    def get_fallback_name(self, start_from="CN"):
+        """
+        Cascading fallback for Franchise Name.
+        Sequence: CN -> EN -> Alt -> Romanji -> JP -> hide ("")
+        """
+        sequence = [
+            ("CN", self.franchise_name_cn),
+            ("EN", self.franchise_name_en),
+            ("Alt", self.franchise_name_alt),
+            ("Romanji", self.franchise_name_romanji),
+            ("JP", self.franchise_name_jp),
+        ]
+
+        # Determine where to start in the fallback chain
+        start_idx = 0
+        for i, (lang, _) in enumerate(sequence):
+            if lang == start_from:
+                start_idx = i
+                break
+
+        # Return the first non-empty string found from the starting point
+        for i in range(start_idx, len(sequence)):
+            val = sequence[i][1]
+            if val and str(val).strip():
+                return str(val).strip()
+        return ""  # hide
+
+    @property
+    def display_name(self):
+        """Convenience property for the default CN-first fallback."""
+        return self.get_fallback_name("CN")
+
 
 class Series(Base):
     """
@@ -70,6 +103,35 @@ class Series(Base):
     # Relationships
     franchise = relationship("Franchise", back_populates="series")
     animes = relationship("Anime", back_populates="series")
+
+    # --- Data Control: Fallback Logic ---
+    def get_fallback_name(self, start_from="CN"):
+        """
+        Cascading fallback for Series Name.
+        Sequence: CN -> EN -> Alt -> hide ("")
+        """
+        sequence = [
+            ("CN", self.series_name_cn),
+            ("EN", self.series_name_en),
+            ("Alt", self.series_name_alt),
+        ]
+
+        start_idx = 0
+        for i, (lang, _) in enumerate(sequence):
+            if lang == start_from:
+                start_idx = i
+                break
+
+        for i in range(start_idx, len(sequence)):
+            val = sequence[i][1]
+            if val and str(val).strip():
+                return str(val).strip()
+        return ""
+
+    @property
+    def display_name(self):
+        """Convenience property for the default CN-first fallback."""
+        return self.get_fallback_name("CN")
 
 
 class Anime(Base):
@@ -133,6 +195,7 @@ class Anime(Base):
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
     anilist_link = Column(String, nullable=True)
+    anilist_rating = Column(String, nullable=True)
 
     op = Column(String, nullable=True)
     ed = Column(String, nullable=True)
@@ -153,6 +216,37 @@ class Anime(Base):
     # Relationships
     franchise = relationship("Franchise", back_populates="animes")
     series = relationship("Series", back_populates="animes")
+
+    # --- Data Control: Fallback Logic ---
+    def get_fallback_name(self, start_from="CN"):
+        """
+        Cascading fallback for Anime Name.
+        Sequence: CN -> EN -> Alt -> Romanji -> JP -> hide ("")
+        """
+        sequence = [
+            ("CN", self.anime_name_cn),
+            ("EN", self.anime_name_en),
+            ("Alt", self.anime_name_alt),
+            ("Romanji", self.anime_name_romanji),
+            ("JP", self.anime_name_jp),
+        ]
+
+        start_idx = 0
+        for i, (lang, _) in enumerate(sequence):
+            if lang == start_from:
+                start_idx = i
+                break
+
+        for i in range(start_idx, len(sequence)):
+            val = sequence[i][1]
+            if val and str(val).strip():
+                return str(val).strip()
+        return ""
+
+    @property
+    def display_name(self):
+        """Convenience property for the default CN-first fallback."""
+        return self.get_fallback_name("CN")
 
 
 # ==========================================
