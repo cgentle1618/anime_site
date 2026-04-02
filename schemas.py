@@ -162,11 +162,14 @@ class AnimeBase(BaseModel):
     anime_name_alt: Optional[str] = None
 
     # Progress & Status
+    season_part: Optional[str] = None
     airing_type: Optional[str] = None
     watching_status: str = "Might Watch"
     airing_status: Optional[str] = None
     ep_total: Optional[int] = None
     ep_fin: Optional[int] = 0
+    ep_previous: Optional[int] = None
+    ep_special: Optional[float] = None
     my_rating: Optional[str] = None
     is_main: Optional[str] = None
 

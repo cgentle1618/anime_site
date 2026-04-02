@@ -161,11 +161,14 @@ class Anime(Base):
     anime_name_jp = Column(String, nullable=True)
     anime_name_alt = Column(String, nullable=True)
 
+    season_part = Column(String, nullable=True)
     airing_type = Column(String, nullable=True)
     watching_status = Column(String, nullable=False, default="Might Watch")
     airing_status = Column(String, nullable=True)
     ep_total = Column(Integer, nullable=True)
     ep_fin = Column(Integer, nullable=True, default=0)
+    ep_previous = Column(Integer, nullable=True)
+    ep_special = Column(Float, nullable=True)
     my_rating = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
 
