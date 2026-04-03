@@ -1,18 +1,145 @@
 """
 other_logics.py
-Contains isolated business logic specific to Anime entries (e.g., episode math, completion checks).
+Contains isolated business logic specific to Anime entries (e.g., episode math, completion checks, hierarchy resolution).
 These functions mutate or evaluate SQLAlchemy models directly and are meant to be
-called by FastApi routers or other higher-level orchestrators.
+called by FastAPI routers or other higher-level orchestrators.
 """
 
 import logging
-from typing import Dict
+import uuid
 import re
+from typing import Dict, Any
 from sqlalchemy.orm import Session
-from models import Anime
-from utils.utils import MONTH_MAP
+from sqlalchemy import or_
+
+from models import Anime, Franchise
+from database import get_taipei_now
+import services.jikan as jikan_client
+from utils.utils import MONTH_MAP, calculate_season_from_month, extract_mal_id
 
 logger = logging.getLogger(__name__)
+
+
+# ==========================================
+# PARENT HIERARCHY & DATA FILL
+# ==========================================
+
+
+def resolve_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: dict
+) -> tuple[Any, Any]:
+    """
+    Dynamically resolves the V2 relational tree.
+    1. If franchise is null: searches for an existing one by name, auto-creates if missing.
+    2. Anime entries can have no series value. If series_id is null, it remains null.
+    """
+    final_franchise_id = franchise_id
+
+    # 1. Resolve Franchise
+    if not final_franchise_id:
+        # Search for an existing franchise using the provided names
+        search_conditions = []
+        valid_names = set()
+
+        for lang_key in ["en", "cn", "romanji", "jp", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        for name_str in valid_names:
+            # Case-insensitive exact match
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_romanji.ilike(name_str),
+                    Franchise.franchise_name_jp.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing_franchise = None
+        if search_conditions:
+            existing_franchise = (
+                db.query(Franchise).filter(or_(*search_conditions)).first()
+            )
+
+        if existing_franchise:
+            final_franchise_id = existing_franchise.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise via name match: {final_franchise_id}"
+            )
+        else:
+            new_franchise = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type="Anime",  # Default type
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_romanji=names.get("romanji"),
+                franchise_name_jp=names.get("jp"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_franchise)
+            db.flush()  # Flush to get the ID without committing
+            final_franchise_id = new_franchise.system_id
+            logger.info(f"Auto-created missing Franchise: {final_franchise_id}")
+
+    # 2. Resolve Series
+    # We only attach a series if the frontend explicitly passes a valid series_id.
+    # If the field for series is null, we leave it null.
+    final_series_id = series_id
+
+    return final_franchise_id, final_series_id
+
+
+def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False):
+    """
+    Executes 'Calculate Season From Month' and 'MAL Autofill'.
+    Fills null fields. If force_replace_ratings is True, overwrites rating and rank.
+    """
+    # Calculate Season from Month
+    if anime.release_month and not anime.release_season:
+        anime.release_season = calculate_season_from_month(anime.release_month)
+
+    # MAL Autofill
+    mal_id = anime.mal_id or extract_mal_id(anime.mal_link)
+    if mal_id:
+        anime.mal_id = mal_id
+        try:
+            # Assuming standard Jikan extraction dictionary
+            j_data = jikan_client.fetch_anime_details(mal_id)
+            if j_data:
+                # Fill Missing
+                if anime.ep_total is None:
+                    anime.ep_total = j_data.get("ep_total")
+                if anime.release_year is None:
+                    anime.release_year = j_data.get("release_year")
+                if anime.release_month is None:
+                    anime.release_month = j_data.get("release_month")
+                if anime.studio is None:
+                    anime.studio = j_data.get("studio")
+                if anime.airing_type is None:
+                    anime.airing_type = j_data.get("airing_type")
+
+                # Replace Ratings (Conditional)
+                if force_replace_ratings:
+                    anime.mal_rating = j_data.get("mal_rating")
+                    anime.mal_rank = j_data.get("mal_rank")
+                else:
+                    if anime.mal_rating is None:
+                        anime.mal_rating = j_data.get("mal_rating")
+                    if anime.mal_rank is None:
+                        anime.mal_rank = j_data.get("mal_rank")
+
+        except Exception as e:
+            logger.error(f"MAL Autofill failed for {mal_id}: {e}")
+
+
+# ==========================================
+# EPISODE MATH & PROGRESSION
+# ==========================================
 
 
 def autofill_ep_previous(db: Session, anime: Anime) -> None:
