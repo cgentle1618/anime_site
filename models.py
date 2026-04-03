@@ -276,7 +276,6 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     role = Column(String, default="guest")
-    created_at = Column(DateTime, default=get_taipei_now)
 
 
 class SyncLog(Base):
