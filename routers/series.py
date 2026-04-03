@@ -1,228 +1,224 @@
 """
 routers/series.py
-Handles all operations for Anime Series Hubs (Parent franchises).
-Includes public lookups and secure administrative CRUD lifecycle.
+Handles all operations for Series (the intermediate V2 database entity).
+Includes public lookups with multi-language search, franchise filtering,
+and secure administrative CRUD lifecycle.
 """
 
 import uuid
 import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Body
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import or_
 
 import models
 import schemas
-from services.image_manager import delete_cover_image
-from services.sync import _push_series_backup_to_sheets
+from database import get_taipei_now
 from dependencies import get_db, get_current_admin
 
 # Setup basic logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize the router with a standard prefix
 router = APIRouter(prefix="/api/series", tags=["Series Management"])
+
 
 # ==========================================
 # PUBLIC READ OPERATIONS (Unprotected)
 # ==========================================
 
 
-@router.get(
-    "/", response_model=List[schemas.AnimeSeriesResponse], summary="Get All Series Hubs"
-)
-def get_all_series(db: Session = Depends(get_db)):
-    """Retrieves all high-level Series Hubs (Franchises) from the database."""
-    return db.query(models.AnimeSeries).all()
-
-
-@router.get(
-    "/details/{system_id:path}",
-    response_model=schemas.AnimeSeriesResponse,
-    summary="Smart Series Lookup",
-)
-def get_series_details_by_id(system_id: str, db: Session = Depends(get_db)):
+@router.get("/", response_model=List[schemas.SeriesResponse], summary="Get All Series")
+def get_all_series(
+    franchise_id: Optional[str] = None,
+    search_query: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     """
-    A smart lookup endpoint that resolves series info using three fallback levels:
-    1. Exact System ID match.
-    2. Case-insensitive Series English Name match.
-    3. Auto-resolving the parent series using an Anime Entry's System ID.
+    Retrieves Series from the database.
+    - If 'franchise_id' is provided, filters strictly to that parent franchise.
+    - If 'search_query' is provided, searches across EN, CN, and Alt names.
+    Used by the frontend to populate autocomplete search and form dropdowns.
     """
-    # Level 1: Standard ID lookup (Direct match)
-    series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == system_id)
-        .first()
+    query = db.query(models.Series)
+
+    if franchise_id:
+        query = query.filter(models.Series.franchise_id == franchise_id)
+
+    if search_query:
+        search_term = f"%{search_query}%"
+        query = query.filter(
+            or_(
+                models.Series.series_name_en.ilike(search_term),
+                models.Series.series_name_cn.ilike(search_term),
+                models.Series.series_name_alt.ilike(search_term),
+            )
+        )
+
+    return query.order_by(models.Series.series_name_en).all()
+
+
+@router.get(
+    "/{system_id}",
+    response_model=schemas.SeriesResponse,
+    summary="Get Series by ID",
+)
+def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
+    """Retrieves a single series by its UUID."""
+    db_series = (
+        db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
-    if series:
-        return series
-
-    # Level 2: Name-based lookup (Fallback for direct URL typing or semantic links)
-    clean_query = str(system_id).strip().lower()
-    all_series = db.query(models.AnimeSeries).all()
-    for s in all_series:
-        if s.series_en and str(s.series_en).strip().lower() == clean_query:
-            return s
-
-    # Level 3: Cross-reference lookup (User passed an Anime ID instead of a Series ID)
-    anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.system_id == system_id)
-        .first()
-    )
-    if anime and anime.series_en:
-        parent_name = str(anime.series_en).strip().lower()
-        for s in all_series:
-            if s.series_en and str(s.series_en).strip().lower() == parent_name:
-                return s
-
-    # If all fallbacks fail, the series doesn't exist
-    raise HTTPException(status_code=404, detail="Franchise Hub not found.")
+    if not db_series:
+        raise HTTPException(status_code=404, detail="Series not found.")
+    return db_series
 
 
 # ==========================================
-# SECURE WRITE OPERATIONS (Admin Only)
+# PROTECTED WRITE OPERATIONS (Admin Only)
 # ==========================================
 
 
-@router.put("/{system_id}", summary="Update Series Hub")
-def update_series_hub(
-    system_id: str,
-    payload: schemas.AnimeSeriesUpdate,
-    background_tasks: BackgroundTasks,
+@router.post("/", response_model=schemas.SeriesResponse, summary="Create Series")
+def create_series(
+    payload: schemas.SeriesCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Updates metadata (like Ratings or Expected levels) for an existing Franchise Hub."""
+    """Creates a new Series. Verifies franchise_id if provided."""
+
+    if payload.franchise_id:
+        parent_franchise = (
+            db.query(models.Franchise)
+            .filter(models.Franchise.system_id == str(payload.franchise_id))
+            .first()
+        )
+        if not parent_franchise:
+            raise HTTPException(
+                status_code=400, detail="The provided franchise_id does not exist."
+            )
+
+    new_series = models.Series(
+        system_id=payload.system_id or str(uuid.uuid4()),
+        franchise_id=payload.franchise_id,
+        series_name_en=payload.series_name_en,
+        series_name_cn=payload.series_name_cn,
+        series_name_alt=payload.series_name_alt,
+    )
+
+    db.add(new_series)
+    db.commit()
+    db.refresh(new_series)
+
+    return new_series
+
+
+@router.put(
+    "/{system_id}", response_model=schemas.SeriesResponse, summary="Update Series"
+)
+def update_series(
+    system_id: str,
+    payload: schemas.SeriesUpdate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Fully updates a Series' metadata."""
     db_series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == system_id)
-        .first()
+        db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
     if not db_series:
-        raise HTTPException(status_code=404, detail="Series Hub not found.")
+        raise HTTPException(status_code=404, detail="Series not found.")
 
-    update_data = payload.model_dump(exclude_unset=True)
-    update_data.pop("system_id", None)
+    if payload.franchise_id and str(payload.franchise_id) != str(
+        db_series.franchise_id
+    ):
+        parent_franchise = (
+            db.query(models.Franchise)
+            .filter(models.Franchise.system_id == str(payload.franchise_id))
+            .first()
+        )
+        if not parent_franchise:
+            raise HTTPException(
+                status_code=400, detail="The provided franchise_id does not exist."
+            )
 
+    update_data = payload.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_series, key, value)
 
     db.commit()
-    background_tasks.add_task(_push_series_backup_to_sheets)
-    return {"message": "Series Hub updated successfully.", "system_id": system_id}
+    db.refresh(db_series)
+
+    return db_series
 
 
-@router.patch("/{system_id}", summary="Update Series Overall Rating")
-def update_series_state(
+@router.patch(
+    "/{system_id}", response_model=schemas.SeriesResponse, summary="Patch Series"
+)
+def patch_series(
     system_id: str,
-    background_tasks: BackgroundTasks,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """
-    Updates series-level metadata. Currently primarily used for
-    updating the 'Overall Franchise Rating' from the frontend UI.
-    """
-    series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == system_id)
-        .first()
-    )
-    if not series:
-        raise HTTPException(status_code=404, detail="Series Hub not found.")
-
-    # Process and sanitize the incoming payload dynamically
-    for key, val in payload.items():
-        if hasattr(series, key):
-            # Convert JS 'null' strings to true Python None
-            new_val = None if val == "null" else val
-            setattr(series, key, new_val)
-
-    db.commit()
-
-    # Safely push updates to Sheets in the background (V2 Standard)
-    background_tasks.add_task(_push_series_backup_to_sheets)
-
-    return {"status": "success"}
-
-
-@router.post("/", summary="Add New Series Hub")
-def add_series(
-    payload: schemas.AnimeSeriesCreate,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    """
-    Manually creates a new Franchise Hub.
-    (Note: Hubs are also automatically created as a side-effect when adding a new anime).
-    """
-    existing_series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.series_en == payload.series_en)
-        .first()
-    )
-    if existing_series:
-        raise HTTPException(status_code=400, detail="Series Hub already exists.")
-
-    series_data = payload.model_dump(exclude_none=True)
-    series_data["system_id"] = str(uuid.uuid4())
-
-    new_series = models.AnimeSeries(**series_data)
-    db.add(new_series)
-    db.commit()
-
-    background_tasks.add_task(_push_series_backup_to_sheets)
-    return {
-        "message": "Series Hub added successfully.",
-        "system_id": new_series.system_id,
-    }
-
-
-@router.delete("/{system_id}", summary="Delete Series Hub (And Cascade)")
-def delete_series_hub(
-    system_id: str,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    """
-    Permanently deletes a Series Hub.
-    Also cleans up associated anime cover images to prevent GCP bucket bloat,
-    and logs the deletion in the audit trail.
-    """
+    """Partially updates a Series."""
     db_series = (
-        db.query(models.AnimeSeries)
-        .filter(models.AnimeSeries.system_id == system_id)
-        .first()
+        db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
     if not db_series:
-        raise HTTPException(status_code=404, detail="Series Hub not found.")
+        raise HTTPException(status_code=404, detail="Series not found.")
 
-    # Note: SQLAlchemy cascades will drop the DB rows for AnimeEntries,
-    # but we must manually trigger image deletion for every connected anime first.
-    connected_anime = (
-        db.query(models.AnimeEntry)
-        .filter(models.AnimeEntry.series_en == db_series.series_en)
-        .all()
+    if "franchise_id" in payload and payload["franchise_id"]:
+        parent_franchise = (
+            db.query(models.Franchise)
+            .filter(models.Franchise.system_id == str(payload["franchise_id"]))
+            .first()
+        )
+        if not parent_franchise:
+            raise HTTPException(
+                status_code=400, detail="The provided franchise_id does not exist."
+            )
+
+    for key, value in payload.items():
+        if hasattr(db_series, key):
+            setattr(db_series, key, value)
+
+    db.commit()
+    db.refresh(db_series)
+
+    return db_series
+
+
+@router.delete("/{system_id}", summary="Delete Series")
+def delete_series(
+    system_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Permanently deletes a Series.
+    Note: Anime entries linked to this Series will simply have their
+    series_id set to NULL due to the V2 PostgreSQL ON DELETE SET NULL constraint.
+    """
+    db_series = (
+        db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
-    for anime in connected_anime:
-        delete_cover_image(anime.system_id)
+    if not db_series:
+        raise HTTPException(status_code=404, detail="Series not found.")
 
     # Log the deletion for audit trails
-    series_display_name = db_series.series_en or db_series.system_id
+    display_name = db_series.series_name_en or db_series.system_id
     deleted_record = models.DeletedRecord(
-        system_id=db_series.system_id,
-        table_name="anime_series",
-        data_json=json.dumps({"series_en": series_display_name}),
+        system_id=str(db_series.system_id),
+        table_name="series",
+        data_json=json.dumps({"series_name_en": display_name}),
+        deleted_at=get_taipei_now(),
     )
     db.add(deleted_record)
 
+    # Delete the record
     db.delete(db_series)
     db.commit()
 
-    background_tasks.add_task(_push_series_backup_to_sheets)
-    return {"message": "Series Hub deleted successfully.", "system_id": system_id}
+    return {"message": f"Series '{display_name}' deleted successfully."}
