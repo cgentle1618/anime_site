@@ -161,7 +161,7 @@ def update_anime_entry(
         db, payload.franchise_id, payload.series_id, names
     )
 
-    update_data = payload.dict(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True)
     update_data["franchise_id"] = f_id
     update_data["series_id"] = s_id
 

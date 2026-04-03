@@ -127,7 +127,7 @@ def update_franchise(
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
-    update_data = payload.dict(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
 
