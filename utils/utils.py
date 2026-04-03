@@ -9,6 +9,98 @@ import re
 from typing import Optional, Tuple
 
 
+# ==========================================
+# GOOGLE SHEETS HEADERS
+# ==========================================
+
+FRANCHISE_HEADERS = [
+    "system_id",
+    "franchise_type",
+    "franchise_name_en",
+    "franchise_name_cn",
+    "franchise_name_romanji",
+    "franchise_name_jp",
+    "franchise_name_alt",
+    "my_rating",
+    "franchise_expectation",
+    "favorite_3x3_slot",
+    "remark",
+    "created_at",
+    "updated_at",
+]
+
+SERIES_HEADERS = [
+    "system_id",
+    "franchise_id",
+    "series_name_en",
+    "series_name_cn",
+    "series_name_alt",
+]
+
+ANIME_HEADERS = [
+    "system_id",
+    "franchise_id",
+    "series_id",
+    "anime_name_en",
+    "anime_name_cn",
+    "anime_name_romanji",
+    "anime_name_jp",
+    "anime_name_alt",
+    "airing_type",
+    "watching_status",
+    "airing_status",
+    "ep_total",
+    "ep_fin",
+    "ep_previous",
+    "ep_special",
+    "season_part",
+    "my_rating",
+    "is_main",
+    "release_month",
+    "release_season",
+    "release_year",
+    "studio",
+    "director",
+    "producer",
+    "music",
+    "distributor_tw",
+    "genre_main",
+    "genre_sub",
+    "prequel_id",
+    "sequel_id",
+    "alternative",
+    "watch_order",
+    "remark",
+    "official_link",
+    "twitter_link",
+    "mal_id",
+    "mal_link",
+    "mal_rating",
+    "mal_rank",
+    "anilist_link",
+    "anilist_rating",
+    "op",
+    "ed",
+    "insert_ost",
+    "seiyuu",
+    "source_baha",
+    "baha_link",
+    "source_other",
+    "source_other_link",
+    "source_netflix",
+    "cover_image_file",
+    "created_at",
+    "updated_at",
+]
+
+SYSTEM_OPTIONS_HEADERS = ["id", "category", "option_value"]
+
+
+# ==========================================
+# UTILITY FUNCTIONS
+# ==========================================
+
+
 def extract_mal_id(mal_link: str) -> Optional[int]:
     """
     Extracts the MyAnimeList (MAL) ID from a standard MAL URL.
