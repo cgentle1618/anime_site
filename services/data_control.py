@@ -1,8 +1,8 @@
 """
 data_control.py
 The master orchestrator for Version 2 data pipelines.
-Strictly handles the business logic loops for Calculation, Fill, Replace, and Backup
-by delegating tasks to isolated domain utilities and API clients.
+Strictly handles the business logic loops for Calculation, Fill, Replace, Backup,
+and Pulls by delegating tasks to isolated domain utilities and API clients.
 """
 
 import time
@@ -25,10 +25,15 @@ from utils.data_control_utils import (
     format_series_for_sheet,
     format_anime_for_sheet,
     format_for_sheet,
+    parse_row_to_dict,
+    parse_franchise_from_sheet,
+    parse_series_from_sheet,
+    parse_anime_from_sheet,
+    parse_system_option_from_sheet,
 )
 from utils.jikan_utils import extract_mal_anime_data
 from services.jikan import fetch_raw_anime_data
-from services.sheets import bulk_overwrite_sheet
+from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.image_manager import download_cover_image
 
 # Setup basic logging
@@ -89,13 +94,9 @@ def execute_fill_anime(db: Session) -> dict:
     Fetches missing fields from Jikan API for entries that have a MAL ID.
     Only updates fields that are currently null or empty.
     """
-    # Pre-requisite: Run calculations
     execute_calculations(db)
-
     logger.info("Starting Fill Pipeline...")
 
-    # Query Anime where mal_id exists AND at least one target field is empty
-    # We load them all to evaluate python-side for simplicity and accurate empty-string checking
     all_mal_anime = db.query(Anime).filter(Anime.mal_id.isnot(None)).all()
 
     stated_fields = [
@@ -110,11 +111,9 @@ def execute_fill_anime(db: Session) -> dict:
         "official_link",
         "twitter_link",
     ]
-
     processed_count = 0
 
     for anime in all_mal_anime:
-        # Check if it actually needs filling
         needs_fill = False
         for field in stated_fields:
             val = getattr(anime, field)
@@ -127,16 +126,14 @@ def execute_fill_anime(db: Session) -> dict:
         if not needs_fill:
             continue
 
-        # Fetch Data
         raw_data = fetch_raw_anime_data(anime.mal_id)
         if not raw_data:
-            time.sleep(1)  # Soft rate limit protection
+            time.sleep(1)
             continue
 
         parsed_data = extract_mal_anime_data(raw_data)
         processed_count += 1
 
-        # Merge Logic (Fill only if null/empty)
         for field in stated_fields:
             current_val = getattr(anime, field)
             if current_val is None or str(current_val).strip() == "":
@@ -144,7 +141,6 @@ def execute_fill_anime(db: Session) -> dict:
                 if new_val is not None:
                     setattr(anime, field, new_val)
 
-        # Calculate Season From Month (Only if TV and Season is still missing)
         current_season = getattr(anime, "release_season")
         if anime.airing_type == "TV" and (
             current_season is None or str(current_season).strip() == ""
@@ -154,7 +150,6 @@ def execute_fill_anime(db: Session) -> dict:
                 if calculated_season:
                     anime.release_season = calculated_season
 
-        # Cover Image Fill
         if not anime.cover_image_file and parsed_data.get("cover_image_url"):
             filename = download_cover_image(
                 parsed_data["cover_image_url"], str(anime.system_id)
@@ -162,14 +157,12 @@ def execute_fill_anime(db: Session) -> dict:
             if filename:
                 anime.cover_image_file = filename
 
-        time.sleep(1)  # Respect Jikan API limits
+        time.sleep(1)
 
     db.commit()
     logger.info(f"Fill Pipeline completed. Processed {processed_count} entries.")
 
-    # Post-requisite: Backup
     execute_backup(db)
-
     return {"status": "success", "processed": processed_count}
 
 
@@ -183,12 +176,9 @@ def execute_replace_anime(db: Session) -> dict:
     Force-updates mal_rating and mal_rank from Jikan API for all entries with a MAL ID.
     Behaves exactly like Fill for all other fields.
     """
-    # Pre-requisite: Run calculations
     execute_calculations(db)
-
     logger.info("Starting Replace Pipeline...")
 
-    # Query ALL Anime where mal_id exists
     all_mal_anime = db.query(Anime).filter(Anime.mal_id.isnot(None)).all()
 
     stated_fields = [
@@ -201,7 +191,6 @@ def execute_replace_anime(db: Session) -> dict:
         "official_link",
         "twitter_link",
     ]
-
     processed_count = 0
 
     for anime in all_mal_anime:
@@ -213,7 +202,6 @@ def execute_replace_anime(db: Session) -> dict:
         parsed_data = extract_mal_anime_data(raw_data)
         processed_count += 1
 
-        # 1. Overwrite Logic (Ratings & Ranks)
         jikan_status = parsed_data.get("airing_status")
         if jikan_status != "Not Yet Aired":
             if parsed_data.get("mal_rating") is not None:
@@ -222,7 +210,6 @@ def execute_replace_anime(db: Session) -> dict:
             if anime.mal_rank != "N/A" and parsed_data.get("mal_rank") is not None:
                 anime.mal_rank = parsed_data.get("mal_rank")
 
-        # 2. Merge Logic (Others - Fill only)
         for field in stated_fields:
             current_val = getattr(anime, field)
             if current_val is None or str(current_val).strip() == "":
@@ -230,7 +217,6 @@ def execute_replace_anime(db: Session) -> dict:
                 if new_val is not None:
                     setattr(anime, field, new_val)
 
-        # 3. Calculate Season From Month
         current_season = getattr(anime, "release_season")
         if anime.airing_type == "TV" and (
             current_season is None or str(current_season).strip() == ""
@@ -240,7 +226,6 @@ def execute_replace_anime(db: Session) -> dict:
                 if calculated_season:
                     anime.release_season = calculated_season
 
-        # 4. Cover Image (Fill behavior based on logic docs)
         if not anime.cover_image_file and parsed_data.get("cover_image_url"):
             filename = download_cover_image(
                 parsed_data["cover_image_url"], str(anime.system_id)
@@ -253,9 +238,7 @@ def execute_replace_anime(db: Session) -> dict:
     db.commit()
     logger.info(f"Replace Pipeline completed. Processed {processed_count} entries.")
 
-    # Post-requisite: Backup
     execute_backup(db)
-
     return {"status": "success", "processed": processed_count}
 
 
@@ -271,26 +254,22 @@ def execute_backup(db: Session) -> dict:
     """
     logger.info("Starting Google Sheets Backup Pipeline...")
 
-    # 1. Backup Franchise
     franchises = db.query(Franchise).all()
     franchise_matrix = [FRANCHISE_HEADERS] + [
         format_franchise_for_sheet(f) for f in franchises
     ]
     bulk_overwrite_sheet("Franchise", franchise_matrix)
 
-    # 2. Backup Series
     series_entries = db.query(Series).all()
     series_matrix = [SERIES_HEADERS] + [
         format_series_for_sheet(s) for s in series_entries
     ]
     bulk_overwrite_sheet("Series", series_matrix)
 
-    # 3. Backup Anime
     animes = db.query(Anime).all()
     anime_matrix = [ANIME_HEADERS] + [format_anime_for_sheet(a) for a in animes]
     bulk_overwrite_sheet("Anime", anime_matrix)
 
-    # 4. Backup System Options
     sysopts = db.query(SystemOption).all()
     sysopt_matrix = [SYSTEM_OPTIONS_HEADERS] + [
         [
@@ -304,3 +283,95 @@ def execute_backup(db: Session) -> dict:
 
     logger.info("Backup Pipeline completed successfully.")
     return {"status": "success", "message": "All tabs backed up to Google Sheets"}
+
+
+# ==========================================
+# PIPELINE 5: PULL FROM SHEETS
+# ==========================================
+
+
+def execute_pull_specific(db: Session, tab_name: str) -> dict:
+    """
+    Pulls data from a specific Google Sheet tab and gracefully Upserts it into PostgreSQL.
+    (Updates existing rows by ID, Inserts missing rows).
+    """
+    MODEL_MAP = {
+        "Franchise": Franchise,
+        "Series": Series,
+        "Anime": Anime,
+        "SystemOptions": SystemOption,
+    }
+
+    PARSER_MAP = {
+        "Franchise": parse_franchise_from_sheet,
+        "Series": parse_series_from_sheet,
+        "Anime": parse_anime_from_sheet,
+        "SystemOptions": parse_system_option_from_sheet,
+    }
+
+    if tab_name not in MODEL_MAP:
+        return {"status": "error", "message": f"Unknown tab: {tab_name}"}
+
+    logger.info(f"Starting Pull Pipeline for '{tab_name}'...")
+
+    raw_matrix = get_all_raw_rows(tab_name)
+    if not raw_matrix or len(raw_matrix) < 2:
+        logger.info(f"No data found in '{tab_name}' to pull.")
+        return {"status": "success", "processed": 0}
+
+    headers = raw_matrix[0]
+    data_rows = raw_matrix[1:]
+
+    Model = MODEL_MAP[tab_name]
+    parser = PARSER_MAP[tab_name]
+
+    processed = 0
+    for row in data_rows:
+        raw_dict = parse_row_to_dict(headers, row)
+        clean_dict = parser(raw_dict)
+
+        # SystemOptions uses 'id', others use 'system_id'
+        pk_field = "id" if tab_name == "SystemOptions" else "system_id"
+        pk_value = clean_dict.get(pk_field)
+
+        if not pk_value:
+            continue
+
+        # 1. UPSERT LOGIC
+        existing = db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
+
+        if existing:
+            # Update existing record
+            for key, value in clean_dict.items():
+                setattr(existing, key, value)
+        else:
+            # Create new record
+            new_record = Model(**clean_dict)
+            db.add(new_record)
+
+        processed += 1
+
+    db.commit()
+    logger.info(
+        f"Successfully pulled and upserted {processed} records from '{tab_name}'."
+    )
+    return {"status": "success", "processed": processed}
+
+
+def execute_pull_all(db: Session) -> dict:
+    """
+    Pulls ALL tabs from Google Sheets into the database.
+    WARNING: The execution order is STRICT to satisfy Foreign Key constraints.
+    """
+    logger.info("Starting Full Pull Pipeline (All Tabs)...")
+
+    # Hierarchy: Independent -> Top-level Parent -> Child -> Grandchild
+    tabs_in_order = ["SystemOptions", "Franchise", "Series", "Anime"]
+
+    results = {}
+    for tab in tabs_in_order:
+        res = execute_pull_specific(db, tab)
+        results[tab] = res.get("processed", 0)
+
+    logger.info("Full Pull Pipeline completed successfully.")
+    return {"status": "success", "details": results}
