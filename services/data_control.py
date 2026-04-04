@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from models import Franchise, Series, Anime, SystemOption
+from services.other_logics import auto_create_seasonal
 from utils.utils import (
     extract_mal_id,
     extract_season_from_title,
@@ -51,6 +52,10 @@ def execute_calculations(db: Session) -> None:
     Currently restricted to Anime entries.
     """
     logger.info("Starting Calculation Pipeline...")
+
+    # 0. Auto Create Seasonal Hubs
+    auto_create_seasonal(db)
+
     anime_entries = db.query(Anime).all()
 
     for anime in anime_entries:
