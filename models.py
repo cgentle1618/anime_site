@@ -267,6 +267,28 @@ class SystemOption(Base):
     option_value = Column(String, nullable=False)
 
 
+class SystemConfigs(Base):
+    """Stores system-wide configurations (e.g., current active season)."""
+
+    __tablename__ = "system_configs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    config_key = Column(String, unique=True, nullable=False, index=True)
+    config_value = Column(String, nullable=False)
+
+
+class Seasonal(Base):
+    """Stores seasonal broadcasting statistics and ratings."""
+
+    __tablename__ = "seasonal"
+
+    seasonal = Column(String, primary_key=True, index=True)
+    my_rating = Column(String, nullable=True)
+    entry_completed = Column(Integer, nullable=False, default=0)
+    entry_watching = Column(Integer, nullable=False, default=0)
+    entry_dropped = Column(Integer, nullable=False, default=0)
+
+
 class User(Base):
     """Admin authentication users."""
 
