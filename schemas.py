@@ -251,6 +251,13 @@ class AnimeResponse(AnimeBase):
 # ==========================================
 
 
+class CurrentSeasonUpdate(BaseModel):
+    """Schema for setting the system's current active season."""
+
+    release_season: str
+    release_year: int
+
+
 class FranchiseSheetSync(FranchiseCreate):
     """Schema for Google Sheets Franchise Sync operations."""
 

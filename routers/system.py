@@ -26,6 +26,45 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin)],
 )
 
+
+@router.post(
+    "/current-season",
+    summary="Set Current Active Season",
+)
+def set_current_season(
+    payload: schemas.CurrentSeasonUpdate, db: Session = Depends(get_db)
+):
+    """
+    Updates or inserts the 'current_season' key in the system_configs table.
+    Format example: 'WIN 2026'
+    """
+    season_str = f"{payload.release_season} {payload.release_year}"
+
+    # Check if the configuration key already exists
+    config = (
+        db.query(models.SystemConfig)
+        .filter(models.SystemConfig.config_key == "current_season")
+        .first()
+    )
+
+    if config:
+        config.config_value = season_str
+    else:
+        # Insert new if it doesn't exist
+        config = models.SystemConfig(
+            config_key="current_season", config_value=season_str
+        )
+        db.add(config)
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Current season successfully set to {season_str}",
+        "current_season": season_str,
+    }
+
+
 # ==========================================
 # AUDIT LOGS & TRAILS
 # ==========================================
