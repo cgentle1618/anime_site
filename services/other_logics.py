@@ -12,7 +12,7 @@ from typing import Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from models import Anime, Franchise
+from models import Anime, Franchise, Seasonal
 from database import get_taipei_now
 import services.jikan as jikan_client
 from utils.utils import MONTH_MAP, calculate_season_from_month, extract_mal_id
@@ -135,6 +135,39 @@ def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False):
 
         except Exception as e:
             logger.error(f"MAL Autofill failed for {mal_id}: {e}")
+
+
+def auto_create_seasonal(db: Session) -> None:
+    """
+    Scans the Anime table for unique combinations of release_season and release_year.
+    Creates a new entry in the Seasonal table (e.g., 'WIN 2026') if it does not already exist.
+    """
+    unique_combinations = (
+        db.query(Anime.release_season, Anime.release_year)
+        .filter(Anime.release_season.isnot(None), Anime.release_year.isnot(None))
+        .distinct()
+        .all()
+    )
+
+    new_seasonals_added = 0
+
+    for season, year in unique_combinations:
+        seasonal_string = f"{season} {year}"
+
+        existing = (
+            db.query(Seasonal).filter(Seasonal.seasonal == seasonal_string).first()
+        )
+
+        if not existing:
+            new_seasonal = Seasonal(seasonal=seasonal_string)
+            db.add(new_seasonal)
+            new_seasonals_added += 1
+
+    if new_seasonals_added > 0:
+        db.commit()
+        logger.info(f"Auto-created {new_seasonals_added} new seasonal entries.")
+    else:
+        logger.info("No new seasonal entries needed to be created.")
 
 
 # ==========================================
