@@ -44,10 +44,10 @@ endblock %} {% block content %}
     </div>
   </div>
 </main>
-{% endblock %} {% block extra_scripts %}
+
+{% block extra_scripts %}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    // Cache DOM element and attach event listener
     const goBackBtn = document.getElementById("go-back-btn");
     if (goBackBtn) {
       goBackBtn.addEventListener("click", () => {
@@ -56,4 +56,4 @@ endblock %} {% block content %}
     }
   });
 </script>
-{% endblock %}
+{% endblock %} {% endblock %}
