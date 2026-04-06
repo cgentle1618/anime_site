@@ -108,17 +108,6 @@ async def serve_franchise_view(request: Request, system_id: str):
 
 
 @router.get(
-    "/series/{system_id}", response_class=HTMLResponse, summary="Serve Series View"
-)
-async def serve_series_view(request: Request, system_id: str):
-    is_admin = check_admin_status(request)
-    return templates.TemplateResponse(
-        "series_view.html",
-        {"request": request, "is_admin": is_admin, "system_id": system_id},
-    )
-
-
-@router.get(
     "/anime/{system_id}", response_class=HTMLResponse, summary="Serve Anime View"
 )
 async def serve_anime_view(request: Request, system_id: str):
