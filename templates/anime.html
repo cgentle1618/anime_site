@@ -215,9 +215,19 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
           <div
             class="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
           >
-            <h3 class="font-bold text-gray-800 text-lg flex items-center">
-              <i class="fas fa-chart-line text-brand mr-2"></i>My Tracker
-            </h3>
+            <div class="flex items-center gap-3">
+              <h3 class="font-bold text-gray-800 text-lg flex items-center">
+                <i class="fas fa-chart-line text-brand mr-2"></i>My Tracker
+              </h3>
+              <!-- Read-Only Cumulative Badge -->
+              <div
+                id="cumulative-badge"
+                class="hidden bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-bold border border-indigo-200 shadow-sm"
+                title="Cumulative Episodes"
+              >
+                Cum: <span id="display-ep-cum">-</span>
+              </div>
+            </div>
             <!-- Embedded Episode Editor -->
             <div
               class="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm relative"
@@ -229,7 +239,7 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
                 <i class="fas fa-minus text-xs"></i>
               </button>
               <div
-                class="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center select-none px-2 min-w-[100px] whitespace-nowrap"
+                class="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center select-none px-2 min-w-[80px] whitespace-nowrap"
               >
                 <input
                   type="number"
@@ -246,15 +256,10 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
                 />
                 <span class="text-gray-400 mx-1 text-xs">/</span>
                 <span
-                  class="text-gray-500 text-sm leading-none mr-1"
+                  class="text-gray-500 text-sm leading-none"
                   id="display-ep-total"
                   >-</span
                 >
-                <span
-                  class="text-gray-400 text-[11px] font-normal tracking-tighter hidden"
-                  id="display-ep-cum"
-                  title="Cumulative Total"
-                ></span>
               </div>
               <button
                 data-action="ep-plus"
@@ -584,7 +589,8 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
     // Inputs
     pageDOM.epFin = document.getElementById("input-ep-fin");
     pageDOM.epTotal = document.getElementById("display-ep-total");
-    pageDOM.epCum = document.getElementById("display-ep-cum");
+    pageDOM.epCumBadge = document.getElementById("cumulative-badge");
+    pageDOM.epCumText = document.getElementById("display-ep-cum");
 
     pageDOM.selWatching = document.getElementById("select-watching-status");
     pageDOM.selRating = document.getElementById("select-my-rating");
@@ -709,29 +715,34 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
           pageDOM.progressBar.style.width = `100%`;
       }
 
-      // Cumulative Episode Math
+      // Cumulative Episode Math (Highly Visible Badge Logic)
       let showCumulative = false;
-      let cumFinText = "-";
-      let cumTotalText = "-";
+      let cumFinText = "?";
+      let cumTotalText = "?";
 
       const isTVorONA = a.airing_type === "TV" || a.airing_type === "ONA";
-      const noSpecial = a.ep_special === null || a.ep_special === undefined;
+      const noSpecial = a.ep_special === null || a.ep_special === undefined || a.ep_special === "";
       const sp = (a.season_part || "").toLowerCase().trim();
       const notFirstSeason = sp !== "season 1" && sp !== "season 1 part 1";
+      const hasPrev = a.ep_previous !== null && a.ep_previous !== undefined && a.ep_previous !== "";
 
-      if (isTVorONA && noSpecial && notFirstSeason) {
-          if (a.ep_previous !== null && a.ep_previous !== undefined) {
-              showCumulative = true;
-              cumFinText = (a.ep_fin !== null && a.ep_fin !== undefined) ? (a.ep_fin + a.ep_previous) : "-";
-              cumTotalText = (a.ep_total !== null && a.ep_total !== undefined) ? (a.ep_total + a.ep_previous) : "?";
+      if (isTVorONA && noSpecial && notFirstSeason && hasPrev) {
+          showCumulative = true;
+          const prevEps = parseInt(a.ep_previous, 10);
+
+          if (a.ep_fin !== null && a.ep_fin !== undefined && a.ep_fin !== "") {
+              cumFinText = parseInt(a.ep_fin, 10) + prevEps;
+          }
+          if (a.ep_total !== null && a.ep_total !== undefined && a.ep_total !== "") {
+              cumTotalText = parseInt(a.ep_total, 10) + prevEps;
           }
       }
 
       if (showCumulative) {
-          pageDOM.epCum.innerText = `(${cumFinText}/${cumTotalText})`;
-          pageDOM.epCum.classList.remove("hidden");
+          pageDOM.epCumText.innerText = `${cumFinText} / ${cumTotalText}`;
+          pageDOM.epCumBadge.classList.remove("hidden");
       } else {
-          pageDOM.epCum.classList.add("hidden");
+          pageDOM.epCumBadge.classList.add("hidden");
       }
 
       // 6. Stacked Streaming Links
