@@ -102,7 +102,7 @@ async def serve_franchise_view(request: Request, system_id: str):
     """NEW in V2: Dedicated page for the top-level Franchise."""
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
-        "franchise_view.html",
+        "franchise.html",
         {"request": request, "is_admin": is_admin, "system_id": system_id},
     )
 
@@ -113,7 +113,7 @@ async def serve_franchise_view(request: Request, system_id: str):
 async def serve_anime_view(request: Request, system_id: str):
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
-        "anime_view.html",
+        "anime.html",
         {"request": request, "is_admin": is_admin, "system_id": system_id},
     )
 
