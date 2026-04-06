@@ -4,14 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}CG1618 Tracker{% endblock %}</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-    <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap"
       rel="stylesheet"
@@ -41,7 +38,6 @@
   <body
     class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans relative"
   >
-    <!-- Universal Top Navigation Bar -->
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
@@ -61,7 +57,6 @@
                   Dashboard
                 </a>
 
-                <!-- Library Dropdown -->
                 <div class="relative group">
                   <button
                     class="{% if request.url.path in ['/library'] %}bg-brand/10 text-brand{% else %}text-gray-600{% endif %} group-hover:text-gray-900 group-hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium transition inline-flex items-center"
@@ -99,7 +94,6 @@
                   </div>
                 </div>
 
-                <!-- Statistics Navigation Link -->
                 <a
                   href="/under-development"
                   class="{% if request.url.path == '/under-development' %}bg-brand/10 text-brand{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} px-3 py-2 rounded-md text-sm font-medium transition"
@@ -107,7 +101,6 @@
                   Statistics
                 </a>
 
-                <!-- Admin Dropdown (Only visible to authenticated admins) -->
                 {% if is_admin %}
                 <div class="relative group">
                   <button
@@ -150,7 +143,6 @@
           </div>
 
           <div class="flex items-center space-x-4 flex-1 justify-end">
-            <!-- Global Search Bar -->
             <div
               class="relative w-full max-w-md hidden sm:block"
               id="globalSearchContainer"
@@ -170,9 +162,7 @@
               <div
                 id="searchSuggestions"
                 class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-[100] hidden search-dropdown"
-              >
-                <!-- JS Injected Suggestions -->
-              </div>
+              ></div>
             </div>
 
             {% if is_admin %}
@@ -202,10 +192,8 @@
       </div>
     </nav>
 
-    <!-- Main Content Injection -->
     {% block content %}{% endblock %}
 
-    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-auto relative z-10">
       <div
         class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-center items-center gap-2 text-sm text-gray-500"
@@ -224,7 +212,6 @@
       </div>
     </footer>
 
-    <!-- Scroll to Top Button -->
     <button
       id="scrollToTopBtn"
       class="fixed bottom-20 right-6 z-[60] bg-brand hover:bg-brand-hover text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
@@ -232,16 +219,14 @@
       <i class="fas fa-arrow-up"></i>
     </button>
 
-    <!-- Global Toast Notification -->
     <div
       id="toast"
-      class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
+      class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center pointer-events-none"
     >
-      <i id="toast-icon" class="fas fa-info-circle mr-3 text-lg"></i>
+      <i id="toast-icon" class="fas mr-3 text-lg"></i>
       <span id="toast-msg" class="font-medium text-sm"></span>
     </div>
 
-    <!-- Universal Scripts -->
     <script>
       // ==========================================
       // GLOBAL CONSTANTS & STATE
@@ -250,7 +235,7 @@
       const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 
       let universalSearchAnime = [];
-      let universalSearchSeries = [];
+      let universalSearchFranchise = [];
 
       // DOM Cache
       const DOM = {
@@ -278,17 +263,27 @@
         };
       };
 
-      // Toast Notification System
-      function showToast(message, isError = false) {
+      // New Notification System
+      function showNotification(type, message) {
         if (!DOM.toast) return;
 
-        DOM.toastMsg.innerText = message;
-        if (isError) {
-          DOM.toastIcon.className = "fas fa-exclamation-circle mr-3 text-red-400 text-lg";
-          DOM.toast.classList.replace("bg-gray-900", "bg-red-900");
+        // Apply default generic messages if none provided
+        let msgText = message;
+        if (!msgText) {
+          msgText = type === 'success' ? "Operation Success" : "Operation Failed";
+        }
+
+        DOM.toastMsg.innerText = msgText;
+
+        // Reset styling classes
+        DOM.toast.classList.remove("bg-gray-900", "bg-red-500", "bg-green-500", "bg-red-900");
+
+        if (type === 'error') {
+          DOM.toastIcon.className = "fas fa-exclamation-circle mr-3 text-white text-lg";
+          DOM.toast.classList.add("bg-red-500");
         } else {
-          DOM.toastIcon.className = "fas fa-check-circle mr-3 text-emerald-400 text-lg";
-          DOM.toast.classList.replace("bg-red-900", "bg-gray-900");
+          DOM.toastIcon.className = "fas fa-check-circle mr-3 text-white text-lg";
+          DOM.toast.classList.add("bg-green-500");
         }
 
         DOM.toast.classList.remove("translate-y-20", "opacity-0");
@@ -337,17 +332,17 @@
       }
 
       // ==========================================
-      // UNIVERSAL SEARCH ENGINE
+      // UNIVERSAL SEARCH ENGINE (V2 API MAP)
       // ==========================================
 
       async function loadUniversalSearchData() {
         try {
-          const [aRes, sRes] = await Promise.all([
-            fetch("/api/anime"),
-            fetch("/api/series"),
+          const [aRes, fRes] = await Promise.all([
+            fetch("/api/anime/"),
+            fetch("/api/franchise/"),
           ]);
           if (aRes.ok) universalSearchAnime = await aRes.json();
-          if (sRes.ok) universalSearchSeries = await sRes.json();
+          if (fRes.ok) universalSearchFranchise = await fRes.json();
         } catch (e) {
           console.error("Universal search data failed to load", e);
         }
@@ -367,20 +362,22 @@
         }
 
         const qNorm = normalizeSearchStr(query);
-        const seriesResults = [];
+        const franchiseResults = [];
         const animeResults = [];
 
-        universalSearchSeries.forEach((s) => {
-          const matchText = [s.series_en, s.series_cn, s.alt_name, s.series_roman].filter(Boolean).join(" ");
-          if (normalizeSearchStr(matchText).includes(qNorm)) seriesResults.push({ type: "series", data: s });
+        // Map V2 Franchise Data
+        universalSearchFranchise.forEach((f) => {
+          const matchText = [f.franchise_name_en, f.franchise_name_cn, f.franchise_name_alt, f.franchise_name_romanji].filter(Boolean).join(" ");
+          if (normalizeSearchStr(matchText).includes(qNorm)) franchiseResults.push({ type: "franchise", data: f });
         });
 
+        // Map V2 Anime Data
         universalSearchAnime.forEach((a) => {
-          const matchText = [a.series_season_cn, a.series_season_en, a.series_en, a.series_season_roman].filter(Boolean).join(" ");
+          const matchText = [a.anime_name_en, a.anime_name_cn, a.anime_name_alt, a.anime_name_romanji].filter(Boolean).join(" ");
           if (normalizeSearchStr(matchText).includes(qNorm)) animeResults.push({ type: "anime", data: a });
         });
 
-        const results = [...seriesResults, ...animeResults].slice(0, 10);
+        const results = [...franchiseResults, ...animeResults].slice(0, 10);
 
         if (results.length === 0) {
           DOM.searchSuggestions.classList.add("hidden");
@@ -390,10 +387,10 @@
         DOM.searchSuggestions.innerHTML = results.map((res) => {
           if (res.type === "anime") {
             const a = res.data;
-            const parentSeries = universalSearchSeries.find((s) => s.series_en === a.series_en);
-            const seriesDisplayName = parentSeries
-              ? parentSeries.series_cn || parentSeries.series_en || parentSeries.series_roman
-              : a.series_en;
+            const parentFranchise = universalSearchFranchise.find((f) => f.system_id === a.franchise_id);
+            const franchiseDisplayName = parentFranchise
+              ? parentFranchise.franchise_name_cn || parentFranchise.franchise_name_en || parentFranchise.franchise_name_romanji
+              : "-";
 
             return `
               <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" onclick="window.location.href='/anime/${a.system_id}'">
@@ -401,19 +398,19 @@
                       <span class="text-[9px] font-bold uppercase tracking-wider text-brand bg-brand/5 px-1.5 py-0.5 rounded">Anime Entry</span>
                       <span class="text-[10px] text-gray-400 font-bold uppercase">${a.airing_type || "TV"}</span>
                   </div>
-                  <div class="text-sm font-bold text-gray-900 truncate">${a.series_season_cn || a.series_season_en || a.series_season_roman || a.series_en}</div>
-                  <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From series: ${seriesDisplayName || "-"}</div>
+                  <div class="text-sm font-bold text-gray-900 truncate">${a.anime_name_cn || a.anime_name_en || a.anime_name_romanji}</div>
+                  <div class="text-[11px] text-gray-500 truncate mt-0.5 italic">From franchise: ${franchiseDisplayName}</div>
               </div>
             `;
           } else {
-            const s = res.data;
+            const f = res.data;
             return `
-              <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" onclick="window.location.href='/series/${s.system_id}'">
+              <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors" onclick="window.location.href='/franchise/${f.system_id}'">
                   <div class="flex items-center mb-1">
-                      <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Series Hub</span>
+                      <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Franchise Hub</span>
                   </div>
-                  <div class="text-sm font-bold text-gray-900 truncate">${s.series_en}</div>
-                  <div class="text-[11px] text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || ""} ${s.alt_name ? `(${s.alt_name})` : ""}</div>
+                  <div class="text-sm font-bold text-gray-900 truncate">${f.franchise_name_en || f.franchise_name_cn}</div>
+                  <div class="text-[11px] text-gray-500 truncate mt-0.5">${f.franchise_name_cn || f.franchise_name_romanji || ""} ${f.franchise_name_alt ? `(${f.franchise_name_alt})` : ""}</div>
               </div>
             `;
           }
@@ -484,7 +481,8 @@
             DOM.syncBtn.prepend(DOM.syncIcon);
 
             try {
-              const response = await fetch(`/api/system/sync/backup`, { method: "POST" });
+              // Updated to new V2 endpoint
+              const response = await fetch(`/api/data-control/backup`, { method: "POST" });
 
               if (response.ok) {
                 DOM.syncIcon.classList.remove("fa-spin", "fa-sync-alt");
@@ -494,7 +492,7 @@
                 DOM.syncBtn.innerText = " Backed up!";
                 DOM.syncBtn.prepend(DOM.syncIcon);
 
-                showToast("Database backed up securely to Google Sheets!");
+                showNotification('success');
 
                 if (typeof loadDashboard === 'function') await loadDashboard();
                 await loadUniversalSearchData();
@@ -515,7 +513,7 @@
               DOM.syncBtn.classList.remove("opacity-75", "pointer-events-none");
               DOM.syncBtn.innerText = " Backup";
               DOM.syncBtn.prepend(DOM.syncIcon);
-              showToast(`Sync Error: ${error.message}`, true);
+              showNotification('error');
             }
           });
         }
