@@ -96,13 +96,13 @@ async def serve_under_development(request: Request):
 @router.get(
     "/franchise/{system_id}",
     response_class=HTMLResponse,
-    summary="Serve Franchise View",
+    summary="Serve ACG Franchise View",
 )
 async def serve_franchise_view(request: Request, system_id: str):
     """NEW in V2: Dedicated page for the top-level Franchise."""
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
-        "franchise.html",
+        "franchise_acg.html",
         {"request": request, "is_admin": is_admin, "system_id": system_id},
     )
 
