@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize the router
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 @router.post("/login", summary="Authenticate User and Set Cookie")
