@@ -71,7 +71,7 @@
                       class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
                     >
                       <a
-                        href="/library/anime"
+                        href="/library"
                         class="px-4 py-2.5 text-sm {% if request.url.path == '/library/anime' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
                         >Anime Library</a
                       >
@@ -147,9 +147,9 @@
 
           <!-- Right Side: Search, Admin, Auth -->
           <div class="hidden md:flex items-center space-x-4">
-            <!-- Universal Search Box (Made Wider with lg:w-96) -->
+            <!-- Universal Search Box (Made Wider) -->
             <div
-              class="relative w-64 lg:w-96 group z-50"
+              class="relative w-80 lg:w-[450px] group z-50"
               id="universal-search-container"
             >
               <div
@@ -270,7 +270,7 @@
             Library
           </div>
           <a
-            href="/library/anime"
+            href="/library"
             class="{% if request.url.path == '/library/anime' %}bg-brand/10 text-brand{% else %}text-gray-600 hover:bg-gray-100 hover:text-gray-900{% endif %} block px-3 py-2 rounded-md text-base font-medium"
             >Anime Library</a
           >
@@ -354,6 +354,8 @@
             class="text-gray-600 hover:bg-gray-100 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium"
             >System</a
           >
+
+          <!-- Fix: Point mobile logout to the JS function instead of raw inline JS -->
           <button
             onclick="logout()"
             class="w-full text-left text-red-500 hover:bg-red-50 hover:text-red-700 block px-3 py-2 rounded-md text-base font-medium mt-2"
@@ -540,33 +542,55 @@
           let html = "";
 
           // Filter Franchises
-          const fMatches = searchDataCache.franchises
-            .filter((f) => {
-              const names = [
-                f.franchise_name_cn,
-                f.franchise_name_en,
-                f.franchise_name_romanji,
-                f.franchise_name_jp,
-                f.franchise_name_alt,
-              ];
-              return names.some(
-                (n) =>
-                  n &&
-                  n
-                    .toLowerCase()
-                    .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "")
-                    .includes(query),
-              );
-            })
-            .slice(0, 5); // Max 5 results
+          let fMatches = searchDataCache.franchises.filter((f) => {
+            const names = [
+              f.franchise_name_cn,
+              f.franchise_name_en,
+              f.franchise_name_romanji,
+              f.franchise_name_jp,
+              f.franchise_name_alt,
+            ];
+            return names.some(
+              (n) =>
+                n &&
+                n
+                  .toLowerCase()
+                  .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "")
+                  .includes(query),
+            );
+          });
+
+          // Sort Franchises (Fallback: EN -> Romanji -> CN -> JP -> Alt)
+          fMatches.sort((a, b) => {
+            const titleA =
+              a.franchise_name_en ||
+              a.franchise_name_romanji ||
+              a.franchise_name_cn ||
+              a.franchise_name_jp ||
+              a.franchise_name_alt ||
+              "";
+            const titleB =
+              b.franchise_name_en ||
+              b.franchise_name_romanji ||
+              b.franchise_name_cn ||
+              b.franchise_name_jp ||
+              b.franchise_name_alt ||
+              "";
+            return titleA.localeCompare(titleB);
+          });
+
+          fMatches = fMatches.slice(0, 5); // Max 5 results
 
           if (fMatches.length > 0) {
             html += `<div class="px-3 py-1.5 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider sticky top-0">Franchises</div>`;
             fMatches.forEach((f) => {
+              // Display Title (Fallback: CN -> EN -> Alt -> Romanji -> JP)
               const title =
                 f.franchise_name_cn ||
                 f.franchise_name_en ||
                 f.franchise_name_alt ||
+                f.franchise_name_romanji ||
+                f.franchise_name_jp ||
                 "Unknown";
               html += `
                           <a href="/franchise/${f.system_id}" class="block px-4 py-2 hover:bg-brand/5 border-b border-gray-50 last:border-0 cursor-pointer transition">
@@ -578,33 +602,55 @@
           }
 
           // Filter Anime
-          const aMatches = searchDataCache.anime
-            .filter((a) => {
-              const names = [
-                a.anime_name_cn,
-                a.anime_name_en,
-                a.anime_name_romanji,
-                a.anime_name_jp,
-                a.anime_name_alt,
-              ];
-              return names.some(
-                (n) =>
-                  n &&
-                  n
-                    .toLowerCase()
-                    .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "")
-                    .includes(query),
-              );
-            })
-            .slice(0, 8); // Max 8 results
+          let aMatches = searchDataCache.anime.filter((a) => {
+            const names = [
+              a.anime_name_cn,
+              a.anime_name_en,
+              a.anime_name_romanji,
+              a.anime_name_jp,
+              a.anime_name_alt,
+            ];
+            return names.some(
+              (n) =>
+                n &&
+                n
+                  .toLowerCase()
+                  .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "")
+                  .includes(query),
+            );
+          });
+
+          // Sort Anime (Fallback: EN -> Romanji -> CN -> JP -> Alt)
+          aMatches.sort((a, b) => {
+            const titleA =
+              a.anime_name_en ||
+              a.anime_name_romanji ||
+              a.anime_name_cn ||
+              a.anime_name_jp ||
+              a.anime_name_alt ||
+              "";
+            const titleB =
+              b.anime_name_en ||
+              b.anime_name_romanji ||
+              b.anime_name_cn ||
+              b.anime_name_jp ||
+              b.anime_name_alt ||
+              "";
+            return titleA.localeCompare(titleB);
+          });
+
+          aMatches = aMatches.slice(0, 8); // Max 8 results
 
           if (aMatches.length > 0) {
             html += `<div class="px-3 py-1.5 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider sticky top-0">Anime Entries</div>`;
             aMatches.forEach((a) => {
+              // Display Title (Fallback: CN -> EN -> Alt -> Romanji -> JP)
               const title =
                 a.anime_name_cn ||
                 a.anime_name_en ||
                 a.anime_name_alt ||
+                a.anime_name_romanji ||
+                a.anime_name_jp ||
                 "Unknown";
               const type = a.airing_type || "TV";
               html += `
@@ -641,13 +687,24 @@
 
       // 5. Logout Logic
       async function logout() {
+        console.log("Attempting logout...");
         try {
-          // Attempt to call backend logout endpoint to clear HttpOnly cookie
-          await fetch("/api/auth/logout", { method: "POST" });
+          const targetUrl = "/api/auth/logout";
+          console.log(`Fetching: ${targetUrl}`);
+
+          let res = await fetch(targetUrl, { method: "POST" });
+
+          console.log("Response Status:", res.status);
+          if (!res.ok) {
+            console.error("Logout failed! Server said:", await res.text());
+          } else {
+            console.log("Logout successful from backend!");
+          }
         } catch (e) {
-          console.log("No logout endpoint or network error.");
+          console.error("Network error during fetch:", e);
         }
-        // Fallback manual clear for non-HttpOnly
+
+        // Clear fallback and redirect
         document.cookie =
           "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         window.location.href = "/login";
