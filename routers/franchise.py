@@ -87,7 +87,9 @@ def create_franchise(
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
 
+    # Explicitly assign UUID in Python to bypass missing database default constraints
     new_franchise = models.Franchise(
+        system_id=uuid.uuid4(),
         franchise_type=payload.franchise_type,
         franchise_name_en=payload.franchise_name_en,
         franchise_name_cn=payload.franchise_name_cn,
@@ -189,7 +191,7 @@ def delete_franchise(
     # Log the deletion for audit trails
     display_name = db_franchise.franchise_name_en or db_franchise.system_id
     deleted_record = models.DeletedRecord(
-        system_id=db_franchise.system_id,
+        system_id=str(db_franchise.system_id),
         table_name="franchise",
         data_json=json.dumps({"franchise_name_en": display_name}),
         deleted_at=get_taipei_now(),

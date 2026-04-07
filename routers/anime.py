@@ -90,29 +90,12 @@ def create_anime_entry(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Creates a new Anime. Auto-resolves parent hubs and applies V2 math logic."""
-    names = {
-        "en": payload.anime_name_en,
-        "cn": payload.anime_name_cn,
-        "romanji": payload.anime_name_romanji,
-        "jp": payload.anime_name_jp,
-        "alt": payload.anime_name_alt,
-    }
-    franchise_id, series_id = resolve_parent_hierarchy(
-        db, payload.franchise_id, payload.series_id, names
-    )
+    """Creates a new Anime Entry."""
 
-    new_anime = models.Anime(
-        system_id=payload.system_id or str(uuid.uuid4()),
-        franchise_id=franchise_id,
-        series_id=series_id,
-        **payload.dict(exclude={"system_id", "franchise_id", "series_id"}),
-        created_at=get_taipei_now(),
-        updated_at=get_taipei_now(),
-    )
-
-    # 1. Run Single Fill Logic (Nulls only)
-    apply_single_fill_logic(new_anime, force_replace_ratings=False)
+    # We explicitly generate the UUID here since 'system_id' is intentionally
+    # omitted from the AnimeCreate Pydantic validation schema.
+    anime_data = payload.dict()
+    new_anime = models.Anime(system_id=uuid.uuid4(), **anime_data)
 
     # 2. Inject Business Logic
     autofill_ep_previous(db, new_anime)

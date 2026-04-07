@@ -99,7 +99,9 @@ def create_series(
                 status_code=400, detail="The provided franchise_id does not exist."
             )
 
+    # Explicitly assign UUID in Python to bypass missing database default constraints
     new_series = models.Series(
+        system_id=uuid.uuid4(),
         franchise_id=payload.franchise_id,
         series_name_en=payload.series_name_en,
         series_name_cn=payload.series_name_cn,
