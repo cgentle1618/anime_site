@@ -317,10 +317,10 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
     <!-- TABLE VIEW -->
     <div
       id="view-container-table"
-      class="hidden overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white"
+      class="hidden overflow-x-auto overflow-y-auto max-h-[75vh] rounded-xl border border-gray-200 shadow-sm bg-white"
     >
       <table class="min-w-full divide-y divide-gray-200 text-sm">
-        <thead class="bg-gray-50">
+        <thead class="bg-gray-50 sticky top-0 z-20 shadow-sm">
           <tr>
             <th
               scope="col"
@@ -344,7 +344,7 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
               scope="col"
               class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden lg:table-cell"
             >
-              Main/Spinoff
+              Season Part
             </th>
             <th
               scope="col"
@@ -723,8 +723,7 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
           statusHtml = '-';
       }
 
-      // Safe Access for Main/Spinoff (Fallback to - if not mapped in schema)
-      const mainSpinoff = anime.is_main_story !== undefined ? (anime.is_main_story ? 'Main' : 'Spinoff') : '-';
+      const seasonPart = anime.season_part || '-';
 
       return `
           <tr class="hover:bg-indigo-50/50 transition-colors group cursor-pointer" data-action="view-details" data-id="${anime.system_id}">
@@ -734,7 +733,7 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
                   ${subTitle && subTitle !== mainTitle ? `<div class="text-[9px] text-gray-400 line-clamp-1" title="${subTitle}">${subTitle}</div>` : ''}
               </td>
               <td class="px-4 py-2 text-xs text-center font-bold text-gray-600 border-r border-gray-100 hidden md:table-cell">${anime.airing_type || '-'}</td>
-              <td class="px-4 py-2 text-xs text-center text-gray-500 border-r border-gray-100 hidden lg:table-cell">${mainSpinoff}</td>
+              <td class="px-4 py-2 text-xs text-center text-gray-500 border-r border-gray-100 hidden lg:table-cell">${seasonPart}</td>
               <td class="px-4 py-2 text-center border-r border-gray-100">
                   <span class="px-2 inline-flex text-[9px] leading-4 font-bold rounded-full ${airStatusColor}">${anime.airing_status || '-'}</span>
               </td>
@@ -815,9 +814,8 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
           processFiltersAndSort();
       });
 
-      // Multi-Select Tags and Action Buttons (Delegation)
-      pageDOM.content.parentElement.addEventListener("click", (e) => {
-          // Pill Tag Click
+      // 1. EVENT DELEGATION FOR FILTERS PANEL
+      pageDOM.advancedFilters.addEventListener("click", (e) => {
           const filterTag = e.target.closest('.filter-tag');
           if (filterTag) {
               e.stopPropagation();
@@ -836,9 +834,11 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
 
               updateFilterBadge();
               processFiltersAndSort();
-              return;
           }
+      });
 
+      // 2. EVENT DELEGATION FOR MAIN CARDS/TABLE
+      pageDOM.content.addEventListener("click", (e) => {
           // + Status Toggle Logic
           const toggleBtn = e.target.closest('[data-action="toggle-status"]');
           if (toggleBtn) {
