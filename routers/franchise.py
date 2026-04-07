@@ -86,8 +86,8 @@ def create_franchise(
     admin: dict = Depends(get_current_admin),
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
+
     new_franchise = models.Franchise(
-        system_id=payload.system_id or str(uuid.uuid4()),
         franchise_type=payload.franchise_type,
         franchise_name_en=payload.franchise_name_en,
         franchise_name_cn=payload.franchise_name_cn,
@@ -127,7 +127,7 @@ def update_franchise(
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
 

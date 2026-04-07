@@ -100,7 +100,6 @@ def create_series(
             )
 
     new_series = models.Series(
-        system_id=payload.system_id or str(uuid.uuid4()),
         franchise_id=payload.franchise_id,
         series_name_en=payload.series_name_en,
         series_name_cn=payload.series_name_cn,
@@ -143,7 +142,7 @@ def update_series(
                 status_code=400, detail="The provided franchise_id does not exist."
             )
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_series, key, value)
 
