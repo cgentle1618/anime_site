@@ -68,6 +68,17 @@ async def serve_login(request: Request):
     )
 
 
+@router.get(
+    "/library/anime", response_class=HTMLResponse, summary="Serve Anime Library Page"
+)
+async def serve_anime_library(request: Request):
+    """NEW in V2: Dedicated library view for Anime entries."""
+    is_admin = check_admin_status(request)
+    return templates.TemplateResponse(
+        "library_anime.html", {"request": request, "is_admin": is_admin}
+    )
+
+
 @router.get("/search", response_class=HTMLResponse, summary="Serve Search Page")
 async def serve_search(request: Request):
     is_admin = check_admin_status(request)
