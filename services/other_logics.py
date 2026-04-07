@@ -16,6 +16,8 @@ from models import Anime, Franchise, Seasonal
 from database import get_taipei_now
 import services.jikan as jikan_client
 from utils.utils import MONTH_MAP, calculate_season_from_month, extract_mal_id
+from utils.jikan_utils import extract_mal_anime_data
+from services.image_manager import download_cover_image
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +110,10 @@ def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False):
     if mal_id:
         anime.mal_id = mal_id
         try:
-            # Assuming standard Jikan extraction dictionary
-            j_data = jikan_client.fetch_anime_details(mal_id)
-            if j_data:
+            raw_data = jikan_client.fetch_raw_anime_data(mal_id)
+            if raw_data:
+                j_data = extract_mal_anime_data(raw_data)
+
                 # Fill Missing
                 if anime.ep_total is None:
                     anime.ep_total = j_data.get("ep_total")
@@ -118,8 +121,6 @@ def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False):
                     anime.release_year = j_data.get("release_year")
                 if anime.release_month is None:
                     anime.release_month = j_data.get("release_month")
-                if anime.studio is None:
-                    anime.studio = j_data.get("studio")
                 if anime.airing_type is None:
                     anime.airing_type = j_data.get("airing_type")
 
@@ -133,6 +134,14 @@ def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False):
                     if anime.mal_rank is None:
                         anime.mal_rank = j_data.get("mal_rank")
 
+                # Download Cover Image if missing
+                if not anime.cover_image_file and j_data.get("cover_image_url"):
+                    filename = download_cover_image(
+                        j_data.get("cover_image_url"), str(anime.system_id)
+                    )
+                    if filename:
+                        anime.cover_image_file = filename
+
         except Exception as e:
             logger.error(f"MAL Autofill failed for {mal_id}: {e}")
 
@@ -142,6 +151,7 @@ def auto_create_seasonal(db: Session) -> None:
     Scans the Anime table for unique combinations of release_season and release_year.
     Creates a new entry in the Seasonal table (e.g., 'WIN 2026') if it does not already exist.
     """
+    # Query distinct combinations where both fields are not null
     unique_combinations = (
         db.query(Anime.release_season, Anime.release_year)
         .filter(Anime.release_season.isnot(None), Anime.release_year.isnot(None))
@@ -154,12 +164,16 @@ def auto_create_seasonal(db: Session) -> None:
     for season, year in unique_combinations:
         seasonal_string = f"{season} {year}"
 
+        # Check if this seasonal string already exists in the seasonal table
         existing = (
             db.query(Seasonal).filter(Seasonal.seasonal == seasonal_string).first()
         )
 
         if not existing:
-            new_seasonal = Seasonal(seasonal=seasonal_string)
+            new_seasonal = Seasonal(
+                seasonal=seasonal_string
+                # entry_completed, entry_watching, and entry_dropped default to 0 via the model
+            )
             db.add(new_seasonal)
             new_seasonals_added += 1
 

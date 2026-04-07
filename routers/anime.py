@@ -123,12 +123,6 @@ def create_anime_entry(
     db.commit()
     db.refresh(new_anime)
 
-    # Trigger Cover Image Download async
-    if new_anime.mal_id:
-        background_tasks.add_task(
-            download_cover_image, new_anime.system_id, new_anime.mal_id
-        )
-
     return new_anime
 
 
@@ -161,7 +155,7 @@ def update_anime_entry(
         db, payload.franchise_id, payload.series_id, names
     )
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.dict(exclude_unset=True)
     update_data["franchise_id"] = f_id
     update_data["series_id"] = s_id
 
@@ -178,12 +172,6 @@ def update_anime_entry(
 
     db.commit()
     db.refresh(db_anime)
-
-    # Download image if mal_id changed and image missing
-    if db_anime.mal_id:
-        background_tasks.add_task(
-            download_cover_image, db_anime.system_id, db_anime.mal_id
-        )
 
     return db_anime
 
