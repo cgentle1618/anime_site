@@ -27,6 +27,24 @@ router = APIRouter(prefix="/api/options", tags=["System Options"])
 
 
 @router.get(
+    "/",
+    response_model=List[schemas.SystemOptionResponse],
+    summary="Get All System Options",
+)
+def get_all_system_options(db: Session = Depends(get_db)):
+    """
+    Fetches all system options across all categories.
+    Used by the frontend UI to populate all dropdowns dynamically at once.
+    """
+    options = (
+        db.query(models.SystemOption)
+        .order_by(models.SystemOption.category, models.SystemOption.option_value)
+        .all()
+    )
+    return options
+
+
+@router.get(
     "/{category}",
     response_model=List[schemas.SystemOptionResponse],
     summary="Get System Options by Category",
