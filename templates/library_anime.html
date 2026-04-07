@@ -504,11 +504,19 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
           if (queryClean) {
               const f = state.franchiseDict[a.franchise_id];
               const s = state.seriesDict[a.series_id];
+
+              // Season Mapping Logic for flexible searching (e.g., "win 2026", "winter 2026")
+              const seasonMap = { "WIN": "Winter", "SPR": "Spring", "SUM": "Summer", "FAL": "Fall" };
+              const fullSeason = a.release_season ? seasonMap[a.release_season.toUpperCase()] : "";
+              const compSeasonShort = (a.release_season && a.release_year) ? `${a.release_season}${a.release_year}` : "";
+              const compSeasonFull = (fullSeason && a.release_year) ? `${fullSeason}${a.release_year}` : "";
+
               const searchFields = [
                   a.anime_name_cn, a.anime_name_en, a.anime_name_romanji, a.anime_name_jp, a.anime_name_alt,
                   f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_romanji, f?.franchise_name_jp, f?.franchise_name_alt,
                   s?.series_name_cn, s?.series_name_en, s?.series_name_romanji, s?.series_name_jp, s?.series_name_alt,
-                  a.release_season, a.release_date, a.release_year, a.genre_main, a.genre_sub
+                  a.release_season, fullSeason, compSeasonShort, compSeasonFull,
+                  a.release_date, a.release_year, a.genre_main, a.genre_sub
               ];
               const isMatch = searchFields.some(field => field && cleanString(String(field)).includes(queryClean));
               if (!isMatch) return false;
