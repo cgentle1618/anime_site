@@ -8,6 +8,7 @@ import os
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 import models
@@ -72,10 +73,8 @@ def login_for_access_token(
 
 
 @router.post("/logout", summary="Logout User and Clear Cookie")
-def logout(response: Response):
-    """
-    Destroys the user session by expiring the HTTP-Only cookie.
-    """
+def logout_user():
+    """Clears the HttpOnly access token cookie to properly log out the admin."""
+    response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/", httponly=True, samesite="lax")
-    logger.info("User successfully logged out.")
-    return {"message": "Successfully logged out"}
+    return response
