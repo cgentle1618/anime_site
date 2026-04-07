@@ -71,8 +71,8 @@
                       class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col"
                     >
                       <a
-                        href="/library"
-                        class="px-4 py-2.5 text-sm {% if request.url.path == '/library' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
+                        href="/library/anime"
+                        class="px-4 py-2.5 text-sm {% if request.url.path == '/library/anime' %}text-brand bg-brand/5{% else %}text-gray-700 hover:bg-brand/5 hover:text-brand{% endif %} font-medium transition border-b border-gray-100"
                         >Anime Library</a
                       >
                       <a
@@ -270,8 +270,8 @@
             Library
           </div>
           <a
-            href="/library"
-            class="{% if request.url.path == '/library' %}bg-brand/10 text-brand{% else %}text-gray-600 hover:bg-gray-100 hover:text-gray-900{% endif %} block px-3 py-2 rounded-md text-base font-medium"
+            href="/library/anime"
+            class="{% if request.url.path == '/library/anime' %}bg-brand/10 text-brand{% else %}text-gray-600 hover:bg-gray-100 hover:text-gray-900{% endif %} block px-3 py-2 rounded-md text-base font-medium"
             >Anime Library</a
           >
           <a
