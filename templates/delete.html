@@ -4,28 +4,30 @@ border-bottom-width: 2px; border-bottom-color: #ef4444; } .tab-inactive { color:
 #6b7280; border-bottom-width: 2px; border-bottom-color: transparent; }
 .tab-inactive:hover { color: #374151; border-bottom-color: #d1d5db; }
 .modal-backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
-/* Hide scrollbar for tab navigation on mobile */
 .hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar {
 -ms-overflow-style: none; scrollbar-width: none; } {% endblock %} {% block
 content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+<div
+  class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
+>
+  <!-- Header -->
   <div
-    class="mb-6 border-b border-gray-200 pb-4 flex justify-between items-end"
+    class="mb-6 border-b border-gray-200 pb-4 shrink-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4"
   >
     <div>
-      <h1 class="text-3xl font-bold text-gray-900">
+      <h1 class="text-3xl font-black text-gray-900 tracking-tight">
         <i class="fas fa-trash-alt text-red-500 mr-3"></i>Delete Records
       </h1>
-      <p class="text-gray-500 mt-2">
+      <p class="text-gray-500 mt-2 text-sm font-medium">
         Search for entries to permanently remove them from the PostgreSQL
-        database and Google Sheets backup.
+        database.
       </p>
     </div>
   </div>
 
   <!-- Navigation Tabs -->
   <div
-    class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar"
+    class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar shrink-0"
   >
     <button
       data-action="switch-tab"
@@ -33,7 +35,15 @@ content %}
       id="tab-anime"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap"
     >
-      <i class="fas fa-film mr-2"></i> Delete Anime Entries
+      <i class="fas fa-tv mr-2"></i> Delete Anime Entries
+    </button>
+    <button
+      data-action="switch-tab"
+      data-tab="franchise"
+      id="tab-franchise"
+      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
+    >
+      <i class="fas fa-sitemap mr-2"></i> Delete Franchises
     </button>
     <button
       data-action="switch-tab"
@@ -41,7 +51,7 @@ content %}
       id="tab-series"
       class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
     >
-      <i class="fas fa-layer-group mr-2"></i> Delete Anime Series
+      <i class="fas fa-layer-group mr-2"></i> Delete Series
     </button>
     <button
       data-action="switch-tab"
@@ -53,334 +63,448 @@ content %}
     </button>
   </div>
 
-  <!-- ========================================== -->
-  <!-- SECTION 1: ANIME ENTRIES -->
-  <!-- ========================================== -->
-  <div id="section-anime" class="space-y-8 block">
-    <!-- Search Panel -->
+  <!-- Main Workspace -->
+  <div class="flex-1 relative min-h-0 flex flex-col">
     <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
+      id="workspace-loading"
+      class="absolute inset-0 bg-gray-50/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-2xl hidden"
     >
-      <label
-        class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-        >Search Anime to Delete</label
-      >
-      <div class="relative z-20 search-container-anime">
-        <div
-          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-        >
-          <i class="fas fa-search text-gray-400"></i>
-        </div>
-        <input
-          type="text"
-          id="anime-search-input"
-          placeholder="Type Series English Name, Chinese Title, Alt Names, etc..."
-          class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition"
-          autocomplete="off"
-        />
-
-        <!-- Search Results Dropdown -->
-        <div
-          id="anime-search-results"
-          class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"
-        >
-          <!-- Populated by JS -->
-        </div>
-      </div>
+      <i class="fas fa-circle-notch fa-spin text-4xl text-red-500 mb-4"></i>
+      <p class="text-gray-600 font-bold">Loading Database...</p>
     </div>
 
-    <!-- Danger Zone Anime Summary Card -->
-    <div
-      id="anime-delete-container"
-      class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
-    >
-      <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
-
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-red-800">
-          <i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Selected
-          Target for Deletion
-        </h2>
-        <button
-          data-action="close-anime"
-          class="text-red-400 hover:text-red-700 transition"
-        >
-          <i class="fas fa-times text-xl"></i>
-        </button>
-      </div>
-
-      <div
-        class="bg-white border border-red-100 rounded-xl p-4 flex flex-col sm:flex-row gap-6 items-center sm:items-start shadow-sm"
-      >
-        <!-- Cover Image -->
+    <div class="flex-1 overflow-y-auto pb-12">
+      <!-- ========================================== -->
+      <!-- SECTION 1: ANIME ENTRIES -->
+      <!-- ========================================== -->
+      <div id="section-anime" class="space-y-8 max-w-4xl mx-auto block">
+        <!-- Search Panel -->
         <div
-          class="w-24 h-36 shrink-0 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 relative"
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
         >
-          <img
-            id="del-anime-img"
-            src=""
-            class="w-full h-full object-cover"
-            onerror="
-              this.src =
-                'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E'
-            "
-          />
+          <label
+            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+            >Search Anime to Delete</label
+          >
+          <div class="relative z-20 search-container-anime">
+            <div
+              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            >
+              <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input
+              type="text"
+              id="anime-search-input"
+              placeholder="Type Anime Name (EN/CN/JP/Alt)..."
+              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
+              autocomplete="off"
+            />
+            <div
+              id="anime-search-results"
+              class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50"
+            ></div>
+          </div>
         </div>
 
-        <!-- Details -->
-        <div class="flex-1 min-w-0 w-full text-center sm:text-left">
+        <!-- Danger Zone Card -->
+        <div
+          id="anime-delete-container"
+          class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
+        >
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-black text-red-800 tracking-tight">
+              <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+              Selected Target for Deletion
+            </h2>
+            <button
+              data-action="close-card"
+              data-target="anime"
+              class="text-red-400 hover:text-red-700 transition"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+
           <div
-            class="flex items-center justify-center sm:justify-start gap-2 mb-1.5"
+            class="bg-white border border-red-100 rounded-xl p-4 flex flex-col sm:flex-row gap-6 items-center sm:items-start shadow-sm"
           >
-            <span
-              class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200 uppercase tracking-wider"
-              id="del-anime-type"
-              >Airing Type</span
+            <!-- Cover Image -->
+            <div
+              class="w-24 h-36 shrink-0 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 relative"
             >
-            <span
-              class="bg-red-100/50 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-red-200/50 uppercase tracking-wider"
-              id="del-anime-progress"
-              >My Progress</span
-            >
-          </div>
-          <h3
-            class="text-2xl font-black text-gray-900 truncate"
-            id="del-anime-title"
-          >
-            Title
-          </h3>
-          <p
-            class="text-sm text-gray-500 truncate mt-1"
-            id="del-anime-subtitle"
-          >
-            Subtitle
-          </p>
+              <img
+                id="del-anime-img"
+                src=""
+                class="w-full h-full object-cover"
+                onerror="
+                  this.src =
+                    'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E'
+                "
+              />
+            </div>
+            <!-- Details -->
+            <div class="flex-1 min-w-0 w-full text-center sm:text-left">
+              <div
+                class="flex items-center justify-center sm:justify-start gap-2 mb-1.5 flex-wrap"
+              >
+                <span
+                  class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 uppercase tracking-wider"
+                  id="del-anime-type"
+                ></span>
+                <span
+                  class="bg-red-100/50 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200/50 uppercase tracking-wider"
+                  id="del-anime-status"
+                ></span>
+              </div>
+              <h3
+                class="text-2xl font-black text-gray-900 truncate"
+                id="del-anime-title"
+              >
+                Title
+              </h3>
+              <p
+                class="text-sm font-medium text-gray-500 truncate mt-1"
+                id="del-anime-subtitle"
+              >
+                Subtitle
+              </p>
 
-          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-            <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-              <div class="text-[10px] font-bold text-gray-400 uppercase">
-                From Series
+              <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                  <div class="text-[10px] font-bold text-gray-400 uppercase">
+                    Franchise / Series
+                  </div>
+                  <div
+                    class="text-xs font-bold text-gray-700 truncate mt-0.5"
+                    id="del-anime-parents"
+                  >
+                    None
+                  </div>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                  <div class="text-[10px] font-bold text-gray-400 uppercase">
+                    System ID
+                  </div>
+                  <div
+                    class="text-xs font-mono text-gray-500 truncate mt-0.5"
+                    id="del-anime-id"
+                  >
+                    ID
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end">
+            <button
+              type="button"
+              data-action="init-delete"
+              data-type="anime"
+              class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center"
+            >
+              <i class="fas fa-trash-alt mr-2"></i> Delete Entry Permanently
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 2: FRANCHISE -->
+      <!-- ========================================== -->
+      <div id="section-franchise" class="space-y-8 max-w-4xl mx-auto hidden">
+        <!-- Search Panel -->
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
+        >
+          <label
+            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+            >Search Franchise Hub to Delete</label
+          >
+          <div class="relative z-20 search-container-franchise">
+            <div
+              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            >
+              <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input
+              type="text"
+              id="franchise-search-input"
+              placeholder="Type Franchise Name (EN/CN/JP/Alt)..."
+              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
+              autocomplete="off"
+            />
+            <div
+              id="franchise-search-results"
+              class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Danger Zone Card -->
+        <div
+          id="franchise-delete-container"
+          class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
+        >
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-black text-red-800 tracking-tight">
+              <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+              Selected Franchise for Deletion
+            </h2>
+            <button
+              data-action="close-card"
+              data-target="franchise"
+              class="text-red-400 hover:text-red-700 transition"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+            <div
+              class="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1"
+            >
+              <i class="fas fa-sitemap mr-1"></i> Franchise Hub
+            </div>
+            <h3
+              class="text-2xl font-black text-gray-900 truncate mb-1"
+              id="del-franchise-title"
+            >
+              Title
+            </h3>
+            <p
+              class="text-sm font-medium text-gray-500 truncate mb-4"
+              id="del-franchise-alt"
+            >
+              Alt Names
+            </p>
+
+            <div
+              class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 pt-4"
+            >
+              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                <div class="text-[10px] font-bold text-gray-400 uppercase">
+                  System ID
+                </div>
+                <div
+                  class="text-xs font-mono text-gray-500 truncate mt-0.5"
+                  id="del-franchise-id"
+                >
+                  ID
+                </div>
+              </div>
+              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                <div class="text-[10px] font-bold text-gray-400 uppercase">
+                  Connected Tree
+                </div>
+                <div
+                  class="text-xs font-bold text-gray-700 mt-0.5"
+                  id="del-franchise-count"
+                >
+                  0 Series, 0 Anime
+                </div>
               </div>
               <div
-                class="text-sm font-medium text-gray-700 truncate mt-0.5"
-                id="del-anime-series"
+                class="bg-red-50/50 p-2.5 rounded-lg border border-red-100 flex items-center justify-center text-center"
               >
-                Series Name
+                <div
+                  class="text-[10px] font-bold text-red-600 uppercase leading-snug"
+                >
+                  <i class="fas fa-info-circle mr-1"></i> Cascade Deletion
+                  supported
+                </div>
               </div>
             </div>
-            <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-              <div class="text-[10px] font-bold text-gray-400 uppercase">
-                System ID
+          </div>
+          <div class="mt-6 flex justify-end">
+            <button
+              type="button"
+              data-action="init-delete"
+              data-type="franchise"
+              class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center"
+            >
+              <i class="fas fa-trash-alt mr-2"></i> Delete Franchise Permanently
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 3: SERIES -->
+      <!-- ========================================== -->
+      <div id="section-series" class="space-y-8 max-w-4xl mx-auto hidden">
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
+        >
+          <label
+            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+            >Search Series Hub to Delete</label
+          >
+          <div class="relative z-20 search-container-series">
+            <div
+              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            >
+              <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input
+              type="text"
+              id="series-search-input"
+              placeholder="Type Series Name (EN/CN/Alt)..."
+              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
+              autocomplete="off"
+            />
+            <div
+              id="series-search-results"
+              class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50"
+            ></div>
+          </div>
+        </div>
+
+        <div
+          id="series-delete-container"
+          class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
+        >
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-black text-red-800 tracking-tight">
+              <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+              Selected Series for Deletion
+            </h2>
+            <button
+              data-action="close-card"
+              data-target="series"
+              class="text-red-400 hover:text-red-700 transition"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+            <div
+              class="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1"
+            >
+              <i class="fas fa-layer-group mr-1"></i> Series Hub
+            </div>
+            <h3
+              class="text-2xl font-black text-gray-900 truncate mb-1"
+              id="del-series-title"
+            >
+              Title
+            </h3>
+            <p
+              class="text-sm font-medium text-gray-500 truncate mb-4"
+              id="del-series-alt"
+            >
+              Alt Names
+            </p>
+
+            <div
+              class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 pt-4"
+            >
+              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                <div class="text-[10px] font-bold text-gray-400 uppercase">
+                  System ID
+                </div>
+                <div
+                  class="text-xs font-mono text-gray-500 truncate mt-0.5"
+                  id="del-series-id"
+                >
+                  ID
+                </div>
+              </div>
+              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                <div class="text-[10px] font-bold text-gray-400 uppercase">
+                  Connected Anime
+                </div>
+                <div
+                  class="text-xs font-bold text-gray-700 mt-0.5"
+                  id="del-series-count"
+                >
+                  0 Entries
+                </div>
               </div>
               <div
-                class="text-xs font-mono text-gray-500 truncate mt-0.5"
-                id="del-anime-id"
+                class="bg-red-50/50 p-2.5 rounded-lg border border-red-100 flex items-center justify-center text-center"
               >
-                ID
+                <div
+                  class="text-[10px] font-bold text-red-600 uppercase leading-snug"
+                >
+                  <i class="fas fa-info-circle mr-1"></i> Cascade Deletion
+                  supported
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="mt-6 flex justify-end">
-        <button
-          type="button"
-          data-action="confirm-delete"
-          data-type="anime"
-          class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 hover:shadow-red-500/40 w-full sm:w-auto justify-center"
-        >
-          <i class="fas fa-trash-alt mr-2"></i> Erase Entry Permanently
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================== -->
-  <!-- SECTION 2: ANIME SERIES -->
-  <!-- ========================================== -->
-  <div id="section-series" class="space-y-8 hidden">
-    <!-- Search Panel -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
-    >
-      <label
-        class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-        >Search Series to Delete</label
-      >
-      <div class="relative z-20 search-container-series">
-        <div
-          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-        >
-          <i class="fas fa-search text-gray-400"></i>
-        </div>
-        <input
-          type="text"
-          id="series-search-input"
-          placeholder="Type Series English Name, Chinese Title, etc..."
-          class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition"
-          autocomplete="off"
-        />
-
-        <!-- Search Results Dropdown -->
-        <div
-          id="series-search-results"
-          class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"
-        >
-          <!-- Populated by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Danger Zone Series Summary Card -->
-    <div
-      id="series-delete-container"
-      class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
-    >
-      <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
-
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-red-800">
-          <i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Selected
-          Series Hub for Deletion
-        </h2>
-        <button
-          data-action="close-series"
-          class="text-red-400 hover:text-red-700 transition"
-        >
-          <i class="fas fa-times text-xl"></i>
-        </button>
-      </div>
-
-      <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
-        <div
-          class="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1"
-        >
-          <i class="fas fa-layer-group mr-1"></i> Franchise Hub
-        </div>
-        <h3
-          class="text-2xl font-black text-gray-900 truncate mb-1"
-          id="del-series-en"
-        >
-          Series Title
-        </h3>
-        <p class="text-sm text-gray-500 truncate mb-4" id="del-series-alt">
-          Alt Names
-        </p>
-
-        <div
-          class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-gray-100 pt-4"
-        >
-          <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-            <div class="text-[10px] font-bold text-gray-400 uppercase">
-              System ID
-            </div>
-            <div
-              class="text-xs font-mono text-gray-500 truncate mt-0.5"
-              id="del-series-id"
+          <div class="mt-6 flex justify-end">
+            <button
+              type="button"
+              data-action="init-delete"
+              data-type="series"
+              class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center"
             >
-              ID
-            </div>
-          </div>
-          <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-            <div class="text-[10px] font-bold text-gray-400 uppercase">
-              Connected Anime
-            </div>
-            <div
-              class="text-xs font-bold text-gray-700 mt-0.5"
-              id="del-series-count"
-            >
-              0 Entries
-            </div>
-          </div>
-          <div class="bg-red-50/50 p-2.5 rounded-lg border border-red-100">
-            <div
-              class="text-[10px] font-bold text-gray-400 uppercase text-red-500"
-            >
-              <i class="fas fa-info-circle"></i> Note
-            </div>
-            <div class="text-xs font-medium text-gray-600 mt-0.5">
-              Deleting this hub requires handling connected entries.
-            </div>
+              <i class="fas fa-trash-alt mr-2"></i> Delete Series Permanently
+            </button>
           </div>
         </div>
       </div>
 
-      <div class="mt-6 flex justify-end">
-        <button
-          type="button"
-          data-action="confirm-delete"
-          data-type="series"
-          class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 hover:shadow-red-500/40 w-full sm:w-auto justify-center"
+      <!-- ========================================== -->
+      <!-- SECTION 4: SYSTEM OPTIONS -->
+      <!-- ========================================== -->
+      <div id="section-options" class="space-y-8 max-w-4xl mx-auto hidden">
+        <div
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8"
         >
-          <i class="fas fa-trash-alt mr-2"></i> Erase Series Hub Permanently
-        </button>
-      </div>
-    </div>
-  </div>
+          <label
+            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-4"
+            >Select Target Category</label
+          >
+          <select
+            id="delete-option-category"
+            class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm font-bold text-gray-700 outline-none cursor-pointer transition"
+          >
+            <option value="" disabled selected>
+              -- Choose a category to manage --
+            </option>
+          </select>
 
-  <!-- ========================================== -->
-  <!-- SECTION 3: SYSTEM OPTIONS (NEW) -->
-  <!-- ========================================== -->
-  <div id="section-options" class="space-y-8 hidden">
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8"
-    >
-      <label
-        class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-4"
-        >Select Target Category</label
-      >
-      <select
-        id="delete-option-category"
-        class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm outline-none cursor-pointer transition"
-      >
-        <option value="" disabled selected>
-          -- Choose a category to manage --
-        </option>
-        <option value="Studio">Studio</option>
-        <option value="Genre Main">Genre Main</option>
-        <option value="Genre Sub">Genre Sub</option>
-        <option value="Distributor TW">Distributor TW</option>
-        <option value="Director">Director</option>
-        <option value="Producer">Producer</option>
-        <option value="Music">Music / Composer</option>
-      </select>
+          <div
+            id="options-loading"
+            class="hidden mt-8 text-center text-gray-500 py-4"
+          >
+            <i
+              class="fas fa-circle-notch fa-spin text-2xl text-red-500 mb-2"
+            ></i>
+            <p class="text-sm font-medium">Fetching options...</p>
+          </div>
 
-      <!-- Loading State -->
-      <div
-        id="options-loading"
-        class="hidden mt-8 text-center text-gray-500 py-4"
-      >
-        <i class="fas fa-circle-notch fa-spin text-2xl text-brand mb-2"></i>
-        <p class="text-sm font-medium">Fetching options...</p>
-      </div>
-
-      <!-- Results Grid -->
-      <div
-        id="options-list-container"
-        class="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 hidden"
-      >
-        <!-- Dynamically populated options -->
+          <div
+            id="options-list-container"
+            class="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 hidden"
+          ></div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Global Delete Confirmation Modal -->
+<!-- ========================================== -->
+<!-- MASTER DELETE CONFIRMATION MODAL -->
+<!-- ========================================== -->
 <div
   id="delete-modal"
   class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity p-4"
 >
   <div
-    class="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-md overflow-hidden flex flex-col transform scale-95 transition-transform duration-200"
+    class="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-lg overflow-hidden flex flex-col transform transition-transform duration-200 scale-95"
     id="delete-modal-box"
   >
     <div
       class="p-6 border-b border-gray-100 bg-red-50 flex items-center justify-between shrink-0"
     >
-      <h2 class="text-xl font-bold text-red-700">
-        <i class="fas fa-exclamation-triangle mr-2"></i> DANGER: Irreversible
-        Deletion
+      <h2 class="text-xl font-black text-red-700 tracking-tight">
+        <i class="fas fa-exclamation-triangle mr-2"></i> Confirm Deletion
       </h2>
       <button
         data-action="close-modal"
@@ -391,79 +515,40 @@ content %}
     </div>
     <div class="p-6 overflow-auto flex-1">
       <p class="text-sm text-gray-700 font-medium leading-relaxed">
-        You are about to permanently delete the following record directly from
-        the Google Sheet and Database.
+        You are about to permanently delete the following record from the
+        database.
       </p>
       <div
         class="mt-4 p-4 bg-white rounded-lg border border-red-100 shadow-inner"
       >
         <div
-          class="text-[10px] font-bold text-red-400 uppercase mb-1"
-          id="delete-target-type"
+          class="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1"
+          id="modal-target-type"
         >
           Target
         </div>
-        <div class="font-bold text-gray-900" id="delete-target-name">...</div>
+        <div
+          class="text-lg font-black text-gray-900 leading-tight"
+          id="modal-target-name"
+        >
+          ...
+        </div>
         <div
           class="text-[10px] font-mono text-gray-500 mt-1 truncate"
-          id="delete-target-id"
+          id="modal-target-id"
         >
           ...
         </div>
       </div>
 
-      <!-- Dynamic Orphaned Series Checkbox (When deleting Anime) -->
+      <!-- Dynamic Warning Container (Injected via JS) -->
       <div
-        id="orphan-series-warning"
-        class="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4 hidden"
-      >
-        <label class="flex items-start space-x-3 cursor-pointer">
-          <input
-            type="checkbox"
-            id="delete-orphan-series-cb"
-            class="mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500 w-4 h-4"
-          />
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold text-orange-800">
-              <i class="fas fa-link mr-1"></i> Last Entry in Series!
-            </div>
-            <div class="text-xs text-orange-700 mt-1 leading-snug">
-              This is the only anime entry attached to
-              <span class="font-bold" id="orphan-series-name"></span>. Check
-              this box to also delete the empty Series Hub.
-            </div>
-          </div>
-        </label>
-      </div>
+        id="dynamic-delete-warnings"
+        class="mt-5 space-y-3 empty:hidden"
+      ></div>
 
-      <!-- Dynamic Cascade Anime Checkbox (When deleting Series) -->
-      <div
-        id="cascade-anime-warning"
-        class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 hidden"
-      >
-        <label class="flex items-start space-x-3 cursor-pointer">
-          <input
-            type="checkbox"
-            id="delete-cascade-anime-cb"
-            class="mt-0.5 rounded border-red-400 text-red-600 focus:ring-red-600 w-4 h-4"
-          />
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold text-red-800">
-              <i class="fas fa-trash-restore mr-1"></i> Delete Connected
-              Entries!
-            </div>
-            <div class="text-xs text-red-700 mt-1 leading-snug">
-              There are
-              <span class="font-bold" id="cascade-anime-count"></span> anime
-              entries attached to this hub. Check this box to also delete ALL of
-              them permanently.
-            </div>
-          </div>
-        </label>
-      </div>
-
-      <p class="text-sm text-red-600 font-bold mt-5 text-center">
-        This action CANNOT be undone. Are you absolutely sure?
+      <p class="text-sm text-red-600 font-bold mt-6 text-center tracking-tight">
+        This action CANNOT be undone. Are you sure?
       </p>
     </div>
     <div
@@ -477,452 +562,535 @@ content %}
       </button>
       <button
         id="execute-delete-btn"
-        class="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-red-700 transition flex items-center justify-center order-1 sm:order-2"
+        class="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-black shadow-sm hover:bg-red-700 transition flex items-center justify-center order-1 sm:order-2"
       >
         <i class="fas fa-skull-crossbones mr-2"></i> Yes, Terminate It
       </button>
     </div>
   </div>
 </div>
+
 {% endblock %} {% block extra_scripts %}
 <script>
-  // --- State & DOM Management ---
+  // --- Display Title Fallback Helpers (V2 Standard) ---
+  const getDisplayTitleA = (a) =>
+    a.anime_name_cn ||
+    a.anime_name_en ||
+    a.anime_name_alt ||
+    a.anime_name_romanji ||
+    a.anime_name_jp ||
+    "Unknown Anime";
+  const getDisplayTitleF = (f) =>
+    f.franchise_name_cn ||
+    f.franchise_name_en ||
+    f.franchise_name_alt ||
+    f.franchise_name_romanji ||
+    f.franchise_name_jp ||
+    "Unknown Franchise";
+  const getDisplayTitleS = (s) =>
+    s.series_name_cn ||
+    s.series_name_en ||
+    s.series_name_alt ||
+    "Unknown Series";
+  const getClean = (str) =>
+    (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+
   const state = {
-    allAnime: [],
-    allSeries: [],
-    currentDeleteTarget: null,
-    debounceTimeout: null,
+    db: { anime: [], franchise: [], series: [], options: [] },
+    dict: { franchise: {}, series: {} },
+    target: null, // Holds info about item to delete
+    debounce: null,
   };
 
-  const pageDOM = {};
+  const pageDOM = {
+    loading: document.getElementById("workspace-loading"),
+
+    animeInput: document.getElementById("anime-search-input"),
+    animeResults: document.getElementById("anime-search-results"),
+    animeContainer: document.getElementById("anime-delete-container"),
+
+    franchiseInput: document.getElementById("franchise-search-input"),
+    franchiseResults: document.getElementById("franchise-search-results"),
+    franchiseContainer: document.getElementById("franchise-delete-container"),
+
+    seriesInput: document.getElementById("series-search-input"),
+    seriesResults: document.getElementById("series-search-results"),
+    seriesContainer: document.getElementById("series-delete-container"),
+
+    optCategory: document.getElementById("delete-option-category"),
+    optLoading: document.getElementById("options-loading"),
+    optContainer: document.getElementById("options-list-container"),
+
+    modal: document.getElementById("delete-modal"),
+    modalBox: document.getElementById("delete-modal-box"),
+    modalWarnings: document.getElementById("dynamic-delete-warnings"),
+    btnExecute: document.getElementById("execute-delete-btn"),
+  };
 
   document.addEventListener("DOMContentLoaded", () => {
-    // Cache DOM Elements
-    pageDOM.tabAnime = document.getElementById("tab-anime");
-    pageDOM.tabSeries = document.getElementById("tab-series");
-    pageDOM.tabOptions = document.getElementById("tab-options");
+    fetchDatabase();
 
-    pageDOM.secAnime = document.getElementById("section-anime");
-    pageDOM.secSeries = document.getElementById("section-series");
-    pageDOM.secOptions = document.getElementById("section-options");
-
-    pageDOM.animeInput = document.getElementById("anime-search-input");
-    pageDOM.animeResults = document.getElementById("anime-search-results");
-    pageDOM.animeContainer = document.getElementById("anime-delete-container");
-    pageDOM.delAnimeImg = document.getElementById("del-anime-img");
-    pageDOM.delAnimeTitle = document.getElementById("del-anime-title");
-    pageDOM.delAnimeSubtitle = document.getElementById("del-anime-subtitle");
-    pageDOM.delAnimeType = document.getElementById("del-anime-type");
-    pageDOM.delAnimeProgress = document.getElementById("del-anime-progress");
-    pageDOM.delAnimeSeries = document.getElementById("del-anime-series");
-    pageDOM.delAnimeId = document.getElementById("del-anime-id");
-
-    pageDOM.seriesInput = document.getElementById("series-search-input");
-    pageDOM.seriesResults = document.getElementById("series-search-results");
-    pageDOM.seriesContainer = document.getElementById(
-      "series-delete-container",
-    );
-    pageDOM.delSeriesEn = document.getElementById("del-series-en");
-    pageDOM.delSeriesAlt = document.getElementById("del-series-alt");
-    pageDOM.delSeriesId = document.getElementById("del-series-id");
-    pageDOM.delSeriesCount = document.getElementById("del-series-count");
-
-    pageDOM.optCategory = document.getElementById("delete-option-category");
-    pageDOM.optLoading = document.getElementById("options-loading");
-    pageDOM.optContainer = document.getElementById("options-list-container");
-
-    pageDOM.modal = document.getElementById("delete-modal");
-    pageDOM.modalBox = document.getElementById("delete-modal-box");
-    pageDOM.targetType = document.getElementById("delete-target-type");
-    pageDOM.targetName = document.getElementById("delete-target-name");
-    pageDOM.targetId = document.getElementById("delete-target-id");
-    pageDOM.orphanWarning = document.getElementById("orphan-series-warning");
-    pageDOM.orphanCb = document.getElementById("delete-orphan-series-cb");
-    pageDOM.orphanName = document.getElementById("orphan-series-name");
-    pageDOM.cascadeWarning = document.getElementById("cascade-anime-warning");
-    pageDOM.cascadeCb = document.getElementById("delete-cascade-anime-cb");
-    pageDOM.cascadeCount = document.getElementById("cascade-anime-count");
-    pageDOM.btnExecute = document.getElementById("execute-delete-btn");
-
-    // Event Listeners
+    // Search Listeners
     pageDOM.animeInput.addEventListener("input", () => {
-      clearTimeout(state.debounceTimeout);
-      state.debounceTimeout = setTimeout(filterAnimeSearch, 250);
+      clearTimeout(state.debounce);
+      state.debounce = setTimeout(() => filterSearch("anime"), 250);
     });
+    pageDOM.animeInput.addEventListener("focus", () => filterSearch("anime"));
+
+    pageDOM.franchiseInput.addEventListener("input", () => {
+      clearTimeout(state.debounce);
+      state.debounce = setTimeout(() => filterSearch("franchise"), 250);
+    });
+    pageDOM.franchiseInput.addEventListener("focus", () =>
+      filterSearch("franchise"),
+    );
 
     pageDOM.seriesInput.addEventListener("input", () => {
-      clearTimeout(state.debounceTimeout);
-      state.debounceTimeout = setTimeout(filterSeriesSearch, 250);
+      clearTimeout(state.debounce);
+      state.debounce = setTimeout(() => filterSearch("series"), 250);
     });
+    pageDOM.seriesInput.addEventListener("focus", () => filterSearch("series"));
 
     pageDOM.optCategory.addEventListener("change", loadCategoryOptions);
     pageDOM.btnExecute.addEventListener("click", executeDelete);
 
-    // Global Click Delegation
-    document.addEventListener("click", handleGlobalClick);
+    // Global Clicks
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".search-container-anime"))
+        pageDOM.animeResults.classList.add("hidden");
+      if (!e.target.closest(".search-container-franchise"))
+        pageDOM.franchiseResults.classList.add("hidden");
+      if (!e.target.closest(".search-container-series"))
+        pageDOM.seriesResults.classList.add("hidden");
 
-    loadDatabase();
+      const actionEl = e.target.closest("[data-action]");
+      if (!actionEl) return;
+      const action = actionEl.dataset.action;
+
+      if (action === "switch-tab") switchTab(actionEl.dataset.tab);
+      else if (action === "select-item")
+        selectItem(actionEl.dataset.type, actionEl.dataset.id);
+      else if (action === "close-card") closeCard(actionEl.dataset.target);
+      else if (action === "init-delete") initDelete(actionEl.dataset.type);
+      else if (action === "close-modal") closeDeleteModal();
+      else if (action === "delete-option")
+        initOptionDelete(
+          actionEl.dataset.id,
+          actionEl.dataset.name,
+          actionEl.dataset.category,
+        );
+    });
   });
 
-  function handleGlobalClick(e) {
-    // Hide dropdowns when clicking outside
-    if (
-      !e.target.closest(".search-container-anime") &&
-      !e.target.closest("#anime-search-results")
-    ) {
-      pageDOM.animeResults.classList.add("hidden");
-    }
-    if (
-      !e.target.closest(".search-container-series") &&
-      !e.target.closest("#series-search-results")
-    ) {
-      pageDOM.seriesResults.classList.add("hidden");
-    }
+  async function fetchDatabase() {
+    pageDOM.loading.classList.remove("hidden");
+    try {
+      const [aRes, fRes, sRes, oRes] = await Promise.all([
+        fetch("/api/anime/"),
+        fetch("/api/franchise/"),
+        fetch("/api/series/"),
+        fetch("/api/options/"),
+      ]);
+      if (!aRes.ok || !fRes.ok || !sRes.ok || !oRes.ok)
+        throw new Error("Failed to load schema data");
 
-    const actionEl = e.target.closest("[data-action]");
-    if (!actionEl) return;
+      state.db.anime = await aRes.json();
+      state.db.franchise = await fRes.json();
+      state.db.series = await sRes.json();
+      state.db.options = await oRes.json();
 
-    const action = actionEl.dataset.action;
-
-    if (action === "switch-tab") {
-      switchTab(actionEl.dataset.tab);
-    } else if (action === "select-anime") {
-      selectAnime(actionEl.dataset.id);
-    } else if (action === "select-series") {
-      selectSeries(actionEl.dataset.id);
-    } else if (action === "close-anime") {
-      closeAnimeContainer();
-    } else if (action === "close-series") {
-      closeSeriesContainer();
-    } else if (action === "close-modal") {
-      closeDeleteModal();
-    } else if (action === "confirm-delete") {
-      confirmDelete(
-        actionEl.dataset.type,
-        actionEl.dataset.id,
-        actionEl.dataset.name,
-        actionEl.dataset.category,
+      state.dict.franchise = {};
+      state.db.franchise.forEach(
+        (f) => (state.dict.franchise[f.system_id] = f),
       );
+      state.dict.series = {};
+      state.db.series.forEach((s) => (state.dict.series[s.system_id] = s));
+
+      // Populate Option Categories
+      const categories = [
+        ...new Set(state.db.options.map((o) => o.category)),
+      ].sort();
+      pageDOM.optCategory.innerHTML =
+        `<option value="" disabled selected>-- Choose a category to manage --</option>` +
+        categories.map((c) => `<option value="${c}">${c}</option>`).join("");
+    } catch (e) {
+      console.error(e);
+      if (typeof showNotification === "function")
+        showNotification("error", "Database load failed.");
+    } finally {
+      pageDOM.loading.classList.add("hidden");
     }
   }
 
   function switchTab(tabName) {
-    const tabs = ["anime", "series", "options"];
-    tabs.forEach((t) => {
-      const sec = document.getElementById(`section-${t}`);
+    ["anime", "franchise", "series", "options"].forEach((t) => {
       const btn = document.getElementById(`tab-${t}`);
-
+      const sec = document.getElementById(`section-${t}`);
       if (t === tabName) {
-        sec.classList.remove("hidden");
         btn.className =
           "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap";
+        sec.classList.remove("hidden");
       } else {
-        sec.classList.add("hidden");
         btn.className =
           "px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap";
+        sec.classList.add("hidden");
       }
     });
   }
 
-  // --- Initial Data Load ---
-  async function loadDatabase() {
-    try {
-      const [resAnime, resSeries] = await Promise.all([
-        fetch(`/api/anime`),
-        fetch(`/api/series`),
-      ]);
-
-      if (resAnime.ok) state.allAnime = await resAnime.json();
-      if (resSeries.ok) state.allSeries = await resSeries.json();
-    } catch (e) {
-      if (typeof showToast === "function")
-        showToast("Failed to load database for deletion operations.", true);
-    }
-  }
-
-  function normalizeStr(str) {
-    if (!str) return "";
-    return str.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
-  }
-
-  // --- Search & Filtering (Anime) ---
-  function filterAnimeSearch() {
-    const rawQuery = pageDOM.animeInput.value;
-    const query = normalizeStr(rawQuery);
+  // --- Search Engines ---
+  function filterSearch(type) {
+    const input = pageDOM[`${type}Input`];
+    const results = pageDOM[`${type}Results`];
+    const query = getClean(input.value);
 
     if (!query) {
-      pageDOM.animeResults.classList.add("hidden");
+      results.classList.add("hidden");
       return;
     }
 
-    const matchingSeriesEnNames = new Set(
-      state.allSeries
-        .filter((s) => {
-          const searchStr = normalizeStr(
-            [s.series_en, s.series_cn, s.series_roman, s.alt_name]
-              .filter(Boolean)
-              .join(""),
-          );
-          return searchStr.includes(query);
-        })
-        .map((s) => s.series_en),
-    );
-
-    const filtered = state.allAnime
-      .filter((a) => {
-        const directStr = normalizeStr(
-          [
-            a.series_en,
-            a.series_season_en,
-            a.series_season_cn,
-            a.series_season_roman,
+    let filtered = [];
+    if (type === "anime") {
+      filtered = state.db.anime
+        .filter((a) => {
+          const searchStr = [
+            a.anime_name_cn,
+            a.anime_name_en,
+            a.anime_name_romanji,
+            a.anime_name_jp,
+            a.anime_name_alt,
           ]
             .filter(Boolean)
-            .join(""),
-        );
-        return (
-          directStr.includes(query) || matchingSeriesEnNames.has(a.series_en)
-        );
-      })
-      .slice(0, 15);
+            .join("");
+          return getClean(searchStr).includes(query);
+        })
+        .slice(0, 10);
 
-    if (filtered.length === 0) {
-      pageDOM.animeResults.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
-    } else {
-      pageDOM.animeResults.innerHTML = filtered
-        .map(
-          (a) => `
-          <div data-action="select-anime" data-id="${a.system_id}" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
-              <div class="min-w-0 flex-1 pr-2">
-                  <div class="font-bold text-gray-800 text-sm truncate">${a.series_season_cn || a.series_season_en || a.series_en || "Unknown Title"}</div>
-                  <div class="text-[11px] text-gray-500 truncate mt-0.5">
-                      From series: <span class="font-semibold text-gray-700">${a.series_en || "-"}</span>, ${a.airing_type || "-"}, ${a.my_progress || "-"}
-                  </div>
-              </div>
-              <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
-          </div>
-      `,
-        )
-        .join("");
-    }
-    pageDOM.animeResults.classList.remove("hidden");
-  }
-
-  function selectAnime(sysId) {
-    const anime = state.allAnime.find((a) => a.system_id === sysId);
-    if (!anime) return;
-
-    pageDOM.animeResults.classList.add("hidden");
-    pageDOM.animeInput.value =
-      anime.series_season_cn || anime.series_season_en || anime.series_en;
-
-    // V2 Smart Image Routing (Local vs Cloud)
-    const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
-    const bucketName = "cg1618-anime-covers";
-    const isLocalhost =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-
-    let imageUrl = fallbackSvg;
-    if (anime.cover_image_file && anime.cover_image_file !== "N/A") {
-      imageUrl = isLocalhost
-        ? `/static/covers/${anime.cover_image_file}`
-        : `https://storage.googleapis.com/${bucketName}/${anime.cover_image_file}`;
-    } else if (anime.cover_image_url) {
-      imageUrl = anime.cover_image_url;
-    }
-
-    pageDOM.delAnimeImg.src = imageUrl;
-    pageDOM.delAnimeTitle.innerText =
-      anime.series_season_cn ||
-      anime.series_season_en ||
-      anime.series_en ||
-      "Unknown Title";
-    pageDOM.delAnimeSubtitle.innerText =
-      anime.series_season_en ||
-      anime.series_season_roman ||
-      anime.series_en ||
-      "-";
-    pageDOM.delAnimeType.innerText = anime.airing_type || "Unknown Type";
-    pageDOM.delAnimeProgress.innerText =
-      anime.my_progress || "Unknown Progress";
-    pageDOM.delAnimeSeries.innerText = anime.series_en || "Unknown Series";
-    pageDOM.delAnimeId.innerText = anime.system_id;
-
-    pageDOM.animeContainer.classList.remove("hidden");
-  }
-
-  function closeAnimeContainer() {
-    pageDOM.animeContainer.classList.add("hidden");
-    pageDOM.animeInput.value = "";
-  }
-
-  // --- Search & Filtering (Series) ---
-  function filterSeriesSearch() {
-    const rawQuery = pageDOM.seriesInput.value;
-    const query = normalizeStr(rawQuery);
-
-    if (!query) {
-      pageDOM.seriesResults.classList.add("hidden");
-      return;
-    }
-
-    const filtered = state.allSeries
-      .filter((s) => {
-        const str = normalizeStr(
-          [s.series_en, s.series_cn, s.series_roman, s.alt_name]
+      results.innerHTML = filtered.length
+        ? filtered
+            .map((a) => {
+              const fTitle = a.franchise_id
+                ? getDisplayTitleF(state.dict.franchise[a.franchise_id] || {})
+                : "No Franchise";
+              return `
+                    <div data-action="select-item" data-type="anime" data-id="${a.system_id}" class="p-3 px-4 hover:bg-red-50 cursor-pointer transition flex justify-between items-center group">
+                        <div class="min-w-0 flex-1 pr-2">
+                            <div class="font-bold text-gray-800 text-sm truncate">${getDisplayTitleA(a)}</div>
+                            <div class="text-[11px] text-gray-500 truncate mt-0.5">Hub: ${fTitle}</div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
+                    </div>`;
+            })
+            .join("")
+        : `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+    } else if (type === "franchise") {
+      filtered = state.db.franchise
+        .filter((f) => {
+          const searchStr = [
+            f.franchise_name_cn,
+            f.franchise_name_en,
+            f.franchise_name_romanji,
+            f.franchise_name_jp,
+            f.franchise_name_alt,
+          ]
             .filter(Boolean)
-            .join(""),
-        );
-        return str.includes(query);
-      })
-      .slice(0, 15);
+            .join("");
+          return getClean(searchStr).includes(query);
+        })
+        .slice(0, 10);
 
-    if (filtered.length === 0) {
-      pageDOM.seriesResults.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
-    } else {
-      pageDOM.seriesResults.innerHTML = filtered
-        .map(
-          (s) => `
-          <div data-action="select-series" data-id="${s.system_id}" class="p-3 px-4 hover:bg-red-50 border-b border-gray-100 cursor-pointer transition flex justify-between items-center group">
-              <div class="min-w-0 flex-1">
-                  <div class="font-bold text-gray-800 text-sm truncate">${s.series_en}</div>
-                  <div class="text-xs text-gray-500 truncate mt-0.5">${s.series_cn || s.series_roman || "No alternate names"}</div>
-              </div>
-              <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
-          </div>
-      `,
-        )
-        .join("");
+      results.innerHTML = filtered.length
+        ? filtered
+            .map(
+              (f) => `
+                <div data-action="select-item" data-type="franchise" data-id="${f.system_id}" class="p-3 px-4 hover:bg-red-50 cursor-pointer transition flex justify-between items-center group">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <div class="font-bold text-gray-800 text-sm truncate">${getDisplayTitleF(f)}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5">ID: ${f.system_id}</div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
+                </div>`,
+            )
+            .join("")
+        : `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
+    } else if (type === "series") {
+      filtered = state.db.series
+        .filter((s) => {
+          const searchStr = [
+            s.series_name_cn,
+            s.series_name_en,
+            s.series_name_alt,
+          ]
+            .filter(Boolean)
+            .join("");
+          return getClean(searchStr).includes(query);
+        })
+        .slice(0, 10);
+
+      results.innerHTML = filtered.length
+        ? filtered
+            .map((s) => {
+              const fTitle = s.franchise_id
+                ? getDisplayTitleF(state.dict.franchise[s.franchise_id] || {})
+                : "Unknown";
+              return `
+                <div data-action="select-item" data-type="series" data-id="${s.system_id}" class="p-3 px-4 hover:bg-red-50 cursor-pointer transition flex justify-between items-center group">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <div class="font-bold text-gray-800 text-sm truncate">${getDisplayTitleS(s)}</div>
+                        <div class="text-[11px] text-gray-500 truncate mt-0.5">Franchise: ${fTitle}</div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300 group-hover:text-red-500 transition shrink-0 ml-2"></i>
+                </div>`;
+            })
+            .join("")
+        : `<div class="p-4 text-center text-sm text-gray-500">No matches found.</div>`;
     }
-    pageDOM.seriesResults.classList.remove("hidden");
+
+    results.classList.remove("hidden");
   }
 
-  function selectSeries(sysId) {
-    const series = state.allSeries.find((s) => s.system_id === sysId);
-    if (!series) return;
-
-    pageDOM.seriesResults.classList.add("hidden");
-    pageDOM.seriesInput.value = series.series_en;
-
-    pageDOM.delSeriesEn.innerText = series.series_en;
-    const alts = [series.series_cn, series.series_roman, series.alt_name]
-      .filter(Boolean)
-      .join(" • ");
-    pageDOM.delSeriesAlt.innerText = alts || "No alternate names recorded.";
-    pageDOM.delSeriesId.innerText = series.system_id;
-
-    // Calculate connected anime
-    const connectedCount = state.allAnime.filter(
-      (a) => a.series_en === series.series_en,
-    ).length;
-    pageDOM.delSeriesCount.innerText = `${connectedCount} Entry(s)`;
-
-    pageDOM.seriesContainer.classList.remove("hidden");
-  }
-
-  function closeSeriesContainer() {
-    pageDOM.seriesContainer.classList.add("hidden");
-    pageDOM.seriesInput.value = "";
-  }
-
-  // --- Dynamic System Options Fetching ---
-  async function loadCategoryOptions() {
-    const category = pageDOM.optCategory.value;
-    if (!category) return;
-
-    pageDOM.optContainer.classList.add("hidden");
-    pageDOM.optLoading.classList.remove("hidden");
-
-    try {
-      const res = await fetch(`/api/options/${encodeURIComponent(category)}`);
-      if (!res.ok) throw new Error("Failed to load options from the database.");
-
-      const options = await res.json();
-
-      if (options.length === 0) {
-        pageDOM.optContainer.innerHTML = `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options currently exist in this category.</div>`;
-      } else {
-        pageDOM.optContainer.innerHTML = options
-          .map((opt) => {
-            const safeVal = opt.option_value.replace(/'/g, "\\'");
-            return `
-                  <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm">
-                      <span class="font-bold text-gray-700 text-sm truncate pr-2 group-hover:text-red-900" title="${opt.option_value}">${opt.option_value}</span>
-                      <button data-action="confirm-delete" data-type="options" data-id="${opt.id}" data-name="${safeVal}" data-category="${category}" class="text-gray-400 hover:text-red-600 transition shrink-0 bg-white shadow-sm border border-gray-200 w-8 h-8 rounded-md flex items-center justify-center">
-                          <i class="fas fa-trash-alt"></i>
-                      </button>
-                  </div>
-              `;
-          })
-          .join("");
-      }
-      pageDOM.optLoading.classList.add("hidden");
-      pageDOM.optContainer.classList.remove("hidden");
-    } catch (error) {
-      pageDOM.optLoading.classList.add("hidden");
-      pageDOM.optContainer.classList.remove("hidden");
-      pageDOM.optContainer.innerHTML = `<div class="col-span-full text-center text-sm font-bold text-red-500 py-4"><i class="fas fa-exclamation-triangle mr-2"></i> ${error.message}</div>`;
-    }
-  }
-
-  // --- Master Deletion Flow & Smart Logic ---
-  function confirmDelete(type, optId = null, optName = null, optCat = null) {
-    let id, name, seriesEnName;
-
-    pageDOM.orphanWarning.classList.add("hidden");
-    pageDOM.cascadeWarning.classList.add("hidden");
-    if (pageDOM.orphanCb) pageDOM.orphanCb.checked = false;
-    if (pageDOM.cascadeCb) pageDOM.cascadeCb.checked = false;
+  function selectItem(type, id) {
+    pageDOM[`${type}Results`].classList.add("hidden");
 
     if (type === "anime") {
-      id = pageDOM.delAnimeId.innerText;
-      name = pageDOM.delAnimeTitle.innerText;
-      seriesEnName = pageDOM.delAnimeSeries.innerText;
+      const a = state.db.anime.find((x) => x.system_id === id);
+      pageDOM.animeInput.value = getDisplayTitleA(a);
 
-      // Smart Logic: Check if this is the ONLY anime in the series
-      const siblingCount = state.allAnime.filter(
-        (a) => a.series_en === seriesEnName,
+      // Image Resolver
+      const bucket = "cg1618-anime-covers";
+      const isLocal =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+      let imgUrl = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
+      if (a.cover_image_file && a.cover_image_file !== "N/A")
+        imgUrl = isLocal
+          ? `/static/covers/${a.cover_image_file}`
+          : `https://storage.googleapis.com/${bucket}/${a.cover_image_file}`;
+      else if (a.cover_image_url) imgUrl = a.cover_image_url;
+
+      document.getElementById("del-anime-img").src = imgUrl;
+      document.getElementById("del-anime-title").innerText =
+        getDisplayTitleA(a);
+      document.getElementById("del-anime-subtitle").innerText =
+        a.anime_name_en || a.anime_name_romanji || "-";
+      document.getElementById("del-anime-type").innerText =
+        a.airing_type || "Type Unset";
+      document.getElementById("del-anime-status").innerText =
+        a.watching_status || "Status Unset";
+
+      const fTitle = a.franchise_id
+        ? getDisplayTitleF(state.dict.franchise[a.franchise_id] || {})
+        : "Standalone";
+      const sTitle = a.series_id
+        ? getDisplayTitleS(state.dict.series[a.series_id] || {})
+        : "No Series";
+      document.getElementById("del-anime-parents").innerText =
+        `${fTitle} / ${sTitle}`;
+      document.getElementById("del-anime-id").innerText = a.system_id;
+
+      state.target = {
+        type: "anime",
+        id: a.system_id,
+        name: getDisplayTitleA(a),
+        fId: a.franchise_id,
+        sId: a.series_id,
+      };
+    } else if (type === "franchise") {
+      const f = state.db.franchise.find((x) => x.system_id === id);
+      pageDOM.franchiseInput.value = getDisplayTitleF(f);
+
+      document.getElementById("del-franchise-title").innerText =
+        getDisplayTitleF(f);
+      document.getElementById("del-franchise-alt").innerText =
+        [f.franchise_name_en, f.franchise_name_alt]
+          .filter(Boolean)
+          .join(" • ") || "No alt names";
+      document.getElementById("del-franchise-id").innerText = f.system_id;
+
+      const cS = state.db.series.filter(
+        (s) => s.franchise_id === f.system_id,
       ).length;
-      if (siblingCount === 1) {
-        pageDOM.orphanName.innerText = seriesEnName;
-        pageDOM.orphanWarning.classList.remove("hidden");
-      }
+      const cA = state.db.anime.filter(
+        (a) => a.franchise_id === f.system_id,
+      ).length;
+      document.getElementById("del-franchise-count").innerText =
+        `${cS} Series, ${cA} Anime`;
 
-      pageDOM.targetType.innerText = "ANIME ENTRY";
-      pageDOM.targetId.innerText = id;
+      state.target = {
+        type: "franchise",
+        id: f.system_id,
+        name: getDisplayTitleF(f),
+        sCount: cS,
+        aCount: cA,
+      };
     } else if (type === "series") {
-      id = pageDOM.delSeriesId.innerText;
-      name = pageDOM.delSeriesEn.innerText;
-      seriesEnName = name;
+      const s = state.db.series.find((x) => x.system_id === id);
+      pageDOM.seriesInput.value = getDisplayTitleS(s);
 
-      // Smart Logic: Check if there are anime attached to this series hub
-      const connectedCount = state.allAnime.filter(
-        (a) => a.series_en === seriesEnName,
+      document.getElementById("del-series-title").innerText =
+        getDisplayTitleS(s);
+      document.getElementById("del-series-alt").innerText =
+        [s.series_name_en, s.series_name_alt].filter(Boolean).join(" • ") ||
+        "No alt names";
+      document.getElementById("del-series-id").innerText = s.system_id;
+
+      const cA = state.db.anime.filter(
+        (a) => a.series_id === s.system_id,
       ).length;
-      if (connectedCount > 0) {
-        pageDOM.cascadeCount.innerText = connectedCount;
-        pageDOM.cascadeWarning.classList.remove("hidden");
-      }
+      document.getElementById("del-series-count").innerText = `${cA} Anime`;
 
-      pageDOM.targetType.innerText = "SERIES HUB";
-      pageDOM.targetId.innerText = id;
-    } else if (type === "options") {
-      id = optId;
-      name = optName;
-      pageDOM.targetType.innerText = `SYSTEM OPTION (${optCat})`;
-      pageDOM.targetId.innerText = `Database ID: ${id}`;
+      state.target = {
+        type: "series",
+        id: s.system_id,
+        name: getDisplayTitleS(s),
+        fId: s.franchise_id,
+        aCount: cA,
+      };
     }
 
-    state.currentDeleteTarget = {
-      type,
-      id,
-      name,
-      series_en: seriesEnName,
-      category: optCat,
-    };
-    pageDOM.targetName.innerText = name;
+    pageDOM[`${type}Container`].classList.remove("hidden");
+  }
 
+  function closeCard(type) {
+    pageDOM[`${type}Container`].classList.add("hidden");
+    pageDOM[`${type}Input`].value = "";
+    state.target = null;
+  }
+
+  // --- Options Loader ---
+  function loadCategoryOptions() {
+    const cat = pageDOM.optCategory.value;
+    if (!cat) return;
+    const opts = state.db.options.filter((o) => o.category === cat);
+
+    pageDOM.optContainer.innerHTML = opts.length
+      ? opts
+          .map(
+            (opt) => `
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm">
+                <span class="font-bold text-gray-700 text-sm truncate pr-2 group-hover:text-red-900">${opt.option_value}</span>
+                <button data-action="delete-option" data-id="${opt.id}" data-name="${opt.option_value}" data-category="${cat}" class="text-gray-400 hover:text-red-600 transition shrink-0 bg-white shadow-sm border border-gray-200 w-8 h-8 rounded-md flex items-center justify-center">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        `,
+          )
+          .join("")
+      : `<div class="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">No options in this category.</div>`;
+
+    pageDOM.optContainer.classList.remove("hidden");
+  }
+
+  // --- Master Deletion Flow ---
+  function initOptionDelete(id, name, cat) {
+    state.target = { type: "options", id: id, name: name, category: cat };
+    showDeleteModal();
+  }
+
+  function initDelete(type) {
+    // state.target is already set by selectItem
+    showDeleteModal();
+  }
+
+  function showDeleteModal() {
+    const t = state.target;
+    document.getElementById("modal-target-type").innerText =
+      t.type.toUpperCase() + (t.category ? ` (${t.category})` : "");
+    document.getElementById("modal-target-name").innerText = t.name;
+    document.getElementById("modal-target-id").innerText = `ID: ${t.id}`;
+
+    // Build Smart Warnings & Cascade Options
+    let html = "";
+    if (t.type === "franchise") {
+      if (t.sCount > 0 || t.aCount > 0) {
+        html = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="checkbox" id="cb-cascade" class="mt-0.5 rounded border-red-400 text-red-600 focus:ring-red-600 w-4 h-4">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-red-800"><i class="fas fa-trash-restore mr-1"></i> Cascade Deletion</div>
+                                <div class="text-xs text-red-700 mt-1 leading-snug">There are <strong>${t.sCount} Series</strong> and <strong>${t.aCount} Anime</strong> connected to this hub. Check this box to securely delete ALL of them.</div>
+                            </div>
+                        </label>
+                    </div>`;
+      }
+    } else if (t.type === "series") {
+      if (t.aCount > 0) {
+        html = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="checkbox" id="cb-cascade" class="mt-0.5 rounded border-red-400 text-red-600 focus:ring-red-600 w-4 h-4">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-red-800"><i class="fas fa-trash-restore mr-1"></i> Cascade Deletion</div>
+                                <div class="text-xs text-red-700 mt-1 leading-snug">There are <strong>${t.aCount} Anime</strong> connected to this series. Check this box to delete them as well.</div>
+                            </div>
+                        </label>
+                    </div>`;
+      }
+
+      // Check if Series is the ONLY one in the Franchise, and the Franchise has no standalone anime
+      if (t.fId) {
+        const sSibs = state.db.series.filter(
+          (s) => s.franchise_id === t.fId,
+        ).length;
+        const aSibs = state.db.anime.filter(
+          (a) => a.franchise_id === t.fId && a.series_id !== t.id,
+        ).length;
+        if (sSibs === 1 && aSibs === 0) {
+          html += `
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-3">
+                            <label class="flex items-start space-x-3 cursor-pointer">
+                                <input type="checkbox" id="cb-orphan-franchise" class="mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500 w-4 h-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-bold text-orange-800"><i class="fas fa-link mr-1"></i> Last Series in Franchise</div>
+                                    <div class="text-xs text-orange-700 mt-1 leading-snug">Deleting this will leave its parent Franchise empty. Check to delete the Franchise Hub too.</div>
+                                </div>
+                            </label>
+                        </div>`;
+        }
+      }
+    } else if (t.type === "anime") {
+      // Check if Anime is the ONLY one in the Series
+      if (t.sId) {
+        const aSibs = state.db.anime.filter(
+          (a) => a.series_id === t.sId,
+        ).length;
+        if (aSibs === 1) {
+          html += `
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                            <label class="flex items-start space-x-3 cursor-pointer">
+                                <input type="checkbox" id="cb-orphan-series" class="mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500 w-4 h-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-bold text-orange-800"><i class="fas fa-link mr-1"></i> Last Anime in Series</div>
+                                    <div class="text-xs text-orange-700 mt-1 leading-snug">This is the only entry in its Series Hub. Check to delete the Series Hub too.</div>
+                                </div>
+                            </label>
+                        </div>`;
+        }
+      } else if (t.fId) {
+        // If it has no series, but has a franchise, check if it's the last anime AND no series exist
+        const aSibs = state.db.anime.filter(
+          (a) => a.franchise_id === t.fId,
+        ).length;
+        const fSeries = state.db.series.filter(
+          (s) => s.franchise_id === t.fId,
+        ).length;
+        if (aSibs === 1 && fSeries === 0) {
+          html += `
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                            <label class="flex items-start space-x-3 cursor-pointer">
+                                <input type="checkbox" id="cb-orphan-franchise" class="mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500 w-4 h-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-bold text-orange-800"><i class="fas fa-link mr-1"></i> Last Anime in Franchise</div>
+                                    <div class="text-xs text-orange-700 mt-1 leading-snug">This is the only entry in its Franchise Hub. Check to delete the Franchise Hub too.</div>
+                                </div>
+                            </label>
+                        </div>`;
+        }
+      }
+    }
+
+    pageDOM.modalWarnings.innerHTML = html;
     pageDOM.modal.classList.remove("hidden");
     setTimeout(() => pageDOM.modalBox.classList.remove("scale-95"), 10);
   }
@@ -931,111 +1099,99 @@ content %}
     pageDOM.modalBox.classList.add("scale-95");
     setTimeout(() => {
       pageDOM.modal.classList.add("hidden");
-      state.currentDeleteTarget = null;
+      if (state.target && state.target.type === "options") state.target = null; // Only reset if options, otherwise keep for card UI
     }, 200);
   }
 
   async function executeDelete() {
-    if (!state.currentDeleteTarget) return;
+    const t = state.target;
+    if (!t) return;
+
     const btn = pageDOM.btnExecute;
     const originalText = btn.innerHTML;
     btn.disabled = true;
 
     try {
-      // --- Path A: System Options Deletion ---
-      if (state.currentDeleteTarget.type === "options") {
+      if (t.type === "options") {
         btn.innerHTML =
-          '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Option...';
-        const res = await fetch(
-          `/api/options/${state.currentDeleteTarget.id}`,
-          { method: "DELETE" },
-        );
-        if (!res.ok)
-          throw new Error(
-            (await res.json()).detail || "Failed to delete system option",
-          );
+          '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...';
+        const res = await fetch(`/api/options/${t.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Failed to delete option");
 
         closeDeleteModal();
-        loadCategoryOptions(); // Refresh UI list instantly
-        if (typeof showToast === "function")
-          showToast(
-            `Successfully deleted "${state.currentDeleteTarget.name}"!`,
-          );
+        if (typeof showNotification === "function")
+          showNotification("success", "Option deleted.");
+        await fetchDatabase();
+        loadCategoryOptions(); // Refresh UI
         return;
       }
 
-      // --- Path B: Relational Data Deletion (Anime/Series) ---
+      // Path: Entity Deletions
+      const cbCascade = document.getElementById("cb-cascade");
+      const cbSeries = document.getElementById("cb-orphan-series");
+      const cbFranchise = document.getElementById("cb-orphan-franchise");
 
-      // 1. CASCADE DELETIONS FIRST (When deleting a Series Hub)
-      if (
-        state.currentDeleteTarget.type === "series" &&
-        pageDOM.cascadeCb &&
-        pageDOM.cascadeCb.checked
-      ) {
-        const connectedAnime = state.allAnime.filter(
-          (a) => a.series_en === state.currentDeleteTarget.series_en,
-        );
-        let deletedCount = 0;
-        for (const anime of connectedAnime) {
-          deletedCount++;
-          btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Anime (${deletedCount}/${connectedAnime.length})...`;
-          const resAnime = await fetch(`/api/anime/${anime.system_id}`, {
+      // 1. Cascades (Before deleting parents)
+      if (t.type === "franchise" && cbCascade && cbCascade.checked) {
+        const animes = state.db.anime.filter((a) => a.franchise_id === t.id);
+        for (let i = 0; i < animes.length; i++) {
+          btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Cascading Anime (${i + 1}/${animes.length})...`;
+          await fetch(`/api/anime/${animes[i].system_id}`, {
             method: "DELETE",
           });
-          if (!resAnime.ok)
-            console.error(
-              `Failed to cascade delete connected anime: ${anime.system_id}`,
-            );
+        }
+        const series = state.db.series.filter((s) => s.franchise_id === t.id);
+        for (let i = 0; i < series.length; i++) {
+          btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Cascading Series (${i + 1}/${series.length})...`;
+          await fetch(`/api/series/${series[i].system_id}`, {
+            method: "DELETE",
+          });
+        }
+      } else if (t.type === "series" && cbCascade && cbCascade.checked) {
+        const animes = state.db.anime.filter((a) => a.series_id === t.id);
+        for (let i = 0; i < animes.length; i++) {
+          btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Cascading Anime (${i + 1}/${animes.length})...`;
+          await fetch(`/api/anime/${animes[i].system_id}`, {
+            method: "DELETE",
+          });
         }
       }
 
-      // 2. DELETE PRIMARY TARGET
+      // 2. Primary Deletion
       btn.innerHTML =
         '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Record...';
-      const res = await fetch(
-        `/api/${state.currentDeleteTarget.type}/${state.currentDeleteTarget.id}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok)
-        throw new Error((await res.json()).detail || "Primary deletion failed");
+      const res = await fetch(`/api/${t.type}/${t.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Failed to delete ${t.type}`);
 
-      // 3. ORPHAN HUB DELETION LAST (When deleting an Anime)
-      if (
-        state.currentDeleteTarget.type === "anime" &&
-        pageDOM.orphanCb &&
-        pageDOM.orphanCb.checked
-      ) {
-        const seriesHub = state.allSeries.find(
-          (s) => s.series_en === state.currentDeleteTarget.series_en,
-        );
-        if (seriesHub) {
+      // 3. Orphans (After deleting child)
+      if (t.type === "anime") {
+        if (cbSeries && cbSeries.checked && t.sId) {
           btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting Empty Hub...';
-          const resSeries = await fetch(`/api/series/${seriesHub.system_id}`, {
-            method: "DELETE",
-          });
-          if (!resSeries.ok)
-            throw new Error(
-              "Anime deleted, but failed to delete orphaned Series Hub.",
-            );
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Orphaned Series...';
+          await fetch(`/api/series/${t.sId}`, { method: "DELETE" });
+        }
+        if (cbFranchise && cbFranchise.checked && t.fId) {
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Orphaned Franchise...';
+          await fetch(`/api/franchise/${t.fId}`, { method: "DELETE" });
+        }
+      } else if (t.type === "series") {
+        if (cbFranchise && cbFranchise.checked && t.fId) {
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Erasing Orphaned Franchise...';
+          await fetch(`/api/franchise/${t.fId}`, { method: "DELETE" });
         }
       }
 
-      const targetType = state.currentDeleteTarget.type;
       closeDeleteModal();
-
-      if (targetType === "anime") closeAnimeContainer();
-      else if (targetType === "series") closeSeriesContainer();
-
-      await loadDatabase(); // Refresh local memory cache immediately
-
-      if (typeof showToast === "function") {
-        showToast(`Successfully deleted ${targetType} and synced database.`);
-      }
-    } catch (error) {
-      if (typeof showToast === "function")
-        showToast(`Error: ${error.message}`, true);
-      else alert(`Error: ${error.message}`);
+      closeCard(t.type);
+      await fetchDatabase();
+      if (typeof showNotification === "function")
+        showNotification("success", "Deletion successful.");
+    } catch (e) {
+      console.error(e);
+      if (typeof showNotification === "function")
+        showNotification("error", `Error: ${e.message}`);
     } finally {
       btn.disabled = false;
       btn.innerHTML = originalText;
