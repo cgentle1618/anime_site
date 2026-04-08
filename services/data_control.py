@@ -6,6 +6,7 @@ and Pulls by delegating tasks to isolated domain utilities and API clients.
 """
 
 import time
+import json
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -94,10 +95,10 @@ def execute_calculations(db: Session) -> None:
 # ==========================================
 
 
-def execute_fill_anime(db: Session) -> dict:
+def execute_fill_anime(db: Session):
     """
-    Fetches missing fields from Jikan API for entries that have a MAL ID.
-    Only updates fields that are currently null or empty.
+    Generator function. Fetches missing fields from Jikan API for entries that have a MAL ID.
+    Yields Server-Sent Events (SSE) detailing the progress and current entry.
     """
     execute_calculations(db)
     logger.info("Starting Fill Pipeline...")
@@ -116,8 +117,9 @@ def execute_fill_anime(db: Session) -> dict:
         "official_link",
         "twitter_link",
     ]
-    processed_count = 0
 
+    # Pre-calculate queue
+    queue = []
     for anime in all_mal_anime:
         needs_fill = False
         for field in stated_fields:
@@ -128,8 +130,27 @@ def execute_fill_anime(db: Session) -> dict:
         if not anime.cover_image_file:
             needs_fill = True
 
-        if not needs_fill:
-            continue
+        if needs_fill:
+            queue.append(anime)
+
+    total_in_queue = len(queue)
+    processed_count = 0
+
+    if total_in_queue == 0:
+        yield f"data: {json.dumps({'status': 'success', 'message': 'No entries needed filling', 'total': 0, 'processed': 0})}\n\n"
+        return
+
+    for anime in queue:
+        anime_name = anime.anime_name_en or anime.anime_name_cn or "Unknown Anime"
+
+        # Yield progress indicating we are about to process this entry
+        progress_data = {
+            "status": "processing",
+            "current_entry": anime_name,
+            "processed": processed_count,
+            "total": total_in_queue,
+        }
+        yield f"data: {json.dumps(progress_data)}\n\n"
 
         raw_data = fetch_raw_anime_data(anime.mal_id)
         if not raw_data:
@@ -162,13 +183,16 @@ def execute_fill_anime(db: Session) -> dict:
             if filename:
                 anime.cover_image_file = filename
 
+        # Commit per chunk so the DB is updated gradually
+        db.commit()
         time.sleep(1)
 
-    db.commit()
     logger.info(f"Fill Pipeline completed. Processed {processed_count} entries.")
 
     execute_backup(db)
-    return {"status": "success", "processed": processed_count}
+
+    # Yield final success status
+    yield f"data: {json.dumps({'status': 'success', 'message': 'Fill process complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
 
 # ==========================================
@@ -176,10 +200,10 @@ def execute_fill_anime(db: Session) -> dict:
 # ==========================================
 
 
-def execute_replace_anime(db: Session) -> dict:
+def execute_replace_anime(db: Session):
     """
-    Force-updates mal_rating and mal_rank from Jikan API for all entries with a MAL ID.
-    Behaves exactly like Fill for all other fields.
+    Generator function. Force-updates mal_rating and mal_rank from Jikan API for all entries with a MAL ID.
+    Yields Server-Sent Events (SSE) detailing the progress and current entry.
     """
     execute_calculations(db)
     logger.info("Starting Replace Pipeline...")
@@ -196,9 +220,26 @@ def execute_replace_anime(db: Session) -> dict:
         "official_link",
         "twitter_link",
     ]
+
+    total_in_queue = len(all_mal_anime)
     processed_count = 0
 
+    if total_in_queue == 0:
+        yield f"data: {json.dumps({'status': 'success', 'message': 'No MAL entries found', 'total': 0, 'processed': 0})}\n\n"
+        return
+
     for anime in all_mal_anime:
+        anime_name = anime.anime_name_en or anime.anime_name_cn or "Unknown Anime"
+
+        # Yield progress
+        progress_data = {
+            "status": "processing",
+            "current_entry": anime_name,
+            "processed": processed_count,
+            "total": total_in_queue,
+        }
+        yield f"data: {json.dumps(progress_data)}\n\n"
+
         raw_data = fetch_raw_anime_data(anime.mal_id)
         if not raw_data:
             time.sleep(1)
@@ -238,13 +279,16 @@ def execute_replace_anime(db: Session) -> dict:
             if filename:
                 anime.cover_image_file = filename
 
+        # Commit per chunk
+        db.commit()
         time.sleep(1)
 
-    db.commit()
     logger.info(f"Replace Pipeline completed. Processed {processed_count} entries.")
 
     execute_backup(db)
-    return {"status": "success", "processed": processed_count}
+
+    # Yield final success status
+    yield f"data: {json.dumps({'status': 'success', 'message': 'Replace process complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
 
 # ==========================================

@@ -1,11 +1,6 @@
-"""
-routers/data_control.py
-Handles administrative pipelines for data synchronization.
-Strictly protected by Admin Role-Based Access Control.
-"""
-
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from services.data_control import (
@@ -25,79 +20,102 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin)],
 )
 
-# ==========================================
-# PULL PIPELINES
-# ==========================================
 
-
-@router.post("/pull", summary="Execute Full Pull from Sheets")
-def trigger_pull(db: Session = Depends(get_db)):
-    result = execute_pull_all(db)
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=500, detail=result.get("message"))
-    return result
-
-
-@router.post("/pull/{tab_name}", summary="Execute Pull for Specific Tab")
-def trigger_pull_specific_tab(tab_name: str, db: Session = Depends(get_db)):
-    result = execute_pull_specific(db, tab_name)
-    if result.get("status") == "error":
-        raise HTTPException(status_code=400, detail=result.get("message"))
-    return result
-
-
-# ==========================================
-# FILL PIPELINES
-# ==========================================
-
-
-@router.post("/fill", summary="Execute Fill Anime (Nulls only)")
+@router.post("/fill/anime")
 def trigger_fill_anime(db: Session = Depends(get_db)):
-    result = execute_fill_anime(db)
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=500, detail=result.get("message"))
-    return result
+    """
+    Triggers the Fill Pipeline specifically for Anime entries.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(execute_fill_anime(db), media_type="text/event-stream")
+    except Exception as e:
+        logger.error(f"Error in fill anime: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/fill/all", summary="Execute Fill All")
+@router.post("/fill/all")
 def trigger_fill_all(db: Session = Depends(get_db)):
-    # Currently maps to anime, future proofed to also wrap Manga/Novel logic when added
-    result = execute_fill_anime(db)
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=500, detail=result.get("message"))
-    return result
+    """
+    Triggers the Fill Pipeline for ALL data types.
+    Currently aliases to Fill Anime since other types are not yet implemented.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(execute_fill_anime(db), media_type="text/event-stream")
+    except Exception as e:
+        logger.error(f"Error in fill all: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==========================================
-# REPLACE PIPELINES
-# ==========================================
-
-
-@router.post("/replace", summary="Execute Replace Anime (Force updates)")
+@router.post("/replace/anime")
 def trigger_replace_anime(db: Session = Depends(get_db)):
-    result = execute_replace_anime(db)
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=500, detail=result.get("message"))
-    return result
+    """
+    Triggers the Replace Pipeline specifically for Anime entries.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(
+            execute_replace_anime(db), media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Error in replace anime: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/replace/all", summary="Execute Replace All")
+@router.post("/replace/all")
 def trigger_replace_all(db: Session = Depends(get_db)):
-    # Currently maps to anime, future proofed to wrap Manga/Novel logic
-    result = execute_replace_anime(db)
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=500, detail=result.get("message"))
-    return result
+    """
+    Triggers the Replace Pipeline for ALL data types.
+    Currently aliases to Replace Anime since other types are not yet implemented.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(
+            execute_replace_anime(db), media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Error in replace all: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==========================================
-# BACKUP PIPELINE
-# ==========================================
+@router.post("/backup")
+def trigger_backup_all(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Triggers full database backup to Google Sheets.
+    Runs in the background since it might take a while and doesn't require progress tracking.
+    """
+    background_tasks.add_task(execute_backup, db)
+    return JSONResponse(
+        content={
+            "status": "success",
+            "message": "Full backup started in the background.",
+        }
+    )
 
 
-@router.post("/backup", summary="Execute Full Backup to Sheets")
-def trigger_backup(db: Session = Depends(get_db)):
-    result = execute_backup(db)
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=500, detail=result.get("message"))
-    return result
+@router.post("/pull")
+def trigger_pull_all(db: Session = Depends(get_db)):
+    """Triggers full pull from Google Sheets to overwrite the database."""
+    try:
+        result = execute_pull_all(db)
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Error in pull all: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pull/{tab_name}")
+def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
+    """Triggers a pull from a specific Google Sheets tab."""
+    try:
+        result = execute_pull_specific(db, tab_name)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Error in pull {tab_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
