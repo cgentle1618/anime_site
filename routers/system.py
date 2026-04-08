@@ -1,68 +1,66 @@
 """
 routers/system.py
-Handles system-level read operations for audit trails (logs, deletions)
-and infrastructure diagnostics (e.g., Google Cloud Storage testing).
+Handles system-level read operations for audit trails (logs)
+and infrastructure diagnostics. Also manages System Configurations (e.g. Current Season).
 Strictly protected by Admin Role-Based Access Control.
 """
 
 import urllib.request
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from google.cloud import storage
 
 import models
 import schemas
 from dependencies import get_db, get_current_admin
 
-# Setup basic logging
 logger = logging.getLogger(__name__)
 
-# Initialize the router. ENTIRE ROUTER IS PROTECTED BY ADMIN JWT.
 router = APIRouter(
     prefix="/api/system",
     tags=["System Administration"],
     dependencies=[Depends(get_current_admin)],
 )
 
+# ==========================================
+# SYSTEM CONFIGURATIONS
+# ==========================================
 
-@router.post(
-    "/current-season",
-    summary="Set Current Active Season",
-)
-def set_current_season(
-    payload: schemas.CurrentSeasonUpdate, db: Session = Depends(get_db)
-):
-    """
-    Updates or inserts the 'current_season' key in the system_configs table.
-    Format example: 'WIN 2026'
-    """
-    season_str = f"{payload.release_season} {payload.release_year}"
 
-    # Check if the configuration key already exists
-    config = (
-        db.query(models.SystemConfig)
-        .filter(models.SystemConfig.config_key == "current_season")
-        .first()
+@router.get("/config/current_season", summary="Get Current Season")
+def get_current_season(db: Session = Depends(get_db)):
+    """Fetches the globally set current season from system_configs."""
+    query = text(
+        "SELECT config_value FROM system_configs WHERE config_key = 'current_season'"
+    )
+    result = db.execute(query).fetchone()
+    return {"current_season": result[0] if result else "Not Set"}
+
+
+@router.post("/config/current_season", summary="Set Current Season")
+def set_current_season(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """Upserts the current season into the system_configs table."""
+    val = payload.get("current_season")
+    if not val:
+        raise HTTPException(
+            status_code=400, detail="Missing current_season in payload."
+        )
+
+    query = text(
+        """
+        INSERT INTO system_configs (config_key, config_value) 
+        VALUES ('current_season', :val) 
+        ON CONFLICT (config_key) 
+        DO UPDATE SET config_value = EXCLUDED.config_value
+    """
     )
 
-    if config:
-        config.config_value = season_str
-    else:
-        # Insert new if it doesn't exist
-        config = models.SystemConfig(
-            config_key="current_season", config_value=season_str
-        )
-        db.add(config)
-
+    db.execute(query, {"val": val})
     db.commit()
-
-    return {
-        "status": "success",
-        "message": f"Current season successfully set to {season_str}",
-        "current_season": season_str,
-    }
+    return {"message": "Current season updated successfully", "current_season": val}
 
 
 # ==========================================
@@ -88,12 +86,8 @@ def get_sync_logs(db: Session = Depends(get_db)):
 
 @router.post("/test-bucket", summary="Test GCP Bucket Permissions")
 def test_cloud_storage_bucket():
-    """
-    Diagnostic tool to verify the backend container can successfully write
-    to the Google Cloud Storage bucket (used for cover images).
-    """
+    """Diagnostic tool to verify GCS write permissions."""
     try:
-        # Fetch a test image from MAL
         test_url = "https://cdn.myanimelist.net/images/anime/1015/138006l.jpg"
         req = urllib.request.Request(
             test_url,
@@ -103,7 +97,6 @@ def test_cloud_storage_bucket():
         with urllib.request.urlopen(req, timeout=10) as response:
             image_bytes = response.read()
 
-        # Upload to GCP Storage
         client = storage.Client()
         bucket_name = "cg1618-anime-covers"
         bucket = client.bucket(bucket_name)
