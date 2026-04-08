@@ -1,421 +1,799 @@
-{% extends "base.html" %} 
-
-{% block title %}System Admin - CG1618 Tracker{% endblock %} 
-
-{% block content %}
+{% extends "base.html" %} {% block title %}System Admin - CG1618 Tracker{%
+endblock %} {% block content %}
 <div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
-  
-    <!-- 1. Header & Entry Modification Nav -->
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
-        <div>
-            <h1 class="text-3xl font-black text-gray-900 tracking-tight mb-2">System Administration</h1>
-            <p class="text-gray-500 font-medium">Master control center for data actions, configurations, and history logs.</p>
+  <!-- 1. Header & Entry Modification Nav -->
+  <div
+    class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6"
+  >
+    <div>
+      <h1 class="text-3xl font-black text-gray-900 tracking-tight mb-2">
+        System Administration
+      </h1>
+      <p class="text-gray-500 font-medium">
+        Master control center for data actions, configurations, and history
+        logs.
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      <a
+        href="/add"
+        class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center"
+      >
+        <i class="fas fa-plus mr-2 text-emerald-500"></i> New Entry
+      </a>
+      <a
+        href="/modify"
+        class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center"
+      >
+        <i class="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
+      </a>
+      <a
+        href="/delete"
+        class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center"
+      >
+        <i class="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
+      </a>
+    </div>
+  </div>
+
+  <!-- Top Grid: Season Config & Data Control -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <!-- 3. Set Current Season Block -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col"
+    >
+      <h2
+        class="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2"
+      >
+        <i class="fas fa-calendar-alt text-brand mr-2"></i> Current Season
+      </h2>
+      <div class="text-center mb-6">
+        <div
+          class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1"
+        >
+          Active Season Config
         </div>
-        <div class="flex flex-wrap gap-3">
-            <a href="/add" class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center">
-                <i class="fas fa-plus mr-2 text-emerald-500"></i> New Entry
-            </a>
-            <a href="/modify" class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center">
-                <i class="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
-            </a>
-            <a href="/delete" class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center">
-                <i class="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
-            </a>
+        <div
+          id="display-current-season"
+          class="text-3xl font-black text-brand tracking-tight"
+        >
+          Loading...
         </div>
+      </div>
+      <div class="space-y-3 mt-auto">
+        <select
+          id="season-select"
+          class="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-bold focus:ring-brand focus:border-brand py-2.5"
+        >
+          <option value="" disabled selected>Select Season</option>
+          <option value="WIN">Winter (WIN)</option>
+          <option value="SPR">Spring (SPR)</option>
+          <option value="SUM">Summer (SUM)</option>
+          <option value="FAL">Fall (FAL)</option>
+        </select>
+        <input
+          type="number"
+          id="year-input"
+          placeholder="YYYY (e.g. 2026)"
+          class="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-mono focus:ring-brand focus:border-brand py-2.5"
+        />
+        <button
+          id="btn-set-season"
+          class="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-bold transition shadow-sm"
+        >
+          Confirm Set
+        </button>
+      </div>
     </div>
 
-    <!-- Top Grid: Season Config & Data Control -->
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        
-        <!-- 3. Set Current Season Block -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col">
-            <h2 class="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
-                <i class="fas fa-calendar-alt text-brand mr-2"></i> Current Season
-            </h2>
-            <div class="text-center mb-6">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Active Season Config</div>
-                <div id="display-current-season" class="text-3xl font-black text-brand tracking-tight">Loading...</div>
-            </div>
-            <div class="space-y-3 mt-auto">
-                <select id="season-select" class="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-bold focus:ring-brand focus:border-brand py-2.5">
-                    <option value="" disabled selected>Select Season</option>
-                    <option value="WIN">Winter (WIN)</option>
-                    <option value="SPR">Spring (SPR)</option>
-                    <option value="SUM">Summer (SUM)</option>
-                    <option value="FAL">Fall (FAL)</option>
-                </select>
-                <input type="number" id="year-input" placeholder="YYYY (e.g. 2026)" class="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-mono focus:ring-brand focus:border-brand py-2.5">
-                <button id="btn-set-season" class="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-bold transition shadow-sm">
-                    Confirm Set
-                </button>
-            </div>
+    <!-- 2. Data Control Action Buttons -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 xl:col-span-2 flex flex-col"
+    >
+      <h2
+        class="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2"
+      >
+        <i class="fas fa-database text-brand mr-2"></i> Data Control Actions
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+        <!-- Fill Column -->
+        <div
+          class="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col"
+        >
+          <h3 class="text-sm font-bold text-blue-800 mb-3 flex items-center">
+            <i class="fas fa-magic mr-2 text-blue-500"></i> Fill
+          </h3>
+          <div id="fill-buttons-container" class="space-y-2 mt-auto">
+            <button
+              data-action="stream"
+              data-url="/api/data-control/fill/all"
+              data-status-id="fill-status"
+              class="stream-btn w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Fill All
+            </button>
+            <button
+              data-action="stream"
+              data-url="/api/data-control/fill/anime"
+              data-status-id="fill-status"
+              class="stream-btn w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Fill Anime
+            </button>
+            <button
+              id="fill-status-stop"
+              onclick="abortCurrentPipeline()"
+              class="hidden w-full bg-red-600 hover:bg-red-700 text-white border border-red-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Force Stop
+            </button>
+          </div>
+          <div
+            id="fill-status"
+            class="mt-2 text-[10px] font-bold text-blue-800 hidden break-words"
+          ></div>
         </div>
 
-        <!-- 2. Data Control Action Buttons -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 xl:col-span-2 flex flex-col">
-            <h2 class="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
-                <i class="fas fa-database text-brand mr-2"></i> Data Control Actions
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
-                
-                <!-- Fill Column -->
-                <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col">
-                    <h3 class="text-sm font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-magic mr-2 text-blue-500"></i> Fill</h3>
-                    <div class="space-y-2 mt-auto">
-                        <button data-action="sync" data-url="/api/data-control/fill/all" class="w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition">
-                            Fill All
-                        </button>
-                        <button data-action="sync" data-url="/api/data-control/fill" class="w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition">
-                            Fill Anime
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Replace Column -->
-                <div class="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex flex-col">
-                    <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center"><i class="fas fa-bolt mr-2 text-amber-500"></i> Replace</h3>
-                    <div class="space-y-2 mt-auto">
-                        <button data-action="sync" data-url="/api/data-control/replace/all" class="w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition">
-                            Replace All
-                        </button>
-                        <button data-action="sync" data-url="/api/data-control/replace" class="w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition">
-                            Replace Anime
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Pull Column -->
-                <div class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 flex flex-col">
-                    <h3 class="text-sm font-bold text-emerald-800 mb-3 flex items-center"><i class="fas fa-cloud-download-alt mr-2 text-emerald-500"></i> Pull from Sheets</h3>
-                    <div class="space-y-2 mt-auto">
-                        <button data-action="sync" data-url="/api/data-control/pull" class="w-full bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold shadow-sm transition">
-                            Pull All
-                        </button>
-                        <div class="flex gap-2">
-                            <select id="pull-tab-select" class="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold focus:ring-emerald-500 focus:border-emerald-500 px-1 py-2">
-                                <option value="Anime">Anime</option>
-                                <option value="Franchise">Franchise</option>
-                                <option value="Series">Series</option>
-                                <option value="System Options">System Options</option>
-                            </select>
-                            <button id="btn-pull-specific" class="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold shadow-sm transition title="Pull Specific">
-                                <i class="fas fa-play"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Push Column (Maintained for V2 architectural necessity) -->
-                <div class="bg-purple-50/50 border border-purple-100 rounded-xl p-4 flex flex-col">
-                    <h3 class="text-sm font-bold text-purple-800 mb-3 flex items-center"><i class="fas fa-cloud-upload-alt mr-2 text-purple-500"></i> Push Backup</h3>
-                    <div class="space-y-2 mt-auto">
-                        <button data-action="sync" data-url="/api/data-control/backup" class="w-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 py-2 rounded-lg text-xs font-bold shadow-sm transition">
-                            Push All Data
-                        </button>
-                    </div>
-                </div>
-
-            </div>
+        <!-- Replace Column -->
+        <div
+          class="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex flex-col"
+        >
+          <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center">
+            <i class="fas fa-bolt mr-2 text-amber-500"></i> Replace
+          </h3>
+          <div id="replace-buttons-container" class="space-y-2 mt-auto">
+            <button
+              data-action="stream"
+              data-url="/api/data-control/replace/all"
+              data-status-id="replace-status"
+              class="stream-btn w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Replace All
+            </button>
+            <button
+              data-action="stream"
+              data-url="/api/data-control/replace/anime"
+              data-status-id="replace-status"
+              class="stream-btn w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Replace Anime
+            </button>
+            <button
+              id="replace-status-stop"
+              onclick="abortCurrentPipeline()"
+              class="hidden w-full bg-red-600 hover:bg-red-700 text-white border border-red-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Force Stop
+            </button>
+          </div>
+          <div
+            id="replace-status"
+            class="mt-2 text-[10px] font-bold text-amber-800 hidden break-words"
+          ></div>
         </div>
+
+        <!-- Pull Column -->
+        <div
+          class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 flex flex-col"
+        >
+          <h3 class="text-sm font-bold text-emerald-800 mb-3 flex items-center">
+            <i class="fas fa-cloud-download-alt mr-2 text-emerald-500"></i> Pull
+            from Sheets
+          </h3>
+          <div class="space-y-2 mt-auto">
+            <button
+              data-action="sync"
+              data-url="/api/data-control/pull"
+              class="w-full bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Pull All
+            </button>
+            <div class="flex gap-2">
+              <select
+                id="pull-tab-select"
+                class="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold focus:ring-emerald-500 focus:border-emerald-500 px-1 py-2"
+              >
+                <option value="Anime">Anime</option>
+                <option value="Franchise">Franchise</option>
+                <option value="Series">Series</option>
+                <option value="System Options">System Options</option>
+              </select>
+              <button
+                id="btn-pull-specific"
+                class="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold shadow-sm transition"
+                title="Pull Specific"
+              >
+                <i class="fas fa-play"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Push Column (Maintained for V2 architectural necessity) -->
+        <div
+          class="bg-purple-50/50 border border-purple-100 rounded-xl p-4 flex flex-col"
+        >
+          <h3 class="text-sm font-bold text-purple-800 mb-3 flex items-center">
+            <i class="fas fa-cloud-upload-alt mr-2 text-purple-500"></i> Push
+            Backup
+          </h3>
+          <div class="space-y-2 mt-auto">
+            <button
+              data-action="sync"
+              data-url="/api/data-control/backup"
+              class="w-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Push All Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Recent Data Control Log -->
+  <div
+    class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+  >
+    <div
+      class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between"
+    >
+      <h2
+        class="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center"
+      >
+        <i class="fas fa-terminal text-brand mr-2"></i> Recent Data Control Log
+      </h2>
+      <button
+        data-action="refresh-logs"
+        class="text-gray-400 hover:text-brand transition"
+      >
+        <i class="fas fa-redo"></i>
+      </button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead
+          class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white border-b border-gray-100"
+        >
+          <tr>
+            <th class="px-6 py-3">Action Type</th>
+            <th class="px-6 py-3">Action Time</th>
+            <th class="px-6 py-3">Status</th>
+            <th class="px-6 py-3">Metrics</th>
+          </tr>
+        </thead>
+        <tbody id="table-logs" class="divide-y divide-gray-100">
+          <tr>
+            <td colspan="4" class="text-center py-6 text-gray-400 italic">
+              Loading logs...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. Anime Entry History Section -->
+  <div class="mt-12 space-y-6">
+    <div
+      class="flex items-center justify-between border-b-2 border-gray-200 pb-2"
+    >
+      <h2 class="text-2xl font-black text-gray-900 tracking-tight">
+        Anime Entry History
+      </h2>
+      <button
+        data-action="refresh-history"
+        class="text-gray-400 hover:text-brand transition text-sm font-bold"
+      >
+        <i class="fas fa-redo mr-1"></i> Refresh
+      </button>
     </div>
 
-    <!-- 4. Recent Data Control Log -->
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-            <h2 class="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
-                <i class="fas fa-terminal text-brand mr-2"></i> Recent Data Control Log
-            </h2>
-            <button data-action="refresh-logs" class="text-gray-400 hover:text-brand transition"><i class="fas fa-redo"></i></button>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Modified Franchise Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-purple-50/50 border-b border-purple-100 px-5 py-3">
+          <h3 class="font-bold text-purple-900 flex items-center">
+            <i class="fas fa-sitemap mr-2 text-purple-500"></i> Modified
+            Franchise Section
+          </h3>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white border-b border-gray-100">
-                    <tr>
-                        <th class="px-6 py-3">Action Type</th>
-                        <th class="px-6 py-3">Action Time</th>
-                        <th class="px-6 py-3">Status</th>
-                        <th class="px-6 py-3">Metrics</th>
-                    </tr>
-                </thead>
-                <tbody id="table-logs" class="divide-y divide-gray-100">
-                    <tr><td colspan="4" class="text-center py-6 text-gray-400 italic">Loading logs...</td></tr>
-                </tbody>
-            </table>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+                <th class="px-5 py-2.5 w-1/2">Franchise Name CN</th>
+                <th class="px-5 py-2.5">System ID</th>
+              </tr>
+            </thead>
+            <tbody
+              id="table-mod-franchise"
+              class="divide-y divide-gray-50"
+            ></tbody>
+          </table>
         </div>
+      </div>
+
+      <!-- Recently Added Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3">
+          <h3 class="font-bold text-emerald-900 flex items-center">
+            <i class="fas fa-plus-circle mr-2 text-emerald-500"></i> Recently
+            Added Section
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+                <th class="px-5 py-2.5">Entry Type</th>
+                <th class="px-5 py-2.5 w-1/2">Entry Name CN</th>
+              </tr>
+            </thead>
+            <tbody id="table-added" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <!-- 5. Anime Entry History Section -->
-    <div class="mt-12 space-y-6">
-        <div class="flex items-center justify-between border-b-2 border-gray-200 pb-2">
-            <h2 class="text-2xl font-black text-gray-900 tracking-tight">Anime Entry History</h2>
-            <button data-action="refresh-history" class="text-gray-400 hover:text-brand transition text-sm font-bold"><i class="fas fa-redo mr-1"></i> Refresh</button>
-        </div>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Modified Franchise Section -->
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
-                <div class="bg-purple-50/50 border-b border-purple-100 px-5 py-3">
-                    <h3 class="font-bold text-purple-900 flex items-center"><i class="fas fa-sitemap mr-2 text-purple-500"></i> Modified Franchise Section</h3>
-                </div>
-                <div class="overflow-x-auto flex-1">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10">
-                            <tr>
-                                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                                <th class="px-5 py-2.5 w-1/2">Franchise Name CN</th>
-                                <th class="px-5 py-2.5">System ID</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-mod-franchise" class="divide-y divide-gray-50"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Recently Added Section -->
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
-                <div class="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3">
-                    <h3 class="font-bold text-emerald-900 flex items-center"><i class="fas fa-plus-circle mr-2 text-emerald-500"></i> Recently Added Section</h3>
-                </div>
-                <div class="overflow-x-auto flex-1">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10">
-                            <tr>
-                                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                                <th class="px-5 py-2.5">Entry Type</th>
-                                <th class="px-5 py-2.5 w-1/2">Entry Name CN</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-added" class="divide-y divide-gray-50"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modified Anime Section (Full Width) -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div class="bg-blue-50/50 border-b border-blue-100 px-5 py-3">
-                <h3 class="font-bold text-blue-900 flex items-center"><i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime Section</h3>
-            </div>
-            <div class="overflow-x-auto flex-1">
-                <table class="w-full text-sm text-left">
-                    <thead class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10">
-                        <tr>
-                            <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                            <th class="px-5 py-2.5 w-1/3">Anime Name CN</th>
-                            <th class="px-5 py-2.5">Airing Type</th>
-                            <th class="px-5 py-2.5 whitespace-nowrap">Airing Status</th>
-                            <th class="px-5 py-2.5 whitespace-nowrap">Watching Status</th>
-                            <th class="px-5 py-2.5">System ID</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
-                </table>
-            </div>
-        </div>
-
+    <!-- Modified Anime Section (Full Width) -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+    >
+      <div class="bg-blue-50/50 border-b border-blue-100 px-5 py-3">
+        <h3 class="font-bold text-blue-900 flex items-center">
+          <i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime Section
+        </h3>
+      </div>
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-sm text-left">
+          <thead
+            class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+          >
+            <tr>
+              <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+              <th class="px-5 py-2.5 w-1/3">Anime Name CN</th>
+              <th class="px-5 py-2.5">Airing Type</th>
+              <th class="px-5 py-2.5 whitespace-nowrap">Airing Status</th>
+              <th class="px-5 py-2.5 whitespace-nowrap">Watching Status</th>
+              <th class="px-5 py-2.5">System ID</th>
+            </tr>
+          </thead>
+          <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
+        </table>
+      </div>
     </div>
+  </div>
 </div>
-{% endblock %} 
-
-{% block extra_scripts %}
+{% endblock %} {% block extra_scripts %}
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        loadAdminData();
+  // Global variable to hold the AbortController for streaming pipelines
+  let currentAbortController = null;
+  let currentStatusElementId = null;
 
-        // Bind Data Control Actions
-        document.querySelectorAll('[data-action="sync"]').forEach(btn => {
-            btn.addEventListener('click', (e) => executeSync(e.target, e.target.dataset.url));
-        });
+  document.addEventListener("DOMContentLoaded", () => {
+    loadAdminData();
 
-        // Specific Pull Bind
-        document.getElementById('btn-pull-specific').addEventListener('click', (e) => {
-            const tabName = document.getElementById('pull-tab-select').value;
-            // Traverse up to find the button element to pass visual state
-            const targetBtn = e.target.tagName === 'I' ? e.target.parentElement : e.target;
-            executeSync(targetBtn, `/api/data-control/pull/${tabName}`);
-        });
-
-        // Bind Season Config
-        document.getElementById('btn-set-season').addEventListener('click', setCurrentSeason);
-
-        // Bind Manual Refreshes
-        document.addEventListener('click', (e) => {
-            const actionEl = e.target.closest('[data-action]');
-            if (!actionEl) return;
-            if (actionEl.dataset.action === 'refresh-logs') loadLogsTable();
-            if (actionEl.dataset.action === 'refresh-history') loadHistoryTables();
-        });
+    // Bind Standard Sync Data Control Actions (Pull/Push)
+    document.querySelectorAll('[data-action="sync"]').forEach((btn) => {
+      btn.addEventListener("click", (e) =>
+        executeSync(e.target, e.target.dataset.url),
+      );
     });
 
-    // --- System Config Logic ---
-    async function setCurrentSeason() {
-        const season = document.getElementById('season-select').value;
-        const year = document.getElementById('year-input').value.trim();
-        const btn = document.getElementById('btn-set-season');
+    // Bind Streaming Data Control Actions (Fill/Replace)
+    document.querySelectorAll('[data-action="stream"]').forEach((btn) => {
+      btn.addEventListener("click", (e) =>
+        executeStream(
+          e.target,
+          e.target.dataset.url,
+          e.target.dataset.statusId,
+        ),
+      );
+    });
 
-        if (!season || !year) {
-            if(typeof showNotification === 'function') showNotification('warning', 'Please select a season and type a year.');
-            return;
+    // Specific Pull Bind
+    document
+      .getElementById("btn-pull-specific")
+      .addEventListener("click", (e) => {
+        const tabName = document.getElementById("pull-tab-select").value;
+        // Traverse up to find the button element to pass visual state
+        const targetBtn =
+          e.target.tagName === "I" ? e.target.parentElement : e.target;
+        executeSync(targetBtn, `/api/data-control/pull/${tabName}`);
+      });
+
+    // Bind Season Config
+    document
+      .getElementById("btn-set-season")
+      .addEventListener("click", setCurrentSeason);
+
+    // Bind Manual Refreshes
+    document.addEventListener("click", (e) => {
+      const actionEl = e.target.closest("[data-action]");
+      if (!actionEl) return;
+      if (actionEl.dataset.action === "refresh-logs") loadLogsTable();
+      if (actionEl.dataset.action === "refresh-history") loadHistoryTables();
+    });
+  });
+
+  // --- System Config Logic ---
+  async function setCurrentSeason() {
+    const season = document.getElementById("season-select").value;
+    const year = document.getElementById("year-input").value.trim();
+    const btn = document.getElementById("btn-set-season");
+
+    if (!season || !year) {
+      if (typeof showNotification === "function")
+        showNotification("warning", "Please select a season and type a year.");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Processing...";
+
+    try {
+      const val = `${season} ${year}`;
+      const res = await fetch("/api/system/config/current_season", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_season: val }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update season");
+      if (typeof showNotification === "function")
+        showNotification("success", "Current Season successfully updated!");
+
+      document.getElementById("display-current-season").innerText = val;
+    } catch (error) {
+      if (typeof showNotification === "function")
+        showNotification("error", error.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "Confirm Set";
+    }
+  }
+
+  // --- Master Sync Execution Logic (Standard) ---
+  async function executeSync(buttonElement, endpointUrl) {
+    const originalText = buttonElement.innerHTML;
+    buttonElement.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+    buttonElement.disabled = true;
+    buttonElement.classList.add("opacity-70");
+
+    try {
+      const res = await fetch(endpointUrl, { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || "Action failed.");
+
+      if (typeof showNotification === "function")
+        showNotification("success", "Pipeline execution successful.");
+
+      // Refresh tables to show new log and updated entries
+      loadLogsTable();
+      loadHistoryTables();
+    } catch (error) {
+      if (typeof showNotification === "function")
+        showNotification("error", `Pipeline Error: ${error.message}`);
+    } finally {
+      buttonElement.innerHTML = originalText;
+      buttonElement.disabled = false;
+      buttonElement.classList.remove("opacity-70");
+    }
+  }
+
+  // --- Streaming Execution Logic (SSE) ---
+  function abortCurrentPipeline() {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+      if (currentStatusElementId) {
+        const el = document.getElementById(currentStatusElementId);
+        el.innerText = "Pipeline aborted by user.";
+        el.classList.add("text-red-600");
+
+        const containerPrefix = currentStatusElementId.split("-")[0];
+        document
+          .getElementById(`${currentStatusElementId}-stop`)
+          .classList.add("hidden");
+        document
+          .querySelectorAll(`#${containerPrefix}-buttons-container .stream-btn`)
+          .forEach((b) => b.classList.remove("hidden"));
+      }
+    }
+  }
+
+  async function executeStream(buttonElement, endpointUrl, statusElementId) {
+    if (currentAbortController) {
+      if (typeof showNotification === "function")
+        showNotification(
+          "warning",
+          "A pipeline is already running. Please stop it first.",
+        );
+      return;
+    }
+
+    currentStatusElementId = statusElementId;
+    currentAbortController = new AbortController();
+
+    const containerPrefix = statusElementId.split("-")[0];
+    const stopBtn = document.getElementById(`${statusElementId}-stop`);
+    const streamBtns = document.querySelectorAll(
+      `#${containerPrefix}-buttons-container .stream-btn`,
+    );
+    const statusEl = document.getElementById(statusElementId);
+
+    // Hide regular stream buttons, show stop button, prepare status text
+    streamBtns.forEach((b) => b.classList.add("hidden"));
+    stopBtn.classList.remove("hidden");
+    statusEl.classList.remove("hidden", "text-red-600", "text-emerald-600");
+    statusEl.innerText = "Initiating connection...";
+
+    try {
+      const res = await fetch(endpointUrl, {
+        method: "POST",
+        signal: currentAbortController.signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to start stream");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let parts = buffer.split("\n\n");
+        buffer = parts.pop();
+
+        for (const part of parts) {
+          if (part.startsWith("data: ")) {
+            const jsonStr = part.substring(6);
+            try {
+              const data = JSON.parse(jsonStr);
+
+              if (data.status === "processing") {
+                statusEl.innerText = `[${data.processed}/${data.total}] Processing: ${data.current_entry}`;
+              } else if (data.status === "success") {
+                statusEl.classList.add("text-emerald-600");
+                statusEl.innerText = `${data.message} (${data.processed}/${data.total})`;
+                if (typeof showNotification === "function")
+                  showNotification("success", "Pipeline streaming completed.");
+                loadLogsTable();
+                loadHistoryTables();
+              } else if (data.status === "error") {
+                statusEl.classList.add("text-red-600");
+                statusEl.innerText = `Error: ${data.message}`;
+              }
+            } catch (e) {
+              console.error("Error parsing stream JSON:", e, jsonStr);
+            }
+          }
         }
+      }
+    } catch (error) {
+      statusEl.classList.add("text-red-600");
+      if (error.name === "AbortError") {
+        statusEl.innerText = "Pipeline stopped forcefully.";
+      } else {
+        statusEl.innerText = `Stream Error: ${error.message}`;
+        if (typeof showNotification === "function")
+          showNotification("error", `Stream Error: ${error.message}`);
+      }
+    } finally {
+      currentAbortController = null;
+      currentStatusElementId = null;
+      stopBtn.classList.add("hidden");
+      streamBtns.forEach((b) => b.classList.remove("hidden"));
+    }
+  }
 
-        btn.disabled = true;
-        btn.innerText = "Processing...";
+  // --- Data Fetching & Table Rendering ---
 
-        try {
-            const val = `${season} ${year}`;
-            const res = await fetch('/api/system/config/current_season', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ current_season: val })
-            });
+  // Strict CN Fallback Logic as requested
+  function getTitleCNFallback(item, type) {
+    if (type === "anime") {
+      return (
+        item.anime_name_cn ||
+        item.anime_name_en ||
+        item.anime_name_romanji ||
+        item.anime_name_jp ||
+        item.anime_name_alt ||
+        "Unknown"
+      );
+    } else if (type === "franchise") {
+      return (
+        item.franchise_name_cn ||
+        item.franchise_name_en ||
+        item.franchise_name_romanji ||
+        item.franchise_name_jp ||
+        item.franchise_name_alt ||
+        "Unknown"
+      );
+    } else if (type === "series") {
+      return (
+        item.series_name_cn ||
+        item.series_name_en ||
+        item.series_name_alt ||
+        "Unknown"
+      );
+    }
+    return "Unknown";
+  }
 
-            if (!res.ok) throw new Error("Failed to update season");
-            if(typeof showNotification === 'function') showNotification('success', 'Current Season successfully updated!');
-            
-            document.getElementById('display-current-season').innerText = val;
-        } catch (error) {
-            if(typeof showNotification === 'function') showNotification('error', error.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Confirm Set";
-        }
+  function formatDate(dateStr) {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  async function loadAdminData() {
+    try {
+      const seasonRes = await fetch("/api/system/config/current_season");
+      const seasonData = await seasonRes.json();
+      document.getElementById("display-current-season").innerText =
+        seasonData.current_season || "Not Set";
+    } catch (e) {
+      console.error("Failed to load season", e);
     }
 
-    // --- Master Sync Execution Logic ---
-    async function executeSync(buttonElement, endpointUrl) {
-        const originalText = buttonElement.innerHTML;
-        buttonElement.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
-        buttonElement.disabled = true;
-        buttonElement.classList.add('opacity-70');
+    loadLogsTable();
+    loadHistoryTables();
+  }
 
-        try {
-            const res = await fetch(endpointUrl, { method: "POST" });
-            const data = await res.json();
-            
-            if (!res.ok) throw new Error(data.detail || "Action failed.");
-            
-            if(typeof showNotification === 'function') showNotification('success', 'Pipeline execution successful.');
-            
-            // Refresh tables to show new log and updated entries
-            loadLogsTable();
-            loadHistoryTables(); 
-        } catch (error) {
-            if(typeof showNotification === 'function') showNotification('error', `Pipeline Error: ${error.message}`);
-        } finally {
-            buttonElement.innerHTML = originalText;
-            buttonElement.disabled = false;
-            buttonElement.classList.remove('opacity-70');
-        }
-    }
+  async function loadLogsTable() {
+    try {
+      const logsRes = await fetch("/api/system/logs");
+      const logs = await logsRes.json();
 
-    // --- Data Fetching & Table Rendering ---
-    
-    // Strict CN Fallback Logic as requested
-    function getTitleCNFallback(item, type) {
-        if (type === 'anime') {
-            return item.anime_name_cn || item.anime_name_en || item.anime_name_romanji || item.anime_name_jp || item.anime_name_alt || "Unknown";
-        } else if (type === 'franchise') {
-            return item.franchise_name_cn || item.franchise_name_en || item.franchise_name_romanji || item.franchise_name_jp || item.franchise_name_alt || "Unknown";
-        } else if (type === 'series') {
-            return item.series_name_cn || item.series_name_en || item.series_name_alt || "Unknown";
-        }
-        return "Unknown";
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr) return "-";
-        return new Date(dateStr).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    }
-
-    async function loadAdminData() {
-        try {
-            const seasonRes = await fetch('/api/system/config/current_season');
-            const seasonData = await seasonRes.json();
-            document.getElementById('display-current-season').innerText = seasonData.current_season || "Not Set";
-        } catch (e) { console.error("Failed to load season", e); }
-
-        loadLogsTable();
-        loadHistoryTables();
-    }
-
-    async function loadLogsTable() {
-        try {
-            const logsRes = await fetch('/api/system/logs');
-            const logs = await logsRes.json();
-            
-            const logHTML = logs.slice(0, 15).map(log => `
+      const logHTML = logs
+        .slice(0, 15)
+        .map(
+          (log) => `
                 <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
                     <td class="px-6 py-3 font-bold text-gray-700 whitespace-nowrap">${log.sync_type}</td>
                     <td class="px-6 py-3 text-gray-500 whitespace-nowrap">${formatDate(log.timestamp)}</td>
-                    <td class="px-6 py-3">${log.status === 'success' ? '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>' : '<span class="text-red-500 font-bold"><i class="fas fa-times-circle mr-1"></i> Failed</span>'}</td>
+                    <td class="px-6 py-3">${log.status === "success" ? '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>' : '<span class="text-red-500 font-bold"><i class="fas fa-times-circle mr-1"></i> Failed</span>'}</td>
                     <td class="px-6 py-3 font-mono text-xs whitespace-nowrap"><span class="text-emerald-600">+${log.rows_added || 0}</span> / <span class="text-blue-600">~${log.rows_updated || 0}</span> / <span class="text-red-600">-${log.rows_deleted || 0}</span></td>
                 </tr>
-            `).join('');
-            document.getElementById('table-logs').innerHTML = logHTML || '<tr><td colspan="4" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
-        } catch (e) {
-            console.error("Failed to load logs", e);
-        }
+            `,
+        )
+        .join("");
+      document.getElementById("table-logs").innerHTML =
+        logHTML ||
+        '<tr><td colspan="4" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
+    } catch (e) {
+      console.error("Failed to load logs", e);
     }
+  }
 
-    async function loadHistoryTables() {
-        try {
-            const [animeRes, franchiseRes, seriesRes] = await Promise.all([
-                fetch('/api/anime/'), fetch('/api/franchise/'), fetch('/api/series/')
-            ]);
-            
-            const anime = await animeRes.json();
-            const franchises = await franchiseRes.json();
-            const series = await seriesRes.json();
+  async function loadHistoryTables() {
+    try {
+      const [animeRes, franchiseRes, seriesRes] = await Promise.all([
+        fetch("/api/anime/"),
+        fetch("/api/franchise/"),
+        fetch("/api/series/"),
+      ]);
 
-            // 1. Modified Franchise
-            const modF = [...franchises].filter(f => f.updated_at).sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 15);
-            document.getElementById('table-mod-franchise').innerHTML = modF.map(f => `
+      const anime = await animeRes.json();
+      const franchises = await franchiseRes.json();
+      const series = await seriesRes.json();
+
+      // 1. Modified Franchise
+      const modF = [...franchises]
+        .filter((f) => f.updated_at)
+        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        .slice(0, 15);
+      document.getElementById("table-mod-franchise").innerHTML =
+        modF
+          .map(
+            (f) => `
                 <tr class="hover:bg-purple-50/30 transition cursor-pointer" onclick="window.location.href='/franchise/${f.system_id}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(f.updated_at)}</td>
-                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]">${getTitleCNFallback(f, 'franchise')}</td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]">${getTitleCNFallback(f, "franchise")}</td>
                     <td class="px-5 py-2.5 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">${f.system_id}</td>
                 </tr>
-            `).join('') || `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No modified franchises</td></tr>`;
+            `,
+          )
+          .join("") ||
+        `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No modified franchises</td></tr>`;
 
-            // 2. Modified Anime
-            const modA = [...anime].filter(a => a.updated_at).sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 15);
-            document.getElementById('table-mod-anime').innerHTML = modA.map(a => `
+      // 2. Modified Anime
+      const modA = [...anime]
+        .filter((a) => a.updated_at)
+        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        .slice(0, 15);
+      document.getElementById("table-mod-anime").innerHTML =
+        modA
+          .map(
+            (a) => `
                 <tr class="hover:bg-blue-50/30 transition cursor-pointer" onclick="window.location.href='/anime/${a.system_id}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(a.updated_at)}</td>
-                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(a, 'anime')}">${getTitleCNFallback(a, 'anime')}</td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(a, "anime")}">${getTitleCNFallback(a, "anime")}</td>
                     <td class="px-5 py-2.5 text-gray-600"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${a.airing_type || "-"}</span></td>
                     <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">${a.airing_status || "-"}</td>
                     <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">${a.watching_status || "-"}</td>
                     <td class="px-5 py-2.5 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">${a.system_id}</td>
                 </tr>
-            `).join('') || `<tr><td colspan="6" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
+            `,
+          )
+          .join("") ||
+        `<tr><td colspan="6" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
 
-            // 3. Recently Added (Mixed Types)
-            const allItems = [
-                ...franchises.map(f => ({...f, __type: 'Franchise', __name: getTitleCNFallback(f, 'franchise'), __link: `/franchise/${f.system_id}`})),
-                ...series.map(s => ({...s, __type: 'Series', __name: getTitleCNFallback(s, 'series'), __link: `/series/${s.system_id}`})),
-                ...anime.map(a => ({...a, __type: 'Anime', __name: getTitleCNFallback(a, 'anime'), __link: `/anime/${a.system_id}`}))
-            ];
-            const added = allItems.filter(i => i.created_at).sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15);
-            
-            document.getElementById('table-added').innerHTML = added.map(i => {
-                let badgeClass = "bg-gray-100 text-gray-600 border-gray-200";
-                if (i.__type === 'Anime') badgeClass = "bg-blue-50 text-blue-600 border-blue-200";
-                if (i.__type === 'Franchise') badgeClass = "bg-purple-50 text-purple-600 border-purple-200";
-                if (i.__type === 'Series') badgeClass = "bg-indigo-50 text-indigo-600 border-indigo-200";
-                
-                return `
+      // 3. Recently Added (Mixed Types)
+      const allItems = [
+        ...franchises.map((f) => ({
+          ...f,
+          __type: "Franchise",
+          __name: getTitleCNFallback(f, "franchise"),
+          __link: `/franchise/${f.system_id}`,
+        })),
+        ...series.map((s) => ({
+          ...s,
+          __type: "Series",
+          __name: getTitleCNFallback(s, "series"),
+          __link: `/series/${s.system_id}`,
+        })),
+        ...anime.map((a) => ({
+          ...a,
+          __type: "Anime",
+          __name: getTitleCNFallback(a, "anime"),
+          __link: `/anime/${a.system_id}`,
+        })),
+      ];
+      const added = allItems
+        .filter((i) => i.created_at)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 15);
+
+      document.getElementById("table-added").innerHTML =
+        added
+          .map((i) => {
+            let badgeClass = "bg-gray-100 text-gray-600 border-gray-200";
+            if (i.__type === "Anime")
+              badgeClass = "bg-blue-50 text-blue-600 border-blue-200";
+            if (i.__type === "Franchise")
+              badgeClass = "bg-purple-50 text-purple-600 border-purple-200";
+            if (i.__type === "Series")
+              badgeClass = "bg-indigo-50 text-indigo-600 border-indigo-200";
+
+            return `
                 <tr class="hover:bg-emerald-50/30 transition cursor-pointer" onclick="window.location.href='${i.__link}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(i.created_at)}</td>
                     <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${badgeClass}">${i.__type}</span></td>
                     <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${i.__name}">${i.__name}</td>
                 </tr>
-            `}).join('') || `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No recently added entries</td></tr>`;
-
-        } catch (error) {
-            console.error("Failed to load history tables", error);
-            if(typeof showNotification === 'function') showNotification('error', 'Failed to load history statistics.');
-        }
+            `;
+          })
+          .join("") ||
+        `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No recently added entries</td></tr>`;
+    } catch (error) {
+      console.error("Failed to load history tables", error);
+      if (typeof showNotification === "function")
+        showNotification("error", "Failed to load history statistics.");
     }
+  }
 </script>
 {% endblock %}
