@@ -332,29 +332,141 @@ def execute_pull_specific(db: Session, tab_name: str) -> dict:
 
     processed = 0
     for row in data_rows:
+        if not row or not any(row):
+            continue
+
         raw_dict = parse_row_to_dict(headers, row)
         clean_dict = parser(raw_dict)
+
+        # 1. Resolve String Foreign Keys -> Actual UUIDs (For Series and Anime)
+        if "franchise_id" in clean_dict and isinstance(clean_dict["franchise_id"], str):
+            fname = clean_dict["franchise_id"]
+            if fname.strip():
+                fran = (
+                    db.query(Franchise)
+                    .filter(
+                        or_(
+                            Franchise.franchise_name_en == fname,
+                            Franchise.franchise_name_cn == fname,
+                            Franchise.franchise_name_jp == fname,
+                            Franchise.franchise_name_alt == fname,
+                        )
+                    )
+                    .first()
+                )
+                if fran:
+                    clean_dict["franchise_id"] = fran.system_id
+                else:
+                    logger.warning(
+                        f"Could not resolve franchise FK for: {fname}. Skipping row."
+                    )
+                    continue
+
+        if "series_id" in clean_dict and isinstance(clean_dict["series_id"], str):
+            sname = clean_dict["series_id"]
+            if sname.strip():
+                series = (
+                    db.query(Series)
+                    .filter(
+                        or_(
+                            Series.series_name_en == sname,
+                            Series.series_name_cn == sname,
+                            Series.series_name_alt == sname,
+                        )
+                    )
+                    .first()
+                )
+                if series:
+                    clean_dict["series_id"] = series.system_id
+                else:
+                    logger.warning(
+                        f"Could not resolve series FK for: {sname}. Skipping row."
+                    )
+                    continue
 
         # System Options uses 'id', others use 'system_id'
         pk_field = "id" if tab_name == "System Options" else "system_id"
         pk_value = clean_dict.get(pk_field)
 
-        if not pk_value:
-            continue
+        # 2. Smart Primary Key Logic (Upsert vs Insert)
+        if not pk_value or (isinstance(pk_value, str) and not pk_value.strip()):
+            existing_record = None
+            if tab_name == "Franchise":
+                name = clean_dict.get("franchise_name_en") or clean_dict.get(
+                    "franchise_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Franchise)
+                        .filter(
+                            or_(
+                                Franchise.franchise_name_en == name,
+                                Franchise.franchise_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Series":
+                name = clean_dict.get("series_name_en") or clean_dict.get(
+                    "series_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Series)
+                        .filter(
+                            or_(
+                                Series.series_name_en == name,
+                                Series.series_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Anime":
+                name = clean_dict.get("anime_name_en") or clean_dict.get(
+                    "anime_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Anime)
+                        .filter(
+                            or_(
+                                Anime.anime_name_en == name, Anime.anime_name_cn == name
+                            )
+                        )
+                        .first()
+                    )
 
-        # 1. UPSERT LOGIC
-        existing = db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
+            if existing_record:
+                pk_value = getattr(existing_record, pk_field)
+                clean_dict[pk_field] = pk_value
+            else:
+                clean_dict.pop(pk_field, None)
+                pk_value = None
 
-        if existing:
-            # Update existing record
-            for key, value in clean_dict.items():
-                setattr(existing, key, value)
+        # 3. UPSERT LOGIC
+        if pk_value:
+            existing = (
+                db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
+            )
+
+            if existing:
+                # Update existing record
+                for key, value in clean_dict.items():
+                    setattr(existing, key, value)
+            else:
+                # Create new record (UUID provided but record missing locally)
+                new_record = Model(**clean_dict)
+                db.add(new_record)
         else:
-            # Create new record
+            # Create new record (UUID missing, let DB generate it)
             new_record = Model(**clean_dict)
             db.add(new_record)
 
         processed += 1
+
+        # Flush periodically so DB generates new UUIDs immediately for Foreign Key references
+        if processed % 50 == 0:
+            db.flush()
 
     db.commit()
     logger.info(
