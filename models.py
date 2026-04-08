@@ -163,14 +163,19 @@ class Anime(Base):
 
     season_part = Column(String, nullable=True)
     airing_type = Column(String, nullable=True)
-    watching_status = Column(String, nullable=False, default="Might Watch")
     airing_status = Column(String, nullable=True)
+    watching_status = Column(String, nullable=False, default="Might Watch")
+    is_main = Column(String, nullable=True)
+
+    ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)
     ep_fin = Column(Integer, nullable=True, default=0)
-    ep_previous = Column(Integer, nullable=True)
     ep_special = Column(Float, nullable=True)
+
     my_rating = Column(String, nullable=True)
-    is_main = Column(String, nullable=True)
+    mal_rating = Column(Float, nullable=True)
+    mal_rank = Column(String, nullable=True)
+    anilist_rating = Column(String, nullable=True)
 
     release_month = Column(String, nullable=True)
     release_season = Column(String, nullable=True)
@@ -188,17 +193,12 @@ class Anime(Base):
     sequel_id = Column(UUID(as_uuid=True), nullable=True)
     alternative = Column(String, nullable=True)
     watch_order = Column(Float, nullable=True)
-    remark = Column(Text, nullable=True)
-
-    official_link = Column(String, nullable=True)
-    twitter_link = Column(String, nullable=True)
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
-    mal_rating = Column(Float, nullable=True)
-    mal_rank = Column(String, nullable=True)
     anilist_link = Column(String, nullable=True)
-    anilist_rating = Column(String, nullable=True)
+    official_link = Column(String, nullable=True)
+    twitter_link = Column(String, nullable=True)
 
     op = Column(String, nullable=True)
     ed = Column(String, nullable=True)
@@ -207,9 +207,10 @@ class Anime(Base):
 
     source_baha = Column(Boolean, default=None, nullable=True)
     baha_link = Column(String, nullable=True)
+    source_netflix = Column(Boolean, default=False)
     source_other = Column(String, default=None, nullable=True)
     source_other_link = Column(String, nullable=True)
-    source_netflix = Column(Boolean, default=False)
+    remark = Column(Text, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
 
