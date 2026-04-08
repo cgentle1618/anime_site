@@ -179,10 +179,6 @@ def patch_anime_entry(
         if hasattr(db_anime, key):
             setattr(db_anime, key, value)
 
-    # Check for completion after patching
-    if check_is_completed(db_anime):
-        mark_completed(db_anime)
-
     db_anime.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_anime)
