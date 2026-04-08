@@ -81,21 +81,6 @@ def get_sync_logs(db: Session = Depends(get_db)):
     return logs
 
 
-@router.get(
-    "/deletions",
-    response_model=List[schemas.DeletedRecordResponse],
-    summary="Get Deleted Records Audit Trail",
-)
-def get_deleted_records(db: Session = Depends(get_db)):
-    """Fetches the audit trail of deleted entities across the system."""
-    records = (
-        db.query(models.DeletedRecord)
-        .order_by(models.DeletedRecord.deleted_at.desc())
-        .all()
-    )
-    return records
-
-
 # ==========================================
 # DIAGNOSTICS & TESTING
 # ==========================================

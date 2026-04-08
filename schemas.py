@@ -299,16 +299,3 @@ class PaginatedSyncLogResponse(BaseModel):
 
     total: int
     logs: List[SyncLogResponse]
-
-
-class DeletedRecordResponse(BaseModel):
-    """Schema for retrieving a history of permanently deleted items."""
-
-    id: int
-    system_id: str
-    table_name: str
-    deleted_at: datetime
-    data_json: Optional[str] = None
-
-    class Config:
-        from_attributes = True

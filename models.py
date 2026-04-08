@@ -314,15 +314,3 @@ class SyncLog(Base):
     rows_deleted = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
     details_json = Column(Text, nullable=True)
-
-
-class DeletedRecord(Base):
-    """Stores a temporary history of permanently deleted items for recovery or sync purposes."""
-
-    __tablename__ = "deleted_records"
-
-    id = Column(Integer, primary_key=True, index=True)
-    system_id = Column(String, index=True)
-    table_name = Column(String)
-    deleted_at = Column(DateTime, default=get_taipei_now)
-    data_json = Column(Text, nullable=True)
