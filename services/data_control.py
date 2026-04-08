@@ -8,6 +8,8 @@ and Pulls by delegating tasks to isolated domain utilities and API clients.
 import time
 import json
 import logging
+import asyncio
+from fastapi import Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -95,10 +97,10 @@ def execute_calculations(db: Session) -> None:
 # ==========================================
 
 
-def execute_fill_anime(db: Session):
+async def execute_fill_anime(db: Session, request: Request):
     """
-    Generator function. Fetches missing fields from Jikan API for entries that have a MAL ID.
-    Yields Server-Sent Events (SSE) detailing the progress and current entry.
+    Async Generator function. Fetches missing fields from Jikan API for entries that have a MAL ID.
+    Yields Server-Sent Events (SSE) detailing the progress and gracefully aborts if the client disconnects.
     """
     execute_calculations(db)
     logger.info("Starting Fill Pipeline...")
@@ -141,6 +143,11 @@ def execute_fill_anime(db: Session):
         return
 
     for anime in queue:
+        # 1. Disconnect Guard
+        if await request.is_disconnected():
+            logger.info("Client disconnected. Aborting Fill Pipeline gracefully.")
+            break
+
         anime_name = anime.anime_name_en or anime.anime_name_cn or "Unknown Anime"
 
         # Yield progress indicating we are about to process this entry
@@ -154,7 +161,7 @@ def execute_fill_anime(db: Session):
 
         raw_data = fetch_raw_anime_data(anime.mal_id)
         if not raw_data:
-            time.sleep(1)
+            await asyncio.sleep(1)
             continue
 
         parsed_data = extract_mal_anime_data(raw_data)
@@ -185,7 +192,7 @@ def execute_fill_anime(db: Session):
 
         # Commit per chunk so the DB is updated gradually
         db.commit()
-        time.sleep(1)
+        await asyncio.sleep(1)
 
     logger.info(f"Fill Pipeline completed. Processed {processed_count} entries.")
 
@@ -200,10 +207,10 @@ def execute_fill_anime(db: Session):
 # ==========================================
 
 
-def execute_replace_anime(db: Session):
+async def execute_replace_anime(db: Session, request: Request):
     """
-    Generator function. Force-updates mal_rating and mal_rank from Jikan API for all entries with a MAL ID.
-    Yields Server-Sent Events (SSE) detailing the progress and current entry.
+    Async Generator function. Force-updates mal_rating and mal_rank from Jikan API for all entries with a MAL ID.
+    Yields Server-Sent Events (SSE) detailing the progress and gracefully aborts if the client disconnects.
     """
     execute_calculations(db)
     logger.info("Starting Replace Pipeline...")
@@ -229,6 +236,11 @@ def execute_replace_anime(db: Session):
         return
 
     for anime in all_mal_anime:
+        # 1. Disconnect Guard
+        if await request.is_disconnected():
+            logger.info("Client disconnected. Aborting Replace Pipeline gracefully.")
+            break
+
         anime_name = anime.anime_name_en or anime.anime_name_cn or "Unknown Anime"
 
         # Yield progress
@@ -242,7 +254,7 @@ def execute_replace_anime(db: Session):
 
         raw_data = fetch_raw_anime_data(anime.mal_id)
         if not raw_data:
-            time.sleep(1)
+            await asyncio.sleep(1)
             continue
 
         parsed_data = extract_mal_anime_data(raw_data)
@@ -281,7 +293,7 @@ def execute_replace_anime(db: Session):
 
         # Commit per chunk
         db.commit()
-        time.sleep(1)
+        await asyncio.sleep(1)
 
     logger.info(f"Replace Pipeline completed. Processed {processed_count} entries.")
 

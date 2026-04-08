@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -22,41 +22,45 @@ router = APIRouter(
 
 
 @router.post("/fill/anime")
-def trigger_fill_anime(db: Session = Depends(get_db)):
+async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
     """
     Triggers the Fill Pipeline specifically for Anime entries.
     Streams progress back to the client using Server-Sent Events (SSE).
     """
     try:
-        return StreamingResponse(execute_fill_anime(db), media_type="text/event-stream")
+        return StreamingResponse(
+            execute_fill_anime(db, request), media_type="text/event-stream"
+        )
     except Exception as e:
         logger.error(f"Error in fill anime: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/fill/all")
-def trigger_fill_all(db: Session = Depends(get_db)):
+async def trigger_fill_all(request: Request, db: Session = Depends(get_db)):
     """
     Triggers the Fill Pipeline for ALL data types.
     Currently aliases to Fill Anime since other types are not yet implemented.
     Streams progress back to the client using Server-Sent Events (SSE).
     """
     try:
-        return StreamingResponse(execute_fill_anime(db), media_type="text/event-stream")
+        return StreamingResponse(
+            execute_fill_anime(db, request), media_type="text/event-stream"
+        )
     except Exception as e:
         logger.error(f"Error in fill all: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/replace/anime")
-def trigger_replace_anime(db: Session = Depends(get_db)):
+async def trigger_replace_anime(request: Request, db: Session = Depends(get_db)):
     """
     Triggers the Replace Pipeline specifically for Anime entries.
     Streams progress back to the client using Server-Sent Events (SSE).
     """
     try:
         return StreamingResponse(
-            execute_replace_anime(db), media_type="text/event-stream"
+            execute_replace_anime(db, request), media_type="text/event-stream"
         )
     except Exception as e:
         logger.error(f"Error in replace anime: {e}")
@@ -64,7 +68,7 @@ def trigger_replace_anime(db: Session = Depends(get_db)):
 
 
 @router.post("/replace/all")
-def trigger_replace_all(db: Session = Depends(get_db)):
+async def trigger_replace_all(request: Request, db: Session = Depends(get_db)):
     """
     Triggers the Replace Pipeline for ALL data types.
     Currently aliases to Replace Anime since other types are not yet implemented.
@@ -72,7 +76,7 @@ def trigger_replace_all(db: Session = Depends(get_db)):
     """
     try:
         return StreamingResponse(
-            execute_replace_anime(db), media_type="text/event-stream"
+            execute_replace_anime(db, request), media_type="text/event-stream"
         )
     except Exception as e:
         logger.error(f"Error in replace all: {e}")
