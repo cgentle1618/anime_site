@@ -32,6 +32,9 @@ def format_for_sheet(val: Any, expected_type: type = str) -> str:
 
 
 def format_franchise_for_sheet(franchise: Franchise) -> list:
+    """
+    Formats a Franchise database object into a list of strings representing a row in the Franchise sheet.
+    """
     return [
         format_for_sheet(franchise.system_id),
         format_for_sheet(franchise.franchise_type),
@@ -44,15 +47,30 @@ def format_franchise_for_sheet(franchise: Franchise) -> list:
         format_for_sheet(franchise.franchise_expectation),
         format_for_sheet(franchise.favorite_3x3_slot),
         format_for_sheet(franchise.remark),
-        format_for_sheet(franchise.created_at, datetime),
-        format_for_sheet(franchise.updated_at, datetime),
+        format_for_sheet(franchise.created_at),
+        format_for_sheet(franchise.updated_at),
     ]
 
 
 def format_series_for_sheet(series: Series) -> list:
+    """
+    Formats a Series database object into a list of strings representing a row in the Series sheet.
+    Includes relational data like the franchise name.
+    """
+    # Fetch franchise name for readability in sheets
+    franchise_name = ""
+    if series.franchise:
+        franchise_name = (
+            series.franchise.franchise_name_en
+            or series.franchise.franchise_name_cn
+            or ""
+        )
+
     return [
         format_for_sheet(series.system_id),
-        format_for_sheet(series.franchise_id),
+        format_for_sheet(
+            series.franchise_id if not franchise_name else franchise_name
+        ),  # Save name for easier reading in sheet
         format_for_sheet(series.series_name_en),
         format_for_sheet(series.series_name_cn),
         format_for_sheet(series.series_name_alt),
@@ -60,24 +78,42 @@ def format_series_for_sheet(series: Series) -> list:
 
 
 def format_anime_for_sheet(anime: Anime) -> list:
+    """
+    Formats an Anime database object into a list of strings representing a row in the Anime sheet.
+    Includes relational data like franchise and series names.
+    """
+    # Relational fetching for readability
+    franchise_name = ""
+    if anime.franchise:
+        franchise_name = (
+            anime.franchise.franchise_name_en or anime.franchise.franchise_name_cn or ""
+        )
+
+    series_name = ""
+    if anime.series:
+        series_name = anime.series.series_name_en or anime.series.series_name_cn or ""
+
     return [
         format_for_sheet(anime.system_id),
-        format_for_sheet(anime.franchise_id),
-        format_for_sheet(anime.series_id),
+        format_for_sheet(anime.franchise_id if not franchise_name else franchise_name),
+        format_for_sheet(anime.series_id if not series_name else series_name),
         format_for_sheet(anime.anime_name_en),
         format_for_sheet(anime.anime_name_cn),
         format_for_sheet(anime.anime_name_romanji),
         format_for_sheet(anime.anime_name_jp),
         format_for_sheet(anime.anime_name_alt),
+        format_for_sheet(anime.season_part),
         format_for_sheet(anime.airing_type),
-        format_for_sheet(anime.watching_status),
         format_for_sheet(anime.airing_status),
+        format_for_sheet(anime.watching_status),
+        format_for_sheet(anime.ep_previous),
         format_for_sheet(anime.ep_total),
         format_for_sheet(anime.ep_fin),
-        format_for_sheet(anime.ep_previous),
-        format_for_sheet(anime.ep_special),
-        format_for_sheet(anime.season_part),
+        format_for_sheet(anime.ep_special, float),
         format_for_sheet(anime.my_rating),
+        format_for_sheet(anime.mal_rating),
+        format_for_sheet(anime.mal_rank),
+        format_for_sheet(anime.anilist_rating),
         format_for_sheet(anime.is_main),
         format_for_sheet(anime.release_month),
         format_for_sheet(anime.release_season),
@@ -92,79 +128,94 @@ def format_anime_for_sheet(anime: Anime) -> list:
         format_for_sheet(anime.prequel_id),
         format_for_sheet(anime.sequel_id),
         format_for_sheet(anime.alternative),
-        format_for_sheet(anime.watch_order),
+        format_for_sheet(anime.watch_order, float),
         format_for_sheet(anime.remark),
-        format_for_sheet(anime.official_link),
-        format_for_sheet(anime.twitter_link),
         format_for_sheet(anime.mal_id),
         format_for_sheet(anime.mal_link),
-        format_for_sheet(anime.mal_rating),
-        format_for_sheet(anime.mal_rank),
         format_for_sheet(anime.anilist_link),
-        format_for_sheet(anime.anilist_rating),
+        format_for_sheet(anime.official_link),
+        format_for_sheet(anime.twitter_link),
         format_for_sheet(anime.op),
         format_for_sheet(anime.ed),
         format_for_sheet(anime.insert_ost),
-        format_for_sheet(anime.seiyuu),
         format_for_sheet(anime.source_baha, bool),
         format_for_sheet(anime.baha_link),
+        format_for_sheet(anime.source_netflix, bool),
         format_for_sheet(anime.source_other),
         format_for_sheet(anime.source_other_link),
-        format_for_sheet(anime.source_netflix, bool),
         format_for_sheet(anime.cover_image_file),
-        format_for_sheet(anime.created_at, datetime),
-        format_for_sheet(anime.updated_at, datetime),
+        format_for_sheet(anime.created_at),
+        format_for_sheet(anime.updated_at),
     ]
 
 
 # ==========================================
-# PARSERS (Google Sheets -> DB)
+# PARSERS (Google Sheets -> Python Types)
 # ==========================================
 
 
-def parse_from_sheet(val: Any, expected_type: type) -> Any:
+def parse_row_to_dict(headers: List[str], row: List[Any]) -> Dict[str, Any]:
     """
-    Safely converts strings from Google Sheets back into Python types.
-    Handles converting empty strings to None/Null to preserve database integrity.
+    Maps a sheet row list to a dictionary based on the header list.
+    Handles rows that are shorter than the headers array.
     """
-    if val is None or str(val).strip() == "":
+    data = {}
+    for i, header in enumerate(headers):
+        # Sheet rows often drop trailing empty columns. This safeguards against IndexError.
+        val = row[i] if i < len(row) else ""
+        data[header] = val
+    return data
+
+
+def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
+    """
+    Converts a string from Google Sheets to the expected Python type based on SQLAlchemy column type.
+    """
+    if val_str is None or str(val_str).strip() == "":
         return None
 
-    val_str = str(val).strip()
+    val_str = str(val_str).strip()
 
-    try:
-        if expected_type == bool:
-            return val_str.upper() == "TRUE"
-        if expected_type == int:
-            return int(float(val_str))  # Float cast first handles strings like '1.0'
-        if expected_type == float:
+    if expected_type == int:
+        try:
+            return int(float(val_str))  # Handle cases where sheet exports "1.0"
+        except ValueError:
+            return None
+    elif expected_type == float:
+        try:
             return float(val_str)
-        if expected_type == datetime:
-            return datetime.fromisoformat(val_str.replace("Z", "+00:00"))
-        if expected_type == UUID:
-            # We cast to UUID to validate it, then return a clean string representation
-            # to guarantee compatibility with SQLAlchemy's UUID storage implementations
-            return str(UUID(val_str))
-    except (ValueError, TypeError) as e:
-        logger.warning(
-            f"Data type parsing failed for value '{val_str}' expected {expected_type}: {e}"
-        )
+        except ValueError:
+            return None
+    elif expected_type == bool:
+        lower_val = val_str.lower()
+        if lower_val in ["true", "1", "yes", "y", "t"]:
+            return True
+        if lower_val in ["false", "0", "no", "n", "f"]:
+            return False
         return None
+    elif expected_type == datetime:
+        try:
+            # Handle standard ISO formatting and common sheet formats
+            val_str_clean = val_str.replace("Z", "+00:00")
+            return datetime.fromisoformat(val_str_clean)
+        except ValueError:
+            return None
+    elif expected_type == UUID:
+        try:
+            return UUID(val_str)
+        except ValueError:
+            # IMPORTANT FIX: Return the string instead of None
+            # This allows the service layer to intercept string names (like "Tokyo Ghoul")
+            # and look up their actual UUID in the database.
+            return val_str
+    else:
+        return val_str
 
-    return val_str
 
-
-def parse_row_to_dict(headers: List[str], row: List[str]) -> Dict[str, str]:
+def parse_franchise_from_sheet(raw: dict) -> dict:
     """
-    Zips a list of headers and a row together, padding missing columns.
-    CRITICAL: Strips headers to prevent silent key mismatch errors (e.g. "system_id " vs "system_id").
+    Parses a raw dictionary from the Franchise sheet into typed data ready for the Database.
     """
-    clean_headers = [str(h).strip() for h in headers]
-    padded_row = row + [""] * max(0, len(clean_headers) - len(row))
-    return dict(zip(clean_headers, padded_row))
-
-
-def parse_franchise_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_type": parse_from_sheet(raw.get("franchise_type"), str),
@@ -176,8 +227,9 @@ def parse_franchise_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
         "franchise_name_jp": parse_from_sheet(raw.get("franchise_name_jp"), str),
         "franchise_name_alt": parse_from_sheet(raw.get("franchise_name_alt"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
-        "franchise_expectation": parse_from_sheet(raw.get("franchise_expectation"), str)
-        or "Low",
+        "franchise_expectation": parse_from_sheet(
+            raw.get("franchise_expectation"), str
+        ),
         "favorite_3x3_slot": parse_from_sheet(raw.get("favorite_3x3_slot"), int),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -185,17 +237,27 @@ def parse_franchise_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
     }
 
 
-def parse_series_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
+def parse_series_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Series sheet into typed data ready for the Database.
+    Note: franchise_id could be a UUID or a raw String name.
+    """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "franchise_id": parse_from_sheet(
+            raw.get("franchise_id"), UUID
+        ),  # Might be string, handled in data_control
         "series_name_en": parse_from_sheet(raw.get("series_name_en"), str),
         "series_name_cn": parse_from_sheet(raw.get("series_name_cn"), str),
         "series_name_alt": parse_from_sheet(raw.get("series_name_alt"), str),
     }
 
 
-def parse_anime_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
+def parse_anime_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Anime sheet into typed data ready for the Database.
+    Note: franchise_id and series_id could be a UUID or a raw String name.
+    """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
@@ -205,15 +267,14 @@ def parse_anime_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
         "anime_name_romanji": parse_from_sheet(raw.get("anime_name_romanji"), str),
         "anime_name_jp": parse_from_sheet(raw.get("anime_name_jp"), str),
         "anime_name_alt": parse_from_sheet(raw.get("anime_name_alt"), str),
-        "airing_type": parse_from_sheet(raw.get("airing_type"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str)
-        or "Might Watch",
-        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int) or 0,
-        "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
-        "ep_special": parse_from_sheet(raw.get("ep_special"), float),
         "season_part": parse_from_sheet(raw.get("season_part"), str),
+        "airing_type": parse_from_sheet(raw.get("airing_type"), str),
+        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
+        "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
+        "ep_special": parse_from_sheet(raw.get("ep_special"), float),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "release_month": parse_from_sheet(raw.get("release_month"), str),
@@ -231,9 +292,9 @@ def parse_anime_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
         "alternative": parse_from_sheet(raw.get("alternative"), str),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "official_link": parse_from_sheet(raw.get("official_link"), str),
         "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
-        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
@@ -242,7 +303,6 @@ def parse_anime_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
         "op": parse_from_sheet(raw.get("op"), str),
         "ed": parse_from_sheet(raw.get("ed"), str),
         "insert_ost": parse_from_sheet(raw.get("insert_ost"), str),
-        "seiyuu": parse_from_sheet(raw.get("seiyuu"), str),
         "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
         "baha_link": parse_from_sheet(raw.get("baha_link"), str),
         "source_other": parse_from_sheet(raw.get("source_other"), str),
@@ -254,7 +314,10 @@ def parse_anime_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
     }
 
 
-def parse_system_option_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
+def parse_system_option_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the System Options sheet into typed data ready for the Database.
+    """
     return {
         "id": parse_from_sheet(raw.get("id"), int),
         "category": parse_from_sheet(raw.get("category"), str),
