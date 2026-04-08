@@ -282,7 +282,7 @@ class Seasonal(Base):
 
     __tablename__ = "seasonal"
 
-    seasonal = Column(String, primary_key=True, index=True)
+    seasonal = Column(String, primary_key=True, unique=True, index=True)
     my_rating = Column(String, nullable=True)
     entry_completed = Column(Integer, nullable=False, default=0)
     entry_watching = Column(Integer, nullable=False, default=0)
@@ -295,8 +295,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    username = Column(String, nullable=False, unique=True, index=True)
+    hashed_password = Column(String, nullable=False)
     role = Column(String, default="guest")
 
 
