@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from models import Franchise, Series, Anime, SystemOption
-from services.other_logics import auto_create_seasonal
 from utils.utils import (
     extract_mal_id,
     extract_season_from_title,
@@ -36,6 +35,7 @@ from utils.jikan_utils import extract_mal_anime_data
 from services.jikan import fetch_raw_anime_data
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.image_manager import download_cover_image
+from services.other_logics import auto_create_seasonal
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
@@ -284,7 +284,7 @@ def execute_backup(db: Session) -> dict:
         ]
         for o in sysopts
     ]
-    bulk_overwrite_sheet("SystemOptions", sysopt_matrix)
+    bulk_overwrite_sheet("System Options", sysopt_matrix)
 
     logger.info("Backup Pipeline completed successfully.")
     return {"status": "success", "message": "All tabs backed up to Google Sheets"}
@@ -304,14 +304,14 @@ def execute_pull_specific(db: Session, tab_name: str) -> dict:
         "Franchise": Franchise,
         "Series": Series,
         "Anime": Anime,
-        "SystemOptions": SystemOption,
+        "System Options": SystemOption,
     }
 
     PARSER_MAP = {
         "Franchise": parse_franchise_from_sheet,
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
-        "SystemOptions": parse_system_option_from_sheet,
+        "System Options": parse_system_option_from_sheet,
     }
 
     if tab_name not in MODEL_MAP:
@@ -335,8 +335,8 @@ def execute_pull_specific(db: Session, tab_name: str) -> dict:
         raw_dict = parse_row_to_dict(headers, row)
         clean_dict = parser(raw_dict)
 
-        # SystemOptions uses 'id', others use 'system_id'
-        pk_field = "id" if tab_name == "SystemOptions" else "system_id"
+        # System Options uses 'id', others use 'system_id'
+        pk_field = "id" if tab_name == "System Options" else "system_id"
         pk_value = clean_dict.get(pk_field)
 
         if not pk_value:
@@ -371,7 +371,7 @@ def execute_pull_all(db: Session) -> dict:
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
     # Hierarchy: Independent -> Top-level Parent -> Child -> Grandchild
-    tabs_in_order = ["SystemOptions", "Franchise", "Series", "Anime"]
+    tabs_in_order = ["System Options", "Franchise", "Series", "Anime"]
 
     results = {}
     for tab in tabs_in_order:
