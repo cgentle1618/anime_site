@@ -13,6 +13,10 @@ import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from typing import Callable, Any, List, Optional
 from google.oauth2.service_account import Credentials
+from dotenv import load_dotenv
+
+# Explicitly load environment variables from .env file
+load_dotenv()
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
@@ -71,10 +75,12 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
 
     client = gspread.authorize(credentials)
 
-    # 2. Connect to the specific Spreadsheet
-    sheet_id = os.environ.get("SPREADSHEET_ID")
+    # 2. Connect to the specific Spreadsheet (Supports both naming conventions)
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID") or os.environ.get("SPREADSHEET_ID")
     if not sheet_id:
-        raise ValueError("SPREADSHEET_ID environment variable is missing.")
+        raise ValueError(
+            "GOOGLE_SHEET_ID environment variable is missing. Please check your .env file."
+        )
 
     return _execute_with_retry(client.open_by_key, sheet_id)
 
