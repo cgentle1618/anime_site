@@ -86,29 +86,35 @@ def create_franchise(
     admin: dict = Depends(get_current_admin),
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
+    try:
+        # Explicitly assign UUID and Timestamps in Python to bypass missing database default constraints
+        new_franchise = models.Franchise(
+            system_id=uuid.uuid4(),
+            franchise_type=payload.franchise_type,
+            franchise_name_en=payload.franchise_name_en,
+            franchise_name_cn=payload.franchise_name_cn,
+            franchise_name_romanji=payload.franchise_name_romanji,
+            franchise_name_jp=payload.franchise_name_jp,
+            franchise_name_alt=payload.franchise_name_alt,
+            my_rating=payload.my_rating,
+            franchise_expectation=payload.franchise_expectation,
+            favorite_3x3_slot=payload.favorite_3x3_slot,
+            remark=payload.remark,
+            created_at=get_taipei_now(),
+            updated_at=get_taipei_now(),
+        )
 
-    # Explicitly assign UUID in Python to bypass missing database default constraints
-    new_franchise = models.Franchise(
-        system_id=uuid.uuid4(),
-        franchise_type=payload.franchise_type,
-        franchise_name_en=payload.franchise_name_en,
-        franchise_name_cn=payload.franchise_name_cn,
-        franchise_name_romanji=payload.franchise_name_romanji,
-        franchise_name_jp=payload.franchise_name_jp,
-        franchise_name_alt=payload.franchise_name_alt,
-        my_rating=payload.my_rating,
-        franchise_expectation=payload.franchise_expectation,
-        favorite_3x3_slot=payload.favorite_3x3_slot,
-        remark=payload.remark,
-        created_at=get_taipei_now(),
-        updated_at=get_taipei_now(),
-    )
+        db.add(new_franchise)
+        db.commit()
+        db.refresh(new_franchise)
 
-    db.add(new_franchise)
-    db.commit()
-    db.refresh(new_franchise)
-
-    return new_franchise
+        return new_franchise
+    except Exception as e:
+        logger.error(f"CRITICAL ERROR creating franchise: {str(e)}", exc_info=True)
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Database Insertion Error: {str(e)}"
+        )
 
 
 @router.put(
@@ -189,7 +195,7 @@ def delete_franchise(
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
     # Log the deletion for audit trails
-    display_name = db_franchise.franchise_name_en or db_franchise.system_id
+    display_name = db_franchise.franchise_name_en or str(db_franchise.system_id)
     deleted_record = models.DeletedRecord(
         system_id=str(db_franchise.system_id),
         table_name="franchise",
