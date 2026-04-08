@@ -4,10 +4,13 @@ Contains business-logic utility functions, primarily focused on serializing
 and deserializing SQLAlchemy models to/from Google Sheets formats.
 """
 
+import logging
 from typing import Any, List, Dict
 from datetime import datetime
 from uuid import UUID
 from models import Franchise, Series, Anime
+
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # FORMATTERS (DB -> Google Sheets)
@@ -139,17 +142,26 @@ def parse_from_sheet(val: Any, expected_type: type) -> Any:
         if expected_type == datetime:
             return datetime.fromisoformat(val_str.replace("Z", "+00:00"))
         if expected_type == UUID:
-            return UUID(val_str)
-    except (ValueError, TypeError):
+            # We cast to UUID to validate it, then return a clean string representation
+            # to guarantee compatibility with SQLAlchemy's UUID storage implementations
+            return str(UUID(val_str))
+    except (ValueError, TypeError) as e:
+        logger.warning(
+            f"Data type parsing failed for value '{val_str}' expected {expected_type}: {e}"
+        )
         return None
 
     return val_str
 
 
 def parse_row_to_dict(headers: List[str], row: List[str]) -> Dict[str, str]:
-    """Zips a list of headers and a row together, padding missing columns."""
-    padded_row = row + [""] * (len(headers) - len(row))
-    return dict(zip(headers, padded_row))
+    """
+    Zips a list of headers and a row together, padding missing columns.
+    CRITICAL: Strips headers to prevent silent key mismatch errors (e.g. "system_id " vs "system_id").
+    """
+    clean_headers = [str(h).strip() for h in headers]
+    padded_row = row + [""] * max(0, len(clean_headers) - len(row))
+    return dict(zip(clean_headers, padded_row))
 
 
 def parse_franchise_from_sheet(raw: Dict[str, str]) -> Dict[str, Any]:
