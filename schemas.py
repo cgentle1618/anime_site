@@ -279,23 +279,36 @@ class AnimeSheetSync(AnimeCreate):
     updated_at: Optional[datetime] = None
 
 
-class SyncLogResponse(BaseModel):
+class DataControlLogResponse(BaseModel):
+    """Schema for returning data control logs."""
+
     id: int
-    timestamp: datetime
-    sync_type: str
+    action_main: str
+    action_specific: str
+    type: str
     status: str
     rows_added: int
     rows_updated: int
     rows_deleted: int
     error_message: Optional[str] = None
     details_json: Optional[str] = None
+    timestamp: datetime
 
     class Config:
         from_attributes = True
 
 
-class PaginatedSyncLogResponse(BaseModel):
-    """Wrapper schema for returning paginated sync logs with a total count."""
+class DeletedRecordResponse(BaseModel):
+    """Schema for returning deleted records."""
 
-    total: int
-    logs: List[SyncLogResponse]
+    id: int
+    type: str
+    franchise: Optional[str] = None
+    series: Optional[str] = None
+    anime_cn: Optional[str] = None
+    anime_en: Optional[str] = None
+    airing_type: Optional[str] = None
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
