@@ -424,6 +424,32 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
   // DOM Cache
   const pageDOM = {};
 
+  // Title Helper for Display (Fallback: CN -> EN -> Alt -> Romanji -> JP)
+  function getDisplayName(item, type) {
+      if (!item) return "";
+      if (type === 'series') {
+          return item.series_name_cn || item.series_name_en || item.series_name_alt || "Unknown Series";
+      }
+      return item[`${type}_name_cn`] ||
+             item[`${type}_name_en`] ||
+             item[`${type}_name_alt`] ||
+             item[`${type}_name_romanji`] ||
+             item[`${type}_name_jp`] || "Unknown Title";
+  }
+
+  // Title Helper for Sorting (Fallback: EN -> Romanji -> CN -> Alt -> JP)
+  function getSortName(item, type) {
+      if (!item) return "";
+      if (type === 'series') {
+          return item.series_name_en || item.series_name_cn || item.series_name_alt || "";
+      }
+      return item[`${type}_name_en`] ||
+             item[`${type}_name_romanji`] ||
+             item[`${type}_name_cn`] ||
+             item[`${type}_name_alt`] ||
+             item[`${type}_name_jp`] || "";
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
       // General
       pageDOM.loading = document.getElementById("loading");
@@ -573,10 +599,31 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
               if (wA !== wB) return wB - wA;
           }
 
-          // Default / Fallback: Title Sort (Alphabetical ASC)
-          const titleA = a.anime_name_cn || a.anime_name_en || a.anime_name_romanji || "";
-          const titleB = b.anime_name_cn || b.anime_name_en || b.anime_name_romanji || "";
-          return titleA.localeCompare(titleB);
+          // Default / Fallback: Title Sort (Hierarchical: Franchise -> Series -> Anime)
+          const animeNameA = getSortName(a, 'anime');
+          const animeNameB = getSortName(b, 'anime');
+
+          const fA = state.franchiseDict[a.franchise_id];
+          const fB = state.franchiseDict[b.franchise_id];
+          const sA = state.seriesDict[a.series_id];
+          const sB = state.seriesDict[b.series_id];
+
+          // 1. Franchise Level Comparison
+          const franchiseNameA = fA ? getSortName(fA, 'franchise') : animeNameA;
+          const franchiseNameB = fB ? getSortName(fB, 'franchise') : animeNameB;
+
+          const compFranchise = franchiseNameA.localeCompare(franchiseNameB);
+          if (compFranchise !== 0) return compFranchise;
+
+          // 2. Series Level Comparison (Empty string if independent so it comes before series)
+          const seriesNameA = sA ? getSortName(sA, 'series') : "";
+          const seriesNameB = sB ? getSortName(sB, 'series') : "";
+
+          const compSeries = seriesNameA.localeCompare(seriesNameB);
+          if (compSeries !== 0) return compSeries;
+
+          // 3. Anime Level Comparison
+          return animeNameA.localeCompare(animeNameB);
       });
 
       renderUI();
@@ -639,7 +686,7 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
   }
 
   function createAnimeEntryCard(anime) {
-      const title = anime.anime_name_cn || anime.anime_name_en || anime.anime_name_alt || anime.anime_name_romanji || anime.anime_name_jp || "Unknown Title";
+      const title = getDisplayName(anime, 'anime') || "Unknown Title";
       const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       let imageUrl = fallbackSvg;
@@ -692,11 +739,11 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
 
   function createAnimeTableRow(anime) {
       // Titles
-      const mainTitle = anime.anime_name_cn || anime.anime_name_en || anime.anime_name_alt || anime.anime_name_romanji || anime.anime_name_jp || "Unknown Title";
-      const subTitle = anime.anime_name_en || anime.anime_name_romanji || "";
+      const mainTitle = getDisplayName(anime, 'anime') || "Unknown Title";
+      const subTitle = anime.anime_name_en || anime.anime_name_romanji || anime.anime_name_jp || "";
 
       const f = state.franchiseDict[anime.franchise_id];
-      const franchiseName = f ? (f.franchise_name_cn || f.franchise_name_en || f.franchise_name_alt || "Unknown Franchise") : `<span class="text-gray-300 italic">None</span>`;
+      const franchiseName = f ? (getDisplayName(f, 'franchise') || "Unknown Franchise") : `<span class="text-gray-300 italic">None</span>`;
 
       // Status Styling
       let airStatusColor = "text-gray-500 bg-gray-100";
@@ -727,7 +774,7 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
 
       return `
           <tr class="hover:bg-indigo-50/50 transition-colors group cursor-pointer" data-action="view-details" data-id="${anime.system_id}">
-              <td class="px-4 py-2 text-xs text-gray-600 font-medium truncate max-w-[12rem] border-r border-gray-100" title="${franchiseName}">${franchiseName}</td>
+              <td class="px-4 py-2 text-xs text-gray-600 font-medium truncate max-w-[12rem] border-r border-gray-100" title="${f ? getDisplayName(f, 'franchise') : ''}">${franchiseName}</td>
               <td class="px-4 py-2 border-r border-gray-100">
                   <div class="text-xs font-bold text-gray-900 leading-tight mb-0.5 line-clamp-1" title="${mainTitle}">${mainTitle}</div>
                   ${subTitle && subTitle !== mainTitle ? `<div class="text-[9px] text-gray-400 line-clamp-1" title="${subTitle}">${subTitle}</div>` : ''}
