@@ -203,6 +203,111 @@ async def execute_fill_anime(db: Session, request: Request):
     yield f"data: {json.dumps({'status': 'success', 'message': 'Fill process complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
 
+async def execute_fill_single_anime(db: Session, anime_id: str) -> dict:
+    """
+    Fetches missing fields from Jikan API for a single anime entry.
+    Returns a standard dictionary response instead of streaming.
+    """
+    logger.info(f"Starting Single Fill Pipeline for anime ID: {anime_id}")
+
+    anime = db.query(Anime).filter(Anime.system_id == anime_id).first()
+    if not anime:
+        return {
+            "status": "error",
+            "message": "Anime entry not found",
+            "status_code": 404,
+        }
+
+    # 1. Single Entry Calculations
+    if anime.mal_id is None and anime.mal_link:
+        extracted_id = extract_mal_id(anime.mal_link)
+        if extracted_id:
+            anime.mal_id = extracted_id
+
+    if anime.season_part is None and anime.anime_name_en:
+        extracted_season = extract_season_from_title(anime.anime_name_en)
+        if extracted_season:
+            anime.season_part = extracted_season
+
+    is_explicitly_completed = anime.watching_status == "Completed"
+    is_naturally_completed = (
+        anime.ep_total is not None
+        and anime.ep_total > 0
+        and anime.ep_fin == anime.ep_total
+    )
+
+    if is_explicitly_completed or is_naturally_completed:
+        anime.watching_status = "Completed"
+        anime.airing_status = "Finished Airing"
+        if anime.ep_total:
+            anime.ep_fin = anime.ep_total
+
+    db.commit()
+
+    # 2. MAL Autofill Check
+    if not anime.mal_id:
+        return {
+            "status": "success",
+            "message": "Local calculations finished, but no MAL ID found for external autofill.",
+        }
+
+    stated_fields = [
+        "airing_type",
+        "airing_status",
+        "release_month",
+        "release_season",
+        "release_year",
+        "mal_rating",
+        "mal_rank",
+        "ep_total",
+        "official_link",
+        "twitter_link",
+    ]
+
+    raw_data = fetch_raw_anime_data(anime.mal_id)
+    if not raw_data:
+        return {
+            "status": "error",
+            "message": "Failed to fetch data from MyAnimeList API.",
+            "status_code": 502,
+        }
+
+    parsed_data = extract_mal_anime_data(raw_data)
+
+    for field in stated_fields:
+        current_val = getattr(anime, field)
+        if current_val is None or str(current_val).strip() == "":
+            new_val = parsed_data.get(field)
+            if new_val is not None:
+                setattr(anime, field, new_val)
+
+    # 3. Calculate Season from Month
+    current_season = getattr(anime, "release_season")
+    if anime.airing_type == "TV" and (
+        current_season is None or str(current_season).strip() == ""
+    ):
+        if anime.release_month:
+            calculated_season = calculate_season_from_month(anime.release_month)
+            if calculated_season:
+                anime.release_season = calculated_season
+
+    # 4. Cover Image Fetch
+    if not anime.cover_image_file and parsed_data.get("cover_image_url"):
+        filename = download_cover_image(
+            parsed_data["cover_image_url"], str(anime.system_id)
+        )
+        if filename:
+            anime.cover_image_file = filename
+
+    db.commit()
+    logger.info(f"Successfully autofilled single anime: {anime_id}")
+
+    return {
+        "status": "success",
+        "message": f"Successfully autofilled details for {anime.anime_name_en or anime.anime_name_cn or 'entry'}.",
+    }
+
+
 # ==========================================
 # PIPELINE 3: REPLACE ANIME
 # ==========================================

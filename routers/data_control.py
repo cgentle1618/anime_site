@@ -9,6 +9,7 @@ from services.data_control import (
     execute_pull_specific,
     execute_fill_anime,
     execute_replace_anime,
+    execute_fill_single_anime,
 )
 from dependencies import get_db, get_current_admin
 
@@ -33,6 +34,25 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
         )
     except Exception as e:
         logger.error(f"Error in fill anime: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fill/anime/{anime_id}")
+async def trigger_fill_single_anime(anime_id: str, db: Session = Depends(get_db)):
+    """
+    Triggers the Fill Pipeline for a single anime entry.
+    Returns standard JSON response.
+    """
+    try:
+        result = await execute_fill_single_anime(db, anime_id)
+        if result.get("status") == "error":
+            status_code = result.get("status_code", 400)
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in fill single anime: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
