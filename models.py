@@ -301,17 +301,34 @@ class User(Base):
     role = Column(String, default="guest")
 
 
-class SyncLog(Base):
-    """Stores the audit trail of synchronization events."""
+class DataControlLog(Base):
+    """Stores logs for data control pipelines (Backup, Fill, Replace, Pull)."""
 
-    __tablename__ = "sync_logs"
+    __tablename__ = "data_control_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=get_taipei_now)
-    sync_type = Column(String)
-    status = Column(String)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    action_main = Column(String, nullable=False)
+    action_specific = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    status = Column(String, nullable=False)
     rows_added = Column(Integer, default=0)
     rows_updated = Column(Integer, default=0)
     rows_deleted = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
     details_json = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=get_taipei_now)
+
+
+class DeletedRecord(Base):
+    """Stores tombstone data for deleted entries."""
+
+    __tablename__ = "deleted_record"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    type = Column(String, nullable=False)
+    franchise = Column(String, nullable=True)
+    series = Column(String, nullable=True)
+    anime_cn = Column(String, nullable=True)
+    anime_en = Column(String, nullable=True)
+    airing_type = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=get_taipei_now)
