@@ -8,7 +8,9 @@ import logging
 from typing import Any, List, Dict
 from datetime import datetime
 from uuid import UUID
-from models import Franchise, Series, Anime
+from models import Franchise, Series, Anime, DataControlLog
+from sqlalchemy.orm import Session
+
 
 logger = logging.getLogger(__name__)
 
@@ -323,3 +325,42 @@ def parse_system_option_from_sheet(raw: dict) -> dict:
         "category": parse_from_sheet(raw.get("category"), str),
         "option_value": parse_from_sheet(raw.get("option_value"), str),
     }
+
+
+# ==========================================
+# CENTRALIZED LOGGING HELPER
+# ==========================================
+
+
+def log_data_control(
+    db: Session,
+    action_main: str,
+    action_specific: str,
+    action_type: str,
+    status: str,
+    rows_added: int = 0,
+    rows_updated: int = 0,
+    rows_deleted: int = 0,
+    error_message: str = None,
+    details_json: str = None,
+):
+    """
+    Safely commits an audit trail entry for Data Control Pipelines.
+    """
+    try:
+        log_entry = DataControlLog(
+            action_main=action_main,
+            action_specific=action_specific,
+            type=action_type,
+            status=status,
+            rows_added=rows_added,
+            rows_updated=rows_updated,
+            rows_deleted=rows_deleted,
+            error_message=error_message,
+            details_json=details_json,
+        )
+        db.add(log_entry)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to save DataControlLog: {e}")
+        db.rollback()

@@ -30,7 +30,10 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
     """
     try:
         return StreamingResponse(
-            execute_fill_anime(db, request), media_type="text/event-stream"
+            execute_fill_anime(
+                db, request, action_specific="Fill Anime", action_type="Manual"
+            ),
+            media_type="text/event-stream",
         )
     except Exception as e:
         logger.error(f"Error in fill anime: {e}")
@@ -44,7 +47,7 @@ async def trigger_fill_single_anime(anime_id: str, db: Session = Depends(get_db)
     Returns standard JSON response.
     """
     try:
-        result = await execute_fill_single_anime(db, anime_id)
+        result = await execute_fill_single_anime(db, anime_id, action_type="Manual")
         if result.get("status") == "error":
             status_code = result.get("status_code", 400)
             raise HTTPException(status_code=status_code, detail=result.get("message"))
@@ -65,7 +68,10 @@ async def trigger_fill_all(request: Request, db: Session = Depends(get_db)):
     """
     try:
         return StreamingResponse(
-            execute_fill_anime(db, request), media_type="text/event-stream"
+            execute_fill_anime(
+                db, request, action_specific="Fill All", action_type="Manual"
+            ),
+            media_type="text/event-stream",
         )
     except Exception as e:
         logger.error(f"Error in fill all: {e}")
@@ -80,7 +86,10 @@ async def trigger_replace_anime(request: Request, db: Session = Depends(get_db))
     """
     try:
         return StreamingResponse(
-            execute_replace_anime(db, request), media_type="text/event-stream"
+            execute_replace_anime(
+                db, request, action_specific="Replace Anime", action_type="Manual"
+            ),
+            media_type="text/event-stream",
         )
     except Exception as e:
         logger.error(f"Error in replace anime: {e}")
@@ -96,7 +105,10 @@ async def trigger_replace_all(request: Request, db: Session = Depends(get_db)):
     """
     try:
         return StreamingResponse(
-            execute_replace_anime(db, request), media_type="text/event-stream"
+            execute_replace_anime(
+                db, request, action_specific="Replace All", action_type="Manual"
+            ),
+            media_type="text/event-stream",
         )
     except Exception as e:
         logger.error(f"Error in replace all: {e}")
@@ -112,7 +124,8 @@ def trigger_backup_all(
     Triggers full database backup to Google Sheets.
     Runs in the background since it might take a while and doesn't require progress tracking.
     """
-    background_tasks.add_task(execute_backup, db)
+    # Background task triggered manually by user from dashboard
+    background_tasks.add_task(execute_backup, db, "Manual")
     return JSONResponse(
         content={
             "status": "success",
@@ -125,7 +138,7 @@ def trigger_backup_all(
 def trigger_pull_all(db: Session = Depends(get_db)):
     """Triggers full pull from Google Sheets to overwrite the database."""
     try:
-        result = execute_pull_all(db)
+        result = execute_pull_all(db, action_type="Manual")
         return JSONResponse(content=result)
     except Exception as e:
         logger.error(f"Error in pull all: {e}")
@@ -136,7 +149,9 @@ def trigger_pull_all(db: Session = Depends(get_db)):
 def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
     """Triggers a pull from a specific Google Sheets tab."""
     try:
-        result = execute_pull_specific(db, tab_name)
+        result = execute_pull_specific(
+            db, tab_name, action_type="Manual", log_action=True
+        )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))
         return JSONResponse(content=result)
