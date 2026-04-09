@@ -274,7 +274,7 @@ endblock %} {% block content %}
     </div>
   </div>
 
-  <!-- 5. Anime Entry History Section -->
+  <!-- 5. Database Record History Section -->
   <div class="mt-12 space-y-6">
     <div
       class="flex items-center justify-between border-b-2 border-gray-200 pb-2"
@@ -290,7 +290,7 @@ endblock %} {% block content %}
       </button>
     </div>
 
-    <!-- Top Row: Franchise & Added -->
+    <!-- Row 1: Franchise History -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Modified Franchise Section -->
       <div
@@ -308,9 +308,9 @@ endblock %} {% block content %}
               class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
             >
               <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                <th class="px-5 py-2.5 w-1/2">Franchise Name CN</th>
-                <th class="px-5 py-2.5">System ID</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Modified Time</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Franchise Type</th>
+                <th class="px-5 py-2.5 w-full">Franchise Name CN</th>
               </tr>
             </thead>
             <tbody
@@ -321,14 +321,14 @@ endblock %} {% block content %}
         </div>
       </div>
 
-      <!-- Recently Added Section -->
+      <!-- Recently Added Franchise Section -->
       <div
         class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
       >
         <div class="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3">
           <h3 class="font-bold text-emerald-900 flex items-center">
             <i class="fas fa-plus-circle mr-2 text-emerald-500"></i> Recently
-            Added Section
+            Added Franchise Section
           </h3>
         </div>
         <div class="overflow-x-auto flex-1">
@@ -337,18 +337,21 @@ endblock %} {% block content %}
               class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
             >
               <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                <th class="px-5 py-2.5">Entry Type</th>
-                <th class="px-5 py-2.5 w-1/2">Entry Name CN</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Added Time</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Franchise Type</th>
+                <th class="px-5 py-2.5 w-full">Franchise Name CN</th>
               </tr>
             </thead>
-            <tbody id="table-added" class="divide-y divide-gray-50"></tbody>
+            <tbody
+              id="table-add-franchise"
+              class="divide-y divide-gray-50"
+            ></tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- Bottom Row: Anime & Deleted Records -->
+    <!-- Row 2: Anime / Mixed Entry History -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       <!-- Modified Anime Section -->
       <div
@@ -365,10 +368,11 @@ endblock %} {% block content %}
               class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
             >
               <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                <th class="px-5 py-2.5 w-1/2">Anime Name CN</th>
-                <th class="px-5 py-2.5">Status</th>
-                <th class="px-5 py-2.5">System ID</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Modified Time</th>
+                <th class="px-5 py-2.5 w-full">Anime Name CN</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Airing Type</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Airing Status</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Watching Status</th>
               </tr>
             </thead>
             <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
@@ -376,14 +380,14 @@ endblock %} {% block content %}
         </div>
       </div>
 
-      <!-- Recently Deleted Records -->
+      <!-- Recently Added Entry Section -->
       <div
         class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
       >
-        <div class="bg-red-50/50 border-b border-red-100 px-5 py-3">
-          <h3 class="font-bold text-red-900 flex items-center">
-            <i class="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
-            Records
+        <div class="bg-indigo-50/50 border-b border-indigo-100 px-5 py-3">
+          <h3 class="font-bold text-indigo-900 flex items-center">
+            <i class="fas fa-star mr-2 text-indigo-500"></i> Recently Added
+            Entry Section
           </h3>
         </div>
         <div class="overflow-x-auto flex-1">
@@ -392,15 +396,43 @@ endblock %} {% block content %}
               class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
             >
               <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-                <th class="px-5 py-2.5">Type</th>
-                <th class="px-5 py-2.5 w-1/2">Deleted Entry Name</th>
-                <th class="px-5 py-2.5">Context</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Added Time</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Entry Type</th>
+                <th class="px-5 py-2.5 w-full">Entry Name CN</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Airing Type</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Season Part</th>
               </tr>
             </thead>
-            <tbody id="table-deleted" class="divide-y divide-gray-50"></tbody>
+            <tbody id="table-add-entry" class="divide-y divide-gray-50"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- Row 3: System Wide History -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
+    >
+      <div class="bg-red-50/50 border-b border-red-100 px-5 py-3">
+        <h3 class="font-bold text-red-900 flex items-center">
+          <i class="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
+          Records
+        </h3>
+      </div>
+      <div class="overflow-x-auto max-h-[300px]">
+        <table class="w-full text-sm text-left">
+          <thead
+            class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+          >
+            <tr>
+              <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+              <th class="px-5 py-2.5">Type</th>
+              <th class="px-5 py-2.5 w-1/2">Deleted Entry Name</th>
+              <th class="px-5 py-2.5 w-1/2">Context</th>
+            </tr>
+          </thead>
+          <tbody id="table-deleted" class="divide-y divide-gray-50"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -827,45 +859,64 @@ endblock %} {% block content %}
             (f) => `
                 <tr class="hover:bg-purple-50/30 transition cursor-pointer" onclick="window.location.href='/franchise/${f.system_id}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(f.updated_at)}</td>
-                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]">${getTitleCNFallback(f, "franchise")}</td>
-                    <td class="px-5 py-2.5 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">${f.system_id}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${f.franchise_type || "-"}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(f, "franchise")}">${getTitleCNFallback(f, "franchise")}</td>
                 </tr>
             `,
           )
           .join("") ||
         `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No modified franchises</td></tr>`;
 
-      // 2. Modified Anime (Adjusted for half-width grid)
+      // 2. Recently Added Franchise
+      const addF = [...franchises]
+        .filter((f) => f.created_at)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 15);
+      document.getElementById("table-add-franchise").innerHTML =
+        addF
+          .map(
+            (f) => `
+                <tr class="hover:bg-emerald-50/30 transition cursor-pointer" onclick="window.location.href='/franchise/${f.system_id}'">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(f.created_at)}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${f.franchise_type || "-"}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(f, "franchise")}">${getTitleCNFallback(f, "franchise")}</td>
+                </tr>
+            `,
+          )
+          .join("") ||
+        `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No recently added franchises</td></tr>`;
+
+      // 3. Modified Anime
       const modA = [...anime]
         .filter((a) => a.updated_at)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
         .slice(0, 15);
       document.getElementById("table-mod-anime").innerHTML =
         modA
-          .map(
-            (a) => `
+          .map((a) => {
+            let statusColor = "text-gray-500 bg-gray-100";
+            if (a.airing_status === "Airing")
+              statusColor = "text-green-700 bg-green-100";
+            else if (a.airing_status === "Finished Airing")
+              statusColor = "text-blue-700 bg-blue-100";
+            else if (a.airing_status === "Not Yet Aired")
+              statusColor = "text-orange-700 bg-orange-100";
+
+            return `
                 <tr class="hover:bg-blue-50/30 transition cursor-pointer" onclick="window.location.href='/anime/${a.system_id}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(a.updated_at)}</td>
                     <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${getTitleCNFallback(a, "anime")}">${getTitleCNFallback(a, "anime")}</td>
-                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">
-                        <span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold mr-1">${a.airing_type || "-"}</span>
-                        ${a.watching_status || "-"}
-                    </td>
-                    <td class="px-5 py-2.5 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">${a.system_id}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${a.airing_type || "-"}</span></td>
+                    <td class="px-5 py-2.5 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-[9px] leading-4 font-bold rounded-full ${statusColor}">${a.airing_status || "-"}</span></td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap text-xs font-medium">${a.watching_status || "-"}</td>
                 </tr>
-            `,
-          )
+            `;
+          })
           .join("") ||
-        `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
+        `<tr><td colspan="5" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
 
-      // 3. Recently Added (Mixed Types)
-      const allItems = [
-        ...franchises.map((f) => ({
-          ...f,
-          __type: "Franchise",
-          __name: getTitleCNFallback(f, "franchise"),
-          __link: `/franchise/${f.system_id}`,
-        })),
+      // 4. Recently Added Entry (Anime + Series)
+      const mixedEntries = [
         ...series.map((s) => ({
           ...s,
           __type: "Series",
@@ -879,32 +930,35 @@ endblock %} {% block content %}
           __link: `/anime/${a.system_id}`,
         })),
       ];
-      const added = allItems
+      const addE = mixedEntries
         .filter((i) => i.created_at)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 15);
 
-      document.getElementById("table-added").innerHTML =
-        added
+      document.getElementById("table-add-entry").innerHTML =
+        addE
           .map((i) => {
-            let badgeClass = "bg-gray-100 text-gray-600 border-gray-200";
-            if (i.__type === "Anime")
-              badgeClass = "bg-blue-50 text-blue-600 border-blue-200";
-            if (i.__type === "Franchise")
-              badgeClass = "bg-purple-50 text-purple-600 border-purple-200";
-            if (i.__type === "Series")
-              badgeClass = "bg-indigo-50 text-indigo-600 border-indigo-200";
+            let badgeClass =
+              i.__type === "Anime"
+                ? "bg-blue-50 text-blue-600 border-blue-200"
+                : "bg-indigo-50 text-indigo-600 border-indigo-200";
+            let airingHtml =
+              i.__type === "Anime"
+                ? `<span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${i.airing_type || "-"}</span>`
+                : `<span class="text-gray-400">-</span>`;
 
             return `
-                <tr class="hover:bg-emerald-50/30 transition cursor-pointer" onclick="window.location.href='${i.__link}'">
+                <tr class="hover:bg-indigo-50/30 transition cursor-pointer" onclick="window.location.href='${i.__link}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(i.created_at)}</td>
                     <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${badgeClass}">${i.__type}</span></td>
-                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${i.__name}">${i.__name}</td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${i.__name}">${i.__name}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">${airingHtml}</td>
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap text-xs">${i.season_part || "-"}</td>
                 </tr>
             `;
           })
           .join("") ||
-        `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No recently added entries</td></tr>`;
+        `<tr><td colspan="5" class="text-center py-6 text-gray-400 italic">No recently added entries</td></tr>`;
     } catch (error) {
       console.error("Failed to load history tables", error);
       if (typeof showNotification === "function")
