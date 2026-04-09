@@ -116,22 +116,17 @@ async def trigger_replace_all(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/backup")
-def trigger_backup_all(
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
+def trigger_backup_all(db: Session = Depends(get_db)):
     """
     Triggers full database backup to Google Sheets.
-    Runs in the background since it might take a while and doesn't require progress tracking.
+    Runs synchronously to ensure the frontend receives accurate success/failure feedback.
     """
-    # Background task triggered manually by user from dashboard
-    background_tasks.add_task(execute_backup, db, "Manual")
-    return JSONResponse(
-        content={
-            "status": "success",
-            "message": "Full backup started in the background.",
-        }
-    )
+    try:
+        result = execute_backup(db, action_type="Manual")
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Error in backup all: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/pull")
