@@ -805,10 +805,10 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
 
       // 9. Production Grid
       const prodData = [
+          { label: "台灣代理", val: a.distributor_tw },
           { label: "Studio", val: a.studio },
           { label: "Director", val: a.director },
           { label: "Producer", val: a.producer },
-          { label: "Distributor (TW)", val: a.distributor_tw },
           { label: "Music Composer", val: a.music }
       ];
       pageDOM.productionGrid.innerHTML = prodData.map(d => `
