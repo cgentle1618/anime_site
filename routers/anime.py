@@ -150,8 +150,6 @@ def update_anime_entry(
     # Apply Logic
     apply_single_fill_logic(db_anime, force_replace_ratings=False)
     autofill_ep_previous(db, db_anime)
-    if check_is_completed(db_anime):
-        mark_completed(db_anime)
 
     db.commit()
     db.refresh(db_anime)
