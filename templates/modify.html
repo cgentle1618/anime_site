@@ -1245,6 +1245,20 @@ content %}
     a.anime_name_jp ||
     "Unknown";
 
+  // Get All Names for Search Matching
+  const getAllNames = (item, type) => {
+    if (!item || !type) return "";
+    const names = [
+      item[`${type}_name_en`],
+      item[`${type}_name_cn`],
+      item[`${type}_name_alt`],
+    ];
+    if (type !== "series") {
+      names.push(item[`${type}_name_romanji`], item[`${type}_name_jp`]);
+    }
+    return names.filter(Boolean).join(" ");
+  };
+
   // --- INITIALIZATION ---
   document.addEventListener("DOMContentLoaded", () => {
     fetchDatabase();
@@ -1425,12 +1439,12 @@ content %}
     let html = "";
     if (state.activeTab === "anime") {
       const filtered = state.db.anime.filter((a) => {
-        const f = state.dict.franchise[a.franchise_id] || {};
-        const s = state.dict.series[a.series_id] || {};
+        const f = state.dict.franchise[a.franchise_id] || null;
+        const s = state.dict.series[a.series_id] || null;
         const fields = [
-          getSortTitleA(a),
-          getSortTitleF(f),
-          getSortTitleS(s),
+          getAllNames(a, "anime"),
+          f ? getAllNames(f, "franchise") : "",
+          s ? getAllNames(s, "series") : "",
         ].join(" ");
         return getClean(fields).includes(query);
       });
@@ -1475,20 +1489,23 @@ content %}
         });
     } else if (state.activeTab === "franchise") {
       state.db.franchise
-        .filter((f) => getClean(getSortTitleF(f)).includes(query))
+        .filter((f) => getClean(getAllNames(f, "franchise")).includes(query))
         .sort((a, b) => getSortTitleF(a).localeCompare(getSortTitleF(b)))
         .forEach((f) => {
           html += `<div onclick="openEditor('${f.system_id}')" class="px-4 py-3 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition text-sm font-bold text-gray-800">${getDisplayTitleF(f)}</div>`;
         });
     } else if (state.activeTab === "series") {
       const filtered = state.db.series.filter((s) => {
-        const f = state.dict.franchise[s.franchise_id] || {};
-        const fields = [getSortTitleS(s), getSortTitleF(f)].join(" ");
+        const f = state.dict.franchise[s.franchise_id] || null;
+        const fields = [
+          getAllNames(s, "series"),
+          f ? getAllNames(f, "franchise") : "",
+        ].join(" ");
         // We also search across anime entries to find matching series
         const matchingAnime = state.db.anime.some(
           (a) =>
             a.series_id === s.system_id &&
-            getClean(getSortTitleA(a)).includes(query),
+            getClean(getAllNames(a, "anime")).includes(query),
         );
         return matchingAnime || getClean(fields).includes(query);
       });
