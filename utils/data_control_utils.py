@@ -60,20 +60,9 @@ def format_series_for_sheet(series: Series) -> list:
     Formats a Series database object into a list of strings representing a row in the Series sheet.
     Includes relational data like the franchise name.
     """
-    # Fetch franchise name for readability in sheets
-    franchise_name = ""
-    if series.franchise:
-        franchise_name = (
-            series.franchise.franchise_name_en
-            or series.franchise.franchise_name_cn
-            or ""
-        )
-
     return [
         format_for_sheet(series.system_id),
-        format_for_sheet(
-            series.franchise_id if not franchise_name else franchise_name
-        ),  # Save name for easier reading in sheet
+        format_for_sheet(series.franchise_id),
         format_for_sheet(series.series_name_en),
         format_for_sheet(series.series_name_cn),
         format_for_sheet(series.series_name_alt),
@@ -85,21 +74,10 @@ def format_anime_for_sheet(anime: Anime) -> list:
     Formats an Anime database object into a list of strings representing a row in the Anime sheet.
     Includes relational data like franchise and series names.
     """
-    # Relational fetching for readability
-    franchise_name = ""
-    if anime.franchise:
-        franchise_name = (
-            anime.franchise.franchise_name_en or anime.franchise.franchise_name_cn or ""
-        )
-
-    series_name = ""
-    if anime.series:
-        series_name = anime.series.series_name_en or anime.series.series_name_cn or ""
-
     return [
         format_for_sheet(anime.system_id),
-        format_for_sheet(anime.franchise_id if not franchise_name else franchise_name),
-        format_for_sheet(anime.series_id if not series_name else series_name),
+        format_for_sheet(anime.franchise_id),
+        format_for_sheet(anime.series_id),
         format_for_sheet(anime.anime_name_en),
         format_for_sheet(anime.anime_name_cn),
         format_for_sheet(anime.anime_name_romanji),
