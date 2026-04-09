@@ -371,9 +371,9 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
       let streamingIcons = `<div class="flex items-center gap-2 ml-1">`;
       if (isBaha && anime.baha_link) {
-          streamingIcons += `<a href="${anime.baha_link}" target="_blank" class="text-[#00B4D8] hover:opacity-80 transition text-sm" title="Watch on Bahamut"><i class="fas fa-play-circle"></i></a>`;
+          streamingIcons += `<a href="${anime.baha_link}" target="_blank" onclick="event.stopPropagation()" class="inline-block hover:scale-110 transition-transform" title="Watch on Bahamut"><img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-3.5 opacity-90" alt="Baha"></a>`;
       } else if (isBaha) {
-          streamingIcons += `<span class="text-[#00B4D8] text-sm" title="Available on Bahamut"><i class="fas fa-play-circle"></i></span>`;
+          streamingIcons += `<span class="inline-block" title="Available on Bahamut"><img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-3.5 opacity-50 grayscale" alt="Baha"></span>`;
       }
 
       if (isNetflix) {
@@ -381,7 +381,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       }
 
       if (anime.source_other && anime.source_other_link) {
-          streamingIcons += `<a href="${anime.source_other_link}" target="_blank" class="text-purple-600 hover:text-purple-800 transition text-[10px] font-bold uppercase tracking-wide bg-purple-50 px-1.5 py-0.5 rounded" title="Watch on ${anime.source_other}">${anime.source_other}</a>`;
+          streamingIcons += `<a href="${anime.source_other_link}" target="_blank" onclick="event.stopPropagation()" class="text-purple-600 hover:text-purple-800 transition text-[10px] font-bold uppercase tracking-wide bg-purple-50 px-1.5 py-0.5 rounded" title="Watch on ${anime.source_other}">${anime.source_other}</a>`;
       } else if (anime.source_other) {
           streamingIcons += `<span class="text-gray-500 text-[10px] font-bold uppercase tracking-wide bg-gray-100 px-1.5 py-0.5 rounded" title="Available on ${anime.source_other}">${anime.source_other}</span>`;
       }
