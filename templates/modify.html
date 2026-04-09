@@ -1310,7 +1310,33 @@ content %}
       initCustomInputs();
       renderDiscoveryGrid();
 
-      if (state.currentEdit.id) openEditor(state.currentEdit.id);
+      // --- URL Routing Logic for "Quick Edit" ---
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetId = urlParams.get("id");
+
+      if (targetId) {
+        let targetTab = null;
+        if (state.db.anime.some((a) => a.system_id === targetId))
+          targetTab = "anime";
+        else if (state.db.franchise.some((f) => f.system_id === targetId))
+          targetTab = "franchise";
+        else if (state.db.series.some((s) => s.system_id === targetId))
+          targetTab = "series";
+        else if (state.db.options.some((o) => String(o.id) === targetId))
+          targetTab = "options";
+
+        if (targetTab) {
+          // 1. Visually setup the background environment
+          switchTab(targetTab);
+          // 2. Execute the editor override to immediately display the form
+          openEditor(targetId);
+
+          // 3. Clean the URL to prevent re-triggering on manual refresh
+          const url = new URL(window.location);
+          url.searchParams.delete("id");
+          window.history.replaceState({}, document.title, url.toString());
+        }
+      }
     } catch (e) {
       console.error(e);
       if (typeof showNotification === "function")
