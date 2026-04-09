@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 import database
+from database import engine
 import models
 from routers import (
     pages,
@@ -30,6 +31,8 @@ from services.security import get_password_hash
 
 # Ensure our local static directories exist for Image Downloading
 os.makedirs("static/covers", exist_ok=True)
+
+models.Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
