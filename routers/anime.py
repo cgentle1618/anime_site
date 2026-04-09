@@ -25,6 +25,7 @@ from services.other_logics import (
 )
 from database import get_taipei_now
 from dependencies import get_db, get_current_admin
+from utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
 
@@ -240,17 +241,10 @@ def delete_anime_entry(
     # Clean up static files
     delete_cover_image(system_id)
 
-    # V2 Audit Trail Logging
-    display_name = db_anime.anime_name_en or db_anime.system_id
-    deleted_record = models.DeletedRecord(
-        system_id=str(db_anime.system_id),
-        table_name="anime",  # Updated to V2 table name
-        data_json=json.dumps({"anime_name_en": display_name}),
-        deleted_at=get_taipei_now(),
-    )
-    db.add(deleted_record)
+    # V2 Audit Trail Logging for Deleted Record
+    log_deleted_record(db, db_anime, "Anime")
 
     db.delete(db_anime)
     db.commit()
 
-    return {"message": f"Anime '{display_name}' deleted successfully."}
+    return {"status": "success", "message": "Anime entry deleted successfully."}

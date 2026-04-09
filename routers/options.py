@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from dependencies import get_db, get_current_admin
+from utils.data_control_utils import log_deleted_record
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
@@ -139,26 +140,19 @@ def update_system_option(
     return {"message": "System option updated successfully."}
 
 
-@router.delete("/{option_id}", summary="Delete System Option")
-def delete_system_option(
-    option_id: int,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    """
-    Deletes a dropdown option from the database.
-    Does NOT trigger a background Google Sheets backup in V2.
-    """
-    db_option = (
+@router.delete("/{option_id}", dependencies=[Depends(get_current_admin)])
+def delete_option(option_id: int, db: Session = Depends(get_db)):
+    """Deletes an option and logs it to the deleted_record table."""
+    db_opt = (
         db.query(models.SystemOption)
         .filter(models.SystemOption.id == option_id)
         .first()
     )
+    if not db_opt:
+        raise HTTPException(status_code=404, detail="Option not found")
 
-    if not db_option:
-        raise HTTPException(status_code=404, detail="System option not found.")
+    log_deleted_record(db, db_opt, "System Options")
 
-    db.delete(db_option)
+    db.delete(db_opt)
     db.commit()
-
-    return {"message": "System option deleted successfully."}
+    return {"status": "success", "message": "System option deleted successfully"}

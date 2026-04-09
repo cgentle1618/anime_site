@@ -17,6 +17,7 @@ import models
 import schemas
 from database import get_taipei_now
 from dependencies import get_db, get_current_admin
+from utils.data_control_utils import log_deleted_record
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
@@ -206,20 +207,12 @@ def delete_series(
         db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
     if not db_series:
-        raise HTTPException(status_code=404, detail="Series not found.")
+        raise HTTPException(status_code=404, detail="Series not found")
 
-    # Log the deletion for audit trails
-    display_name = db_series.series_name_en or db_series.system_id
-    deleted_record = models.DeletedRecord(
-        system_id=str(db_series.system_id),
-        table_name="series",
-        data_json=json.dumps({"series_name_en": display_name}),
-        deleted_at=get_taipei_now(),
-    )
-    db.add(deleted_record)
+    # Stage the deleted record log before actually deleting
+    log_deleted_record(db, db_series, "Series")
 
-    # Delete the record
     db.delete(db_series)
     db.commit()
 
-    return {"message": f"Series '{display_name}' deleted successfully."}
+    return {"status": "success", "message": "Series deleted successfully."}

@@ -16,6 +16,7 @@ import models
 import schemas
 from database import get_taipei_now
 from dependencies import get_db, get_current_admin
+from utils.data_control_utils import log_deleted_record
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
@@ -192,20 +193,12 @@ def delete_franchise(
         .first()
     )
     if not db_franchise:
-        raise HTTPException(status_code=404, detail="Franchise not found.")
+        raise HTTPException(status_code=404, detail="Franchise not found")
 
-    # Log the deletion for audit trails
-    display_name = db_franchise.franchise_name_en or str(db_franchise.system_id)
-    deleted_record = models.DeletedRecord(
-        system_id=str(db_franchise.system_id),
-        table_name="franchise",
-        data_json=json.dumps({"franchise_name_en": display_name}),
-        deleted_at=get_taipei_now(),
-    )
-    db.add(deleted_record)
+    # Stage the deleted record log before actually deleting
+    log_deleted_record(db, db_franchise, "Franchise")
 
-    # Delete the record
     db.delete(db_franchise)
     db.commit()
 
-    return {"message": f"Franchise '{display_name}' deleted successfully."}
+    return {"status": "success", "message": "Franchise deleted successfully."}
