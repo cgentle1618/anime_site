@@ -254,18 +254,15 @@ def autofill_ep_previous(db: Session, anime: Anime) -> None:
     def sort_key(a: Anime) -> tuple:
         """
         Sort primarily by the season/part number extracted from season_part.
-        Fallback to release date if season_part parsing is identical.
+        Fallback to constructed release date if season_part parsing is identical.
         """
         season_val = extract_season_number(a.season_part)
 
-        # Secondary sort: release date string
-        if a.release_date_jp:
-            date_val = str(a.release_date_jp)
-        else:
-            year = str(a.release_year) if a.release_year else "9999"
-            month_str = str(a.release_month).upper() if a.release_month else ""
-            month = MONTH_MAP.get(month_str, "12")
-            date_val = f"{year}-{month}-99"
+        # Secondary sort: release date string constructed from year and month
+        year = str(a.release_year) if a.release_year else "9999"
+        month_str = str(a.release_month).upper() if a.release_month else ""
+        month = MONTH_MAP.get(month_str, "12")
+        date_val = f"{year}-{month}-99"
 
         return (season_val, date_val)
 
