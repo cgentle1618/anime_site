@@ -280,7 +280,7 @@ endblock %} {% block content %}
       class="flex items-center justify-between border-b-2 border-gray-200 pb-2"
     >
       <h2 class="text-2xl font-black text-gray-900 tracking-tight">
-        Anime Entry History
+        Database Record History
       </h2>
       <button
         data-action="refresh-history"
@@ -290,6 +290,7 @@ endblock %} {% block content %}
       </button>
     </div>
 
+    <!-- Top Row: Franchise & Added -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Modified Franchise Section -->
       <div
@@ -347,31 +348,59 @@ endblock %} {% block content %}
       </div>
     </div>
 
-    <!-- Modified Anime Section (Full Width) -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
-    >
-      <div class="bg-blue-50/50 border-b border-blue-100 px-5 py-3">
-        <h3 class="font-bold text-blue-900 flex items-center">
-          <i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime Section
-        </h3>
+    <!-- Bottom Row: Anime & Deleted Records -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <!-- Modified Anime Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-blue-50/50 border-b border-blue-100 px-5 py-3">
+          <h3 class="font-bold text-blue-900 flex items-center">
+            <i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime Section
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+                <th class="px-5 py-2.5 w-1/2">Anime Name CN</th>
+                <th class="px-5 py-2.5">Status</th>
+                <th class="px-5 py-2.5">System ID</th>
+              </tr>
+            </thead>
+            <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="overflow-x-auto flex-1">
-        <table class="w-full text-sm text-left">
-          <thead
-            class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
-          >
-            <tr>
-              <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
-              <th class="px-5 py-2.5 w-1/3">Anime Name CN</th>
-              <th class="px-5 py-2.5">Airing Type</th>
-              <th class="px-5 py-2.5 whitespace-nowrap">Airing Status</th>
-              <th class="px-5 py-2.5 whitespace-nowrap">Watching Status</th>
-              <th class="px-5 py-2.5">System ID</th>
-            </tr>
-          </thead>
-          <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
-        </table>
+
+      <!-- Recently Deleted Records -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-red-50/50 border-b border-red-100 px-5 py-3">
+          <h3 class="font-bold text-red-900 flex items-center">
+            <i class="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
+            Records
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+                <th class="px-5 py-2.5">Type</th>
+                <th class="px-5 py-2.5 w-1/2">Deleted Entry Name</th>
+                <th class="px-5 py-2.5">Context</th>
+              </tr>
+            </thead>
+            <tbody id="table-deleted" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -424,7 +453,10 @@ endblock %} {% block content %}
       const actionEl = e.target.closest("[data-action]");
       if (!actionEl) return;
       if (actionEl.dataset.action === "refresh-logs") loadLogsTable();
-      if (actionEl.dataset.action === "refresh-history") loadHistoryTables();
+      if (actionEl.dataset.action === "refresh-history") {
+        loadHistoryTables();
+        loadDeletedTable();
+      }
     });
   });
 
@@ -662,6 +694,7 @@ endblock %} {% block content %}
 
     loadLogsTable();
     loadHistoryTables();
+    loadDeletedTable();
   }
 
   async function loadLogsTable() {
@@ -722,6 +755,55 @@ endblock %} {% block content %}
     }
   }
 
+  function getDeletedDisplayData(d) {
+    let name = "Unknown";
+    let context = "-";
+
+    if (d.type === "System Options") {
+      name = d.anime_en || "Unknown Value";
+      context = d.anime_cn || "Unknown Category";
+    } else if (d.type === "Franchise") {
+      name = d.franchise || "Unknown Franchise";
+      context = "Top Level Hub";
+    } else if (d.type === "Series") {
+      name = d.series || "Unknown Series";
+      context = d.franchise || "No Franchise";
+    } else {
+      name = d.anime_cn || d.anime_en || "Unknown Anime";
+      context = d.series || d.franchise || "Independent";
+    }
+
+    return { name, context };
+  }
+
+  async function loadDeletedTable() {
+    try {
+      const res = await fetch("/api/system/deleted");
+      if (!res.ok) throw new Error("Failed to fetch deleted records");
+      const deleted = await res.json();
+
+      document.getElementById("table-deleted").innerHTML =
+        deleted
+          .map((d) => {
+            const { name, context } = getDeletedDisplayData(d);
+            return `
+                <tr class="hover:bg-red-50/30 transition">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(d.timestamp)}</td>
+                    <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">${d.type}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${name}">${name}</td>
+                    <td class="px-5 py-2.5 text-gray-500 text-xs truncate max-w-[150px]" title="${context}">${context}</td>
+                </tr>
+                `;
+          })
+          .join("") ||
+        `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">No recently deleted entries</td></tr>`;
+    } catch (e) {
+      console.error("Failed to load deleted records", e);
+      document.getElementById("table-deleted").innerHTML =
+        `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">Failed to load deleted records.</td></tr>`;
+    }
+  }
+
   async function loadHistoryTables() {
     try {
       const [animeRes, franchiseRes, seriesRes] = await Promise.all([
@@ -753,7 +835,7 @@ endblock %} {% block content %}
           .join("") ||
         `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No modified franchises</td></tr>`;
 
-      // 2. Modified Anime
+      // 2. Modified Anime (Adjusted for half-width grid)
       const modA = [...anime]
         .filter((a) => a.updated_at)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
@@ -764,16 +846,17 @@ endblock %} {% block content %}
             (a) => `
                 <tr class="hover:bg-blue-50/30 transition cursor-pointer" onclick="window.location.href='/anime/${a.system_id}'">
                     <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(a.updated_at)}</td>
-                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(a, "anime")}">${getTitleCNFallback(a, "anime")}</td>
-                    <td class="px-5 py-2.5 text-gray-600"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${a.airing_type || "-"}</span></td>
-                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">${a.airing_status || "-"}</td>
-                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">${a.watching_status || "-"}</td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${getTitleCNFallback(a, "anime")}">${getTitleCNFallback(a, "anime")}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">
+                        <span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold mr-1">${a.airing_type || "-"}</span>
+                        ${a.watching_status || "-"}
+                    </td>
                     <td class="px-5 py-2.5 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">${a.system_id}</td>
                 </tr>
             `,
           )
           .join("") ||
-        `<tr><td colspan="6" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
+        `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
 
       // 3. Recently Added (Mixed Types)
       const allItems = [
