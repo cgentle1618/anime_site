@@ -1,50 +1,49 @@
 """
 main.py
-The core orchestration file for the CG1618 Anime Database & Tracker.
-Handles app initialization, modular router registration, static file serving, and admin seeding.
+The core orchestration file for the CG1618 Database & Tracker.
+Handles app initialization, modular router registration, static file serving,
+and database seeding using modern FastAPI lifespan events.
 """
 
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-import uvicorn
 
 import database
+from database import engine
 import models
-from routers import pages, anime, series, options, system, auth
+from routers import (
+    pages,
+    auth,
+    franchise,
+    series,
+    anime,
+    options,
+    data_control,
+    system,
+)
 from services.security import get_password_hash
 
 # ==========================================
-# SYSTEM INITIALIZATION
+# SYSTEM INITIALIZATION & LIFESPAN
 # ==========================================
 
-# Ensure our local static directories exist for V2 Image Downloading
+# Ensure our local static directories exist for Image Downloading
 os.makedirs("static/covers", exist_ok=True)
 
-app = FastAPI(
-    title="CG1618 Anime Database & Tracker",
-    description="A professional-grade backend for anime tracking with RBAC and Local Image Serving.",
-    version="2.0.0",
-)
-
-# Mount the static directory so FastAPI can serve local images
-app.mount("/static", StaticFiles(directory="static"), name="static")
+models.Base.metadata.create_all(bind=engine)
 
 
-# ==========================================
-# STARTUP EVENTS
-# ==========================================
-
-
-@app.on_event("startup")
-async def seed_admin_user():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
-    Industry Standard: Automatic Data Seeding.
-    On startup, check if any user exists. If not, create the master admin.
+    Industry Standard: Lifespan Context Manager.
+    Executes exactly once before the server starts taking requests.
+    Checks if the 'admin' user exists in PostgreSQL; if not, seeds the master account.
     """
     db = database.SessionLocal()
     try:
-        # Check if the 'admin' user already exists
         admin_user = (
             db.query(models.User).filter(models.User.username == "admin").first()
         )
@@ -68,24 +67,41 @@ async def seed_admin_user():
     finally:
         db.close()
 
+    # Yield control back to FastAPI so the app can run
+    yield
+
+    # Anything after the yield runs during server shutdown
+    print("🛑 [System] Server shutting down safely.")
+
+
+# Initialize the FastAPI Application
+app = FastAPI(
+    title="CG1618 Database & Tracker",
+    description="A professional-grade backend for tracking franchises, series, and entries with RBAC.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# Mount the static directory so FastAPI can serve local images to the UI
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # ==========================================
-# ROUTER INCLUSION
+# ROUTER REGISTRATION
 # ==========================================
 
-# Frontend Pages
+# Frontend UI Pages
 app.include_router(pages.router)
 
-# Authentication
-app.include_router(auth.router, prefix="/api/v1")
+# Authentication (Login/JWT generation)
+app.include_router(auth.router)
 
-# V2 Resource-Based Routers
-app.include_router(anime.router)
+# Core V2 Resources (CRUD)
+app.include_router(franchise.router)
 app.include_router(series.router)
+app.include_router(anime.router)
 app.include_router(options.router)
+
+# System & Administrative Pipelines
+app.include_router(data_control.router)
 app.include_router(system.router)
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)

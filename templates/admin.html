@@ -1,430 +1,712 @@
 {% extends "base.html" %} {% block title %}System Admin - CG1618 Tracker{%
-endblock %} {% block extra_style %} .card-hover { transition: transform 0.2s
-ease, box-shadow 0.2s ease; } .card-hover:hover { transform: translateY(-4px);
-box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); } .modal-backdrop { background:
-rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); } {% endblock %} {% block
-content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+endblock %} {% block content %}
+<div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+  <!-- 1. Header & Entry Modification Nav -->
   <div
-    class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4"
+    class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6"
   >
     <div>
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">
+      <h1 class="text-3xl font-black text-gray-900 tracking-tight mb-2">
         System Administration
       </h1>
-      <p class="text-gray-500">
-        Master command center for database health, audit trails, and data
-        parity.
+      <p class="text-gray-500 font-medium">
+        Master control center for data actions, configurations, and history
+        logs.
       </p>
     </div>
-    <div class="flex flex-wrap gap-2">
+    <div class="flex flex-wrap gap-3">
       <a
         href="/add"
-        class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+        class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center"
       >
         <i class="fas fa-plus mr-2 text-emerald-500"></i> New Entry
       </a>
       <a
         href="/modify"
-        class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+        class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center"
       >
         <i class="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
       </a>
       <a
         href="/delete"
-        class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center"
+        class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center"
       >
         <i class="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
       </a>
     </div>
   </div>
 
-  <!-- Middle Row: Synchronization Operations -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-    <!-- Action: Sync from Sheets -->
+  <!-- Top Grid: Season Config & Data Control -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <!-- 3. Set Current Season Block -->
     <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full card-hover"
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col"
     >
-      <h3
-        class="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2 flex items-center"
+      <h2
+        class="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2"
       >
-        <i class="fas fa-cloud-download-alt text-emerald-500 w-6"></i> Sync from
-        Sheets
-      </h3>
-      <p class="text-xs text-gray-500 mb-6 flex-1">
-        Pulls new manual entries from Google Sheets into the DB, applies
-        auto-fill and data cleaning calculations, and pushes a full backup.
-      </p>
-      <button
-        id="btn-pull"
-        data-action="sync-pull"
-        class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
-      >
-        <i id="icon-pull" class="fas fa-play mr-2"></i>
-        <span id="text-pull">Execute Sync</span>
-      </button>
-    </div>
-
-    <!-- Action: Fill -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full card-hover"
-    >
-      <h3
-        class="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2 flex items-center"
-      >
-        <i class="fas fa-magic text-blue-500 w-6"></i> Fill Missing Data
-      </h3>
-      <p class="text-xs text-gray-500 mb-6 flex-1">
-        Applies calculations, calls Jikan API to strictly fill missing cover
-        images, ratings, and ranks, then pushes a full backup.
-      </p>
-      <button
-        id="btn-fill"
-        data-action="sync-fill"
-        class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
-      >
-        <i id="icon-fill" class="fas fa-play mr-2"></i>
-        <span id="text-fill">Execute Fill</span>
-      </button>
-    </div>
-
-    <!-- Action: Replace -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full card-hover"
-    >
-      <h3
-        class="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2 flex items-center"
-      >
-        <i class="fas fa-bolt text-amber-500 w-6"></i> Replace All Data
-      </h3>
-      <p class="text-xs text-gray-500 mb-6 flex-1">
-        Applies calculations, forcefully updates all ratings and ranks via Jikan
-        API, fills missing covers, then pushes a full backup.
-      </p>
-      <button
-        id="btn-replace"
-        data-action="sync-replace"
-        class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition px-4 py-3 rounded-xl flex items-center justify-center font-bold"
-      >
-        <i id="icon-replace" class="fas fa-play mr-2"></i>
-        <span id="text-replace">Execute Replace</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Audit Trails Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <!-- Top Left: Recent Sync Logs -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
-    >
-      <div
-        class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
-      >
-        <h3 class="font-bold text-gray-900 flex items-center">
-          <i class="fas fa-history text-brand mr-2"></i> Recent Sync Logs
-        </h3>
-        <div class="flex items-center space-x-3">
-          <button
-            data-action="cleanup-logs"
-            id="btn-cleanup"
-            class="text-gray-500 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 px-2 py-1 rounded transition text-xs font-bold flex items-center shadow-sm"
-            title="Purge logs older than 30 days"
-          >
-            <i id="cleanup-icon" class="fas fa-broom mr-1"></i> Purge Logs
-          </button>
-          <button
-            data-action="refresh-logs"
-            class="text-gray-400 hover:text-brand transition"
-          >
-            <i class="fas fa-redo text-sm"></i>
-          </button>
+        <i class="fas fa-calendar-alt text-brand mr-2"></i> Current Season
+      </h2>
+      <div class="text-center mb-6">
+        <div
+          class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1"
+        >
+          Active Season Config
+        </div>
+        <div
+          id="display-current-season"
+          class="text-3xl font-black text-brand tracking-tight"
+        >
+          Loading...
         </div>
       </div>
-      <div class="flex-1 overflow-auto p-0">
-        <table class="w-full text-sm text-left">
-          <thead
-            class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
-          >
-            <tr>
-              <th class="px-4 py-3 font-bold uppercase">Time</th>
-              <th class="px-4 py-3 font-bold uppercase">Type</th>
-              <th class="px-4 py-3 font-bold uppercase">Status</th>
-              <th class="px-4 py-3 font-bold uppercase">Metrics (+/U/-)</th>
-              <th class="px-4 py-3 font-bold uppercase text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody id="log-table-body" class="divide-y divide-gray-100">
-            <tr>
-              <td colspan="5" class="text-center py-8 text-gray-400">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Loading logs...
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="space-y-3 mt-auto">
+        <select
+          id="season-select"
+          class="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-bold focus:ring-brand focus:border-brand py-2.5"
+        >
+          <option value="" disabled selected>Select Season</option>
+          <option value="WIN">Winter (WIN)</option>
+          <option value="SPR">Spring (SPR)</option>
+          <option value="SUM">Summer (SUM)</option>
+          <option value="FAL">Fall (FAL)</option>
+        </select>
+        <input
+          type="number"
+          id="year-input"
+          placeholder="YYYY (e.g. 2026)"
+          class="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-mono focus:ring-brand focus:border-brand py-2.5"
+        />
+        <button
+          id="btn-set-season"
+          class="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-bold transition shadow-sm"
+        >
+          Confirm Set
+        </button>
       </div>
     </div>
 
-    <!-- Top Right: Modified Series -->
+    <!-- 2. Data Control Action Buttons -->
     <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 xl:col-span-2 flex flex-col"
     >
-      <div
-        class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
+      <h2
+        class="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2"
       >
-        <h3 class="font-bold text-gray-900 flex items-center">
-          <i class="fas fa-layer-group text-purple-500 mr-2"></i> Modified
-          Series
-        </h3>
-        <button
-          data-action="refresh-activity"
-          class="text-gray-400 hover:text-purple-500 transition"
+        <i class="fas fa-database text-brand mr-2"></i> Data Control Actions
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+        <!-- Fill Column -->
+        <div
+          class="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col"
         >
-          <i class="fas fa-redo text-sm"></i>
-        </button>
-      </div>
-      <div class="flex-1 overflow-auto p-0">
-        <table class="w-full text-sm text-left">
-          <thead
-            class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
-          >
-            <tr>
-              <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
-                Time
-              </th>
-              <th class="px-4 py-3 font-bold uppercase w-1/3">Series Name</th>
-              <th class="px-4 py-3 font-bold uppercase">System ID</th>
-            </tr>
-          </thead>
-          <tbody id="modified-series-body" class="divide-y divide-gray-100">
-            <tr>
-              <td colspan="3" class="text-center py-8 text-gray-400">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Loading data...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+          <h3 class="text-sm font-bold text-blue-800 mb-3 flex items-center">
+            <i class="fas fa-magic mr-2 text-blue-500"></i> Fill
+          </h3>
+          <div id="fill-buttons-container" class="space-y-2 mt-auto">
+            <button
+              data-action="stream"
+              data-url="/api/data-control/fill/all"
+              data-status-id="fill-status"
+              class="stream-btn w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Fill All
+            </button>
+            <button
+              data-action="stream"
+              data-url="/api/data-control/fill/anime"
+              data-status-id="fill-status"
+              class="stream-btn w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Fill Anime
+            </button>
+            <button
+              id="fill-status-stop"
+              onclick="abortCurrentPipeline()"
+              class="hidden w-full bg-red-600 hover:bg-red-700 text-white border border-red-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Force Stop
+            </button>
+          </div>
+          <div
+            id="fill-status"
+            class="mt-2 text-[10px] font-bold text-blue-800 hidden break-words"
+          ></div>
+        </div>
 
-    <!-- Modified Anime (2 columns wide) -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px] lg:col-span-2"
-    >
-      <div
-        class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
-      >
-        <h3 class="font-bold text-gray-900 flex items-center">
-          <i class="fas fa-edit text-blue-500 mr-2"></i> Modified Anime
-        </h3>
-        <button
-          data-action="refresh-activity"
-          class="text-gray-400 hover:text-blue-500 transition"
+        <!-- Replace Column -->
+        <div
+          class="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex flex-col"
         >
-          <i class="fas fa-redo text-sm"></i>
-        </button>
-      </div>
-      <div class="flex-1 overflow-auto p-0">
-        <table class="w-full text-sm text-left">
-          <thead
-            class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
-          >
-            <tr>
-              <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
-                Time
-              </th>
-              <th class="px-4 py-3 font-bold uppercase w-1/4">Title (CN)</th>
-              <th class="px-4 py-3 font-bold uppercase">Type</th>
-              <th class="px-4 py-3 font-bold uppercase">Airing Status</th>
-              <th class="px-4 py-3 font-bold uppercase">Progress</th>
-              <th class="px-4 py-3 font-bold uppercase">System ID</th>
-            </tr>
-          </thead>
-          <tbody id="modified-anime-body" class="divide-y divide-gray-100">
-            <tr>
-              <td colspan="6" class="text-center py-8 text-gray-400">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Loading data...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+          <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center">
+            <i class="fas fa-bolt mr-2 text-amber-500"></i> Replace
+          </h3>
+          <div id="replace-buttons-container" class="space-y-2 mt-auto">
+            <button
+              data-action="stream"
+              data-url="/api/data-control/replace/all"
+              data-status-id="replace-status"
+              class="stream-btn w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Replace All
+            </button>
+            <button
+              data-action="stream"
+              data-url="/api/data-control/replace/anime"
+              data-status-id="replace-status"
+              class="stream-btn w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Replace Anime
+            </button>
+            <button
+              id="replace-status-stop"
+              onclick="abortCurrentPipeline()"
+              class="hidden w-full bg-red-600 hover:bg-red-700 text-white border border-red-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Force Stop
+            </button>
+          </div>
+          <div
+            id="replace-status"
+            class="mt-2 text-[10px] font-bold text-amber-800 hidden break-words"
+          ></div>
+        </div>
 
-    <!-- Bottom Left: Recently Added -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
-    >
-      <div
-        class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
-      >
-        <h3 class="font-bold text-gray-900 flex items-center">
-          <i class="fas fa-plus-circle text-emerald-500 mr-2"></i> Recently
-          Added
-        </h3>
-        <button
-          data-action="refresh-activity"
-          class="text-gray-400 hover:text-emerald-500 transition"
+        <!-- Pull Column -->
+        <div
+          class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 flex flex-col"
         >
-          <i class="fas fa-redo text-sm"></i>
-        </button>
-      </div>
-      <div class="flex-1 overflow-auto p-0">
-        <table class="w-full text-sm text-left">
-          <thead
-            class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
-          >
-            <tr>
-              <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
-                Time
-              </th>
-              <th class="px-4 py-3 font-bold uppercase">Type</th>
-              <th class="px-4 py-3 font-bold uppercase w-1/3">Title</th>
-              <th class="px-4 py-3 font-bold uppercase">System ID</th>
-            </tr>
-          </thead>
-          <tbody id="added-table-body" class="divide-y divide-gray-100">
-            <tr>
-              <td colspan="4" class="text-center py-8 text-gray-400">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Loading data...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+          <h3 class="text-sm font-bold text-emerald-800 mb-3 flex items-center">
+            <i class="fas fa-cloud-download-alt mr-2 text-emerald-500"></i> Pull
+            from Sheets
+          </h3>
+          <div class="space-y-2 mt-auto">
+            <button
+              data-action="sync"
+              data-url="/api/data-control/pull"
+              class="w-full bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Pull All
+            </button>
+            <div class="flex gap-2">
+              <select
+                id="pull-tab-select"
+                class="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold focus:ring-emerald-500 focus:border-emerald-500 px-1 py-2"
+              >
+                <option value="Anime">Anime</option>
+                <option value="Franchise">Franchise</option>
+                <option value="Series">Series</option>
+                <option value="System Options">System Options</option>
+              </select>
+              <button
+                id="btn-pull-specific"
+                class="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold shadow-sm transition"
+                title="Pull Specific"
+              >
+                <i class="fas fa-play"></i>
+              </button>
+            </div>
+          </div>
+        </div>
 
-    <!-- Bottom Right: Deletion History -->
-    <div
-      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
-    >
-      <div
-        class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"
-      >
-        <h3 class="font-bold text-gray-900 flex items-center">
-          <i class="fas fa-trash-restore text-red-500 mr-2"></i> Deletion
-          History
-        </h3>
-        <button
-          data-action="refresh-deletions"
-          class="text-gray-400 hover:text-red-500 transition"
+        <!-- Push Column (Maintained for V2 architectural necessity) -->
+        <div
+          class="bg-purple-50/50 border border-purple-100 rounded-xl p-4 flex flex-col"
         >
-          <i class="fas fa-redo text-sm"></i>
-        </button>
-      </div>
-      <div class="flex-1 overflow-auto p-0">
-        <table class="w-full text-sm text-left">
-          <thead
-            class="text-xs text-gray-500 bg-white sticky top-0 shadow-sm z-10"
-          >
-            <tr>
-              <th class="px-4 py-3 font-bold uppercase whitespace-nowrap">
-                Time
-              </th>
-              <th class="px-4 py-3 font-bold uppercase">Type</th>
-              <th class="px-4 py-3 font-bold uppercase w-1/2">Title</th>
-            </tr>
-          </thead>
-          <tbody id="deleted-table-body" class="divide-y divide-gray-100">
-            <tr>
-              <td colspan="3" class="text-center py-8 text-gray-400">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Loading history...
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <h3 class="text-sm font-bold text-purple-800 mb-3 flex items-center">
+            <i class="fas fa-cloud-upload-alt mr-2 text-purple-500"></i> Push
+            Backup
+          </h3>
+          <div class="space-y-2 mt-auto">
+            <button
+              data-action="sync"
+              data-url="/api/data-control/backup"
+              class="w-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+            >
+              Push All Data
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Sync Log Details Modal -->
-<div
-  id="log-modal"
-  class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6"
->
+  <!-- 4. Recent Data Control Log -->
   <div
-    class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-    data-action="close-modal"
-  ></div>
-  <div
-    class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative flex flex-col max-h-[90vh] overflow-hidden z-10"
+    class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
   >
-    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-      <h3 class="text-lg font-bold text-gray-900 flex items-center">
-        <i class="fas fa-file-code text-brand mr-2"></i> Sync Operation Details
-      </h3>
-      <button
-        data-action="close-modal"
-        class="text-gray-400 hover:text-gray-600 transition"
+    <div
+      class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between"
+    >
+      <h2
+        class="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center"
       >
-        <i class="fas fa-times text-lg"></i>
+        <i class="fas fa-terminal text-brand mr-2"></i> Recent Data Control Log
+      </h2>
+      <button
+        data-action="refresh-logs"
+        class="text-gray-400 hover:text-brand transition"
+      >
+        <i class="fas fa-redo"></i>
       </button>
     </div>
-    <div id="modal-body" class="p-6 overflow-y-auto bg-gray-50 space-y-4">
-      <!-- Content injected via JS -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead
+          class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white border-b border-gray-100"
+        >
+          <tr>
+            <th class="px-6 py-3">Action</th>
+            <th class="px-6 py-3">Trigger</th>
+            <th class="px-6 py-3">Time</th>
+            <th class="px-6 py-3">Status</th>
+            <th class="px-6 py-3">Metrics</th>
+          </tr>
+        </thead>
+        <tbody id="table-logs" class="divide-y divide-gray-100">
+          <tr>
+            <td colspan="5" class="text-center py-6 text-gray-400 italic">
+              Loading logs...
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <div class="p-4 bg-white border-t border-gray-100 flex justify-end">
+  </div>
+
+  <!-- 5. Database Record History Section -->
+  <div class="mt-12 space-y-6">
+    <div
+      class="flex items-center justify-between border-b-2 border-gray-200 pb-2"
+    >
+      <h2 class="text-2xl font-black text-gray-900 tracking-tight">
+        Database Record History
+      </h2>
       <button
-        data-action="close-modal"
-        class="bg-gray-900 hover:bg-black text-white px-6 py-2 rounded-lg font-bold text-sm transition shadow-sm"
+        data-action="refresh-history"
+        class="text-gray-400 hover:text-brand transition text-sm font-bold"
       >
-        Close
+        <i class="fas fa-redo mr-1"></i> Refresh
       </button>
+    </div>
+
+    <!-- Row 1: Franchise History -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Modified Franchise Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-purple-50/50 border-b border-purple-100 px-5 py-3">
+          <h3 class="font-bold text-purple-900 flex items-center">
+            <i class="fas fa-sitemap mr-2 text-purple-500"></i> Modified
+            Franchise Section
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Modified Time</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Franchise Type</th>
+                <th class="px-5 py-2.5 w-full">Franchise Name CN</th>
+              </tr>
+            </thead>
+            <tbody
+              id="table-mod-franchise"
+              class="divide-y divide-gray-50"
+            ></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recently Added Franchise Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3">
+          <h3 class="font-bold text-emerald-900 flex items-center">
+            <i class="fas fa-plus-circle mr-2 text-emerald-500"></i> Recently
+            Added Franchise Section
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Added Time</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Franchise Type</th>
+                <th class="px-5 py-2.5 w-full">Franchise Name CN</th>
+              </tr>
+            </thead>
+            <tbody
+              id="table-add-franchise"
+              class="divide-y divide-gray-50"
+            ></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Anime / Mixed Entry History -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <!-- Modified Anime Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-blue-50/50 border-b border-blue-100 px-5 py-3">
+          <h3 class="font-bold text-blue-900 flex items-center">
+            <i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime Section
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Modified Time</th>
+                <th class="px-5 py-2.5 w-full">Anime Name CN</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Airing Type</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Airing Status</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Watching Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recently Added Entry Section -->
+      <div
+        class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
+      >
+        <div class="bg-indigo-50/50 border-b border-indigo-100 px-5 py-3">
+          <h3 class="font-bold text-indigo-900 flex items-center">
+            <i class="fas fa-star mr-2 text-indigo-500"></i> Recently Added
+            Entry Section
+          </h3>
+        </div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead
+              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+            >
+              <tr>
+                <th class="px-5 py-2.5 whitespace-nowrap">Added Time</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Entry Type</th>
+                <th class="px-5 py-2.5 w-full">Entry Name CN</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Airing Type</th>
+                <th class="px-5 py-2.5 whitespace-nowrap">Season Part</th>
+              </tr>
+            </thead>
+            <tbody id="table-add-entry" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: System Wide History -->
+    <div
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
+    >
+      <div class="bg-red-50/50 border-b border-red-100 px-5 py-3">
+        <h3 class="font-bold text-red-900 flex items-center">
+          <i class="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
+          Records
+        </h3>
+      </div>
+      <div class="overflow-x-auto max-h-[300px]">
+        <table class="w-full text-sm text-left">
+          <thead
+            class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
+          >
+            <tr>
+              <th class="px-5 py-2.5 whitespace-nowrap">Time</th>
+              <th class="px-5 py-2.5">Type</th>
+              <th class="px-5 py-2.5 w-1/2">Deleted Entry Name</th>
+              <th class="px-5 py-2.5 w-1/2">Context</th>
+            </tr>
+          </thead>
+          <tbody id="table-deleted" class="divide-y divide-gray-50"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 {% endblock %} {% block extra_scripts %}
 <script>
-  // --- State & DOM Management ---
-  const state = {
-    currentLogs: [],
-  };
-
-  const pageDOM = {};
+  // Global variable to hold the AbortController for streaming pipelines
+  let currentAbortController = null;
+  let currentStatusElementId = null;
 
   document.addEventListener("DOMContentLoaded", () => {
-    // Cache DOM Elements
-    pageDOM.logTableBody = document.getElementById("log-table-body");
-    pageDOM.modifiedSeriesBody = document.getElementById(
-      "modified-series-body",
-    );
-    pageDOM.modifiedAnimeBody = document.getElementById("modified-anime-body");
-    pageDOM.addedTableBody = document.getElementById("added-table-body");
-    pageDOM.deletedTableBody = document.getElementById("deleted-table-body");
-    pageDOM.logModal = document.getElementById("log-modal");
-    pageDOM.modalBody = document.getElementById("modal-body");
-    pageDOM.btnCleanup = document.getElementById("btn-cleanup");
-    pageDOM.iconCleanup = document.getElementById("cleanup-icon");
+    loadAdminData();
 
-    // Global Click Event Delegation
+    // Bind Standard Sync Data Control Actions (Pull/Push)
+    document.querySelectorAll('[data-action="sync"]').forEach((btn) => {
+      btn.addEventListener("click", (e) =>
+        executeSync(e.target, e.target.dataset.url),
+      );
+    });
+
+    // Bind Streaming Data Control Actions (Fill/Replace)
+    document.querySelectorAll('[data-action="stream"]').forEach((btn) => {
+      btn.addEventListener("click", (e) =>
+        executeStream(
+          e.target,
+          e.target.dataset.url,
+          e.target.dataset.statusId,
+        ),
+      );
+    });
+
+    // Specific Pull Bind
+    document
+      .getElementById("btn-pull-specific")
+      .addEventListener("click", (e) => {
+        const tabName = document.getElementById("pull-tab-select").value;
+        // Traverse up to find the button element to pass visual state
+        const targetBtn =
+          e.target.tagName === "I" ? e.target.parentElement : e.target;
+        executeSync(targetBtn, `/api/data-control/pull/${tabName}`);
+      });
+
+    // Bind Season Config
+    document
+      .getElementById("btn-set-season")
+      .addEventListener("click", setCurrentSeason);
+
+    // Bind Manual Refreshes
     document.addEventListener("click", (e) => {
       const actionEl = e.target.closest("[data-action]");
       if (!actionEl) return;
-
-      const action = actionEl.dataset.action;
-
-      if (action === "sync-pull") handlePull();
-      else if (action === "sync-fill") handleFill();
-      else if (action === "sync-replace") handleReplace();
-      else if (action === "cleanup-logs") cleanupLogs();
-      else if (action === "refresh-logs") loadLogs();
-      else if (action === "refresh-activity") loadRecentActivity();
-      else if (action === "refresh-deletions") loadDeletedRecords();
-      else if (action === "close-modal") closeLogModal();
-      else if (action === "view-log")
-        openLogModal(parseInt(actionEl.dataset.id, 10));
-      else if (action === "navigate")
-        window.location.href = actionEl.dataset.url;
+      if (actionEl.dataset.action === "refresh-logs") loadLogsTable();
+      if (actionEl.dataset.action === "refresh-history") {
+        loadHistoryTables();
+        loadDeletedTable();
+      }
     });
-
-    initializeAdminPanel();
   });
+
+  // --- System Config Logic ---
+  async function setCurrentSeason() {
+    const season = document.getElementById("season-select").value;
+    const year = document.getElementById("year-input").value.trim();
+    const btn = document.getElementById("btn-set-season");
+
+    if (!season || !year) {
+      if (typeof showNotification === "function")
+        showNotification("warning", "Please select a season and type a year.");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Processing...";
+
+    try {
+      const val = `${season} ${year}`;
+      const res = await fetch("/api/system/config/current_season", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_season: val }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update season");
+      if (typeof showNotification === "function")
+        showNotification("success", "Current Season successfully updated!");
+
+      document.getElementById("display-current-season").innerText = val;
+    } catch (error) {
+      if (typeof showNotification === "function")
+        showNotification("error", error.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "Confirm Set";
+    }
+  }
+
+  // --- Master Sync Execution Logic (Standard) ---
+  async function executeSync(buttonElement, endpointUrl) {
+    const originalText = buttonElement.innerHTML;
+    buttonElement.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+    buttonElement.disabled = true;
+    buttonElement.classList.add("opacity-70");
+
+    try {
+      const res = await fetch(endpointUrl, { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || "Action failed.");
+
+      if (typeof showNotification === "function")
+        showNotification("success", "Pipeline execution successful.");
+
+      // Refresh tables to show new log and updated entries
+      loadLogsTable();
+      loadHistoryTables();
+    } catch (error) {
+      if (typeof showNotification === "function")
+        showNotification("error", `Pipeline Error: ${error.message}`);
+    } finally {
+      buttonElement.innerHTML = originalText;
+      buttonElement.disabled = false;
+      buttonElement.classList.remove("opacity-70");
+    }
+  }
+
+  // --- Streaming Execution Logic (SSE) ---
+  function abortCurrentPipeline() {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+      if (currentStatusElementId) {
+        const el = document.getElementById(currentStatusElementId);
+        el.innerText = "Pipeline aborted by user.";
+        el.classList.add("text-red-600");
+
+        const containerPrefix = currentStatusElementId.split("-")[0];
+        document
+          .getElementById(`${currentStatusElementId}-stop`)
+          .classList.add("hidden");
+        document
+          .querySelectorAll(`#${containerPrefix}-buttons-container .stream-btn`)
+          .forEach((b) => b.classList.remove("hidden"));
+      }
+    }
+  }
+
+  async function executeStream(buttonElement, endpointUrl, statusElementId) {
+    if (currentAbortController) {
+      if (typeof showNotification === "function")
+        showNotification(
+          "warning",
+          "A pipeline is already running. Please stop it first.",
+        );
+      return;
+    }
+
+    currentStatusElementId = statusElementId;
+    currentAbortController = new AbortController();
+
+    const containerPrefix = statusElementId.split("-")[0];
+    const stopBtn = document.getElementById(`${statusElementId}-stop`);
+    const streamBtns = document.querySelectorAll(
+      `#${containerPrefix}-buttons-container .stream-btn`,
+    );
+    const statusEl = document.getElementById(statusElementId);
+
+    // Hide regular stream buttons, show stop button, prepare status text
+    streamBtns.forEach((b) => b.classList.add("hidden"));
+    stopBtn.classList.remove("hidden");
+    statusEl.classList.remove("hidden", "text-red-600", "text-emerald-600");
+    statusEl.innerText = "Initiating connection...";
+
+    try {
+      const res = await fetch(endpointUrl, {
+        method: "POST",
+        signal: currentAbortController.signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to start stream");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let parts = buffer.split("\n\n");
+        buffer = parts.pop();
+
+        for (const part of parts) {
+          if (part.startsWith("data: ")) {
+            const jsonStr = part.substring(6);
+            try {
+              const data = JSON.parse(jsonStr);
+
+              if (data.status === "processing") {
+                statusEl.innerText = `[${data.processed}/${data.total}] Processing: ${data.current_entry}`;
+              } else if (data.status === "success") {
+                statusEl.classList.add("text-emerald-600");
+                statusEl.innerText = `${data.message} (${data.processed}/${data.total})`;
+                if (typeof showNotification === "function")
+                  showNotification("success", "Pipeline streaming completed.");
+                loadLogsTable();
+                loadHistoryTables();
+              } else if (data.status === "error") {
+                statusEl.classList.add("text-red-600");
+                statusEl.innerText = `Error: ${data.message}`;
+              }
+            } catch (e) {
+              console.error("Error parsing stream JSON:", e, jsonStr);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      statusEl.classList.add("text-red-600");
+      if (error.name === "AbortError") {
+        statusEl.innerText = "Pipeline stopped forcefully.";
+      } else {
+        statusEl.innerText = `Stream Error: ${error.message}`;
+        if (typeof showNotification === "function")
+          showNotification("error", `Stream Error: ${error.message}`);
+      }
+    } finally {
+      currentAbortController = null;
+      currentStatusElementId = null;
+      stopBtn.classList.add("hidden");
+      streamBtns.forEach((b) => b.classList.remove("hidden"));
+    }
+  }
+
+  // --- Data Fetching & Table Rendering ---
+
+  // Strict CN Fallback Logic as requested
+  function getTitleCNFallback(item, type) {
+    if (type === "anime") {
+      return (
+        item.anime_name_cn ||
+        item.anime_name_en ||
+        item.anime_name_romanji ||
+        item.anime_name_jp ||
+        item.anime_name_alt ||
+        "Unknown"
+      );
+    } else if (type === "franchise") {
+      return (
+        item.franchise_name_cn ||
+        item.franchise_name_en ||
+        item.franchise_name_romanji ||
+        item.franchise_name_jp ||
+        item.franchise_name_alt ||
+        "Unknown"
+      );
+    } else if (type === "series") {
+      return (
+        item.series_name_cn ||
+        item.series_name_en ||
+        item.series_name_alt ||
+        "Unknown"
+      );
+    }
+    return "Unknown";
+  }
 
   function formatDate(dateStr) {
     if (!dateStr) return "-";
-    const d = new Date(dateStr);
-    return d.toLocaleString("en-US", {
+    return new Date(dateStr).toLocaleString("en-US", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
@@ -432,485 +714,255 @@ content %}
     });
   }
 
-  // --- Log Modal Controls ---
-  function openLogModal(logId) {
-    const log = state.currentLogs.find((l) => l.id === logId);
-    if (!log) return;
-
-    let detailsHtml = "";
-
+  async function loadAdminData() {
     try {
-      const details = JSON.parse(log.details_json || "{}");
-      const sections = [
-        {
-          key: "added",
-          title: "Records Inserted",
-          color: "text-emerald-600",
-          icon: "fa-plus-circle",
-        },
-        {
-          key: "updated",
-          title: "Records Updated",
-          color: "text-blue-600",
-          icon: "fa-sync",
-        },
-        {
-          key: "deleted",
-          title: "Records Purged",
-          color: "text-red-600",
-          icon: "fa-trash-alt",
-        },
-      ];
+      const seasonRes = await fetch("/api/system/config/current_season");
+      const seasonData = await seasonRes.json();
+      document.getElementById("display-current-season").innerText =
+        seasonData.current_season || "Not Set";
+    } catch (e) {
+      console.error("Failed to load season", e);
+    }
 
-      detailsHtml = sections
-        .map((s) => {
-          const items = details[s.key] || [];
+    loadLogsTable();
+    loadHistoryTables();
+    loadDeletedTable();
+  }
+
+  async function loadLogsTable() {
+    try {
+      const logsRes = await fetch("/api/system/logs");
+      const logs = await logsRes.json();
+
+      const logHTML = logs
+        .slice(0, 15)
+        .map((log) => {
+          // Dynamically build the status HTML
+          let statusHtml = "";
+          if (log.status === "Success") {
+            statusHtml =
+              '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>';
+          } else if (log.status === "Aborted") {
+            statusHtml =
+              '<span class="text-amber-500 font-bold"><i class="fas fa-exclamation-triangle mr-1"></i> Aborted</span>';
+          } else {
+            // Render Failed with hover tooltip for the error message
+            statusHtml = `<span class="text-red-500 font-bold cursor-help" title="${log.error_message || "Unknown error"}"><i class="fas fa-times-circle mr-1"></i> Failed</span>`;
+          }
+
+          // Conditional class for Auto vs Manual triggers
+          const triggerClass =
+            log.type === "Auto"
+              ? "bg-purple-100 text-purple-700"
+              : "bg-blue-100 text-blue-700";
+
           return `
-            <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <h4 class="font-bold text-sm ${s.color} mb-3 flex items-center justify-between">
-                    <span><i class="fas ${s.icon} mr-2"></i> ${s.title}</span>
-                    <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">${items.length}</span>
-                </h4>
-                <div class="max-h-40 overflow-y-auto space-y-1 pr-2">
-                    ${items.length > 0 ? items.map((i) => `<p class="text-xs text-gray-700 border-l-2 border-gray-200 pl-2 py-1">${i}</p>`).join("") : '<p class="text-xs text-gray-400 italic">No records in this category.</p>'}
-                </div>
-            </div>
-          `;
+                <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+                    <td class="px-6 py-3">
+                        <div class="font-bold text-gray-800">${log.action_main || "Unknown"}</div>
+                        <div class="text-[10px] text-gray-500">${log.action_specific || ""}</div>
+                    </td>
+                    <td class="px-6 py-3">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${triggerClass}">${log.type || "Manual"}</span>
+                    </td>
+                    <td class="px-6 py-3 text-gray-500 whitespace-nowrap">${formatDate(log.timestamp)}</td>
+                    <td class="px-6 py-3">${statusHtml}</td>
+                    <td class="px-6 py-3 font-mono text-xs whitespace-nowrap">
+                        <span class="text-emerald-600">+${log.rows_added || 0}</span> / 
+                        <span class="text-blue-600">~${log.rows_updated || 0}</span> / 
+                        <span class="text-red-600">-${log.rows_deleted || 0}</span>
+                    </td>
+                </tr>
+            `;
         })
         .join("");
 
-      if (log.error_message) {
-        detailsHtml += `
-          <div class="bg-red-50 border border-red-100 p-4 rounded-xl mt-4">
-              <h4 class="font-bold text-sm text-red-600 mb-1"><i class="fas fa-exclamation-triangle mr-2"></i> Error Traceback</h4>
-              <p class="text-xs text-red-800 font-mono whitespace-pre-wrap">${log.error_message}</p>
-          </div>
-        `;
-      }
+      document.getElementById("table-logs").innerHTML =
+        logHTML ||
+        '<tr><td colspan="5" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
     } catch (e) {
-      detailsHtml = `<p class="text-xs text-gray-500 italic">No structured details available for this sync operation.</p>`;
-    }
-
-    pageDOM.modalBody.innerHTML = `
-      <div class="grid grid-cols-2 gap-4 mb-4">
-          <div class="bg-white p-3 rounded-xl border border-gray-200">
-              <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Status</p>
-              <p class="text-sm font-bold ${log.status === "success" ? "text-emerald-600" : "text-red-600"}">${log.status.toUpperCase()}</p>
-          </div>
-          <div class="bg-white p-3 rounded-xl border border-gray-200">
-              <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Net Change</p>
-              <p class="text-sm font-bold text-gray-800 font-mono">
-                  <span class="text-emerald-600">+${log.rows_added}</span> / <span class="text-red-600">-${log.rows_deleted}</span>
-              </p>
-          </div>
-      </div>
-      ${detailsHtml}
-    `;
-    pageDOM.logModal.classList.remove("hidden");
-  }
-
-  function closeLogModal() {
-    pageDOM.logModal.classList.add("hidden");
-  }
-
-  // --- Initializers ---
-  async function initializeAdminPanel() {
-    await Promise.all([loadLogs(), loadRecentActivity(), loadDeletedRecords()]);
-  }
-
-  // --- Audit Trails ---
-  async function loadLogs() {
-    try {
-      const res = await fetch(`/api/system/logs?limit=15`);
-      if (!res.ok) throw new Error("Failed to fetch logs");
-      const data = await res.json();
-
-      state.currentLogs = data || [];
-
-      if (state.currentLogs.length === 0) {
-        pageDOM.logTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 italic">No sync logs found.</td></tr>`;
-        return;
-      }
-
-      pageDOM.logTableBody.innerHTML = state.currentLogs
-        .map(
-          (log) => `
-          <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-              <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(log.timestamp)}</td>
-              <td class="px-4 py-3">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${log.sync_type === "v2_master_sync" ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-purple-50 text-purple-600 border-purple-200"}">
-                      ${log.sync_type}
-                  </span>
-              </td>
-              <td class="px-4 py-3">
-                  ${log.status === "success" ? '<span class="text-emerald-500"><i class="fas fa-check-circle mr-1"></i> Success</span>' : '<span class="text-red-500"><i class="fas fa-times-circle mr-1"></i> Failed</span>'}
-              </td>
-              <td class="px-4 py-3 text-gray-700 font-mono text-xs">
-                  <span class="text-green-600">+${log.rows_added}</span> / 
-                  <span class="text-blue-600">~${log.rows_updated}</span> / 
-                  <span class="text-red-600">-${log.rows_deleted}</span>
-              </td>
-              <td class="px-4 py-3 text-right">
-                  <button data-action="view-log" data-id="${log.id}" class="text-brand hover:text-brand-hover font-bold text-xs underline">View Details</button>
-              </td>
-          </tr>
-      `,
-        )
-        .join("");
-    } catch (error) {
-      console.error(error);
+      console.error("Failed to load logs", e);
+      document.getElementById("table-logs").innerHTML =
+        '<tr><td colspan="5" class="text-center py-6 italic text-red-400">Failed to fetch log data.</td></tr>';
     }
   }
 
-  async function loadRecentActivity() {
+  function getDeletedDisplayData(d) {
+    let name = "Unknown";
+    let context = "-";
+
+    if (d.type === "System Options") {
+      name = d.anime_en || "Unknown Value";
+      context = d.anime_cn || "Unknown Category";
+    } else if (d.type === "Franchise") {
+      name = d.franchise || "Unknown Franchise";
+      context = "Top Level Hub";
+    } else if (d.type === "Series") {
+      name = d.series || "Unknown Series";
+      context = d.franchise || "No Franchise";
+    } else {
+      name = d.anime_cn || d.anime_en || "Unknown Anime";
+      context = d.series || d.franchise || "Independent";
+    }
+
+    return { name, context };
+  }
+
+  async function loadDeletedTable() {
     try {
-      const [animeRes, seriesRes] = await Promise.all([
-        fetch(`/api/anime`),
-        fetch(`/api/series`),
+      const res = await fetch("/api/system/deleted");
+      if (!res.ok) throw new Error("Failed to fetch deleted records");
+      const deleted = await res.json();
+
+      document.getElementById("table-deleted").innerHTML =
+        deleted
+          .map((d) => {
+            const { name, context } = getDeletedDisplayData(d);
+            return `
+                <tr class="hover:bg-red-50/30 transition">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(d.timestamp)}</td>
+                    <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">${d.type}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${name}">${name}</td>
+                    <td class="px-5 py-2.5 text-gray-500 text-xs truncate max-w-[150px]" title="${context}">${context}</td>
+                </tr>
+                `;
+          })
+          .join("") ||
+        `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">No recently deleted entries</td></tr>`;
+    } catch (e) {
+      console.error("Failed to load deleted records", e);
+      document.getElementById("table-deleted").innerHTML =
+        `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">Failed to load deleted records.</td></tr>`;
+    }
+  }
+
+  async function loadHistoryTables() {
+    try {
+      const [animeRes, franchiseRes, seriesRes] = await Promise.all([
+        fetch("/api/anime/"),
+        fetch("/api/franchise/"),
+        fetch("/api/series/"),
       ]);
-      if (!animeRes.ok || !seriesRes.ok)
-        throw new Error("Failed to fetch data");
 
-      const allAnime = await animeRes.json();
-      const allSeries = await seriesRes.json();
+      const anime = await animeRes.json();
+      const franchises = await franchiseRes.json();
+      const series = await seriesRes.json();
 
-      const modifiedAnimeSorted = [...allAnime]
+      // 1. Modified Franchise
+      const modF = [...franchises]
+        .filter((f) => f.updated_at)
+        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        .slice(0, 15);
+      document.getElementById("table-mod-franchise").innerHTML =
+        modF
+          .map(
+            (f) => `
+                <tr class="hover:bg-purple-50/30 transition cursor-pointer" onclick="window.location.href='/franchise/${f.system_id}'">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(f.updated_at)}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${f.franchise_type || "-"}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(f, "franchise")}">${getTitleCNFallback(f, "franchise")}</td>
+                </tr>
+            `,
+          )
+          .join("") ||
+        `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No modified franchises</td></tr>`;
+
+      // 2. Recently Added Franchise
+      const addF = [...franchises]
+        .filter((f) => f.created_at)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 15);
+      document.getElementById("table-add-franchise").innerHTML =
+        addF
+          .map(
+            (f) => `
+                <tr class="hover:bg-emerald-50/30 transition cursor-pointer" onclick="window.location.href='/franchise/${f.system_id}'">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(f.created_at)}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${f.franchise_type || "-"}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]" title="${getTitleCNFallback(f, "franchise")}">${getTitleCNFallback(f, "franchise")}</td>
+                </tr>
+            `,
+          )
+          .join("") ||
+        `<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No recently added franchises</td></tr>`;
+
+      // 3. Modified Anime
+      const modA = [...anime]
         .filter((a) => a.updated_at)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
         .slice(0, 15);
+      document.getElementById("table-mod-anime").innerHTML =
+        modA
+          .map((a) => {
+            let statusColor = "text-gray-500 bg-gray-100";
+            if (a.airing_status === "Airing")
+              statusColor = "text-green-700 bg-green-100";
+            else if (a.airing_status === "Finished Airing")
+              statusColor = "text-blue-700 bg-blue-100";
+            else if (a.airing_status === "Not Yet Aired")
+              statusColor = "text-orange-700 bg-orange-100";
 
-      const modifiedSeriesSorted = [...allSeries]
-        .filter((s) => s.updated_at)
-        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-        .slice(0, 15);
+            return `
+                <tr class="hover:bg-blue-50/30 transition cursor-pointer" onclick="window.location.href='/anime/${a.system_id}'">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(a.updated_at)}</td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${getTitleCNFallback(a, "anime")}">${getTitleCNFallback(a, "anime")}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap"><span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${a.airing_type || "-"}</span></td>
+                    <td class="px-5 py-2.5 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-[9px] leading-4 font-bold rounded-full ${statusColor}">${a.airing_status || "-"}</span></td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap text-xs font-medium">${a.watching_status || "-"}</td>
+                </tr>
+            `;
+          })
+          .join("") ||
+        `<tr><td colspan="5" class="text-center py-6 text-gray-400 italic">No modified anime</td></tr>`;
 
-      const mergedAdded = [
-        ...(allAnime || []).map((a) => ({ ...a, __type: "anime" })),
-        ...(allSeries || []).map((s) => ({ ...s, __type: "series" })),
+      // 4. Recently Added Entry (Anime + Series)
+      const mixedEntries = [
+        ...series.map((s) => ({
+          ...s,
+          __type: "Series",
+          __name: getTitleCNFallback(s, "series"),
+          __link: `/series/${s.system_id}`,
+        })),
+        ...anime.map((a) => ({
+          ...a,
+          __type: "Anime",
+          __name: getTitleCNFallback(a, "anime"),
+          __link: `/anime/${a.system_id}`,
+        })),
       ];
-
-      const addedSorted = [...mergedAdded]
+      const addE = mixedEntries
         .filter((i) => i.created_at)
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 15);
 
-      renderModifiedAnimeTable(
-        pageDOM.modifiedAnimeBody,
-        modifiedAnimeSorted,
-        "hover:bg-blue-50",
-      );
-      renderSeriesTable(
-        pageDOM.modifiedSeriesBody,
-        modifiedSeriesSorted,
-        "updated_at",
-        "hover:bg-purple-50",
-      );
-      renderAddedTable(
-        pageDOM.addedTableBody,
-        addedSorted,
-        "created_at",
-        "hover:bg-emerald-50",
-      );
+      document.getElementById("table-add-entry").innerHTML =
+        addE
+          .map((i) => {
+            let badgeClass =
+              i.__type === "Anime"
+                ? "bg-blue-50 text-blue-600 border-blue-200"
+                : "bg-indigo-50 text-indigo-600 border-indigo-200";
+            let airingHtml =
+              i.__type === "Anime"
+                ? `<span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">${i.airing_type || "-"}</span>`
+                : `<span class="text-gray-400">-</span>`;
+
+            return `
+                <tr class="hover:bg-indigo-50/30 transition cursor-pointer" onclick="window.location.href='${i.__link}'">
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(i.created_at)}</td>
+                    <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${badgeClass}">${i.__type}</span></td>
+                    <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${i.__name}">${i.__name}</td>
+                    <td class="px-5 py-2.5 text-gray-600 whitespace-nowrap">${airingHtml}</td>
+                    <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap text-xs">${i.season_part || "-"}</td>
+                </tr>
+            `;
+          })
+          .join("") ||
+        `<tr><td colspan="5" class="text-center py-6 text-gray-400 italic">No recently added entries</td></tr>`;
     } catch (error) {
-      console.error(error);
-    }
-  }
-
-  function renderAddedTable(tbodyEl, data, dateField, hoverClass) {
-    if (!tbodyEl) return;
-    if (data.length === 0) {
-      tbodyEl.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
-      return;
-    }
-
-    tbodyEl.innerHTML = data
-      .map((item) => {
-        const isAnime = item.__type === "anime";
-        const title = isAnime
-          ? item.series_season_cn ||
-            item.series_season_en ||
-            item.series_season_roman ||
-            item.series_en ||
-            "Unknown Title"
-          : item.series_cn || item.series_en || "Unknown Series";
-
-        const badgeClass = isAnime
-          ? "bg-indigo-50 text-indigo-700 border-indigo-100"
-          : "bg-purple-50 text-purple-700 border-purple-100";
-        const path = isAnime
-          ? `/anime/${item.system_id}`
-          : `/series/${item.system_id}`;
-
-        return `
-            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" data-action="navigate" data-url="${path}">
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(item[dateField])}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${badgeClass}">${item.__type}</span>
-                </td>
-                <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${title}">${title}</td>
-                <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${item.system_id}</td>
-            </tr>
-        `;
-      })
-      .join("");
-  }
-
-  function renderModifiedAnimeTable(tbodyEl, data, hoverClass) {
-    if (!tbodyEl) return;
-    if (data.length === 0) {
-      tbodyEl.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
-      return;
-    }
-
-    tbodyEl.innerHTML = data
-      .map((anime) => {
-        const titleCn =
-          anime.series_season_cn ||
-          anime.series_season_en ||
-          anime.series_season_roman ||
-          anime.series_en ||
-          "-";
-        const type = anime.airing_type || "-";
-        const status = anime.airing_status || "-";
-        const progress = anime.my_progress || "-";
-
-        return `
-            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" data-action="navigate" data-url="/anime/${anime.system_id}">
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(anime.updated_at)}</td>
-                <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${titleCn}">${titleCn}</td>
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${type}</td>
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${status}</td>
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${progress}</td>
-                <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${anime.system_id}</td>
-            </tr>
-        `;
-      })
-      .join("");
-  }
-
-  function renderSeriesTable(tbodyEl, data, dateField, hoverClass) {
-    if (!tbodyEl) return;
-    if (data.length === 0) {
-      tbodyEl.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No records found.</td></tr>`;
-      return;
-    }
-
-    tbodyEl.innerHTML = data
-      .map((series) => {
-        const title = series.series_cn || series.series_en || "Unknown Series";
-        return `
-            <tr class="${hoverClass} transition cursor-pointer border-b border-gray-100 last:border-0" data-action="navigate" data-url="/series/${series.system_id}">
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(series[dateField])}</td>
-                <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${title}">${title}</td>
-                <td class="px-4 py-3 text-[10px] text-gray-500 font-mono whitespace-nowrap">${series.system_id}</td>
-            </tr>
-        `;
-      })
-      .join("");
-  }
-
-  async function loadDeletedRecords() {
-    try {
-      const res = await fetch(`/api/system/deletions?limit=15`);
-      if (!res.ok) throw new Error("Failed to fetch deleted records");
-      const data = await res.json();
-
-      if (data.length === 0) {
-        pageDOM.deletedTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-gray-500 italic">No recent deletions.</td></tr>`;
-        return;
-      }
-
-      pageDOM.deletedTableBody.innerHTML = data
-        .map((record) => {
-          const dataJson = JSON.parse(record.data_json || "{}");
-          const displayTitle =
-            dataJson.title || dataJson.series_en || record.system_id;
-
-          return `
-            <tr class="hover:bg-red-50 transition border-b border-gray-100 last:border-0">
-                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDate(record.deleted_at)}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
-                        ${record.table_name === "anime_entries" ? "anime" : "series"}
-                    </span>
-                </td>
-                <td class="px-4 py-3 text-gray-900 font-medium truncate max-w-[200px]" title="${displayTitle}">
-                    ${displayTitle}
-                </td>
-            </tr>
-        `;
-        })
-        .join("");
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // --- Synchronization Master Wrapper ---
-  async function executeSyncAction(
-    endpoint,
-    btnId,
-    iconId,
-    textId,
-    defaultText,
-    defaultIconClass,
-    isChunked = false,
-    useOffset = false,
-  ) {
-    const btn = document.getElementById(btnId);
-    const icon = document.getElementById(iconId);
-    const textSpan = document.getElementById(textId);
-
-    // Disable state
-    icon.className = "fas fa-spinner fa-spin mr-2";
-    btn.classList.add("opacity-75", "pointer-events-none");
-    if (isChunked) textSpan.innerText = "Starting batch...";
-
-    try {
-      let keepGoing = true;
-      let totalProcessed = 0;
-      let currentOffset = 0;
-
-      while (keepGoing) {
-        let currentEndpoint = endpoint;
-
-        // Dynamically append the offset query parameter if requested
-        if (useOffset) {
-          const separator = currentEndpoint.includes("?") ? "&" : "?";
-          currentEndpoint += `${separator}offset=${currentOffset}`;
-        }
-
-        const response = await fetch(currentEndpoint, { method: "POST" });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data.detail || data.message || "Sync operation failed.",
-          );
-        }
-
-        // Logic for looped/chunked operations (Fill & Replace)
-        if (isChunked && data.remaining !== undefined) {
-          totalProcessed += data.processed || 0;
-
-          // Increment the offset if the endpoint relies on it (like Replace)
-          if (useOffset) {
-            currentOffset += data.processed || 0;
-          }
-
-          if (data.remaining > 0) {
-            if (data.processed === 0 && !useOffset) {
-              // Safety fallback for Fill: If Jikan has no data for remaining entries, break to prevent loop.
-              keepGoing = false;
-              if (typeof showToast === "function") {
-                showToast(
-                  `Batch paused: Unable to resolve remaining ${data.remaining} entries on MAL.`,
-                  true,
-                );
-              }
-            } else {
-              // Keep looping!
-              textSpan.innerText = `Processing... (${data.remaining} left)`;
-              await new Promise((r) => setTimeout(r, 800)); // Small pause between chunks
-            }
-          } else {
-            // Reached 0 remaining!
-            keepGoing = false;
-            if (typeof showToast === "function") {
-              showToast(
-                `Success: Operation complete! Processed ${totalProcessed} entries.`,
-              );
-            }
-          }
-        } else {
-          // Standard single-shot operation
-          keepGoing = false;
-          if (typeof showToast === "function") {
-            showToast(`Success: ${data.message}`);
-          }
-        }
-      }
-      await initializeAdminPanel();
-    } catch (error) {
-      if (typeof showToast === "function") {
-        showToast(`Error: ${error.message}`, true);
-      }
-    } finally {
-      // Re-enable state
-      icon.className = `fas ${defaultIconClass} mr-2`;
-      textSpan.innerText = defaultText;
-      btn.classList.remove("opacity-75", "pointer-events-none");
-    }
-  }
-
-  // Specific Action Triggers
-  function handlePull() {
-    executeSyncAction(
-      "/api/system/sync/pull",
-      "btn-pull",
-      "icon-pull",
-      "text-pull",
-      "Execute Sync",
-      "fa-play",
-    );
-  }
-
-  function handleFill() {
-    executeSyncAction(
-      "/api/system/sync/fill?limit=5",
-      "btn-fill",
-      "icon-fill",
-      "text-fill",
-      "Execute Fill",
-      "fa-play",
-      true, // isChunked
-      false, // useOffset
-    );
-  }
-
-  function handleReplace() {
-    executeSyncAction(
-      "/api/system/sync/replace?limit=5",
-      "btn-replace",
-      "icon-replace",
-      "text-replace",
-      "Execute Replace",
-      "fa-play",
-      true, // isChunked
-      true, // useOffset
-    );
-  }
-
-  // --- Admin Diagnostics & Utilities ---
-  async function cleanupLogs() {
-    if (pageDOM.btnCleanup)
-      pageDOM.btnCleanup.classList.add("pointer-events-none", "opacity-70");
-    if (pageDOM.iconCleanup)
-      pageDOM.iconCleanup.className = "fas fa-spinner fa-spin mr-1";
-
-    try {
-      const res = await fetch(`/api/system/logs/cleanup?days=30`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Failed to purge logs.");
-
-      if (typeof showToast === "function")
-        showToast(`Success: ${data.message}`);
-      await loadLogs();
-    } catch (error) {
-      if (typeof showToast === "function") showToast(error.message, true);
-    } finally {
-      if (pageDOM.btnCleanup)
-        pageDOM.btnCleanup.classList.remove(
-          "pointer-events-none",
-          "opacity-70",
-        );
-      if (pageDOM.iconCleanup)
-        pageDOM.iconCleanup.className = "fas fa-broom mr-1";
+      console.error("Failed to load history tables", error);
+      if (typeof showNotification === "function")
+        showNotification("error", "Failed to load history statistics.");
     }
   }
 </script>

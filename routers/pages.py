@@ -1,7 +1,8 @@
 """
 routers/pages.py
 Handles serving Jinja2 HTML templates for the frontend.
-Strictly responsible for UI rendering, not API data processing.
+Strictly responsible for UI rendering, not API data processing (Option A: Thin Router).
+Frontend JavaScript is responsible for fetching data from the /api/... endpoints.
 """
 
 import jwt
@@ -10,11 +11,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-# Import centralized cryptographic constants
 from services.security import SECRET_KEY, ALGORITHM
 
-# Setup basic logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize router and template engine
@@ -41,32 +39,51 @@ def check_admin_status(request: Request) -> bool:
     except jwt.ExpiredSignatureError:
         logger.warning("JWT decode failed: Token has expired.")
         return False
-    except jwt.PyJWTError as e:
-        logger.warning(f"JWT decode failed: Invalid token ({e}).")
-        return False
-    except Exception as e:
-        logger.error(f"Unexpected error during JWT template validation: {e}")
+    except jwt.InvalidTokenError:
+        logger.warning("JWT decode failed: Invalid token.")
         return False
 
 
 # ==========================================
-# PUBLIC ROUTES (Accessible to Guests)
+# PUBLIC PAGES (Guest & Admin)
 # ==========================================
 
 
-@router.get("/", response_class=HTMLResponse, summary="Serve Dashboard")
-async def serve_dashboard(request: Request):
+@router.get("/", response_class=HTMLResponse, summary="Serve Homepage")
+async def serve_index(request: Request):
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
         "index.html", {"request": request, "is_admin": is_admin}
     )
 
 
-@router.get("/library", response_class=HTMLResponse, summary="Serve Library")
-async def serve_library(request: Request):
+@router.get("/login", response_class=HTMLResponse, summary="Serve Login Page")
+async def serve_login(request: Request):
+    # If already logged in, redirect to home or system
+    if check_admin_status(request):
+        return RedirectResponse(url="/system", status_code=303)
+
+    return templates.TemplateResponse(
+        "login.html", {"request": request, "is_admin": False}
+    )
+
+
+@router.get(
+    "/library/anime", response_class=HTMLResponse, summary="Serve Anime Library Page"
+)
+async def serve_anime_library(request: Request):
+    """NEW in V2: Dedicated library view for Anime entries."""
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
-        "library.html", {"request": request, "is_admin": is_admin}
+        "library_anime.html", {"request": request, "is_admin": is_admin}
+    )
+
+
+@router.get("/search", response_class=HTMLResponse, summary="Serve Search Page")
+async def serve_search(request: Request):
+    is_admin = check_admin_status(request)
+    return templates.TemplateResponse(
+        "search.html", {"request": request, "is_admin": is_admin}
     )
 
 
@@ -82,53 +99,38 @@ async def serve_under_development(request: Request):
     )
 
 
-@router.get("/search", response_class=HTMLResponse, summary="Serve Search Results")
-async def serve_search(request: Request):
-    is_admin = check_admin_status(request)
-    return templates.TemplateResponse(
-        "search.html", {"request": request, "is_admin": is_admin}
-    )
+# ==========================================
+# VIEW ENTRY PAGES (Guest & Admin)
+# ==========================================
 
 
 @router.get(
-    "/anime/{system_id}", response_class=HTMLResponse, summary="Serve Anime Details"
+    "/franchise/{system_id}",
+    response_class=HTMLResponse,
+    summary="Serve ACG Franchise View",
 )
-async def serve_anime_details(request: Request, system_id: str):
+async def serve_franchise_view(request: Request, system_id: str):
+    """NEW in V2: Dedicated page for the top-level Franchise."""
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
-        "details.html",
+        "franchise_acg.html",
         {"request": request, "is_admin": is_admin, "system_id": system_id},
     )
 
 
 @router.get(
-    "/series/{system_id}", response_class=HTMLResponse, summary="Serve Series Details"
+    "/anime/{system_id}", response_class=HTMLResponse, summary="Serve Anime View"
 )
-async def serve_series_details(request: Request, system_id: str):
+async def serve_anime_view(request: Request, system_id: str):
     is_admin = check_admin_status(request)
-    # Uses a generic series details or falls back to standard view structure
     return templates.TemplateResponse(
-        "series.html",
+        "anime.html",
         {"request": request, "is_admin": is_admin, "system_id": system_id},
-    )
-
-
-@router.get("/login", response_class=HTMLResponse, summary="Serve Login Page")
-async def serve_login(request: Request):
-    """
-    Serves the login page. If the user is already authenticated with a valid
-    Admin cookie, they are seamlessly redirected back to the dashboard.
-    """
-    if check_admin_status(request):
-        return RedirectResponse(url="/", status_code=303)
-
-    return templates.TemplateResponse(
-        "login.html", {"request": request, "is_admin": False}
     )
 
 
 # ==========================================
-# PROTECTED ADMIN ROUTES (Redirects Guests)
+# ADMIN SECURED PAGES
 # ==========================================
 
 
