@@ -12,7 +12,6 @@ import asyncio
 from fastapi import Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError
 
 from models import Franchise, Series, Anime, SystemOption
 from utils.utils import (
@@ -605,53 +604,51 @@ def execute_pull_specific(db: Session, tab_name: str) -> dict:
                 clean_dict.pop(pk_field, None)
                 pk_value = None
 
-        # 3. UPSERT LOGIC WITH SAVEPOINT
-        try:
-            # db.begin_nested() creates a SAVEPOINT allowing row-level rollback on Unique Violation
-            with db.begin_nested():
-                if pk_value:
-                    existing = (
-                        db.query(Model)
-                        .filter(getattr(Model, pk_field) == pk_value)
-                        .first()
-                    )
+        # 3. Data Sanitization (Prevent Pydantic Schema 500 Validation Errors)
+        if tab_name == "Anime":
+            if clean_dict.get("watching_status") is None:
+                clean_dict["watching_status"] = "Might Watch"
+            if clean_dict.get("airing_status") is None:
+                clean_dict["airing_status"] = ""
+            if clean_dict.get("airing_type") is None:
+                clean_dict["airing_type"] = ""
 
-                    if existing:
-                        # Update existing record
-                        for key, value in clean_dict.items():
-                            setattr(existing, key, value)
-                    else:
-                        # Create new record (UUID provided but record missing locally)
-                        new_record = Model(**clean_dict)
-                        db.add(new_record)
-                else:
-                    # Create new record (UUID missing, let DB generate it)
-                    new_record = Model(**clean_dict)
-                    db.add(new_record)
-
-                # Flush immediately to trigger DB constraints
-                db.flush()
-                processed += 1
-        except IntegrityError as e:
-            # The SAVEPOINT automatically rolls back here
-            logger.warning(
-                f"Integrity constraint violated in '{tab_name}'. Skipping duplicate row. Detail: {str(e.orig).strip()}"
+        # 4. UPSERT LOGIC
+        if pk_value:
+            existing = (
+                db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
             )
-            continue
-        except Exception as e:
-            logger.error(f"Unexpected error in '{tab_name}'. Skipping row. Detail: {e}")
-            continue
+
+            if existing:
+                # Update existing record
+                for key, value in clean_dict.items():
+                    setattr(existing, key, value)
+            else:
+                # Create new record (UUID provided but record missing locally)
+                new_record = Model(**clean_dict)
+                db.add(new_record)
+        else:
+            # Create new record (UUID missing, let DB generate it)
+            new_record = Model(**clean_dict)
+            db.add(new_record)
+
+        processed += 1
+
+        # Flush periodically so DB generates new UUIDs immediately for Foreign Key references
+        if processed % 50 == 0:
+            db.flush()
 
     try:
         db.commit()
-        logger.info(
-            f"Successfully pulled and upserted {processed} records from '{tab_name}'."
-        )
-        return {"status": "success", "processed": processed}
     except Exception as e:
         db.rollback()
-        logger.error(f"Final commit failed for '{tab_name}': {e}")
-        return {"status": "error", "message": f"Database commit failed: {e}"}
+        logger.error(f"Error committing batch for {tab_name}: {e}")
+        return {"status": "error", "message": str(e)}
+
+    logger.info(
+        f"Successfully pulled and upserted {processed} records from '{tab_name}'."
+    )
+    return {"status": "success", "processed": processed}
 
 
 def execute_pull_all(db: Session) -> dict:
