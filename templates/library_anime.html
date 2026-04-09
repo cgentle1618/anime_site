@@ -756,8 +756,16 @@ padding-bottom: 0 !important; } .filters-open { max-height: 1000px; opacity: 1;
       const myRatingBadge = anime.my_rating ? `<span class="bg-yellow-100 text-yellow-800 font-black px-2 py-0.5 rounded text-[10px]">${anime.my_rating}</span>` : '-';
       const malRatingText = anime.mal_rating ? `<span class="font-bold text-blue-600">${anime.mal_rating}</span>` : '-';
 
+      // Baha Source Interactive Link Logic
       const isBaha = anime.source_baha === true || String(anime.source_baha).toLowerCase() === "true";
-      const bahaIcon = isBaha ? `<img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-4 inline-block opacity-90" alt="Baha">` : '-';
+      let bahaIcon = '-';
+      if (isBaha) {
+          if (anime.baha_link) {
+              bahaIcon = `<a href="${anime.baha_link}" target="_blank" onclick="event.stopPropagation()" class="inline-block hover:scale-110 transition-transform" title="Watch on Bahamut"><img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-4 opacity-90" alt="Baha"></a>`;
+          } else {
+              bahaIcon = `<img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-4 inline-block opacity-50 grayscale" title="Bahamut (No Link)" alt="Baha">`;
+          }
+      }
 
       // Action Button
       let statusHtml = "";
