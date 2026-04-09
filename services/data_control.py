@@ -18,16 +18,9 @@ from utils.utils import (
     extract_mal_id,
     extract_season_from_title,
     calculate_season_from_month,
-    FRANCHISE_HEADERS,
-    SERIES_HEADERS,
-    ANIME_HEADERS,
-    SYSTEM_OPTIONS_HEADERS,
 )
 from utils.data_control_utils import (
-    format_franchise_for_sheet,
-    format_series_for_sheet,
-    format_anime_for_sheet,
-    format_for_sheet,
+    format_model_for_sheet,
     parse_row_to_dict,
     parse_franchise_from_sheet,
     parse_series_from_sheet,
@@ -513,36 +506,33 @@ async def execute_replace_anime(
 def execute_backup(db: Session, action_type: str = "Manual") -> dict:
     """
     Retrieves the entire PostgreSQL database and permanently overwrites
-    the four target tabs in Google Sheets.
+    the target tabs in Google Sheets dynamically based on the DB schema.
     """
     logger.info(f"Starting Google Sheets Backup Pipeline ({action_type})...")
 
     try:
         franchises = db.query(Franchise).all()
-        franchise_matrix = [FRANCHISE_HEADERS] + [
-            format_franchise_for_sheet(f) for f in franchises
+        franchise_headers = [c.name for c in Franchise.__table__.columns]
+        franchise_matrix = [franchise_headers] + [
+            format_model_for_sheet(f) for f in franchises
         ]
         bulk_overwrite_sheet("Franchise", franchise_matrix)
 
         series_entries = db.query(Series).all()
-        series_matrix = [SERIES_HEADERS] + [
-            format_series_for_sheet(s) for s in series_entries
+        series_headers = [c.name for c in Series.__table__.columns]
+        series_matrix = [series_headers] + [
+            format_model_for_sheet(s) for s in series_entries
         ]
         bulk_overwrite_sheet("Series", series_matrix)
 
         animes = db.query(Anime).all()
-        anime_matrix = [ANIME_HEADERS] + [format_anime_for_sheet(a) for a in animes]
+        anime_headers = [c.name for c in Anime.__table__.columns]
+        anime_matrix = [anime_headers] + [format_model_for_sheet(a) for a in animes]
         bulk_overwrite_sheet("Anime", anime_matrix)
 
         sysopts = db.query(SystemOption).all()
-        sysopt_matrix = [SYSTEM_OPTIONS_HEADERS] + [
-            [
-                format_for_sheet(o.id),
-                format_for_sheet(o.category),
-                format_for_sheet(o.option_value),
-            ]
-            for o in sysopts
-        ]
+        sysopt_headers = [c.name for c in SystemOption.__table__.columns]
+        sysopt_matrix = [sysopt_headers] + [format_model_for_sheet(o) for o in sysopts]
         bulk_overwrite_sheet("System Options", sysopt_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
