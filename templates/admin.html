@@ -256,15 +256,16 @@ endblock %} {% block content %}
           class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white border-b border-gray-100"
         >
           <tr>
-            <th class="px-6 py-3">Action Type</th>
-            <th class="px-6 py-3">Action Time</th>
+            <th class="px-6 py-3">Action</th>
+            <th class="px-6 py-3">Trigger</th>
+            <th class="px-6 py-3">Time</th>
             <th class="px-6 py-3">Status</th>
             <th class="px-6 py-3">Metrics</th>
           </tr>
         </thead>
         <tbody id="table-logs" class="divide-y divide-gray-100">
           <tr>
-            <td colspan="4" class="text-center py-6 text-gray-400 italic">
+            <td colspan="5" class="text-center py-6 text-gray-400 italic">
               Loading logs...
             </td>
           </tr>
@@ -670,22 +671,54 @@ endblock %} {% block content %}
 
       const logHTML = logs
         .slice(0, 15)
-        .map(
-          (log) => `
+        .map((log) => {
+          // Dynamically build the status HTML
+          let statusHtml = "";
+          if (log.status === "Success") {
+            statusHtml =
+              '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>';
+          } else if (log.status === "Aborted") {
+            statusHtml =
+              '<span class="text-amber-500 font-bold"><i class="fas fa-exclamation-triangle mr-1"></i> Aborted</span>';
+          } else {
+            // Render Failed with hover tooltip for the error message
+            statusHtml = `<span class="text-red-500 font-bold cursor-help" title="${log.error_message || "Unknown error"}"><i class="fas fa-times-circle mr-1"></i> Failed</span>`;
+          }
+
+          // Conditional class for Auto vs Manual triggers
+          const triggerClass =
+            log.type === "Auto"
+              ? "bg-purple-100 text-purple-700"
+              : "bg-blue-100 text-blue-700";
+
+          return `
                 <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-                    <td class="px-6 py-3 font-bold text-gray-700 whitespace-nowrap">${log.sync_type}</td>
+                    <td class="px-6 py-3">
+                        <div class="font-bold text-gray-800">${log.action_main || "Unknown"}</div>
+                        <div class="text-[10px] text-gray-500">${log.action_specific || ""}</div>
+                    </td>
+                    <td class="px-6 py-3">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${triggerClass}">${log.type || "Manual"}</span>
+                    </td>
                     <td class="px-6 py-3 text-gray-500 whitespace-nowrap">${formatDate(log.timestamp)}</td>
-                    <td class="px-6 py-3">${log.status === "success" ? '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>' : '<span class="text-red-500 font-bold"><i class="fas fa-times-circle mr-1"></i> Failed</span>'}</td>
-                    <td class="px-6 py-3 font-mono text-xs whitespace-nowrap"><span class="text-emerald-600">+${log.rows_added || 0}</span> / <span class="text-blue-600">~${log.rows_updated || 0}</span> / <span class="text-red-600">-${log.rows_deleted || 0}</span></td>
+                    <td class="px-6 py-3">${statusHtml}</td>
+                    <td class="px-6 py-3 font-mono text-xs whitespace-nowrap">
+                        <span class="text-emerald-600">+${log.rows_added || 0}</span> / 
+                        <span class="text-blue-600">~${log.rows_updated || 0}</span> / 
+                        <span class="text-red-600">-${log.rows_deleted || 0}</span>
+                    </td>
                 </tr>
-            `,
-        )
+            `;
+        })
         .join("");
+
       document.getElementById("table-logs").innerHTML =
         logHTML ||
-        '<tr><td colspan="4" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
+        '<tr><td colspan="5" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
     } catch (e) {
       console.error("Failed to load logs", e);
+      document.getElementById("table-logs").innerHTML =
+        '<tr><td colspan="5" class="text-center py-6 italic text-red-400">Failed to fetch log data.</td></tr>';
     }
   }
 
