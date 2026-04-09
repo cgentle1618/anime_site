@@ -84,6 +84,22 @@ def get_system_logs(db: Session = Depends(get_db)):
     return logs
 
 
+@router.get(
+    "/deleted",
+    response_model=List[schemas.DeletedRecordResponse],
+    summary="Get Deleted Records",
+)
+def get_deleted_records(db: Session = Depends(get_db)):
+    """Fetches the most recent deleted records log."""
+    records = (
+        db.query(models.DeletedRecord)
+        .order_by(models.DeletedRecord.timestamp.desc())
+        .limit(20)
+        .all()
+    )
+    return records
+
+
 # ==========================================
 # DIAGNOSTICS & TESTING
 # ==========================================
