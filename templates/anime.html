@@ -893,9 +893,23 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
             btn.disabled = true;
 
             try {
-                const response = await fetch(`/api/anime/${ANIME_ID}/autofill`, { method: "POST" });
-                if (!response.ok) throw new Error("Autofill processing failed.");
-                showNotification('success', 'Jikan/MAL autofill completed.');
+                // The new data control routes are protected, so pass the token if it exists
+                const token = localStorage.getItem('token');
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+                // Map to the new single entry data-control endpoint
+                const response = await fetch(`/api/data-control/fill/anime/${ANIME_ID}`, {
+                    method: "POST",
+                    headers: headers
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.detail || data.message || "Autofill processing failed.");
+                }
+
+                showNotification('success', data.message || 'Jikan/MAL autofill completed.');
                 await loadDetails();
             } catch (error) {
                 showNotification('error', error.message);
