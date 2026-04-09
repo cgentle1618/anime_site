@@ -275,7 +275,7 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
             <div class="space-y-1">
               <label
                 class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider"
-                >Status</label
+                >Watching Status</label
               >
               <select
                 id="select-watching-status"
@@ -289,13 +289,16 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
                 endif
                 %}
               >
+                <option value="Might Watch">Might Watch</option>
+                <option value="Plan to Watch">Plan to Watch</option>
+                <option value="Watch When Airs">Watch When Airs</option>
                 <option value="Active Watching">Active Watching</option>
                 <option value="Passive Watching">Passive Watching</option>
                 <option value="Paused">Paused</option>
-                <option value="Completed">Completed</option>
-                <option value="Dropped">Dropped</option>
                 <option value="Temp Dropped">Temp Dropped</option>
-                <option value="Plan to Watch">Plan to Watch</option>
+                <option value="Dropped">Dropped</option>
+                <option value="Won't Watch">Won't Watch</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
 
