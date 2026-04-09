@@ -70,12 +70,17 @@ def set_current_season(payload: dict = Body(...), db: Session = Depends(get_db))
 
 @router.get(
     "/logs",
-    response_model=List[schemas.SyncLogResponse],
+    response_model=List[schemas.DataControlLogResponse],
     summary="Get Data Control Logs",
 )
-def get_sync_logs(db: Session = Depends(get_db)):
-    """Fetches the history of data control pipeline executions."""
-    logs = db.query(models.SyncLog).order_by(models.SyncLog.timestamp.desc()).all()
+def get_system_logs(db: Session = Depends(get_db)):
+    """Fetches the most recent data control logs."""
+    logs = (
+        db.query(models.DataControlLog)
+        .order_by(models.DataControlLog.timestamp.desc())
+        .limit(50)
+        .all()
+    )
     return logs
 
 
