@@ -116,6 +116,43 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
             <!-- Links injected via JS -->
           </div>
         </div>
+
+        <!-- Related Entries Block -->
+        <div
+          id="related-entries-container"
+          class="hidden bg-white rounded-xl border border-gray-200 shadow-sm p-4"
+        >
+          <h3
+            class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2"
+          >
+            <i class="fas fa-project-diagram mr-1.5"></i>Related Entries
+          </h3>
+          <div class="flex flex-col gap-3" id="related-entries-grid">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- System Information -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h3
+            class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2"
+          >
+            <i class="fas fa-microchip mr-1.5"></i>System Info
+          </h3>
+          <div>
+            <div
+              class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1"
+            >
+              System ID
+            </div>
+            <div
+              id="display-system-id"
+              class="text-xs font-mono text-gray-800 bg-gray-50 px-2 py-1.5 rounded border border-gray-100 break-all select-all"
+            >
+              -
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ========================================== -->
@@ -385,21 +422,6 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
           </div>
         </div>
 
-        <!-- Related Entries Block (Dynamic) -->
-        <div id="related-entries-container" class="hidden">
-          <h3
-            class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2"
-          >
-            <i class="fas fa-project-diagram mr-2"></i>Related Entries
-          </h3>
-          <div
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-            id="related-entries-grid"
-          >
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
         <!-- Notes Section (Cast & Music) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Cast & Characters (Under Development) -->
@@ -628,6 +650,7 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
 
     pageDOM.relatedContainer = document.getElementById("related-entries-container");
     pageDOM.relatedGrid = document.getElementById("related-entries-grid");
+    pageDOM.displaySystemId = document.getElementById("display-system-id");
 
     // Inputs
     pageDOM.epFin = document.getElementById("input-ep-fin");
@@ -866,8 +889,8 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
           if (!relAnime) return '';
           const name = relAnime.anime_name_cn || relAnime.anime_name_en || relAnime.anime_name_romanji;
           const rImg = relAnime.cover_image_file && relAnime.cover_image_file !== 'N/A'
-            ? (isLocalhost ? `/static/covers/${relAnime.cover_image_file}` : `https://storage.googleapis.com/cg1618-anime-covers/${relAnime.cover_image_file}`)
-            : fallbackSvg;
+              ? (isLocalhost ? `/static/covers/${relAnime.cover_image_file}` : `https://storage.googleapis.com/cg1618-anime-covers/${relAnime.cover_image_file}`)
+              : fallbackSvg;
 
           return `
             <div class="bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 cursor-pointer hover:bg-brand/5 hover:border-brand/30 transition card-hover" onclick="window.location.href='/anime/${relAnime.system_id}'">
@@ -883,7 +906,14 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
 
       if (a.prequel_id) relatedCards.push(createMiniCard(a.prequel_id, 'Prequel', 'text-orange-500'));
       if (a.sequel_id) relatedCards.push(createMiniCard(a.sequel_id, 'Sequel', 'text-green-500'));
-      if (a.alternative_id) relatedCards.push(createMiniCard(a.alternative_id, 'Alternative', 'text-blue-500'));
+
+      // Fix: the DB field is a.alternative, not a.alternative_id
+      if (a.alternative) {
+          const altIds = String(a.alternative).split(',').map(id => id.trim()).filter(Boolean);
+          altIds.forEach(altId => {
+              relatedCards.push(createMiniCard(altId, 'Alternative', 'text-blue-500'));
+          });
+      }
 
       if (relatedCards.length > 0) {
           pageDOM.relatedGrid.innerHTML = relatedCards.join('');
@@ -902,6 +932,9 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
       pageDOM.selOp.value = a.op || "";
       pageDOM.selEd.value = a.ed || "";
       pageDOM.selInsertOst.value = a.insert_ost || "";
+
+      // 12. System Info
+      if (pageDOM.displaySystemId) pageDOM.displaySystemId.innerText = a.system_id || "-";
   }
 
   // --- SERIES MODAL LOGIC ---
