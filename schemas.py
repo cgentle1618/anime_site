@@ -216,6 +216,25 @@ class AnimeResponse(AnimeBase):
 # ==========================================
 
 
+class SystemConfigResponse(BaseModel):
+    config_key: str
+    config_value: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SeasonalBase(BaseModel):
+    seasonal: str
+    my_rating: Optional[str] = None
+    entry_completed: int = 0
+    entry_watching: int = 0
+    entry_dropped: int = 0
+
+
+class SeasonalResponse(SeasonalBase):
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CurrentSeasonUpdate(BaseModel):
     """Specific schema for updating global 'current_season' setting."""
 
