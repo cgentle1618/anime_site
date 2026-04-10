@@ -6,8 +6,19 @@ Must NOT import from models or schemas to prevent circular imports.
 """
 
 import re
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
+# ==========================================
+# PRE-COMPILED REGEX PATTERNS
+# ==========================================
+# Compiling at the module level improves performance during bulk pipeline operations.
+MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
+SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
+
+
+# ==========================================
+# CONSTANTS & MAPPINGS
+# ==========================================
 
 MONTH_MAP = {
     "JAN": "01",
@@ -61,16 +72,19 @@ ANIME_HEADERS = [
     "anime_name_romanji",
     "anime_name_jp",
     "anime_name_alt",
+    "season_part",
     "airing_type",
-    "watching_status",
     "airing_status",
+    "watching_status",
+    "is_main",
+    "ep_previous",
     "ep_total",
     "ep_fin",
-    "ep_previous",
     "ep_special",
-    "season_part",
     "my_rating",
-    "is_main",
+    "mal_rating",
+    "mal_rank",
+    "anilist_rating",
     "release_month",
     "release_season",
     "release_year",
@@ -85,24 +99,20 @@ ANIME_HEADERS = [
     "sequel_id",
     "alternative",
     "watch_order",
-    "remark",
-    "official_link",
-    "twitter_link",
     "mal_id",
     "mal_link",
-    "mal_rating",
-    "mal_rank",
     "anilist_link",
-    "anilist_rating",
+    "official_link",
+    "twitter_link",
     "op",
     "ed",
     "insert_ost",
-    "seiyuu",
     "source_baha",
     "baha_link",
+    "source_netflix",
     "source_other",
     "source_other_link",
-    "source_netflix",
+    "remark",
     "cover_image_file",
     "created_at",
     "updated_at",
@@ -112,67 +122,58 @@ SYSTEM_OPTIONS_HEADERS = ["id", "category", "option_value"]
 
 
 # ==========================================
-# UTILITY FUNCTIONS
+# MATH & DATA VALIDATION
 # ==========================================
 
 
-def extract_mal_id(mal_link: str) -> Optional[int]:
+def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], int]:
     """
-    Extracts the MyAnimeList (MAL) ID from a standard MAL URL.
-    Example: 'https://myanimelist.net/anime/5114/...' -> 5114
+    Sanitizes episode inputs and enforces logical bounds.
+    Ensures finished episodes do not fall below zero or exceed total episodes.
     """
-    if not mal_link:
-        return None
+    try:
+        safe_total = int(float(ep_total)) if ep_total not in (None, "", "?") else None
+    except (ValueError, TypeError):
+        safe_total = None
 
-    match = re.search(r"myanimelist\.net/anime/(\d+)", str(mal_link))
-    if match:
-        return int(match.group(1))
+    try:
+        safe_fin = int(float(ep_fin)) if ep_fin not in (None, "") else 0
+    except (ValueError, TypeError):
+        safe_fin = 0
 
-    return None
+    if safe_total is not None and safe_total < 0:
+        safe_total = 0
+    if safe_fin < 0:
+        safe_fin = 0
 
-
-def validate_episode_math(
-    ep_total: Optional[int], ep_fin: Optional[int]
-) -> Tuple[Optional[int], Optional[int]]:
-    """
-    Strict validation for episode counts.
-    - Neither can be less than 0.
-    - ep_fin cannot exceed ep_total (if ep_total is known).
-    Returns the corrected (ep_total, ep_fin) tuple.
-    """
-    # Ensure they aren't negative
-    safe_total = max(0, ep_total) if ep_total is not None else None
-    safe_fin = max(0, ep_fin) if ep_fin is not None else 0
-
-    # Cap finished episodes at total episodes if total is known
     if safe_total is not None and safe_fin > safe_total:
         safe_fin = safe_total
 
     return safe_total, safe_fin
 
 
+# ==========================================
+# DATE & STRING PARSING
+# ==========================================
+
+
 def calculate_season_from_month(month_str: str) -> Optional[str]:
     """
     Infers the standard anime broadcasting season based on the release month.
-    Accepts string representations (e.g., "JAN", "01", "1").
+    Accepts string abbreviations or numeric strings.
     """
     if not month_str:
         return None
 
     val = str(month_str).upper()
 
-    winter = {"JAN", "FEB", "MAR", "1", "01", "2", "02", "3", "03"}
-    spring = {"APR", "MAY", "JUN", "4", "04", "5", "05", "6", "06"}
-    summer = {"JUL", "AUG", "SEP", "7", "07", "8", "08", "9", "09"}
-    fall = {"OCT", "NOV", "DEC", "10", "11", "12"}
-
-    if val in winter:
+    if val in {"JAN", "FEB", "MAR", "1", "01", "2", "02", "3", "03"}:
         return "WIN"
-    if val in spring:
+    if val in {"APR", "MAY", "JUN", "4", "04", "5", "05", "6", "06"}:
         return "SPR"
-    if val in summer:
+    if val in {"JUL", "AUG", "SEP", "7", "07", "8", "08", "9", "09"}:
         return "SUM"
-    if val in fall:
+    if val in {"OCT", "NOV", "DEC", "10", "11", "12"}:
         return "FAL"
 
     return None
@@ -180,18 +181,30 @@ def calculate_season_from_month(month_str: str) -> Optional[str]:
 
 def extract_season_from_title(title: str) -> Optional[str]:
     """
-    Extracts season numbers from standard English titles.
-    Example: 'Attack on Titan Season 2' -> 'Season 2'
+    Parses terms like 'Season 2' or 'Part 2' directly from the anime title.
+    Returns a normalized, title-cased string.
     """
     if not title:
         return None
 
-    match = re.search(r"(Season\s\d+|S\d+)", str(title), re.IGNORECASE)
+    matches = SEASON_PART_PATTERN.findall(title)
+    if matches:
+        parts = [m.strip().title() for m in matches]
+        return " ".join(parts)
+
+    return None
+
+
+def extract_mal_id(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a standard MyAnimeList URL.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+
+    match = MAL_ID_PATTERN.search(url)
     if match:
-        # Standardize "S2" to "Season 2"
-        val = match.group(1).upper()
-        if val.startswith("S") and not val.startswith("SEASON"):
-            return f"Season {val[1:]}"
-        return match.group(1).title()
+        return int(match.group(1))
 
     return None
