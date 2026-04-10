@@ -36,6 +36,7 @@ content %}
 <div
   class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
 >
+  <!-- Header & Tabs -->
   <div class="mb-6 border-b border-gray-200 shrink-0">
     <h1
       class="text-2xl font-black text-gray-900 tracking-tight flex items-center mb-4"
@@ -74,6 +75,7 @@ content %}
     </nav>
   </div>
 
+  <!-- Main Workspace -->
   <div
     class="flex-1 relative min-h-0 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col"
   >
@@ -85,6 +87,9 @@ content %}
       <p class="text-gray-600 font-bold">Loading Database...</p>
     </div>
 
+    <!-- ======================================================== -->
+    <!-- STATE 1: DISCOVERY VIEW (Search & Recent)                -->
+    <!-- ======================================================== -->
     <div
       id="discovery-view"
       class="flex-1 overflow-y-auto p-8 flex flex-col items-center"
@@ -103,6 +108,7 @@ content %}
         </p>
       </div>
 
+      <!-- Standard Search Bar (Anime, Franchise, Series) -->
       <div
         id="standard-search-container"
         class="relative w-full max-w-2xl mb-12"
@@ -117,9 +123,11 @@ content %}
           class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition-all shadow-sm"
         />
 
+        <!-- Floating Suggestions Dropdown -->
         <div id="global-search-dropdown" class="hide-scrollbar"></div>
       </div>
 
+      <!-- Options Category Filter (Only visible on Options Tab) -->
       <div id="options-search-container" class="hidden w-full max-w-md mb-8">
         <label class="block text-sm font-bold text-gray-700 mb-2 text-center"
           >Select Category</label
@@ -130,6 +138,7 @@ content %}
         ></select>
       </div>
 
+      <!-- Recently Added / Options List Grid -->
       <div class="w-full max-w-5xl">
         <div id="recent-header" class="flex items-center mb-4">
           <h3 class="text-sm font-black text-gray-500 uppercase tracking-wider">
@@ -140,14 +149,20 @@ content %}
         <div
           id="discovery-grid"
           class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        ></div>
+        >
+          <!-- Populated via JS -->
+        </div>
       </div>
     </div>
 
+    <!-- ======================================================== -->
+    <!-- STATE 2: FOCUSED EDITOR VIEW                             -->
+    <!-- ======================================================== -->
     <div
       id="editor-view"
       class="hidden flex-1 flex flex-col relative overflow-hidden bg-gray-50/30"
     >
+      <!-- Editor Header -->
       <div
         class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0"
       >
@@ -169,6 +184,7 @@ content %}
         </div>
       </div>
 
+      <!-- Anime Ribbon (Other entries in same Franchise) -->
       <div
         id="anime-ribbon"
         class="hidden bg-white border-b border-gray-200 px-6 py-3 shrink-0 items-center overflow-x-auto hide-scrollbar"
@@ -177,9 +193,12 @@ content %}
           class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-4 shrink-0"
           ><i class="fas fa-sitemap mr-1"></i> Franchise Hub:</span
         >
-        <div id="anime-ribbon-links" class="flex gap-2"></div>
+        <div id="anime-ribbon-links" class="flex gap-2">
+          <!-- JS Populated -->
+        </div>
       </div>
 
+      <!-- Scrollable Form Area -->
       <div class="flex-1 overflow-y-auto p-6 lg:p-8 relative">
         <div
           class="max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm"
@@ -196,6 +215,7 @@ content %}
             </p>
           </div>
 
+          <!-- ==================== ANIME EDITOR ==================== -->
           <form id="form-anime" class="hidden">
             <div class="form-section-title">Titles & Naming</div>
             <div class="grid grid-cols-2 gap-5">
@@ -631,7 +651,7 @@ content %}
                 >
                 <input
                   type="text"
-                  data-field="alternative_id"
+                  data-field="alternative"
                   class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500"
                 />
               </div>
@@ -862,6 +882,7 @@ content %}
             </div>
           </form>
 
+          <!-- ==================== FRANCHISE EDITOR ==================== -->
           <form id="form-franchise" class="hidden">
             <div class="form-section-title">Titles & Naming</div>
             <div
@@ -999,6 +1020,7 @@ content %}
             </div>
           </form>
 
+          <!-- ==================== SERIES EDITOR ==================== -->
           <form id="form-series" class="hidden">
             <div class="grid grid-cols-1 gap-5">
               <div>
@@ -1055,6 +1077,7 @@ content %}
             </div>
           </form>
 
+          <!-- ==================== OPTIONS EDITOR ==================== -->
           <form id="form-options" class="hidden">
             <div class="grid grid-cols-1 gap-6">
               <div>
@@ -1083,9 +1106,11 @@ content %}
           </form>
 
           <div class="h-12"></div>
+          <!-- Spacer for absolute button -->
         </div>
       </div>
 
+      <!-- Editor Action Bar -->
       <div
         id="editor-actions"
         class="absolute bottom-0 w-full bg-white border-t border-gray-200 px-8 py-4 flex justify-end z-20"
@@ -1102,6 +1127,7 @@ content %}
   </div>
 </div>
 
+<!-- Creation Confirmation Modal -->
 <div
   id="create-modal"
   class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center"
@@ -2093,6 +2119,7 @@ content %}
     }
 
     setValue(valStr) {
+      // Handles parsing of backend comma-separated strings back into pill arrays
       if (!valStr) {
         this.selected = [];
       } else if (Array.isArray(valStr)) {
