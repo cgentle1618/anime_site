@@ -1,25 +1,34 @@
 """
 other_logics.py
-Contains isolated business logic specific to Anime entries (e.g., episode math, completion checks, hierarchy resolution).
+Contains isolated business logic specific to Anime entries (e.g., episode math,
+completion checks, hierarchy resolution).
 These functions mutate or evaluate SQLAlchemy models directly and are meant to be
 called by FastAPI routers or other higher-level orchestrators.
 """
 
 import logging
-import uuid
 import re
-from typing import Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
+import uuid
+from typing import Any, Dict, Optional, Tuple
 
-from models import Anime, Franchise, Seasonal
-from database import get_taipei_now
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
 import services.jikan as jikan_client
-from utils.utils import MONTH_MAP, calculate_season_from_month, extract_mal_id
-from utils.jikan_utils import extract_mal_anime_data
+from database import get_taipei_now
+from models import Anime, Franchise, Seasonal
 from services.image_manager import download_cover_image
+from utils.jikan_utils import extract_mal_anime_data
+from utils.utils import MONTH_MAP, calculate_season_from_month, extract_mal_id
 
 logger = logging.getLogger(__name__)
+
+# ==========================================
+# PRE-COMPILED REGEX PATTERNS
+# ==========================================
+# Compiling at the module level improves performance when sorting large collections of entries.
+SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
+PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
 
 
 # ==========================================
@@ -28,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_parent_hierarchy(
-    db: Session, franchise_id: Any, series_id: Any, names: dict
-) -> tuple[Any, Any]:
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
     """
     Dynamically resolves the V2 relational tree.
     1. If franchise is null: searches for an existing one by name, auto-creates if missing.
@@ -96,7 +105,7 @@ def resolve_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
-def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False):
+def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False) -> None:
     """
     Executes 'Calculate Season From Month' and 'MAL Autofill'.
     Fills null fields. If force_replace_ratings is True, overwrites rating and rank.
@@ -229,7 +238,7 @@ def autofill_ep_previous(db: Session, anime: Anime) -> None:
         return
 
     # 3. Sort chronologically using season_part
-    def extract_season_number(season_str: str) -> float:
+    def extract_season_number(season_str: Optional[str]) -> float:
         """
         Extracts numbers from strings like "Season 1", "Season 2 part 2".
         Returns a float to handle parts (e.g., Season 2 part 2 -> 2.2).
@@ -238,20 +247,20 @@ def autofill_ep_previous(db: Session, anime: Anime) -> None:
         if not season_str:
             return 999.0
 
-        s_str = str(season_str).lower()
+        s_str = str(season_str)
 
         # Look for "season X"
-        season_match = re.search(r"season\s*(\d+)", s_str)
+        season_match = SEASON_PATTERN.search(s_str)
         season_num = float(season_match.group(1)) if season_match else 999.0
 
         # Look for "part Y"
-        part_match = re.search(r"part\s*(\d+)", s_str)
+        part_match = PART_PATTERN.search(s_str)
         part_num = float(part_match.group(1)) if part_match else 0.0
 
         # Combine: Season 2 Part 2 becomes 2.2 for sorting
         return season_num + (part_num * 0.1)
 
-    def sort_key(a: Anime) -> tuple:
+    def sort_key(a: Anime) -> Tuple[float, str]:
         """
         Sort primarily by the season/part number extracted from season_part.
         Fallback to constructed release date if season_part parsing is identical.
