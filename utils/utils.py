@@ -37,7 +37,7 @@ MONTH_MAP = {
 
 
 # ==========================================
-# MATH & DATA VALIDATION
+# VALIDATION
 # ==========================================
 
 
@@ -68,28 +68,21 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
 
 
 # ==========================================
-# DATE & STRING PARSING
+# Data Extraction & Transformation
 # ==========================================
 
 
-def calculate_season_from_month(month_str: str) -> Optional[str]:
+def extract_mal_id(url: str) -> Optional[int]:
     """
-    Infers the standard anime broadcasting season based on the release month.
-    Accepts string abbreviations or numeric strings.
+    Extracts the numeric ID from a standard MyAnimeList URL.
+    Returns None if the URL is invalid or the ID cannot be found.
     """
-    if not month_str:
+    if not url:
         return None
 
-    val = str(month_str).upper()
-
-    if val in {"JAN", "FEB", "MAR", "1", "01", "2", "02", "3", "03"}:
-        return "WIN"
-    if val in {"APR", "MAY", "JUN", "4", "04", "5", "05", "6", "06"}:
-        return "SPR"
-    if val in {"JUL", "AUG", "SEP", "7", "07", "8", "08", "9", "09"}:
-        return "SUM"
-    if val in {"OCT", "NOV", "DEC", "10", "11", "12"}:
-        return "FAL"
+    match = MAL_ID_PATTERN.search(url)
+    if match:
+        return int(match.group(1))
 
     return None
 
@@ -110,16 +103,23 @@ def extract_season_from_title(title: str) -> Optional[str]:
     return None
 
 
-def extract_mal_id(url: str) -> Optional[int]:
+def calculate_season_from_month(month_str: str) -> Optional[str]:
     """
-    Extracts the numeric ID from a standard MyAnimeList URL.
-    Returns None if the URL is invalid or the ID cannot be found.
+    Infers the standard anime broadcasting season based on the release month.
+    Accepts string abbreviations or numeric strings.
     """
-    if not url:
+    if not month_str:
         return None
 
-    match = MAL_ID_PATTERN.search(url)
-    if match:
-        return int(match.group(1))
+    val = str(month_str).upper()
+
+    if val in {"JAN", "FEB", "MAR", "1", "01", "2", "02", "3", "03"}:
+        return "WIN"
+    if val in {"APR", "MAY", "JUN", "4", "04", "5", "05", "6", "06"}:
+        return "SPR"
+    if val in {"JUL", "AUG", "SEP", "7", "07", "8", "08", "9", "09"}:
+        return "SUM"
+    if val in {"OCT", "NOV", "DEC", "10", "11", "12"}:
+        return "FAL"
 
     return None
