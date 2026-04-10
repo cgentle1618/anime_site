@@ -5,9 +5,10 @@ Centralizes database session management and security middleware.
 """
 
 import os
+from typing import Any, Dict, Generator
+
 import jwt
-from typing import Generator, Dict, Any
-from fastapi import Request, HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
@@ -15,7 +16,6 @@ from database import SessionLocal
 # ==========================================
 # SECURITY CONFIGURATION
 # ==========================================
-# Defines the cryptographic keys used for JWT token signing and verification.
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_secret_key_change_me_in_prod")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
@@ -61,7 +61,6 @@ def get_current_admin(request: Request) -> Dict[str, Any]:
         raise credentials_exception
 
     try:
-        # Strip the 'Bearer ' prefix to isolate the raw JWT
         token_str = token.split(" ")[1]
         payload = jwt.decode(token_str, SECRET_KEY, algorithms=[ALGORITHM])
 
