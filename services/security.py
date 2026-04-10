@@ -1,12 +1,13 @@
 """
 security.py
-Handles cryptographic operations including password hashing via native bcrypt
-and generating/decoding JSON Web Tokens (JWT).
+Provides cryptographic utilities for the application.
+Handles password hashing via bcrypt and session management via JWT.
 """
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import bcrypt
 import jwt
 from dotenv import load_dotenv
@@ -21,15 +22,20 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
 
+# ==========================================
+# PASSWORD HASHING (BCRYPT)
+# ==========================================
+
+
 def get_password_hash(password: str) -> str:
     """
-    Hashes a password using native bcrypt.
-    Note: Bcrypt has a 72-byte limit. We securely truncate the input
-    to ensure the hashing mechanism doesn't crash on oversized inputs.
+    Hashes a plain-text password using the bcrypt algorithm.
+
+    Note: Bcrypt has a hard limit of 72 bytes for the input string.
+    We truncate the input to 72 bytes to ensure consistency and prevent
+    errors with exceptionally long passwords.
     """
-    # Encode password to bytes and truncate to 72 bytes (industry standard for bcrypt)
     pwd_bytes = password.encode("utf-8")[:72]
-    # Generate salt and hash
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(pwd_bytes, salt)
     return hashed.decode("utf-8")
@@ -37,8 +43,8 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verifies a plain text password against the stored bcrypt hash.
-    Safely truncates the incoming password to match the 72-byte hashing limit.
+    Checks a plain-text password against a known bcrypt hash.
+    Returns True if the credentials match, False otherwise.
     """
     try:
         pwd_bytes = plain_password.encode("utf-8")[:72]
@@ -48,17 +54,23 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
+# ==========================================
+# SESSION TOKEN MANAGEMENT (JWT)
+# ==========================================
+
+
 def create_access_token(
     data: Dict[str, Any], expires_delta: Optional[timedelta] = None
 ) -> str:
     """
-    Constructs and signs a JSON Web Token (JWT) with an expiration claim.
-    This token is subsequently injected into a secure HTTP-Only cookie by the
-    auth router to maintain stateless user sessions.
+    Generates a signed JWT access token containing the provided data payload.
+
+    Includes an 'exp' (expiration) claim. If no specific expires_delta is provided,
+    the token defaults to the global ACCESS_TOKEN_EXPIRE_MINUTES configuration.
     """
     to_encode = data.copy()
 
-    # Use timezone-aware UTC datetime to prevent deprecation warnings and syncing issues
+    # Use timezone-aware UTC to ensure consistency across cloud regions
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -68,6 +80,6 @@ def create_access_token(
 
     to_encode.update({"exp": expire})
 
-    # Generate the JWT string signed with the SECRET_KEY
+    # Sign the token using the secret key and defined algorithm
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
