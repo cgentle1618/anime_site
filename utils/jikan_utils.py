@@ -5,12 +5,17 @@ Jikan (MyAnimeList) API into the formats required by our Anime database model.
 """
 
 import logging
-from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Mapping for V2 strict month format (can be adjusted if you prefer "01", "02", etc.)
+# ==========================================
+# CONSTANTS & MAPPINGS
+# ==========================================
+# Elevated to module level to prevent memory reallocation on every function call
+# during bulk data pipelines.
+
 MONTH_MAP = {
     1: "JAN",
     2: "FEB",
@@ -26,124 +31,128 @@ MONTH_MAP = {
     12: "DEC",
 }
 
+ALLOWED_AIRING_TYPES = {"TV", "Movie", "ONA", "OVA", "Special"}
+
+SEASON_MAP = {
+    "winter": "WIN",
+    "spring": "SPR",
+    "summer": "SUM",
+    "fall": "FAL",
+}
+
+
+# ==========================================
+# DATA TRANSFORMERS
+# ==========================================
+
 
 def _convert_airing_type(jikan_type: Optional[str]) -> Optional[str]:
     """
-    Converts Jikan "type" to our internal Airing Type.
-    Rules: "TV", "Movie", "ONA", "OVA", "Special" remain. Others -> "Other". Null -> Null.
+    Converts Jikan 'type' to our internal Airing Type.
+    Falls back to 'Other' if the type is unrecognized.
     """
     if not jikan_type:
         return None
-
-    allowed_types = {"TV", "Movie", "ONA", "OVA", "Special"}
-    if jikan_type in allowed_types:
+    if jikan_type in ALLOWED_AIRING_TYPES:
         return jikan_type
     return "Other"
 
 
 def _convert_airing_status(jikan_status: Optional[str]) -> Optional[str]:
     """
-    Converts Jikan "status" to our internal Airing Status.
+    Normalizes Jikan's specific phrasing into strict database terminology.
     """
     if not jikan_status:
         return None
 
-    if jikan_status == "Not yet aired":
-        return "Not Yet Aired"
-    elif jikan_status == "currently airing":
-        return "Airing"
-    elif jikan_status == "Finished Airing":
+    lower_status = jikan_status.lower()
+    if "finished" in lower_status:
         return "Finished Airing"
+    if "currently" in lower_status:
+        return "Airing"
+    if "not yet" in lower_status:
+        return "Not Yet Aired"
 
-    return jikan_status
+    return None
 
 
 def _convert_season(jikan_season: Optional[str]) -> Optional[str]:
     """
-    Converts Jikan "season" to our internal Release Season.
+    Maps lowercase season strings to 3-letter uppercase abbreviations.
     """
     if not jikan_season:
         return None
-
-    season_map = {"winter": "WIN", "spring": "SPR", "summer": "SUM", "fall": "FAL"}
-    return season_map.get(jikan_season.lower(), None)
+    return SEASON_MAP.get(jikan_season.lower())
 
 
 def _extract_date_parts(
-    aired_from: Optional[str],
+    date_iso: Optional[str],
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Extracts year, month, and full JP date from Jikan's ISO 8601 date string.
-    Returns: (release_year, release_month, release_date_jp)
+    Parses Jikan's ISO 8601 date string.
+    Returns discrete Year, Month, and full Date strings.
     """
-    if not aired_from:
+    if not date_iso:
         return None, None, None
 
     try:
-        # Jikan returns ISO 8601 strings: "2009-04-05T00:00:00+00:00"
-        dt = datetime.fromisoformat(aired_from.replace("Z", "+00:00"))
-
+        # Standardize the 'Z' UTC suffix to +00:00 for Python's fromisoformat
+        dt = datetime.fromisoformat(date_iso.replace("Z", "+00:00"))
         release_year = str(dt.year)
         release_month = MONTH_MAP.get(dt.month)
-        release_date_jp = dt.strftime("%Y-%m-%d")  # Format as YYYY-MM-DD
-
-        return release_year, release_month, release_date_jp
+        release_date = dt.strftime("%Y-%m-%d")
+        return release_year, release_month, release_date
     except (ValueError, TypeError):
-        logger.warning(f"Malformed date string from Jikan: {aired_from}")
         return None, None, None
 
 
-def _extract_external_links(external_list: list) -> Tuple[Optional[str], Optional[str]]:
+def _extract_external_links(
+    external_links: List[Dict[str, Any]],
+) -> Tuple[Optional[str], Optional[str]]:
     """
-    Extracts Official Link and Twitter Link from Jikan's external links array.
-    Returns: (official_link, twitter_link)
+    Iterates through the API's external links array.
+    Safely extracts the Official Site and the first Twitter/X URL found.
     """
     official_link = None
     twitter_link = None
 
-    for link_obj in external_list:
-        name = link_obj.get("name", "").lower()
-        url = link_obj.get("url")
+    for link in external_links:
+        url = link.get("url", "")
+        name = link.get("name", "").lower()
 
-        if "official site" in name and not official_link:
+        if "official" in name and not official_link:
             official_link = url
-        elif "twitter" in name or "x.com" in url:
+
+        if ("twitter.com" in url or "x.com" in url) and not twitter_link:
             twitter_link = url
 
     return official_link, twitter_link
 
 
+# ==========================================
+# MASTER ORCHESTRATOR
+# ==========================================
+
+
 def extract_mal_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Master function to map raw Jikan JSON data directly to our Anime model columns.
+    Master orchestration function to parse raw Jikan JSON data and flatten it
+    into the standardized dictionary format expected by PostgreSQL.
     """
-    if not raw_data:
-        return {}
-
-    # 1. Base Stats
-    ep_total = raw_data.get("episodes")
-    mal_rating = raw_data.get("score")
-
-    # mal_rank must be a string. Handle cases where rank is an int, or None.
     raw_rank = raw_data.get("rank")
     mal_rank = str(raw_rank) if raw_rank is not None else None
 
-    # 2. Conversions
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
     release_season = _convert_season(raw_data.get("season"))
 
-    # 3. Dates
     aired_from = raw_data.get("aired", {}).get("from")
-    release_year, release_month, release_date_jp = _extract_date_parts(aired_from)
+    release_year, release_month = _extract_date_parts(aired_from)
 
-    # 4. Links
     external_links = raw_data.get("external", [])
     official_link, twitter_link = _extract_external_links(external_links)
 
-    # 5. Cover Image
     images = raw_data.get("images", {})
-    # Prefer webp large, fallback to jpg large, fallback to default
     cover_image_url = (
         images.get("webp", {}).get("large_image_url")
         or images.get("jpg", {}).get("large_image_url")
@@ -153,13 +162,12 @@ def extract_mal_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "airing_type": airing_type,
         "airing_status": airing_status,
-        "release_month": release_month,
         "release_season": release_season,
         "release_year": release_year,
-        "release_date_jp": release_date_jp,
-        "mal_rating": mal_rating,
+        "release_month": release_month,
+        "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
-        "ep_total": ep_total,
+        "ep_total": raw_data.get("episodes"),
         "official_link": official_link,
         "twitter_link": twitter_link,
         "cover_image_url": cover_image_url,
