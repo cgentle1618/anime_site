@@ -1,27 +1,30 @@
 """
 image_manager.py
-Handles downloading external images (e.g., from MAL) and storing them persistently.
-Strictly an I/O service: Contains zero database logic.
-Supports Google Cloud Storage (for production) and local file system (for development).
+Handles the persistent storage and retrieval of anime cover images.
+Acts as an abstraction layer between the local filesystem and Google Cloud Storage.
 """
 
-import os
 import logging
-import requests
+import os
 from typing import Optional
+
+import requests
+
 from utils.gcp_utils import get_active_bucket_name, get_gcs_client
 
-# Setup basic logging
 logger = logging.getLogger(__name__)
 
-# Define the local fallback storage path
 COVER_DIR = "static/covers"
 
 
 def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
     """
-    Downloads an image from a URL and saves it to GCS or Local Storage.
-    Returns the saved filename (e.g., 'uuid.jpg') to be stored in the database.
+    Downloads a cover image from a remote URL and saves it to the active storage provider.
+
+    Logic Flow:
+    1. Check if the image already exists (skip download if found).
+    2. Download the raw bytes via HTTP.
+    3. Upload to GCS (Production) or write to disk (Development).
     """
     if not image_url or not system_id:
         return None
@@ -31,61 +34,50 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
     bucket_name = get_active_bucket_name()
 
     try:
-        # ==========================================
-        # STEP 1: EXISTENCE PRE-CHECK
-        # ==========================================
         if bucket_name:
             client = get_gcs_client()
             bucket = client.bucket(bucket_name)
             blob = bucket.blob(filename)
-
             if blob.exists():
                 return filename
         else:
             os.makedirs(COVER_DIR, exist_ok=True)
             filepath = os.path.join(COVER_DIR, filename)
-
             if os.path.exists(filepath):
                 return filename
 
-        # ==========================================
-        # STEP 2: DOWNLOAD THE IMAGE
-        # ==========================================
-        response = requests.get(
-            image_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AnimeTracker/2.0"
-            },
-            timeout=10,
-        )
+        # MAL/Jikan requires a User-Agent to prevent 403 Forbidden errors
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
+        }
+        response = requests.get(image_url, headers=headers, timeout=15)
         response.raise_for_status()
         image_bytes = response.content
 
-        # ==========================================
-        # STEP 3: SAVE TO PERSISTENT STORAGE
-        # ==========================================
         if bucket_name:
+            # Cloud Mode
             blob.upload_from_string(image_bytes, content_type=content_type)
-            logger.info(f"Successfully uploaded cover to GCS: {filename}")
-            return filename
+            logger.info(f"Cover image uploaded to GCS: {filename}")
         else:
+            # Local Mode
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
-            logger.info(f"Successfully saved cover locally: {filename}")
-            return filename
+            logger.info(f"Cover image saved locally: {filename}")
+
+        return filename
 
     except requests.RequestException as e:
-        logger.error(f"Network error downloading image {image_url}: {e}")
+        logger.error(f"Network error downloading image from {image_url}: {e}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error managing image for {system_id}: {e}")
+        logger.error(f"Unexpected error managing cover image for {system_id}: {e}")
         return None
 
 
 def delete_cover_image(system_id: str) -> None:
     """
-    Deletes the cover image associated with a system_id from storage.
-    Triggered when an entry is permanently deleted from the database.
+    Permanently removes a cover image from storage.
+    Typically called via BackgroundTasks during a record deletion.
     """
     if not system_id:
         return
@@ -95,21 +87,20 @@ def delete_cover_image(system_id: str) -> None:
 
     try:
         if bucket_name:
-            # --- CLOUD MODE ---
+            # Cloud Mode
             client = get_gcs_client()
             bucket = client.bucket(bucket_name)
             blob = bucket.blob(filename)
-
             if blob.exists():
                 blob.delete()
-                logger.info(f"Deleted image from GCS: {filename}")
+                logger.info(f"Deleted GCS cover image: {filename}")
         else:
-            # --- LOCAL MODE ---
+            # Local Mode
             filepath = os.path.join(COVER_DIR, filename)
             if os.path.exists(filepath):
                 os.remove(filepath)
-                logger.info(f"Deleted local image: {filename}")
+                logger.info(f"Deleted local cover image: {filename}")
 
     except Exception as e:
-        # We catch and log, but don't crash the parent DB deletion process
-        logger.error(f"Failed to delete image {filename}: {e}")
+        # Non-critical: Log the error but allow the parent transaction to continue
+        logger.error(f"Maintenance Error: Failed to delete image {filename}: {e}")
