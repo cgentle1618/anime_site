@@ -17,7 +17,7 @@ SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 
 
 # ==========================================
-# CONSTANTS & MAPPINGS
+# CONSTANTS & MAPPINGS & CONFIGURATIONS
 # ==========================================
 
 MONTH_MAP = {
@@ -35,6 +35,19 @@ MONTH_MAP = {
     "DEC": "12",
 }
 
+ANIME_FIELDS_TO_FILL = [
+    "airing_type",
+    "airing_status",
+    "release_month",
+    "release_season",
+    "release_year",
+    "mal_rating",
+    "mal_rank",
+    "ep_total",
+    "official_link",
+    "twitter_link",
+    "cover_image_file",
+]
 
 # ==========================================
 # VALIDATION
