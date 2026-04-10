@@ -1,26 +1,64 @@
+"""
+models.py
+Defines the SQLAlchemy ORM models for the CG1618 Database.
+Contains core business models (Franchise, Series, Anime) and system support models.
+"""
+
+import uuid
 from sqlalchemy import (
     Boolean,
     Column,
-    Integer,
-    String,
+    DateTime,
     Float,
     ForeignKey,
-    DateTime,
+    Integer,
+    String,
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+
 from database import Base, get_taipei_now
-import uuid
+
 
 # ==========================================
-# Application Data Models
+# MIXINS & UTILITIES
 # ==========================================
 
 
-class Franchise(Base):
+class NameFallbackMixin:
     """
-    Top-level media franchise table.
+    Mixin providing standardized multi-language fallback logic for display names.
+    Ensures consistent UI presentation across different media levels.
+    """
+
+    def get_fallback_name(self, sequence_keys: list, start_from: str = "CN") -> str:
+        """
+        Sequence: Iterate through provided fields and return the first non-empty value.
+        """
+        # Determine starting index based on preference
+        start_idx = 0
+        for i, (lang, _) in enumerate(sequence_keys):
+            if lang == start_from:
+                start_idx = i
+                break
+
+        # Return first non-empty string found from start point
+        for i in range(start_idx, len(sequence_keys)):
+            val = sequence_keys[i][1]
+            if val and str(val).strip():
+                return str(val).strip()
+        return ""
+
+
+# ==========================================
+# CORE APPLICATION DATA MODELS
+# ==========================================
+
+
+class Franchise(Base, NameFallbackMixin):
+    """
+    Top-level media franchise entity. Groups related series and individual entries.
     """
 
     __tablename__ = "franchise"
@@ -34,6 +72,7 @@ class Franchise(Base):
     franchise_name_romanji = Column(String, nullable=True)
     franchise_name_jp = Column(String, nullable=True)
     franchise_name_alt = Column(String, nullable=True)
+
     my_rating = Column(String, nullable=True)
     franchise_expectation = Column(String, default="Low")
     favorite_3x3_slot = Column(Integer, nullable=True)
@@ -46,12 +85,8 @@ class Franchise(Base):
     series = relationship("Series", back_populates="franchise")
     animes = relationship("Anime", back_populates="franchise")
 
-    # --- Data Control: Fallback Logic ---
-    def get_fallback_name(self, start_from="CN"):
-        """
-        Cascading fallback for Franchise Name.
-        Sequence: CN -> EN -> Alt -> Romanji -> JP -> hide ("")
-        """
+    @property
+    def display_name(self) -> str:
         sequence = [
             ("CN", self.franchise_name_cn),
             ("EN", self.franchise_name_en),
@@ -59,30 +94,12 @@ class Franchise(Base):
             ("Romanji", self.franchise_name_romanji),
             ("JP", self.franchise_name_jp),
         ]
-
-        # Determine where to start in the fallback chain
-        start_idx = 0
-        for i, (lang, _) in enumerate(sequence):
-            if lang == start_from:
-                start_idx = i
-                break
-
-        # Return the first non-empty string found from the starting point
-        for i in range(start_idx, len(sequence)):
-            val = sequence[i][1]
-            if val and str(val).strip():
-                return str(val).strip()
-        return ""  # hide
-
-    @property
-    def display_name(self):
-        """Convenience property for the default CN-first fallback."""
-        return self.get_fallback_name("CN")
+        return self.get_fallback_name(sequence, "CN")
 
 
-class Series(Base):
+class Series(Base, NameFallbackMixin):
     """
-    Intermediate series layer beneath Franchise and above Anime.
+    Intermediate grouping layer. Links individual anime entries to a parent Franchise.
     """
 
     __tablename__ = "series"
@@ -95,7 +112,6 @@ class Series(Base):
         ForeignKey("franchise.system_id", ondelete="SET NULL"),
         nullable=True,
     )
-
     series_name_en = Column(String, nullable=True)
     series_name_cn = Column(String, nullable=True)
     series_name_alt = Column(String, nullable=True)
@@ -104,39 +120,19 @@ class Series(Base):
     franchise = relationship("Franchise", back_populates="series")
     animes = relationship("Anime", back_populates="series")
 
-    # --- Data Control: Fallback Logic ---
-    def get_fallback_name(self, start_from="CN"):
-        """
-        Cascading fallback for Series Name.
-        Sequence: CN -> EN -> Alt -> hide ("")
-        """
+    @property
+    def display_name(self) -> str:
         sequence = [
             ("CN", self.series_name_cn),
             ("EN", self.series_name_en),
             ("Alt", self.series_name_alt),
         ]
-
-        start_idx = 0
-        for i, (lang, _) in enumerate(sequence):
-            if lang == start_from:
-                start_idx = i
-                break
-
-        for i in range(start_idx, len(sequence)):
-            val = sequence[i][1]
-            if val and str(val).strip():
-                return str(val).strip()
-        return ""
-
-    @property
-    def display_name(self):
-        """Convenience property for the default CN-first fallback."""
-        return self.get_fallback_name("CN")
+        return self.get_fallback_name(sequence, "CN")
 
 
-class Anime(Base):
+class Anime(Base, NameFallbackMixin):
     """
-    The individual anime entries.
+    The granular media entry. Contains all metadata for tracking, production, and sources.
     """
 
     __tablename__ = "anime"
@@ -213,7 +209,6 @@ class Anime(Base):
     remark = Column(Text, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
-
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
@@ -221,12 +216,8 @@ class Anime(Base):
     franchise = relationship("Franchise", back_populates="animes")
     series = relationship("Series", back_populates="animes")
 
-    # --- Data Control: Fallback Logic ---
-    def get_fallback_name(self, start_from="CN"):
-        """
-        Cascading fallback for Anime Name.
-        Sequence: CN -> EN -> Alt -> Romanji -> JP -> hide ("")
-        """
+    @property
+    def display_name(self) -> str:
         sequence = [
             ("CN", self.anime_name_cn),
             ("EN", self.anime_name_en),
@@ -234,32 +225,16 @@ class Anime(Base):
             ("Romanji", self.anime_name_romanji),
             ("JP", self.anime_name_jp),
         ]
-
-        start_idx = 0
-        for i, (lang, _) in enumerate(sequence):
-            if lang == start_from:
-                start_idx = i
-                break
-
-        for i in range(start_idx, len(sequence)):
-            val = sequence[i][1]
-            if val and str(val).strip():
-                return str(val).strip()
-        return ""
-
-    @property
-    def display_name(self):
-        """Convenience property for the default CN-first fallback."""
-        return self.get_fallback_name("CN")
+        return self.get_fallback_name(sequence, "CN")
 
 
 # ==========================================
-# System & Configuration Models
+# SYSTEM & CONFIGURATION MODELS
 # ==========================================
 
 
 class SystemOption(Base):
-    """Stores dynamic dropdown options for the frontend (e.g., formats, statuses)."""
+    """Stores dynamic choice list values for the frontend dropdowns."""
 
     __tablename__ = "system_options"
 
@@ -269,7 +244,7 @@ class SystemOption(Base):
 
 
 class SystemConfigs(Base):
-    """Stores system-wide configurations (e.g., current active season)."""
+    """Stores persistent global application settings as key-value pairs."""
 
     __tablename__ = "system_configs"
 
@@ -279,7 +254,7 @@ class SystemConfigs(Base):
 
 
 class Seasonal(Base):
-    """Stores seasonal broadcasting statistics and ratings."""
+    """Aggregates metrics for specific airing seasons."""
 
     __tablename__ = "seasonal"
 
@@ -291,7 +266,7 @@ class Seasonal(Base):
 
 
 class User(Base):
-    """Admin authentication users."""
+    """Administrative user accounts for access control."""
 
     __tablename__ = "users"
 
@@ -302,7 +277,7 @@ class User(Base):
 
 
 class DataControlLog(Base):
-    """Stores logs for data control pipelines (Backup, Fill, Replace, Pull)."""
+    """Audit log tracking the outcome of sync and maintenance pipelines."""
 
     __tablename__ = "data_control_logs"
 
@@ -320,7 +295,7 @@ class DataControlLog(Base):
 
 
 class DeletedRecord(Base):
-    """Stores tombstone data for deleted entries."""
+    """Tombstone log capturing metadata of entries removed from the database."""
 
     __tablename__ = "deleted_record"
 
@@ -328,7 +303,9 @@ class DeletedRecord(Base):
     type = Column(String, nullable=False)
     franchise = Column(String, nullable=True)
     series = Column(String, nullable=True)
+
     anime_cn = Column(String, nullable=True)
     anime_en = Column(String, nullable=True)
     airing_type = Column(String, nullable=True)
+
     timestamp = Column(DateTime, default=get_taipei_now)
