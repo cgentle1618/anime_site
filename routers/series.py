@@ -17,6 +17,9 @@ import models
 import schemas
 from database import get_taipei_now
 from dependencies import get_db, get_current_admin
+
+from services.other_logics import resolve_series_parent_hierarchy
+
 from utils.data_control_utils import log_deleted_record
 
 # Setup basic logging
@@ -81,32 +84,24 @@ def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.post("/", response_model=schemas.SeriesResponse, summary="Create Series")
+@router.post(
+    "/", response_model=schemas.SeriesResponse, status_code=201, summary="Create Series"
+)
 def create_series(
-    payload: schemas.SeriesCreate,
+    series_in: schemas.SeriesCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Creates a new Series. Verifies franchise_id if provided."""
+    """
+    Creates a new Series.
+    Smartly resolves or auto-creates its parent Franchise if missing.
+    """
+    new_series = models.Series(**series_in.model_dump())
+    new_series.system_id = uuid.uuid4()
 
-    if payload.franchise_id:
-        parent_franchise = (
-            db.query(models.Franchise)
-            .filter(models.Franchise.system_id == str(payload.franchise_id))
-            .first()
-        )
-        if not parent_franchise:
-            raise HTTPException(
-                status_code=400, detail="The provided franchise_id does not exist."
-            )
-
-    # Explicitly assign UUID in Python to bypass missing database default constraints
-    new_series = models.Series(
-        system_id=uuid.uuid4(),
-        franchise_id=payload.franchise_id,
-        series_name_en=payload.series_name_en,
-        series_name_cn=payload.series_name_cn,
-        series_name_alt=payload.series_name_alt,
+    # Utilize the .names_dict property from the mixin to auto-resolve franchise
+    new_series.franchise_id = resolve_series_parent_hierarchy(
+        db, new_series.franchise_id, new_series.names_dict
     )
 
     db.add(new_series)
@@ -121,33 +116,25 @@ def create_series(
 )
 def update_series(
     system_id: str,
-    payload: schemas.SeriesUpdate,
+    series_in: schemas.SeriesUpdate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Fully updates a Series' metadata."""
+    """Fully updates a Series' metadata and smartly resolves hierarchy changes."""
     db_series = (
         db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
 
-    if payload.franchise_id and str(payload.franchise_id) != str(
-        db_series.franchise_id
-    ):
-        parent_franchise = (
-            db.query(models.Franchise)
-            .filter(models.Franchise.system_id == str(payload.franchise_id))
-            .first()
-        )
-        if not parent_franchise:
-            raise HTTPException(
-                status_code=400, detail="The provided franchise_id does not exist."
-            )
-
-    update_data = payload.dict(exclude_unset=True)
+    update_data = series_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_series, key, value)
+
+    # Re-evaluate the franchise relationship based on new values
+    db_series.franchise_id = resolve_series_parent_hierarchy(
+        db, db_series.franchise_id, db_series.names_dict
+    )
 
     db.commit()
     db.refresh(db_series)
@@ -171,20 +158,14 @@ def patch_series(
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
 
-    if "franchise_id" in payload and payload["franchise_id"]:
-        parent_franchise = (
-            db.query(models.Franchise)
-            .filter(models.Franchise.system_id == str(payload["franchise_id"]))
-            .first()
-        )
-        if not parent_franchise:
-            raise HTTPException(
-                status_code=400, detail="The provided franchise_id does not exist."
-            )
-
     for key, value in payload.items():
         if hasattr(db_series, key):
             setattr(db_series, key, value)
+
+    # Partial updates might change the name or detach the franchise, so we verify
+    db_series.franchise_id = resolve_series_parent_hierarchy(
+        db, db_series.franchise_id, db_series.names_dict
+    )
 
     db.commit()
     db.refresh(db_series)
