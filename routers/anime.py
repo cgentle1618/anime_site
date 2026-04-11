@@ -13,19 +13,20 @@ from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
+from dependencies import get_db, get_current_admin
+from database import get_taipei_now
 import models
 import schemas
+
 from services.image_manager import delete_cover_image
 from services.other_logics import (
     autofill_ep_previous,
-    check_is_completed,
-    mark_completed,
-    process_anime_updates,
-    resolve_parent_hierarchy,
+    check_is_tv_completed,
+    mark_tv_completed,
     apply_single_replace_anime,
+    resolve_anime_parent_hierarchy,
 )
-from database import get_taipei_now
-from dependencies import get_db, get_current_admin
+
 from utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -85,29 +86,47 @@ def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.post("/", response_model=schemas.AnimeResponse, summary="Create Anime Entry")
+@router.post(
+    "/",
+    response_model=schemas.AnimeResponse,
+    status_code=201,
+    summary="Create Anime Entry",
+)
 def create_anime_entry(
-    payload: schemas.AnimeCreate,
-    background_tasks: BackgroundTasks,
+    anime_in: schemas.AnimeCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Creates a new Anime Entry."""
+    """
+    Creates a new anime entry.
+    Applies unified domain rules and correctly cascades episode calculations.
+    """
+    new_anime = models.Anime(**anime_in.model_dump())
+    new_anime.system_id = uuid.uuid4()
 
-    # We explicitly generate the UUID here since 'system_id' is intentionally
-    # omitted from the AnimeCreate Pydantic validation schema.
-    anime_data = payload.dict()
-    new_anime = models.Anime(system_id=uuid.uuid4(), **anime_data)
+    # 1. Resolve Hierarchy
+    final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
+        db, new_anime.franchise_id, new_anime.series_id, new_anime.names_dict
+    )
+    new_anime.franchise_id = final_franchise_id
+    new_anime.series_id = final_series_id
 
-    # 2. Inject Business Logic
-    autofill_ep_previous(db, new_anime)
-    if check_is_completed(new_anime):
-        mark_completed(new_anime)
-
+    # 2. Add to session
     db.add(new_anime)
+
+    # 3. Apply Unified Domain Logic (Extract ID, MAL fill, completion checks, seasons)
+    # Using False because we only want to fill missing data, not overwrite custom inputs on create
+    apply_single_replace_anime(db, new_anime, force_replace=False)
+
+    # 4. Critical Step: Flush to database so the upcoming query can see the new entry
+    db.flush()
+
+    # 5. Cascade Recalculation for the entire Franchise/Series group
+    autofill_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
+
+    # Finalize transaction
     db.commit()
     db.refresh(new_anime)
-
     return new_anime
 
 
@@ -121,8 +140,8 @@ def update_anime_entry(
     admin: dict = Depends(get_current_admin),
 ):
     """
-    Updates an anime entry. All domain logic (MAL mapping, season calculations,
-    completion checks) is delegated cleanly to the process_anime_updates wrapper.
+    Updates an anime entry.
+    Applies unified domain rules and correctly cascades episode calculations.
     """
     db_anime = (
         db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
@@ -130,36 +149,29 @@ def update_anime_entry(
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # 1. Apply user-provided updates from the request schema
+    # 1. Apply user-provided updates
     update_data = anime_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
-    # 2. Resolve parent relationships (if franchise/series changed)
-    # Build the names dictionary expected by the helper function
-    names_dict = {
-        "en": db_anime.anime_name_en,
-        "cn": db_anime.anime_name_cn,
-        "romanji": db_anime.anime_name_romanji,
-        "jp": db_anime.anime_name_jp,
-        "alt": db_anime.anime_name_alt,
-    }
-
-    # Unpack the returned tuple and assign the resolved IDs back to the anime entry
-    final_franchise_id, final_series_id = resolve_parent_hierarchy(
-        db, db_anime.franchise_id, db_anime.series_id, names_dict
+    # 2. Resolve parent relationships
+    final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
+        db, db_anime.franchise_id, db_anime.series_id, db_anime.names_dict
     )
     db_anime.franchise_id = final_franchise_id
     db_anime.series_id = final_series_id
 
-    # 3. Calculation (e.g., maintaining episode tracking logic)
-    autofill_ep_previous(db, db_anime)
+    # 3. Apply Unified Domain Logic
+    # force_replace=False prevents overwriting ratings the user might have just typed
+    apply_single_replace_anime(db, db_anime, force_replace=False)
 
-    # 4. Delegate to the Facade wrapper for all domain logic
-    # This automatically checks completion, pulls missing MAL data, and calculates seasons!
-    process_anime_updates(db, db_anime)
+    # 4. Critical Step: Flush so the upcoming query reads the newest edited values (like ep_total)
+    db.flush()
 
-    # 5. Finalize transaction
+    # 5. Cascade Recalculation for the entire Franchise/Series group
+    autofill_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
+
+    # Finalize transaction
     db_anime.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_anime)
