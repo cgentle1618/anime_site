@@ -11,7 +11,6 @@ from typing import Any, Optional, Tuple
 # ==========================================
 # PRE-COMPILED REGEX PATTERNS
 # ==========================================
-# Compiling at the module level improves performance during bulk pipeline operations.
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 
