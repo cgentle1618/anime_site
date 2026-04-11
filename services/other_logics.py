@@ -14,12 +14,19 @@ from typing import Any, Dict, Optional, Tuple
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-import services.jikan as jikan_client
+from services.jikan import fetch_jikan_anime_data
 from database import get_taipei_now
 from models import Anime, Franchise, Seasonal
 from services.image_manager import download_cover_image
-from utils.jikan_utils import extract_mal_anime_data
-from utils.utils import MONTH_MAP, calculate_season_from_month, extract_mal_id
+from utils.jikan_utils import map_jikan_to_anime_data
+from utils.utils import (
+    MONTH_MAP,
+    calculate_season_from_month,
+    extract_mal_id,
+    extract_season_from_title,
+)
+
+from utils.utils import ANIME_FIELDS_TO_FILL
 
 logger = logging.getLogger(__name__)
 
@@ -105,56 +112,6 @@ def resolve_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
-def apply_single_fill_logic(anime: Anime, force_replace_ratings: bool = False) -> None:
-    """
-    Executes 'Calculate Season From Month' and 'MAL Autofill'.
-    Fills null fields. If force_replace_ratings is True, overwrites rating and rank.
-    """
-    # Calculate Season from Month
-    if anime.release_month and not anime.release_season:
-        anime.release_season = calculate_season_from_month(anime.release_month)
-
-    # MAL Autofill
-    mal_id = anime.mal_id or extract_mal_id(anime.mal_link)
-    if mal_id:
-        anime.mal_id = mal_id
-        try:
-            raw_data = jikan_client.fetch_raw_anime_data(mal_id)
-            if raw_data:
-                j_data = extract_mal_anime_data(raw_data)
-
-                # Fill Missing
-                if anime.ep_total is None:
-                    anime.ep_total = j_data.get("ep_total")
-                if anime.release_year is None:
-                    anime.release_year = j_data.get("release_year")
-                if anime.release_month is None:
-                    anime.release_month = j_data.get("release_month")
-                if anime.airing_type is None:
-                    anime.airing_type = j_data.get("airing_type")
-
-                # Replace Ratings (Conditional)
-                if force_replace_ratings:
-                    anime.mal_rating = j_data.get("mal_rating")
-                    anime.mal_rank = j_data.get("mal_rank")
-                else:
-                    if anime.mal_rating is None:
-                        anime.mal_rating = j_data.get("mal_rating")
-                    if anime.mal_rank is None:
-                        anime.mal_rank = j_data.get("mal_rank")
-
-                # Download Cover Image if missing
-                if not anime.cover_image_file and j_data.get("cover_image_url"):
-                    filename = download_cover_image(
-                        j_data.get("cover_image_url"), str(anime.system_id)
-                    )
-                    if filename:
-                        anime.cover_image_file = filename
-
-        except Exception as e:
-            logger.error(f"MAL Autofill failed for {mal_id}: {e}")
-
-
 def auto_create_seasonal(db: Session) -> None:
     """
     Scans the Anime table for unique combinations of release_season and release_year.
@@ -191,6 +148,43 @@ def auto_create_seasonal(db: Session) -> None:
         logger.info(f"Auto-created {new_seasonals_added} new seasonal entries.")
     else:
         logger.info("No new seasonal entries needed to be created.")
+
+
+# ==========================================
+# Checking Logics
+# ==========================================
+
+
+def has_missing_values(anime: Anime) -> bool:
+    """
+    Evaluates an anime entry against the ANIME_FIELDS_TO_FILL list.
+    Returns True if any required fields are missing, False if fully populated.
+
+    Business Rule: If 'Not Yet Aired', ignores missing mal_rating and mal_rank.
+    """
+    missing_fields = []
+
+    # 1. Identify all missing fields
+    for field in ANIME_FIELDS_TO_FILL:
+        val = getattr(anime, field, None)
+        # Check for None or empty strings
+        if val is None or str(val).strip() == "":
+            missing_fields.append(field)
+
+    # 2. If nothing is missing, it's fully populated
+    if not missing_fields:
+        return False
+
+    # 3. Apply Exception Rule: "Not Yet Aired" entries don't have ratings/ranks yet
+    if anime.airing_status == "Not Yet Aired":
+        # Filter out rating and rank from the missing list
+        missing_fields = [
+            f for f in missing_fields if f not in ("mal_rating", "mal_rank")
+        ]
+
+    # 4. If the only things missing were the exempted fields, return False.
+    # Otherwise, return True (it still needs filling).
+    return len(missing_fields) > 0
 
 
 # ==========================================
@@ -350,3 +344,178 @@ def mark_completed(anime: Anime) -> None:
 
     if anime.ep_total is not None:
         anime.ep_fin = anime.ep_total
+
+
+def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) -> None:
+    """
+    Dedicated logic to fetch MAL data via Jikan and enrich a single Anime entry.
+    Fills empty fields and overwrites ratings/rankings if instructed.
+    """
+    mal_id = anime.mal_id or extract_mal_id(anime.mal_link)
+    if not mal_id:
+        return
+
+    anime.mal_id = mal_id
+
+    try:
+        raw_data = fetch_jikan_anime_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_jikan_to_anime_data(raw_data)
+
+        # Fill Missing Data
+        if anime.airing_type is None:
+            anime.airing_type = j_data.get("airing_type")
+        if anime.airing_status is None:
+            anime.airing_status = j_data.get("airing_status")
+        if anime.release_month is None:
+            anime.release_month = j_data.get("release_month")
+        if anime.release_season is None:
+            anime.release_season = j_data.get("release_season")
+        if anime.release_year is None:
+            anime.release_year = j_data.get("release_year")
+        if anime.ep_total is None:
+            anime.ep_total = j_data.get("ep_total")
+        if not anime.official_link:
+            anime.official_link = j_data.get("official_link")
+        if not anime.twitter_link:
+            anime.twitter_link = j_data.get("twitter_link")
+
+        # Overwrite Ratings
+        if force_replace_ratings or anime.mal_rating is None:
+            anime.mal_rating = (
+                j_data.get("mal_rating")
+                if j_data.get("mal_rating")
+                else anime.mal_rating
+            )
+        if force_replace_ratings or anime.mal_rank is None:
+            anime.mal_rank = (
+                str(j_data.get("mal_rank"))
+                if j_data.get("mal_rank")
+                else anime.mal_rank
+            )
+
+        # Conditionally Download Cover Image
+        if not anime.cover_image_file and j_data.get("cover_image_url"):
+            filename = download_cover_image(
+                j_data.get("cover_image_url"), str(anime.system_id)
+            )
+            if filename:
+                anime.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"MAL Autofill failed for Anime ID {anime.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+# ==========================================
+# Replace for Single Entry
+# ==========================================
+
+
+def apply_single_replace_anime(db: Session, anime: Anime) -> None:
+    """
+    Core 'Replace' logic for a single anime entry.
+    Used by routers for manual updates and by data control pipelines.
+    """
+    # 1. Perform Extract MAL ID
+    if not anime.mal_id and anime.mal_link:
+        anime.mal_id = extract_mal_id(anime.mal_link)
+
+    # 2. Perform MAL Autofill (force_replace_ratings=True for the 'Replace' action)
+    autofill_anime_from_mal(anime, force_replace_ratings=True)
+
+    # 3. Perform Extract Season From Title (if null)
+    if not anime.season_part and anime.anime_name_en:
+        extracted_season = extract_season_from_title(anime.anime_name_en)
+        if extracted_season:
+            anime.season_part = extracted_season
+
+    # 4 & 5. Perform Check Completed and Mark Completed
+    if check_is_completed(anime):
+        mark_completed(anime)
+
+    # 6. Perform Calculate Season From Month
+    # Condition: release_season is null AND airing_type is TV
+    if not anime.release_season and anime.airing_type == "TV" and anime.release_month:
+        calculated_season = calculate_season_from_month(anime.release_month)
+        if calculated_season:
+            anime.release_season = calculated_season
+
+    # 7. Perform Auto Create Seasonal
+    # This ensures the 'WIN 2026' entry exists for this specific anime
+    auto_create_seasonal(db)
+
+
+# ==========================================
+#
+# ==========================================
+
+
+def process_anime_updates(db: Session, anime: Anime) -> None:
+    """
+    Facade wrapper for manual anime updates via the Router (PUT/POST).
+    Delegates to independent domain helpers sequentially.
+    Note: Does NOT call db.commit() to allow the router to manage the transaction.
+    """
+    # 1. Extract MAL ID
+    if not anime.mal_id and anime.mal_link:
+        extracted = extract_mal_id(anime.mal_link)
+        if extracted:
+            anime.mal_id = extracted
+
+    # 2. MAL Autofill (Fill missing fields only - standard router behavior)
+    if anime.mal_id:
+        raw_data = fetch_jikan_anime_data(anime.mal_id)
+        if raw_data:
+            parsed_data = map_jikan_to_anime_data(raw_data)
+
+            stated_fields = [
+                "airing_type",
+                "airing_status",
+                "release_month",
+                "release_season",
+                "release_year",
+                "mal_rating",
+                "mal_rank",
+                "ep_total",
+                "official_link",
+                "twitter_link",
+            ]
+
+            for field in stated_fields:
+                current_val = getattr(anime, field)
+                # Only fill if the field is currently empty
+                if current_val is None or str(current_val).strip() == "":
+                    new_val = parsed_data.get(field)
+                    if new_val is not None:
+                        setattr(anime, field, new_val)
+
+            # Handle Cover Image Download
+            if not anime.cover_image_file and parsed_data.get("cover_image_url"):
+                filename = download_cover_image(
+                    parsed_data["cover_image_url"], str(anime.system_id)
+                )
+                if filename:
+                    anime.cover_image_file = filename
+
+    # 3. Extract Season From Title
+    if not anime.season_part and anime.anime_name_en:
+        extracted_season = extract_season_from_title(anime.anime_name_en)
+        if extracted_season:
+            anime.season_part = extracted_season
+
+    # 4. Check & Mark Completed
+    if check_is_completed(anime):
+        mark_completed(anime)
+
+    # 5. Calculate Season From Month
+    if not anime.release_season and anime.airing_type == "TV" and anime.release_month:
+        calculated_season = calculate_season_from_month(anime.release_month)
+        if calculated_season:
+            anime.release_season = calculated_season
+
+    # 6. Auto Create Seasonal
+    auto_create_seasonal(db)

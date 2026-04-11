@@ -15,13 +15,14 @@ from sqlalchemy import or_
 
 import models
 import schemas
-from services.image_manager import download_cover_image, delete_cover_image
+from services.image_manager import delete_cover_image
 from services.other_logics import (
     autofill_ep_previous,
     check_is_completed,
     mark_completed,
+    process_anime_updates,
     resolve_parent_hierarchy,
-    apply_single_fill_logic,
+    apply_single_replace_anime,
 )
 from database import get_taipei_now
 from dependencies import get_db, get_current_admin
@@ -115,43 +116,51 @@ def create_anime_entry(
 )
 def update_anime_entry(
     system_id: str,
-    payload: schemas.AnimeUpdate,
-    background_tasks: BackgroundTasks,
+    anime_in: schemas.AnimeUpdate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Fully updates an Anime entry. Resolves parent changes and applies math logic."""
+    """
+    Updates an anime entry. All domain logic (MAL mapping, season calculations,
+    completion checks) is delegated cleanly to the process_anime_updates wrapper.
+    """
     db_anime = (
         db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
     )
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # Resolve hierarchy in case the user detached it and needs new parents
-    names = {
-        "en": payload.anime_name_en or db_anime.anime_name_en,
-        "cn": payload.anime_name_cn or db_anime.anime_name_cn,
-        "romanji": payload.anime_name_romanji or db_anime.anime_name_romanji,
-        "jp": payload.anime_name_jp or db_anime.anime_name_jp,
-        "alt": payload.anime_name_alt or db_anime.anime_name_alt,
-    }
-    f_id, s_id = resolve_parent_hierarchy(
-        db, payload.franchise_id, payload.series_id, names
-    )
-
-    update_data = payload.dict(exclude_unset=True)
-    update_data["franchise_id"] = f_id
-    update_data["series_id"] = s_id
-
+    # 1. Apply user-provided updates from the request schema
+    update_data = anime_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
-    db_anime.updated_at = get_taipei_now()
+    # 2. Resolve parent relationships (if franchise/series changed)
+    # Build the names dictionary expected by the helper function
+    names_dict = {
+        "en": db_anime.anime_name_en,
+        "cn": db_anime.anime_name_cn,
+        "romanji": db_anime.anime_name_romanji,
+        "jp": db_anime.anime_name_jp,
+        "alt": db_anime.anime_name_alt,
+    }
 
-    # Apply Logic
-    apply_single_fill_logic(db_anime, force_replace_ratings=False)
+    # Unpack the returned tuple and assign the resolved IDs back to the anime entry
+    final_franchise_id, final_series_id = resolve_parent_hierarchy(
+        db, db_anime.franchise_id, db_anime.series_id, names_dict
+    )
+    db_anime.franchise_id = final_franchise_id
+    db_anime.series_id = final_series_id
+
+    # 3. Calculation (e.g., maintaining episode tracking logic)
     autofill_ep_previous(db, db_anime)
 
+    # 4. Delegate to the Facade wrapper for all domain logic
+    # This automatically checks completion, pulls missing MAL data, and calculates seasons!
+    process_anime_updates(db, db_anime)
+
+    # 5. Finalize transaction
+    db_anime.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_anime)
 
@@ -177,45 +186,6 @@ def patch_anime_entry(
     for key, value in payload.items():
         if hasattr(db_anime, key):
             setattr(db_anime, key, value)
-
-    db_anime.updated_at = get_taipei_now()
-    db.commit()
-    db.refresh(db_anime)
-
-    return db_anime
-
-
-@router.post(
-    "/{system_id}/fill",
-    response_model=schemas.AnimeResponse,
-    summary="Fill Single Anime",
-)
-def fill_single_anime(
-    system_id: str,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    """
-    Executes 'Autofill & Update' logic.
-    1. Calculation (autofill_ep_previous).
-    2. MAL Autofill (Force replaces ratings/rank, fills missing others).
-    3. Calculate Season from Month.
-    """
-    db_anime = (
-        db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
-    )
-    if not db_anime:
-        raise HTTPException(status_code=404, detail="Anime entry not found.")
-
-    # 1. Calculation
-    autofill_ep_previous(db, db_anime)
-
-    # 2 & 3. MAL Autofill (Force Ratings) & Calc Season From Month
-    apply_single_fill_logic(db_anime, force_replace_ratings=True)
-
-    # Safety check for completion
-    if check_is_completed(db_anime):
-        mark_completed(db_anime)
 
     db_anime.updated_at = get_taipei_now()
     db.commit()

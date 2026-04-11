@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 # ==========================================
 # CONSTANTS & MAPPINGS
 # ==========================================
-# Elevated to module level to prevent memory reallocation on every function call
-# during bulk data pipelines.
 
 MONTH_MAP = {
     1: "JAN",
@@ -134,20 +132,20 @@ def _extract_external_links(
 # ==========================================
 
 
-def extract_mal_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+def map_jikan_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Master orchestration function to parse raw Jikan JSON data and flatten it
     into the standardized dictionary format expected by PostgreSQL.
     """
-    raw_rank = raw_data.get("rank")
-    mal_rank = str(raw_rank) if raw_rank is not None else None
-
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
-    release_season = _convert_season(raw_data.get("season"))
 
     aired_from = raw_data.get("aired", {}).get("from")
-    release_year, release_month = _extract_date_parts(aired_from)
+    release_season = _convert_season(raw_data.get("season"))
+    release_year, release_month, release_date = _extract_date_parts(aired_from)
+
+    raw_rank = raw_data.get("rank")
+    mal_rank = str(raw_rank) if raw_rank is not None else None
 
     external_links = raw_data.get("external", [])
     official_link, twitter_link = _extract_external_links(external_links)
