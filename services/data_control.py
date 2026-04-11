@@ -14,11 +14,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from models import Franchise, Series, Anime, SystemOption, DataControlLog
+
 from utils.utils import (
     extract_mal_id,
     extract_season_from_title,
     calculate_season_from_month,
-    ANIME_FIELDS_TO_FILL,
 )
 from utils.data_control_utils import (
     format_model_for_sheet,
@@ -29,23 +29,22 @@ from utils.data_control_utils import (
     parse_system_option_from_sheet,
     log_data_control,
 )
-from utils.jikan_utils import map_jikan_to_anime_data
-from services.jikan import fetch_jikan_anime_data
+
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
-from services.image_manager import download_cover_image
 from services.other_logics import (
-    check_is_completed,
-    apply_single_replace_anime,
     has_missing_values,
-    mark_completed,
+    check_is_tv_completed,
     auto_create_seasonal,
+    autofill_anime_from_mal,
+    mark_tv_completed,
+    apply_single_replace_anime,
+    autofill_ep_previous,
 )
 
-# Setup basic logging
 logger = logging.getLogger(__name__)
 
 # ==========================================
-# PIPELINE 4: BACKUP TO GOOGLE SHEETS
+# PIPELINE: BACKUP TO GOOGLE SHEETS
 # ==========================================
 
 
@@ -57,6 +56,11 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
     logger.info(f"Starting Google Sheets Backup Pipeline ({action_type})...")
 
     try:
+        sysopts = db.query(SystemOption).all()
+        sysopt_headers = [c.name for c in SystemOption.__table__.columns]
+        sysopt_matrix = [sysopt_headers] + [format_model_for_sheet(o) for o in sysopts]
+        bulk_overwrite_sheet("System Options", sysopt_matrix)
+
         franchises = db.query(Franchise).all()
         franchise_headers = [c.name for c in Franchise.__table__.columns]
         franchise_matrix = [franchise_headers] + [
@@ -75,11 +79,6 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         anime_headers = [c.name for c in Anime.__table__.columns]
         anime_matrix = [anime_headers] + [format_model_for_sheet(a) for a in animes]
         bulk_overwrite_sheet("Anime", anime_matrix)
-
-        sysopts = db.query(SystemOption).all()
-        sysopt_headers = [c.name for c in SystemOption.__table__.columns]
-        sysopt_matrix = [sysopt_headers] + [format_model_for_sheet(o) for o in sysopts]
-        bulk_overwrite_sheet("System Options", sysopt_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
@@ -106,14 +105,12 @@ async def execute_fill_anime(
     """
     Async Generator function (SSE) for 'Fill Anime'.
     Uses granular try/except blocks to ensure string-parsing errors do not crash
-    the entire update process for an individual anime. Applies local calculations to ALL entries.
+    the entire update process for an individual anime.
     """
     logger.info(f"Starting {action_specific} Pipeline...")
 
     try:
-        # ==========================================
-        # PRE-PROCESSING: Extract MAL IDs for all entries
-        # ==========================================
+        # Extract MAL ID for all entries
         all_anime = db.query(Anime).all()
         extracted_id_count = 0
 
@@ -127,9 +124,7 @@ async def execute_fill_anime(
         if extracted_id_count > 0:
             db.commit()
 
-        # ==========================================
-        # QUEUE GENERATION: Check Missing Values
-        # ==========================================
+        # Check Missing Values
         queue_to_process = [
             anime
             for anime in all_anime
@@ -139,11 +134,11 @@ async def execute_fill_anime(
         total_in_queue = len(queue_to_process)
         processed_count = 0
 
-        # ==========================================
-        # MAIN PROCESSING LOOP (External API & Title Parse)
-        # ==========================================
+        # Initialize Set to track unique Franchise/Series groups for cascade recalculation
+        groups_to_recalculate = set()
+
+        # For each entry with missing values
         if total_in_queue > 0:
-            # Enumerate gives us the exact index (1, 2, 3...) for the UI Progress bar
             for index, anime in enumerate(queue_to_process, start=1):
                 if await request.is_disconnected():
                     logger.info(
@@ -168,7 +163,7 @@ async def execute_fill_anime(
                     or "Unknown Anime"
                 )
 
-                # Use 'index' for the progress bar so it never freezes
+                # Stream progress status to frontend
                 progress_data = {
                     "status": "processing",
                     "current_entry": anime_name,
@@ -178,59 +173,22 @@ async def execute_fill_anime(
                 yield f"data: {json.dumps(progress_data)}\n\n"
 
                 try:
-                    # --- A. Perform MAL Autofill Anime ---
-                    try:
-                        if anime.mal_id:
-                            raw_data = fetch_jikan_anime_data(anime.mal_id)
-                            if raw_data:
-                                parsed_data = map_jikan_to_anime_data(raw_data)
+                    # MAL Autofill Anime
+                    if anime.mal_id:
+                        autofill_anime_from_mal(anime, force_replace_ratings=True)
 
-                                if parsed_data.get("mal_rating") is not None:
-                                    anime.mal_rating = parsed_data.get("mal_rating")
-                                if (
-                                    parsed_data.get("mal_rank") is not None
-                                    and parsed_data.get("mal_rank") != "N/A"
-                                ):
-                                    anime.mal_rank = parsed_data.get("mal_rank")
-
-                                for field in ANIME_FIELDS_TO_FILL:
-                                    current_val = getattr(anime, field)
-                                    if (
-                                        current_val is None
-                                        or str(current_val).strip() == ""
-                                    ):
-                                        new_val = parsed_data.get(field)
-                                        if new_val is not None:
-                                            setattr(anime, field, new_val)
-
-                                if not anime.cover_image_file and parsed_data.get(
-                                    "cover_image_url"
-                                ):
-                                    filename = download_cover_image(
-                                        parsed_data["cover_image_url"],
-                                        str(anime.system_id),
-                                    )
-                                    if filename:
-                                        anime.cover_image_file = filename
-                    except Exception as e:
-                        logger.warning(
-                            f"MAL Autofill step failed for {anime_name}: {e}"
+                    # Extract Season From Title if missing
+                    if not anime.season_part and anime.anime_name_en:
+                        extracted_season = extract_season_from_title(
+                            anime.anime_name_en
                         )
+                        if extracted_season:
+                            anime.season_part = extracted_season
 
-                    # --- B. Perform Extract Season From Title ---
-                    try:
-                        if not anime.season_part and anime.anime_name_en:
-                            extracted_season = extract_season_from_title(
-                                anime.anime_name_en
-                            )
-                            if extracted_season:
-                                anime.season_part = extracted_season
-                    except Exception as e:
-                        logger.warning(
-                            f"Season extraction step failed for {anime_name}: {e}"
-                        )
+                    # Track the group for bulk recalculation
+                    if anime.franchise_id:
+                        groups_to_recalculate.add((anime.franchise_id, anime.series_id))
 
-                    # Finalize transaction for external API fills
                     db.commit()
                     processed_count += 1
 
@@ -240,13 +198,27 @@ async def execute_fill_anime(
 
                 await asyncio.sleep(1)
 
+            # --- POST-PROCESSING: Cascade Recalculation for filled entries ---
+            if groups_to_recalculate:
+                yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Recalculating episode cascades...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+
+                for f_id, s_id in groups_to_recalculate:
+                    try:
+                        autofill_ep_previous(db, f_id, s_id)
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to recalculate episodes for group ({f_id}, {s_id}): {e}"
+                        )
+
+                db.commit()
+
         else:
-            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No external data needed. Running local calculations...', 'processed': 0, 'total': 0})}\n\n"
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No filling needed. Running post-processing...', 'processed': 0, 'total': 0})}\n\n"
 
         # ==========================================
-        # POST-PROCESSING: Apply calculations to ALL entries
+        # POST-PROCESSING: Apply to ALL entries
         # ==========================================
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Applying local calculations to all entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Running post-processing to all entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
 
         for anime in all_anime:
             anime_name = (
@@ -259,14 +231,14 @@ async def execute_fill_anime(
             )
 
             try:
-                # --- C & D. Check Completed & Mark Completed ---
-                if check_is_completed(anime):
-                    mark_completed(anime)
+                # Check Completed & Mark Completed
+                if check_is_tv_completed(anime):
+                    mark_tv_completed(anime)
             except Exception as e:
                 logger.warning(f"Completion check step failed for {anime_name}: {e}")
 
             try:
-                # --- E. Calculate Season From Month ---
+                # Calculate Season From Month with condition
                 if (
                     not anime.release_season
                     and anime.airing_type == "TV"
@@ -278,7 +250,7 @@ async def execute_fill_anime(
             except Exception as e:
                 logger.warning(f"Season calculation step failed for {anime_name}: {e}")
 
-        # --- F. Auto Create Seasonal ---
+        # Auto Create Seasonal
         try:
             auto_create_seasonal(db)
         except Exception as e:
@@ -286,9 +258,6 @@ async def execute_fill_anime(
 
         db.commit()
 
-        # ==========================================
-        # PIPELINE COMPLETION
-        # ==========================================
         log_data_control(
             db,
             "Fill",
@@ -300,9 +269,6 @@ async def execute_fill_anime(
         logger.info(
             f"{action_specific} Pipeline completed. Processed {processed_count} entries."
         )
-
-        # Trigger auto-backup silently
-        execute_backup(db, action_type="Auto")
 
         yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} process complete.', 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
@@ -334,21 +300,18 @@ async def execute_fill_all(
     logger.info(f"Starting {action_specific} Pipeline...")
 
     try:
-        # ==========================================
-        # PHASE 1: FILL ANIME
-        # ==========================================
+        # Fill Anime
         async for message in execute_fill_anime(
             db, request, action_specific="Fill Anime", action_type=action_type
         ):
             yield message
 
-        # If the user hit "Stop" during Phase 1, abort before Phase 2
         if await request.is_disconnected():
             logger.info("Pipeline aborted by user. Skipping Backup.")
             return
 
         # ==========================================
-        # PHASE 2: OTHER ACTIONS (TBD)
+        # OTHER ACTIONS (TBD)
         # ==========================================
         # async for message in execute_fill_movies(db, request, ...):
         #     yield message
@@ -356,19 +319,12 @@ async def execute_fill_all(
         # async for message in execute_fill_manga(db, request, ...):
         #     yield message
 
-        # If the user hit "Stop" during Phase 2, abort before Backup
-        if await request.is_disconnected():
-            return
+        # Abort if the user hit "Stop"
+        # if await request.is_disconnected():
+        #     return
 
-        # ==========================================
-        # PHASE 3: BACKUP
-        # ==========================================
+        # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
-
-        # Trigger the synchronous backup process
-        from services.data_control import (
-            execute_backup,
-        )  # Imported locally to avoid circular dependencies if moved
 
         execute_backup(db, action_type="Auto")
 
@@ -390,6 +346,7 @@ async def execute_replace_single_anime(
 ) -> dict:
     """
     Fetches fields from Jikan API for a single anime entry, forcefully overwriting ratings and ranks.
+    Perform post-processing logic after the replace (e.g. check if completed, calculate season) and commit.
     """
     logger.info(f"Starting Single Replace Pipeline for anime ID: {anime_id}")
     action_specific = "Replace for single anime entry"
@@ -410,9 +367,6 @@ async def execute_replace_single_anime(
                 "message": "Anime entry not found",
                 "status_code": 404,
             }
-
-        # Delegate to the domain logic helper
-        from services.other_logics import apply_single_replace_anime
 
         apply_single_replace_anime(db, anime)
 
@@ -443,8 +397,9 @@ async def execute_replace_anime(
     action_type: str = "Manual",
 ):
     """
-    Async Generator (SSE). Force-updates fields using the centralized domain logic.
+    Async Generator (SSE). Execute Replace action for all anime entries.
     Yields progress using the queue index and supports graceful abort.
+    Uses Set-Based Post-Processing to calculate cascading episodes efficiently.
     """
     logger.info(f"Starting {action_specific} Pipeline...")
 
@@ -464,8 +419,10 @@ async def execute_replace_anime(
         yield f"data: {json.dumps({'status': 'info', 'message': 'No Anime entries found to replace', 'total': 0, 'processed': 0})}\n\n"
         return
 
+    # Initialize our Set to track unique Franchise/Series groups for bulk recalculation
+    groups_to_recalculate = set()
+
     try:
-        # Enumerate gives us the exact index (1, 2, 3...) for the UI Progress bar
         for index, anime in enumerate(all_anime_to_process, start=1):
             if await request.is_disconnected():
                 logger.info(
@@ -488,7 +445,6 @@ async def execute_replace_anime(
                 or "Unknown Anime"
             )
 
-            # Use 'index' for the progress bar so it never freezes
             progress_data = {
                 "status": "processing",
                 "current_entry": anime_name,
@@ -498,7 +454,12 @@ async def execute_replace_anime(
             yield f"data: {json.dumps(progress_data)}\n\n"
 
             try:
-                apply_single_replace_anime(db, anime)
+                apply_single_replace_anime(db, anime, force_replace=True)
+
+                # Track the group (Tuple of UUIDs is hashable and guarantees uniqueness)
+                if anime.franchise_id:
+                    groups_to_recalculate.add((anime.franchise_id, anime.series_id))
+
                 db.commit()
                 processed_count += 1
             except Exception as e:
@@ -506,6 +467,21 @@ async def execute_replace_anime(
                 logger.error(f"Failed to replace {anime_name}: {e}")
 
             await asyncio.sleep(1)
+
+        # --- POST-PROCESSING: Cascade Recalculation ---
+        if groups_to_recalculate:
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Recalculating episode cascades...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+
+            for f_id, s_id in groups_to_recalculate:
+                try:
+                    autofill_ep_previous(db, f_id, s_id)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to recalculate episodes for group ({f_id}, {s_id}): {e}"
+                    )
+
+            # Final commit to save all the recalculated ep_previous values
+            db.commit()
 
         log_data_control(
             db,
@@ -518,6 +494,9 @@ async def execute_replace_anime(
         logger.info(
             f"{action_specific} completed. Processed {processed_count} entries."
         )
+
+        execute_backup(db, action_type="Auto")
+
         yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
     except Exception as e:
@@ -539,22 +518,18 @@ async def execute_replace_all(
     logger.info(f"Starting {action_specific} Pipeline...")
 
     try:
-        # ==========================================
-        # PHASE 1: REPLACE ANIME
-        # ==========================================
-        # We use 'async for' to pipe the yields from the anime function straight to the frontend
+        # Replace Anime
         async for message in execute_replace_anime(
             db, request, action_specific="Replace Anime", action_type=action_type
         ):
             yield message
 
-        # If the user hit "Stop" during Phase 1, abort before Phase 2
         if await request.is_disconnected():
             logger.info("Pipeline aborted by user. Skipping Backup.")
             return
 
         # ==========================================
-        # PHASE 2: OTHER ACTIONS (TBD)
+        # POTHER ACTIONS (TBD)
         # ==========================================
         # async for message in execute_replace_movies(db, request, ...):
         #     yield message
@@ -563,17 +538,11 @@ async def execute_replace_all(
         #     yield message
 
         # If the user hit "Stop" during Phase 2, abort before Backup
-        if await request.is_disconnected():
-            return
+        # if await request.is_disconnected():
+        #     return
 
-        # ==========================================
-        # PHASE 3: BACKUP
-        # ==========================================
+        # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
-
-        # NOTE: Make sure `execute_backup` is imported at the top of your file!
-        # from services.backup import execute_backup
-        # Wait for the backup to finish (assuming it's a synchronous function, if it's async add 'await')
 
         execute_backup(db, action_type="Manual")
 
@@ -586,7 +555,7 @@ async def execute_replace_all(
 
 
 # ==========================================
-# PIPELINE 5: PULL FROM SHEETS
+# PIPELINE: PULL FROM SHEETS
 # ==========================================
 
 
@@ -637,12 +606,14 @@ def execute_pull_specific(
         if not row or not any(row):
             continue
 
-        raw_dict = parse_row_to_dict(headers, row)
-        clean_dict = parser(raw_dict)
+        raw_header_dict = parse_row_to_dict(headers, row)
+        clean_header_dict = parser(raw_header_dict)
 
-        # 1. Resolve String Foreign Keys -> Actual UUIDs (For Series and Anime)
-        if "franchise_id" in clean_dict and isinstance(clean_dict["franchise_id"], str):
-            fname = clean_dict["franchise_id"]
+        # Resolve String Foreign Keys -> Actual UUIDs (For Series and Anime)
+        if "franchise_id" in clean_header_dict and isinstance(
+            clean_header_dict["franchise_id"], str
+        ):
+            fname = clean_header_dict["franchise_id"]
             if fname.strip():
                 fran = (
                     db.query(Franchise)
@@ -657,15 +628,17 @@ def execute_pull_specific(
                     .first()
                 )
                 if fran:
-                    clean_dict["franchise_id"] = fran.system_id
+                    clean_header_dict["franchise_id"] = fran.system_id
                 else:
                     logger.warning(
                         f"Could not resolve franchise FK for: {fname}. Skipping row."
                     )
                     continue
 
-        if "series_id" in clean_dict and isinstance(clean_dict["series_id"], str):
-            sname = clean_dict["series_id"]
+        if "series_id" in clean_header_dict and isinstance(
+            clean_header_dict["series_id"], str
+        ):
+            sname = clean_header_dict["series_id"]
             if sname.strip():
                 series = (
                     db.query(Series)
@@ -679,7 +652,7 @@ def execute_pull_specific(
                     .first()
                 )
                 if series:
-                    clean_dict["series_id"] = series.system_id
+                    clean_header_dict["series_id"] = series.system_id
                 else:
                     logger.warning(
                         f"Could not resolve series FK for: {sname}. Skipping row."
@@ -688,15 +661,15 @@ def execute_pull_specific(
 
         # System Options uses 'id', others use 'system_id'
         pk_field = "id" if tab_name == "System Options" else "system_id"
-        pk_value = clean_dict.get(pk_field)
+        pk_value = clean_header_dict.get(pk_field)
 
-        # 2. Smart Primary Key Logic (Upsert vs Insert)
+        # Smart Primary Key Logic (Upsert vs Insert)
         if not pk_value or (isinstance(pk_value, str) and not pk_value.strip()):
             existing_record = None
             if tab_name == "Franchise":
-                name = clean_dict.get("franchise_name_en") or clean_dict.get(
-                    "franchise_name_cn"
-                )
+                name = clean_header_dict.get(
+                    "franchise_name_en"
+                ) or clean_header_dict.get("franchise_name_cn")
                 if name:
                     existing_record = (
                         db.query(Franchise)
@@ -709,7 +682,7 @@ def execute_pull_specific(
                         .first()
                     )
             elif tab_name == "Series":
-                name = clean_dict.get("series_name_en") or clean_dict.get(
+                name = clean_header_dict.get("series_name_en") or clean_header_dict.get(
                     "series_name_cn"
                 )
                 if name:
@@ -724,7 +697,7 @@ def execute_pull_specific(
                         .first()
                     )
             elif tab_name == "Anime":
-                name = clean_dict.get("anime_name_en") or clean_dict.get(
+                name = clean_header_dict.get("anime_name_en") or clean_header_dict.get(
                     "anime_name_cn"
                 )
                 if name:
@@ -740,21 +713,21 @@ def execute_pull_specific(
 
             if existing_record:
                 pk_value = getattr(existing_record, pk_field)
-                clean_dict[pk_field] = pk_value
+                clean_header_dict[pk_field] = pk_value
             else:
-                clean_dict.pop(pk_field, None)
+                clean_header_dict.pop(pk_field, None)
                 pk_value = None
 
-        # 3. Data Sanitization (Prevent Pydantic Schema 500 Validation Errors)
+        # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors)
         if tab_name == "Anime":
-            if clean_dict.get("watching_status") is None:
-                clean_dict["watching_status"] = "Haven't Started"
-            if clean_dict.get("airing_status") is None:
-                clean_dict["airing_status"] = ""
-            if clean_dict.get("airing_type") is None:
-                clean_dict["airing_type"] = ""
+            if clean_header_dict.get("watching_status") is None:
+                clean_header_dict["watching_status"] = "Haven't Started"
+            if clean_header_dict.get("airing_status") is None:
+                clean_header_dict["airing_status"] = ""
+            if clean_header_dict.get("airing_type") is None:
+                clean_header_dict["airing_type"] = ""
 
-        # 4. UPSERT LOGIC
+        # UPSERT LOGIC
         if pk_value:
             existing = (
                 db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
@@ -762,17 +735,17 @@ def execute_pull_specific(
 
             if existing:
                 # Update existing record
-                for key, value in clean_dict.items():
+                for key, value in clean_header_dict.items():
                     setattr(existing, key, value)
                 rows_updated += 1
             else:
                 # Create new record (UUID provided but record missing locally)
-                new_record = Model(**clean_dict)
+                new_record = Model(**clean_header_dict)
                 db.add(new_record)
                 rows_added += 1
         else:
             # Create new record (UUID missing, let DB generate it)
-            new_record = Model(**clean_dict)
+            new_record = Model(**clean_header_dict)
             db.add(new_record)
             rows_added += 1
 
@@ -827,7 +800,6 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
-    # Hierarchy: Independent -> Top-level Parent -> Child -> Grandchild
     tabs_in_order = ["System Options", "Franchise", "Series", "Anime"]
 
     results = {}
@@ -836,8 +808,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
 
     try:
         for tab in tabs_in_order:
-            # We log individual tabs as "Auto" since they are triggered by the "Pull All" action
-            res = execute_pull_specific(db, tab, action_type="Auto", log_action=True)
+            res = execute_pull_specific(db, tab, action_type="Manual", log_action=True)
 
             if res.get("status") == "error":
                 raise Exception(f"Pull failed on tab {tab}: {res.get('message')}")
