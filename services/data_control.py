@@ -101,13 +101,17 @@ async def execute_fill_anime(
     request: Request,
     action_specific: str = "Fill Anime",
     action_type: str = "Manual",
+    log_action: bool = True,
 ):
     """
     Async Generator function (SSE) for 'Fill Anime'.
-    Uses granular try/except blocks to ensure string-parsing errors do not crash
-    the entire update process for an individual anime.
+    Uses asyncio.CancelledError to perfectly track graceful frontend aborts.
     """
     logger.info(f"Starting {action_specific} Pipeline...")
+
+    # Initialize counters outside the try block so they are accessible in the except blocks
+    processed_count = 0
+    total_in_queue = 0
 
     try:
         # Extract MAL ID for all entries
@@ -132,7 +136,6 @@ async def execute_fill_anime(
         ]
 
         total_in_queue = len(queue_to_process)
-        processed_count = 0
 
         # Initialize Set to track unique Franchise/Series groups for cascade recalculation
         groups_to_recalculate = set()
@@ -140,19 +143,9 @@ async def execute_fill_anime(
         # For each entry with missing values
         if total_in_queue > 0:
             for index, anime in enumerate(queue_to_process, start=1):
+                # Trigger the Abort explicitly if disconnected
                 if await request.is_disconnected():
-                    logger.info(
-                        f"Client disconnected. Aborting {action_specific} gracefully."
-                    )
-                    log_data_control(
-                        db,
-                        "Fill",
-                        action_specific,
-                        action_type,
-                        "Aborted",
-                        rows_updated=processed_count,
-                    )
-                    return
+                    raise asyncio.CancelledError()
 
                 anime_name = (
                     anime.anime_name_cn
@@ -196,6 +189,7 @@ async def execute_fill_anime(
                     db.rollback()
                     logger.error(f"Critical Fill failure for {anime_name}: {e}")
 
+                # If connection closes during sleep, asyncio.CancelledError is raised automatically
                 await asyncio.sleep(1)
 
             # --- POST-PROCESSING: Cascade Recalculation for filled entries ---
@@ -203,6 +197,9 @@ async def execute_fill_anime(
                 yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Recalculating episode cascades...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
 
                 for f_id, s_id in groups_to_recalculate:
+                    if await request.is_disconnected():
+                        raise asyncio.CancelledError()
+
                     try:
                         autofill_ep_previous(db, f_id, s_id)
                     except Exception as e:
@@ -221,6 +218,9 @@ async def execute_fill_anime(
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Running post-processing to all entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
 
         for anime in all_anime:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+
             anime_name = (
                 anime.anime_name_cn
                 or anime.anime_name_en
@@ -258,19 +258,35 @@ async def execute_fill_anime(
 
         db.commit()
 
-        log_data_control(
-            db,
-            "Fill",
-            action_specific,
-            action_type,
-            "Success",
-            rows_updated=processed_count,
-        )
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
         logger.info(
             f"{action_specific} Pipeline completed. Processed {processed_count} entries."
         )
 
         yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} process complete.', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        # PERFECTLY CATCHES FRONTEND "FORCE STOP" ABORTS
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific} gracefully.")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=processed_count,
+        )
+        # No yield here because the client connection is already closed
+        return
 
     except Exception as e:
         db.rollback()
@@ -287,52 +303,68 @@ async def execute_fill_anime(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
-async def execute_fill_all(
-    db: Session,
-    request: Request,
-    action_type: str = "Manual",
-):
+async def execute_fill_all(db: Session, request: Request, action_type: str = "Manual"):
     """
-    Master Async Generator (SSE) for 'Fill All'.
-    Orchestrates Fill Anime, placeholders for future types, and performs Backup.
+    Master orchestrator for 'Fill All'.
+    Suppress sub-logs and commits a single master summary.
     """
     action_specific = "Fill All"
     logger.info(f"Starting {action_specific} Pipeline...")
+    total_processed = 0
 
     try:
         # Fill Anime
         async for message in execute_fill_anime(
-            db, request, action_specific="Fill Anime", action_type=action_type
+            db,
+            request,
+            action_specific="Fill Anime",
+            action_type=action_type,
+            log_action=False,
         ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed += data.get("processed", 0)
             yield message
 
         if await request.is_disconnected():
-            logger.info("Pipeline aborted by user. Skipping Backup.")
-            return
-
-        # ==========================================
-        # OTHER ACTIONS (TBD)
-        # ==========================================
-        # async for message in execute_fill_movies(db, request, ...):
-        #     yield message
-
-        # async for message in execute_fill_manga(db, request, ...):
-        #     yield message
-
-        # Abort if the user hit "Stop"
-        # if await request.is_disconnected():
-        #     return
+            raise asyncio.CancelledError()
 
         # Backup
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
-
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets...', 'processed': 1, 'total': 1})}\n\n"
         execute_backup(db, action_type="Auto")
 
-        # Final Pipeline Success Message
-        yield f"data: {json.dumps({'status': 'success', 'message': 'Fill All pipeline and Backup completed successfully.', 'total': 1, 'processed': 1})}\n\n"
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Success",
+            rows_updated=total_processed,
+        )
+        yield f"data: {json.dumps({'status': 'success', 'message': 'Fill All and Backup completed.', 'total': 1, 'processed': 1})}\n\n"
 
+    except asyncio.CancelledError:
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=total_processed,
+        )
+        return
     except Exception as e:
-        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        logger.error(f"{action_specific} crashed: {e}")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=total_processed,
+            error_message=str(e),
+        )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
