@@ -33,7 +33,11 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
     try:
         return StreamingResponse(
             execute_fill_anime(
-                db, request, action_specific="Fill Anime", action_type="Manual"
+                db,
+                request,
+                action_specific="Fill Anime",
+                action_type="Manual",
+                log_action=True,
             ),
             media_type="text/event-stream",
         )
