@@ -374,7 +374,7 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
 
 
 async def execute_replace_single_anime(
-    db: Session, anime_id: str, action_type: str = "Manual"
+    db: Session, anime_id: str, action_type: str = "Manual", log_action: bool = True
 ) -> dict:
     """
     Fetches fields from Jikan API for a single anime entry, forcefully overwriting ratings and ranks.
@@ -386,27 +386,30 @@ async def execute_replace_single_anime(
     try:
         anime = db.query(Anime).filter(Anime.system_id == anime_id).first()
         if not anime:
-            log_data_control(
-                db,
-                "Replace",
-                action_specific,
-                action_type,
-                "Failed",
-                error_message="Anime not found 404",
-            )
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="Anime not found 404",
+                )
             return {
                 "status": "error",
                 "message": "Anime entry not found",
                 "status_code": 404,
             }
 
-        apply_single_replace_anime(db, anime)
+        apply_single_replace_anime(db, anime, force_replace=True)
 
         db.commit()
         logger.info(f"Successfully replaced single anime: {anime_id}")
-        log_data_control(
-            db, "Replace", action_specific, action_type, "Success", rows_updated=1
-        )
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
 
         return {
             "status": "success",
@@ -416,9 +419,15 @@ async def execute_replace_single_anime(
     except Exception as e:
         db.rollback()
         logger.error(f"Single Replace Error: {e}")
-        log_data_control(
-            db, "Replace", action_specific, action_type, "Failed", error_message=str(e)
-        )
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
         return {"status": "error", "message": str(e), "status_code": 500}
 
 
@@ -427,48 +436,46 @@ async def execute_replace_anime(
     request: Request,
     action_specific: str = "Replace Anime",
     action_type: str = "Manual",
+    log_action: bool = True,
 ):
     """
     Async Generator (SSE). Execute Replace action for all anime entries.
-    Yields progress using the queue index and supports graceful abort.
+    Yields progress using the queue index and supports graceful abort using asyncio.CancelledError.
     Uses Set-Based Post-Processing to calculate cascading episodes efficiently.
     """
     logger.info(f"Starting {action_specific} Pipeline...")
 
-    all_anime_to_process = (
-        db.query(Anime)
-        .filter(or_(Anime.mal_id.isnot(None), Anime.mal_link.isnot(None)))
-        .all()
-    )
-
-    total_in_queue = len(all_anime_to_process)
     processed_count = 0
-
-    if total_in_queue == 0:
-        log_data_control(
-            db, "Replace", action_specific, action_type, "Success", rows_updated=0
-        )
-        yield f"data: {json.dumps({'status': 'info', 'message': 'No Anime entries found to replace', 'total': 0, 'processed': 0})}\n\n"
-        return
-
-    # Initialize our Set to track unique Franchise/Series groups for bulk recalculation
-    groups_to_recalculate = set()
+    total_in_queue = 0
 
     try:
-        for index, anime in enumerate(all_anime_to_process, start=1):
-            if await request.is_disconnected():
-                logger.info(
-                    f"Client disconnected. Aborting {action_specific} gracefully."
-                )
+        all_anime_to_process = (
+            db.query(Anime)
+            .filter(or_(Anime.mal_id.isnot(None), Anime.mal_link.isnot(None)))
+            .all()
+        )
+
+        total_in_queue = len(all_anime_to_process)
+
+        if total_in_queue == 0:
+            if log_action:
                 log_data_control(
                     db,
                     "Replace",
                     action_specific,
                     action_type,
-                    "Aborted",
-                    rows_updated=processed_count,
+                    "Success",
+                    rows_updated=0,
                 )
-                return
+            yield f"data: {json.dumps({'status': 'info', 'message': 'No Anime entries found to replace', 'total': 0, 'processed': 0})}\n\n"
+            return
+
+        # Initialize our Set to track unique Franchise/Series groups for bulk recalculation
+        groups_to_recalculate = set()
+
+        for index, anime in enumerate(all_anime_to_process, start=1):
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
 
             anime_name = (
                 anime.anime_name_en
@@ -505,6 +512,9 @@ async def execute_replace_anime(
             yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Recalculating episode cascades...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
 
             for f_id, s_id in groups_to_recalculate:
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError()
+
                 try:
                     autofill_ep_previous(db, f_id, s_id)
                 except Exception as e:
@@ -515,14 +525,15 @@ async def execute_replace_anime(
             # Final commit to save all the recalculated ep_previous values
             db.commit()
 
-        log_data_control(
-            db,
-            "Replace",
-            action_specific,
-            action_type,
-            "Success",
-            rows_updated=processed_count,
-        )
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
         logger.info(
             f"{action_specific} completed. Processed {processed_count} entries."
         )
@@ -531,9 +542,33 @@ async def execute_replace_anime(
 
         yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific} gracefully.")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Aborted",
+                rows_updated=processed_count,
+            )
+        return
+
     except Exception as e:
         db.rollback()
         logger.error(f"{action_specific} Pipeline crashed: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=processed_count,
+                error_message=str(e),
+            )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
@@ -545,23 +580,34 @@ async def execute_replace_all(
     """
     Master Async Generator (SSE) for 'Replace All'.
     Orchestrates Replace Anime, placeholder for future types, and performs Backup.
+    Parses yielded SSE messages to calculate a grand total, then logs exactly ONCE.
     """
     action_specific = "Replace All"
     logger.info(f"Starting {action_specific} Pipeline...")
+    total_processed_across_all = 0
 
     try:
-        # Replace Anime
+        # 1. Replace Anime (Pass log_action=False to suppress individual logs)
         async for message in execute_replace_anime(
-            db, request, action_specific="Replace Anime", action_type=action_type
+            db,
+            request,
+            action_specific="Replace Anime",
+            action_type=action_type,
+            log_action=False,
         ):
+            # Intercept the success message to grab the processed count
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed_across_all += data.get("processed", 0)
+
             yield message
 
         if await request.is_disconnected():
-            logger.info("Pipeline aborted by user. Skipping Backup.")
-            return
+            raise asyncio.CancelledError()
 
         # ==========================================
-        # POTHER ACTIONS (TBD)
+        # OTHER ACTIONS (TBD)
         # ==========================================
         # async for message in execute_replace_movies(db, request, ...):
         #     yield message
@@ -569,20 +615,47 @@ async def execute_replace_all(
         # async for message in execute_replace_manga(db, request, ...):
         #     yield message
 
-        # If the user hit "Stop" during Phase 2, abort before Backup
-        # if await request.is_disconnected():
-        #     return
-
         # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
 
-        execute_backup(db, action_type="Manual")
+        execute_backup(db, action_type="Auto")
+
+        # Final Master Log
+        log_data_control(
+            db,
+            "Replace",
+            action_specific,
+            action_type,
+            "Success",
+            rows_updated=total_processed_across_all,
+        )
 
         # Final Pipeline Success Message
         yield f"data: {json.dumps({'status': 'success', 'message': 'Replace All pipeline and Backup completed successfully.', 'total': 1, 'processed': 1})}\n\n"
 
+    except asyncio.CancelledError:
+        logger.info(f"Client disconnected. Aborting {action_specific} gracefully.")
+        log_data_control(
+            db,
+            "Replace",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=total_processed_across_all,
+        )
+        return
+
     except Exception as e:
         logger.error(f"{action_specific} Pipeline crashed: {e}")
+        log_data_control(
+            db,
+            "Replace",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=total_processed_across_all,
+            error_message=str(e),
+        )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
