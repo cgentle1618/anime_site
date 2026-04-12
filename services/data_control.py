@@ -401,7 +401,7 @@ async def execute_replace_single_anime(
                 "status_code": 404,
             }
 
-        apply_single_replace_anime(db, anime, force_replace=True)
+        apply_single_replace_anime(db, anime, force_replace_ratings=True)
 
         db.commit()
         logger.info(f"Successfully replaced single anime: {anime_id}")
@@ -493,7 +493,7 @@ async def execute_replace_anime(
             yield f"data: {json.dumps(progress_data)}\n\n"
 
             try:
-                apply_single_replace_anime(db, anime, force_replace=True)
+                apply_single_replace_anime(db, anime, force_replace_ratings=True)
 
                 # Track the group (Tuple of UUIDs is hashable and guarantees uniqueness)
                 if anime.franchise_id:

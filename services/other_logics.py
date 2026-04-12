@@ -310,7 +310,9 @@ def mark_tv_completed(entry: Anime) -> None:
 # ==========================================
 
 
-def apply_single_replace_anime(db: Session, anime: Anime) -> None:
+def apply_single_replace_anime(
+    db: Session, anime: Anime, force_replace_ratings: bool = True
+) -> None:
     """
     Core 'Replace' logic for a single anime entry.
     Used by anime router for manual updates from anime detail frontend page.
