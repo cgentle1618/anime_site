@@ -42,6 +42,9 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 # Copy application code
 COPY . .
 
-# FIXED: Removed Alembic from the startup command to prevent Database Locks from 
-# hanging the deployment. We boot Uvicorn directly so the app comes online instantly.
-CMD sh -c "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'"
+# 1. Make the script executable
+RUN chmod +x /app/entrypoint.sh
+
+# 2. Use ENTRYPOINT instead of CMD
+# This ensures entrypoint.sh runs first, and uvicorn runs after
+ENTRYPOINT ["/app/entrypoint.sh"]
