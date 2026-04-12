@@ -1,0 +1,55 @@
+/*
+ * static/css/library_anime.css
+ * Styles specific to the Anime Library view.
+ */
+
+.card-hover {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Filter Panel Transitions */
+#advanced-filters {
+  transition:
+    max-height 0.3s ease-in-out,
+    opacity 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.filters-closed {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0 !important;
+  border-width: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.filters-open {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* Hide scrollbar for pills */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
