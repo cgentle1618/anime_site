@@ -271,29 +271,6 @@ def autofill_ep_previous(
         running_ep_previous = current_prev + current_total
 
 
-def calculate_cumulative_episode(anime: Anime) -> Dict[str, int]:
-    """
-    Calculates the total/watched cumulative episodes for TV/ONA entries that is not special episode.
-    Returns a dictionary with 'cumulative_watched' and 'cumulative_total'.
-    """
-    base_fin = anime.ep_fin or 0
-    base_total = anime.ep_total or 0
-
-    is_valid_type = anime.airing_type in ["TV", "ONA"]
-    is_not_special_ep = anime.ep_special is None
-    has_season = anime.season_part is not None
-    is_not_first_part = anime.season_part not in ["Season 1", "Season 1 Part 1"]
-
-    if is_valid_type and is_not_special_ep and has_season and is_not_first_part:
-        prev = anime.ep_previous or 0
-        return {
-            "cumulative_watched": prev + base_fin,
-            "cumulative_total": prev + base_total,
-        }
-
-    return {"cumulative_watched": base_fin, "cumulative_total": base_total}
-
-
 def mark_tv_completed(entry: Anime) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.
