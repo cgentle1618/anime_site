@@ -1,174 +1,12 @@
 {% extends "base.html" %} {% block title %}Add New Entry - CG1618 Tracker{%
-endblock %} {% block extra_style %}
-<style>
-  .tab-active {
-    color: #6366f1;
-    border-bottom-width: 2px;
-    border-bottom-color: #6366f1;
-  }
-  .tab-inactive {
-    color: #6b7280;
-    border-bottom-width: 2px;
-    border-bottom-color: transparent;
-  }
-  .tab-inactive:hover {
-    color: #374151;
-    border-bottom-color: #d1d5db;
-  }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .modal-backdrop {
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-  }
-
-  /* Custom Component Styles */
-  .form-section-title {
-    font-size: 0.75rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #9ca3af;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid #f3f4f6;
-    padding-bottom: 0.25rem;
-  }
-  .form-section-title:first-child {
-    margin-top: 0;
-  }
-
-  /* ========================================================= */
-  /* --- CRITICAL STACKING CONTEXT FIX ---                     */
-  /* ========================================================= */
-  /* Ensures that when an input is focused, its entire parent   */
-  /* wrapper jumps to the front, bringing the dropdown with it.*/
-  .combo-wrapper,
-  .ms-wrapper,
-  .autocomplete-wrapper {
-    position: relative;
-    z-index: 10;
-  }
-  .combo-wrapper:focus-within,
-  .ms-wrapper:focus-within,
-  .autocomplete-wrapper:focus-within {
-    z-index: 60 !important;
-  }
-
-  /* --- DROPDOWN CORE --- */
-  .combo-dropdown,
-  .ms-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    max-height: 250px;
-    overflow-y: auto;
-    background-color: #ffffff !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 0.375rem;
-    box-shadow:
-      0 20px 25px -5px rgba(0, 0, 0, 0.15),
-      0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-    z-index: 1000 !important;
-    display: none;
-  }
-  .combo-dropdown.open,
-  .ms-dropdown.open {
-    display: block;
-  }
-
-  /* Beautiful Custom Scrollbar for Dropdowns */
-  .combo-dropdown::-webkit-scrollbar,
-  .ms-dropdown::-webkit-scrollbar {
-    width: 6px;
-  }
-  .combo-dropdown::-webkit-scrollbar-track,
-  .ms-dropdown::-webkit-scrollbar-track {
-    background: #f9fafb;
-    border-radius: 8px;
-    margin: 4px 0;
-  }
-  .combo-dropdown::-webkit-scrollbar-thumb,
-  .ms-dropdown::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 8px;
-  }
-  .combo-dropdown::-webkit-scrollbar-thumb:hover,
-  .ms-dropdown::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-
-  /* Option Items */
-  .combo-option,
-  .ms-option {
-    padding: 8px 12px;
-    font-size: 0.875rem;
-    cursor: pointer;
-    border-bottom: 1px solid #f9fafb;
-    background-color: #ffffff;
-    transition: all 0.15s ease;
-  }
-  .combo-option:hover,
-  .ms-option:hover {
-    background-color: #eef2ff !important;
-    color: #4f46e5;
-  }
-  .combo-option:last-child,
-  .ms-option:last-child {
-    border-bottom: none;
-  }
-
-  /* MultiSelect Pills */
-  .ms-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 4px;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    background: #fff;
-    min-height: 38px;
-    cursor: text;
-  }
-  .ms-pills:focus-within {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 1px #6366f1;
-  }
-  .ms-pill {
-    background: #eef2ff;
-    color: #4f46e5;
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-  }
-  .ms-pill-remove {
-    margin-left: 4px;
-    color: #818cf8;
-    cursor: pointer;
-  }
-  .ms-pill-remove:hover {
-    color: #4f46e5;
-  }
-  .ms-input {
-    border: none;
-    outline: none;
-    flex: 1;
-    min-width: 60px;
-    font-size: 0.875rem;
-    background: transparent;
-    padding: 2px;
-  }
-</style>
-{% endblock %} {% block content %}
+endblock %} {% block extra_style %} /* 1. Import external CSS safely inside the
+existing style tag from base.html */ @import url('/static/css/add.css?v=3.0');
+/* 2. CRITICAL STACKING CONTEXT FIX */ /* Kept inline to beat the Tailwind CDN
+injection order and guarantee z-index rules are applied */ .combo-wrapper,
+.ms-wrapper, .dropdown-group { position: relative; z-index: 10; }
+.combo-wrapper:focus-within, .ms-wrapper:focus-within,
+.dropdown-group:focus-within { z-index: 60 !important; } {% endblock %} {% block
+content %}
 <div
   class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
 >
@@ -278,8 +116,8 @@ endblock %} {% block extra_style %}
             <i class="fas fa-info-circle mt-0.5 mr-2"></i>
             <span
               >You must select or type a <strong>Franchise Name</strong>, and
-              provide <strong>at least one Anime Name</strong> (EN, CN, Romanji,
-              JP, or Alt) to successfully create an Anime Entry.</span
+              provide <strong>at least one Anime Name</strong> to successfully
+              create an Anime Entry.</span
             >
           </div>
           <div class="grid grid-cols-2 gap-5">
@@ -304,8 +142,8 @@ endblock %} {% block extra_style %}
               ></div>
             </div>
 
-            <!-- CRITICAL FIX: The autocomplete-wrapper class activates the z-index fix -->
-            <div class="col-span-2 relative autocomplete-wrapper">
+            <!-- CSS Stacking Context fix implemented via .dropdown-group -->
+            <div class="col-span-2 relative dropdown-group">
               <label class="block text-xs font-bold text-gray-700 mb-1"
                 >Anime Name EN *</label
               >
@@ -318,7 +156,7 @@ endblock %} {% block extra_style %}
               />
               <div class="combo-dropdown"></div>
             </div>
-            <div class="col-span-2 relative autocomplete-wrapper">
+            <div class="col-span-2 relative dropdown-group">
               <label class="block text-xs font-bold text-gray-700 mb-1"
                 >Anime Name CN</label
               >
@@ -330,7 +168,7 @@ endblock %} {% block extra_style %}
               />
               <div class="combo-dropdown"></div>
             </div>
-            <div class="relative autocomplete-wrapper">
+            <div class="relative dropdown-group">
               <label class="block text-xs font-bold text-gray-700 mb-1"
                 >Anime Name Romanji</label
               >
@@ -342,7 +180,7 @@ endblock %} {% block extra_style %}
               />
               <div class="combo-dropdown"></div>
             </div>
-            <div class="relative autocomplete-wrapper">
+            <div class="relative dropdown-group">
               <label class="block text-xs font-bold text-gray-700 mb-1"
                 >Anime Name JP</label
               >
@@ -354,7 +192,7 @@ endblock %} {% block extra_style %}
               />
               <div class="combo-dropdown"></div>
             </div>
-            <div class="col-span-2 relative autocomplete-wrapper">
+            <div class="col-span-2 relative dropdown-group">
               <label class="block text-xs font-bold text-gray-700 mb-1"
                 >Anime Name Alt</label
               >
