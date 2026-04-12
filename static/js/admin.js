@@ -4,6 +4,17 @@
  * system configurations (Season settings), and renders audit logs/history tables.
  */
 
+// Global State Management for Pagination
+const adminState = {
+  logs: [],
+  logsPage: 1,
+  logsPageSize: 10,
+
+  deleted: [],
+  deletedPage: 1,
+  deletedPageSize: 8,
+};
+
 // Global variable to hold the AbortController for streaming pipelines
 let currentAbortController = null;
 let currentStatusElementId = null;
@@ -43,12 +54,54 @@ document.addEventListener("DOMContentLoaded", () => {
     btnSetSeason.addEventListener("click", setCurrentSeason);
   }
 
+  // --- Log Pagination Listeners ---
+  document.getElementById("btn-prev-logs")?.addEventListener("click", () => {
+    if (adminState.logsPage > 1) {
+      adminState.logsPage--;
+      renderLogsTable();
+    }
+  });
+
+  document.getElementById("btn-next-logs")?.addEventListener("click", () => {
+    if (
+      adminState.logsPage <
+      Math.ceil(adminState.logs.length / adminState.logsPageSize)
+    ) {
+      adminState.logsPage++;
+      renderLogsTable();
+    }
+  });
+
+  // --- Deleted Records Pagination Listeners ---
+  document.getElementById("btn-prev-deleted")?.addEventListener("click", () => {
+    if (adminState.deletedPage > 1) {
+      adminState.deletedPage--;
+      renderDeletedTable();
+    }
+  });
+
+  document.getElementById("btn-next-deleted")?.addEventListener("click", () => {
+    if (
+      adminState.deletedPage <
+      Math.ceil(adminState.deleted.length / adminState.deletedPageSize)
+    ) {
+      adminState.deletedPage++;
+      renderDeletedTable();
+    }
+  });
+
   // Bind Manual Refreshes
   document.addEventListener("click", (e) => {
     const actionEl = e.target.closest("[data-action]");
     if (!actionEl) return;
-    if (actionEl.dataset.action === "refresh-logs") loadLogsTable();
+
+    if (actionEl.dataset.action === "refresh-logs") {
+      adminState.logsPage = 1;
+      loadLogsTable();
+    }
+
     if (actionEl.dataset.action === "refresh-history") {
+      adminState.deletedPage = 1;
       loadHistoryTables();
       loadDeletedTable();
     }
@@ -109,6 +162,7 @@ async function executeSync(buttonElement, endpointUrl) {
       showNotification("success", "Pipeline execution successful.");
 
     // Refresh tables to show new log and updated entries
+    adminState.logsPage = 1;
     loadLogsTable();
     loadHistoryTables();
   } catch (error) {
@@ -122,8 +176,6 @@ async function executeSync(buttonElement, endpointUrl) {
 }
 
 // --- Streaming Execution Logic (SSE) ---
-
-// Needs to be globally available for the inline onclick handlers in HTML
 window.abortCurrentPipeline = function () {
   if (currentAbortController) {
     currentAbortController.abort();
@@ -166,7 +218,6 @@ async function executeStream(buttonElement, endpointUrl, statusElementId) {
   );
   const statusEl = document.getElementById(statusElementId);
 
-  // Hide regular stream buttons, show stop button, prepare status text
   streamBtns.forEach((b) => b.classList.add("hidden"));
   stopBtn.classList.remove("hidden");
   statusEl.classList.remove("hidden", "text-red-600", "text-emerald-600");
@@ -209,6 +260,7 @@ async function executeStream(buttonElement, endpointUrl, statusElementId) {
               statusEl.innerText = `${data.message} (${data.processed}/${data.total})`;
               if (typeof showNotification === "function")
                 showNotification("success", "Pipeline streaming completed.");
+              adminState.logsPage = 1;
               loadLogsTable();
               loadHistoryTables();
             } else if (data.status === "error") {
@@ -240,7 +292,6 @@ async function executeStream(buttonElement, endpointUrl, statusElementId) {
 
 // --- Data Fetching & Table Rendering ---
 
-// Strict CN Fallback Logic as requested
 function getTitleCNFallback(item, type) {
   if (type === "anime") {
     return (
@@ -299,59 +350,85 @@ async function loadAdminData() {
 async function loadLogsTable() {
   try {
     const logsRes = await fetch("/api/system/logs");
-    const logs = await logsRes.json();
+    if (!logsRes.ok) throw new Error("Failed to fetch logs");
 
-    const logHTML = logs
-      .slice(0, 15)
-      .map((log) => {
-        // Dynamically build the status HTML
-        let statusHtml = "";
-        if (log.status === "Success") {
-          statusHtml =
-            '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>';
-        } else if (log.status === "Aborted") {
-          statusHtml =
-            '<span class="text-amber-500 font-bold"><i class="fas fa-exclamation-triangle mr-1"></i> Aborted</span>';
-        } else {
-          // Render Failed with hover tooltip for the error message
-          statusHtml = `<span class="text-red-500 font-bold cursor-help" title="${log.error_message || "Unknown error"}"><i class="fas fa-times-circle mr-1"></i> Failed</span>`;
-        }
-
-        // Conditional class for Auto vs Manual triggers
-        const triggerClass =
-          log.type === "Auto"
-            ? "bg-purple-100 text-purple-700"
-            : "bg-blue-100 text-blue-700";
-
-        return `
-            <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-                <td class="px-6 py-3">
-                    <div class="font-bold text-gray-800">${log.action_main || "Unknown"}</div>
-                    <div class="text-[10px] text-gray-500">${log.action_specific || ""}</div>
-                </td>
-                <td class="px-6 py-3">
-                    <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${triggerClass}">${log.type || "Manual"}</span>
-                </td>
-                <td class="px-6 py-3 text-gray-500 whitespace-nowrap">${formatDate(log.timestamp)}</td>
-                <td class="px-6 py-3">${statusHtml}</td>
-                <td class="px-6 py-3 font-mono text-xs whitespace-nowrap">
-                    <span class="text-emerald-600">+${log.rows_added || 0}</span> / 
-                    <span class="text-blue-600">~${log.rows_updated || 0}</span> / 
-                    <span class="text-red-600">-${log.rows_deleted || 0}</span>
-                </td>
-            </tr>
-        `;
-      })
-      .join("");
-
-    document.getElementById("table-logs").innerHTML =
-      logHTML ||
-      '<tr><td colspan="5" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
+    adminState.logs = await logsRes.json();
+    renderLogsTable();
   } catch (e) {
     console.error("Failed to load logs", e);
     document.getElementById("table-logs").innerHTML =
       '<tr><td colspan="5" class="text-center py-6 italic text-red-400">Failed to fetch log data.</td></tr>';
   }
+}
+
+function renderLogsTable() {
+  const tableBody = document.getElementById("table-logs");
+  const pageDisplay = document.getElementById("log-current-page");
+  const totalPagesDisplay = document.getElementById("log-total-pages");
+  const totalCountDisplay = document.getElementById("log-total-count");
+  const btnPrev = document.getElementById("btn-prev-logs");
+  const btnNext = document.getElementById("btn-next-logs");
+
+  if (!tableBody) return;
+
+  const totalLogs = adminState.logs.length;
+  const totalPages = Math.ceil(totalLogs / adminState.logsPageSize) || 1;
+
+  if (adminState.logsPage > totalPages) adminState.logsPage = totalPages;
+  if (adminState.logsPage < 1) adminState.logsPage = 1;
+
+  const start = (adminState.logsPage - 1) * adminState.logsPageSize;
+  const end = start + adminState.logsPageSize;
+  const pageLogs = adminState.logs.slice(start, end);
+
+  if (pageDisplay) pageDisplay.innerText = adminState.logsPage;
+  if (totalPagesDisplay) totalPagesDisplay.innerText = totalPages;
+  if (totalCountDisplay) totalCountDisplay.innerText = totalLogs;
+  if (btnPrev) btnPrev.disabled = adminState.logsPage === 1;
+  if (btnNext) btnNext.disabled = adminState.logsPage === totalPages;
+
+  const logHTML = pageLogs
+    .map((log) => {
+      let statusHtml = "";
+      if (log.status === "Success") {
+        statusHtml =
+          '<span class="text-emerald-500 font-bold"><i class="fas fa-check-circle mr-1"></i> Success</span>';
+      } else if (log.status === "Aborted") {
+        statusHtml =
+          '<span class="text-amber-500 font-bold"><i class="fas fa-exclamation-triangle mr-1"></i> Aborted</span>';
+      } else {
+        statusHtml = `<span class="text-red-500 font-bold cursor-help" title="${log.error_message || "Unknown error"}"><i class="fas fa-times-circle mr-1"></i> Failed</span>`;
+      }
+
+      const triggerClass =
+        log.type === "Auto"
+          ? "bg-purple-100 text-purple-700"
+          : "bg-blue-100 text-blue-700";
+
+      return `
+        <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+            <td class="px-6 py-3">
+                <div class="font-bold text-gray-800">${log.action_main || "Unknown"}</div>
+                <div class="text-[10px] text-gray-500">${log.action_specific || ""}</div>
+            </td>
+            <td class="px-6 py-3">
+                <span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${triggerClass}">${log.type || "Manual"}</span>
+            </td>
+            <td class="px-6 py-3 text-gray-500 whitespace-nowrap">${formatDate(log.timestamp)}</td>
+            <td class="px-6 py-3">${statusHtml}</td>
+            <td class="px-6 py-3 font-mono text-xs whitespace-nowrap">
+                <span class="text-emerald-600">+${log.rows_added || 0}</span> / 
+                <span class="text-blue-600">~${log.rows_updated || 0}</span> / 
+                <span class="text-red-600">-${log.rows_deleted || 0}</span>
+            </td>
+        </tr>
+    `;
+    })
+    .join("");
+
+  tableBody.innerHTML =
+    logHTML ||
+    '<tr><td colspan="5" class="text-center py-6 italic text-gray-400">No data control logs found</td></tr>';
 }
 
 function getDeletedDisplayData(d) {
@@ -379,28 +456,58 @@ async function loadDeletedTable() {
   try {
     const res = await fetch("/api/system/deleted");
     if (!res.ok) throw new Error("Failed to fetch deleted records");
-    const deleted = await res.json();
-
-    document.getElementById("table-deleted").innerHTML =
-      deleted
-        .map((d) => {
-          const { name, context } = getDeletedDisplayData(d);
-          return `
-            <tr class="hover:bg-red-50/30 transition">
-                <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(d.timestamp)}</td>
-                <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">${d.type}</span></td>
-                <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${name}">${name}</td>
-                <td class="px-5 py-2.5 text-gray-500 text-xs truncate max-w-[150px]" title="${context}">${context}</td>
-            </tr>
-            `;
-        })
-        .join("") ||
-      `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">No recently deleted entries</td></tr>`;
+    adminState.deleted = await res.json();
+    renderDeletedTable();
   } catch (e) {
     console.error("Failed to load deleted records", e);
     document.getElementById("table-deleted").innerHTML =
-      `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">Failed to load deleted records.</td></tr>`;
+      `<tr><td colspan="4" class="text-center py-6 text-red-400 italic">Error fetching data.</td></tr>`;
   }
+}
+
+function renderDeletedTable() {
+  const tableBody = document.getElementById("table-deleted");
+  const pageDisplay = document.getElementById("del-current-page");
+  const totalPagesDisplay = document.getElementById("del-total-pages");
+  const totalCountDisplay = document.getElementById("del-total-count");
+  const btnPrev = document.getElementById("btn-prev-deleted");
+  const btnNext = document.getElementById("btn-next-deleted");
+
+  if (!tableBody) return;
+
+  const total = adminState.deleted.length;
+  const totalPages = Math.ceil(total / adminState.deletedPageSize) || 1;
+
+  if (adminState.deletedPage > totalPages) adminState.deletedPage = totalPages;
+  if (adminState.deletedPage < 1) adminState.deletedPage = 1;
+
+  const start = (adminState.deletedPage - 1) * adminState.deletedPageSize;
+  const pageData = adminState.deleted.slice(
+    start,
+    start + adminState.deletedPageSize,
+  );
+
+  if (pageDisplay) pageDisplay.innerText = adminState.deletedPage;
+  if (totalPagesDisplay) totalPagesDisplay.innerText = totalPages;
+  if (totalCountDisplay) totalCountDisplay.innerText = total;
+  if (btnPrev) btnPrev.disabled = adminState.deletedPage === 1;
+  if (btnNext) btnNext.disabled = adminState.deletedPage === totalPages;
+
+  tableBody.innerHTML =
+    pageData
+      .map((d) => {
+        const { name, context } = getDeletedDisplayData(d);
+        return `
+        <tr class="hover:bg-red-50/30 transition">
+            <td class="px-5 py-2.5 text-gray-500 whitespace-nowrap">${formatDate(d.timestamp)}</td>
+            <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">${d.type}</span></td>
+            <td class="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]" title="${name}">${name}</td>
+            <td class="px-5 py-2.5 text-gray-500 text-xs truncate max-w-[150px]" title="${context}">${context}</td>
+        </tr>
+        `;
+      })
+      .join("") ||
+    `<tr><td colspan="4" class="text-center py-6 text-gray-400 italic">No deleted entries found</td></tr>`;
 }
 
 async function loadHistoryTables() {

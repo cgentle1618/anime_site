@@ -38,7 +38,7 @@ endblock %} {% block content %}
 
   <!-- Top Grid: Season Config & Data Control -->
   <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-    <!-- 3. Set Current Season Block -->
+    <!-- Current Season Block -->
     <div
       class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col"
     >
@@ -86,7 +86,7 @@ endblock %} {% block content %}
       </div>
     </div>
 
-    <!-- 2. Data Control Action Buttons -->
+    <!-- Data Control Action Buttons -->
     <div
       class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 xl:col-span-2 flex flex-col"
     >
@@ -96,7 +96,6 @@ endblock %} {% block content %}
         <i class="fas fa-database text-brand mr-2"></i> Data Control Actions
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
-        <!-- Fill Column -->
         <div
           class="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col"
         >
@@ -123,7 +122,7 @@ endblock %} {% block content %}
             <button
               id="fill-status-stop"
               onclick="abortCurrentPipeline()"
-              class="hidden w-full bg-red-600 hover:bg-red-700 text-white border border-red-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+              class="hidden w-full bg-red-600 text-white border border-red-700 py-2 rounded-lg text-xs font-bold transition"
             >
               Force Stop
             </button>
@@ -134,7 +133,6 @@ endblock %} {% block content %}
           ></div>
         </div>
 
-        <!-- Replace Column -->
         <div
           class="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex flex-col"
         >
@@ -161,7 +159,7 @@ endblock %} {% block content %}
             <button
               id="replace-status-stop"
               onclick="abortCurrentPipeline()"
-              class="hidden w-full bg-red-600 hover:bg-red-700 text-white border border-red-700 py-2 rounded-lg text-xs font-bold shadow-sm transition"
+              class="hidden w-full bg-red-600 text-white border border-red-700 py-2 rounded-lg text-xs font-bold transition"
             >
               Force Stop
             </button>
@@ -172,13 +170,11 @@ endblock %} {% block content %}
           ></div>
         </div>
 
-        <!-- Pull Column -->
         <div
           class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 flex flex-col"
         >
           <h3 class="text-sm font-bold text-emerald-800 mb-3 flex items-center">
             <i class="fas fa-cloud-download-alt mr-2 text-emerald-500"></i> Pull
-            from Sheets
           </h3>
           <div class="space-y-2 mt-auto">
             <button
@@ -191,17 +187,16 @@ endblock %} {% block content %}
             <div class="flex gap-2">
               <select
                 id="pull-tab-select"
-                class="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold focus:ring-emerald-500 focus:border-emerald-500 px-1 py-2"
+                class="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold px-1 py-2"
               >
                 <option value="Anime">Anime</option>
                 <option value="Franchise">Franchise</option>
                 <option value="Series">Series</option>
-                <option value="System Options">System Options</option>
+                <option value="System Options">Options</option>
               </select>
               <button
                 id="btn-pull-specific"
-                class="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold shadow-sm transition"
-                title="Pull Specific"
+                class="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold"
               >
                 <i class="fas fa-play"></i>
               </button>
@@ -209,13 +204,11 @@ endblock %} {% block content %}
           </div>
         </div>
 
-        <!-- Push Column -->
         <div
           class="bg-purple-50/50 border border-purple-100 rounded-xl p-4 flex flex-col"
         >
           <h3 class="text-sm font-bold text-purple-800 mb-3 flex items-center">
             <i class="fas fa-cloud-upload-alt mr-2 text-purple-500"></i> Push
-            Backup
           </h3>
           <div class="space-y-2 mt-auto">
             <button
@@ -231,9 +224,9 @@ endblock %} {% block content %}
     </div>
   </div>
 
-  <!-- 4. Recent Data Control Log -->
+  <!-- Paginated Control Logs -->
   <div
-    class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+    class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
   >
     <div
       class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between"
@@ -241,7 +234,7 @@ endblock %} {% block content %}
       <h2
         class="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center"
       >
-        <i class="fas fa-terminal text-brand mr-2"></i> Recent Data Control Log
+        <i class="fas fa-terminal text-brand mr-2"></i> Data Control Log
       </h2>
       <button
         data-action="refresh-logs"
@@ -263,18 +256,43 @@ endblock %} {% block content %}
             <th class="px-6 py-3">Metrics</th>
           </tr>
         </thead>
-        <tbody id="table-logs" class="divide-y divide-gray-100">
-          <tr>
-            <td colspan="5" class="text-center py-6 text-gray-400 italic">
-              Loading logs...
-            </td>
-          </tr>
-        </tbody>
+        <tbody id="table-logs" class="divide-y divide-gray-100"></tbody>
       </table>
+    </div>
+
+    <!-- Log Pagination UI -->
+    <div
+      class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex items-center justify-between shrink-0"
+    >
+      <div class="text-xs font-bold text-gray-500">
+        Total Logs: <span id="log-total-count" class="text-gray-800">0</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <button
+          id="btn-prev-logs"
+          class="p-2 text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition"
+          disabled
+        >
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div
+          class="text-xs font-black text-gray-700 uppercase tracking-tighter"
+        >
+          Page <span id="log-current-page">1</span> of
+          <span id="log-total-pages">1</span>
+        </div>
+        <button
+          id="btn-next-logs"
+          class="p-2 text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition"
+          disabled
+        >
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- 5. Database Record History Section -->
+  <!-- History Grid -->
   <div class="mt-12 space-y-6">
     <div
       class="flex items-center justify-between border-b-2 border-gray-200 pb-2"
@@ -290,29 +308,17 @@ endblock %} {% block content %}
       </button>
     </div>
 
-    <!-- Row 1: Franchise History -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Modified Franchise Section -->
       <div
         class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
       >
-        <div class="bg-purple-50/50 border-b border-purple-100 px-5 py-3">
-          <h3 class="font-bold text-purple-900 flex items-center">
-            <i class="fas fa-sitemap mr-2 text-purple-500"></i> Modified
-            Franchise Section
-          </h3>
+        <div
+          class="bg-purple-50/50 border-b border-purple-100 px-5 py-3 font-bold text-purple-900"
+        >
+          <i class="fas fa-sitemap mr-2 text-purple-500"></i> Modified Franchise
         </div>
         <div class="overflow-x-auto flex-1">
           <table class="w-full text-sm text-left">
-            <thead
-              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
-            >
-              <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Modified Time</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Franchise Type</th>
-                <th class="px-5 py-2.5 w-full">Franchise Name CN</th>
-              </tr>
-            </thead>
             <tbody
               id="table-mod-franchise"
               class="divide-y divide-gray-50"
@@ -320,28 +326,17 @@ endblock %} {% block content %}
           </table>
         </div>
       </div>
-
-      <!-- Recently Added Franchise Section -->
       <div
         class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
       >
-        <div class="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3">
-          <h3 class="font-bold text-emerald-900 flex items-center">
-            <i class="fas fa-plus-circle mr-2 text-emerald-500"></i> Recently
-            Added Franchise Section
-          </h3>
+        <div
+          class="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3 font-bold text-emerald-900"
+        >
+          <i class="fas fa-plus-circle mr-2 text-emerald-500"></i> Added
+          Franchise
         </div>
         <div class="overflow-x-auto flex-1">
           <table class="w-full text-sm text-left">
-            <thead
-              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
-            >
-              <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Added Time</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Franchise Type</th>
-                <th class="px-5 py-2.5 w-full">Franchise Name CN</th>
-              </tr>
-            </thead>
             <tbody
               id="table-add-franchise"
               class="divide-y divide-gray-50"
@@ -349,77 +344,48 @@ endblock %} {% block content %}
           </table>
         </div>
       </div>
-    </div>
-
-    <!-- Row 2: Anime / Mixed Entry History -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      <!-- Modified Anime Section -->
       <div
         class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
       >
-        <div class="bg-blue-50/50 border-b border-blue-100 px-5 py-3">
-          <h3 class="font-bold text-blue-900 flex items-center">
-            <i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime Section
-          </h3>
+        <div
+          class="bg-blue-50/50 border-b border-blue-100 px-5 py-3 font-bold text-blue-900"
+        >
+          <i class="fas fa-tv mr-2 text-blue-500"></i> Modified Anime
         </div>
         <div class="overflow-x-auto flex-1">
           <table class="w-full text-sm text-left">
-            <thead
-              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
-            >
-              <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Modified Time</th>
-                <th class="px-5 py-2.5 w-full">Anime Name CN</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Airing Type</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Airing Status</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Watching Status</th>
-              </tr>
-            </thead>
             <tbody id="table-mod-anime" class="divide-y divide-gray-50"></tbody>
           </table>
         </div>
       </div>
-
-      <!-- Recently Added Entry Section -->
       <div
         class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]"
       >
-        <div class="bg-indigo-50/50 border-b border-indigo-100 px-5 py-3">
-          <h3 class="font-bold text-indigo-900 flex items-center">
-            <i class="fas fa-star mr-2 text-indigo-500"></i> Recently Added
-            Entry Section
-          </h3>
+        <div
+          class="bg-indigo-50/50 border-b border-indigo-100 px-5 py-3 font-bold text-indigo-900"
+        >
+          <i class="fas fa-star mr-2 text-indigo-500"></i> Added Entry
         </div>
         <div class="overflow-x-auto flex-1">
           <table class="w-full text-sm text-left">
-            <thead
-              class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
-            >
-              <tr>
-                <th class="px-5 py-2.5 whitespace-nowrap">Added Time</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Entry Type</th>
-                <th class="px-5 py-2.5 w-full">Entry Name CN</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Airing Type</th>
-                <th class="px-5 py-2.5 whitespace-nowrap">Season Part</th>
-              </tr>
-            </thead>
             <tbody id="table-add-entry" class="divide-y divide-gray-50"></tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- Row 3: System Wide History -->
+    <!-- Paginated Deleted Records -->
     <div
       class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
     >
-      <div class="bg-red-50/50 border-b border-red-100 px-5 py-3">
-        <h3 class="font-bold text-red-900 flex items-center">
-          <i class="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
-          Records
-        </h3>
+      <div
+        class="bg-red-50/50 border-b border-red-100 px-5 py-3 font-bold text-red-900"
+      >
+        <i class="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
+        Records
       </div>
-      <div class="overflow-x-auto max-h-[300px]">
+
+      <div class="overflow-x-auto flex-1">
         <table class="w-full text-sm text-left">
           <thead
             class="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10"
@@ -433,6 +399,38 @@ endblock %} {% block content %}
           </thead>
           <tbody id="table-deleted" class="divide-y divide-gray-50"></tbody>
         </table>
+      </div>
+
+      <!-- Deleted Records Pagination UI -->
+      <div
+        class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex items-center justify-between shrink-0"
+      >
+        <div class="text-xs font-bold text-gray-500">
+          Total Deleted:
+          <span id="del-total-count" class="text-gray-800">0</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <button
+            id="btn-prev-deleted"
+            class="p-2 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            disabled
+          >
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div
+            class="text-xs font-black text-gray-700 uppercase tracking-tighter"
+          >
+            Page <span id="del-current-page">1</span> of
+            <span id="del-total-pages">1</span>
+          </div>
+          <button
+            id="btn-next-deleted"
+            class="p-2 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            disabled
+          >
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>
