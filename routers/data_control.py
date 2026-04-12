@@ -3,6 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
+from dependencies import get_db, get_current_admin
+
+
 from services.data_control import (
     execute_backup,
     execute_pull_all,
@@ -13,7 +16,6 @@ from services.data_control import (
     execute_replace_all,
     execute_replace_single_anime,
 )
-from dependencies import get_db, get_current_admin
 
 logger = logging.getLogger(__name__)
 
