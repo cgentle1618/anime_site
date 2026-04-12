@@ -46,7 +46,7 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/fill/anime/{anime_id}")
+@router.post("/replace/anime/{anime_id}")
 async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_db)):
     """
     Triggers the Replace Pipeline for a single anime entry (Autofill & Update).
