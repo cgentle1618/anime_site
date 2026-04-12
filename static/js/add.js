@@ -17,10 +17,8 @@ const pageDOM = {
   btnAppend: document.getElementById("btn-append"),
   lastAddedCard: document.getElementById("last-added-card"),
   lastAddedTitle: document.getElementById("last-added-title"),
-
   btnAddOptionRow: document.getElementById("btn-add-option-row"),
   optionsValuesContainer: document.getElementById("options-values-container"),
-
   forms: {
     anime: document.getElementById("form-anime"),
     series: document.getElementById("form-series"),
@@ -48,9 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const newRow = document.createElement("div");
       newRow.className = "flex items-center gap-2 option-value-row";
       newRow.innerHTML = `
-                <input type="text" required class="option-value-input w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" placeholder="Value ${rowCount}">
-                <button type="button" class="btn-remove-option text-gray-400 hover:text-red-500 transition px-2 hidden" title="Remove"><i class="fas fa-times"></i></button>
-            `;
+                  <input type="text" required class="option-value-input w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" placeholder="Value ${rowCount}">
+                  <button type="button" class="btn-remove-option text-gray-400 hover:text-red-500 transition px-2 hidden" title="Remove"><i class="fas fa-times"></i></button>
+              `;
       pageDOM.optionsValuesContainer.appendChild(newRow);
       updateOptionRemoveButtons();
     });
@@ -115,7 +113,6 @@ async function fetchDatabase() {
   }
 }
 
-// Exported to window so the HTML onclick="switchTab('...')" can find it
 window.switchTab = function (tabName) {
   if (state.activeTab === tabName) return;
   ["anime", "franchise", "series", "options"].forEach((t) => {
@@ -200,7 +197,8 @@ function initAnimeNameAutocomplete() {
   const inputs = document.querySelectorAll(".anime-name-input");
   inputs.forEach((input) => {
     const dropdown = input.nextElementSibling;
-    const fieldName = input.getAttribute("data-field"); // e.g., anime_name_en
+    const fieldName = input.getAttribute("data-field"); // Gets the specific language field (e.g., anime_name_en)
+    const wrapper = input.parentElement;
 
     const showDropdown = (filterText) => {
       const cleanFilter = getClean(filterText);
@@ -209,22 +207,38 @@ function initAnimeNameAutocomplete() {
         return;
       }
 
+      // Sliced to 50 to guarantee scrolling
       const matches = state.db.anime
         .filter((a) => {
           const nameToMatch = a[fieldName];
           return nameToMatch && getClean(nameToMatch).includes(cleanFilter);
         })
-        .slice(0, 10);
+        .slice(0, 50);
 
       if (matches.length === 0) {
         dropdown.classList.remove("open");
         return;
       }
 
+      // Richer UI with Franchise Context
       dropdown.innerHTML = matches
         .map((a) => {
           const title = a[fieldName];
-          return `<div class="combo-option" data-id="${a.system_id}">${title}</div>`;
+          const fTitle =
+            a.franchise_id && state.dict.franchise[a.franchise_id]
+              ? state.dict.franchise[a.franchise_id].franchise_name_cn ||
+                state.dict.franchise[a.franchise_id].franchise_name_en ||
+                "Franchise"
+              : "Standalone";
+
+          return `
+            <div class="combo-option group" data-id="${a.system_id}">
+                <div class="font-bold text-gray-800 text-sm truncate mb-0.5">${title}</div>
+                <div class="text-[10px] text-gray-500 truncate flex items-center justify-between">
+                    <span><i class="fas fa-sitemap mr-1 opacity-50"></i>${fTitle}</span>
+                    <span class="text-brand opacity-0 group-hover:opacity-100 transition-opacity font-bold">Auto-fill <i class="fas fa-magic ml-0.5"></i></span>
+                </div>
+            </div>`;
         })
         .join("");
 
@@ -241,7 +255,13 @@ function initAnimeNameAutocomplete() {
 
     input.addEventListener("focus", () => showDropdown(input.value));
     input.addEventListener("input", () => showDropdown(input.value));
-    input.addEventListener("blur", () => dropdown.classList.remove("open"));
+
+    // SAFE CLICK-OUTSIDE (Replaces Blur)
+    document.addEventListener("mousedown", (e) => {
+      if (!wrapper.contains(e.target)) {
+        dropdown.classList.remove("open");
+      }
+    });
   });
 }
 
@@ -289,11 +309,11 @@ function resetForms() {
 
   if (pageDOM.optionsValuesContainer) {
     pageDOM.optionsValuesContainer.innerHTML = `
-            <div class="flex items-center gap-2 option-value-row">
-                <input type="text" required class="option-value-input w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" placeholder="Value 1">
-                <button type="button" class="btn-remove-option text-gray-400 hover:text-red-500 transition px-2 hidden" title="Remove"><i class="fas fa-times"></i></button>
-            </div>
-        `;
+              <div class="flex items-center gap-2 option-value-row">
+                  <input type="text" required class="option-value-input w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" placeholder="Value 1">
+                  <button type="button" class="btn-remove-option text-gray-400 hover:text-red-500 transition px-2 hidden" title="Remove"><i class="fas fa-times"></i></button>
+              </div>
+          `;
   }
 }
 
@@ -335,11 +355,11 @@ async function handleAppendFlow() {
           "warning",
           "A Franchise Name (selected or typed) must be provided.",
         );
-      else alert("A Franchise Name (selected or typed) must be provided.");
+      alert("A Franchise Name (selected or typed) must be provided.");
       return;
     }
 
-    // Check Anime Name requirement
+    // Check Anime Name requirement (at least one)
     const en = form.querySelector('[data-field="anime_name_en"]').value.trim();
     const cn = form.querySelector('[data-field="anime_name_cn"]').value.trim();
     const rom = form
@@ -356,7 +376,7 @@ async function handleAppendFlow() {
           "warning",
           "At least one Anime Name must be provided.",
         );
-      else alert("At least one Anime Name must be provided.");
+      alert("At least one Anime Name must be provided.");
       return;
     }
   } else if (type === "franchise") {
@@ -382,7 +402,7 @@ async function handleAppendFlow() {
           "warning",
           "At least one Franchise Name must be provided.",
         );
-      else alert("At least one Franchise Name must be provided.");
+      alert("At least one Franchise Name must be provided.");
       return;
     }
   } else if (type === "series") {
@@ -398,7 +418,7 @@ async function handleAppendFlow() {
           "warning",
           "At least one Series Name must be provided.",
         );
-      else alert("At least one Series Name must be provided.");
+      alert("At least one Series Name must be provided.");
       return;
     }
   }
@@ -475,7 +495,7 @@ async function handleAppendFlow() {
       console.error(e);
       if (typeof showNotification === "function")
         showNotification("error", e.message);
-      else alert(`Error appending options: ${e.message}`);
+      alert(`Error appending options: ${e.message}`);
     } finally {
       resetBtn();
     }
@@ -520,7 +540,7 @@ async function handleAppendFlow() {
     if ((epTotal !== null && epTotal < 0) || epFin < 0) {
       if (typeof showNotification === "function")
         showNotification("warning", "Episode counts cannot be less than zero.");
-      else alert("Validation Error: Episode counts cannot be less than zero.");
+      alert("Validation Error: Episode counts cannot be less than zero.");
       resetBtn();
       return;
     }
@@ -531,10 +551,7 @@ async function handleAppendFlow() {
           "warning",
           "Episode Finished cannot exceed Total Episodes.",
         );
-      else
-        alert(
-          "Validation Error: Episode Finished cannot exceed Total Episodes.",
-        );
+      alert("Validation Error: Episode Finished cannot exceed Total Episodes.");
       resetBtn();
       return;
     }
@@ -602,6 +619,8 @@ async function handleAppendFlow() {
       throw new Error(errorMessage);
     }
 
+    const data = await res.json();
+
     // 4. Cleanup & Feedback
     if (typeof showNotification === "function")
       showNotification("success", "Entry appended successfully.");
@@ -631,7 +650,7 @@ async function handleAppendFlow() {
     if (e.message !== "Canceled" && e.message !== "Validation Failed") {
       if (typeof showNotification === "function")
         showNotification("error", `Failed: ${e.message}`);
-      else alert(`Backend Validation Failed: \n\n${e.message}`);
+      alert(`Backend Validation Failed: \n\n${e.message}`);
     }
   } finally {
     resetBtn();
@@ -784,6 +803,7 @@ function triggerCreateModal(type, textName, animePayload) {
 
 // --- CUSTOM COMPONENTS ---
 
+// Display Fallback Logic (CN -> EN -> Alt -> Romanji -> JP)
 const getDisplayTitleF = (f) =>
   f.franchise_name_cn ||
   f.franchise_name_en ||
@@ -811,12 +831,12 @@ class Combobox {
 
   buildUI() {
     this.container.innerHTML = `
-            <div class="relative">
-                <input type="text" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand px-3 py-2 pr-8" placeholder="${this.allowCustom ? "Select or type new..." : "Select existing..."}">
-                <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
-            </div>
-            <div class="combo-dropdown"></div>
-        `;
+              <div class="relative">
+                  <input type="text" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand px-3 py-2 pr-8" placeholder="${this.allowCustom ? "Select or type new..." : "Select existing..."}">
+                  <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
+              </div>
+              <div class="combo-dropdown"></div>
+          `;
     this.input = this.container.querySelector("input");
     this.dropdown = this.container.querySelector(".combo-dropdown");
   }
@@ -833,9 +853,12 @@ class Combobox {
       this.selectedId = null;
       this.showDropdown(this.input.value);
     });
-    document.addEventListener("click", (e) => {
-      if (!this.container.contains(e.target))
+
+    // SAFE CLICK-OUTSIDE (Replaces Blur)
+    document.addEventListener("mousedown", (e) => {
+      if (!this.container.contains(e.target)) {
         this.dropdown.classList.remove("open");
+      }
     });
   }
 
@@ -856,10 +879,8 @@ class Combobox {
               item.franchise_name_alt,
             ]
           : [item.series_name_en, item.series_name_cn, item.series_name_alt];
-
-      if (names.some((n) => n && n.trim().toLowerCase() === rawFilter)) {
+      if (names.some((n) => n && n.trim().toLowerCase() === rawFilter))
         perfectMatch = item;
-      }
       return names.some((n) => n && getClean(n).includes(cleanFilter));
     });
 
@@ -935,10 +956,14 @@ class MultiSelect {
     this.input.addEventListener("input", () =>
       this.showDropdown(this.input.value),
     );
-    document.addEventListener("click", (e) => {
-      if (!this.container.contains(e.target))
+
+    // SAFE CLICK-OUTSIDE (Replaces Blur)
+    document.addEventListener("mousedown", (e) => {
+      if (!this.container.contains(e.target)) {
         this.dropdown.classList.remove("open");
+      }
     });
+
     this.input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -1029,7 +1054,6 @@ class MultiSelect {
   getValue() {
     return this.selected.length > 0 ? this.selected.join(", ") : null;
   }
-
   clear() {
     this.selected = [];
     this.renderPills();
