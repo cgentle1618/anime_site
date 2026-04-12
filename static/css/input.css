@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* Media Database & Tracker - Custom Theme Configuration 
+  Migrated from legacy tailwind-config.js to Tailwind v4 CSS-first configuration
+*/
+@theme {
+  /* Colors */
+  --color-primary-blue: #1e40af;
+  --color-secondary-gray: #4b5563;
+  --color-accent-green: #10b981;
+  --color-dark-bg: #111827;
+  --color-card-bg: #1f2937;
+  --color-hover-blue: #2563eb;
+  --color-delete-red: #ef4444;
+  --color-delete-hover: #dc2626;
+
+  /* Typography */
+  --font-noto-sans: "Noto Sans TC", sans-serif;
+
+  /* Shadows */
+  --shadow-neon:
+    0 0 5px rgba(30, 64, 175, 0.5), 0 0 20px rgba(30, 64, 175, 0.3);
+}
+
+/* Add any custom global CSS overrides below this line */

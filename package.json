@@ -1,0 +1,28 @@
+{
+  "name": "anime_site",
+  "version": "1.0.0",
+  "description": "<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/main.css --minify",
+    "watch:css": "tailwindcss -i ./static/css/input.css -o ./static/css/main.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cgentle1618/anime_site.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cgentle1618/anime_site/issues"
+  },
+  "homepage": "https://github.com/cgentle1618/anime_site#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^4.2.2"
+  }
+}
