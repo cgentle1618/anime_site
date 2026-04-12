@@ -110,7 +110,7 @@ def create_anime_entry(
 
     db.add(new_anime)
 
-    apply_single_replace_anime(db, new_anime, force_replace=False)
+    apply_single_replace_anime(db, new_anime, force_replace_ratings=False)
 
     db.flush()
 
@@ -150,7 +150,7 @@ def update_anime_entry(
     db_anime.franchise_id = final_franchise_id
     db_anime.series_id = final_series_id
 
-    apply_single_replace_anime(db, db_anime, force_replace=False)
+    apply_single_replace_anime(db, db_anime, force_replace_ratings=False)
 
     db.flush()
 

@@ -1,0 +1,35 @@
+/*
+ * static/css/delete.css
+ * Styles specific to the Delete Records view and warning modals.
+ */
+
+.tab-active {
+  color: #ef4444;
+  border-bottom-width: 2px;
+  border-bottom-color: #ef4444;
+}
+
+.tab-inactive {
+  color: #6b7280;
+  border-bottom-width: 2px;
+  border-bottom-color: transparent;
+}
+
+.tab-inactive:hover {
+  color: #374151;
+  border-bottom-color: #d1d5db;
+}
+
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -217,6 +217,17 @@ class Anime(Base, NameFallbackMixin):
     series = relationship("Series", back_populates="animes")
 
     @property
+    def names_dict(self) -> dict:
+        """Returns all name variations for hierarchy resolution."""
+        return {
+            "en": self.anime_name_en,
+            "cn": self.anime_name_cn,
+            "romanji": self.anime_name_romanji,
+            "jp": self.anime_name_jp,
+            "alt": self.anime_name_alt,
+        }
+
+    @property
     def display_name(self) -> str:
         sequence = [
             ("CN", self.anime_name_cn),

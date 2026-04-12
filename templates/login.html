@@ -66,6 +66,7 @@ endblock %} {% block content %}
         </div>
       </div>
 
+      <!-- Local Error Message Display -->
       <div
         id="error-message"
         class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center"
@@ -88,71 +89,5 @@ endblock %} {% block content %}
   </div>
 </div>
 {% endblock %} {% block extra_scripts %}
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    // 1. Cache DOM Elements
-    const DOM = {
-      loginForm: document.getElementById("login-form"),
-      submitBtn: document.getElementById("submit-btn"),
-      errorDiv: document.getElementById("error-message"),
-      errorSpan: document.querySelector("#error-message span"),
-    };
-
-    if (DOM.loginForm) {
-      // 2. Attach Event Listener (Separation of Concerns)
-      DOM.loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const formData = new URLSearchParams(new FormData(DOM.loginForm));
-
-        // Disable state
-        DOM.submitBtn.disabled = true;
-        DOM.submitBtn.innerHTML =
-          '<i class="fas fa-circle-notch fa-spin mr-2"></i> Verifying...';
-        DOM.errorDiv.classList.add("hidden");
-
-        try {
-          const response = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: formData,
-          });
-
-          if (response.ok) {
-            // Success! The browser automatically stores the HTTP-Only cookie set by the server.
-            DOM.submitBtn.classList.replace("bg-brand", "bg-emerald-500");
-            DOM.submitBtn.classList.replace(
-              "hover:bg-brand-hover",
-              "hover:bg-emerald-600",
-            );
-            DOM.submitBtn.innerHTML =
-              '<i class="fas fa-check mr-2"></i> Access Granted';
-
-            // Redirect to the system admin dashboard
-            setTimeout(() => {
-              window.location.href = "/system";
-            }, 800);
-          } else {
-            // Failure
-            DOM.errorDiv.classList.remove("hidden");
-            const errData = await response.json();
-            DOM.errorSpan.innerText =
-              errData.detail || "Authentication failed.";
-            DOM.submitBtn.disabled = false;
-            DOM.submitBtn.innerHTML =
-              '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
-          }
-        } catch (error) {
-          DOM.errorDiv.classList.remove("hidden");
-          DOM.errorSpan.innerText = "Network error. Please try again.";
-          DOM.submitBtn.disabled = false;
-          DOM.submitBtn.innerHTML =
-            '<span>Authenticate</span> <i class="fas fa-arrow-right ml-2 text-sm"></i>';
-        }
-      });
-    }
-  });
-</script>
+<script src="/static/js/login.js"></script>
 {% endblock %}

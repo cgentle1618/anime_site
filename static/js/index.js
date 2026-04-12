@@ -1,0 +1,470 @@
+/**
+ * static/js/index.js
+ * Handles data fetching, rendering, and interactive updates for the Dashboard.
+ */
+
+// Retrieve the securely injected admin status from the window object (Bridge from Jinja2)
+const IS_ADMIN_INDEX = window.IS_ADMIN_INDEX || false;
+
+// State Management
+const state = {
+  animeData: [],
+  franchiseData: [],
+};
+
+// DOM Cache
+const pageDOM = {};
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Cache DOM Elements
+  pageDOM.loading = document.getElementById("loading");
+  pageDOM.content = document.getElementById("dashboard-content");
+  pageDOM.gridActive = document.getElementById("grid-active");
+  pageDOM.gridPassive = document.getElementById("grid-passive");
+  pageDOM.gridPaused = document.getElementById("grid-paused");
+  pageDOM.countActive = document.getElementById("count-active");
+  pageDOM.countPassive = document.getElementById("count-passive");
+  pageDOM.countPaused = document.getElementById("count-paused");
+
+  // Master Click Delegator
+  pageDOM.content.addEventListener("click", (e) => {
+    // Allow normal navigation for actual anchor links
+    if (e.target.closest("a")) return;
+
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+
+    const action = actionEl.dataset.action;
+    const id = actionEl.dataset.id;
+
+    switch (action) {
+      case "ignore-click":
+        break;
+      case "view-details":
+        window.location.href = `/anime/${id}`;
+        break;
+      case "edit-anime":
+        window.location.href = `/modify?id=${id}`;
+        break;
+      case "ep-minus":
+        optimisticUpdate(id, -1);
+        break;
+      case "ep-plus":
+        optimisticUpdate(id, 1);
+        break;
+    }
+  });
+
+  // Master Keydown Delegator (Enter key on Ep input)
+  pageDOM.content.addEventListener("keydown", (e) => {
+    const actionEl = e.target.closest('[data-action="ep-input"]');
+    if (actionEl && e.key === "Enter") {
+      actionEl.blur(); // Trigger focusout
+    }
+  });
+
+  // Master Focusout Delegator (When user finishes typing in Ep input)
+  pageDOM.content.addEventListener("focusout", (e) => {
+    const actionEl = e.target.closest('[data-action="ep-input"]');
+    if (actionEl) {
+      handleDirectEpUpdate(actionEl.dataset.id, actionEl.value);
+    }
+  });
+
+  loadDashboard();
+});
+
+// --- Data Fetching & Organization ---
+async function loadDashboard() {
+  try {
+    const [animeRes, franchiseRes] = await Promise.all([
+      fetch(`/api/anime/`),
+      fetch(`/api/franchise/`),
+    ]);
+
+    if (!animeRes.ok || !franchiseRes.ok)
+      throw new Error("Failed to load tracking data");
+
+    state.animeData = await animeRes.json();
+    state.franchiseData = await franchiseRes.json();
+
+    renderDashboard();
+
+    pageDOM.loading.classList.add("hidden");
+    pageDOM.content.classList.remove("hidden");
+  } catch (error) {
+    pageDOM.loading.innerHTML = `
+          <div class="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+              <i class="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+              <p class="font-bold">Error loading dashboard data.</p>
+              <p class="text-sm mt-1">${error.message}</p>
+          </div>`;
+  }
+}
+
+function renderDashboard() {
+  const active = [];
+  const passive = [];
+  const paused = [];
+
+  // Sort by Franchise Name, then by Watch Order or Anime Name
+  const sortedData = [...state.animeData].sort((a, b) => {
+    const fA = state.franchiseData.find((f) => f.system_id === a.franchise_id);
+    const fB = state.franchiseData.find((f) => f.system_id === b.franchise_id);
+
+    const titleA = fA ? fA.franchise_name_cn || fA.franchise_name_en || "" : "";
+    const titleB = fB ? fB.franchise_name_cn || fB.franchise_name_en || "" : "";
+
+    if (titleA !== titleB) return titleA.localeCompare(titleB);
+
+    // Secondary sort: watch_order
+    const orderA = a.watch_order ?? 999;
+    const orderB = b.watch_order ?? 999;
+    return orderA - orderB;
+  });
+
+  // Distribute to categories using watching_status
+  sortedData.forEach((anime) => {
+    // Explicitly tag UI Type (Future proofs against TV Shows / Cartoons when added)
+    anime._ui_type = "Anime";
+
+    if (anime.watching_status === "Active Watching") active.push(anime);
+    else if (anime.watching_status === "Passive Watching") passive.push(anime);
+    else if (anime.watching_status === "Paused") paused.push(anime);
+  });
+
+  populateGrid(pageDOM.gridActive, pageDOM.countActive, active);
+  populateGrid(pageDOM.gridPassive, pageDOM.countPassive, passive);
+  populateGrid(pageDOM.gridPaused, pageDOM.countPaused, paused);
+}
+
+function populateGrid(containerElement, countElement, dataArray) {
+  countElement.innerText = dataArray.length;
+
+  if (dataArray.length === 0) {
+    containerElement.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
+              <p class="text-gray-400 font-medium italic"><i class="fas fa-ghost mr-2"></i> Nothing in this category right now.</p>
+          </div>`;
+    return;
+  }
+
+  // 1. Group by MediaType (Anime, TV Show, Cartoon)
+  const groupedByType = {
+    Anime: [],
+    "TV Show": [],
+    Cartoon: [],
+  };
+
+  dataArray.forEach((item) => {
+    const type = item._ui_type || "Anime";
+    if (groupedByType[type]) {
+      groupedByType[type].push(item);
+    } else {
+      groupedByType[type] = [item];
+    }
+  });
+
+  // Rating weights for sorting logic
+  const ratingWeight = {
+    S: 0,
+    "A+": 1,
+    A: 2,
+    B: 3,
+    C: 4,
+    D: 5,
+    E: 6,
+    F: 7,
+    Unrated: 8,
+  };
+
+  let html = "";
+
+  for (const type of ["Anime", "TV Show", "Cartoon"]) {
+    const typeItems = groupedByType[type];
+    if (!typeItems || typeItems.length === 0) continue;
+
+    // 2. Sort by my_rating within the type section
+    typeItems.sort((a, b) => {
+      const weightA = ratingWeight[a.my_rating || "Unrated"] ?? 8;
+      const weightB = ratingWeight[b.my_rating || "Unrated"] ?? 8;
+      return weightA - weightB;
+    });
+
+    let typeIcon = "fa-film";
+    if (type === "Anime") typeIcon = "fa-tv";
+    else if (type === "TV Show") typeIcon = "fa-video";
+    else if (type === "Cartoon") typeIcon = "fa-laugh-squint";
+
+    html += `
+            <div class="space-y-6">
+                <!-- Media Type Header -->
+                <div class="border-b-2 border-gray-100 pb-2 flex items-center justify-between">
+                    <h3 class="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
+                        <i class="fas ${typeIcon} text-brand/70 mr-2"></i> ${type}
+                    </h3>
+                    <span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-gray-200">${typeItems.length} Entries</span>
+                </div>
+
+                <!-- Entry Cards Grid (Ordered by my_rating) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    ${typeItems.map((item) => createDashboardCard(item)).join("")}
+                </div>
+            </div>
+        `;
+  }
+
+  containerElement.innerHTML = html;
+}
+
+function createDashboardCard(anime) {
+  // Data Mapping for Anime Entry Card First Type
+  const franchise =
+    state.franchiseData.find((f) => f.system_id === anime.franchise_id) || {};
+
+  const title =
+    anime.anime_name_cn ||
+    anime.anime_name_en ||
+    anime.anime_name_romanji ||
+    "Unknown Title";
+  const subTitle =
+    franchise.franchise_name_cn ||
+    franchise.franchise_name_en ||
+    franchise.franchise_name_romanji ||
+    "Independent Series";
+
+  // Smart Image Routing
+  const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
+  const bucketName = "cg1618-anime-covers";
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
+  let imageUrl = fallbackSvg;
+  if (anime.cover_image_file && anime.cover_image_file !== "N/A") {
+    imageUrl = isLocalhost
+      ? `/static/covers/${anime.cover_image_file}`
+      : `https://storage.googleapis.com/${bucketName}/${anime.cover_image_file}`;
+  }
+
+  const prevEps = anime.ep_previous || 0;
+  const localFin = anime.ep_fin || 0;
+  const localTotal = anime.ep_total || "?";
+
+  const cumFin = anime.cum_ep_fin ?? localFin;
+  const cumTotal = anime.cum_ep_total ?? localTotal;
+
+  let progressPercent = 0;
+  let progressStyle = `width: 0%`;
+
+  if (cumTotal !== "?") {
+    progressPercent = Math.round((cumFin / cumTotal) * 100);
+    progressStyle = `width: ${progressPercent}%`;
+  } else if (localFin > 0) {
+    progressPercent = "Ongoing";
+    progressStyle = `width: 100%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;`;
+  }
+
+  // Airing Status Badge
+  let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
+  if (anime.airing_status === "Airing")
+    statusColor = "bg-green-100 text-green-700 border-green-200";
+  else if (anime.airing_status === "Finished Airing")
+    statusColor = "bg-blue-100 text-blue-700 border-blue-200";
+  else if (anime.airing_status === "Not Yet Aired")
+    statusColor = "bg-orange-100 text-orange-700 border-orange-200";
+
+  const airingStatusBadge = `<span class="${statusColor} px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[90px] text-center">${anime.airing_status || "Unknown"}</span>`;
+
+  // Streaming Icons
+  const isBaha =
+    anime.source_baha === true ||
+    String(anime.source_baha).toLowerCase() === "true";
+  const isNetflix =
+    anime.source_netflix === true ||
+    String(anime.source_netflix).toLowerCase() === "true";
+
+  let streamingIcons = `<div class="flex items-center gap-2 ml-1">`;
+  if (isBaha && anime.baha_link) {
+    streamingIcons += `<a href="${anime.baha_link}" target="_blank" onclick="event.stopPropagation()" class="inline-block hover:scale-110 transition-transform" title="Watch on Bahamut"><img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-3.5 opacity-90" alt="Baha"></a>`;
+  } else if (isBaha) {
+    streamingIcons += `<span class="inline-block" title="Available on Bahamut"><img src="https://i2.bahamut.com.tw/anime/logo.svg" class="h-3.5 opacity-50 grayscale" alt="Baha"></span>`;
+  }
+
+  if (isNetflix) {
+    streamingIcons += `<span class="text-[#E50914] font-black text-[13px] leading-none" title="Available on Netflix">N</span>`;
+  }
+
+  if (anime.source_other && anime.source_other_link) {
+    streamingIcons += `<a href="${anime.source_other_link}" target="_blank" onclick="event.stopPropagation()" class="text-purple-600 hover:text-purple-800 transition text-[10px] font-bold uppercase tracking-wide bg-purple-50 px-1.5 py-0.5 rounded" title="Watch on ${anime.source_other}">${anime.source_other}</a>`;
+  } else if (anime.source_other) {
+    streamingIcons += `<span class="text-gray-500 text-[10px] font-bold uppercase tracking-wide bg-gray-100 px-1.5 py-0.5 rounded" title="Available on ${anime.source_other}">${anime.source_other}</span>`;
+  }
+  streamingIcons += `</div>`;
+
+  // Rating Badge logic
+  const ratingBadge = anime.my_rating
+    ? `<div class="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm"><i class="fas fa-star text-[8px] mr-1"></i>${anime.my_rating}</div>`
+    : "";
+
+  // Conditional Interactive Controls
+  let interactiveControls = "";
+  if (IS_ADMIN_INDEX) {
+    const editPencil = `<button data-action="edit-anime" data-id="${anime.system_id}" class="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100" title="Quick Edit"><i class="fas fa-pencil-alt text-xs"></i></button>`;
+
+    interactiveControls = `
+          ${editPencil}
+          <div class="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+              <button data-action="ep-minus" data-id="${anime.system_id}" class="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center">
+                  <i class="fas fa-minus text-[10px]"></i>
+              </button>
+              <div class="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap overflow-hidden">
+                  <input
+                    type="number"
+                    data-action="ep-input"
+                    data-id="${anime.system_id}"
+                    class="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                    value="${localFin}"
+                  />
+                  <span class="text-gray-400 mx-0.5 text-xs">/</span>
+                  <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
+                  ${prevEps > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ""}
+              </div>
+              <button data-action="ep-plus" data-id="${anime.system_id}" class="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center">
+                  <i class="fas fa-plus text-[10px]"></i>
+              </button>
+          </div>`;
+  } else {
+    interactiveControls = `
+          <div class="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
+              <div class="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
+                  <span class="text-gray-900 w-6 text-center">${localFin}</span>
+                  <span class="text-gray-400 mx-0.5 text-xs">/</span>
+                  <span class="text-gray-500 text-[13px] w-6 text-center">${localTotal}</span>
+                  ${prevEps > 0 ? `<span class="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter" title="Cumulative Total">(${cumFin}/${cumTotal})</span>` : ""}
+              </div>
+          </div>`;
+  }
+
+  return `
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden card-hover shadow-sm flex flex-col h-full cursor-pointer relative" data-action="view-details" data-id="${anime.system_id}">
+          <div class="flex p-3">
+              <div class="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
+                  ${ratingBadge}
+                  <img src="${imageUrl}" alt="Cover" class="w-full h-full object-cover" onerror="this.src='${fallbackSvg}'">
+              </div>
+              <div class="ml-4 flex-1 min-w-0 flex flex-col justify-center">
+                  <h3 class="font-bold text-gray-900 text-sm line-clamp-2 leading-tight mb-1" title="${title}">${title}</h3>
+                  <p class="text-xs text-gray-500 truncate mb-2" title="${subTitle}">From franchise: ${subTitle}</p>
+                  <div class="flex items-center flex-wrap gap-1.5 mt-auto">
+                      ${airingStatusBadge}
+                      <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm"><i class="fas fa-tv mr-1"></i>${anime.airing_type || "TV"}</span>
+                      ${streamingIcons}
+                  </div>
+              </div>
+          </div>
+
+          <div class="bg-gray-50 p-3 border-t border-gray-100 mt-auto cursor-default relative z-10" data-action="ignore-click">
+              <div class="flex justify-between items-end mb-1.5">
+                  <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
+                  <span class="text-[10px] font-bold text-brand">${progressPercent}${cumTotal !== "?" ? "%" : ""}</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
+                  <div class="bg-brand h-1.5 rounded-full transition-all duration-500" style="${progressStyle}"></div>
+              </div>
+
+              ${interactiveControls}
+          </div>
+      </div>
+    `;
+}
+
+// --- Dynamic Input Handlers ---
+function handleDirectEpUpdate(sys_id, val) {
+  if (!IS_ADMIN_INDEX) return;
+  const typedLocal = parseInt(val, 10);
+
+  if (isNaN(typedLocal) || typedLocal < 0) {
+    renderDashboard(); // Revert invalid input instantly
+    return;
+  }
+  setEpisodeProgress(sys_id, typedLocal);
+}
+
+function optimisticUpdate(sys_id, change) {
+  if (!IS_ADMIN_INDEX) return;
+  const index = state.animeData.findIndex((a) => a.system_id === sys_id);
+  if (index === -1) return;
+
+  const anime = state.animeData[index];
+  const currentLocalEps = anime.ep_fin || 0;
+  const totalLocalEps =
+    anime.ep_total !== null && anime.ep_total !== "?"
+      ? parseInt(anime.ep_total, 10)
+      : null;
+
+  let targetLocalEps = currentLocalEps + change;
+
+  // Cap changes
+  if (totalLocalEps !== null && targetLocalEps > totalLocalEps)
+    targetLocalEps = totalLocalEps;
+  if (targetLocalEps < 0) targetLocalEps = 0;
+
+  if (targetLocalEps === currentLocalEps) return;
+
+  setEpisodeProgress(sys_id, targetLocalEps);
+}
+
+async function setEpisodeProgress(sys_id, newLocalEps) {
+  if (!IS_ADMIN_INDEX) return;
+  const index = state.animeData.findIndex((a) => a.system_id === sys_id);
+  if (index === -1) return;
+
+  const anime = state.animeData[index];
+  const currentLocalEps = anime.ep_fin || 0;
+  const totalLocalEps =
+    anime.ep_total !== null && anime.ep_total !== "?"
+      ? parseInt(anime.ep_total, 10)
+      : null;
+
+  let target = Math.max(0, newLocalEps);
+
+  if (totalLocalEps !== null && target > totalLocalEps) {
+    if (typeof showNotification === "function")
+      showNotification("error", "Cannot exceed total episodes.");
+    renderDashboard();
+    return;
+  }
+
+  if (target === currentLocalEps) {
+    renderDashboard();
+    return;
+  }
+
+  // 1. Optimistic Update
+  state.animeData[index].ep_fin = target;
+  renderDashboard();
+
+  // 2. Background API Request
+  try {
+    const res = await fetch(`/api/anime/${sys_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ep_fin: target }),
+    });
+
+    if (!res.ok)
+      throw new Error(
+        (await res.json()).detail || "Failed to sync to database",
+      );
+
+    if (typeof showNotification === "function")
+      showNotification("success", "Episodes updated successfully!");
+  } catch (error) {
+    console.error("Optimistic Update Failed:", error);
+    state.animeData[index].ep_fin = currentLocalEps;
+    renderDashboard();
+    if (typeof showNotification === "function")
+      showNotification("error", "Network error. Progress reverted.");
+  }
+}

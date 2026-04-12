@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, computed_field
 
 
 # ==========================================
@@ -209,6 +209,23 @@ class AnimeResponse(AnimeBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def cum_ep_fin(self) -> int:
+        """Dynamically calculates cumulative finished episodes."""
+        prev = self.ep_previous or 0
+        curr = self.ep_fin or 0
+        return prev + curr
+
+    @computed_field
+    @property
+    def cum_ep_total(self) -> int | None:
+        """Dynamically calculates cumulative total episodes. Returns None if total is unknown."""
+        prev = self.ep_previous or 0
+        if self.ep_total is not None:
+            return prev + self.ep_total
+        return None
 
 
 # ==========================================
