@@ -1,11 +1,8 @@
 {% extends "base.html" %} {% block title %}Add New Entry - CG1618 Tracker{%
-endblock %} {% block extra_style %} /* 1. Import external CSS safely inside the
-existing style tag from base.html */ @import url('/static/css/add.css?v=3.1');
-/* 2. CRITICAL STACKING CONTEXT FIX (Alt-Tab Proof) */ /* Kept inline to beat
-the Tailwind CDN injection order and guarantee z-index rules are applied */
-.combo-wrapper, .ms-wrapper, .dropdown-group { position: relative; z-index: 10;
-} /* The :has() pseudo-class perfectly binds the z-index elevation to the menu's
-visibility, bypassing all browser focus/blur mechanics */
+endblock %} {% block extra_style %} /* 1. Import external CSS safely */ @import
+url('/static/css/add.css?v=3.1'); /* 2. CRITICAL STACKING CONTEXT FIX */ /*
+Elevates active dropdowns above other form elements */ .combo-wrapper,
+.ms-wrapper, .dropdown-group { position: relative; z-index: 10; }
 .combo-wrapper:has(.open), .ms-wrapper:has(.open), .dropdown-group:has(.open) {
 z-index: 60 !important; } {% endblock %} {% block content %}
 <div
