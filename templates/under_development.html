@@ -44,16 +44,6 @@ endblock %} {% block content %}
     </div>
   </div>
 </main>
-
-{% block extra_scripts %}
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const goBackBtn = document.getElementById("go-back-btn");
-    if (goBackBtn) {
-      goBackBtn.addEventListener("click", () => {
-        window.history.back();
-      });
-    }
-  });
-</script>
-{% endblock %} {% endblock %}
+{% endblock %} {% block extra_scripts %}
+<script src="/static/js/under_development.js"></script>
+{% endblock %}
