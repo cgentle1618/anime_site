@@ -1,12 +1,13 @@
 {% extends "base.html" %} {% block title %}Add New Entry - CG1618 Tracker{%
 endblock %} {% block extra_style %} /* 1. Import external CSS safely inside the
-existing style tag from base.html */ @import url('/static/css/add.css?v=3.0');
-/* 2. CRITICAL STACKING CONTEXT FIX */ /* Kept inline to beat the Tailwind CDN
-injection order and guarantee z-index rules are applied */ .combo-wrapper,
-.ms-wrapper, .dropdown-group { position: relative; z-index: 10; }
-.combo-wrapper:focus-within, .ms-wrapper:focus-within,
-.dropdown-group:focus-within { z-index: 60 !important; } {% endblock %} {% block
-content %}
+existing style tag from base.html */ @import url('/static/css/add.css?v=3.1');
+/* 2. CRITICAL STACKING CONTEXT FIX (Alt-Tab Proof) */ /* Kept inline to beat
+the Tailwind CDN injection order and guarantee z-index rules are applied */
+.combo-wrapper, .ms-wrapper, .dropdown-group { position: relative; z-index: 10;
+} /* The :has() pseudo-class perfectly binds the z-index elevation to the menu's
+visibility, bypassing all browser focus/blur mechanics */
+.combo-wrapper:has(.open), .ms-wrapper:has(.open), .dropdown-group:has(.open) {
+z-index: 60 !important; } {% endblock %} {% block content %}
 <div
   class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
 >
@@ -142,7 +143,7 @@ content %}
               ></div>
             </div>
 
-            <!-- CSS Stacking Context fix implemented via .dropdown-group -->
+            <!-- Anime Name Inputs with .dropdown-group for stacking/event fix -->
             <div class="col-span-2 relative dropdown-group">
               <label class="block text-xs font-bold text-gray-700 mb-1"
                 >Anime Name EN *</label

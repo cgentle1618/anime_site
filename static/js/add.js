@@ -207,6 +207,7 @@ function initAnimeNameAutocomplete() {
         return;
       }
 
+      // Sliced to 50 to guarantee scrolling
       const matches = state.db.anime
         .filter((a) => {
           const nameToMatch = a[fieldName];
@@ -219,6 +220,7 @@ function initAnimeNameAutocomplete() {
         return;
       }
 
+      // Richer UI with Franchise Context
       dropdown.innerHTML = matches
         .map((a) => {
           const title = a[fieldName];
@@ -260,6 +262,13 @@ function initAnimeNameAutocomplete() {
         dropdown.classList.remove("open");
       }
     });
+
+    // Handle Keyboard Accessibility
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Tab" || e.key === "Escape") {
+        dropdown.classList.remove("open");
+      }
+    });
   });
 }
 
@@ -267,6 +276,7 @@ function fillAnimeDataFromSuggestion(systemId) {
   const anime = state.db.anime.find((a) => a.system_id === systemId);
   if (!anime) return;
 
+  // Fill Comboboxes
   if (state.comboboxes["combo-anime-franchise"]) {
     state.comboboxes["combo-anime-franchise"].setValue(anime.franchise_id);
   }
@@ -274,6 +284,7 @@ function fillAnimeDataFromSuggestion(systemId) {
     state.comboboxes["combo-anime-series"].setValue(anime.series_id);
   }
 
+  // Fill Text Inputs
   const form = pageDOM.forms.anime;
   form.querySelector('[data-field="anime_name_en"]').value =
     anime.anime_name_en || "";
@@ -286,6 +297,7 @@ function fillAnimeDataFromSuggestion(systemId) {
   form.querySelector('[data-field="anime_name_alt"]').value =
     anime.anime_name_alt || "";
 
+  // Fill MultiSelects
   if (state.multiSelects["ms-genre_main"])
     state.multiSelects["ms-genre_main"].setValue(anime.genre_main);
   if (state.multiSelects["ms-genre_sub"])
@@ -505,8 +517,6 @@ async function handleAppendFlow() {
       if (el.value === "true") payload[key] = true;
       else if (el.value === "false") payload[key] = false;
       else {
-        // --- FIX FOR SOURCE NETFLIX BUG ---
-        // Netflix is strict bool in backend, Baha is Optional[bool].
         payload[key] = key === "source_netflix" ? false : null;
       }
     } else if (el.classList.contains("number-select") || el.type === "number") {
@@ -598,7 +608,6 @@ async function handleAppendFlow() {
       body: JSON.stringify(payload),
     });
 
-    // --- HIGH RESOLUTION 422 ERROR REPORTER ---
     if (!res.ok) {
       let errorMessage = `Server Error (${res.status})`;
       try {
@@ -856,6 +865,12 @@ class Combobox {
         this.dropdown.classList.remove("open");
       }
     });
+
+    this.input.addEventListener("keydown", (e) => {
+      if (e.key === "Tab" || e.key === "Escape") {
+        this.dropdown.classList.remove("open");
+      }
+    });
   }
 
   showDropdown(filterText = "") {
@@ -960,7 +975,9 @@ class MultiSelect {
     });
 
     this.input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+      if (e.key === "Tab" || e.key === "Escape") {
+        this.dropdown.classList.remove("open");
+      } else if (e.key === "Enter") {
         e.preventDefault();
         const val = this.input.value.trim();
         if (val) this.addOption(val);
