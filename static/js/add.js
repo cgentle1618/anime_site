@@ -197,7 +197,7 @@ function initAnimeNameAutocomplete() {
   const inputs = document.querySelectorAll(".anime-name-input");
   inputs.forEach((input) => {
     const dropdown = input.nextElementSibling;
-    const fieldName = input.getAttribute("data-field"); // Gets the specific language field (e.g., anime_name_en)
+    const fieldName = input.getAttribute("data-field");
     const wrapper = input.parentElement;
 
     const showDropdown = (filterText) => {
@@ -207,7 +207,6 @@ function initAnimeNameAutocomplete() {
         return;
       }
 
-      // Sliced to 50 to guarantee scrolling
       const matches = state.db.anime
         .filter((a) => {
           const nameToMatch = a[fieldName];
@@ -220,7 +219,6 @@ function initAnimeNameAutocomplete() {
         return;
       }
 
-      // Richer UI with Franchise Context
       dropdown.innerHTML = matches
         .map((a) => {
           const title = a[fieldName];
@@ -256,7 +254,7 @@ function initAnimeNameAutocomplete() {
     input.addEventListener("focus", () => showDropdown(input.value));
     input.addEventListener("input", () => showDropdown(input.value));
 
-    // SAFE CLICK-OUTSIDE (Replaces Blur)
+    // SAFE CLICK-OUTSIDE
     document.addEventListener("mousedown", (e) => {
       if (!wrapper.contains(e.target)) {
         dropdown.classList.remove("open");
@@ -269,7 +267,6 @@ function fillAnimeDataFromSuggestion(systemId) {
   const anime = state.db.anime.find((a) => a.system_id === systemId);
   if (!anime) return;
 
-  // Fill Comboboxes
   if (state.comboboxes["combo-anime-franchise"]) {
     state.comboboxes["combo-anime-franchise"].setValue(anime.franchise_id);
   }
@@ -277,7 +274,6 @@ function fillAnimeDataFromSuggestion(systemId) {
     state.comboboxes["combo-anime-series"].setValue(anime.series_id);
   }
 
-  // Fill Text Inputs
   const form = pageDOM.forms.anime;
   form.querySelector('[data-field="anime_name_en"]').value =
     anime.anime_name_en || "";
@@ -290,7 +286,6 @@ function fillAnimeDataFromSuggestion(systemId) {
   form.querySelector('[data-field="anime_name_alt"]').value =
     anime.anime_name_alt || "";
 
-  // Fill MultiSelects
   if (state.multiSelects["ms-genre_main"])
     state.multiSelects["ms-genre_main"].setValue(anime.genre_main);
   if (state.multiSelects["ms-genre_sub"])
@@ -342,7 +337,6 @@ async function handleAppendFlow() {
   }
 
   if (type === "anime") {
-    // Check Franchise Name requirement (either ID or Text)
     const fText = state.comboboxes["combo-anime-franchise"]
       ? state.comboboxes["combo-anime-franchise"].input.value.trim()
       : "";
@@ -355,11 +349,10 @@ async function handleAppendFlow() {
           "warning",
           "A Franchise Name (selected or typed) must be provided.",
         );
-      alert("A Franchise Name (selected or typed) must be provided.");
+      else alert("A Franchise Name (selected or typed) must be provided.");
       return;
     }
 
-    // Check Anime Name requirement (at least one)
     const en = form.querySelector('[data-field="anime_name_en"]').value.trim();
     const cn = form.querySelector('[data-field="anime_name_cn"]').value.trim();
     const rom = form
@@ -376,7 +369,7 @@ async function handleAppendFlow() {
           "warning",
           "At least one Anime Name must be provided.",
         );
-      alert("At least one Anime Name must be provided.");
+      else alert("At least one Anime Name must be provided.");
       return;
     }
   } else if (type === "franchise") {
@@ -402,7 +395,7 @@ async function handleAppendFlow() {
           "warning",
           "At least one Franchise Name must be provided.",
         );
-      alert("At least one Franchise Name must be provided.");
+      else alert("At least one Franchise Name must be provided.");
       return;
     }
   } else if (type === "series") {
@@ -418,7 +411,7 @@ async function handleAppendFlow() {
           "warning",
           "At least one Series Name must be provided.",
         );
-      alert("At least one Series Name must be provided.");
+      else alert("At least one Series Name must be provided.");
       return;
     }
   }
@@ -427,9 +420,6 @@ async function handleAppendFlow() {
     '<i class="fas fa-spinner fa-spin mr-2"></i> Appending...';
   pageDOM.btnAppend.classList.add("opacity-75", "pointer-events-none");
 
-  // ==========================================
-  // MULTI-APPEND LOGIC FOR SYSTEM OPTIONS
-  // ==========================================
   if (type === "options") {
     const category = document.getElementById("opt-category").value.trim();
     const valueInputs = Array.from(form.querySelectorAll(".option-value-input"))
@@ -495,16 +485,13 @@ async function handleAppendFlow() {
       console.error(e);
       if (typeof showNotification === "function")
         showNotification("error", e.message);
-      alert(`Error appending options: ${e.message}`);
+      else alert(`Error appending options: ${e.message}`);
     } finally {
       resetBtn();
     }
     return;
   }
 
-  // ==========================================
-  // SINGLE-APPEND LOGIC FOR ANIME/FRANCHISE/SERIES
-  // ==========================================
   let payload = {};
   form.querySelectorAll("[data-field]").forEach((el) => {
     const key = el.getAttribute("data-field");
@@ -517,7 +504,11 @@ async function handleAppendFlow() {
     } else if (el.classList.contains("boolean-select")) {
       if (el.value === "true") payload[key] = true;
       else if (el.value === "false") payload[key] = false;
-      else payload[key] = null;
+      else {
+        // --- FIX FOR SOURCE NETFLIX BUG ---
+        // Netflix is strict bool in backend, Baha is Optional[bool].
+        payload[key] = key === "source_netflix" ? false : null;
+      }
     } else if (el.classList.contains("number-select") || el.type === "number") {
       payload[key] = el.value !== "" ? Number(el.value) : null;
     } else {
@@ -533,14 +524,13 @@ async function handleAppendFlow() {
         [selSeason.value, selPart.value].filter(Boolean).join(" ") || null;
     }
 
-    // --- STRICT EPISODE VALIDATION ---
     const epTotal = payload.ep_total !== null ? Number(payload.ep_total) : null;
     const epFin = payload.ep_fin !== null ? Number(payload.ep_fin) : 0;
 
     if ((epTotal !== null && epTotal < 0) || epFin < 0) {
       if (typeof showNotification === "function")
         showNotification("warning", "Episode counts cannot be less than zero.");
-      alert("Validation Error: Episode counts cannot be less than zero.");
+      else alert("Validation Error: Episode counts cannot be less than zero.");
       resetBtn();
       return;
     }
@@ -551,7 +541,10 @@ async function handleAppendFlow() {
           "warning",
           "Episode Finished cannot exceed Total Episodes.",
         );
-      alert("Validation Error: Episode Finished cannot exceed Total Episodes.");
+      else
+        alert(
+          "Validation Error: Episode Finished cannot exceed Total Episodes.",
+        );
       resetBtn();
       return;
     }
@@ -570,7 +563,6 @@ async function handleAppendFlow() {
   }
 
   try {
-    // 1. Create on the Fly
     if (type === "anime") {
       const fText = payload["_franchise_id_text"];
       if (fText && !payload.franchise_id) {
@@ -594,25 +586,32 @@ async function handleAppendFlow() {
       if (k.startsWith("_")) delete payload[k];
     });
 
-    // 2. Duplicate Check
     const isDuplicate = checkDuplicate(type, payload);
     if (isDuplicate) {
       const proceed = await triggerDuplicateModal(type, payload);
       if (!proceed) throw new Error("Canceled");
     }
 
-    // 3. Execute Append
     const res = await fetch(`/api/${type}/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
+    // --- HIGH RESOLUTION 422 ERROR REPORTER ---
     if (!res.ok) {
       let errorMessage = `Server Error (${res.status})`;
       try {
         const errData = await res.json();
-        errorMessage = errData.detail || JSON.stringify(errData);
+        if (errData.detail) {
+          errorMessage = Array.isArray(errData.detail)
+            ? errData.detail
+                .map((e) => `${e.loc.join(".")}: ${e.msg}`)
+                .join("\n")
+            : JSON.stringify(errData.detail);
+        } else {
+          errorMessage = JSON.stringify(errData);
+        }
       } catch (e) {
         errorMessage = await res.text();
       }
@@ -621,7 +620,6 @@ async function handleAppendFlow() {
 
     const data = await res.json();
 
-    // 4. Cleanup & Feedback
     if (typeof showNotification === "function")
       showNotification("success", "Entry appended successfully.");
 
@@ -649,8 +647,8 @@ async function handleAppendFlow() {
     console.error(e);
     if (e.message !== "Canceled" && e.message !== "Validation Failed") {
       if (typeof showNotification === "function")
-        showNotification("error", `Failed: ${e.message}`);
-      alert(`Backend Validation Failed: \n\n${e.message}`);
+        showNotification("error", `Failed: \n${e.message}`);
+      else alert(`Backend Validation Failed:\n\n${e.message}`);
     }
   } finally {
     resetBtn();
@@ -803,7 +801,6 @@ function triggerCreateModal(type, textName, animePayload) {
 
 // --- CUSTOM COMPONENTS ---
 
-// Display Fallback Logic (CN -> EN -> Alt -> Romanji -> JP)
 const getDisplayTitleF = (f) =>
   f.franchise_name_cn ||
   f.franchise_name_en ||
@@ -854,7 +851,6 @@ class Combobox {
       this.showDropdown(this.input.value);
     });
 
-    // SAFE CLICK-OUTSIDE (Replaces Blur)
     document.addEventListener("mousedown", (e) => {
       if (!this.container.contains(e.target)) {
         this.dropdown.classList.remove("open");
@@ -957,7 +953,6 @@ class MultiSelect {
       this.showDropdown(this.input.value),
     );
 
-    // SAFE CLICK-OUTSIDE (Replaces Blur)
     document.addEventListener("mousedown", (e) => {
       if (!this.container.contains(e.target)) {
         this.dropdown.classList.remove("open");
