@@ -12,6 +12,7 @@ env:
   REGION: asia-east1
   REPO_NAME: asia-east1-docker.pkg.dev/anime-site-sync/anime-repo/cg1618-tracker
   SERVICE_NAME: cg1618-tracker
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-deploy:
