@@ -123,7 +123,7 @@ function renderDashboard() {
     return orderA - orderB;
   });
 
-  // Distribute to categories using V2 watching_status
+  // Distribute to categories using watching_status
   sortedData.forEach((anime) => {
     // Explicitly tag UI Type (Future proofs against TV Shows / Cartoons when added)
     anime._ui_type = "Anime";
@@ -233,7 +233,7 @@ function createDashboardCard(anime) {
     franchise.franchise_name_romanji ||
     "Independent Series";
 
-  // V2 Smart Image Routing
+  // Smart Image Routing
   const fallbackSvg = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E`;
   const bucketName = "cg1618-anime-covers";
   const isLocalhost =
@@ -247,13 +247,12 @@ function createDashboardCard(anime) {
       : `https://storage.googleapis.com/${bucketName}/${anime.cover_image_file}`;
   }
 
-  // V2 Clean Cumulative Math (Leveraging backend ep_previous)
   const prevEps = anime.ep_previous || 0;
   const localFin = anime.ep_fin || 0;
   const localTotal = anime.ep_total || "?";
 
-  const cumFin = localFin + prevEps;
-  const cumTotal = localTotal === "?" ? "?" : localTotal + prevEps;
+  const cumFin = anime.cum_ep_fin ?? localFin;
+  const cumTotal = anime.cum_ep_total ?? localTotal;
 
   let progressPercent = 0;
   let progressStyle = `width: 0%`;
