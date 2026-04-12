@@ -22,10 +22,8 @@ from services.other_logics import resolve_series_parent_hierarchy
 
 from utils.data_control_utils import log_deleted_record
 
-# Setup basic logging
 logger = logging.getLogger(__name__)
 
-# Initialize the router with a standard prefix
 router = APIRouter(prefix="/api/series", tags=["Series Management"])
 
 
@@ -99,7 +97,6 @@ def create_series(
     new_series = models.Series(**series_in.model_dump())
     new_series.system_id = uuid.uuid4()
 
-    # Utilize the .names_dict property from the mixin to auto-resolve franchise
     new_series.franchise_id = resolve_series_parent_hierarchy(
         db, new_series.franchise_id, new_series.names_dict
     )
@@ -131,7 +128,6 @@ def update_series(
     for key, value in update_data.items():
         setattr(db_series, key, value)
 
-    # Re-evaluate the franchise relationship based on new values
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
     )
@@ -162,7 +158,6 @@ def patch_series(
         if hasattr(db_series, key):
             setattr(db_series, key, value)
 
-    # Partial updates might change the name or detach the franchise, so we verify
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
     )
@@ -190,7 +185,6 @@ def delete_series(
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found")
 
-    # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_series, "Series")
 
     db.delete(db_series)

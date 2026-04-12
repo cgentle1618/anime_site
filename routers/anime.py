@@ -21,8 +21,6 @@ import schemas
 from services.image_manager import delete_cover_image
 from services.other_logics import (
     autofill_ep_previous,
-    check_is_tv_completed,
-    mark_tv_completed,
     apply_single_replace_anime,
     resolve_anime_parent_hierarchy,
 )
@@ -104,27 +102,20 @@ def create_anime_entry(
     new_anime = models.Anime(**anime_in.model_dump())
     new_anime.system_id = uuid.uuid4()
 
-    # 1. Resolve Hierarchy
     final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
         db, new_anime.franchise_id, new_anime.series_id, new_anime.names_dict
     )
     new_anime.franchise_id = final_franchise_id
     new_anime.series_id = final_series_id
 
-    # 2. Add to session
     db.add(new_anime)
 
-    # 3. Apply Unified Domain Logic (Extract ID, MAL fill, completion checks, seasons)
-    # Using False because we only want to fill missing data, not overwrite custom inputs on create
     apply_single_replace_anime(db, new_anime, force_replace=False)
 
-    # 4. Critical Step: Flush to database so the upcoming query can see the new entry
     db.flush()
 
-    # 5. Cascade Recalculation for the entire Franchise/Series group
     autofill_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
 
-    # Finalize transaction
     db.commit()
     db.refresh(new_anime)
     return new_anime
@@ -149,29 +140,22 @@ def update_anime_entry(
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # 1. Apply user-provided updates
     update_data = anime_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
-    # 2. Resolve parent relationships
     final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
         db, db_anime.franchise_id, db_anime.series_id, db_anime.names_dict
     )
     db_anime.franchise_id = final_franchise_id
     db_anime.series_id = final_series_id
 
-    # 3. Apply Unified Domain Logic
-    # force_replace=False prevents overwriting ratings the user might have just typed
     apply_single_replace_anime(db, db_anime, force_replace=False)
 
-    # 4. Critical Step: Flush so the upcoming query reads the newest edited values (like ep_total)
     db.flush()
 
-    # 5. Cascade Recalculation for the entire Franchise/Series group
     autofill_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
 
-    # Finalize transaction
     db_anime.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_anime)
@@ -213,17 +197,15 @@ def delete_anime_entry(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Deletes an entry, cleans up local image, and logs to V2 audit trail."""
+    """Deletes an entry, cleans up local image, and logs to audit trail."""
     db_anime = (
         db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
     )
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # Clean up static files
     delete_cover_image(system_id)
 
-    # V2 Audit Trail Logging for Deleted Record
     log_deleted_record(db, db_anime, "Anime")
 
     db.delete(db_anime)
