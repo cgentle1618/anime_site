@@ -73,6 +73,7 @@ def parse_row_to_dict(headers: List[str], row: List[Any]) -> Dict[str, Any]:
 def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
     """
     Converts a string from Google Sheets to the expected Python type based on SQLAlchemy column type.
+    It’s a helper function for parsers.
     """
     if val_str is None or str(val_str).strip() == "":
         return None

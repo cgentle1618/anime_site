@@ -1010,7 +1010,7 @@ rgba(0, 0, 0, 0.1); } {% endblock %} {% block content %}
                 const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
                 // Map to the new single entry data-control endpoint
-                const response = await fetch(`/api/data-control/fill/anime/${ANIME_ID}`, {
+                const response = await fetch(`/api/data-control/replace/anime/${ANIME_ID}`, {
                     method: "POST",
                     headers: headers
                 });

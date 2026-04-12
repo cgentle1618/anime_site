@@ -13,18 +13,18 @@ from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
+from dependencies import get_db, get_current_admin
+from database import get_taipei_now
 import models
 import schemas
-from services.image_manager import download_cover_image, delete_cover_image
+
+from services.image_manager import delete_cover_image
 from services.other_logics import (
     autofill_ep_previous,
-    check_is_completed,
-    mark_completed,
-    resolve_parent_hierarchy,
-    apply_single_fill_logic,
+    apply_single_replace_anime,
+    resolve_anime_parent_hierarchy,
 )
-from database import get_taipei_now
-from dependencies import get_db, get_current_admin
+
 from utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -84,29 +84,40 @@ def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
 # ==========================================
 
 
-@router.post("/", response_model=schemas.AnimeResponse, summary="Create Anime Entry")
+@router.post(
+    "/",
+    response_model=schemas.AnimeResponse,
+    status_code=201,
+    summary="Create Anime Entry",
+)
 def create_anime_entry(
-    payload: schemas.AnimeCreate,
-    background_tasks: BackgroundTasks,
+    anime_in: schemas.AnimeCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Creates a new Anime Entry."""
+    """
+    Creates a new anime entry.
+    Applies unified domain rules and correctly cascades episode calculations.
+    """
+    new_anime = models.Anime(**anime_in.model_dump())
+    new_anime.system_id = uuid.uuid4()
 
-    # We explicitly generate the UUID here since 'system_id' is intentionally
-    # omitted from the AnimeCreate Pydantic validation schema.
-    anime_data = payload.dict()
-    new_anime = models.Anime(system_id=uuid.uuid4(), **anime_data)
-
-    # 2. Inject Business Logic
-    autofill_ep_previous(db, new_anime)
-    if check_is_completed(new_anime):
-        mark_completed(new_anime)
+    final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
+        db, new_anime.franchise_id, new_anime.series_id, new_anime.names_dict
+    )
+    new_anime.franchise_id = final_franchise_id
+    new_anime.series_id = final_series_id
 
     db.add(new_anime)
+
+    apply_single_replace_anime(db, new_anime, force_replace=False)
+
+    db.flush()
+
+    autofill_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
+
     db.commit()
     db.refresh(new_anime)
-
     return new_anime
 
 
@@ -115,43 +126,37 @@ def create_anime_entry(
 )
 def update_anime_entry(
     system_id: str,
-    payload: schemas.AnimeUpdate,
-    background_tasks: BackgroundTasks,
+    anime_in: schemas.AnimeUpdate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Fully updates an Anime entry. Resolves parent changes and applies math logic."""
+    """
+    Updates an anime entry.
+    Applies unified domain rules and correctly cascades episode calculations.
+    """
     db_anime = (
         db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
     )
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # Resolve hierarchy in case the user detached it and needs new parents
-    names = {
-        "en": payload.anime_name_en or db_anime.anime_name_en,
-        "cn": payload.anime_name_cn or db_anime.anime_name_cn,
-        "romanji": payload.anime_name_romanji or db_anime.anime_name_romanji,
-        "jp": payload.anime_name_jp or db_anime.anime_name_jp,
-        "alt": payload.anime_name_alt or db_anime.anime_name_alt,
-    }
-    f_id, s_id = resolve_parent_hierarchy(
-        db, payload.franchise_id, payload.series_id, names
-    )
-
-    update_data = payload.dict(exclude_unset=True)
-    update_data["franchise_id"] = f_id
-    update_data["series_id"] = s_id
-
+    update_data = anime_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
+    final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
+        db, db_anime.franchise_id, db_anime.series_id, db_anime.names_dict
+    )
+    db_anime.franchise_id = final_franchise_id
+    db_anime.series_id = final_series_id
+
+    apply_single_replace_anime(db, db_anime, force_replace=False)
+
+    db.flush()
+
+    autofill_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
+
     db_anime.updated_at = get_taipei_now()
-
-    # Apply Logic
-    apply_single_fill_logic(db_anime, force_replace_ratings=False)
-    autofill_ep_previous(db, db_anime)
-
     db.commit()
     db.refresh(db_anime)
 
@@ -185,45 +190,6 @@ def patch_anime_entry(
     return db_anime
 
 
-@router.post(
-    "/{system_id}/fill",
-    response_model=schemas.AnimeResponse,
-    summary="Fill Single Anime",
-)
-def fill_single_anime(
-    system_id: str,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    """
-    Executes 'Autofill & Update' logic.
-    1. Calculation (autofill_ep_previous).
-    2. MAL Autofill (Force replaces ratings/rank, fills missing others).
-    3. Calculate Season from Month.
-    """
-    db_anime = (
-        db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
-    )
-    if not db_anime:
-        raise HTTPException(status_code=404, detail="Anime entry not found.")
-
-    # 1. Calculation
-    autofill_ep_previous(db, db_anime)
-
-    # 2 & 3. MAL Autofill (Force Ratings) & Calc Season From Month
-    apply_single_fill_logic(db_anime, force_replace_ratings=True)
-
-    # Safety check for completion
-    if check_is_completed(db_anime):
-        mark_completed(db_anime)
-
-    db_anime.updated_at = get_taipei_now()
-    db.commit()
-    db.refresh(db_anime)
-
-    return db_anime
-
-
 @router.delete("/{system_id}", summary="Delete Anime Entry")
 def delete_anime_entry(
     system_id: str,
@@ -231,17 +197,15 @@ def delete_anime_entry(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Deletes an entry, cleans up local image, and logs to V2 audit trail."""
+    """Deletes an entry, cleans up local image, and logs to audit trail."""
     db_anime = (
         db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
     )
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    # Clean up static files
     delete_cover_image(system_id)
 
-    # V2 Audit Trail Logging for Deleted Record
     log_deleted_record(db, db_anime, "Anime")
 
     db.delete(db_anime)

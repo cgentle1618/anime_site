@@ -15,10 +15,8 @@ import schemas
 from dependencies import get_db, get_current_admin
 from utils.data_control_utils import log_deleted_record
 
-# Setup basic logging
 logger = logging.getLogger(__name__)
 
-# Initialize the router with a standard prefix
 router = APIRouter(prefix="/api/options", tags=["System Options"])
 
 

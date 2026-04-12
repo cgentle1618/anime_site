@@ -3,15 +3,19 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
+from dependencies import get_db, get_current_admin
+
+
 from services.data_control import (
     execute_backup,
     execute_pull_all,
     execute_pull_specific,
     execute_fill_anime,
+    execute_fill_all,
     execute_replace_anime,
-    execute_fill_single_anime,
+    execute_replace_all,
+    execute_replace_single_anime,
 )
-from dependencies import get_db, get_current_admin
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +35,11 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
     try:
         return StreamingResponse(
             execute_fill_anime(
-                db, request, action_specific="Fill Anime", action_type="Manual"
+                db,
+                request,
+                action_specific="Fill Anime",
+                action_type="Manual",
+                log_action=True,
             ),
             media_type="text/event-stream",
         )
@@ -40,37 +48,15 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/fill/anime/{anime_id}")
-async def trigger_fill_single_anime(anime_id: str, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline for a single anime entry.
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_fill_single_anime(db, anime_id, action_type="Manual")
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in fill single anime: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/fill/all")
 async def trigger_fill_all(request: Request, db: Session = Depends(get_db)):
     """
-    Triggers the Fill Pipeline for ALL data types.
-    Currently aliases to Fill Anime since other types are not yet implemented.
+    Triggers the master Fill Pipeline for ALL data types and automatically triggers a backup.
     Streams progress back to the client using Server-Sent Events (SSE).
     """
     try:
         return StreamingResponse(
-            execute_fill_anime(
-                db, request, action_specific="Fill All", action_type="Manual"
-            ),
+            execute_fill_all(db, request, action_type="Manual"),
             media_type="text/event-stream",
         )
     except Exception as e:
@@ -87,7 +73,11 @@ async def trigger_replace_anime(request: Request, db: Session = Depends(get_db))
     try:
         return StreamingResponse(
             execute_replace_anime(
-                db, request, action_specific="Replace Anime", action_type="Manual"
+                db,
+                request,
+                action_specific="Replace Anime",
+                action_type="Manual",
+                log_action=True,
             ),
             media_type="text/event-stream",
         )
@@ -96,18 +86,36 @@ async def trigger_replace_anime(request: Request, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/replace/anime/{anime_id}")
+async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_db)):
+    """
+    Triggers the Replace Pipeline for a single anime entry (Autofill & Update).
+    Returns standard JSON response.
+    """
+    try:
+        result = await execute_replace_single_anime(
+            db, anime_id, action_type="Manual", log_action=True
+        )
+        if result.get("status") == "error":
+            status_code = result.get("status_code", 400)
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in replace single anime: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/replace/all")
 async def trigger_replace_all(request: Request, db: Session = Depends(get_db)):
     """
-    Triggers the Replace Pipeline for ALL data types.
-    Currently aliases to Replace Anime since other types are not yet implemented.
+    Triggers the master Replace Pipeline for ALL data types and automatically triggers a backup.
     Streams progress back to the client using Server-Sent Events (SSE).
     """
     try:
         return StreamingResponse(
-            execute_replace_anime(
-                db, request, action_specific="Replace All", action_type="Manual"
-            ),
+            execute_replace_all(db, request, action_type="Manual"),
             media_type="text/event-stream",
         )
     except Exception as e:

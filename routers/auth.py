@@ -15,11 +15,9 @@ import models
 from dependencies import get_db
 from services.security import verify_password, create_access_token
 
-# Setup basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize the router
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 

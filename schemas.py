@@ -1,13 +1,15 @@
 """
 schemas.py
 Defines Pydantic models for request validation and response serialization.
-Following the DRY (Don't Repeat Yourself) principle with base classes.
+Uses inheritance to maintain DRY principles across Create, Update, and Response states.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 # ==========================================
 # AUTHENTICATION SCHEMAS
@@ -15,7 +17,7 @@ from uuid import UUID
 
 
 class Token(BaseModel):
-    """Schema for the JWT access token returned on login."""
+    """Schema for the JWT access token returned on successful login."""
 
     access_token: str
     token_type: str
@@ -32,13 +34,12 @@ class UserCreate(UserBase):
 
 
 class UserOut(UserBase):
-    """Schema for returning user data (never includes password!)."""
+    """Schema for returning user data (excludes sensitive credentials)."""
 
     id: UUID
     role: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -47,8 +48,6 @@ class UserOut(UserBase):
 
 
 class SystemOptionBase(BaseModel):
-    """Base schema for dynamic system dropdown options."""
-
     category: str
     option_value: str
 
@@ -60,8 +59,7 @@ class SystemOptionCreate(SystemOptionBase):
 class SystemOptionResponse(SystemOptionBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -70,8 +68,6 @@ class SystemOptionResponse(SystemOptionBase):
 
 
 class FranchiseBase(BaseModel):
-    """Base schema for top-level Franchise entries."""
-
     franchise_type: Optional[str] = None
     franchise_name_en: Optional[str] = None
     franchise_name_cn: Optional[str] = None
@@ -85,26 +81,19 @@ class FranchiseBase(BaseModel):
 
 
 class FranchiseCreate(FranchiseBase):
-    """Schema for creating a new Franchise."""
-
     pass
 
 
 class FranchiseUpdate(FranchiseBase):
-    """Schema for updating an existing Franchise. Allows passing the ID in the body."""
-
-    system_id: Optional[UUID] = None
+    pass
 
 
 class FranchiseResponse(FranchiseBase):
-    """Schema for returning Franchise data to the client."""
-
     system_id: UUID
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -113,8 +102,6 @@ class FranchiseResponse(FranchiseBase):
 
 
 class SeriesBase(BaseModel):
-    """Base schema for the intermediate Series layer."""
-
     franchise_id: Optional[UUID] = None
     series_name_en: Optional[str] = None
     series_name_cn: Optional[str] = None
@@ -122,24 +109,17 @@ class SeriesBase(BaseModel):
 
 
 class SeriesCreate(SeriesBase):
-    """Schema for creating a new Series."""
-
     pass
 
 
 class SeriesUpdate(SeriesBase):
-    """Schema for updating an existing Series."""
-
-    system_id: Optional[UUID] = None
+    pass
 
 
 class SeriesResponse(SeriesBase):
-    """Schema for returning Series data to the client."""
-
     system_id: UUID
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -148,37 +128,40 @@ class SeriesResponse(SeriesBase):
 
 
 class AnimeBase(BaseModel):
-    """Base schema encompassing all editable fields for an Anime entry."""
+    """
+    Core schema for Anime entries.
+    Field names must strictly match SQLAlchemy models for automated parsing.
+    """
 
-    # Relationships
     franchise_id: Optional[UUID] = None
     series_id: Optional[UUID] = None
 
-    # Naming
     anime_name_en: Optional[str] = None
     anime_name_cn: Optional[str] = None
     anime_name_romanji: Optional[str] = None
     anime_name_jp: Optional[str] = None
     anime_name_alt: Optional[str] = None
 
-    # Progress & Status
     season_part: Optional[str] = None
     airing_type: Optional[str] = None
-    watching_status: str = "Might Watch"
     airing_status: Optional[str] = None
-    ep_total: Optional[int] = None
-    ep_fin: Optional[int] = 0
-    ep_previous: Optional[int] = None
-    ep_special: Optional[float] = None
-    my_rating: Optional[str] = None
+    watching_status: str = "Might Watch"
     is_main: Optional[str] = None
 
-    # Release Information
+    ep_previous: Optional[int] = None
+    ep_total: Optional[int] = None
+    ep_fin: Optional[int] = 0
+    ep_special: Optional[float] = None
+
+    my_rating: Optional[str] = None
+    mal_rating: Optional[float] = None
+    mal_rank: Optional[str] = None
+    anilist_rating: Optional[str] = None
+
     release_month: Optional[str] = None
     release_season: Optional[str] = None
     release_year: Optional[str] = None
 
-    # Production
     studio: Optional[str] = None
     director: Optional[str] = None
     producer: Optional[str] = None
@@ -187,79 +170,85 @@ class AnimeBase(BaseModel):
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
 
-    # Ordering & Links
     prequel_id: Optional[UUID] = None
     sequel_id: Optional[UUID] = None
     alternative: Optional[str] = None
     watch_order: Optional[float] = None
-    remark: Optional[str] = None
 
-    # Official Links
+    mal_id: Optional[int] = None
+    mal_link: Optional[str] = None
+    anilist_link: Optional[str] = None
     official_link: Optional[str] = None
     twitter_link: Optional[str] = None
 
-    # External Databases
-    mal_id: Optional[int] = None
-    mal_link: Optional[str] = None
-    mal_rating: Optional[float] = None
-    mal_rank: Optional[str] = None
-    anilist_link: Optional[str] = None
-    anilist_rating: Optional[str] = None
-
-    # Music & Cast
     op: Optional[str] = None
     ed: Optional[str] = None
     insert_ost: Optional[str] = None
     seiyuu: Optional[str] = None
 
-    # Sources
     source_baha: Optional[bool] = None
     baha_link: Optional[str] = None
+    source_netflix: bool = False
     source_other: Optional[str] = None
     source_other_link: Optional[str] = None
-    source_netflix: Optional[bool] = False
-
-    # Media
+    remark: Optional[str] = None
     cover_image_file: Optional[str] = None
 
 
 class AnimeCreate(AnimeBase):
-    """Schema for creating a new Anime entry."""
-
     pass
 
 
 class AnimeUpdate(AnimeBase):
-    """Schema for updating an existing Anime entry."""
-
-    system_id: Optional[UUID] = None
+    pass
 
 
 class AnimeResponse(AnimeBase):
-    """Schema for returning Anime data to the client."""
-
     system_id: UUID
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
-# ADMIN / LOGGING SCHEMAS
+# SYSTEM CONFIG & SEASONAL SCHEMAS
 # ==========================================
+
+
+class SystemConfigResponse(BaseModel):
+    config_key: str
+    config_value: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SeasonalBase(BaseModel):
+    seasonal: str
+    my_rating: Optional[str] = None
+    entry_completed: int = 0
+    entry_watching: int = 0
+    entry_dropped: int = 0
+
+
+class SeasonalResponse(SeasonalBase):
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CurrentSeasonUpdate(BaseModel):
-    """Schema for setting the system's current active season."""
+    """Specific schema for updating global 'current_season' setting."""
 
     release_season: str
     release_year: int
 
 
+# ==========================================
+# DATA CONTROL & SYNC SCHEMAS
+# ==========================================
+
+
 class FranchiseSheetSync(FranchiseCreate):
-    """Schema for Google Sheets Franchise Sync operations."""
+    """Schema for Google Sheets Franchise Sync operations, including timestamps."""
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -268,20 +257,17 @@ class FranchiseSheetSync(FranchiseCreate):
 class SeriesSheetSync(SeriesCreate):
     """Schema for Google Sheets Series Sync operations."""
 
-    # Series doesn't currently track created_at/updated_at in the model but we can extend if needed.
     pass
 
 
 class AnimeSheetSync(AnimeCreate):
-    """Schema for Google Sheets Anime Sync operations."""
+    """Schema for Google Sheets Anime Sync operations, including timestamps."""
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 
 class DataControlLogResponse(BaseModel):
-    """Schema for returning data control logs."""
-
     id: int
     action_main: str
     action_specific: str
@@ -294,13 +280,10 @@ class DataControlLogResponse(BaseModel):
     details_json: Optional[str] = None
     timestamp: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DeletedRecordResponse(BaseModel):
-    """Schema for returning deleted records."""
-
     id: int
     type: str
     franchise: Optional[str] = None
@@ -310,5 +293,4 @@ class DeletedRecordResponse(BaseModel):
     airing_type: Optional[str] = None
     timestamp: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

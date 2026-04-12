@@ -15,7 +15,6 @@ from services.security import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
 
-# Initialize router and template engine
 router = APIRouter(tags=["Frontend Pages"])
 templates = Jinja2Templates(directory="templates")
 
@@ -31,7 +30,6 @@ def check_admin_status(request: Request) -> bool:
         return False
 
     try:
-        # Extract the raw JWT string
         token_str = token.split(" ")[1]
         payload = jwt.decode(token_str, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("role") == "admin"
