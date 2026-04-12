@@ -1,8 +1,12 @@
 {% extends "base.html" %} {% block title %}Modify Database - CG1618 Tracker{%
-endblock %} {% block extra_style %}
-<!-- Extracted Modify Specific Styles -->
-<link rel="stylesheet" href="/static/css/modify.css" />
-{% endblock %} {% block content %}
+endblock %} {% block extra_style %} /* 1. Import external CSS safely inside the
+existing style tag from base.html */ @import
+url('/static/css/modify.css?v=3.0'); /* 2. CRITICAL STACKING CONTEXT FIX */ /*
+Kept inline to beat the Tailwind CDN injection order and guarantee z-index rules
+are applied */ .combo-wrapper, .ms-wrapper, #standard-search-container {
+position: relative; z-index: 10; } .combo-wrapper:focus-within,
+.ms-wrapper:focus-within, #standard-search-container:focus-within { z-index: 60
+!important; } {% endblock %} {% block content %}
 <div
   class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
 >
@@ -91,6 +95,7 @@ endblock %} {% block extra_style %}
           id="global-search-input"
           placeholder="Type a title to search..."
           class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition-all shadow-sm"
+          autocomplete="off"
         />
 
         <!-- Floating Suggestions Dropdown -->
@@ -1142,6 +1147,50 @@ endblock %} {% block extra_style %}
   </div>
 </div>
 
+<!-- Duplicate Warning Modal -->
+<div
+  id="duplicate-modal"
+  class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center"
+>
+  <div
+    class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all"
+  >
+    <div
+      class="bg-amber-50 p-6 flex flex-col items-center border-b border-amber-100"
+    >
+      <div
+        class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4"
+      >
+        <i class="fas fa-exclamation-triangle text-3xl text-amber-500"></i>
+      </div>
+      <h3 class="text-xl font-black text-amber-900 text-center">
+        Potential Duplicate
+      </h3>
+    </div>
+    <div class="p-6 text-center">
+      <p
+        id="duplicate-modal-text"
+        class="text-sm text-gray-600 mb-6 font-medium"
+      ></p>
+      <div class="flex gap-3">
+        <button
+          onclick="
+            document.getElementById('duplicate-modal').classList.add('hidden')
+          "
+          class="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-2.5 rounded-lg hover:bg-gray-50 transition"
+        >
+          Cancel
+        </button>
+        <button
+          id="btn-confirm-duplicate"
+          class="flex-1 bg-amber-500 text-white font-bold py-2.5 rounded-lg hover:bg-amber-600 transition"
+        >
+          Proceed Anyway
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %} {% block extra_scripts %}
 <script src="/static/js/modify.js"></script>
 {% endblock %}

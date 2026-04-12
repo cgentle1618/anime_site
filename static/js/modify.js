@@ -1,7 +1,6 @@
 /**
  * static/js/modify.js
- * Handles tab routing, global searching, discovery grid rendering,
- * autocomplete dropdowns, multi-select components, and form updating.
+ * Handles data fetching, global searching, inline editing, and updating entries.
  */
 
 const state = {
@@ -49,7 +48,7 @@ const getClean = (str) =>
     .toLowerCase()
     .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
 
-// Sort Fallback Logic (EN -> Romanji -> CN -> JP -> Alt)
+// Sort Fallback Logic
 const getSortTitleF = (f) =>
   f.franchise_name_en ||
   f.franchise_name_romanji ||
@@ -72,7 +71,7 @@ const getSortTitleA = (a) =>
   a.anime_name_alt ||
   "Unknown";
 
-// Display Fallback Logic (CN -> EN -> Alt -> Romanji -> JP)
+// Display Fallback Logic
 const getDisplayTitleF = (f) =>
   f.franchise_name_cn ||
   f.franchise_name_en ||
@@ -115,7 +114,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   pageDOM.searchInput.addEventListener("input", handleGlobalSearch);
   pageDOM.searchInput.addEventListener("focus", handleGlobalSearch);
-  document.addEventListener("click", (e) => {
+
+  // Mousedown used to avoid blur-closing issues
+  document.addEventListener("mousedown", (e) => {
     if (!pageDOM.stdSearchContainer.contains(e.target))
       pageDOM.searchDropdown.classList.remove("open");
   });
@@ -137,7 +138,6 @@ async function fetchDatabase() {
     if (!aRes.ok || !sRes.ok || !fRes.ok || !oRes.ok)
       throw new Error("Failed to load schema data");
 
-    // Sort by most recently updated
     const sortRecent = (a, b) => {
       if (a.updated_at && b.updated_at)
         return new Date(b.updated_at) - new Date(a.updated_at);
@@ -176,8 +176,6 @@ async function fetchDatabase() {
       if (targetTab) {
         switchTab(targetTab);
         openEditor(targetId);
-
-        // Clean the URL to prevent re-triggering on manual refresh
         const url = new URL(window.location);
         url.searchParams.delete("id");
         window.history.replaceState({}, document.title, url.toString());
@@ -192,7 +190,6 @@ async function fetchDatabase() {
   }
 }
 
-// Exported to window so the HTML onclick="switchTab('...')" can find it
 window.switchTab = function (tabName) {
   if (state.activeTab === tabName) return;
   ["anime", "franchise", "series", "options"].forEach((t) => {
@@ -208,7 +205,6 @@ window.switchTab = function (tabName) {
   pageDOM.searchInput.value = "";
   pageDOM.searchDropdown.classList.remove("open");
 
-  // Setup Discovery Copy
   if (tabName === "anime") {
     pageDOM.discoveryIcon.className = "fas fa-tv text-2xl";
     pageDOM.discoveryTitle.innerText = "Modify Anime Entry";
@@ -226,7 +222,7 @@ window.switchTab = function (tabName) {
     pageDOM.discoveryTitle.innerText = "Modify Series";
     pageDOM.stdSearchContainer.classList.remove("hidden");
     pageDOM.optSearchContainer.classList.add("hidden");
-    pageDOM.recentHeader.classList.add("hidden"); // No recent for series
+    pageDOM.recentHeader.classList.add("hidden");
   } else if (tabName === "options") {
     pageDOM.discoveryIcon.className = "fas fa-sliders-h text-2xl";
     pageDOM.discoveryTitle.innerText = "Modify System Option";
@@ -288,14 +284,14 @@ function renderDiscoveryGrid() {
 
 function createGridCard(id, title, sub1, badge = "") {
   return `
-        <div onclick="openEditor('${id}')" class="bg-white border border-gray-200 p-4 rounded-xl hover:border-brand hover:shadow-md cursor-pointer transition group flex flex-col h-full">
-            <div class="flex justify-between items-start mb-2">
-                <div class="text-xs font-bold text-gray-500 uppercase tracking-wider truncate mr-2">${sub1}</div>
-                ${badge ? `<span class="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">${badge}</span>` : ""}
-            </div>
-            <div class="font-black text-gray-800 text-sm group-hover:text-brand line-clamp-2 leading-tight">${title}</div>
-        </div>
-    `;
+      <div onclick="openEditor('${id}')" class="bg-white border border-gray-200 p-4 rounded-xl hover:border-brand hover:shadow-md cursor-pointer transition group flex flex-col h-full">
+          <div class="flex justify-between items-start mb-2">
+              <div class="text-xs font-bold text-gray-500 uppercase tracking-wider truncate mr-2">${sub1}</div>
+              ${badge ? `<span class="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">${badge}</span>` : ""}
+          </div>
+          <div class="font-black text-gray-800 text-sm group-hover:text-brand line-clamp-2 leading-tight">${title}</div>
+      </div>
+  `;
 }
 
 function handleGlobalSearch(e) {
@@ -346,11 +342,11 @@ function handleGlobalSearch(e) {
               .sort((a, b) => getSortTitleA(a).localeCompare(getSortTitleA(b)))
               .forEach((a) => {
                 html += `
-                                    <div onclick="openEditor('${a.system_id}')" class="px-4 py-2 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition flex items-center">
-                                        ${sId !== "unassigned" ? '<div class="w-4 h-4 border-l-2 border-b-2 border-brand/20 mr-2 -mt-2 rounded-bl"></div>' : ""}
-                                        <div class="text-sm font-bold text-gray-800 line-clamp-1">${getDisplayTitleA(a)}</div>
-                                        <div class="ml-auto text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded">${a.airing_type || "TV"}</div>
-                                    </div>`;
+                  <div onmousedown="openEditor('${a.system_id}')" class="px-4 py-2 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition flex items-center">
+                      ${sId !== "unassigned" ? '<div class="w-4 h-4 border-l-2 border-b-2 border-brand/20 mr-2 -mt-2 rounded-bl"></div>' : ""}
+                      <div class="text-sm font-bold text-gray-800 line-clamp-1">${getDisplayTitleA(a)}</div>
+                      <div class="ml-auto text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded">${a.airing_type || "TV"}</div>
+                  </div>`;
               });
           });
       });
@@ -359,7 +355,7 @@ function handleGlobalSearch(e) {
       .filter((f) => getClean(getAllNames(f, "franchise")).includes(query))
       .sort((a, b) => getSortTitleF(a).localeCompare(getSortTitleF(b)))
       .forEach((f) => {
-        html += `<div onclick="openEditor('${f.system_id}')" class="px-4 py-3 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition text-sm font-bold text-gray-800">${getDisplayTitleF(f)}</div>`;
+        html += `<div onmousedown="openEditor('${f.system_id}')" class="px-4 py-3 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition text-sm font-bold text-gray-800">${getDisplayTitleF(f)}</div>`;
       });
   } else if (state.activeTab === "series") {
     const filtered = state.db.series.filter((s) => {
@@ -395,10 +391,10 @@ function handleGlobalSearch(e) {
           .sort((a, b) => getSortTitleS(a).localeCompare(getSortTitleS(b)))
           .forEach((s) => {
             html += `
-                            <div onclick="openEditor('${s.system_id}')" class="px-4 py-2 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition flex items-center">
-                                <div class="text-sm font-bold text-gray-800 line-clamp-1">${getDisplayTitleS(s)}</div>
-                                <div class="ml-auto text-[10px] text-brand font-bold bg-brand/10 px-2 py-0.5 rounded">Series Hub</div>
-                            </div>`;
+              <div onmousedown="openEditor('${s.system_id}')" class="px-4 py-2 hover:bg-brand/5 border-b border-gray-50 cursor-pointer transition flex items-center">
+                  <div class="text-sm font-bold text-gray-800 line-clamp-1">${getDisplayTitleS(s)}</div>
+                  <div class="ml-auto text-[10px] text-brand font-bold bg-brand/10 px-2 py-0.5 rounded">Series Hub</div>
+              </div>`;
           });
       });
   }
@@ -463,11 +459,9 @@ function initCustomInputs() {
 }
 
 // --- EDITOR LOGIC ---
-// Exported to window so the HTML onclick="openEditor('...')" can find it
-window.openEditor = function (id) {
+function openEditor(id) {
   state.currentEdit.id = id;
 
-  // UI Transition
   pageDOM.discoveryView.classList.add("hidden");
   pageDOM.editorView.classList.remove("hidden");
   const form = pageDOM.forms[state.activeTab];
@@ -526,7 +520,6 @@ window.openEditor = function (id) {
     }
   });
 
-  // Special handling to break apart season_part into season and part UI dropdowns
   if (state.activeTab === "anime") {
     const sp = record.season_part || "";
     const sMatch = sp.match(/Season\s\d+/i);
@@ -537,19 +530,21 @@ window.openEditor = function (id) {
     if (selPart) selPart.value = pMatch ? pMatch[0] : "";
   }
 
-  // Scroll top
   document
     .getElementById("editor-view")
     .querySelector(".overflow-y-auto").scrollTop = 0;
-};
+}
 
-// Exported to window so the HTML onclick="closeEditor()" can find it
-window.closeEditor = function () {
+window.openEditor = openEditor;
+
+function closeEditor() {
   state.currentEdit.id = null;
   pageDOM.editorView.classList.add("hidden");
   pageDOM.discoveryView.classList.remove("hidden");
-  renderDiscoveryGrid(); // Refresh recent if any edits were made
-};
+  renderDiscoveryGrid();
+}
+
+window.closeEditor = closeEditor;
 
 function buildAnimeRibbon(franchiseId, currentAnimeId) {
   if (!franchiseId) {
@@ -560,7 +555,6 @@ function buildAnimeRibbon(franchiseId, currentAnimeId) {
   const siblings = state.db.anime
     .filter((a) => a.franchise_id === franchiseId)
     .sort((a, b) => getSortTitleA(a).localeCompare(getSortTitleA(b)));
-
   if (siblings.length <= 1) {
     pageDOM.animeRibbon.classList.add("hidden");
     return;
@@ -577,7 +571,7 @@ function buildAnimeRibbon(franchiseId, currentAnimeId) {
   pageDOM.animeRibbon.classList.add("flex");
 }
 
-// --- SAVE LOGIC & CREATE ON FLY ---
+// --- SAVE LOGIC ---
 async function handleUpdateFlow() {
   pageDOM.btnUpdate.innerHTML =
     '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
@@ -599,7 +593,10 @@ async function handleUpdateFlow() {
     } else if (el.classList.contains("boolean-select")) {
       if (el.value === "true") payload[key] = true;
       else if (el.value === "false") payload[key] = false;
-      else payload[key] = null;
+      else {
+        // --- FIX FOR SOURCE NETFLIX BUG ---
+        payload[key] = key === "source_netflix" ? false : null;
+      }
     } else if (el.type === "number") {
       payload[key] = el.value !== "" ? Number(el.value) : null;
     } else {
@@ -607,7 +604,6 @@ async function handleUpdateFlow() {
     }
   });
 
-  // Special handling to merge the separate season/part UI elements into the season_part payload
   if (type === "anime") {
     const selSeason = document.getElementById("sel-season");
     const selPart = document.getElementById("sel-part");
@@ -654,7 +650,25 @@ async function handleUpdateFlow() {
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) throw new Error(await res.text());
+    // --- HIGH RESOLUTION 422 ERROR REPORTER ---
+    if (!res.ok) {
+      let errorMessage = `Server Error (${res.status})`;
+      try {
+        const errData = await res.json();
+        if (errData.detail) {
+          errorMessage = Array.isArray(errData.detail)
+            ? errData.detail
+                .map((e) => `${e.loc.join(".")}: ${e.msg}`)
+                .join("\n")
+            : JSON.stringify(errData.detail);
+        } else {
+          errorMessage = JSON.stringify(errData);
+        }
+      } catch (e) {
+        errorMessage = await res.text();
+      }
+      throw new Error(errorMessage);
+    }
 
     if (typeof showNotification === "function")
       showNotification("success", "Update successful.");
@@ -663,7 +677,8 @@ async function handleUpdateFlow() {
     console.error(e);
     if (e.message !== "Canceled" && e.message !== "Validation Failed") {
       if (typeof showNotification === "function")
-        showNotification("error", "Update failed.");
+        showNotification("error", `Failed: \n${e.message}`);
+      else alert(`Backend Validation Failed:\n\n${e.message}`);
     }
   } finally {
     pageDOM.btnUpdate.innerHTML =
@@ -748,12 +763,12 @@ class Combobox {
 
   buildUI() {
     this.container.innerHTML = `
-            <div class="relative">
-                <input type="text" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand px-3 py-2 pr-8" placeholder="${this.allowCustom ? "Select or type new..." : "Select existing..."}">
-                <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
-            </div>
-            <div class="combo-dropdown"></div>
-        `;
+              <div class="relative">
+                  <input type="text" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand px-3 py-2 pr-8" placeholder="${this.allowCustom ? "Select or type new..." : "Select existing..."}">
+                  <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
+              </div>
+              <div class="combo-dropdown"></div>
+          `;
     this.input = this.container.querySelector("input");
     this.dropdown = this.container.querySelector(".combo-dropdown");
   }
@@ -770,7 +785,7 @@ class Combobox {
       this.selectedId = null;
       this.showDropdown(this.input.value);
     });
-    document.addEventListener("click", (e) => {
+    document.addEventListener("mousedown", (e) => {
       if (!this.container.contains(e.target))
         this.dropdown.classList.remove("open");
     });
@@ -781,21 +796,25 @@ class Combobox {
     const cleanFilter = getClean(filterText);
     let perfectMatch = null;
 
-    const matches = this.data.filter((item) => {
-      const names =
-        this.resourceType === "franchise"
-          ? [
-              item.franchise_name_en,
-              item.franchise_name_cn,
-              item.franchise_name_romanji,
-              item.franchise_name_jp,
-              item.franchise_name_alt,
-            ]
-          : [item.series_name_en, item.series_name_cn, item.series_name_alt];
-      if (names.some((n) => n && n.toLowerCase() === filterText.toLowerCase()))
-        perfectMatch = item;
-      return names.some((n) => n && getClean(n).includes(cleanFilter));
-    });
+    const matches = this.data
+      .filter((item) => {
+        const names =
+          this.resourceType === "franchise"
+            ? [
+                item.franchise_name_en,
+                item.franchise_name_cn,
+                item.franchise_name_romanji,
+                item.franchise_name_jp,
+                item.franchise_name_alt,
+              ]
+            : [item.series_name_en, item.series_name_cn, item.series_name_alt];
+        if (
+          names.some((n) => n && n.toLowerCase() === filterText.toLowerCase())
+        )
+          perfectMatch = item;
+        return names.some((n) => n && getClean(n).includes(cleanFilter));
+      })
+      .slice(0, 50);
 
     if (perfectMatch && filterText.trim() !== "")
       this.selectedId = perfectMatch.system_id;
@@ -862,10 +881,12 @@ class MultiSelect {
     this.input.addEventListener("input", () =>
       this.showDropdown(this.input.value),
     );
-    document.addEventListener("click", (e) => {
+
+    document.addEventListener("mousedown", (e) => {
       if (!this.container.contains(e.target))
         this.dropdown.classList.remove("open");
     });
+
     this.input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -954,10 +975,5 @@ class MultiSelect {
 
   getValue() {
     return this.selected.length > 0 ? this.selected.join(", ") : null;
-  }
-
-  clear() {
-    this.selected = [];
-    this.renderPills();
   }
 }
