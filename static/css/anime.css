@@ -1,0 +1,20 @@
+/* * static/css/anime.css
+ * Styles specific to the single Anime Details view.
+ */
+
+/* Hide up/down arrows on number inputs for a cleaner tracker */
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Subtle elevation effect for related entry cards */
+.card-hover {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
