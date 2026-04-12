@@ -53,7 +53,9 @@ async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_
     Returns standard JSON response.
     """
     try:
-        result = await execute_replace_single_anime(db, anime_id, action_type="Manual")
+        result = await execute_replace_single_anime(
+            db, anime_id, action_type="Manual", log_action=True
+        )
         if result.get("status") == "error":
             status_code = result.get("status_code", 400)
             raise HTTPException(status_code=status_code, detail=result.get("message"))
@@ -90,7 +92,11 @@ async def trigger_replace_anime(request: Request, db: Session = Depends(get_db))
     try:
         return StreamingResponse(
             execute_replace_anime(
-                db, request, action_specific="Replace Anime", action_type="Manual"
+                db,
+                request,
+                action_specific="Replace Anime",
+                action_type="Manual",
+                log_action=True,
             ),
             media_type="text/event-stream",
         )
