@@ -26,7 +26,12 @@ def upgrade() -> None:
     except Exception:
         print("Constraint 'seasonal_seasonal_key' not found, skipping...")
 
-    op.create_index(op.f("ix_seasonal_seasonal"), "seasonal", ["seasonal"], unique=True)
+    try:
+        op.create_index(
+            op.f("ix_seasonal_seasonal"), "seasonal", ["seasonal"], unique=True
+        )
+    except Exception:
+        print("Index 'ix_seasonal_seasonal' already exists, skipping...")
 
     try:
         op.drop_constraint(
@@ -35,15 +40,22 @@ def upgrade() -> None:
     except Exception:
         print("Constraint 'system_configs_config_key_key' not found, skipping...")
 
-    op.create_index(
-        op.f("ix_system_configs_config_key"),
-        "system_configs",
-        ["config_key"],
-        unique=True,
-    )
-    op.create_index(
-        op.f("ix_system_configs_id"), "system_configs", ["id"], unique=False
-    )
+    try:
+        op.create_index(
+            op.f("ix_system_configs_config_key"),
+            "system_configs",
+            ["config_key"],
+            unique=True,
+        )
+    except Exception:
+        print("Index 'ix_system_configs_config_key' already exists, skipping...")
+
+    try:
+        op.create_index(
+            op.f("ix_system_configs_id"), "system_configs", ["id"], unique=False
+        )
+    except Exception:
+        print("Index 'ix_system_configs_id' already exists, skipping...")
 
 
 def downgrade() -> None:
