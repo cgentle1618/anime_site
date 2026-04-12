@@ -46,27 +46,6 @@ async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/replace/anime/{anime_id}")
-async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline for a single anime entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_anime(
-            db, anime_id, action_type="Manual", log_action=True
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single anime: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/fill/all")
 async def trigger_fill_all(request: Request, db: Session = Depends(get_db)):
     """
@@ -102,6 +81,27 @@ async def trigger_replace_anime(request: Request, db: Session = Depends(get_db))
         )
     except Exception as e:
         logger.error(f"Error in replace anime: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/anime/{anime_id}")
+async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_db)):
+    """
+    Triggers the Replace Pipeline for a single anime entry (Autofill & Update).
+    Returns standard JSON response.
+    """
+    try:
+        result = await execute_replace_single_anime(
+            db, anime_id, action_type="Manual", log_action=True
+        )
+        if result.get("status") == "error":
+            status_code = result.get("status_code", 400)
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in replace single anime: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
