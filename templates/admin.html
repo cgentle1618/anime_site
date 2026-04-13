@@ -14,15 +14,15 @@
         </p>
       </div>
       <div class="flex flex-wrap gap-3">
-        <a href="/add"
+        <a href="{{ url_for('add page') }}"
            class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center">
           <i class="fas fa-plus mr-2 text-emerald-500"></i> New Entry
         </a>
-        <a href="/modify"
+        <a href="{{ url_for('modify page') }}"
            class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center">
           <i class="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
         </a>
-        <a href="/delete"
+        <a href="{{ url_for('delete page') }}"
            class="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center">
           <i class="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
         </a>

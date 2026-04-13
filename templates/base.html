@@ -29,7 +29,8 @@
         <div class="flex justify-between h-16">
           <!-- Logo & Primary Links -->
           <div class="flex items-center flex-1 min-w-0">
-            <a href="/" class="flex items-center group shrink-0">
+            <a href="{{ url_for('dashboard') }}"
+               class="flex items-center group shrink-0">
               <i class="fas fa-layer-group text-brand text-2xl mr-2 group-hover:scale-110 transition-transform"></i>
               <span class="font-black text-xl tracking-tight text-gray-900 group-hover:text-brand transition-colors">CG1618</span>
             </a>
@@ -43,31 +44,31 @@
                 </button>
                 <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                   <div class="w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transform origin-top -translate-y-2 group-hover:translate-y-0 p-1.5 space-y-0.5">
-                  <a href="/library/anime"
+                  <a href="{{ url_for('anime library') }}"
                      class="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-brand/5 hover:text-brand transition"><i class="fas fa-tv w-6 text-center text-brand/70 mr-1"></i>
                 Anime</a>
-              <a href="/under-development"
+              <a href="{{ url_for('under development page') }}"
                  class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
                  title="Under Development"><i class="fas fa-film w-6 text-center text-gray-300 mr-1"></i>
             Anime Movie</a>
-          <a href="/under-development"
+          <a href="{{ url_for('under development page') }}"
              class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
              title="Under Development"><i class="fas fa-book w-6 text-center text-gray-300 mr-1"></i>
         Manga</a>
-      <a href="/under-development"
+      <a href="{{ url_for('under development page') }}"
          class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
          title="Under Development"><i class="fas fa-book-open w-6 text-center text-gray-300 mr-1"></i>
     Novel</a>
     <div class="border-t border-gray-50 my-1"></div>
-  <a href="/under-development"
+  <a href="{{ url_for('under development page') }}"
      class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
      title="Under Development"><i class="fas fa-video w-6 text-center text-gray-300 mr-1"></i>
 TV Show</a>
-<a href="/under-development"
+<a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-ticket-alt w-6 text-center text-gray-300 mr-1"></i>
 Movie</a>
-<a href="/under-development"
+<a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-laugh-squint w-6 text-center text-gray-300 mr-1"></i>
 Cartoon</a>
@@ -82,11 +83,11 @@ Cartoon</a>
   </button>
   <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
     <div class="w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transform origin-top -translate-y-2 group-hover:translate-y-0 p-1.5 space-y-0.5">
-    <a href="/under-development"
+    <a href="{{ url_for('under development page') }}"
        class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
        title="Under Development"><i class="fas fa-building w-6 text-center text-gray-300 mr-1"></i>
   Studio</a>
-<a href="/under-development"
+<a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-microphone w-6 text-center text-gray-300 mr-1"></i>
 Seiyuu</a>
@@ -101,19 +102,19 @@ Seiyuu</a>
   </button>
   <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
     <div class="w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transform origin-top -translate-y-2 group-hover:translate-y-0 p-1.5 space-y-0.5">
-    <a href="/under-development"
+    <a href="{{ url_for('under development page') }}"
        class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
        title="Under Development"><i class="fas fa-chart-bar w-6 text-center text-gray-300 mr-1"></i>
   Statistics</a>
-<a href="/under-development"
+<a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-calendar-plus w-6 text-center text-gray-300 mr-1"></i>
 Future Release</a>
-<a href="/under-development"
+<a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-leaf w-6 text-center text-gray-300 mr-1"></i>
 Seasonal Overall</a>
-<a href="/under-development"
+<a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-list-alt w-6 text-center text-gray-300 mr-1"></i>
 Seasonal Detail</a>
@@ -129,17 +130,17 @@ Seasonal Detail</a>
     </button>
     <div class="absolute left-0 top-full pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
       <div class="w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transform origin-top -translate-y-2 group-hover:translate-y-0 p-1.5 space-y-0.5">
-      <a href="/system"
+      <a href="{{ url_for('admin page') }}"
          class="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-brand/5 hover:text-brand transition"><i class="fas fa-cog w-6 text-center text-gray-400 mr-1"></i>
     Control Center</a>
     <div class="border-t border-gray-50 my-1"></div>
-  <a href="/add"
+  <a href="{{ url_for('add page') }}"
      class="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-emerald-50 hover:text-emerald-600 transition"><i class="fas fa-plus-circle w-6 text-center text-emerald-400 mr-1"></i>
 Add Entry</a>
-<a href="/modify"
+<a href="{{ url_for('modify page') }}"
    class="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 transition"><i class="fas fa-edit w-6 text-center text-blue-400 mr-1"></i>
 Modify Entry</a>
-<a href="/delete"
+<a href="{{ url_for('delete page') }}"
    class="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-red-50 hover:text-red-600 transition"><i class="fas fa-trash-alt w-6 text-center text-red-400 mr-1"></i>
 Delete Entry</a>
 </div>
@@ -180,7 +181,7 @@ Delete Entry</a>
       <i class="fas fa-sign-out-alt"></i>
     </button>
   {% else %}
-    <a href="/login"
+    <a href="{{ url_for('login page') }}"
        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 rounded-lg text-sm font-bold transition shadow-sm flex items-center">
       <i class="fas fa-sign-in-alt mr-1.5"></i> Login
     </a>
@@ -197,7 +198,7 @@ Delete Entry</a>
 <div id="mobile-menu"
      class="hidden lg:hidden bg-white border-t border-gray-100 shadow-inner overflow-y-auto max-h-[80vh]">
   <div class="px-4 pt-2 pb-4 space-y-1">
-  <a href="/"
+  <a href="{{ url_for('dashboard') }}"
      class="block px-3 py-2.5 rounded-md text-base font-bold text-gray-900 hover:bg-gray-50 hover:text-brand transition"><i class="fas fa-home w-6 text-center text-gray-400 mr-2"></i>
 Dashboard</a>
 <!-- Library Accordion -->
@@ -254,13 +255,13 @@ More</span>
       <span class="transition-transform group-open:rotate-180"><i class="fas fa-chevron-down text-xs"></i></span>
     </summary>
     <div class="pl-12 pr-3 py-1 space-y-1 border-l-2 border-brand/20 ml-6 mb-2">
-      <a href="/system"
+      <a href="{{ url_for('admin page') }}"
          class="block py-2 text-sm font-bold text-gray-700 hover:text-brand">Control Center</a>
-      <a href="/add"
+      <a href="{{ url_for('add page') }}"
          class="block py-2 text-sm font-bold text-gray-700 hover:text-emerald-600">Add Entry</a>
-      <a href="/modify"
+      <a href="{{ url_for('modify page') }}"
          class="block py-2 text-sm font-bold text-gray-700 hover:text-blue-600">Modify Entry</a>
-      <a href="/delete"
+      <a href="{{ url_for('delete page') }}"
          class="block py-2 text-sm font-bold text-gray-700 hover:text-red-600">Delete Entry</a>
     </div>
   </details>
@@ -276,7 +277,7 @@ More</span>
   </button>
 {% else %}
   <div class="border-t border-gray-100 my-2"></div>
-  <a href="/login"
+  <a href="{{ url_for('login page') }}"
      class="block px-3 py-2.5 rounded-md text-base font-bold text-gray-900 hover:bg-gray-50 transition flex items-center">
     <i class="fas fa-sign-in-alt w-6 text-center mr-2 text-gray-400"></i>
     Login
