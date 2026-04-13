@@ -23,3 +23,18 @@
 }
 
 /* Add any custom global CSS overrides below this line */
+button,
+a,
+summary,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Ensure disabled buttons don't show the pointer */
+button:disabled,
+[disabled] {
+  cursor: not-allowed !important;
+}
