@@ -136,6 +136,16 @@ if (usContainer) {
 }
 
 if (usInput && usResults) {
+  usInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const query = e.target.value.trim();
+      if (query) {
+        window.location.href = `/search?q=${encodeURIComponent(query)}`;
+      }
+    }
+  });
+
   usInput.addEventListener("input", (e) => {
     if (!searchDataCache) return;
 
