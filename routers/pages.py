@@ -58,7 +58,7 @@ async def serve_index(request: Request):
 
 
 @router.get(
-    "/login", response_class=HTMLResponse, name="login", summary="Serve Login Page"
+    "/login", response_class=HTMLResponse, name="login page", summary="Serve Login Page"
 )
 async def serve_login(request: Request):
     # If already logged in, redirect to home or system
@@ -152,7 +152,7 @@ async def serve_anime_view(request: Request, system_id: str):
 @router.get(
     "/system",
     response_class=HTMLResponse,
-    name="admin dashboard",
+    name="admin page",
     summary="Serve Admin Dashboard",
 )
 async def serve_admin(request: Request):
