@@ -16,7 +16,7 @@
           rel="stylesheet" />
     <!-- Placeholder for child templates to inject specific styles -->
     <style>
-      {% block extra_style %}{% endblock %}
+      {% block extra_style %}{% endblock extra_style%}
       /* Hides the default marker on details/summary tags for cleaner mobile accordions */
       details > summary { list-style: none; }
       details > summary::-webkit-details-marker { display: none; }
