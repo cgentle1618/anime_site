@@ -29,5 +29,5 @@
   </main>
 {% endblock content %}
 {% block extra_scripts %}
-  <script src="/static/js/under_development.js"></script>
+  <script src="{{ url_for('static', path='js/under_development.js') }}"></script>
 {% endblock extra_scripts %}

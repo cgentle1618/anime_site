@@ -439,5 +439,5 @@
   // Jinja2 Bridge: Pass the authentication state to the global window object
   window.IS_ADMIN_DETAILS = {{ 'true' if is_admin else 'false' }};
     </script>
-    <script src="/static/js/anime.js"></script>
+    <script src="{{ url_for('static', path='js/anime.js') }}"></script>
   {% endblock extra_scripts %}

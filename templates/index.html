@@ -87,12 +87,12 @@
       </div>
     </div>
   </main>
-{% endblock block %}
+{% endblock content %}
 {% block extra_scripts %}
   <script>
   // Jinja2 Bridge: Pass the authentication state to the global window object
   // so the external index.js file can safely read it without breaking Jinja processing.
   window.IS_ADMIN_INDEX = {{ 'true' if is_admin else 'false' }};
   </script>
-  <script src="/static/js/index.js"></script>
+  <script src="{{ url_for('static', path='js/index.js') }}"></script>
 {% endblock extra_scripts %}

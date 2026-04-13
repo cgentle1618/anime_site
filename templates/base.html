@@ -9,7 +9,7 @@
       {% endblock title %}
     </title>
     <!-- External Libraries -->
-    <link rel="stylesheet" href="/static/css/main.css" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}" />
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap"
@@ -301,7 +301,7 @@ More</span>
 <div id="toast-container"
      class="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 <!-- Extracted Static Logic -->
-<script src="/static/js/base.js"></script>
+<script src="{{ url_for('static', path='js/base.js') }}"></script>
 <!-- Placeholder for child templates to inject specific scripts -->
 {% block extra_scripts %}
 {% endblock extra_scripts %}

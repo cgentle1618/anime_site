@@ -349,5 +349,5 @@
   </div>
 {% endblock content %}
 {% block extra_scripts %}
-  <script src="/static/js/delete.js"></script>
+  <script src="{{ url_for('static', path='js/delete.js') }}"></script>
 {% endblock extra_scripts %}

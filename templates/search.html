@@ -3,8 +3,6 @@
   Search Results - CG1618 Tracker
 {% endblock title %}
 {% block extra_style %}
-  <!-- Extracted Search Specific Styles -->
-  <link rel="stylesheet" href="/static/css/search.css" />
 {% endblock extra_style %}
 {% block content %}
   <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative">
@@ -152,5 +150,5 @@
   // Jinja2 Bridge: Pass the authentication state to the global window object
   window.IS_ADMIN_SEARCH = {{ 'true' if is_admin else 'false' }};
   </script>
-  <script src="/static/js/search.js"></script>
+  <script src="{{ url_for('static', path='js/search.js') }}"></script>
 {% endblock extra_scripts %}
