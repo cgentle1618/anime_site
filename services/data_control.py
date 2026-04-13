@@ -406,6 +406,14 @@ async def execute_replace_single_anime(
         db.commit()
         logger.info(f"Successfully replaced single anime: {anime_id}")
 
+        # Auto Create Seasonal
+        try:
+            auto_create_seasonal(db)
+            logger.info("Auto create seasonal completed.")
+        except Exception as e:
+            logger.warning(f"Auto create seasonal failed: {e}")
+        db.commit()
+
         if log_action:
             log_data_control(
                 db, "Replace", action_specific, action_type, "Success", rows_updated=1
@@ -522,8 +530,15 @@ async def execute_replace_anime(
                         f"Failed to recalculate episodes for group ({f_id}, {s_id}): {e}"
                     )
 
-            # Final commit to save all the recalculated ep_previous values
             db.commit()
+
+        # Auto Create Seasonal
+        try:
+            auto_create_seasonal(db)
+        except Exception as e:
+            logger.warning(f"Auto create seasonal failed: {e}")
+
+        db.commit()
 
         if log_action:
             log_data_control(
