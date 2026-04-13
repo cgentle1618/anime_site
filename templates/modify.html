@@ -3,12 +3,6 @@
   Modify Database - CG1618 Tracker{%
   endblock %}
   {% block extra_style %}
-    /* 1. Import external CSS safely */ @import
-    url('/static/css/modify.css?v=3.0'); /* 2. CRITICAL STACKING CONTEXT FIX */ /*
-    Elevates active search and dropdowns above other elements */ .combo-wrapper,
-    .ms-wrapper, #standard-search-container { position: relative; z-index: 10; }
-    .combo-wrapper:focus-within, .ms-wrapper:focus-within,
-    #standard-search-container:focus-within { z-index: 60 !important; }
   {% endblock
   %}
   {% block content %}

@@ -2,14 +2,7 @@
 {% block title %}
   Add New Entry - CG1618 Tracker{%
   endblock %}
-  {% block extra_style %}
-    /* 1. Import external CSS safely */ @import
-    url('/static/css/add.css?v=3.1'); /* 2. CRITICAL STACKING CONTEXT FIX */ /*
-    Elevates active dropdowns above other form elements */ .combo-wrapper,
-    .ms-wrapper, .dropdown-group { position: relative; z-index: 10; }
-    .combo-wrapper:has(.open), .ms-wrapper:has(.open), .dropdown-group:has(.open) {
-    z-index: 60 !important; }
-  {% endblock %}
+  {% block extra_style %}{% endblock %}
   {% block content %}
     <div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]">
       <!-- Header & Tabs -->
