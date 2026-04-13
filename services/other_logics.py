@@ -317,9 +317,6 @@ def apply_single_replace_anime(
         if calculated_season:
             anime.release_season = calculated_season
 
-    # Auto Create Seasonal
-    auto_create_seasonal(db)
-
 
 # ==========================================
 # HELPERS

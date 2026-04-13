@@ -1,398 +1,255 @@
-{% extends "base.html" %} {% block title %}Anime Library - CG1618 Tracker{%
-endblock %} {% block extra_style %}
-<!-- Extracted Library Anime Specific Styles -->
-<link rel="stylesheet" href="/static/css/library_anime.css" />
-{% endblock %} {% block content %}
-<!-- Sticky Control Bar (Search, Filters & Sorting) -->
-<div
-  class="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-16 z-40 shadow-sm transition-all duration-300"
->
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
-      <!-- Search Input -->
-      <div class="relative w-full md:w-96 flex-shrink-0">
-        <div
-          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-        >
-          <i class="fas fa-search text-gray-400"></i>
-        </div>
-        <input
-          type="text"
-          id="input-search"
-          placeholder="Search Title, Franchise, Season, Genre..."
-          class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-brand focus:border-brand sm:text-sm transition duration-150 ease-in-out font-medium"
-        />
-        <button
-          id="btn-clear-search"
-          class="absolute inset-y-0 right-0 pr-3 flex items-center hidden text-gray-400 hover:text-gray-600 transition"
-        >
-          <i class="fas fa-times-circle"></i>
-        </button>
-      </div>
-
-      <div class="flex items-center justify-between w-full md:w-auto gap-3">
-        <!-- Advanced Filters Toggle -->
-        <button
-          id="btn-toggle-filters"
-          class="flex items-center px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-brand transition shadow-sm whitespace-nowrap"
-        >
-          <i class="fas fa-filter mr-2"></i>
-          <span id="text-filter-toggle">Filters</span>
-          <span
-            id="badge-filter-count"
-            class="ml-2 bg-brand text-white text-[10px] px-1.5 py-0.5 rounded-full hidden"
-            >0</span
-          >
-        </button>
-
-        <!-- Sorting Engine -->
-        <div
-          class="flex items-center bg-gray-50 rounded-lg border border-gray-200 px-3 py-1 shadow-sm shrink-0"
-        >
-          <i class="fas fa-sort-amount-down-alt text-brand mr-2 text-xs"></i>
-          <select
-            id="sort-dropdown"
-            class="text-xs font-bold text-gray-900 bg-transparent border-none focus:ring-0 cursor-pointer outline-none p-0 pr-6"
-          >
-            <option value="title">Title (Default)</option>
-            <option value="release_date">Release Date (New to Old)</option>
-            <option value="my_rating">My Rating</option>
-            <option value="mal_rating">MAL Rating</option>
-          </select>
-        </div>
-
-        <!-- View Toggle (Grid / Table) -->
-        <div
-          class="flex items-center bg-gray-100 rounded-lg border border-gray-200 p-0.5 shadow-sm shrink-0"
-        >
-          <button
-            id="btn-view-grid"
-            class="view-toggle-btn active flex items-center justify-center w-8 h-8 rounded-md bg-white shadow text-brand transition"
-          >
-            <i class="fas fa-th-large text-sm"></i>
-          </button>
-          <button
-            id="btn-view-table"
-            class="view-toggle-btn flex items-center justify-center w-8 h-8 rounded-md text-gray-400 hover:text-gray-600 transition"
-          >
-            <i class="fas fa-list text-sm"></i>
+{% extends "base.html" %}
+{% block title %}
+  Anime Library - CG1618 Tracker
+{% endblock title %}
+{% block extra_style %}
+{% endblock extra_style %}
+{% block content %}
+  <!-- Sticky Control Bar (Search, Filters & Sorting) -->
+  <div class="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-16 z-40 shadow-sm transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <!-- Search Input -->
+        <div class="relative w-full md:w-96 flex-shrink-0">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400"></i>
+          </div>
+          <input type="text"
+                 id="input-search"
+                 placeholder="Search Title, Franchise, Season, Genre..."
+                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-brand focus:border-brand sm:text-sm transition duration-150 ease-in-out font-medium" />
+          <button id="btn-clear-search"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center hidden text-gray-400 hover:text-gray-600 transition">
+            <i class="fas fa-times-circle"></i>
           </button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Advanced Filters Panel (Collapsible) -->
-  <div
-    id="advanced-filters"
-    class="filters-closed border-t border-gray-100 bg-gray-50 shadow-inner"
-  >
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Airing Type Filter -->
-        <div>
-          <label
-            class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block"
-            >Airing Type</label
-          >
-          <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingType"
-              data-filter-value="TV"
-            >
-              TV
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingType"
-              data-filter-value="Movie"
-            >
-              Movie
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingType"
-              data-filter-value="OVA"
-            >
-              OVA
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingType"
-              data-filter-value="ONA"
-            >
-              ONA
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingType"
-              data-filter-value="Special"
-            >
-              Special
-            </button>
+        <div class="flex items-center justify-between w-full md:w-auto gap-3">
+          <!-- Advanced Filters Toggle -->
+          <button id="btn-toggle-filters"
+                  class="flex items-center px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-brand transition shadow-sm whitespace-nowrap">
+            <i class="fas fa-filter mr-2"></i>
+            <span id="text-filter-toggle">Filters</span>
+            <span id="badge-filter-count"
+                  class="ml-2 bg-brand text-white text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+          </button>
+          <!-- Sorting Engine -->
+          <div class="flex items-center bg-gray-50 rounded-lg border border-gray-200 px-3 py-1 shadow-sm shrink-0">
+            <i class="fas fa-sort-amount-down-alt text-brand mr-2 text-xs"></i>
+            <select id="sort-dropdown"
+                    class="text-xs font-bold text-gray-900 bg-transparent border-none focus:ring-0 cursor-pointer outline-none p-0 pr-6">
+              <option value="title">Title (Default)</option>
+              <option value="release_date">Release Date (New to Old)</option>
+              <option value="my_rating">My Rating</option>
+              <option value="mal_rating">MAL Rating</option>
+            </select>
           </div>
-        </div>
-
-        <!-- Airing Status Filter -->
-        <div>
-          <label
-            class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block"
-            >Airing Status</label
-          >
-          <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingStatus"
-              data-filter-value="Airing"
-            >
-              Airing
+          <!-- View Toggle (Grid / Table) -->
+          <div class="flex items-center bg-gray-100 rounded-lg border border-gray-200 p-0.5 shadow-sm shrink-0">
+            <button id="btn-view-grid"
+                    class="view-toggle-btn active flex items-center justify-center w-8 h-8 rounded-md bg-white shadow text-brand transition">
+              <i class="fas fa-th-large text-sm"></i>
             </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingStatus"
-              data-filter-value="Finished Airing"
-            >
-              Finished Airing
+            <button id="btn-view-table"
+                    class="view-toggle-btn flex items-center justify-center w-8 h-8 rounded-md text-gray-400 hover:text-gray-600 transition">
+              <i class="fas fa-list text-sm"></i>
             </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="airingStatus"
-              data-filter-value="Not Yet Aired"
-            >
-              Not Yet Aired
-            </button>
-          </div>
-        </div>
-
-        <!-- Watching Status Filter -->
-        <div>
-          <label
-            class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block"
-            >Watching Status</label
-          >
-          <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="watchingStatus"
-              data-filter-value="Might Watch"
-            >
-              Might Watch
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="watchingStatus"
-              data-filter-value="Planned"
-            >
-              Planned
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="watchingStatus"
-              data-filter-value="Watching"
-            >
-              Watching
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="watchingStatus"
-              data-filter-value="Completed"
-            >
-              Completed
-            </button>
-            <button
-              type="button"
-              class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-              data-filter-group="watchingStatus"
-              data-filter-value="Dropped"
-            >
-              Dropped
-            </button>
-          </div>
-        </div>
-
-        <!-- Sources Filter -->
-        <div>
-          <label
-            class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block"
-            >Sources</label
-          >
-          <div class="flex items-center mt-1">
-            <input
-              id="filter-baha"
-              type="checkbox"
-              class="h-4 w-4 text-[#00B4D8] focus:ring-[#00B4D8] border-gray-300 rounded shadow-sm cursor-pointer"
-            />
-            <label
-              for="filter-baha"
-              class="ml-2 block text-xs font-bold text-gray-700 cursor-pointer flex items-center"
-            >
-              <img
-                src="https://i2.bahamut.com.tw/anime/logo.svg"
-                class="h-3.5 inline-block mr-1 opacity-80"
-                alt="Baha"
-              />
-              Only
-            </label>
           </div>
         </div>
       </div>
-
-      <div class="mt-4 flex justify-end">
-        <button
-          id="btn-clear-filters"
-          class="text-[11px] font-bold text-gray-500 hover:text-red-500 transition px-3 py-1 bg-white rounded border border-gray-200 shadow-sm hidden"
-        >
-          Clear All Filters
-        </button>
+    </div>
+    <!-- Advanced Filters Panel (Collapsible) -->
+    <div id="advanced-filters"
+         class="filters-closed border-t border-gray-100 bg-gray-50 shadow-inner">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- Airing Type Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Airing Type</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="TV">TV</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="Movie">Movie</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="OVA">OVA</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="ONA">ONA</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="Special">Special</button>
+            </div>
+          </div>
+          <!-- Airing Status Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Airing Status</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingStatus"
+                      data-filter-value="Airing">Airing</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingStatus"
+                      data-filter-value="Finished Airing">Finished Airing</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingStatus"
+                      data-filter-value="Not Yet Aired">Not Yet Aired</button>
+            </div>
+          </div>
+          <!-- Watching Status Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Watching Status</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Might Watch">Might Watch</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Planned">Planned</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Watching">Watching</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Completed">Completed</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-white text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Dropped">Dropped</button>
+            </div>
+          </div>
+          <!-- Sources Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Sources</label>
+            <div class="flex items-center mt-1">
+              <input id="filter-baha"
+                     type="checkbox"
+                     class="h-4 w-4 text-[#00B4D8] focus:ring-[#00B4D8] border-gray-300 rounded shadow-sm cursor-pointer" />
+              <label for="filter-baha"
+                     class="ml-2 block text-xs font-bold text-gray-700 cursor-pointer flex items-center">
+                <img src="https://i2.bahamut.com.tw/anime/logo.svg"
+                     class="h-3.5 w-auto inline-block mr-1 opacity-80"
+                     height="14"
+                     width="42"
+                     alt="Baha" />
+                Only
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button id="btn-clear-filters"
+                  class="text-[11px] font-bold text-gray-500 hover:text-red-500 transition px-3 py-1 bg-white rounded border border-gray-200 shadow-sm hidden">
+            Clear All Filters
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</div>
-
-<main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-  <!-- Content Header -->
-  <div
-    class="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-100"
-  >
-    <h1
-      class="text-2xl font-black text-gray-900 tracking-tight flex items-center"
-    >
-      <i class="fas fa-tv text-brand mr-3"></i> Anime Library
-    </h1>
-    <div class="text-sm font-bold text-gray-500">
-      Showing <span id="count-results" class="text-brand">0</span> Entries
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <!-- Content Header -->
+    <div class="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-100">
+      <h1 class="text-2xl font-black text-gray-900 tracking-tight flex items-center">
+        <i class="fas fa-tv text-brand mr-3"></i> Anime Library
+      </h1>
+      <div class="text-sm font-bold text-gray-500">
+        Showing <span id="count-results" class="text-brand">0</span> Entries
+      </div>
     </div>
-  </div>
-
-  <!-- Loading State -->
-  <div id="loading" class="flex flex-col items-center justify-center h-64">
-    <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-    <p class="text-gray-500 font-medium mt-4" id="loading-text">
-      Loading Anime Library...
-    </p>
-  </div>
-
-  <div id="main-content" class="hidden">
-    <!-- Empty State -->
-    <div
-      id="empty-state"
-      class="hidden flex flex-col items-center justify-center py-16 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed"
-    >
-      <i class="fas fa-ghost text-4xl text-gray-300 mb-3"></i>
-      <p class="text-gray-500 font-bold text-lg mb-1">No Entries Found</p>
-      <p class="text-sm text-gray-400 mt-1">
-        Adjust your search or filter parameters.
-      </p>
+    <!-- Loading State -->
+    <div id="loading" class="flex flex-col items-center justify-center h-64">
+      <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+      <p class="text-gray-500 font-medium mt-4" id="loading-text">Loading Anime Library...</p>
     </div>
-
-    <!-- GRID VIEW -->
-    <div
-      id="view-container-grid"
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-    >
-      <!-- Rendered via JS -->
+    <div id="main-content" class="hidden">
+      <!-- Empty State -->
+      <div id="empty-state"
+           class="hidden flex flex-col items-center justify-center py-16 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+        <i class="fas fa-ghost text-4xl text-gray-300 mb-3"></i>
+        <p class="text-gray-500 font-bold text-lg mb-1">No Entries Found</p>
+        <p class="text-sm text-gray-400 mt-1">Adjust your search or filter parameters.</p>
+      </div>
+      <!-- GRID VIEW -->
+      <div id="view-container-grid"
+           class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <!-- Rendered via JS -->
+      </div>
+      <!-- TABLE VIEW -->
+      <div id="view-container-table"
+           class="hidden overflow-x-auto overflow-y-auto max-h-[75vh] rounded-xl border border-gray-200 shadow-sm bg-white">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50 sticky top-0 z-20 shadow-sm">
+            <tr>
+              <th scope="col"
+                  class="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-wider w-48">
+                Franchise
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                Anime Title
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                Type
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                Season Part
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                Airing Status
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                Episodes
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                My Rating
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden xl:table-cell">
+                MAL
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden xl:table-cell">
+                Studio
+              </th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider">Baha</th>
+              <th scope="col"
+                  class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider w-16">
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="bg-white divide-y divide-gray-200">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
     </div>
-
-    <!-- TABLE VIEW -->
-    <div
-      id="view-container-table"
-      class="hidden overflow-x-auto overflow-y-auto max-h-[75vh] rounded-xl border border-gray-200 shadow-sm bg-white"
-    >
-      <table class="min-w-full divide-y divide-gray-200 text-sm">
-        <thead class="bg-gray-50 sticky top-0 z-20 shadow-sm">
-          <tr>
-            <th
-              scope="col"
-              class="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-wider w-48"
-            >
-              Franchise
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-wider"
-            >
-              Anime Title
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden md:table-cell"
-            >
-              Type
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden lg:table-cell"
-            >
-              Season Part
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider"
-            >
-              Airing Status
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden sm:table-cell"
-            >
-              Episodes
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden lg:table-cell"
-            >
-              My Rating
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden xl:table-cell"
-            >
-              MAL
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider hidden xl:table-cell"
-            >
-              Studio
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider"
-            >
-              Baha
-            </th>
-            <th
-              scope="col"
-              class="px-4 py-3 text-center text-[10px] font-black text-gray-500 uppercase tracking-wider w-16"
-            >
-              Action
-            </th>
-          </tr>
-        </thead>
-        <tbody id="table-body" class="bg-white divide-y divide-gray-200">
-          <!-- Rendered via JS -->
-        </tbody>
-      </table>
-    </div>
-  </div>
-</main>
-{% endblock %} {% block extra_scripts %}
-<script>
+  </main>
+{% endblock content %}
+{% block extra_scripts %}
+  <script>
   // Jinja2 Bridge: Pass the authentication state to the global window object
   window.IS_ADMIN_LIBRARY_ANIME = {{ 'true' if is_admin else 'false' }};
-</script>
-<script src="/static/js/library_anime.js"></script>
-{% endblock %}
+  </script>
+  <script src="{{ url_for('static', path='js/library_anime.js') }}"></script>
+{% endblock extra_scripts %}

@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   pageDOM.progressText = document.getElementById("overlay-progress-text");
   pageDOM.progressBar = document.getElementById("overlay-progress-bar");
   pageDOM.streamingLinks = document.getElementById("streaming-links-container");
+  pageDOM.watchOrder = document.getElementById("display-watch-order");
 
   pageDOM.namingGrid = document.getElementById("naming-grid");
   pageDOM.infoGrid = document.getElementById("info-grid");
@@ -210,7 +211,7 @@ function renderUI() {
     pageDOM.progressBar.style.width = `100%`;
   }
 
-  // --- V2 CLEAN BACKEND MATH (Pydantic Computed Fields) ---
+  // --- CLEAN BACKEND MATH (Pydantic Computed Fields) ---
   const hasCumulative = a.ep_previous && a.ep_previous > 0;
 
   if (hasCumulative) {
@@ -244,6 +245,12 @@ function renderUI() {
   pageDOM.streamingLinks.innerHTML =
     linksHtml ||
     '<div class="text-sm text-gray-400 italic">No official sources recorded.</div>';
+
+  if (a.watch_order !== undefined && a.watch_order !== null) {
+    pageDOM.watchOrder.innerText = a.watch_order;
+  } else {
+    pageDOM.watchOrder.innerText = "-";
+  }
 
   // 7. Naming Grid
   const namingData = [

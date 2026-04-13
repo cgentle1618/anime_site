@@ -20,6 +20,7 @@ import schemas
 
 from services.image_manager import delete_cover_image
 from services.other_logics import (
+    auto_create_seasonal,
     autofill_ep_previous,
     apply_single_replace_anime,
     resolve_anime_parent_hierarchy,
@@ -116,6 +117,13 @@ def create_anime_entry(
 
     autofill_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
 
+    db.flush()
+
+    try:
+        auto_create_seasonal(db)
+    except Exception as e:
+        logger.warning(f"Auto create seasonal failed: {e}")
+
     db.commit()
     db.refresh(new_anime)
     return new_anime
@@ -155,6 +163,13 @@ def update_anime_entry(
     db.flush()
 
     autofill_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
+
+    db.flush()
+
+    try:
+        auto_create_seasonal(db)
+    except Exception as e:
+        logger.warning(f"Auto create seasonal failed: {e}")
 
     db_anime.updated_at = get_taipei_now()
     db.commit()
