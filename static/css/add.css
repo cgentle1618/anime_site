@@ -148,3 +148,17 @@
   background: transparent;
   padding: 2px;
 }
+
+/* CRITICAL STACKING CONTEXT FIX */
+/* Elevates active dropdowns above other form elements */
+.combo-wrapper,
+.ms-wrapper,
+.dropdown-group {
+  position: relative;
+  z-index: 10;
+}
+.combo-wrapper:has(.open),
+.ms-wrapper:has(.open),
+.dropdown-group:has(.open) {
+  z-index: 60 !important;
+}
