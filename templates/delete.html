@@ -1,571 +1,353 @@
-{% extends "base.html" %} {% block title %}Delete Records - CG1618 Tracker{%
-endblock %} {% block extra_style %}
-<!-- Extracted Delete Specific Styles -->
-<link rel="stylesheet" href="/static/css/delete.css" />
-{% endblock %} {% block content %}
-<div
-  class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
->
-  <!-- Header -->
-  <div
-    class="mb-6 border-b border-gray-200 pb-4 shrink-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4"
-  >
-    <div>
-      <h1 class="text-3xl font-black text-gray-900 tracking-tight">
-        <i class="fas fa-trash-alt text-red-500 mr-3"></i>Delete Records
-      </h1>
-      <p class="text-gray-500 mt-2 text-sm font-medium">
-        Search for entries to permanently remove them from the PostgreSQL
-        database.
-      </p>
-    </div>
-  </div>
-
-  <!-- Navigation Tabs -->
-  <div
-    class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar shrink-0"
-  >
-    <button
-      data-action="switch-tab"
-      data-tab="anime"
-      id="tab-anime"
-      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap"
-    >
-      <i class="fas fa-tv mr-2"></i> Delete Anime Entries
-    </button>
-    <button
-      data-action="switch-tab"
-      data-tab="franchise"
-      id="tab-franchise"
-      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
-    >
-      <i class="fas fa-sitemap mr-2"></i> Delete Franchises
-    </button>
-    <button
-      data-action="switch-tab"
-      data-tab="series"
-      id="tab-series"
-      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
-    >
-      <i class="fas fa-layer-group mr-2"></i> Delete Series
-    </button>
-    <button
-      data-action="switch-tab"
-      data-tab="options"
-      id="tab-options"
-      class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap"
-    >
-      <i class="fas fa-sliders-h mr-2"></i> Delete System Option
-    </button>
-  </div>
-
-  <!-- Main Workspace -->
-  <div class="flex-1 relative min-h-0 flex flex-col">
-    <div
-      id="workspace-loading"
-      class="absolute inset-0 bg-gray-50/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-2xl hidden"
-    >
-      <i class="fas fa-circle-notch fa-spin text-4xl text-red-500 mb-4"></i>
-      <p class="text-gray-600 font-bold">Loading Database...</p>
-    </div>
-
-    <div class="flex-1 overflow-y-auto pb-12">
-      <!-- ========================================== -->
-      <!-- SECTION 1: ANIME ENTRIES -->
-      <!-- ========================================== -->
-      <div id="section-anime" class="space-y-8 max-w-4xl mx-auto block">
-        <!-- Search Panel -->
-        <div
-          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
-        >
-          <label
-            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-            >Search Anime to Delete</label
-          >
-          <div class="relative z-20 search-container-anime">
-            <div
-              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-            >
-              <i class="fas fa-search text-gray-400"></i>
-            </div>
-            <input
-              type="text"
-              id="anime-search-input"
-              placeholder="Type Anime Name (EN/CN/JP/Alt)..."
-              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
-              autocomplete="off"
-            />
-            <div
-              id="anime-search-results"
-              class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50"
-            ></div>
-          </div>
+{% extends "base.html" %}
+{% block title %}
+  Delete Records - CG1618 Tracker{%
+  endblock %}
+  {% block extra_style %}
+    <!-- Extracted Delete Specific Styles -->
+    <link rel="stylesheet" href="/static/css/delete.css" />
+  {% endblock %}
+  {% block content %}
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]">
+      <!-- Header -->
+      <div class="mb-6 border-b border-gray-200 pb-4 shrink-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-black text-gray-900 tracking-tight">
+            <i class="fas fa-trash-alt text-red-500 mr-3"></i>Delete Records
+          </h1>
+          <p class="text-gray-500 mt-2 text-sm font-medium">
+            Search for entries to permanently remove them from the PostgreSQL
+            database.
+          </p>
         </div>
-
-        <!-- Danger Zone Card -->
-        <div
-          id="anime-delete-container"
-          class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
-        >
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-black text-red-800 tracking-tight">
-              <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-              Selected Target for Deletion
-            </h2>
-            <button
-              data-action="close-card"
-              data-target="anime"
-              class="text-red-400 hover:text-red-700 transition"
-            >
-              <i class="fas fa-times text-xl"></i>
-            </button>
-          </div>
-
-          <div
-            class="bg-white border border-red-100 rounded-xl p-4 flex flex-col sm:flex-row gap-6 items-center sm:items-start shadow-sm"
-          >
-            <!-- Cover Image -->
-            <div
-              class="w-24 h-36 shrink-0 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 relative"
-            >
-              <img
-                id="del-anime-img"
-                src=""
-                class="w-full h-full object-cover"
-                onerror="
-                  this.src =
-                    'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E'
-                "
-              />
-            </div>
-            <!-- Details -->
-            <div class="flex-1 min-w-0 w-full text-center sm:text-left">
-              <div
-                class="flex items-center justify-center sm:justify-start gap-2 mb-1.5 flex-wrap"
-              >
-                <span
-                  class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 uppercase tracking-wider"
-                  id="del-anime-type"
-                ></span>
-                <span
-                  class="bg-red-100/50 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200/50 uppercase tracking-wider"
-                  id="del-anime-status"
-                ></span>
-              </div>
-              <h3
-                class="text-2xl font-black text-gray-900 truncate"
-                id="del-anime-title"
-              >
-                Title
-              </h3>
-              <p
-                class="text-sm font-medium text-gray-500 truncate mt-1"
-                id="del-anime-subtitle"
-              >
-                Subtitle
-              </p>
-
-              <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                  <div class="text-[10px] font-bold text-gray-400 uppercase">
-                    Franchise / Series
-                  </div>
-                  <div
-                    class="text-xs font-bold text-gray-700 truncate mt-0.5"
-                    id="del-anime-parents"
-                  >
-                    None
-                  </div>
+      </div>
+      <!-- Navigation Tabs -->
+      <div class="flex border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar shrink-0">
+        <button data-action="switch-tab"
+                data-tab="anime"
+                id="tab-anime"
+                class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-active whitespace-nowrap">
+          <i class="fas fa-tv mr-2"></i> Delete Anime Entries
+        </button>
+        <button data-action="switch-tab"
+                data-tab="franchise"
+                id="tab-franchise"
+                class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap">
+          <i class="fas fa-sitemap mr-2"></i> Delete Franchises
+        </button>
+        <button data-action="switch-tab"
+                data-tab="series"
+                id="tab-series"
+                class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap">
+          <i class="fas fa-layer-group mr-2"></i> Delete Series
+        </button>
+        <button data-action="switch-tab"
+                data-tab="options"
+                id="tab-options"
+                class="px-6 py-3 font-bold text-sm tracking-wide transition-colors duration-200 tab-inactive whitespace-nowrap">
+          <i class="fas fa-sliders-h mr-2"></i> Delete System Option
+        </button>
+      </div>
+      <!-- Main Workspace -->
+      <div class="flex-1 relative min-h-0 flex flex-col">
+        <div id="workspace-loading"
+             class="absolute inset-0 bg-gray-50/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-2xl hidden">
+          <i class="fas fa-circle-notch fa-spin text-4xl text-red-500 mb-4"></i>
+          <p class="text-gray-600 font-bold">Loading Database...</p>
+        </div>
+        <div class="flex-1 overflow-y-auto pb-12">
+          <!-- ========================================== -->
+          <!-- SECTION 1: ANIME ENTRIES -->
+          <!-- ========================================== -->
+          <div id="section-anime" class="space-y-8 max-w-4xl mx-auto block">
+            <!-- Search Panel -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative">
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Search Anime to Delete</label>
+              <div class="relative z-20 search-container-anime">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-search text-gray-400"></i>
                 </div>
-                <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                  <div class="text-[10px] font-bold text-gray-400 uppercase">
-                    System ID
+                <input type="text"
+                       id="anime-search-input"
+                       placeholder="Type Anime Name (EN/CN/JP/Alt)..."
+                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
+                       autocomplete="off" />
+                <div id="anime-search-results"
+                     class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50">
+                </div>
+              </div>
+            </div>
+            <!-- Danger Zone Card -->
+            <div id="anime-delete-container"
+                 class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden">
+              <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black text-red-800 tracking-tight">
+                  <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+                  Selected Target for Deletion
+                </h2>
+                <button data-action="close-card"
+                        data-target="anime"
+                        class="text-red-400 hover:text-red-700 transition">
+                  <i class="fas fa-times text-xl"></i>
+                </button>
+              </div>
+              <div class="bg-white border border-red-100 rounded-xl p-4 flex flex-col sm:flex-row gap-6 items-center sm:items-start shadow-sm">
+                <!-- Cover Image -->
+                <div class="w-24 h-36 shrink-0 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 relative">
+                  <img id="del-anime-img"
+                       src=""
+                       class="w-full h-full object-cover"
+                       onerror=" this.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23E5E7EB%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2210%22 fill=%22%236B7280%22 font-weight=%22bold%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Image%3C/text%3E%3C/svg%3E' " />
+                </div>
+                <!-- Details -->
+                <div class="flex-1 min-w-0 w-full text-center sm:text-left">
+                  <div class="flex items-center justify-center sm:justify-start gap-2 mb-1.5 flex-wrap">
+                    <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 uppercase tracking-wider"
+                          id="del-anime-type"></span>
+                    <span class="bg-red-100/50 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200/50 uppercase tracking-wider"
+                          id="del-anime-status"></span>
                   </div>
-                  <div
-                    class="text-xs font-mono text-gray-500 truncate mt-0.5"
-                    id="del-anime-id"
-                  >
-                    ID
+                  <h3 class="text-2xl font-black text-gray-900 truncate"
+                      id="del-anime-title">Title</h3>
+                  <p class="text-sm font-medium text-gray-500 truncate mt-1"
+                     id="del-anime-subtitle">Subtitle</p>
+                  <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                      <div class="text-[10px] font-bold text-gray-400 uppercase">Franchise / Series</div>
+                      <div class="text-xs font-bold text-gray-700 truncate mt-0.5"
+                           id="del-anime-parents">None</div>
+                    </div>
+                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                      <div class="text-[10px] font-bold text-gray-400 uppercase">System ID</div>
+                      <div class="text-xs font-mono text-gray-500 truncate mt-0.5"
+                           id="del-anime-id">ID</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-          <div class="mt-6 flex justify-end">
-            <button
-              type="button"
-              data-action="init-delete"
-              data-type="anime"
-              class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center"
-            >
-              <i class="fas fa-trash-alt mr-2"></i> Delete Entry Permanently
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- SECTION 2: FRANCHISE -->
-      <!-- ========================================== -->
-      <div id="section-franchise" class="space-y-8 max-w-4xl mx-auto hidden">
-        <!-- Search Panel -->
-        <div
-          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
-        >
-          <label
-            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-            >Search Franchise Hub to Delete</label
-          >
-          <div class="relative z-20 search-container-franchise">
-            <div
-              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-            >
-              <i class="fas fa-search text-gray-400"></i>
-            </div>
-            <input
-              type="text"
-              id="franchise-search-input"
-              placeholder="Type Franchise Name (EN/CN/JP/Alt)..."
-              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
-              autocomplete="off"
-            />
-            <div
-              id="franchise-search-results"
-              class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50"
-            ></div>
-          </div>
-        </div>
-
-        <!-- Danger Zone Card -->
-        <div
-          id="franchise-delete-container"
-          class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
-        >
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-black text-red-800 tracking-tight">
-              <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-              Selected Franchise for Deletion
-            </h2>
-            <button
-              data-action="close-card"
-              data-target="franchise"
-              class="text-red-400 hover:text-red-700 transition"
-            >
-              <i class="fas fa-times text-xl"></i>
-            </button>
-          </div>
-
-          <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
-            <div
-              class="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1"
-            >
-              <i class="fas fa-sitemap mr-1"></i> Franchise Hub
-            </div>
-            <h3
-              class="text-2xl font-black text-gray-900 truncate mb-1"
-              id="del-franchise-title"
-            >
-              Title
-            </h3>
-            <p
-              class="text-sm font-medium text-gray-500 truncate mb-4"
-              id="del-franchise-alt"
-            >
-              Alt Names
-            </p>
-
-            <div
-              class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 pt-4"
-            >
-              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                <div class="text-[10px] font-bold text-gray-400 uppercase">
-                  System ID
-                </div>
-                <div
-                  class="text-xs font-mono text-gray-500 truncate mt-0.5"
-                  id="del-franchise-id"
-                >
-                  ID
-                </div>
-              </div>
-              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                <div class="text-[10px] font-bold text-gray-400 uppercase">
-                  Connected Tree
-                </div>
-                <div
-                  class="text-xs font-bold text-gray-700 mt-0.5"
-                  id="del-franchise-count"
-                >
-                  0 Series, 0 Anime
-                </div>
-              </div>
-              <div
-                class="bg-red-50/50 p-2.5 rounded-lg border border-red-100 flex items-center justify-center text-center"
-              >
-                <div
-                  class="text-[10px] font-bold text-red-600 uppercase leading-snug"
-                >
-                  <i class="fas fa-info-circle mr-1"></i> Cascade Deletion
-                  supported
-                </div>
+              <div class="mt-6 flex justify-end">
+                <button type="button"
+                        data-action="init-delete"
+                        data-type="anime"
+                        class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center">
+                  <i class="fas fa-trash-alt mr-2"></i> Delete Entry Permanently
+                </button>
               </div>
             </div>
           </div>
-          <div class="mt-6 flex justify-end">
-            <button
-              type="button"
-              data-action="init-delete"
-              data-type="franchise"
-              class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center"
-            >
-              <i class="fas fa-trash-alt mr-2"></i> Delete Franchise Permanently
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- SECTION 3: SERIES -->
-      <!-- ========================================== -->
-      <div id="section-series" class="space-y-8 max-w-4xl mx-auto hidden">
-        <div
-          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative"
-        >
-          <label
-            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-            >Search Series Hub to Delete</label
-          >
-          <div class="relative z-20 search-container-series">
-            <div
-              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-            >
-              <i class="fas fa-search text-gray-400"></i>
-            </div>
-            <input
-              type="text"
-              id="series-search-input"
-              placeholder="Type Series Name (EN/CN/Alt)..."
-              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
-              autocomplete="off"
-            />
-            <div
-              id="series-search-results"
-              class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50"
-            ></div>
-          </div>
-        </div>
-
-        <div
-          id="series-delete-container"
-          class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden"
-        >
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-black text-red-800 tracking-tight">
-              <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-              Selected Series for Deletion
-            </h2>
-            <button
-              data-action="close-card"
-              data-target="series"
-              class="text-red-400 hover:text-red-700 transition"
-            >
-              <i class="fas fa-times text-xl"></i>
-            </button>
-          </div>
-
-          <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
-            <div
-              class="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1"
-            >
-              <i class="fas fa-layer-group mr-1"></i> Series Hub
-            </div>
-            <h3
-              class="text-2xl font-black text-gray-900 truncate mb-1"
-              id="del-series-title"
-            >
-              Title
-            </h3>
-            <p
-              class="text-sm font-medium text-gray-500 truncate mb-4"
-              id="del-series-alt"
-            >
-              Alt Names
-            </p>
-
-            <div
-              class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 pt-4"
-            >
-              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                <div class="text-[10px] font-bold text-gray-400 uppercase">
-                  System ID
+          <!-- ========================================== -->
+          <!-- SECTION 2: FRANCHISE -->
+          <!-- ========================================== -->
+          <div id="section-franchise" class="space-y-8 max-w-4xl mx-auto hidden">
+            <!-- Search Panel -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative">
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                Search Franchise Hub to Delete
+              </label>
+              <div class="relative z-20 search-container-franchise">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-search text-gray-400"></i>
                 </div>
-                <div
-                  class="text-xs font-mono text-gray-500 truncate mt-0.5"
-                  id="del-series-id"
-                >
-                  ID
-                </div>
-              </div>
-              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                <div class="text-[10px] font-bold text-gray-400 uppercase">
-                  Connected Anime
-                </div>
-                <div
-                  class="text-xs font-bold text-gray-700 mt-0.5"
-                  id="del-series-count"
-                >
-                  0 Entries
-                </div>
-              </div>
-              <div
-                class="bg-red-50/50 p-2.5 rounded-lg border border-red-100 flex items-center justify-center text-center"
-              >
-                <div
-                  class="text-[10px] font-bold text-red-600 uppercase leading-snug"
-                >
-                  <i class="fas fa-info-circle mr-1"></i> Cascade Deletion
-                  supported
+                <input type="text"
+                       id="franchise-search-input"
+                       placeholder="Type Franchise Name (EN/CN/JP/Alt)..."
+                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
+                       autocomplete="off" />
+                <div id="franchise-search-results"
+                     class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50">
                 </div>
               </div>
             </div>
+            <!-- Danger Zone Card -->
+            <div id="franchise-delete-container"
+                 class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden">
+              <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black text-red-800 tracking-tight">
+                  <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+                  Selected Franchise for Deletion
+                </h2>
+                <button data-action="close-card"
+                        data-target="franchise"
+                        class="text-red-400 hover:text-red-700 transition">
+                  <i class="fas fa-times text-xl"></i>
+                </button>
+              </div>
+              <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+                <div class="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">
+                  <i class="fas fa-sitemap mr-1"></i> Franchise Hub
+                </div>
+                <h3 class="text-2xl font-black text-gray-900 truncate mb-1"
+                    id="del-franchise-title">Title</h3>
+                <p class="text-sm font-medium text-gray-500 truncate mb-4"
+                   id="del-franchise-alt">Alt Names</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 pt-4">
+                  <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase">System ID</div>
+                    <div class="text-xs font-mono text-gray-500 truncate mt-0.5"
+                         id="del-franchise-id">ID</div>
+                  </div>
+                  <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase">Connected Tree</div>
+                    <div class="text-xs font-bold text-gray-700 mt-0.5"
+                         id="del-franchise-count">0 Series, 0 Anime</div>
+                  </div>
+                  <div class="bg-red-50/50 p-2.5 rounded-lg border border-red-100 flex items-center justify-center text-center">
+                    <div class="text-[10px] font-bold text-red-600 uppercase leading-snug">
+                      <i class="fas fa-info-circle mr-1"></i> Cascade Deletion
+                      supported
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-6 flex justify-end">
+                <button type="button"
+                        data-action="init-delete"
+                        data-type="franchise"
+                        class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center">
+                  <i class="fas fa-trash-alt mr-2"></i> Delete Franchise Permanently
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="mt-6 flex justify-end">
-            <button
-              type="button"
-              data-action="init-delete"
-              data-type="series"
-              class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center"
-            >
-              <i class="fas fa-trash-alt mr-2"></i> Delete Series Permanently
-            </button>
+          <!-- ========================================== -->
+          <!-- SECTION 3: SERIES -->
+          <!-- ========================================== -->
+          <div id="section-series" class="space-y-8 max-w-4xl mx-auto hidden">
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 relative">
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Search Series Hub to Delete</label>
+              <div class="relative z-20 search-container-series">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text"
+                       id="series-search-input"
+                       placeholder="Type Series Name (EN/CN/Alt)..."
+                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:bg-white transition font-medium"
+                       autocomplete="off" />
+                <div id="series-search-results"
+                     class="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden divide-y divide-gray-50">
+                </div>
+              </div>
+            </div>
+            <div id="series-delete-container"
+                 class="bg-red-50 rounded-2xl border border-red-200 shadow-sm p-6 sm:p-8 hidden relative overflow-hidden">
+              <div class="absolute top-0 left-0 right-0 h-1.5 bg-red-500"></div>
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black text-red-800 tracking-tight">
+                  <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+                  Selected Series for Deletion
+                </h2>
+                <button data-action="close-card"
+                        data-target="series"
+                        class="text-red-400 hover:text-red-700 transition">
+                  <i class="fas fa-times text-xl"></i>
+                </button>
+              </div>
+              <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+                <div class="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">
+                  <i class="fas fa-layer-group mr-1"></i> Series Hub
+                </div>
+                <h3 class="text-2xl font-black text-gray-900 truncate mb-1"
+                    id="del-series-title">Title</h3>
+                <p class="text-sm font-medium text-gray-500 truncate mb-4"
+                   id="del-series-alt">Alt Names</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 pt-4">
+                  <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase">System ID</div>
+                    <div class="text-xs font-mono text-gray-500 truncate mt-0.5"
+                         id="del-series-id">ID</div>
+                  </div>
+                  <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    <div class="text-[10px] font-bold text-gray-400 uppercase">Connected Anime</div>
+                    <div class="text-xs font-bold text-gray-700 mt-0.5" id="del-series-count">0 Entries</div>
+                  </div>
+                  <div class="bg-red-50/50 p-2.5 rounded-lg border border-red-100 flex items-center justify-center text-center">
+                    <div class="text-[10px] font-bold text-red-600 uppercase leading-snug">
+                      <i class="fas fa-info-circle mr-1"></i> Cascade Deletion
+                      supported
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-6 flex justify-end">
+                <button type="button"
+                        data-action="init-delete"
+                        data-type="series"
+                        class="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center shadow-red-500/20 w-full sm:w-auto justify-center">
+                  <i class="fas fa-trash-alt mr-2"></i> Delete Series Permanently
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- SECTION 4: SYSTEM OPTIONS -->
-      <!-- ========================================== -->
-      <div id="section-options" class="space-y-8 max-w-4xl mx-auto hidden">
-        <div
-          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8"
-        >
-          <label
-            class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-4"
-            >Select Target Category</label
-          >
-          <select
-            id="delete-option-category"
-            class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm font-bold text-gray-700 outline-none cursor-pointer transition"
-          >
-            <option value="" disabled selected>
-              -- Choose a category to manage --
-            </option>
-          </select>
-
-          <div
-            id="options-loading"
-            class="hidden mt-8 text-center text-gray-500 py-4"
-          >
-            <i
-              class="fas fa-circle-notch fa-spin text-2xl text-red-500 mb-2"
-            ></i>
-            <p class="text-sm font-medium">Fetching options...</p>
+          <!-- ========================================== -->
+          <!-- SECTION 4: SYSTEM OPTIONS -->
+          <!-- ========================================== -->
+          <div id="section-options" class="space-y-8 max-w-4xl mx-auto hidden">
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Select Target Category</label>
+              <select id="delete-option-category"
+                      class="w-full sm:w-1/2 bg-gray-50 border border-gray-300 focus:bg-white focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-3 py-3 text-sm font-bold text-gray-700 outline-none cursor-pointer transition">
+                <option value="" disabled selected>-- Choose a category to manage --</option>
+              </select>
+              <div id="options-loading"
+                   class="hidden mt-8 text-center text-gray-500 py-4">
+                <i class="fas fa-circle-notch fa-spin text-2xl text-red-500 mb-2"></i>
+                <p class="text-sm font-medium">Fetching options...</p>
+              </div>
+              <div id="options-list-container"
+                   class="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 hidden"></div>
+            </div>
           </div>
-
-          <div
-            id="options-list-container"
-            class="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 hidden"
-          ></div>
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- ========================================== -->
-<!-- MASTER DELETE CONFIRMATION MODAL -->
-<!-- ========================================== -->
-<div
-  id="delete-modal"
-  class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity p-4"
->
-  <div
-    class="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-lg overflow-hidden flex flex-col transform transition-transform duration-200 scale-95"
-    id="delete-modal-box"
-  >
-    <div
-      class="p-6 border-b border-gray-100 bg-red-50 flex items-center justify-between shrink-0"
-    >
-      <h2 class="text-xl font-black text-red-700 tracking-tight">
-        <i class="fas fa-exclamation-triangle mr-2"></i> Confirm Deletion
-      </h2>
-      <button
-        data-action="close-modal"
-        class="text-red-400 hover:text-red-600 transition"
-      >
-        <i class="fas fa-times text-xl"></i>
-      </button>
-    </div>
-    <div class="p-6 overflow-auto flex-1">
-      <p class="text-sm text-gray-700 font-medium leading-relaxed">
-        You are about to permanently delete the following record from the
-        database.
-      </p>
-      <div
-        class="mt-4 p-4 bg-white rounded-lg border border-red-100 shadow-inner"
-      >
-        <div
-          class="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1"
-          id="modal-target-type"
-        >
-          Target
+    <!-- ========================================== -->
+    <!-- MASTER DELETE CONFIRMATION MODAL -->
+    <!-- ========================================== -->
+    <div id="delete-modal"
+         class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity p-4">
+      <div class="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-lg overflow-hidden flex flex-col transform transition-transform duration-200 scale-95"
+           id="delete-modal-box">
+        <div class="p-6 border-b border-gray-100 bg-red-50 flex items-center justify-between shrink-0">
+          <h2 class="text-xl font-black text-red-700 tracking-tight">
+            <i class="fas fa-exclamation-triangle mr-2"></i> Confirm Deletion
+          </h2>
+          <button data-action="close-modal"
+                  class="text-red-400 hover:text-red-600 transition">
+            <i class="fas fa-times text-xl"></i>
+          </button>
         </div>
-        <div
-          class="text-lg font-black text-gray-900 leading-tight"
-          id="modal-target-name"
-        >
-          ...
+        <div class="p-6 overflow-auto flex-1">
+          <p class="text-sm text-gray-700 font-medium leading-relaxed">
+            You are about to permanently delete the following record from the
+            database.
+          </p>
+          <div class="mt-4 p-4 bg-white rounded-lg border border-red-100 shadow-inner">
+            <div class="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1"
+                 id="modal-target-type">Target</div>
+            <div class="text-lg font-black text-gray-900 leading-tight"
+                 id="modal-target-name">...</div>
+            <div class="text-[10px] font-mono text-gray-500 mt-1 truncate"
+                 id="modal-target-id">...</div>
+          </div>
+          <!-- Dynamic Warning Container (Injected via JS) -->
+          <div id="dynamic-delete-warnings" class="mt-5 space-y-3 empty:hidden"></div>
+          <p class="text-sm text-red-600 font-bold mt-6 text-center tracking-tight">
+            This action CANNOT be undone. Are you sure?
+          </p>
         </div>
-        <div
-          class="text-[10px] font-mono text-gray-500 mt-1 truncate"
-          id="modal-target-id"
-        >
-          ...
+        <div class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0">
+          <button data-action="close-modal"
+                  class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition order-2 sm:order-1">
+            Cancel
+          </button>
+          <button id="execute-delete-btn"
+                  class="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-black shadow-sm hover:bg-red-700 transition flex items-center justify-center order-1 sm:order-2">
+            <i class="fas fa-skull-crossbones mr-2"></i> Yes, Terminate It
+          </button>
         </div>
       </div>
-
-      <!-- Dynamic Warning Container (Injected via JS) -->
-      <div
-        id="dynamic-delete-warnings"
-        class="mt-5 space-y-3 empty:hidden"
-      ></div>
-
-      <p class="text-sm text-red-600 font-bold mt-6 text-center tracking-tight">
-        This action CANNOT be undone. Are you sure?
-      </p>
     </div>
-    <div
-      class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3 shrink-0"
-    >
-      <button
-        data-action="close-modal"
-        class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition order-2 sm:order-1"
-      >
-        Cancel
-      </button>
-      <button
-        id="execute-delete-btn"
-        class="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-black shadow-sm hover:bg-red-700 transition flex items-center justify-center order-1 sm:order-2"
-      >
-        <i class="fas fa-skull-crossbones mr-2"></i> Yes, Terminate It
-      </button>
-    </div>
-  </div>
-</div>
-
-{% endblock %} {% block extra_scripts %}
-<script src="/static/js/delete.js"></script>
-{% endblock %}
+  {% endblock %}
+  {% block extra_scripts %}<script src="/static/js/delete.js"></script>{% endblock %}

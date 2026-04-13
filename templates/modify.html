@@ -1,1195 +1,780 @@
-{% extends "base.html" %} {% block title %}Modify Database - CG1618 Tracker{%
-endblock %} {% block extra_style %} /* 1. Import external CSS safely */ @import
-url('/static/css/modify.css?v=3.0'); /* 2. CRITICAL STACKING CONTEXT FIX */ /*
-Elevates active search and dropdowns above other elements */ .combo-wrapper,
-.ms-wrapper, #standard-search-container { position: relative; z-index: 10; }
-.combo-wrapper:focus-within, .ms-wrapper:focus-within,
-#standard-search-container:focus-within { z-index: 60 !important; } {% endblock
-%} {% block content %}
-<div
-  class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]"
->
-  <!-- Header & Tabs -->
-  <div class="mb-6 border-b border-gray-200 shrink-0">
-    <h1
-      class="text-2xl font-black text-gray-900 tracking-tight flex items-center mb-4"
-    >
-      <i class="fas fa-edit text-brand mr-3"></i> Modify Database
-    </h1>
-    <nav class="-mb-px flex space-x-8 hide-scrollbar overflow-x-auto">
-      <button
-        id="tab-anime"
-        class="tab-active whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
-        onclick="switchTab('anime')"
-      >
-        <i class="fas fa-tv mr-2"></i>Modify Anime Entry
-      </button>
-      <button
-        id="tab-franchise"
-        class="tab-inactive whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
-        onclick="switchTab('franchise')"
-      >
-        <i class="fas fa-sitemap mr-2"></i>Modify Franchise
-      </button>
-      <button
-        id="tab-series"
-        class="tab-inactive whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
-        onclick="switchTab('series')"
-      >
-        <i class="fas fa-layer-group mr-2"></i>Modify Series
-      </button>
-      <button
-        id="tab-options"
-        class="tab-inactive whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
-        onclick="switchTab('options')"
-      >
-        <i class="fas fa-sliders-h mr-2"></i>Modify System Option
-      </button>
-    </nav>
-  </div>
-
-  <!-- Main Workspace -->
-  <div
-    class="flex-1 relative min-h-0 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col"
-  >
-    <div
-      id="workspace-loading"
-      class="absolute inset-0 bg-white/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center"
-    >
-      <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-      <p class="text-gray-600 font-bold">Loading Database...</p>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- STATE 1: DISCOVERY VIEW (Search & Recent)                -->
-    <!-- ======================================================== -->
-    <div
-      id="discovery-view"
-      class="flex-1 overflow-y-auto p-8 flex flex-col items-center"
-    >
-      <div class="text-center mb-8 w-full max-w-2xl">
-        <div
-          class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand/10 text-brand mb-4"
-        >
-          <i id="discovery-icon" class="fas fa-search text-2xl"></i>
+{% extends "base.html" %}
+{% block title %}
+  Modify Database - CG1618 Tracker{%
+  endblock %}
+  {% block extra_style %}
+    /* 1. Import external CSS safely */ @import
+    url('/static/css/modify.css?v=3.0'); /* 2. CRITICAL STACKING CONTEXT FIX */ /*
+    Elevates active search and dropdowns above other elements */ .combo-wrapper,
+    .ms-wrapper, #standard-search-container { position: relative; z-index: 10; }
+    .combo-wrapper:focus-within, .ms-wrapper:focus-within,
+    #standard-search-container:focus-within { z-index: 60 !important; }
+  {% endblock
+  %}
+  {% block content %}
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]">
+      <!-- Header & Tabs -->
+      <div class="mb-6 border-b border-gray-200 shrink-0">
+        <h1 class="text-2xl font-black text-gray-900 tracking-tight flex items-center mb-4">
+          <i class="fas fa-edit text-brand mr-3"></i> Modify Database
+        </h1>
+        <nav class="-mb-px flex space-x-8 hide-scrollbar overflow-x-auto">
+          <button id="tab-anime"
+                  class="tab-active whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
+                  onclick="switchTab('anime')">
+            <i class="fas fa-tv mr-2"></i>Modify Anime Entry
+          </button>
+          <button id="tab-franchise"
+                  class="tab-inactive whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
+                  onclick="switchTab('franchise')">
+            <i class="fas fa-sitemap mr-2"></i>Modify Franchise
+          </button>
+          <button id="tab-series"
+                  class="tab-inactive whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
+                  onclick="switchTab('series')">
+            <i class="fas fa-layer-group mr-2"></i>Modify Series
+          </button>
+          <button id="tab-options"
+                  class="tab-inactive whitespace-nowrap pb-3 px-1 font-bold text-sm transition"
+                  onclick="switchTab('options')">
+            <i class="fas fa-sliders-h mr-2"></i>Modify System Option
+          </button>
+        </nav>
+      </div>
+      <!-- Main Workspace -->
+      <div class="flex-1 relative min-h-0 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div id="workspace-loading"
+             class="absolute inset-0 bg-white/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
+          <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+          <p class="text-gray-600 font-bold">Loading Database...</p>
         </div>
-        <h2 id="discovery-title" class="text-2xl font-black text-gray-800 mb-2">
-          Find an Entry to Modify
-        </h2>
-        <p id="discovery-subtitle" class="text-gray-500 text-sm">
-          Search the database or select a recently modified entry below.
-        </p>
-      </div>
-
-      <!-- Standard Search Bar (Anime, Franchise, Series) -->
-      <div
-        id="standard-search-container"
-        class="relative w-full max-w-2xl mb-12"
-      >
-        <i
-          class="fas fa-search absolute left-4 top-3.5 text-gray-400 text-lg"
-        ></i>
-        <input
-          type="text"
-          id="global-search-input"
-          placeholder="Type a title to search..."
-          class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition-all shadow-sm"
-          autocomplete="off"
-        />
-
-        <!-- Floating Suggestions Dropdown -->
-        <div id="global-search-dropdown" class="hide-scrollbar"></div>
-      </div>
-
-      <!-- Options Category Filter (Only visible on Options Tab) -->
-      <div id="options-search-container" class="hidden w-full max-w-md mb-8">
-        <label class="block text-sm font-bold text-gray-700 mb-2 text-center"
-          >Select Category</label
-        >
-        <select
-          id="options-category-filter"
-          class="w-full border-gray-300 bg-gray-50 rounded-xl text-base focus:ring-2 focus:ring-brand focus:border-brand py-3 shadow-sm text-center font-bold"
-        ></select>
-      </div>
-
-      <!-- Recently Added / Options List Grid -->
-      <div class="w-full max-w-5xl">
-        <div id="recent-header" class="flex items-center mb-4">
-          <h3 class="text-sm font-black text-gray-500 uppercase tracking-wider">
-            Recently Modified Entries
-          </h3>
-          <div class="flex-1 border-t border-gray-100 ml-4"></div>
-        </div>
-        <div
-          id="discovery-grid"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          <!-- Populated via JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- STATE 2: FOCUSED EDITOR VIEW                             -->
-    <!-- ======================================================== -->
-    <div
-      id="editor-view"
-      class="hidden flex-1 flex flex-col relative overflow-hidden bg-gray-50/30"
-    >
-      <!-- Editor Header -->
-      <div
-        class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0"
-      >
-        <button
-          onclick="closeEditor()"
-          class="text-gray-500 hover:text-brand font-bold text-sm flex items-center transition px-3 py-1.5 -ml-3 rounded-lg hover:bg-brand/5"
-        >
-          <i class="fas fa-arrow-left mr-2"></i> Back to Search
-        </button>
-        <div class="text-right">
-          <span
-            class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5"
-            >System ID</span
-          >
-          <span
-            id="editor-sys-id"
-            class="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded"
-          ></span>
-        </div>
-      </div>
-
-      <!-- Anime Ribbon (Other entries in same Franchise) -->
-      <div
-        id="anime-ribbon"
-        class="hidden bg-white border-b border-gray-200 px-6 py-3 shrink-0 items-center overflow-x-auto hide-scrollbar"
-      >
-        <span
-          class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-4 shrink-0"
-          ><i class="fas fa-sitemap mr-1"></i> Franchise Hub:</span
-        >
-        <div id="anime-ribbon-links" class="flex gap-2">
-          <!-- JS Populated -->
-        </div>
-      </div>
-
-      <!-- Scrollable Form Area -->
-      <div class="flex-1 overflow-y-auto p-6 lg:p-8 relative">
-        <div
-          class="max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm"
-        >
-          <div class="mb-8 border-b border-gray-100 pb-6">
-            <h2
-              id="editor-main-title"
-              class="text-2xl font-black text-gray-900"
-            >
-              Modify Entry
-            </h2>
-            <p id="editor-subtitle" class="text-sm font-medium text-brand mt-1">
-              Subtitle
+        <!-- ======================================================== -->
+        <!-- STATE 1: DISCOVERY VIEW (Search & Recent)                -->
+        <!-- ======================================================== -->
+        <div id="discovery-view"
+             class="flex-1 overflow-y-auto p-8 flex flex-col items-center">
+          <div class="text-center mb-8 w-full max-w-2xl">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand/10 text-brand mb-4">
+              <i id="discovery-icon" class="fas fa-search text-2xl"></i>
+            </div>
+            <h2 id="discovery-title" class="text-2xl font-black text-gray-800 mb-2">Find an Entry to Modify</h2>
+            <p id="discovery-subtitle" class="text-gray-500 text-sm">
+              Search the database or select a recently modified entry below.
             </p>
           </div>
-
-          <!-- ==================== ANIME EDITOR ==================== -->
-          <form id="form-anime" class="hidden">
-            <div class="form-section-title">Titles & Naming</div>
-            <div class="grid grid-cols-2 gap-5">
-              <div class="col-span-2 sm:col-span-1">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name</label
-                >
-                <div
-                  id="combo-anime-franchise"
-                  class="combo-wrapper"
-                  data-field="franchise_id"
-                ></div>
-              </div>
-              <div class="col-span-2 sm:col-span-1">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Series Name</label
-                >
-                <div
-                  id="combo-anime-series"
-                  class="combo-wrapper"
-                  data-field="series_id"
-                ></div>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-brand mb-1"
-                  >Anime Name EN *</label
-                >
-                <input
-                  type="text"
-                  data-field="anime_name_en"
-                  required
-                  class="w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30"
-                />
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Anime Name CN</label
-                >
-                <input
-                  type="text"
-                  data-field="anime_name_cn"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Anime Name Romanji</label
-                >
-                <input
-                  type="text"
-                  data-field="anime_name_romanji"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Anime Name JP</label
-                >
-                <input
-                  type="text"
-                  data-field="anime_name_jp"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Anime Name Alt</label
-                >
-                <input
-                  type="text"
-                  data-field="anime_name_alt"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Season</label
-                >
-                <select
-                  id="sel-season"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="Season 1">Season 1</option>
-                  <option value="Season 2">Season 2</option>
-                  <option value="Season 3">Season 3</option>
-                  <option value="Season 4">Season 4</option>
-                  <option value="Season 5">Season 5</option>
-                  <option value="Season 6">Season 6</option>
-                  <option value="Season 7">Season 7</option>
-                  <option value="Season 8">Season 8</option>
-                  <option value="Season 9">Season 9</option>
-                  <option value="Season 10">Season 10</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Part</label
-                >
-                <select
-                  id="sel-part"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="Part 1">Part 1</option>
-                  <option value="Part 2">Part 2</option>
-                  <option value="Part 3">Part 3</option>
-                  <option value="Part 4">Part 4</option>
-                  <option value="Part 5">Part 5</option>
-                  <option value="Part 6">Part 6</option>
-                  <option value="Part 7">Part 7</option>
-                </select>
-              </div>
+          <!-- Standard Search Bar (Anime, Franchise, Series) -->
+          <div id="standard-search-container"
+               class="relative w-full max-w-2xl mb-12">
+            <i class="fas fa-search absolute left-4 top-3.5 text-gray-400 text-lg"></i>
+            <input type="text"
+                   id="global-search-input"
+                   placeholder="Type a title to search..."
+                   class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-brand focus:border-brand focus:bg-white transition-all shadow-sm"
+                   autocomplete="off" />
+            <!-- Floating Suggestions Dropdown -->
+            <div id="global-search-dropdown" class="hide-scrollbar"></div>
+          </div>
+          <!-- Options Category Filter (Only visible on Options Tab) -->
+          <div id="options-search-container" class="hidden w-full max-w-md mb-8">
+            <label class="block text-sm font-bold text-gray-700 mb-2 text-center">Select Category</label>
+            <select id="options-category-filter"
+                    class="w-full border-gray-300 bg-gray-50 rounded-xl text-base focus:ring-2 focus:ring-brand focus:border-brand py-3 shadow-sm text-center font-bold">
+            </select>
+          </div>
+          <!-- Recently Added / Options List Grid -->
+          <div class="w-full max-w-5xl">
+            <div id="recent-header" class="flex items-center mb-4">
+              <h3 class="text-sm font-black text-gray-500 uppercase tracking-wider">Recently Modified Entries</h3>
+              <div class="flex-1 border-t border-gray-100 ml-4"></div>
             </div>
-
-            <div class="form-section-title">Status & Progress</div>
-            <div class="grid grid-cols-3 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Airing Status</label
-                >
-                <select
-                  data-field="airing_status"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value="Not Yet Aired">Not Yet Aired</option>
-                  <option value="Airing">Airing</option>
-                  <option value="Finished Airing">Finished Airing</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Watching Status</label
-                >
-                <select
-                  data-field="watching_status"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value="Might Watch">Might Watch</option>
-                  <option value="Plan to Watch">Plan to Watch</option>
-                  <option value="Watch When Airs">Watch When Airs</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Active Watching">Active Watching</option>
-                  <option value="Passive Watching">Passive Watching</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Temp Dropped">Temp Dropped</option>
-                  <option value="Dropped">Dropped</option>
-                  <option value="Won't Watch">Won't Watch</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-yellow-600 mb-1"
-                  >My Rating</label
-                >
-                <select
-                  data-field="my_rating"
-                  class="w-full border-yellow-300 rounded-md shadow-sm text-sm focus:ring-yellow-500 font-bold text-yellow-800"
-                >
-                  <option value=""></option>
-                  <option value="S">S</option>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                  <option value="E">E</option>
-                  <option value="F">F</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1"
-                  >Eps of Previous Entries</label
-                >
-                <input
-                  type="number"
-                  data-field="ep_previous"
-                  class="w-full border-gray-300 bg-gray-50 rounded-md shadow-sm text-sm focus:ring-brand font-mono"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Total Episode</label
-                >
-                <input
-                  type="number"
-                  data-field="ep_total"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-emerald-600 mb-1"
-                  >Episode Finished</label
-                >
-                <input
-                  type="number"
-                  data-field="ep_fin"
-                  class="w-full border-emerald-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 font-mono"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-blue-600 mb-1"
-                  >MAL Rating</label
-                >
-                <input
-                  type="number"
-                  step="0.01"
-                  data-field="mal_rating"
-                  class="w-full border-blue-200 rounded-md shadow-sm text-sm focus:ring-blue-500 font-mono"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-blue-600 mb-1"
-                  >MAL Rank</label
-                >
-                <input
-                  type="text"
-                  data-field="mal_rank"
-                  class="w-full border-blue-200 rounded-md shadow-sm text-sm focus:ring-blue-500 font-mono"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-indigo-500 mb-1"
-                  >AniList Rating</label
-                >
-                <input
-                  type="text"
-                  data-field="anilist_rating"
-                  class="w-full border-indigo-200 rounded-md shadow-sm text-sm focus:ring-indigo-500 font-mono"
-                />
-              </div>
+            <div id="discovery-grid"
+                 class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <!-- Populated via JS -->
             </div>
-
-            <div class="form-section-title">Classification</div>
-            <div class="grid grid-cols-2 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Airing Type</label
-                >
-                <select
-                  data-field="airing_type"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="TV">TV</option>
-                  <option value="Movie">Movie</option>
-                  <option value="ONA">ONA</option>
-                  <option value="OVA">OVA</option>
-                  <option value="OAD">OAD</option>
-                  <option value="Special">Special</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Main / Spinoff</label
-                >
-                <select
-                  data-field="is_main"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="本傳">本傳</option>
-                  <option value="外傳">外傳</option>
-                  <option value="前傳">前傳</option>
-                  <option value="後傳">後傳</option>
-                  <option value="總集篇">總集篇</option>
-                </select>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Genre Main</label
-                >
-                <div
-                  id="ms-genre_main"
-                  class="ms-wrapper"
-                  data-field="genre_main"
-                  data-options="Genre Main"
-                ></div>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Genre Sub</label
-                >
-                <div
-                  id="ms-genre_sub"
-                  class="ms-wrapper"
-                  data-field="genre_sub"
-                  data-options="Genre Sub"
-                ></div>
-              </div>
+          </div>
+        </div>
+        <!-- ======================================================== -->
+        <!-- STATE 2: FOCUSED EDITOR VIEW                             -->
+        <!-- ======================================================== -->
+        <div id="editor-view"
+             class="hidden flex-1 flex flex-col relative overflow-hidden bg-gray-50/30">
+          <!-- Editor Header -->
+          <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+            <button onclick="closeEditor()"
+                    class="text-gray-500 hover:text-brand font-bold text-sm flex items-center transition px-3 py-1.5 -ml-3 rounded-lg hover:bg-brand/5">
+              <i class="fas fa-arrow-left mr-2"></i> Back to Search
+            </button>
+            <div class="text-right">
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">System ID</span>
+              <span id="editor-sys-id"
+                    class="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded"></span>
             </div>
-
-            <div class="form-section-title">Production</div>
-            <div class="grid grid-cols-3 gap-5 mb-5">
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Release Season</label
-                >
-                <select
-                  data-field="release_season"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="WIN">WIN</option>
-                  <option value="SPR">SPR</option>
-                  <option value="SUM">SUM</option>
-                  <option value="FAL">FAL</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Release Month</label
-                >
-                <select
-                  data-field="release_month"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="JAN">JAN</option>
-                  <option value="FEB">FEB</option>
-                  <option value="MAR">MAR</option>
-                  <option value="APR">APR</option>
-                  <option value="MAY">MAY</option>
-                  <option value="JUN">JUN</option>
-                  <option value="JUL">JUL</option>
-                  <option value="AUG">AUG</option>
-                  <option value="SEP">SEP</option>
-                  <option value="OCT">OCT</option>
-                  <option value="NOV">NOV</option>
-                  <option value="DEC">DEC</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Release Year</label
-                >
-                <input
-                  type="text"
-                  data-field="release_year"
-                  placeholder="YYYY"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono"
-                />
-              </div>
+          </div>
+          <!-- Anime Ribbon (Other entries in same Franchise) -->
+          <div id="anime-ribbon"
+               class="hidden bg-white border-b border-gray-200 px-6 py-3 shrink-0 items-center overflow-x-auto hide-scrollbar">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-4 shrink-0"><i class="fas fa-sitemap mr-1"></i> Franchise Hub:</span>
+            <div id="anime-ribbon-links" class="flex gap-2">
+              <!-- JS Populated -->
             </div>
-            <div class="grid grid-cols-2 gap-5">
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Studio</label
-                >
-                <div
-                  id="ms-studio"
-                  class="ms-wrapper"
-                  data-field="studio"
-                  data-options="Studio"
-                ></div>
+          </div>
+          <!-- Scrollable Form Area -->
+          <div class="flex-1 overflow-y-auto p-6 lg:p-8 relative">
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
+              <div class="mb-8 border-b border-gray-100 pb-6">
+                <h2 id="editor-main-title" class="text-2xl font-black text-gray-900">Modify Entry</h2>
+                <p id="editor-subtitle" class="text-sm font-medium text-brand mt-1">Subtitle</p>
               </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Distributor TW</label
-                >
-                <div
-                  id="ms-distributor"
-                  class="ms-wrapper"
-                  data-field="distributor_tw"
-                  data-options="Distributor TW"
-                ></div>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Director</label
-                >
-                <div
-                  id="ms-director"
-                  class="ms-wrapper"
-                  data-field="director"
-                  data-options="Director"
-                ></div>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Producer</label
-                >
-                <div
-                  id="ms-producer"
-                  class="ms-wrapper"
-                  data-field="producer"
-                  data-options="Producer"
-                ></div>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Music / Composer</label
-                >
-                <div
-                  id="ms-music"
-                  class="ms-wrapper"
-                  data-field="music"
-                  data-options="Music / Composer"
-                ></div>
-              </div>
-            </div>
-
-            <div class="form-section-title">Relational & Timeline</div>
-            <div class="grid grid-cols-3 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Prequel ID</label
-                >
-                <input
-                  type="text"
-                  data-field="prequel_id"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Sequel ID</label
-                >
-                <input
-                  type="text"
-                  data-field="sequel_id"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Alternative ID</label
-                >
-                <input
-                  type="text"
-                  data-field="alternative"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500"
-                />
-              </div>
-              <div class="col-span-3">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Watch Order</label
-                >
-                <input
-                  type="number"
-                  step="any"
-                  data-field="watch_order"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-            </div>
-
-            <div class="form-section-title">Source & Links</div>
-            <div class="grid grid-cols-2 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >MAL ID</label
-                >
-                <input
-                  type="number"
-                  data-field="mal_id"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >MAL Link</label
-                >
-                <input
-                  type="url"
-                  data-field="mal_link"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >AniList Link</label
-                >
-                <input
-                  type="url"
-                  data-field="anilist_link"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Official Website Link</label
-                >
-                <input
-                  type="url"
-                  data-field="official_link"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Twitter Link</label
-                >
-                <input
-                  type="url"
-                  data-field="twitter_link"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-            </div>
-
-            <div
-              class="grid grid-cols-2 gap-5 mt-5 p-5 bg-gray-50 border border-gray-200 rounded-lg"
-            >
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1"
-                  >巴哈姆特動畫瘋</label
-                >
-                <select
-                  data-field="source_baha"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand boolean-select"
-                >
-                  <option value="">-</option>
-                  <option value="true">有</option>
-                  <option value="false">無</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1"
-                  >巴哈 Link</label
-                >
-                <input
-                  type="url"
-                  data-field="baha_link"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-[#E50914] uppercase tracking-wider mb-1"
-                  >Netflix Source</label
-                >
-                <select
-                  data-field="source_netflix"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand boolean-select"
-                >
-                  <option value="">-</option>
-                  <option value="true">有</option>
-                  <option value="false">無</option>
-                </select>
-              </div>
-              <div
-                class="col-span-2 grid grid-cols-2 gap-5 pt-3 border-t border-gray-200"
-              >
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >Other Source Name</label
-                  >
-                  <input
-                    type="text"
-                    data-field="source_other"
-                    class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                  />
+              <!-- ==================== ANIME EDITOR ==================== -->
+              <form id="form-anime" class="hidden">
+                <div class="form-section-title">Titles & Naming</div>
+                <div class="grid grid-cols-2 gap-5">
+                  <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name</label>
+                    <div id="combo-anime-franchise"
+                         class="combo-wrapper"
+                         data-field="franchise_id"></div>
+                  </div>
+                  <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Series Name</label>
+                    <div id="combo-anime-series" class="combo-wrapper" data-field="series_id"></div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-brand mb-1">Anime Name EN *</label>
+                    <input type="text"
+                           data-field="anime_name_en"
+                           required
+                           class="w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Anime Name CN</label>
+                    <input type="text"
+                           data-field="anime_name_cn"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Anime Name Romanji</label>
+                    <input type="text"
+                           data-field="anime_name_romanji"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Anime Name JP</label>
+                    <input type="text"
+                           data-field="anime_name_jp"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Anime Name Alt</label>
+                    <input type="text"
+                           data-field="anime_name_alt"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Season</label>
+                    <select id="sel-season"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="Season 1">Season 1</option>
+                      <option value="Season 2">Season 2</option>
+                      <option value="Season 3">Season 3</option>
+                      <option value="Season 4">Season 4</option>
+                      <option value="Season 5">Season 5</option>
+                      <option value="Season 6">Season 6</option>
+                      <option value="Season 7">Season 7</option>
+                      <option value="Season 8">Season 8</option>
+                      <option value="Season 9">Season 9</option>
+                      <option value="Season 10">Season 10</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Part</label>
+                    <select id="sel-part"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="Part 1">Part 1</option>
+                      <option value="Part 2">Part 2</option>
+                      <option value="Part 3">Part 3</option>
+                      <option value="Part 4">Part 4</option>
+                      <option value="Part 5">Part 5</option>
+                      <option value="Part 6">Part 6</option>
+                      <option value="Part 7">Part 7</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-section-title">Status & Progress</div>
+                <div class="grid grid-cols-3 gap-5">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Airing Status</label>
+                    <select data-field="airing_status"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value="Not Yet Aired">Not Yet Aired</option>
+                      <option value="Airing">Airing</option>
+                      <option value="Finished Airing">Finished Airing</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Watching Status</label>
+                    <select data-field="watching_status"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value="Might Watch">Might Watch</option>
+                      <option value="Plan to Watch">Plan to Watch</option>
+                      <option value="Watch When Airs">Watch When Airs</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Active Watching">Active Watching</option>
+                      <option value="Passive Watching">Passive Watching</option>
+                      <option value="Paused">Paused</option>
+                      <option value="Temp Dropped">Temp Dropped</option>
+                      <option value="Dropped">Dropped</option>
+                      <option value="Won't Watch">Won't Watch</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-yellow-600 mb-1">My Rating</label>
+                    <select data-field="my_rating"
+                            class="w-full border-yellow-300 rounded-md shadow-sm text-sm focus:ring-yellow-500 font-bold text-yellow-800">
+                      <option value=""></option>
+                      <option value="S">S</option>
+                      <option value="A+">A+</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                      <option value="E">E</option>
+                      <option value="F">F</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Eps of Previous Entries</label>
+                    <input type="number"
+                           data-field="ep_previous"
+                           class="w-full border-gray-300 bg-gray-50 rounded-md shadow-sm text-sm focus:ring-brand font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Total Episode</label>
+                    <input type="number"
+                           data-field="ep_total"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-emerald-600 mb-1">Episode Finished</label>
+                    <input type="number"
+                           data-field="ep_fin"
+                           class="w-full border-emerald-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-blue-600 mb-1">MAL Rating</label>
+                    <input type="number"
+                           step="0.01"
+                           data-field="mal_rating"
+                           class="w-full border-blue-200 rounded-md shadow-sm text-sm focus:ring-blue-500 font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-blue-600 mb-1">MAL Rank</label>
+                    <input type="text"
+                           data-field="mal_rank"
+                           class="w-full border-blue-200 rounded-md shadow-sm text-sm focus:ring-blue-500 font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-indigo-500 mb-1">AniList Rating</label>
+                    <input type="text"
+                           data-field="anilist_rating"
+                           class="w-full border-indigo-200 rounded-md shadow-sm text-sm focus:ring-indigo-500 font-mono" />
+                  </div>
+                </div>
+                <div class="form-section-title">Classification</div>
+                <div class="grid grid-cols-2 gap-5">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Airing Type</label>
+                    <select data-field="airing_type"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="TV">TV</option>
+                      <option value="Movie">Movie</option>
+                      <option value="ONA">ONA</option>
+                      <option value="OVA">OVA</option>
+                      <option value="OAD">OAD</option>
+                      <option value="Special">Special</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Main / Spinoff</label>
+                    <select data-field="is_main"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="本傳">本傳</option>
+                      <option value="外傳">外傳</option>
+                      <option value="前傳">前傳</option>
+                      <option value="後傳">後傳</option>
+                      <option value="總集篇">總集篇</option>
+                    </select>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Genre Main</label>
+                    <div id="ms-genre_main"
+                         class="ms-wrapper"
+                         data-field="genre_main"
+                         data-options="Genre Main"></div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Genre Sub</label>
+                    <div id="ms-genre_sub"
+                         class="ms-wrapper"
+                         data-field="genre_sub"
+                         data-options="Genre Sub"></div>
+                  </div>
+                </div>
+                <div class="form-section-title">Production</div>
+                <div class="grid grid-cols-3 gap-5 mb-5">
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Release Season</label>
+                    <select data-field="release_season"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="WIN">WIN</option>
+                      <option value="SPR">SPR</option>
+                      <option value="SUM">SUM</option>
+                      <option value="FAL">FAL</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Release Month</label>
+                    <select data-field="release_month"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="JAN">JAN</option>
+                      <option value="FEB">FEB</option>
+                      <option value="MAR">MAR</option>
+                      <option value="APR">APR</option>
+                      <option value="MAY">MAY</option>
+                      <option value="JUN">JUN</option>
+                      <option value="JUL">JUL</option>
+                      <option value="AUG">AUG</option>
+                      <option value="SEP">SEP</option>
+                      <option value="OCT">OCT</option>
+                      <option value="NOV">NOV</option>
+                      <option value="DEC">DEC</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Release Year</label>
+                    <input type="text"
+                           data-field="release_year"
+                           placeholder="YYYY"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono" />
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-5">
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Studio</label>
+                    <div id="ms-studio"
+                         class="ms-wrapper"
+                         data-field="studio"
+                         data-options="Studio"></div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Distributor TW</label>
+                    <div id="ms-distributor"
+                         class="ms-wrapper"
+                         data-field="distributor_tw"
+                         data-options="Distributor TW"></div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Director</label>
+                    <div id="ms-director"
+                         class="ms-wrapper"
+                         data-field="director"
+                         data-options="Director"></div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Producer</label>
+                    <div id="ms-producer"
+                         class="ms-wrapper"
+                         data-field="producer"
+                         data-options="Producer"></div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Music / Composer</label>
+                    <div id="ms-music"
+                         class="ms-wrapper"
+                         data-field="music"
+                         data-options="Music / Composer"></div>
+                  </div>
+                </div>
+                <div class="form-section-title">Relational & Timeline</div>
+                <div class="grid grid-cols-3 gap-5">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Prequel ID</label>
+                    <input type="text"
+                           data-field="prequel_id"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Sequel ID</label>
+                    <input type="text"
+                           data-field="sequel_id"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Alternative ID</label>
+                    <input type="text"
+                           data-field="alternative"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono text-gray-500" />
+                  </div>
+                  <div class="col-span-3">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Watch Order</label>
+                    <input type="number"
+                           step="any"
+                           data-field="watch_order"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                </div>
+                <div class="form-section-title">Source & Links</div>
+                <div class="grid grid-cols-2 gap-5">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">MAL ID</label>
+                    <input type="number"
+                           data-field="mal_id"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">MAL Link</label>
+                    <input type="url"
+                           data-field="mal_link"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">AniList Link</label>
+                    <input type="url"
+                           data-field="anilist_link"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Official Website Link</label>
+                    <input type="url"
+                           data-field="official_link"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Twitter Link</label>
+                    <input type="url"
+                           data-field="twitter_link"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-5 mt-5 p-5 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div>
+                    <label class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1">巴哈姆特動畫瘋</label>
+                    <select data-field="source_baha"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand boolean-select">
+                      <option value="">-</option>
+                      <option value="true">有</option>
+                      <option value="false">無</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-[#00B4D8] uppercase tracking-wider mb-1">巴哈 Link</label>
+                    <input type="url"
+                           data-field="baha_link"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-[#E50914] uppercase tracking-wider mb-1">Netflix Source</label>
+                    <select data-field="source_netflix"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand boolean-select">
+                      <option value="">-</option>
+                      <option value="true">有</option>
+                      <option value="false">無</option>
+                    </select>
+                  </div>
+                  <div class="col-span-2 grid grid-cols-2 gap-5 pt-3 border-t border-gray-200">
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Other Source Name</label>
+                      <input type="text"
+                             data-field="source_other"
+                             class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Other Source Link</label>
+                      <input type="url"
+                             data-field="source_other_link"
+                             class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                    </div>
+                  </div>
+                </div>
+                <div class="form-section-title">Notes & Other</div>
+                <div class="grid grid-cols-1 gap-5 pb-12">
+                  <div class="grid grid-cols-3 gap-5">
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">OP (Opening)</label>
+                      <select data-field="op"
+                              class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                        <option value=""></option>
+                        <option value="Need">Need</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Done">Done</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">ED (Ending)</label>
+                      <select data-field="ed"
+                              class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                        <option value=""></option>
+                        <option value="Need">Need</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Done">Done</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Insert / OST</label>
+                      <select data-field="insert_ost"
+                              class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                        <option value=""></option>
+                        <option value="Need">Need</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Done">Done</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-5">
+                    <div>
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Seiyuu</label>
+                      <select data-field="seiyuu"
+                              class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                        <option value=""></option>
+                        <option value="Need">Need</option>
+                        <option value="Done">Done</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Cover Image File / URL</label>
+                    <input type="text"
+                           data-field="cover_image_file"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Remark</label>
+                    <textarea data-field="remark"
+                              rows="3"
+                              class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"></textarea>
+                  </div>
+                </div>
+              </form>
+              <!-- ==================== FRANCHISE EDITOR ==================== -->
+              <form id="form-franchise" class="hidden">
+                <div class="form-section-title">Titles & Naming</div>
+                <div class="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md mb-4 flex items-start">
+                  <i class="fas fa-info-circle mt-0.5 mr-2"></i>
+                  <span>You must fill out <strong>at least one</strong> of the
+                    following Franchise Name fields (EN, CN, Romanji, JP, or Alt) to
+                  successfully create a Franchise Hub.</span>
+                </div>
+                <div class="grid grid-cols-2 gap-5">
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name EN</label>
+                    <input type="text"
+                           data-field="franchise_name_en"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name CN</label>
+                    <input type="text"
+                           data-field="franchise_name_cn"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name Romanji</label>
+                    <input type="text"
+                           data-field="franchise_name_romanji"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name JP</label>
+                    <input type="text"
+                           data-field="franchise_name_jp"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name Alt</label>
+                    <input type="text"
+                           data-field="franchise_name_alt"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                </div>
+                <div class="form-section-title">Other Information</div>
+                <div class="grid grid-cols-2 gap-5 mb-5">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Type</label>
+                    <select data-field="franchise_type"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand">
+                      <option value=""></option>
+                      <option value="ACG">ACG</option>
+                      <option value="Anime Movie">Anime Movie</option>
+                      <option value="TV or Movie">TV or Movie</option>
+                      <option value="Cartoon">Cartoon</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-yellow-600 mb-1">My Rating</label>
+                    <select data-field="my_rating"
+                            class="w-full border-yellow-300 rounded-md shadow-sm text-sm focus:ring-yellow-500 font-bold text-yellow-800">
+                      <option value=""></option>
+                      <option value="S">S</option>
+                      <option value="A+">A+</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                      <option value="E">E</option>
+                      <option value="F">F</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-purple-600 mb-1">Expectation</label>
+                    <select data-field="franchise_expectation"
+                            class="w-full border-purple-300 rounded-md shadow-sm text-sm focus:ring-purple-500">
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-pink-600 mb-1">Favorite 3x3 Slot</label>
+                    <input type="number"
+                           data-field="favorite_3x3_slot"
+                           class="w-full border-pink-300 rounded-md shadow-sm text-sm focus:ring-pink-500 font-mono" />
+                  </div>
                 </div>
                 <div>
-                  <label
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >Other Source Link</label
-                  >
-                  <input
-                    type="url"
-                    data-field="source_other_link"
-                    class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                  />
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Remark</label>
+                  <textarea data-field="remark"
+                            rows="3"
+                            class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"></textarea>
                 </div>
-              </div>
-            </div>
-
-            <div class="form-section-title">Notes & Other</div>
-            <div class="grid grid-cols-1 gap-5 pb-12">
-              <div class="grid grid-cols-3 gap-5">
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >OP (Opening)</label
-                  >
-                  <select
-                    data-field="op"
-                    class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                  >
-                    <option value=""></option>
-                    <option value="Need">Need</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Done">Done</option>
-                  </select>
+              </form>
+              <!-- ==================== SERIES EDITOR ==================== -->
+              <form id="form-series" class="hidden">
+                <div class="grid grid-cols-1 gap-5">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Franchise Name (Must exist)</label>
+                    <div id="combo-series-franchise"
+                         class="combo-wrapper"
+                         data-field="franchise_id"></div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-brand mb-1">Series Name EN *</label>
+                    <input type="text"
+                           data-field="series_name_en"
+                           required
+                           class="w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Series Name CN</label>
+                    <input type="text"
+                           data-field="series_name_cn"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Series Name Alt</label>
+                    <input type="text"
+                           data-field="series_name_alt"
+                           class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Remark</label>
+                    <textarea data-field="remark"
+                              rows="3"
+                              class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"></textarea>
+                  </div>
                 </div>
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >ED (Ending)</label
-                  >
-                  <select
-                    data-field="ed"
-                    class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                  >
-                    <option value=""></option>
-                    <option value="Need">Need</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Done">Done</option>
-                  </select>
+              </form>
+              <!-- ==================== OPTIONS EDITOR ==================== -->
+              <form id="form-options" class="hidden">
+                <div class="grid grid-cols-1 gap-6">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Category (Immutable)</label>
+                    <input type="text"
+                           data-field="category"
+                           readonly
+                           class="w-full border-gray-200 bg-gray-50 text-gray-500 rounded-md shadow-sm text-sm cursor-not-allowed" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-brand mb-1">Option Value *</label>
+                    <input type="text"
+                           data-field="option_value"
+                           required
+                           class="w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30" />
+                  </div>
                 </div>
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >Insert / OST</label
-                  >
-                  <select
-                    data-field="insert_ost"
-                    class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                  >
-                    <option value=""></option>
-                    <option value="Need">Need</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Done">Done</option>
-                  </select>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-5">
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                    >Seiyuu</label
-                  >
-                  <select
-                    data-field="seiyuu"
-                    class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                  >
-                    <option value=""></option>
-                    <option value="Need">Need</option>
-                    <option value="Done">Done</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Cover Image File / URL</label
-                >
-                <input
-                  type="text"
-                  data-field="cover_image_file"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1"
-                  >Remark</label
-                >
-                <textarea
-                  data-field="remark"
-                  rows="3"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                ></textarea>
-              </div>
+              </form>
+              <div class="h-12"></div>
+              <!-- Spacer for absolute button -->
             </div>
-          </form>
-
-          <!-- ==================== FRANCHISE EDITOR ==================== -->
-          <form id="form-franchise" class="hidden">
-            <div class="form-section-title">Titles & Naming</div>
-            <div
-              class="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md mb-4 flex items-start"
-            >
-              <i class="fas fa-info-circle mt-0.5 mr-2"></i>
-              <span
-                >You must fill out <strong>at least one</strong> of the
-                following Franchise Name fields (EN, CN, Romanji, JP, or Alt) to
-                successfully create a Franchise Hub.</span
-              >
-            </div>
-            <div class="grid grid-cols-2 gap-5">
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name EN</label
-                >
-                <input
-                  type="text"
-                  data-field="franchise_name_en"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name CN</label
-                >
-                <input
-                  type="text"
-                  data-field="franchise_name_cn"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name Romanji</label
-                >
-                <input
-                  type="text"
-                  data-field="franchise_name_romanji"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name JP</label
-                >
-                <input
-                  type="text"
-                  data-field="franchise_name_jp"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div class="col-span-2">
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name Alt</label
-                >
-                <input
-                  type="text"
-                  data-field="franchise_name_alt"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-            </div>
-
-            <div class="form-section-title">Other Information</div>
-            <div class="grid grid-cols-2 gap-5 mb-5">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Type</label
-                >
-                <select
-                  data-field="franchise_type"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                >
-                  <option value=""></option>
-                  <option value="ACG">ACG</option>
-                  <option value="Anime Movie">Anime Movie</option>
-                  <option value="TV or Movie">TV or Movie</option>
-                  <option value="Cartoon">Cartoon</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-yellow-600 mb-1"
-                  >My Rating</label
-                >
-                <select
-                  data-field="my_rating"
-                  class="w-full border-yellow-300 rounded-md shadow-sm text-sm focus:ring-yellow-500 font-bold text-yellow-800"
-                >
-                  <option value=""></option>
-                  <option value="S">S</option>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                  <option value="E">E</option>
-                  <option value="F">F</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-purple-600 mb-1"
-                  >Expectation</label
-                >
-                <select
-                  data-field="franchise_expectation"
-                  class="w-full border-purple-300 rounded-md shadow-sm text-sm focus:ring-purple-500"
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-pink-600 mb-1"
-                  >Favorite 3x3 Slot</label
-                >
-                <input
-                  type="number"
-                  data-field="favorite_3x3_slot"
-                  class="w-full border-pink-300 rounded-md shadow-sm text-sm focus:ring-pink-500 font-mono"
-                />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1"
-                >Remark</label
-              >
-              <textarea
-                data-field="remark"
-                rows="3"
-                class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-              ></textarea>
-            </div>
-          </form>
-
-          <!-- ==================== SERIES EDITOR ==================== -->
-          <form id="form-series" class="hidden">
-            <div class="grid grid-cols-1 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Franchise Name (Must exist)</label
-                >
-                <div
-                  id="combo-series-franchise"
-                  class="combo-wrapper"
-                  data-field="franchise_id"
-                ></div>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-brand mb-1"
-                  >Series Name EN *</label
-                >
-                <input
-                  type="text"
-                  data-field="series_name_en"
-                  required
-                  class="w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Series Name CN</label
-                >
-                <input
-                  type="text"
-                  data-field="series_name_cn"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Series Name Alt</label
-                >
-                <input
-                  type="text"
-                  data-field="series_name_alt"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1"
-                  >Remark</label
-                >
-                <textarea
-                  data-field="remark"
-                  rows="3"
-                  class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-brand"
-                ></textarea>
-              </div>
-            </div>
-          </form>
-
-          <!-- ==================== OPTIONS EDITOR ==================== -->
-          <form id="form-options" class="hidden">
-            <div class="grid grid-cols-1 gap-6">
-              <div>
-                <label class="block text-xs font-bold text-gray-500 mb-1"
-                  >Category (Immutable)</label
-                >
-                <input
-                  type="text"
-                  data-field="category"
-                  readonly
-                  class="w-full border-gray-200 bg-gray-50 text-gray-500 rounded-md shadow-sm text-sm cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-brand mb-1"
-                  >Option Value *</label
-                >
-                <input
-                  type="text"
-                  data-field="option_value"
-                  required
-                  class="w-full border-brand/50 rounded-md shadow-sm text-sm focus:ring-brand font-bold bg-indigo-50/30"
-                />
-              </div>
-            </div>
-          </form>
-
-          <div class="h-12"></div>
-          <!-- Spacer for absolute button -->
+          </div>
+          <!-- Editor Action Bar -->
+          <div id="editor-actions"
+               class="absolute bottom-0 w-full bg-white border-t border-gray-200 px-8 py-4 flex justify-end z-20">
+            <button type="button"
+                    id="btn-update"
+                    class="bg-brand text-white hover:bg-brand-hover font-bold text-sm px-8 py-2.5 rounded-lg shadow-sm transition flex items-center">
+              <i class="fas fa-save mr-2"></i> Save Changes
+            </button>
+          </div>
         </div>
       </div>
-
-      <!-- Editor Action Bar -->
-      <div
-        id="editor-actions"
-        class="absolute bottom-0 w-full bg-white border-t border-gray-200 px-8 py-4 flex justify-end z-20"
-      >
-        <button
-          type="button"
-          id="btn-update"
-          class="bg-brand text-white hover:bg-brand-hover font-bold text-sm px-8 py-2.5 rounded-lg shadow-sm transition flex items-center"
-        >
-          <i class="fas fa-save mr-2"></i> Save Changes
-        </button>
+    </div>
+    <!-- Creation Confirmation Modal -->
+    <div id="create-modal"
+         class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all">
+        <div class="bg-indigo-50 p-6 flex flex-col items-center border-b border-indigo-100">
+          <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-magic text-3xl text-brand"></i>
+          </div>
+          <h3 class="text-xl font-black text-gray-900 text-center">Create New Parent</h3>
+        </div>
+        <div class="p-6 text-center">
+          <p id="create-modal-text" class="text-sm text-gray-600 mb-6 font-medium"></p>
+          <div class="flex gap-3">
+            <button onclick=" document.getElementById('create-modal').classList.add('hidden') "
+                    class="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-2.5 rounded-lg hover:bg-gray-50 transition">
+              Cancel Update
+            </button>
+            <button id="btn-confirm-create"
+                    class="flex-1 bg-brand text-white font-bold py-2.5 rounded-lg hover:bg-brand-hover transition">
+              Create & Proceed
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- Creation Confirmation Modal -->
-<div
-  id="create-modal"
-  class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center"
->
-  <div
-    class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all"
-  >
-    <div
-      class="bg-indigo-50 p-6 flex flex-col items-center border-b border-indigo-100"
-    >
-      <div
-        class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4"
-      >
-        <i class="fas fa-magic text-3xl text-brand"></i>
-      </div>
-      <h3 class="text-xl font-black text-gray-900 text-center">
-        Create New Parent
-      </h3>
-    </div>
-    <div class="p-6 text-center">
-      <p
-        id="create-modal-text"
-        class="text-sm text-gray-600 mb-6 font-medium"
-      ></p>
-      <div class="flex gap-3">
-        <button
-          onclick="
-            document.getElementById('create-modal').classList.add('hidden')
-          "
-          class="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-2.5 rounded-lg hover:bg-gray-50 transition"
-        >
-          Cancel Update
-        </button>
-        <button
-          id="btn-confirm-create"
-          class="flex-1 bg-brand text-white font-bold py-2.5 rounded-lg hover:bg-brand-hover transition"
-        >
-          Create & Proceed
-        </button>
+    <!-- Duplicate Warning Modal -->
+    <div id="duplicate-modal"
+         class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all">
+        <div class="bg-amber-50 p-6 flex flex-col items-center border-b border-amber-100">
+          <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-exclamation-triangle text-3xl text-amber-500"></i>
+          </div>
+          <h3 class="text-xl font-black text-amber-900 text-center">Potential Duplicate</h3>
+        </div>
+        <div class="p-6 text-center">
+          <p id="duplicate-modal-text"
+             class="text-sm text-gray-600 mb-6 font-medium"></p>
+          <div class="flex gap-3">
+            <button onclick=" document.getElementById('duplicate-modal').classList.add('hidden') "
+                    class="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-2.5 rounded-lg hover:bg-gray-50 transition">
+              Cancel
+            </button>
+            <button id="btn-confirm-duplicate"
+                    class="flex-1 bg-amber-500 text-white font-bold py-2.5 rounded-lg hover:bg-amber-600 transition">
+              Proceed Anyway
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- Duplicate Warning Modal -->
-<div
-  id="duplicate-modal"
-  class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center"
->
-  <div
-    class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden transform transition-all"
-  >
-    <div
-      class="bg-amber-50 p-6 flex flex-col items-center border-b border-amber-100"
-    >
-      <div
-        class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4"
-      >
-        <i class="fas fa-exclamation-triangle text-3xl text-amber-500"></i>
-      </div>
-      <h3 class="text-xl font-black text-amber-900 text-center">
-        Potential Duplicate
-      </h3>
-    </div>
-    <div class="p-6 text-center">
-      <p
-        id="duplicate-modal-text"
-        class="text-sm text-gray-600 mb-6 font-medium"
-      ></p>
-      <div class="flex gap-3">
-        <button
-          onclick="
-            document.getElementById('duplicate-modal').classList.add('hidden')
-          "
-          class="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-2.5 rounded-lg hover:bg-gray-50 transition"
-        >
-          Cancel
-        </button>
-        <button
-          id="btn-confirm-duplicate"
-          class="flex-1 bg-amber-500 text-white font-bold py-2.5 rounded-lg hover:bg-amber-600 transition"
-        >
-          Proceed Anyway
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %} {% block extra_scripts %}
-<script src="/static/js/modify.js"></script>
-{% endblock %}
+  {% endblock %}
+  {% block extra_scripts %}<script src="/static/js/modify.js"></script>{% endblock %}
