@@ -23,6 +23,8 @@
     <br />
     <a href="https://github.com/cgentle1618/anime_site/tree/cloud">View Repo</a>
     ·
+    <a href="https://cg1618-tracker-516479765908.asia-east1.run.app/">View Live Site</a>
+    ·
     <a href="https://github.com/cgentle1618/anime_site/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
     <a href="https://github.com/cgentle1618/anime_site/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
