@@ -199,18 +199,10 @@
                 <!-- Status -->
                 <div class="space-y-1">
                   <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Watching Status</label>
-                  <select
-                    id="select-watching-status"
-                    data-update-field="watching_status"
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
-                    {%
-                    if
-                    not
-                    is_admin
-                    %}disabled{%
-                    endif
-                    %}
-                    >
+                  <select id="select-watching-status"
+                          data-update-field="watching_status"
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
+                          {% if not is_admin %}disabled{% endif %}>
                     <option value="Might Watch">Might Watch</option>
                     <option value="Plan to Watch">Plan to Watch</option>
                     <option value="Watch When Airs">Watch When Airs</option>
@@ -226,17 +218,10 @@
                 <!-- Rating -->
                 <div class="space-y-1">
                   <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Rating</label>
-                  <select
-                    id="select-my-rating"
-                    data-update-field="my_rating"
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
-                    {%
-                    if
-                    not
-                    is_admin
-                    %}disabled{%
-                    endif
-                    %}
+                  <select id="select-my-rating"
+                          data-update-field="my_rating"
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
+                          {% if not is_admin %}disabled{% endif %}>
                     >
                     <option value="">Unrated</option>
                     <option value="S">S</option>
@@ -316,17 +301,10 @@
                   <!-- OP -->
                   <div class="space-y-1">
                     <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">OP (Opening)</label>
-                    <select
-                      id="select-op"
-                      data-update-field="op"
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
-                      {%
-                      if
-                      not
-                      is_admin
-                      %}disabled{%
-                      endif
-                      %}
+                    <select id="select-op"
+                            data-update-field="op"
+                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
+                            {% if not is_admin %}disabled{% endif %}>
                       >
                       <option value="">-</option>
                       <option value="Pending">Pending</option>
@@ -337,17 +315,10 @@
                   <!-- ED -->
                   <div class="space-y-1">
                     <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">ED (Ending)</label>
-                    <select
-                      id="select-ed"
-                      data-update-field="ed"
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
-                      {%
-                      if
-                      not
-                      is_admin
-                      %}disabled{%
-                      endif
-                      %}
+                    <select id="select-ed"
+                            data-update-field="ed"
+                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
+                            {% if not is_admin %}disabled{% endif %}>
                       >
                       <option value="">-</option>
                       <option value="Pending">Pending</option>
@@ -358,17 +329,10 @@
                   <!-- Insert / OST -->
                   <div class="space-y-1">
                     <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Insert / OST</label>
-                    <select
-                      id="select-insert-ost"
-                      data-update-field="insert_ost"
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
-                      {%
-                      if
-                      not
-                      is_admin
-                      %}disabled{%
-                      endif
-                      %}
+                    <select id="select-insert-ost"
+                            data-update-field="insert_ost"
+                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm {% if not is_admin %}bg-gray-50 text-gray-500 cursor-not-allowed{% endif %}"
+                            {% if not is_admin %}disabled{% endif %}>
                       >
                       <option value="">-</option>
                       <option value="Pending">Pending</option>
