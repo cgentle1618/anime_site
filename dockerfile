@@ -1,7 +1,27 @@
 # ==========================================
-# STAGE 1: Builder
+# STAGE 1: CSS Builder (Node.js)
 # ==========================================
-FROM python:3.11-slim AS builder
+FROM node:20-slim AS css-builder
+WORKDIR /app
+
+# Copy package configurations
+# The asterisk handles package-lock.json if it exists
+COPY package.json package-lock.json* ./
+
+# Install Tailwind CLI and dependencies
+RUN npm install
+
+# Copy templates and static files required for Tailwind scanning and compiling
+COPY templates/ templates/
+COPY static/ static/
+
+# Run the Tailwind CLI to generate the production main.css
+RUN npm run build:css
+
+# ==========================================
+# STAGE 2: Python Wheels Builder
+# ==========================================
+FROM python:3.11-slim AS py-builder
 WORKDIR /app
 
 # Install system build dependencies
@@ -22,7 +42,7 @@ COPY requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
 # ==========================================
-# STAGE 2: Final Runtime
+# STAGE 3: Final Runtime
 # ==========================================
 FROM python:3.11-slim
 WORKDIR /app
@@ -32,9 +52,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the pre-built wheels and requirements from the builder stage
-COPY --from=builder /app/wheels /wheels
-COPY --from=builder /app/requirements.txt .
+# Copy the pre-built wheels and requirements from the py-builder stage
+COPY --from=py-builder /app/wheels /wheels
+COPY --from=py-builder /app/requirements.txt .
 
 # Safely install strictly from the local wheels folder without reaching out to PyPI again
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
@@ -42,9 +62,12 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 # Copy application code
 COPY . .
 
-# 1. Make the script executable
+# Copy the compiled CSS from the css-builder stage
+COPY --from=css-builder /app/static/css/main.css ./static/css/main.css
+
+# Make the script executable
 RUN chmod +x /app/entrypoint.sh
 
-# 2. Use ENTRYPOINT instead of CMD
+# Use ENTRYPOINT instead of CMD
 # This ensures entrypoint.sh runs first, and uvicorn runs after
 ENTRYPOINT ["/app/entrypoint.sh"]
