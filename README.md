@@ -626,7 +626,7 @@ This ensures every production deployment is traceable to a specific commit, repr
 - [x] GitHub Actions CI/CD pipeline (auto-deploy on push to `main`)
 - [ ] Intermediate Anime Tracker & Database Implementation
 - [ ] Add Anime Movies entries to Tracker & Database
-- [ ] Add Movies entries to Tracker & Database
+- [ ] Add Movie entries to Tracker & Database
 - [ ] Add TV Show entries to Tracker & Database
 - [ ] Add Cartoon entries to Tracker & Database
 - [ ] Add Manga entries to Tracker & Database
