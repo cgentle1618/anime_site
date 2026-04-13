@@ -1,121 +1,122 @@
 {% extends "base.html" %}
 {% block title %}
-  ACG Franchise Hub - CG1618 Tracker{%
-  endblock %}
-  {% block extra_style %}{% endblock %}
-  {% block content %}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <!-- Loading State -->
-      <div id="loading" class="flex flex-col items-center justify-center h-64">
-        <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p class="text-gray-500 font-medium mt-4">Loading ACG Franchise Hub...</p>
-      </div>
-      <div id="franchise-content" class="hidden">
-        <!-- Breadcrumbs -->
-        <nav class="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
-          <ol class="inline-flex items-center space-x-2">
-            <li>
-              <a href="/library/anime" class="hover:text-brand transition"><i class="fas fa-sitemap mr-1.5"></i>ACG Franchise Hub</a>
-            </li>
-            <li>
-              <i class="fas fa-chevron-right text-[10px]"></i>
-            </li>
-            <li class="font-medium text-gray-900 truncate max-w-xs"
-                id="breadcrumb-title">...</li>
-          </ol>
-        </nav>
-        <!-- Admin Toolbar -->
-        {% if is_admin %}
-          <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-6 shadow-sm">
-            <div class="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-              <i class="fas fa-shield-alt mr-2"></i> Admin Tools
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <button id="btn-quick-edit"
-                      class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center">
-                <i class="fas fa-pencil-alt mr-2 text-brand"></i> Edit Franchise Data
-              </button>
-            </div>
+  ACG Franchise Hub - CG1618 Tracker
+{% endblock title %}
+{% block extra_style %}
+{% endblock extra_style %}
+{% block content %}
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <!-- Loading State -->
+    <div id="loading" class="flex flex-col items-center justify-center h-64">
+      <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+      <p class="text-gray-500 font-medium mt-4">Loading ACG Franchise Hub...</p>
+    </div>
+    <div id="franchise-content" class="hidden">
+      <!-- Breadcrumbs -->
+      <nav class="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-2">
+          <li>
+            <a href="/library/anime" class="hover:text-brand transition"><i class="fas fa-sitemap mr-1.5"></i>ACG Franchise Hub</a>
+          </li>
+          <li>
+            <i class="fas fa-chevron-right text-[10px]"></i>
+          </li>
+          <li class="font-medium text-gray-900 truncate max-w-xs"
+              id="breadcrumb-title">...</li>
+        </ol>
+      </nav>
+      <!-- Admin Toolbar -->
+      {% if is_admin %}
+        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-6 shadow-sm">
+          <div class="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
+            <i class="fas fa-shield-alt mr-2"></i> Admin Tools
           </div>
-        {% endif %}
-        <!-- Hero Section -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8 mb-8 relative overflow-hidden">
-          <div class="absolute top-0 left-0 w-1.5 h-full bg-brand"></div>
-          <div class="flex flex-col lg:flex-row gap-8 items-start justify-between">
-            <div class="flex-1 min-w-0 pt-2">
-              <div class="flex items-center flex-wrap gap-2 mb-3" id="hero-badges">
-                <!-- Badges injected via JS (Rating, Expectation, 3x3) -->
-              </div>
-              <h1 id="title-main"
-                  class="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-1 truncate"
-                  title="">...</h1>
-              <h2 id="title-sub"
-                  class="text-lg text-gray-500 font-medium mb-1 truncate"
-                  title="">...</h2>
-              <h3 id="title-alt" class="text-sm text-gray-400 truncate" title="">...</h3>
-            </div>
-            <!-- Franchise Stats & Edits Sidebar -->
-            <div class="w-full lg:w-72 shrink-0 bg-gray-50 p-5 rounded-xl border border-gray-200 space-y-5 shadow-inner">
-              <!-- Completion Percentage (Visible to everyone) -->
-              <div>
-                <div class="flex justify-between items-end mb-1.5">
-                  <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Completion</span>
-                  <span class="text-sm font-black text-brand" id="text-completion">0%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                  <div id="bar-completion"
-                       class="bg-brand h-1.5 rounded-full transition-all duration-500"
-                       style="width: 0%"></div>
-                </div>
-                <div class="text-[10px] text-gray-400 mt-1.5 font-medium text-right"
-                     id="text-completion-count">0 / 0 Total Entries</div>
-              </div>
-              <!-- Editable Fields (Admin Only) -->
-              {% if is_admin %}
-                <div class="grid grid-cols-1 gap-3 border-t border-gray-200 pt-4">
-                  <!-- Rating -->
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Overall Rating</label>
-                    <select id="select-franchise-rating"
-                            data-update-field="my_rating"
-                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm font-bold text-brand py-1.5">
-                      <option value="">Unrated</option>
-                      <option value="S">S - Masterpiece</option>
-                      <option value="A+">A+ - Incredible</option>
-                      <option value="A">A - Great</option>
-                      <option value="B">B - Good</option>
-                      <option value="C">C - Average</option>
-                      <option value="D">D - Below Average</option>
-                      <option value="E">E - Poor</option>
-                      <option value="F">F - Terrible</option>
-                    </select>
-                  </div>
-                  <!-- Expectations -->
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">My Expectations</label>
-                    <select id="select-franchise-expectation"
-                            data-update-field="franchise_expectation"
-                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm font-bold py-1.5">
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                  </div>
-                </div>
-              {% endif %}
-            </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-quick-edit"
+                    class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center">
+              <i class="fas fa-pencil-alt mr-2 text-brand"></i> Edit Franchise Data
+            </button>
           </div>
         </div>
-        <!-- Notes and Remarks Card -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-8">
-          <div class="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-            <h3 class="font-bold text-gray-800">
-              <i class="fas fa-sticky-note text-brand mr-2"></i>Franchise Notes &
-              Remarks
-            </h3>
+      {% endif %}
+      <!-- Hero Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8 mb-8 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-brand"></div>
+        <div class="flex flex-col lg:flex-row gap-8 items-start justify-between">
+          <div class="flex-1 min-w-0 pt-2">
+            <div class="flex items-center flex-wrap gap-2 mb-3" id="hero-badges">
+              <!-- Badges injected via JS (Rating, Expectation, 3x3) -->
+            </div>
+            <h1 id="title-main"
+                class="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-1 truncate"
+                title="">...</h1>
+            <h2 id="title-sub"
+                class="text-lg text-gray-500 font-medium mb-1 truncate"
+                title="">...</h2>
+            <h3 id="title-alt" class="text-sm text-gray-400 truncate" title="">...</h3>
           </div>
-          <div class="p-4">
-            <textarea
+          <!-- Franchise Stats & Edits Sidebar -->
+          <div class="w-full lg:w-72 shrink-0 bg-gray-50 p-5 rounded-xl border border-gray-200 space-y-5 shadow-inner">
+            <!-- Completion Percentage (Visible to everyone) -->
+            <div>
+              <div class="flex justify-between items-end mb-1.5">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Completion</span>
+                <span class="text-sm font-black text-brand" id="text-completion">0%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                <div id="bar-completion"
+                     class="bg-brand h-1.5 rounded-full transition-all duration-500"
+                     style="width: 0%"></div>
+              </div>
+              <div class="text-[10px] text-gray-400 mt-1.5 font-medium text-right"
+                   id="text-completion-count">0 / 0 Total Entries</div>
+            </div>
+            <!-- Editable Fields (Admin Only) -->
+            {% if is_admin %}
+              <div class="grid grid-cols-1 gap-3 border-t border-gray-200 pt-4">
+                <!-- Rating -->
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Overall Rating</label>
+                  <select id="select-franchise-rating"
+                          data-update-field="my_rating"
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm font-bold text-brand py-1.5">
+                    <option value="">Unrated</option>
+                    <option value="S">S - Masterpiece</option>
+                    <option value="A+">A+ - Incredible</option>
+                    <option value="A">A - Great</option>
+                    <option value="B">B - Good</option>
+                    <option value="C">C - Average</option>
+                    <option value="D">D - Below Average</option>
+                    <option value="E">E - Poor</option>
+                    <option value="F">F - Terrible</option>
+                  </select>
+                </div>
+                <!-- Expectations -->
+                <div>
+                  <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">My Expectations</label>
+                  <select id="select-franchise-expectation"
+                          data-update-field="franchise_expectation"
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm font-bold py-1.5">
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <!-- Notes and Remarks Card -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-8">
+        <div class="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <h3 class="font-bold text-gray-800">
+            <i class="fas fa-sticky-note text-brand mr-2"></i>Franchise Notes &
+            Remarks
+          </h3>
+        </div>
+        <div class="p-4">
+          <textarea
           id="input-remark"
           data-update-field="remark"
           rows="4"
@@ -129,196 +130,196 @@
           endif
           %}
         ></textarea>
-          </div>
         </div>
-        <!-- Filters & Sorting Control -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-8">
-          <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-            <div class="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-              <i class="fas fa-filter mr-2"></i> Filters & Sorting
-            </div>
-            <!-- Sorting Engine -->
-            <div class="flex items-center">
-              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mr-2 hidden sm:block">Sort By</label>
-              <div class="inline-flex items-center bg-gray-50 rounded border border-gray-200 px-3 py-1 shadow-sm">
-                <i class="fas fa-sort-amount-down-alt text-brand mr-2 text-xs"></i>
-                <select id="sort-dropdown"
-                        class="text-xs font-bold text-gray-900 bg-transparent border-none focus:ring-0 cursor-pointer outline-none p-0 pr-6">
-                  <option value="title">Title (Default)</option>
-                  <option value="release_date">Release Date</option>
-                  <option value="my_rating">My Rating</option>
-                  <option value="mal_rating">MAL Rating</option>
-                  <option value="watch_order">Watch Order</option>
-                </select>
-              </div>
-            </div>
+      </div>
+      <!-- Filters & Sorting Control -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-8">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+          <div class="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
+            <i class="fas fa-filter mr-2"></i> Filters & Sorting
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            <!-- Airing Type Filter -->
-            <div>
-              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Airing Type</label>
-              <div class="flex flex-wrap gap-2">
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingType"
-                        data-filter-value="TV">TV</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingType"
-                        data-filter-value="Movie">Movie</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingType"
-                        data-filter-value="OVA">OVA</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingType"
-                        data-filter-value="ONA">ONA</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingType"
-                        data-filter-value="Special">Special</button>
-              </div>
-            </div>
-            <!-- Airing Status Filter -->
-            <div>
-              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Airing Status</label>
-              <div class="flex flex-wrap gap-2">
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingStatus"
-                        data-filter-value="Airing">Airing</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingStatus"
-                        data-filter-value="Finished Airing">Finished Airing</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="airingStatus"
-                        data-filter-value="Not Yet Aired">Not Yet Aired</button>
-              </div>
-            </div>
-            <!-- Watching Status Filter -->
-            <div>
-              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Watching Status</label>
-              <div class="flex flex-wrap gap-2">
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="watchingStatus"
-                        data-filter-value="Might Watch">Might Watch</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="watchingStatus"
-                        data-filter-value="Planned">Planned</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="watchingStatus"
-                        data-filter-value="Watching">Watching</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="watchingStatus"
-                        data-filter-value="Completed">Completed</button>
-                <button type="button"
-                        class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
-                        data-filter-group="watchingStatus"
-                        data-filter-value="Dropped">Dropped</button>
-              </div>
-            </div>
-            <!-- Extras Filter -->
-            <div>
-              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Sources</label>
-              <div class="flex items-center mt-1">
-                <input id="filter-baha"
-                       type="checkbox"
-                       class="h-4 w-4 text-[#00B4D8] focus:ring-[#00B4D8] border-gray-300 rounded shadow-sm cursor-pointer" />
-                <label for="filter-baha"
-                       class="ml-2 block text-xs font-bold text-gray-700 cursor-pointer flex items-center">
-                  <img src="https://i2.bahamut.com.tw/anime/logo.svg"
-                       class="h-3.5 inline-block mr-1 opacity-80"
-                       alt="Baha" />
-                  Only
-                </label>
-              </div>
+          <!-- Sorting Engine -->
+          <div class="flex items-center">
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mr-2 hidden sm:block">Sort By</label>
+            <div class="inline-flex items-center bg-gray-50 rounded border border-gray-200 px-3 py-1 shadow-sm">
+              <i class="fas fa-sort-amount-down-alt text-brand mr-2 text-xs"></i>
+              <select id="sort-dropdown"
+                      class="text-xs font-bold text-gray-900 bg-transparent border-none focus:ring-0 cursor-pointer outline-none p-0 pr-6">
+                <option value="title">Title (Default)</option>
+                <option value="release_date">Release Date</option>
+                <option value="my_rating">My Rating</option>
+                <option value="mal_rating">MAL Rating</option>
+                <option value="watch_order">Watch Order</option>
+              </select>
             </div>
           </div>
         </div>
-        <!-- MACRO SECTIONS -->
-        <div class="space-y-16">
-          <!-- ========================================== -->
-          <!-- ANIME SECTION -->
-          <!-- ========================================== -->
-          <div class="space-y-10">
-            <!-- Sticky Macro Header -->
-            <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-3 border-b-2 border-gray-300">
-              <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-black text-gray-900 uppercase tracking-widest flex items-center">
-                  <i class="fas fa-tv text-brand mr-3"></i> Anime Section
-                </h1>
-                <span id="count-anime"
-                      class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">0 Entries</span>
-              </div>
-            </div>
-            <!-- Dynamic Series Groups Container -->
-            <div id="anime-groups-container" class="space-y-12">
-              <!-- Rendered dynamically via JS -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <!-- Airing Type Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Airing Type</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="TV">TV</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="Movie">Movie</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="OVA">OVA</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="ONA">ONA</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingType"
+                      data-filter-value="Special">Special</button>
             </div>
           </div>
-          <!-- ========================================== -->
-          <!-- MANGA SECTION -->
-          <!-- ========================================== -->
-          <div class="space-y-10">
-            <!-- Sticky Macro Header -->
-            <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-3 border-b-2 border-gray-300">
-              <h1 class="text-2xl font-black text-gray-900 uppercase tracking-widest flex items-center">
-                <i class="fas fa-book text-brand mr-3"></i> Manga Section
-              </h1>
+          <!-- Airing Status Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Airing Status</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingStatus"
+                      data-filter-value="Airing">Airing</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingStatus"
+                      data-filter-value="Finished Airing">Finished Airing</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="airingStatus"
+                      data-filter-value="Not Yet Aired">Not Yet Aired</button>
             </div>
-            <!-- Under Development Placeholder -->
-            <section>
-              <div class="flex flex-col items-center justify-center py-16 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
-                <div class="w-16 h-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mb-4">
-                  <i class="fas fa-tools text-2xl"></i>
-                </div>
-                <p class="text-gray-500 font-bold text-lg mb-1">Under Development</p>
-                <p class="text-gray-400 text-sm text-center max-w-md">
-                  Manga tracking architecture is currently being integrated into the
-                  Franchise Hub.
-                </p>
-              </div>
-            </section>
           </div>
-          <!-- ========================================== -->
-          <!-- NOVEL SECTION -->
-          <!-- ========================================== -->
-          <div class="space-y-10">
-            <!-- Sticky Macro Header -->
-            <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-3 border-b-2 border-gray-300">
-              <h1 class="text-2xl font-black text-gray-900 uppercase tracking-widest flex items-center">
-                <i class="fas fa-book-open text-brand mr-3"></i> Novel Section
-              </h1>
+          <!-- Watching Status Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Watching Status</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Might Watch">Might Watch</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Planned">Planned</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Watching">Watching</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Completed">Completed</button>
+              <button type="button"
+                      class="filter-tag px-2.5 py-1 rounded-md text-[11px] font-bold border border-gray-200 bg-gray-50 text-gray-500 hover:border-brand hover:text-brand transition-colors cursor-pointer"
+                      data-filter-group="watchingStatus"
+                      data-filter-value="Dropped">Dropped</button>
             </div>
-            <!-- Under Development Placeholder -->
-            <section>
-              <div class="flex flex-col items-center justify-center py-16 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
-                <div class="w-16 h-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mb-4">
-                  <i class="fas fa-tools text-2xl"></i>
-                </div>
-                <p class="text-gray-500 font-bold text-lg mb-1">Under Development</p>
-                <p class="text-gray-400 text-sm text-center max-w-md">
-                  Light Novel tracking architecture is currently being integrated
-                  into the Franchise Hub.
-                </p>
-              </div>
-            </section>
+          </div>
+          <!-- Extras Filter -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Sources</label>
+            <div class="flex items-center mt-1">
+              <input id="filter-baha"
+                     type="checkbox"
+                     class="h-4 w-4 text-[#00B4D8] focus:ring-[#00B4D8] border-gray-300 rounded shadow-sm cursor-pointer" />
+              <label for="filter-baha"
+                     class="ml-2 block text-xs font-bold text-gray-700 cursor-pointer flex items-center">
+                <img src="https://i2.bahamut.com.tw/anime/logo.svg"
+                     class="h-3.5 inline-block mr-1 opacity-80"
+                     alt="Baha" />
+                Only
+              </label>
+            </div>
           </div>
         </div>
       </div>
+      <!-- MACRO SECTIONS -->
+      <div class="space-y-16">
+        <!-- ========================================== -->
+        <!-- ANIME SECTION -->
+        <!-- ========================================== -->
+        <div class="space-y-10">
+          <!-- Sticky Macro Header -->
+          <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-3 border-b-2 border-gray-300">
+            <div class="flex items-center justify-between">
+              <h1 class="text-2xl font-black text-gray-900 uppercase tracking-widest flex items-center">
+                <i class="fas fa-tv text-brand mr-3"></i> Anime Section
+              </h1>
+              <span id="count-anime"
+                    class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">0 Entries</span>
+            </div>
+          </div>
+          <!-- Dynamic Series Groups Container -->
+          <div id="anime-groups-container" class="space-y-12">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </div>
+        <!-- ========================================== -->
+        <!-- MANGA SECTION -->
+        <!-- ========================================== -->
+        <div class="space-y-10">
+          <!-- Sticky Macro Header -->
+          <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-3 border-b-2 border-gray-300">
+            <h1 class="text-2xl font-black text-gray-900 uppercase tracking-widest flex items-center">
+              <i class="fas fa-book text-brand mr-3"></i> Manga Section
+            </h1>
+          </div>
+          <!-- Under Development Placeholder -->
+          <section>
+            <div class="flex flex-col items-center justify-center py-16 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
+              <div class="w-16 h-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-tools text-2xl"></i>
+              </div>
+              <p class="text-gray-500 font-bold text-lg mb-1">Under Development</p>
+              <p class="text-gray-400 text-sm text-center max-w-md">
+                Manga tracking architecture is currently being integrated into the
+                Franchise Hub.
+              </p>
+            </div>
+          </section>
+        </div>
+        <!-- ========================================== -->
+        <!-- NOVEL SECTION -->
+        <!-- ========================================== -->
+        <div class="space-y-10">
+          <!-- Sticky Macro Header -->
+          <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-3 border-b-2 border-gray-300">
+            <h1 class="text-2xl font-black text-gray-900 uppercase tracking-widest flex items-center">
+              <i class="fas fa-book-open text-brand mr-3"></i> Novel Section
+            </h1>
+          </div>
+          <!-- Under Development Placeholder -->
+          <section>
+            <div class="flex flex-col items-center justify-center py-16 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
+              <div class="w-16 h-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-tools text-2xl"></i>
+              </div>
+              <p class="text-gray-500 font-bold text-lg mb-1">Under Development</p>
+              <p class="text-gray-400 text-sm text-center max-w-md">
+                Light Novel tracking architecture is currently being integrated
+                into the Franchise Hub.
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
-  {% endblock %}
-  {% block extra_scripts %}
-    <script>
+  </div>
+{% endblock content %}
+{% block extra_scripts %}
+  <script>
   // Jinja2 Bridge: Pass the authentication state to the global window object
   window.IS_ADMIN_FRANCHISE = {{ 'true' if is_admin else 'false' }};
-    </script>
-    <script src="/static/js/franchise_acg.js"></script>
-  {% endblock %}
+  </script>
+  <script src="/static/js/franchise_acg.js"></script>
+{% endblock extra_scripts %}

@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}
   Add New Entry - CG1618 Tracker{%
-  endblock %}
-  {% block extra_style %}{% endblock %}
+  endblock title %}
+  {% block extra_style %}
+  {% endblock extra_style %}
   {% block content %}
     <div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col h-[calc(100vh-4rem)]">
       <!-- Header & Tabs -->
@@ -774,7 +775,7 @@
         </div>
       </div>
     </div>
-  {% endblock %}
+  {% endblock content %}
   {% block extra_scripts %}
     <script src="/static/js/add.js"></script>
-  {% endblock %}
+  {% endblock extra_scripts %}

@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>
-      {% block title %}CG1618 Tracker{% endblock %}
+      {% block title %}
+        CG1618 Tracker
+      {% endblock title %}
     </title>
     <!-- External Libraries -->
     <link rel="stylesheet" href="/static/css/main.css" />
@@ -284,7 +286,8 @@ More</span>
 </div>
 </nav>
 <!-- Dynamic Page Content -->
-{% block content %}{% endblock %}
+{% block content %}
+{% endblock content %}
 <!-- Global Footer -->
 <footer class="bg-white border-t border-gray-200 mt-auto shrink-0">
   <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -300,6 +303,7 @@ More</span>
 <!-- Extracted Static Logic -->
 <script src="/static/js/base.js"></script>
 <!-- Placeholder for child templates to inject specific scripts -->
-{% block extra_scripts %}{% endblock %}
+{% block extra_scripts %}
+{% endblock extra_scripts %}
 </body>
 </html>

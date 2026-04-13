@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}
   Dashboard - CG1618 Tracker
-{% endblock
-%}
-{% block extra_style %}{% endblock %}
+{% endblock title %}
+{% block extra_style %}
+{% endblock extra_style %}
 {% block content %}
   <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
     <!-- Loading State -->
@@ -87,7 +87,7 @@
       </div>
     </div>
   </main>
-{% endblock %}
+{% endblock block %}
 {% block extra_scripts %}
   <script>
   // Jinja2 Bridge: Pass the authentication state to the global window object
@@ -95,4 +95,4 @@
   window.IS_ADMIN_INDEX = {{ 'true' if is_admin else 'false' }};
   </script>
   <script src="/static/js/index.js"></script>
-{% endblock %}
+{% endblock extra_scripts %}

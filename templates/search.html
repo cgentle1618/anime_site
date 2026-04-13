@@ -1,156 +1,156 @@
 {% extends "base.html" %}
 {% block title %}
-  Search Results - CG1618 Tracker{%
-  endblock %}
-  {% block extra_style %}
-    <!-- Extracted Search Specific Styles -->
-    <link rel="stylesheet" href="/static/css/search.css" />
-  {% endblock %}
-  {% block content %}
-    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative">
-      <!-- Loading State -->
-      <div id="loading" class="flex flex-col items-center justify-center h-64">
-        <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p class="text-gray-500 font-medium mt-4" id="loading-text">Searching Database...</p>
-      </div>
-      <div id="main-content" class="hidden">
-        <!-- Sticky Master Header & Filter Wrapper -->
-        <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-4 mb-8 border-b border-gray-200">
-          <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
-            <div>
-              <h1 class="text-3xl font-black text-gray-900 tracking-tight leading-none mb-1">Search Results</h1>
-              <p class="text-sm font-medium text-gray-500">
-                Found
-                <span id="count-franchise" class="font-bold text-gray-800">0</span>
-                franchises and
-                <span id="count-anime" class="font-bold text-gray-800">0</span>
-                anime entries for "<span id="display-query" class="text-brand font-bold"></span>"
-              </p>
-            </div>
-          </div>
-          <!-- Filter by Franchise Pills -->
-          <div class="w-full relative">
-            <div class="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-              <i class="fas fa-filter mr-1.5"></i> Filter by Franchise
-            </div>
-            <div class="flex overflow-x-auto no-scrollbar gap-2 pb-2"
-                 id="franchise-pills-container">
-              <!-- Pills injected via JS -->
-            </div>
+  Search Results - CG1618 Tracker
+{% endblock title %}
+{% block extra_style %}
+  <!-- Extracted Search Specific Styles -->
+  <link rel="stylesheet" href="/static/css/search.css" />
+{% endblock extra_style %}
+{% block content %}
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full relative">
+    <!-- Loading State -->
+    <div id="loading" class="flex flex-col items-center justify-center h-64">
+      <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+      <p class="text-gray-500 font-medium mt-4" id="loading-text">Searching Database...</p>
+    </div>
+    <div id="main-content" class="hidden">
+      <!-- Sticky Master Header & Filter Wrapper -->
+      <div class="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-4 mb-8 border-b border-gray-200">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+          <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight leading-none mb-1">Search Results</h1>
+            <p class="text-sm font-medium text-gray-500">
+              Found
+              <span id="count-franchise" class="font-bold text-gray-800">0</span>
+              franchises and
+              <span id="count-anime" class="font-bold text-gray-800">0</span>
+              anime entries for "<span id="display-query" class="text-brand font-bold"></span>"
+            </p>
           </div>
         </div>
-        <!-- ========================================== -->
-        <!-- SECTION 1: FRANCHISE HUB SECTION -->
-        <!-- ========================================== -->
-        <div class="mb-16">
-          <h2 class="text-xl font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center">
-            <i class="fas fa-sitemap text-brand mr-2"></i> Franchise Hubs
+        <!-- Filter by Franchise Pills -->
+        <div class="w-full relative">
+          <div class="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+            <i class="fas fa-filter mr-1.5"></i> Filter by Franchise
+          </div>
+          <div class="flex overflow-x-auto no-scrollbar gap-2 pb-2"
+               id="franchise-pills-container">
+            <!-- Pills injected via JS -->
+          </div>
+        </div>
+      </div>
+      <!-- ========================================== -->
+      <!-- SECTION 1: FRANCHISE HUB SECTION -->
+      <!-- ========================================== -->
+      <div class="mb-16">
+        <h2 class="text-xl font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center">
+          <i class="fas fa-sitemap text-brand mr-2"></i> Franchise Hubs
+        </h2>
+        <div id="franchise-grid"
+             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+      <!-- ========================================== -->
+      <!-- SECTION 2: ANIME ENTRY SECTION -->
+      <!-- ========================================== -->
+      <div class="mb-16 space-y-12">
+        <div class="border-b-2 border-gray-200 pb-2">
+          <h2 class="text-xl font-black text-gray-800 uppercase tracking-widest flex items-center">
+            <i class="fas fa-tv text-brand mr-2"></i> Anime Entries
           </h2>
-          <div id="franchise-grid"
-               class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <!-- Rendered via JS -->
-          </div>
         </div>
-        <!-- ========================================== -->
-        <!-- SECTION 2: ANIME ENTRY SECTION -->
-        <!-- ========================================== -->
-        <div class="mb-16 space-y-12">
-          <div class="border-b-2 border-gray-200 pb-2">
-            <h2 class="text-xl font-black text-gray-800 uppercase tracking-widest flex items-center">
-              <i class="fas fa-tv text-brand mr-2"></i> Anime Entries
-            </h2>
-          </div>
-          <!-- TV / ONA Subsection -->
-          <div id="anime-group-tv" class="hidden">
-            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
-              <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] mr-2"
-                    id="count-tv">0</span>
-              TV / ONA
-            </h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-                 id="anime-grid-tv"></div>
-          </div>
-          <!-- Movie Subsection -->
-          <div id="anime-group-movie" class="hidden">
-            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
-              <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] mr-2"
-                    id="count-movie">0</span>
-              Movies
-            </h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-                 id="anime-grid-movie"></div>
-          </div>
-          <!-- Other Subsection -->
-          <div id="anime-group-other" class="hidden">
-            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
-              <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] mr-2"
-                    id="count-other">0</span>
-              OVA / Special / Other
-            </h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-                 id="anime-grid-other"></div>
-          </div>
-          <div id="anime-empty-state"
-               class="hidden flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-            <i class="fas fa-ghost text-4xl text-gray-300 mb-3"></i>
-            <p class="text-gray-500 font-bold">No Anime Found</p>
-          </div>
+        <!-- TV / ONA Subsection -->
+        <div id="anime-group-tv" class="hidden">
+          <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
+            <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] mr-2"
+                  id="count-tv">0</span>
+            TV / ONA
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+               id="anime-grid-tv"></div>
         </div>
-        <!-- ========================================== -->
-        <!-- FUTURE EXPANSION SECTIONS -->
-        <!-- ========================================== -->
-        <div class="space-y-8 opacity-60">
-          <div class="border-b-2 border-gray-200 pb-2">
-            <h2 class="text-xl font-black text-gray-400 uppercase tracking-widest flex items-center">
-              <i class="fas fa-layer-group mr-2"></i> Other Divisions
-            </h2>
+        <!-- Movie Subsection -->
+        <div id="anime-group-movie" class="hidden">
+          <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
+            <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] mr-2"
+                  id="count-movie">0</span>
+            Movies
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+               id="anime-grid-movie"></div>
+        </div>
+        <!-- Other Subsection -->
+        <div id="anime-group-other" class="hidden">
+          <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
+            <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] mr-2"
+                  id="count-other">0</span>
+            OVA / Special / Other
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+               id="anime-grid-other"></div>
+        </div>
+        <div id="anime-empty-state"
+             class="hidden flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+          <i class="fas fa-ghost text-4xl text-gray-300 mb-3"></i>
+          <p class="text-gray-500 font-bold">No Anime Found</p>
+        </div>
+      </div>
+      <!-- ========================================== -->
+      <!-- FUTURE EXPANSION SECTIONS -->
+      <!-- ========================================== -->
+      <div class="space-y-8 opacity-60">
+        <div class="border-b-2 border-gray-200 pb-2">
+          <h2 class="text-xl font-black text-gray-400 uppercase tracking-widest flex items-center">
+            <i class="fas fa-layer-group mr-2"></i> Other Divisions
+          </h2>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Manga Placeholder -->
+          <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
+            <i class="fas fa-book text-2xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-bold text-gray-500">Manga Entries</p>
+            <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Manga Placeholder -->
-            <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
-              <i class="fas fa-book text-2xl text-gray-300 mb-2"></i>
-              <p class="text-sm font-bold text-gray-500">Manga Entries</p>
-              <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
-            </div>
-            <!-- Novel Placeholder -->
-            <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
-              <i class="fas fa-book-open text-2xl text-gray-300 mb-2"></i>
-              <p class="text-sm font-bold text-gray-500">Light Novel Entries</p>
-              <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
-            </div>
-            <!-- Anime Movie Placeholder -->
-            <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
-              <i class="fas fa-film text-2xl text-gray-300 mb-2"></i>
-              <p class="text-sm font-bold text-gray-500">Anime Movies</p>
-              <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
-            </div>
-            <!-- Live Action Movie Placeholder -->
-            <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
-              <i class="fas fa-video text-2xl text-gray-300 mb-2"></i>
-              <p class="text-sm font-bold text-gray-500">Movies</p>
-              <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
-            </div>
-            <!-- TV Show Placeholder -->
-            <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
-              <i class="fas fa-desktop text-2xl text-gray-300 mb-2"></i>
-              <p class="text-sm font-bold text-gray-500">TV Shows</p>
-              <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
-            </div>
-            <!-- Cartoon Placeholder -->
-            <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
-              <i class="fas fa-paint-brush text-2xl text-gray-300 mb-2"></i>
-              <p class="text-sm font-bold text-gray-500">Cartoons</p>
-              <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
-            </div>
+          <!-- Novel Placeholder -->
+          <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
+            <i class="fas fa-book-open text-2xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-bold text-gray-500">Light Novel Entries</p>
+            <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
+          </div>
+          <!-- Anime Movie Placeholder -->
+          <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
+            <i class="fas fa-film text-2xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-bold text-gray-500">Anime Movies</p>
+            <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
+          </div>
+          <!-- Live Action Movie Placeholder -->
+          <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
+            <i class="fas fa-video text-2xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-bold text-gray-500">Movies</p>
+            <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
+          </div>
+          <!-- TV Show Placeholder -->
+          <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
+            <i class="fas fa-desktop text-2xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-bold text-gray-500">TV Shows</p>
+            <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
+          </div>
+          <!-- Cartoon Placeholder -->
+          <div class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
+            <i class="fas fa-paint-brush text-2xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-bold text-gray-500">Cartoons</p>
+            <p class="text-[10px] text-gray-400 mt-1">Pending Architecture Integration</p>
           </div>
         </div>
       </div>
-    </main>
-  {% endblock %}
-  {% block extra_scripts %}
-    <script>
+    </div>
+  </main>
+{% endblock content %}
+{% block extra_scripts %}
+  <script>
   // Jinja2 Bridge: Pass the authentication state to the global window object
   window.IS_ADMIN_SEARCH = {{ 'true' if is_admin else 'false' }};
-    </script>
-    <script src="/static/js/search.js"></script>
-  {% endblock %}
+  </script>
+  <script src="/static/js/search.js"></script>
+{% endblock extra_scripts %}
