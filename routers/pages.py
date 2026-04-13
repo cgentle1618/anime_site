@@ -47,7 +47,9 @@ def check_admin_status(request: Request) -> bool:
 # ==========================================
 
 
-@router.get("/", response_class=HTMLResponse, summary="Serve Homepage")
+@router.get(
+    "/", response_class=HTMLResponse, name="dashboard", summary="Serve Homepage"
+)
 async def serve_index(request: Request):
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
@@ -55,7 +57,9 @@ async def serve_index(request: Request):
     )
 
 
-@router.get("/login", response_class=HTMLResponse, summary="Serve Login Page")
+@router.get(
+    "/login", response_class=HTMLResponse, name="login", summary="Serve Login Page"
+)
 async def serve_login(request: Request):
     # If already logged in, redirect to home or system
     if check_admin_status(request):
@@ -67,7 +71,10 @@ async def serve_login(request: Request):
 
 
 @router.get(
-    "/library/anime", response_class=HTMLResponse, summary="Serve Anime Library Page"
+    "/library/anime",
+    response_class=HTMLResponse,
+    name="anime library",
+    summary="Serve Anime Library Page",
 )
 async def serve_anime_library(request: Request):
     """NEW in V2: Dedicated library view for Anime entries."""
@@ -77,7 +84,12 @@ async def serve_anime_library(request: Request):
     )
 
 
-@router.get("/search", response_class=HTMLResponse, summary="Serve Search Page")
+@router.get(
+    "/search",
+    response_class=HTMLResponse,
+    name="search page",
+    summary="Serve Search Page",
+)
 async def serve_search(request: Request):
     is_admin = check_admin_status(request)
     return templates.TemplateResponse(
@@ -88,6 +100,7 @@ async def serve_search(request: Request):
 @router.get(
     "/under-development",
     response_class=HTMLResponse,
+    name="under development page",
     summary="Serve Under Development Page",
 )
 async def serve_under_development(request: Request):
@@ -105,6 +118,7 @@ async def serve_under_development(request: Request):
 @router.get(
     "/franchise/{system_id}",
     response_class=HTMLResponse,
+    name="franchise page",
     summary="Serve ACG Franchise View",
 )
 async def serve_franchise_view(request: Request, system_id: str):
@@ -117,7 +131,10 @@ async def serve_franchise_view(request: Request, system_id: str):
 
 
 @router.get(
-    "/anime/{system_id}", response_class=HTMLResponse, summary="Serve Anime View"
+    "/anime/{system_id}",
+    response_class=HTMLResponse,
+    name="anime page",
+    summary="Serve Anime View",
 )
 async def serve_anime_view(request: Request, system_id: str):
     is_admin = check_admin_status(request)
@@ -132,7 +149,12 @@ async def serve_anime_view(request: Request, system_id: str):
 # ==========================================
 
 
-@router.get("/system", response_class=HTMLResponse, summary="Serve Admin Dashboard")
+@router.get(
+    "/system",
+    response_class=HTMLResponse,
+    name="admin dashboard",
+    summary="Serve Admin Dashboard",
+)
 async def serve_admin(request: Request):
     is_admin = check_admin_status(request)
     if not is_admin:
@@ -143,7 +165,9 @@ async def serve_admin(request: Request):
     )
 
 
-@router.get("/add", response_class=HTMLResponse, summary="Serve Add Page")
+@router.get(
+    "/add", response_class=HTMLResponse, name="add page", summary="Serve Add Page"
+)
 async def serve_add(request: Request):
     is_admin = check_admin_status(request)
     if not is_admin:
@@ -154,7 +178,12 @@ async def serve_add(request: Request):
     )
 
 
-@router.get("/modify", response_class=HTMLResponse, summary="Serve Modify Page")
+@router.get(
+    "/modify",
+    response_class=HTMLResponse,
+    name="modify page",
+    summary="Serve Modify Page",
+)
 async def serve_modify(request: Request):
     is_admin = check_admin_status(request)
     if not is_admin:
@@ -165,7 +194,12 @@ async def serve_modify(request: Request):
     )
 
 
-@router.get("/delete", response_class=HTMLResponse, summary="Serve Delete Page")
+@router.get(
+    "/delete",
+    response_class=HTMLResponse,
+    name="delete page",
+    summary="Serve Delete Page",
+)
 async def serve_delete(request: Request):
     is_admin = check_admin_status(request)
     if not is_admin:
