@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Import local CSS files */
+@import "./add.css";
+@import "./anime.css";
+@import "./base.css";
+@import "./delete.css";
+@import "./franchise_acg.css";
+@import "./index.css";
+@import "./library_anime.css";
+@import "./modify.css";
+@import "./search.css";
+
 @theme {
   /* Colors - Lightened 'brand' to restore the Blue theme */
   --color-primary-blue: #2563eb;
