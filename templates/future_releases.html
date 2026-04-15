@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Future Releases - CG1618 Tracker{% endblock title %}
+{% block content %}
+<main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+  <!-- Page Header -->
+  <div class="mb-6">
+    <h1 class="text-2xl font-black text-gray-900 tracking-tight">
+      <i class="fas fa-calendar-plus text-brand mr-2"></i>Future Releases
+    </h1>
+    <p class="text-sm text-gray-500 mt-1">Upcoming entries grouped by season.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="border-b border-gray-200 mb-6">
+    <nav class="-mb-px flex space-x-1 overflow-x-auto" id="tab-bar">
+      <button data-tab="overall"
+        class="tab-btn shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 transition
+               border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300">
+        Overall
+      </button>
+      <button data-tab="anime"
+        class="tab-btn shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 transition
+               border-brand text-brand">
+        <i class="fas fa-tv mr-1"></i>Anime
+      </button>
+      <button data-tab="anime-movie"
+        class="tab-btn shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 transition
+               border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300">
+        <i class="fas fa-film mr-1"></i>Anime Movie
+      </button>
+      <button data-tab="movie"
+        class="tab-btn shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 transition
+               border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300">
+        <i class="fas fa-ticket-alt mr-1"></i>Movie
+      </button>
+      <button data-tab="tv-show"
+        class="tab-btn shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 transition
+               border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300">
+        <i class="fas fa-video mr-1"></i>TV Show
+      </button>
+    </nav>
+  </div>
+
+  <!-- Under Development Panel (for non-Anime tabs) -->
+  <div id="panel-under-dev" class="hidden text-center py-20">
+    <i class="fas fa-hard-hat text-5xl text-amber-400 mb-4"></i>
+    <p class="text-lg font-black text-gray-700">Under Development</p>
+    <p class="text-sm text-gray-400 mt-1">This section is coming soon.</p>
+  </div>
+
+  <!-- Anime Tab Panel -->
+  <div id="panel-anime">
+
+    <!-- Loading State -->
+    <div id="loading" class="flex flex-col items-center justify-center h-64">
+      <i class="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
+      <p class="text-gray-500 font-medium">Loading releases...</p>
+    </div>
+
+    <!-- Anime Tab Content (hidden until loaded) -->
+    <div id="anime-content" class="hidden space-y-6">
+
+      <!-- Airing Type Filter Chips -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Type:</span>
+        <button data-type-filter="all"
+          class="type-chip px-3 py-1.5 rounded-full text-sm font-bold border transition
+                 bg-brand text-white border-brand">
+          All
+        </button>
+        <button data-type-filter="TV"
+          class="type-chip px-3 py-1.5 rounded-full text-sm font-bold border transition
+                 bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand">
+          TV
+        </button>
+        <button data-type-filter="ONA"
+          class="type-chip px-3 py-1.5 rounded-full text-sm font-bold border transition
+                 bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand">
+          ONA
+        </button>
+        <button data-type-filter="Movie"
+          class="type-chip px-3 py-1.5 rounded-full text-sm font-bold border transition
+                 bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand">
+          Movie
+        </button>
+        <button data-type-filter="other"
+          class="type-chip px-3 py-1.5 rounded-full text-sm font-bold border transition
+                 bg-white text-gray-600 border-gray-200 hover:border-brand hover:text-brand">
+          Other
+        </button>
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="hidden text-center py-16">
+        <i class="fas fa-calendar-times text-4xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500 font-medium">No releases found for this filter.</p>
+      </div>
+
+      <!-- Season Groups (injected by JS) -->
+      <div id="releases-container" class="space-y-10"></div>
+
+    </div>
+  </div>
+
+</main>
+{% endblock content %}
+{% block extra_scripts %}
+<script>
+  window.IS_ADMIN_FUTURE_RELEASES = {{ 'true' if is_admin else 'false' }};
+</script>
+<script src="{{ url_for('static', path='js/future_releases.js') }}"></script>
+{% endblock extra_scripts %}
