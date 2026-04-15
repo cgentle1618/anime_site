@@ -26,3 +26,7 @@ node_modules/
 npm-debug.log
 package-lock.json
 static/css/main.css
+
+# Exclude Claude's working directory
+.claude/
+CLAUDE.md
