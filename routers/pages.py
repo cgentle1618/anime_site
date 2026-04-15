@@ -85,6 +85,20 @@ async def serve_anime_library(request: Request):
 
 
 @router.get(
+    "/future-releases",
+    response_class=HTMLResponse,
+    name="future releases page",
+    summary="Serve Future Releases Page",
+)
+async def serve_future_releases(request: Request):
+    """Displays upcoming and currently airing anime grouped by season."""
+    is_admin = check_admin_status(request)
+    return templates.TemplateResponse(
+        "future_releases.html", {"request": request, "is_admin": is_admin}
+    )
+
+
+@router.get(
     "/search",
     response_class=HTMLResponse,
     name="search page",
