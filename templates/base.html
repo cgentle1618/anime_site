@@ -110,10 +110,10 @@ Seiyuu</a>
        class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
        title="Under Development"><i class="fas fa-chart-bar w-6 text-center text-gray-300 mr-1"></i>
   Statistics</a>
-<a href="{{ url_for('under development page') }}"
-   class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
-   title="Under Development"><i class="fas fa-calendar-plus w-6 text-center text-gray-300 mr-1"></i>
-Future Release</a>
+<a href="{{ url_for('future releases page') }}"
+   class="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-brand/5 hover:text-brand transition">
+  <i class="fas fa-calendar-plus w-6 text-center text-brand/70 mr-1"></i>Future Release
+</a>
 <a href="{{ url_for('under development page') }}"
    class="flex items-center px-3 py-2 text-sm font-medium text-gray-400 rounded-md hover:bg-gray-50 cursor-not-allowed"
    title="Under Development"><i class="fas fa-leaf w-6 text-center text-gray-300 mr-1"></i>
@@ -245,7 +245,7 @@ More</span>
 </summary>
 <div class="pl-12 pr-3 py-1 space-y-1 border-l-2 border-gray-100 ml-6 mb-2">
   <div class="block py-2 text-sm font-medium text-gray-400">Statistics (Dev)</div>
-  <div class="block py-2 text-sm font-medium text-gray-400">Future Release (Dev)</div>
+  <a href="{{ url_for('future releases page') }}" class="block py-2 text-sm font-bold text-gray-700 hover:text-brand">Future Release</a>
   <div class="block py-2 text-sm font-medium text-gray-400">Seasonal Overall (Dev)</div>
   <div class="block py-2 text-sm font-medium text-gray-400">Seasonal Detail (Dev)</div>
 </div>
