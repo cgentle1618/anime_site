@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-primary-blue: #2563eb;
+  --color-secondary-gray: #4b5563;
+  --color-accent-green: #10b981;
+  --color-dark-bg: #111827;
+  --color-card-bg: #1f2937;
+  --color-hover-blue: #3b82f6;
+  --color-delete-red: #ef4444;
+  --color-delete-hover: #dc2626;
+
+  /* Brand Colors (Vibrant Blue) */
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+
+  /* Typography */
+  --font-noto-sans: "Noto Sans TC", "Roboto", sans-serif;
+
+  /* Shadows */
+  --shadow-neon:
+    0 0 5px rgba(37, 99, 235, 0.5), 0 0 20px rgba(37, 99, 235, 0.3);
+}
+
+/* Global Pointer & Interaction Fixes */
+button,
+a,
+summary,
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[disabled] {
+  cursor: not-allowed !important;
+}
+
+/* Typography Tuning */
+@layer base {
+  html {
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 700;
+  }
+}

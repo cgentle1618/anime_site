@@ -84,7 +84,6 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
     }
 
     try:
-        # 2. Increased Timeout Window
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
@@ -95,6 +94,12 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
             logger.warning(f"Anime not found (404) on Jikan for MAL ID {mal_id}")
             return None
 
+        if response.status_code >= 500:
+            logger.warning(
+                f"Jikan server error ({response.status_code}) for MAL ID {mal_id} — skipping retries."
+            )
+            return None
+
         response.raise_for_status()
 
         return response.json().get("data", {})
@@ -103,5 +108,5 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
         logger.error(
             f"Network/Timeout Error connecting to Jikan for MAL ID {mal_id}: {e}"
         )
-        # 3. Raise to trigger tenacity's reactive Exponential Backoff
+        # Raise to trigger tenacity's reactive Exponential Backoff
         raise

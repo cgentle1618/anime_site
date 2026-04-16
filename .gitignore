@@ -11,3 +11,12 @@ static/covers/
 node_modules/
 static/css/main.css
 .npm/
+frontend_dist/
+
+# Claude Code configuration and auto-memory
+.claude/
+! .claude/settings.json  # Optional: Keep if you want shared team settings
+.claude/settings.local.json
+
+# (Usually you want to keep this, but ignore if it's for personal use only)
+# CLAUDE.md
