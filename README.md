@@ -94,7 +94,7 @@ The application serves two audiences:
 ### Core Objectives
 
 - **Three-Tier Hierarchy** — Data is organized into a `Franchise → Series → Anime` relational model, replacing flat spreadsheet rows with structured, linked records.
-- **Modern Web Interface** — A responsive, visually appealing UI displaying cover art, synopses, ratings, and progress — rendered server-side via Jinja2 with Tailwind CSS v4.
+- **Modern Web Interface** — A responsive, visually appealing React SPA (Vite + Tailwind CSS v4) with client-side routing via React Router, server-state management via TanStack Query, and a shared component library.
 - **Bi-Directional Sync** — A robust data pipeline pushing and pulling records between PostgreSQL and Google Sheets via the `gspread` API.
 - **Automated Data Enrichment** — Integration with the MyAnimeList Jikan v4 API to auto-populate metadata (cover images, MAL/AniList ratings, synopses, studios).
 - **Secure Access Control** — JWT-based authentication stored in HTTP-Only cookies, differentiating Admin from Guest users.
@@ -117,9 +117,11 @@ The application serves two audiences:
 
 **Frontend**
 
-- [![Jinja2][Jinja2-badge]][Jinja2-url] — Server-side HTML rendering
-- [![TailwindCSS][Tailwind-badge]][Tailwind-url] — Utility-first CSS framework (v4, compiled via Node.js CLI)
-- [![JavaScript][JS-badge]][JS-url] — Vanilla JS for client-side interactivity and async updates
+- [![React][React-badge]][React-url] — Component-based UI library (v18)
+- [![Vite][Vite-badge]][Vite-url] — Next-generation frontend build tool and dev server
+- [![TailwindCSS][Tailwind-badge]][Tailwind-url] — Utility-first CSS framework (v4, via `@tailwindcss/vite` plugin)
+- [![ReactRouter][ReactRouter-badge]][ReactRouter-url] — Client-side routing (v6)
+- `@tanstack/react-query` — Server state management, caching, and async data fetching
 
 **Infrastructure & Cloud (GCP)**
 
@@ -154,13 +156,25 @@ cg1618-tracker/
 │   └── workflows/
 │       └── deploy.yml              # GitHub Actions CI/CD pipeline
 │
+├── frontend/                       # React SPA (Vite + Tailwind CSS v4)
+│   ├── src/
+│   │   ├── components/             # Shared UI components (Nav, Layout, AnimeCard, Toast, etc.)
+│   │   ├── contexts/               # React context providers (AuthContext)
+│   │   ├── hooks/                  # Custom hooks (useToast)
+│   │   ├── pages/                  # Route-level page components (Index, Anime, Search, etc.)
+│   │   ├── utils/                  # Client-side utility functions (getCoverUrl, getStatusStyle, etc.)
+│   │   ├── App.jsx                 # Root component — React Router config and provider tree
+│   │   └── main.jsx                # Vite entry point
+│   ├── index.html                  # SPA shell HTML
+│   ├── vite.config.js              # Vite config: React plugin, Tailwind v4 plugin, API proxy
+│   └── package.json                # Node.js manifest (React, Vite, TanStack Query, React Router)
+│
 ├── routers/
 │   ├── anime.py                    # Anime entry CRUD endpoints
 │   ├── auth.py                     # JWT login/logout/session endpoints
 │   ├── data_control.py             # Bulk data pipelines (backup, pull, batch fill) w/ SSE
 │   ├── franchise.py                # Franchise hub management endpoints
 │   ├── options.py                  # Dynamic dropdown/category option endpoints
-│   ├── pages.py                    # Jinja2 HTML template rendering & UI routing
 │   ├── series.py                   # Series grouping endpoints
 │   ├── system.py                   # System-level metrics and configuration endpoints
 │   └── ...
@@ -179,50 +193,28 @@ cg1618-tracker/
 │   ├── jikan_utils.py              # Jikan payload → local schema mapping
 │   └── utils.py                    # General-purpose stateless helpers and constants
 │
-├── templates/                      # Jinja2 server-side rendered views
-│   ├── base.html                   # Master layout, navigation, global JS
-│   ├── index.html                  # Active tracking dashboard
-│   ├── library_anime.html          # Full collection grid with filtering
-│   ├── anime.html                  # Individual anime detail/tracker page
-│   ├── franchise_acg.html          # Franchise Hub hierarchical view
-│   ├── search.html                 # Advanced search results interface
-│   ├── add.html                    # New entry creation form
-│   ├── modify.html                 # Dual-tab editor (Anime + Series)
-│   ├── delete.html                 # Record deletion portal
-│   ├── admin.html                  # System settings and diagnostics dashboard
-│   ├── login.html                  # Administrator authentication portal
-│   └── ...
-│
 ├── static/
-│   ├── css/                        # Per-page compiled CSS + Tailwind source
-│   │   ├── base.css                # Global custom styles and typography rules
-│   │   ├── input.css               # Master Tailwind v4 source file
-│   │   ├── main.css                # Final minified CSS generated by Tailwind CLI
-│   │   └── ...
-│   └── js/                         # Per-page Vanilla JS modules
-│       ├── base.js                 # Global logic for search, mobile menu, notifications
-│       └── ...
+│   └── covers/                     # Local cover image cache (dev only; production uses GCS)
 │
-├── main.py                         # FastAPI app entrypoint & router registration
+├── main.py                         # FastAPI app entrypoint, router registration, SPA catch-all
 ├── models.py                       # SQLAlchemy ORM class definitions
 ├── database.py                     # Engine, SessionLocal, declarative Base
 ├── dependencies.py                 # FastAPI dependency injection (get_db, get_current_admin)
 ├── schemas.py                      # Pydantic request/response validation models
-├── entrypoint.sh                   # Container startup script (runs before Uvicorn)
+├── entrypoint.sh                   # Container startup script (runs migrations before Uvicorn)
 ├── Dockerfile                      # 3-stage multi-stage Docker build
-├── docker-compose.yml              # Local dev orchestration (PostgreSQL + Tailwind watcher)
-├── package.json                    # Node.js manifest for Tailwind CSS CLI
+├── docker-compose.yml              # Local dev orchestration (PostgreSQL)
 └── requirements.txt                # Pinned Python dependencies
 ```
 
 **Layer Responsibilities:**
 
-| Layer                    | Responsibility                                                                                                   |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `routers/`               | HTTP request handling, parameter validation (Pydantic), HTTP responses only. Delegates all logic to `services/`. |
-| `services/`              | Core application logic: modifies DB state, calls third-party APIs, orchestrates data pipelines.                  |
-| `utils/`                 | Stateless, pure functions only. No DB calls, no HTTP requests. Data transformation and constants.                |
-| `templates/` + `static/` | Frontend presentation. Jinja2 SSR, Tailwind CSS styling, Vanilla JS for client-side interactivity.               |
+| Layer       | Responsibility                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| `frontend/` | React SPA: all UI rendering, client-side routing, server-state caching (TanStack Query), and API communication.  |
+| `routers/`  | HTTP request handling, parameter validation (Pydantic), HTTP responses only. Delegates all logic to `services/`. |
+| `services/` | Core application logic: modifies DB state, calls third-party APIs, orchestrates data pipelines.                  |
+| `utils/`    | Stateless, pure functions only. No DB calls, no HTTP requests. Data transformation and constants.                |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -257,7 +249,7 @@ The application manages data through four distinct lifecycle paths:
 
 1. **Client Read Path** — All frontend reads query Cloud SQL (PostgreSQL) directly via SQLAlchemy. Google Sheets is fully bypassed for performance.
 
-2. **Interactive Write Path (Admin)** — UI changes (e.g., incrementing episode counters) trigger an optimistic DOM update in the browser immediately, followed by an async `PATCH` request that updates both PostgreSQL and Google Sheets in the background.
+2. **Interactive Write Path (Admin)** — UI changes (e.g., incrementing episode counters) trigger an optimistic React state update immediately, followed by an async `PATCH` request that updates PostgreSQL in the background. TanStack Query invalidates and refetches the affected cache entries on success.
 
 3. **Data Control Pipelines** — Manual admin-triggered bulk operations streamed via Server-Sent Events (SSE) to avoid HTTP timeouts on long-running jobs:
    - **Backup** (`PostgreSQL → Google Sheets`): Exports all core tables to their corresponding Google Sheet tabs. Intended as a safe snapshot before performing risky bulk operations.
@@ -335,15 +327,9 @@ GET    /api/system/deleted     Retrieve soft-deleted records
 POST   /api/system/test-bucket Test GCS bucket connectivity and permissions
 ```
 
-**Pages (`/`)**
+**SPA Catch-All (`/*`)**
 
-```
-GET    /                       Dashboard — active tracking swimlanes
-GET    /library                Full collection grid with filtering
-GET    /anime/{id}             Individual anime detail and tracker page
-GET    /franchise/{id}         Franchise Hub hierarchical view
-GET    /admin                  Admin system settings and data control dashboard
-```
+All non-API paths are served by a FastAPI catch-all route (`/{full_path:path}`) that returns `frontend_dist/index.html`, handing routing entirely to React Router on the client. Page-level routes (`/`, `/anime/{id}`, `/franchise/{id}`, `/search`, `/add`, `/modify`, `/delete`, `/system`, `/login`) are defined in `frontend/src/App.jsx`.
 
 > **Communication Patterns:** Standard CRUD operations use JSON payloads validated by Pydantic schemas. Long-running pipeline operations (Backup, Pull, Fill, Replace) use **Server-Sent Events (SSE)** to stream real-time progress to the UI without timing out.
 
@@ -358,7 +344,7 @@ GET    /admin                  Admin system settings and data control dashboard
 ### Prerequisites
 
 - Python 3.11+
-- Node.js (v20+ recommended) and npm — required for compiling Tailwind CSS v4
+- Node.js (v20+ recommended) and npm — required for the React/Vite frontend dev server and production build
 - Docker & Docker Compose — used for the local PostgreSQL database container
 - A Google Cloud Platform project with the following APIs enabled:
   - Cloud Run, Cloud SQL, Cloud Storage, Secret Manager, Artifact Registry
@@ -369,26 +355,22 @@ GET    /admin                  Admin system settings and data control dashboard
 
 ### Local Development Setup
 
-1. **Clone the repository and switch to the `cloud` branch**
+1. **Clone the repository**
 
    ```sh
    git clone https://github.com/cgentle1618/anime_site.git
    cd anime_site
-   git checkout cloud
    ```
 
-2. **Install Node.js dependencies and build the CSS**
-
-   The repository already includes `package.json` with all required entries, so no `npm init` is needed. Install the dev dependencies and compile the Tailwind CSS:
+2. **Install frontend dependencies**
 
    ```sh
+   cd frontend
    npm install
-   npm run build:css
+   cd ..
    ```
 
-   This installs `tailwindcss`, `@tailwindcss/cli`, `postcss`, and `autoprefixer`, then generates `static/css/main.css`. The compiled `main.css` is gitignored and must be built before first run.
-
-   > **Note:** In production, this step is handled automatically by Stage 1 of the Docker multi-stage build — no local Node.js is required for deployment.
+   This installs React, Vite, TanStack Query, React Router, and the Tailwind CSS v4 Vite plugin. No separate CSS compilation step is needed — Tailwind is processed automatically by the Vite dev server.
 
 3. **Create and activate a Python virtual environment**
 
@@ -413,17 +395,26 @@ GET    /admin                  Admin system settings and data control dashboard
    docker-compose up -d
    ```
 
-7. **Run the development server**
+7. **Run both dev servers** (in two separate terminals)
 
    ```sh
+   # Terminal 1 — FastAPI backend
    uvicorn main:app --reload
+
+   # Terminal 2 — Vite frontend dev server
+   cd frontend
+   npm run dev
    ```
 
-8. **Access the app** at `http://localhost:8000`
+   The Vite dev server (`http://localhost:5173`) proxies all `/api` requests to the FastAPI backend at `http://localhost:8000`, so no CORS configuration is needed during development.
 
-   On first boot, SQLAlchemy will auto-create all tables via `Base.metadata.create_all()`. Navigate to the Admin dashboard (`/admin`) and trigger a **Data Pull** to hydrate the database from your Google Sheet, or begin adding entries manually via `/add`.
+8. **Access the app**
+   - **Frontend (React SPA):** `http://localhost:5173`
+   - **API / Swagger UI:** `http://localhost:8000/docs`
 
-   The full API reference is available at `http://localhost:8000/docs` via the FastAPI built-in Swagger UI.
+   On first boot, SQLAlchemy will auto-create all tables via `Base.metadata.create_all()`. Navigate to the Admin dashboard (`/system`) and trigger a **Data Pull** to hydrate the database from your Google Sheet, or begin adding entries manually via `/add`.
+
+   > **Production preview locally:** Run `cd frontend && npm run build` to generate `frontend_dist/`, then start only `uvicorn main:app` and visit `http://localhost:8000`. FastAPI serves the compiled SPA directly via the `/assets` static mount and SPA catch-all route.
 
 ---
 
@@ -506,11 +497,11 @@ This project is designed for a fully serverless, zero-maintenance production arc
 
 The `Dockerfile` uses a **3-stage multi-stage build** to produce an ultra-lightweight, secure production image (target: < 500MB):
 
-| Stage                              | Base Image         | Purpose                                                                                                                                                                                                            |
-| ---------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Stage 1: CSS Builder**           | `node:20-slim`     | Installs Node.js deps, scans templates for class names, compiles Tailwind v4 into a minified `main.css`. `node_modules` never proceeds past this stage.                                                            |
-| **Stage 2: Python Wheels Builder** | `python:3.11-slim` | Installs `gcc`, `libpq-dev`, `libffi-dev` build headers; compiles C-extension wheels (`psycopg2`, `bcrypt`, `cryptography`) into `/app/wheels`. Compilers never reach the final image.                             |
-| **Stage 3: Final Runtime**         | `python:3.11-slim` | Installs only `libpq-dev` (runtime PostgreSQL client); copies pre-built wheels from Stage 2 (offline install); copies application source and compiled `main.css` from Stage 1. Executes `entrypoint.sh` → Uvicorn. |
+| Stage                              | Base Image         | Purpose                                                                                                                                                                                                                                |
+| ---------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stage 1: Frontend Builder**      | `node:20-slim`     | Installs Node.js deps (`npm install`), then runs `npm run build` to compile the React SPA via Vite into `frontend_dist/` (hashed JS/CSS bundles + `index.html`). `node_modules` never proceeds past this stage.                        |
+| **Stage 2: Python Wheels Builder** | `python:3.11-slim` | Installs `gcc`, `libpq-dev`, `libffi-dev` build headers; compiles C-extension wheels (`psycopg2`, `bcrypt`, `cryptography`) into `/app/wheels`. Compilers never reach the final image.                                                 |
+| **Stage 3: Final Runtime**         | `python:3.11-slim` | Installs only `libpq-dev` (runtime PostgreSQL client); copies pre-built wheels from Stage 2 (offline install); copies application source from repo and the compiled `frontend_dist/` from Stage 1. Executes `entrypoint.sh` → Uvicorn. |
 
 **Build and tag the image locally:**
 
@@ -624,15 +615,15 @@ This ensures every production deployment is traceable to a specific commit, repr
 - [x] Basic Anime Tracker & Database Implementation
 - [x] GCP Cloud Run deployment
 - [x] GitHub Actions CI/CD pipeline (auto-deploy on push to `main`)
+- [x] Frontend migration using (React+Vite)
 - [ ] Intermediate Anime Tracker & Database Implementation
-- [ ] Add Anime Movies entries to Tracker & Database
+- [ ] Add Anime Movie entries to Tracker & Database
 - [ ] Add Movie entries to Tracker & Database
 - [ ] Add TV Show entries to Tracker & Database
 - [ ] Add Cartoon entries to Tracker & Database
 - [ ] Add Manga entries to Tracker & Database
 - [ ] Add Novel entries to Tracker & Database
 - [ ] Advanced Anime Tracker & Database Implementation
-- [ ] Re-implement frontend using modern frontend frameworks (React/Vue)
 - [ ] more TBD
 
 See the [open issues](https://github.com/cgentle1618/anime_site/issues) for a full list of proposed features and known issues.
@@ -684,12 +675,16 @@ Project Link: [https://github.com/cgentle1618/anime_site/tree/cloud](https://git
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [SQLAlchemy ORM](https://docs.sqlalchemy.org/)
 - [Alembic — Database Migrations](https://alembic.sqlalchemy.org/)
+- [React](https://react.dev/)
+- [Vite](https://vitejs.dev/)
+- [React Router](https://reactrouter.com/)
+- [TanStack Query](https://tanstack.com/query/latest)
+- [Tailwind CSS v4](https://tailwindcss.com/)
 - [Jikan API v4 — Unofficial MyAnimeList API](https://jikan.moe/)
 - [gspread — Google Sheets Python API](https://docs.gspread.org/)
 - [Google Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Google Cloud SQL Documentation](https://cloud.google.com/sql/docs)
 - [Google Cloud Storage Documentation](https://cloud.google.com/storage/docs)
-- [Tailwind CSS v4](https://tailwindcss.com/)
 - [tenacity — Retry Library](https://tenacity.readthedocs.io/)
 - [Best-README-Template](https://github.com/othneildrew/Best-README-Template)
 - [Img Shields](https://shields.io)
@@ -720,12 +715,14 @@ Project Link: [https://github.com/cgentle1618/anime_site/tree/cloud](https://git
 [SQLAlchemy-url]: https://www.sqlalchemy.org/
 [Alembic-badge]: https://img.shields.io/badge/Alembic-6BA81E?style=for-the-badge&logo=alembic&logoColor=white
 [Alembic-url]: https://alembic.sqlalchemy.org/
-[Jinja2-badge]: https://img.shields.io/badge/Jinja2-B41717?style=for-the-badge&logo=jinja&logoColor=white
-[Jinja2-url]: https://jinja.palletsprojects.com/
+[React-badge]: https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
+[React-url]: https://react.dev/
+[Vite-badge]: https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white
+[Vite-url]: https://vitejs.dev/
+[ReactRouter-badge]: https://img.shields.io/badge/React_Router-CA4245?style=for-the-badge&logo=react-router&logoColor=white
+[ReactRouter-url]: https://reactrouter.com/
 [Tailwind-badge]: https://img.shields.io/badge/Tailwind_CSS_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white
 [Tailwind-url]: https://tailwindcss.com/
-[JS-badge]: https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black
-[JS-url]: https://developer.mozilla.org/en-US/docs/Web/JavaScript
 [Docker-badge]: https://img.shields.io/badge/Docker-0db7ed?style=for-the-badge&logo=docker&logoColor=white
 [Docker-url]: https://www.docker.com/
 [GCP-badge]: https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white
