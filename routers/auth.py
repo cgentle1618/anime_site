@@ -6,13 +6,14 @@ Uses JWTs stored in HTTP-Only cookies to protect against XSS attacks.
 
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 import models
-from dependencies import get_db
+from dependencies import get_db, SECRET_KEY, ALGORITHM
 from services.security import verify_password, create_access_token
 
 logging.basicConfig(level=logging.INFO)
@@ -68,6 +69,23 @@ def login_for_access_token(
 
     logger.info(f"Successful login for user: {user.username}")
     return {"message": "Successfully logged in", "role": user.role}
+
+
+@router.get("/me", summary="Get Current Auth Status")
+def get_me(request: Request):
+    """Returns current user's auth status. Used by React AuthContext on mount."""
+    token = request.cookies.get("access_token")
+    if not token or not token.startswith("Bearer "):
+        return {"is_admin": False, "username": None}
+    try:
+        token_str = token.split(" ")[1]
+        payload = jwt.decode(token_str, SECRET_KEY, algorithms=[ALGORITHM])
+        return {
+            "is_admin": payload.get("role") == "admin",
+            "username": payload.get("sub"),
+        }
+    except Exception:
+        return {"is_admin": False, "username": None}
 
 
 @router.post("/logout", summary="Logout User and Clear Cookie")

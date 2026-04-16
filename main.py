@@ -7,9 +7,11 @@ and database seeding using modern FastAPI lifespan events.
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 import database
 from database import engine
@@ -86,12 +88,17 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Serve Vite build output (production only — frontend_dist/ is created by docker build)
+FRONTEND_DIST = Path("frontend_dist")
+if FRONTEND_DIST.exists():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="vite-assets")
+
 
 # ==========================================
 # ROUTER REGISTRATION
 # ==========================================
 
-app.include_router(pages.router)
+app.include_router(pages.router)   # Original Jinja2 routes — kept for comparison, remove after approval
 app.include_router(auth.router)
 
 app.include_router(options.router)
@@ -101,3 +108,19 @@ app.include_router(anime.router)
 
 app.include_router(data_control.router)
 app.include_router(system.router)
+
+
+# ==========================================
+# SPA CATCH-ALL (must be last)
+# ==========================================
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(full_path: str):
+    """Serves the React SPA for all non-API routes."""
+    index = FRONTEND_DIST / "index.html"
+    if not index.exists():
+        return {"detail": "Frontend not built. Run: cd frontend && npm run build"}
+    candidate = FRONTEND_DIST / full_path
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(index)

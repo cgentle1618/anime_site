@@ -11,6 +11,7 @@ static/covers/
 node_modules/
 static/css/main.css
 .npm/
+frontend_dist/
 
 # Claude Code configuration and auto-memory
 .claude/

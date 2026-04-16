@@ -1,22 +1,17 @@
 # ==========================================
-# STAGE 1: CSS Builder (Node.js)
+# STAGE 1: Frontend Builder (Node.js + Vite)
 # ==========================================
-FROM node:20-slim AS css-builder
+FROM node:20-slim AS frontend-builder
 WORKDIR /app
 
-# Copy package configurations
-# The asterisk handles package-lock.json if it exists
-COPY package.json package-lock.json* ./
+# Install dependencies first (layer cache)
+COPY frontend/package.json frontend/package-lock.json* ./frontend/
+RUN cd frontend && npm install
 
-# Install Tailwind CLI and dependencies
-RUN npm install
-
-# Copy templates and static files required for Tailwind scanning and compiling
-COPY templates/ templates/
-COPY static/ static/
-
-# Run the Tailwind CLI to generate the production main.css
-RUN npm run build:css
+# Copy source and build
+COPY frontend/ ./frontend/
+RUN cd frontend && npm run build
+# Output: /app/frontend_dist/
 
 # ==========================================
 # STAGE 2: Python Wheels Builder
@@ -62,8 +57,8 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 # Copy application code
 COPY . .
 
-# Copy the compiled CSS from the css-builder stage
-COPY --from=css-builder /app/static/css/main.css ./static/css/main.css
+# Copy the compiled React SPA from the frontend-builder stage
+COPY --from=frontend-builder /app/frontend_dist ./frontend_dist
 
 # Make the script executable
 RUN chmod +x /app/entrypoint.sh

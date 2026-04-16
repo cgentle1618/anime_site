@@ -15,19 +15,6 @@ services:
     volumes:
       - postgres_anime_data:/var/lib/postgresql/data
 
-  # --- Tailwind CSS Background Compiler ---
-  tailwind-watcher:
-    image: node:20-alpine
-    container_name: anime_site_tailwind_watcher
-    working_dir: /app
-
-    # Mount your local code directory into the container
-    volumes:
-      - .:/app
-
-    # Installs Tailwind (if node_modules is missing)
-    # Runs the Tailwind CLI in "watch" mode
-    command: sh -c "npm install && npx tailwindcss -i ./static/css/input.css -o ./static/css/main.css --watch"
 
 volumes:
   postgres_anime_data:
