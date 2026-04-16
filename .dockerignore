@@ -22,10 +22,10 @@ Dockerfile
 docker-compose.yml
 
 # Node & Frontend
-node_modules/
+**/node_modules
 npm-debug.log
 package-lock.json
-static/css/main.css
+frontend_dist/
 
 # Exclude Claude's working directory
 .claude/

@@ -18,7 +18,6 @@ from database import engine
 import models
 
 from routers import (
-    pages,
     auth,
     options,
     franchise,
@@ -98,7 +97,6 @@ if FRONTEND_DIST.exists():
 # ROUTER REGISTRATION
 # ==========================================
 
-app.include_router(pages.router)   # Original Jinja2 routes — kept for comparison, remove after approval
 app.include_router(auth.router)
 
 app.include_router(options.router)
