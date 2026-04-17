@@ -116,6 +116,9 @@ function franchiseToForm(f) {
     my_rating: f.my_rating || '',
     franchise_expectation: f.franchise_expectation || '',
     favorite_3x3_slot: f.favorite_3x3_slot ?? '',
+    cover_anime_id: f.cover_anime_id ?? null,
+    watch_next_group: f.watch_next_group ?? null,
+    to_rewatch: f.to_rewatch ?? false,
     remark: f.remark || '',
   }
 }
@@ -337,7 +340,7 @@ export default function Modify() {
   async function saveFranchise() {
     const res = await fetch(`/api/franchise/${editingItem.system_id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ franchise_name_en: ff.franchise_name_en || null, franchise_name_cn: ff.franchise_name_cn || null, franchise_name_romanji: ff.franchise_name_romanji || null, franchise_name_jp: ff.franchise_name_jp || null, franchise_name_alt: ff.franchise_name_alt || null, franchise_type: ff.franchise_type || null, my_rating: ff.my_rating || null, franchise_expectation: ff.franchise_expectation || null, favorite_3x3_slot: ff.favorite_3x3_slot !== '' ? parseInt(ff.favorite_3x3_slot) : null, remark: ff.remark || null }),
+      body: JSON.stringify({ franchise_name_en: ff.franchise_name_en || null, franchise_name_cn: ff.franchise_name_cn || null, franchise_name_romanji: ff.franchise_name_romanji || null, franchise_name_jp: ff.franchise_name_jp || null, franchise_name_alt: ff.franchise_name_alt || null, franchise_type: ff.franchise_type || null, my_rating: ff.my_rating || null, franchise_expectation: ff.franchise_expectation || null, favorite_3x3_slot: ff.favorite_3x3_slot !== '' ? parseInt(ff.favorite_3x3_slot) : null, cover_anime_id: ff.cover_anime_id || null, watch_next_group: ff.watch_next_group || null, to_rewatch: ff.to_rewatch || false, remark: ff.remark || null }),
       credentials: 'include',
     })
     if (res.ok) { const updated = await res.json(); setAllFranchises(prev => prev.map(f => f.system_id === updated.system_id ? updated : f)); setEditingItem(updated); showToast('success', 'Update successful.') }
@@ -715,6 +718,38 @@ export default function Modify() {
                     </select>
                   </Field>
                 </div>
+                <Field label="Cover Image Source" hint="3x3 grid cover — leave blank to auto-pick latest entry with cover">
+                  <select className={selectCls} value={ff.cover_anime_id || ''} onChange={e=>uf('cover_anime_id', e.target.value || null)}>
+                    <option value="">— Auto (latest with cover) —</option>
+                    {allAnime
+                      .filter(a => a.franchise_id === editingItem?.system_id)
+                      .sort((a, b) => {
+                        const yr = (parseInt(b.release_year,10)||0) - (parseInt(a.release_year,10)||0)
+                        return yr !== 0 ? yr : (b.release_month||0) - (a.release_month||0)
+                      })
+                      .map(a => (
+                        <option key={a.system_id} value={a.system_id}>
+                          {a.anime_name_cn || a.anime_name_en || a.anime_name_romanji || a.system_id}
+                          {a.release_year ? ` (${a.release_year})` : ''}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </Field>
+                <Field label="Watch Next Group">
+                  <select className={selectCls} value={ff.watch_next_group || ''} onChange={e=>uf('watch_next_group', e.target.value || null)}>
+                    <option value="">— Not in Watch List —</option>
+                    <option value="12ep">12 EP</option>
+                    <option value="24ep">24 EP</option>
+                    <option value="30ep_plus">30+ EP</option>
+                  </select>
+                </Field>
+                <Field label="To Rewatch">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!ff.to_rewatch} onChange={e=>uf('to_rewatch', e.target.checked)} className="w-4 h-4 rounded accent-brand" />
+                    <span className="text-sm font-medium text-gray-700">Mark this franchise for rewatch</span>
+                  </label>
+                </Field>
                 <Field label="Remark"><textarea className={inputCls} rows={3} value={ff.remark} onChange={e=>uf('remark',e.target.value)} /></Field>
               </>
             )}

@@ -43,15 +43,26 @@ def get_all_anime(
     franchise_id: Optional[str] = None,
     series_id: Optional[str] = None,
     search_query: Optional[str] = None,
+    airing_season: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """Retrieves Anime entries, supporting foreign key filters and search."""
+    """Retrieves Anime entries, supporting foreign key filters and search.
+    airing_season accepts the combined seasonal string (e.g. 'WIN 2026').
+    """
     query = db.query(models.Anime)
 
     if franchise_id:
         query = query.filter(models.Anime.franchise_id == franchise_id)
     if series_id:
         query = query.filter(models.Anime.series_id == series_id)
+
+    if airing_season:
+        parts = airing_season.strip().split(" ", 1)
+        if len(parts) == 2:
+            query = query.filter(
+                models.Anime.release_season == parts[0],
+                models.Anime.release_year == parts[1],
+            )
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -152,6 +163,9 @@ def update_anime_entry(
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
+    if update_data.get("watching_status") == "Completed" and db_anime.completed_at is None:
+        db_anime.completed_at = get_taipei_now()
+
     final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
         db, db_anime.franchise_id, db_anime.series_id, db_anime.names_dict
     )
@@ -197,6 +211,9 @@ def patch_anime_entry(
     for key, value in payload.items():
         if hasattr(db_anime, key):
             setattr(db_anime, key, value)
+
+    if payload.get("watching_status") == "Completed" and db_anime.completed_at is None:
+        db_anime.completed_at = get_taipei_now()
 
     db_anime.updated_at = get_taipei_now()
     db.commit()

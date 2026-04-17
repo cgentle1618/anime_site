@@ -23,6 +23,7 @@ from routers import (
     franchise,
     series,
     anime,
+    seasonal,
     data_control,
     system,
 )
@@ -103,6 +104,7 @@ app.include_router(options.router)
 app.include_router(franchise.router)
 app.include_router(series.router)
 app.include_router(anime.router)
+app.include_router(seasonal.router)
 
 app.include_router(data_control.router)
 app.include_router(system.router)

@@ -11,6 +11,9 @@ import Anime from './pages/Anime'
 import FranchiseAcg from './pages/FranchiseAcg'
 import Search from './pages/Search'
 import FutureReleases from './pages/FutureReleases'
+import SeasonalOverall from './pages/SeasonalOverall'
+import SeasonalDetail from './pages/SeasonalDetail'
+import Statistics from './pages/Statistics'
 import LibraryAnime from './pages/LibraryAnime'
 import Admin from './pages/Admin'
 import Add from './pages/Add'
@@ -43,6 +46,9 @@ export default function App() {
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
                 <Route path="/franchise/:system_id" element={<FranchiseAcg />} />
+                <Route path="/seasonal" element={<SeasonalOverall />} />
+                <Route path="/seasonal/:seasonal_id" element={<SeasonalDetail />} />
+                <Route path="/statistics" element={<Statistics />} />
                 <Route path="/under-development" element={<UnderDevelopment />} />
 
                 {/* Admin-only routes */}

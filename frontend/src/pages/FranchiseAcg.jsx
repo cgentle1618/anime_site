@@ -28,6 +28,8 @@ export default function FranchiseAcg() {
   // Admin editable fields
   const [rating, setRating] = useState('')
   const [expectation, setExpectation] = useState('')
+  const [watchNextGroup, setWatchNextGroup] = useState('')
+  const [toRewatch, setToRewatch] = useState(false)
   const [remark, setRemark] = useState('')
 
   useEffect(() => {
@@ -45,6 +47,8 @@ export default function FranchiseAcg() {
         setAnimeList(a)
         setRating(f.my_rating || '')
         setExpectation(f.franchise_expectation || '')
+        setWatchNextGroup(f.watch_next_group || '')
+        setToRewatch(f.to_rewatch || false)
         setRemark(f.remark || '')
       } catch (e) {
         setError(e.message)
@@ -232,6 +236,17 @@ export default function FranchiseAcg() {
                   {franchise.franchise_expectation} Expectation
                 </span>
               )}
+              {franchise.watch_next_group && (
+                <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">
+                  <i className="fas fa-list-ol mr-1"></i>
+                  Watch Next: {{"12ep": "12 EP", "24ep": "24 EP", "30ep_plus": "30+ EP"}[franchise.watch_next_group]}
+                </span>
+              )}
+              {franchise.to_rewatch && (
+                <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold">
+                  <i className="fas fa-redo mr-1"></i>To Rewatch
+                </span>
+              )}
               <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
                 {animeList.length} Entries
               </span>
@@ -274,6 +289,31 @@ export default function FranchiseAcg() {
                     <option value="">— None —</option>
                     {['High', 'Medium', 'Low'].map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Watch Next Group</label>
+                  <select
+                    value={watchNextGroup}
+                    onChange={e => { setWatchNextGroup(e.target.value); saveField('watch_next_group', e.target.value) }}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                  >
+                    <option value="">— Not in Watch List —</option>
+                    <option value="12ep">12 EP</option>
+                    <option value="24ep">24 EP</option>
+                    <option value="30ep_plus">30+ EP</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">To Rewatch</label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={toRewatch}
+                      onChange={e => { setToRewatch(e.target.checked); saveField('to_rewatch', e.target.checked) }}
+                      className="w-4 h-4 rounded accent-brand"
+                    />
+                    <span className="text-xs font-medium text-gray-700">Mark for rewatch</span>
+                  </label>
                 </div>
               </div>
             )}

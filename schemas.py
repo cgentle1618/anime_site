@@ -77,6 +77,9 @@ class FranchiseBase(BaseModel):
     my_rating: Optional[str] = None
     franchise_expectation: Optional[str] = "Low"
     favorite_3x3_slot: Optional[int] = None
+    cover_anime_id: Optional[UUID] = None
+    watch_next_group: Optional[str] = None
+    to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
 
 
@@ -193,6 +196,7 @@ class AnimeBase(BaseModel):
     source_other_link: Optional[str] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
+    completed_at: Optional[datetime] = None
 
 
 class AnimeCreate(AnimeBase):
@@ -250,6 +254,10 @@ class SeasonalBase(BaseModel):
 
 class SeasonalResponse(SeasonalBase):
     model_config = ConfigDict(from_attributes=True)
+
+
+class SeasonalUpdate(BaseModel):
+    my_rating: Optional[str] = None
 
 
 class CurrentSeasonUpdate(BaseModel):

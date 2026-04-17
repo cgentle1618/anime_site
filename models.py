@@ -76,6 +76,13 @@ class Franchise(Base, NameFallbackMixin):
     my_rating = Column(String, nullable=True)
     franchise_expectation = Column(String, default="Low")
     favorite_3x3_slot = Column(Integer, nullable=True)
+    cover_anime_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("anime.system_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    watch_next_group = Column(String, nullable=True)
+    to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
@@ -83,7 +90,7 @@ class Franchise(Base, NameFallbackMixin):
 
     # Relationships
     series = relationship("Series", back_populates="franchise")
-    animes = relationship("Anime", back_populates="franchise")
+    animes = relationship("Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]")
 
     @property
     def display_name(self) -> str:
@@ -209,11 +216,12 @@ class Anime(Base, NameFallbackMixin):
     remark = Column(Text, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     # Relationships
-    franchise = relationship("Franchise", back_populates="animes")
+    franchise = relationship("Franchise", back_populates="animes", foreign_keys="[Anime.franchise_id]")
     series = relationship("Series", back_populates="animes")
 
     @property
