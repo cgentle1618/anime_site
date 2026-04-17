@@ -11,7 +11,7 @@ import logging
 import asyncio
 from fastapi import Request
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 
 from models import Franchise, Series, Anime, SystemOption, DataControlLog
 
@@ -890,6 +890,10 @@ def execute_pull_specific(
                 error_message=str(e),
             )
         return {"status": "error", "message": str(e)}
+
+    if tab_name == "System Options":
+        db.execute(text("SELECT setval('system_options_id_seq', COALESCE((SELECT MAX(id) FROM system_options), 0))"))
+        db.commit()
 
     logger.info(
         f"Successfully pulled and upserted {processed} records from '{tab_name}'."

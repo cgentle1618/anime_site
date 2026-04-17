@@ -16,6 +16,15 @@ from services.data_control import (
     execute_replace_all,
     execute_replace_single_anime,
 )
+from services.calculation import (
+    bulk_validate_episode_math,
+    bulk_mark_tv_completed,
+    bulk_extract_season_from_title,
+    bulk_calculate_season_from_month,
+    bulk_autofill_ep_previous,
+    run_auto_create_seasonal,
+    run_extract_system_options,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -160,4 +169,67 @@ def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
         return JSONResponse(content=result)
     except Exception as e:
         logger.error(f"Error in pull {tab_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/validate-episode")
+def trigger_validate_episode(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_validate_episode_math(db))
+    except Exception as e:
+        logger.error(f"Error in validate episode: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/mark-tv-completed")
+def trigger_mark_tv_completed(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_mark_tv_completed(db))
+    except Exception as e:
+        logger.error(f"Error in mark TV completed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/extract-season-from-title")
+def trigger_extract_season_from_title(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_extract_season_from_title(db))
+    except Exception as e:
+        logger.error(f"Error in extract season from title: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/season-from-month")
+def trigger_season_from_month(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_calculate_season_from_month(db))
+    except Exception as e:
+        logger.error(f"Error in season from month: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/create-seasonal")
+def trigger_create_seasonal(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=run_auto_create_seasonal(db))
+    except Exception as e:
+        logger.error(f"Error in create seasonal: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/autofill-ep-previous")
+def trigger_autofill_ep_previous(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_autofill_ep_previous(db))
+    except Exception as e:
+        logger.error(f"Error in autofill ep previous: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/extract-system-options")
+def trigger_extract_system_options(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=run_extract_system_options(db))
+    except Exception as e:
+        logger.error(f"Error in extract system options: {e}")
         raise HTTPException(status_code=500, detail=str(e))

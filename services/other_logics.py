@@ -15,7 +15,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_taipei_now
-from models import Anime, Franchise, Seasonal
+from models import Anime, Franchise, Seasonal, SystemOption
 
 from services.jikan import fetch_jikan_anime_data
 from services.image_manager import download_cover_image
@@ -444,3 +444,55 @@ def resolve_anime_parent_hierarchy(
     final_series_id = series_id
 
     return final_franchise_id, final_series_id
+
+
+# ==========================================
+# SYSTEM OPTION SYNC
+# ==========================================
+
+_SYSTEM_OPTION_FIELD_MAP = {
+    "Genre Main": "genre_main",
+    "Genre Sub": "genre_sub",
+    "Studio": "studio",
+    "Distributor TW": "distributor_tw",
+    "Director": "director",
+    "Producer": "producer",
+    "Music / Composer": "music",
+}
+
+
+def extract_system_options_from_anime(db: Session) -> dict:
+    """
+    Scans all Anime entries for values in system-option-backed fields.
+    Any value not already present in the SystemOption table is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    animes = db.query(Anime).all()
+    new_options = []
+
+    for category, field in _SYSTEM_OPTION_FIELD_MAP.items():
+        for anime in animes:
+            raw = getattr(anime, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_anime: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(animes)} entries, created {len(new_options)} missing system options.",
+    }
