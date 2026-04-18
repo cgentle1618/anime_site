@@ -106,6 +106,55 @@ def check_is_tv_completed(entry: Anime) -> bool:
 # ==========================================
 
 
+_WATCHING_STATUSES = {"Active Watching", "Passive Watching", "Paused"}
+_DROPPED_STATUSES = {"Temp Dropped", "Dropped"}
+_SEASONAL_AIRING_TYPES = {"TV", "ONA", "Movie", "Special"}
+
+
+def sync_seasonal_counts(db: Session) -> None:
+    """
+    Recomputes entry_completed, entry_watching, and entry_dropped for every
+    Seasonal by scanning linked Anime entries. Always overwrites existing counts.
+    Only considers airing_type in TV, ONA, Movie, Special.
+    Watching = Active Watching | Passive Watching | Paused.
+    Dropped  = Temp Dropped | Dropped.
+    """
+    seasonals = db.query(Seasonal).all()
+    if not seasonals:
+        return
+
+    seasonal_map = {s.seasonal: s for s in seasonals}
+
+    for s in seasonals:
+        s.entry_completed = 0
+        s.entry_watching = 0
+        s.entry_dropped = 0
+
+    animes = (
+        db.query(Anime)
+        .filter(
+            Anime.release_season.isnot(None),
+            Anime.release_year.isnot(None),
+            Anime.airing_type.in_(list(_SEASONAL_AIRING_TYPES)),
+        )
+        .all()
+    )
+
+    for anime in animes:
+        key = f"{anime.release_season} {anime.release_year}"
+        s = seasonal_map.get(key)
+        if not s:
+            continue
+        if anime.watching_status == "Completed":
+            s.entry_completed += 1
+        elif anime.watching_status in _WATCHING_STATUSES:
+            s.entry_watching += 1
+        elif anime.watching_status in _DROPPED_STATUSES:
+            s.entry_dropped += 1
+
+    db.commit()
+
+
 def auto_create_seasonal(db: Session) -> None:
     """
     Scans the Anime table for unique combinations of release_season and release_year.

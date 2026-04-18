@@ -27,6 +27,7 @@ from services.calculation import (
     bulk_autofill_ep_previous,
     bulk_autofill_watch_order,
     bulk_autofill_prequel_sequel,
+    run_sync_seasonal_counts,
     run_auto_create_seasonal,
     run_extract_system_options,
 )
@@ -228,6 +229,15 @@ def trigger_season_from_month(db: Session = Depends(get_db)):
         return JSONResponse(content=bulk_calculate_season_from_month(db))
     except Exception as e:
         logger.error(f"Error in season from month: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/sync-seasonal-counts")
+def trigger_sync_seasonal_counts(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=run_sync_seasonal_counts(db))
+    except Exception as e:
+        logger.error(f"Error in sync seasonal counts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

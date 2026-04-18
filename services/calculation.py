@@ -13,6 +13,7 @@ from services.other_logics import (
     mark_tv_completed,
     apply_check_baha,
     auto_create_seasonal,
+    sync_seasonal_counts,
     autofill_ep_previous,
     autofill_watch_order,
     autofill_prequel_sequel,
@@ -199,6 +200,14 @@ def bulk_autofill_prequel_sequel(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"Ran prequel/sequel autofill for {len(franchise_ids)} franchises.",
+    }
+
+
+def run_sync_seasonal_counts(db: Session) -> dict:
+    sync_seasonal_counts(db)
+    return {
+        "status": "success",
+        "message": "Seasonal entry counts (completed / watching / dropped) updated.",
     }
 
 

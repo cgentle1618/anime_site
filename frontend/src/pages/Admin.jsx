@@ -1106,6 +1106,12 @@ export default function Admin() {
               icon: "fa-layer-group",
             },
             {
+              key: "syncseasonal",
+              label: "Sync Seasonal Counts",
+              url: "/api/data-control/calculate/sync-seasonal-counts",
+              icon: "fa-sync-alt",
+            },
+            {
               key: "epprev",
               label: "Autofill Ep. Previous",
               url: "/api/data-control/calculate/autofill-ep-previous",
