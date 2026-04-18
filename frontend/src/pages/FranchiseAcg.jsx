@@ -440,7 +440,14 @@ export default function FranchiseAcg() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {group.anime.map(a => (
-                      <AnimeCard key={a.system_id} anime={a} onUpdated={handleAnimeUpdated} />
+                      <div key={a.system_id} className="flex flex-col gap-1">
+                        {sort === 'watch_order' && a.watch_order != null && (
+                          <div className="text-[10px] font-black text-brand/70 uppercase tracking-widest text-center">
+                            #{a.watch_order}
+                          </div>
+                        )}
+                        <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+                      </div>
                     ))}
                   </div>
                 </section>
