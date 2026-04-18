@@ -20,6 +20,8 @@ from services.other_logics import find_all_duplicates
 from services.calculation import (
     bulk_set_season_1,
     bulk_check_baha,
+    bulk_check_cover_image,
+    bulk_download_missing_covers,
     bulk_validate_episode_math,
     bulk_mark_tv_completed,
     bulk_extract_season_from_title,
@@ -184,6 +186,24 @@ def trigger_set_season_1(db: Session = Depends(get_db)):
         return JSONResponse(content=bulk_set_season_1(db))
     except Exception as e:
         logger.error(f"Error in set season 1: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/calculate/check-cover-image")
+def trigger_check_cover_image(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_check_cover_image(db))
+    except Exception as e:
+        logger.error(f"Error in check cover image: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/download-missing-covers")
+def trigger_download_missing_covers(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_download_missing_covers(db))
+    except Exception as e:
+        logger.error(f"Error in download missing covers: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

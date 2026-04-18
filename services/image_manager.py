@@ -74,6 +74,21 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
         return None
 
 
+def cover_image_exists(system_id: str) -> bool:
+    """Returns True if the cover image file is present in GCS or local storage."""
+    filename = f"{system_id}.jpg"
+    bucket_name = get_active_bucket_name()
+    try:
+        if bucket_name:
+            client = get_gcs_client()
+            return client.bucket(bucket_name).blob(filename).exists()
+        else:
+            return os.path.exists(os.path.join(COVER_DIR, filename))
+    except Exception as e:
+        logger.error(f"Error checking cover image for {system_id}: {e}")
+        return False
+
+
 def delete_cover_image(system_id: str) -> None:
     """
     Permanently removes a cover image from storage.

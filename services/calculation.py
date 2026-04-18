@@ -17,6 +17,7 @@ from services.other_logics import (
     autofill_ep_previous,
     autofill_watch_order,
     autofill_prequel_sequel,
+    autofill_anime_from_mal,
     extract_system_options_from_anime,
 )
 from utils.utils import (
@@ -216,6 +217,47 @@ def run_auto_create_seasonal(db: Session) -> dict:
     return {
         "status": "success",
         "message": "Seasonal entries created for all unique season/year combinations.",
+    }
+
+
+def bulk_check_cover_image(db: Session) -> dict:
+    from services.image_manager import cover_image_exists
+
+    animes = db.query(Anime).filter(Anime.cover_image_file.isnot(None)).all()
+    missing = []
+    for anime in animes:
+        if not cover_image_exists(str(anime.system_id)):
+            name = (
+                anime.anime_name_cn
+                or anime.anime_name_en
+                or anime.anime_name_romanji
+                or str(anime.system_id)
+            )
+            missing.append({"system_id": str(anime.system_id), "name": name})
+    return {
+        "status": "success",
+        "total_checked": len(animes),
+        "missing_count": len(missing),
+        "missing": missing,
+    }
+
+
+def bulk_download_missing_covers(db: Session) -> dict:
+    from services.image_manager import cover_image_exists
+
+    animes = db.query(Anime).filter(Anime.cover_image_file.isnot(None)).all()
+    to_fix = [a for a in animes if not cover_image_exists(str(a.system_id))]
+    downloaded = 0
+    for anime in to_fix:
+        anime.cover_image_file = None
+        autofill_anime_from_mal(anime, force_replace_ratings=False)
+        if anime.cover_image_file:
+            downloaded += 1
+    if to_fix:
+        db.commit()
+    return {
+        "status": "success",
+        "message": f"Re-downloaded {downloaded} of {len(to_fix)} missing cover images.",
     }
 
 

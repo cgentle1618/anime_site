@@ -372,6 +372,74 @@ function DeletedTable({ records }) {
   );
 }
 
+function CoverImageModal({ result, onDownload, onClose, downloading }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-black text-gray-900">Cover Image Check</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-lg">
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div className="p-6 flex flex-col gap-4">
+          <p className="text-sm text-gray-500">
+            Checked <span className="font-bold text-gray-800">{result.total_checked}</span> entries with a cover image record.
+          </p>
+
+          {result.missing_count === 0 ? (
+            <div className="text-center py-8">
+              <i className="fas fa-check-circle text-4xl text-emerald-400 block mb-3"></i>
+              <p className="font-bold text-gray-700">All cover images are present.</p>
+            </div>
+          ) : (
+            <>
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                <p className="text-sm font-bold text-orange-800 mb-2">
+                  {result.missing_count} missing cover image{result.missing_count !== 1 ? "s" : ""} detected
+                </p>
+                <div className="max-h-40 overflow-y-auto space-y-0.5">
+                  {result.missing.map((m, i) => (
+                    <div key={i} className="text-xs text-orange-700 truncate">
+                      {m.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Download missing cover images from MAL?
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 pb-5">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+          >
+            {result.missing_count === 0 ? "Close" : "No"}
+          </button>
+          {result.missing_count > 0 && (
+            <button
+              onClick={onDownload}
+              disabled={downloading}
+              className="px-4 py-2 text-sm font-bold text-white bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-60 flex items-center gap-2"
+            >
+              {downloading && <i className="fas fa-circle-notch fa-spin"></i>}
+              {downloading ? "Downloading..." : "Download"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DuplicatesModal({ results, onClose }) {
   const [tab, setTab] = useState("franchise");
 
@@ -597,6 +665,9 @@ export default function Admin() {
   const [calcLoading, setCalcLoading] = useState({});
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [coverCheckResult, setCoverCheckResult] = useState(null);
+  const [coverCheckOpen, setCoverCheckOpen] = useState(false);
+  const [coverDownloading, setCoverDownloading] = useState(false);
 
   const loadSeason = useCallback(async () => {
     try {
@@ -766,6 +837,41 @@ export default function Admin() {
     }
   }
 
+  async function runCheckCoverImage() {
+    setCalcLoading((prev) => ({ ...prev, checkcoverimage: true }));
+    try {
+      const res = await fetch("/api/data-control/calculate/check-cover-image", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Check failed.");
+      setCoverCheckResult(data);
+      setCoverCheckOpen(true);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCalcLoading((prev) => ({ ...prev, checkcoverimage: false }));
+    }
+  }
+
+  async function handleDownloadMissingCovers() {
+    setCoverDownloading(true);
+    try {
+      const res = await fetch(
+        "/api/data-control/calculate/download-missing-covers",
+        { method: "POST", credentials: "include" },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Download failed.");
+      showToast("success", data.message || "Download complete.");
+      setCoverCheckOpen(false);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCoverDownloading(false);
+    }
+  }
+
   async function runFindDuplicates() {
     setCalcLoading((prev) => ({ ...prev, duplicates: true }));
     try {
@@ -841,6 +947,14 @@ export default function Admin() {
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+      {coverCheckOpen && coverCheckResult && (
+        <CoverImageModal
+          result={coverCheckResult}
+          onDownload={handleDownloadMissingCovers}
+          onClose={() => setCoverCheckOpen(false)}
+          downloading={coverDownloading}
+        />
+      )}
       {duplicateOpen && duplicateResults && (
         <DuplicatesModal results={duplicateResults} onClose={() => setDuplicateOpen(false)} />
       )}
@@ -1150,6 +1264,18 @@ export default function Admin() {
               )}
             </button>
           ))}
+          <button
+            onClick={runCheckCoverImage}
+            disabled={!!calcLoading.checkcoverimage}
+            className="flex flex-col items-center gap-2 p-3 bg-gray-50 hover:bg-brand/5 border border-gray-200 hover:border-brand/30 rounded-xl text-xs font-bold text-gray-700 hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-image text-lg"></i>
+            {calcLoading.checkcoverimage ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Check Cover Image"
+            )}
+          </button>
           <button
             onClick={runFindDuplicates}
             disabled={!!calcLoading.duplicates}
