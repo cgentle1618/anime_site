@@ -304,6 +304,38 @@ def autofill_watch_order(db: Session, franchise_id: Any) -> None:
             entry.watch_order = float(position)
 
 
+def autofill_prequel_sequel(db: Session, franchise_id: Any) -> None:
+    """
+    Sets prequel_id and sequel_id for Anime entries within a franchise
+    based on ascending watch_order. Only fills entries where the field is None.
+    """
+    if not franchise_id:
+        return
+
+    entries = (
+        db.query(Anime)
+        .filter(
+            Anime.franchise_id == franchise_id,
+            Anime.watch_order.isnot(None),
+        )
+        .order_by(Anime.watch_order)
+        .all()
+    )
+
+    if len(entries) < 2:
+        return
+
+    for i, entry in enumerate(entries):
+        prev_entry = entries[i - 1] if i > 0 else None
+        next_entry = entries[i + 1] if i < len(entries) - 1 else None
+
+        if entry.prequel_id is None and prev_entry is not None:
+            entry.prequel_id = prev_entry.system_id
+
+        if entry.sequel_id is None and next_entry is not None:
+            entry.sequel_id = next_entry.system_id
+
+
 def mark_tv_completed(entry: Anime) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.

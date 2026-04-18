@@ -1111,6 +1111,12 @@ export default function Admin() {
               url: "/api/data-control/calculate/autofill-watch-order",
               icon: "fa-list-ol",
             },
+            {
+              key: "prequelsequel",
+              label: "Autofill Prequel / Sequel",
+              url: "/api/data-control/calculate/autofill-prequel-sequel",
+              icon: "fa-link",
+            },
           ].map(({ key, label, url, icon }) => (
             <button
               key={key}
