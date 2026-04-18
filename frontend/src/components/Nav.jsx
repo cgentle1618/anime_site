@@ -10,6 +10,21 @@ function cleanString(str) {
     .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
 }
 
+const SCOPES = [
+  { key: "all",       label: "All" },
+  { key: "franchise", label: "Franchise" },
+  { key: "series",    label: "Series" },
+  { key: "anime",     label: "Anime" },
+  { key: "seasonal",  label: "Seasonal" },
+];
+
+const TYPE_BADGE = {
+  franchise: { label: "FRAN",   cls: "bg-brand/10 text-brand" },
+  series:    { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
+  anime:     { label: "ANIME",  cls: "bg-gray-100 text-gray-500" },
+  seasonal:  { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
+};
+
 function DropdownMenu({ label, icon, items, labelClassName = "" }) {
   return (
     <div className="relative group py-2">
@@ -60,12 +75,14 @@ export default function Nav() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchScope, setSearchScope] = useState("all");
+  const [showScopeMenu, setShowScopeMenu] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const searchRef = useRef(null);
   const searchDebounceRef = useRef(null);
-  const dataCacheRef = useRef({ loaded: false, franchises: [], anime: [] });
+  const dataCacheRef = useRef({ loaded: false, franchises: [], anime: [], series: [], seasonal: [] });
 
   // Universal search — client-side filtering (case/punctuation/space insensitive)
   useEffect(() => {
@@ -78,55 +95,71 @@ export default function Nav() {
     searchDebounceRef.current = setTimeout(async () => {
       try {
         if (!dataCacheRef.current.loaded) {
-          const [franRes, animeRes] = await Promise.all([
+          const [franRes, animeRes, seriesRes, seasonalRes] = await Promise.all([
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
+            fetch("/api/series/", { credentials: "include" }),
+            fetch("/api/seasonal/", { credentials: "include" }),
           ]);
-          dataCacheRef.current.franchises = franRes.ok
-            ? await franRes.json()
-            : [];
+          dataCacheRef.current.franchises = franRes.ok ? await franRes.json() : [];
           dataCacheRef.current.anime = animeRes.ok ? await animeRes.json() : [];
+          dataCacheRef.current.series = seriesRes.ok ? await seriesRes.json() : [];
+          dataCacheRef.current.seasonal = seasonalRes.ok ? await seasonalRes.json() : [];
           dataCacheRef.current.loaded = true;
         }
         const qClean = cleanString(searchQuery);
-        const matchF = dataCacheRef.current.franchises
-          .filter((f) =>
-            [
-              f.franchise_name_cn,
-              f.franchise_name_en,
-              f.franchise_name_romanji,
-              f.franchise_name_jp,
-              f.franchise_name_alt,
-            ].some((n) => cleanString(n).includes(qClean)),
-          )
-          .slice(0, 5);
-        const matchA = dataCacheRef.current.anime
-          .filter((a) =>
-            [
-              a.anime_name_cn,
-              a.anime_name_en,
-              a.anime_name_romanji,
-              a.anime_name_jp,
-              a.anime_name_alt,
-            ].some((n) => cleanString(n).includes(qClean)),
-          )
-          .slice(0, 10);
-        setSearchResults([
-          ...matchF.map((f) => ({ type: "franchise", ...f })),
-          ...matchA.map((a) => ({ type: "anime", ...a })),
-        ]);
+        const scope = searchScope;
+        const results = [];
+
+        if (scope === "all" || scope === "franchise") {
+          const limit = scope === "all" ? 3 : 10;
+          dataCacheRef.current.franchises
+            .filter((f) => [f.franchise_name_cn, f.franchise_name_en, f.franchise_name_romanji, f.franchise_name_jp, f.franchise_name_alt]
+              .some((n) => cleanString(n).includes(qClean)))
+            .slice(0, limit)
+            .forEach((f) => results.push({ type: "franchise", ...f }));
+        }
+
+        if (scope === "all" || scope === "series") {
+          const limit = scope === "all" ? 2 : 10;
+          dataCacheRef.current.series
+            .filter((s) => [s.series_name_cn, s.series_name_en, s.series_name_alt]
+              .some((n) => cleanString(n).includes(qClean)))
+            .slice(0, limit)
+            .forEach((s) => results.push({ type: "series", ...s }));
+        }
+
+        if (scope === "all" || scope === "anime") {
+          const limit = scope === "all" ? 5 : 10;
+          dataCacheRef.current.anime
+            .filter((a) => [a.anime_name_cn, a.anime_name_en, a.anime_name_romanji, a.anime_name_jp, a.anime_name_alt]
+              .some((n) => cleanString(n).includes(qClean)))
+            .slice(0, limit)
+            .forEach((a) => results.push({ type: "anime", ...a }));
+        }
+
+        if (scope === "all" || scope === "seasonal") {
+          const limit = scope === "all" ? 2 : 10;
+          dataCacheRef.current.seasonal
+            .filter((s) => cleanString(s.seasonal).includes(qClean))
+            .slice(0, limit)
+            .forEach((s) => results.push({ type: "seasonal", ...s }));
+        }
+
+        setSearchResults(results);
         setShowResults(true);
       } catch {
         // ignore search errors
       }
     }, 250);
-  }, [searchQuery]);
+  }, [searchQuery, searchScope]);
 
   // Close search on outside click
   useEffect(() => {
     function handler(e) {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setShowResults(false);
+        setShowScopeMenu(false);
       }
     }
     document.addEventListener("mousedown", handler);
@@ -140,21 +173,29 @@ export default function Nav() {
       setSearchQuery("");
       setSearchResults([]);
       setShowResults(false);
-      navigate(`/search?q=${encodeURIComponent(q)}`);
+      const params = new URLSearchParams({ q });
+      if (searchScope !== "all") params.set("scope", searchScope);
+      navigate(`/search?${params.toString()}`);
     }
   }
 
   function getDisplayName(item) {
-    return (
-      item.franchise_name_cn ||
-      item.franchise_name_en ||
-      item.franchise_name_romanji ||
-      item.anime_name_cn ||
-      item.anime_name_en ||
-      item.anime_name_romanji ||
-      item.anime_name_jp ||
-      "—"
-    );
+    if (item.type === "franchise")
+      return item.franchise_name_cn || item.franchise_name_en || item.franchise_name_romanji || item.franchise_name_jp || "—";
+    if (item.type === "series")
+      return item.series_name_cn || item.series_name_en || item.series_name_alt || "—";
+    if (item.type === "seasonal")
+      return item.seasonal || "—";
+    return item.anime_name_cn || item.anime_name_en || item.anime_name_romanji || item.anime_name_jp || "—";
+  }
+
+  function handleResultClick(item) {
+    setShowResults(false);
+    setSearchQuery("");
+    if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
+    else if (item.type === "series") navigate(`/franchise/${item.franchise_id}`);
+    else if (item.type === "seasonal") navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
+    else navigate(`/anime/${item.system_id}`);
   }
 
   async function handleBackup() {
@@ -289,43 +330,70 @@ export default function Nav() {
             {/* Universal Search */}
             <div
               ref={searchRef}
-              className="relative hidden md:block w-56 lg:w-80 xl:w-96 transition-all"
+              className="relative hidden md:flex items-center w-56 lg:w-80 xl:w-96 bg-gray-100 border border-transparent rounded-full focus-within:bg-white focus-within:ring-2 focus-within:ring-brand focus-within:border-transparent transition shadow-inner"
             >
-              <i className="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none"></i>
+              {/* Scope selector */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowScopeMenu((s) => !s)}
+                  className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 text-xs font-bold text-gray-500 hover:text-brand transition whitespace-nowrap"
+                >
+                  {SCOPES.find((s) => s.key === searchScope)?.label}
+                  <i className={`fas fa-chevron-down text-[8px] transition-transform ${showScopeMenu ? "rotate-180" : ""}`}></i>
+                </button>
+                {showScopeMenu && (
+                  <div className="absolute left-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden min-w-[120px]">
+                    {SCOPES.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => { setSearchScope(s.key); setShowScopeMenu(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm font-bold transition ${searchScope === s.key ? "text-brand bg-brand/5" : "text-gray-700 hover:bg-gray-50"}`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-3.5 bg-gray-300 shrink-0 mx-0.5"></div>
+
+              {/* Search icon */}
+              <i className="fas fa-search pl-2 pr-1 text-gray-400 text-sm pointer-events-none shrink-0"></i>
+
+              {/* Input */}
               <input
                 type="text"
-                placeholder="Quick search..."
+                placeholder={searchScope === "all" ? "Quick search..." : `Search ${SCOPES.find((s) => s.key === searchScope)?.label}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKey}
                 onFocus={() => searchResults.length > 0 && setShowResults(true)}
-                className="w-full bg-gray-100 border border-transparent rounded-full pl-9 pr-4 py-1.5 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-brand focus:border-transparent transition shadow-inner"
+                className="flex-1 min-w-0 bg-transparent pr-4 py-1.5 text-sm font-medium focus:outline-none"
                 autoComplete="off"
               />
+
+              {/* Results dropdown */}
               {showResults && searchResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden max-h-[80vh] overflow-y-auto z-50">
-                  {searchResults.map((item, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setShowResults(false);
-                        setSearchQuery("");
-                        if (item.type === "franchise")
-                          navigate(`/franchise/${item.system_id}`);
-                        else navigate(`/anime/${item.system_id}`);
-                      }}
-                      className="w-full text-left flex items-center px-4 py-2.5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0"
-                    >
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded mr-2 shrink-0 ${item.type === "franchise" ? "bg-brand/10 text-brand" : "bg-gray-100 text-gray-500"}`}
+                  {searchResults.map((item, i) => {
+                    const badge = TYPE_BADGE[item.type];
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => handleResultClick(item)}
+                        className="w-full text-left flex items-center px-4 py-2.5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0"
                       >
-                        {item.type === "franchise" ? "FRAN" : "ANIME"}
-                      </span>
-                      <span className="text-sm font-medium text-gray-800 truncate">
-                        {getDisplayName(item)}
-                      </span>
-                    </button>
-                  ))}
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mr-2 shrink-0 ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                        <span className="text-sm font-medium text-gray-800 truncate">
+                          {getDisplayName(item)}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
