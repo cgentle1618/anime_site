@@ -336,6 +336,12 @@ def autofill_prequel_sequel(db: Session, franchise_id: Any) -> None:
             entry.sequel_id = next_entry.system_id
 
 
+def apply_check_baha(anime: Anime) -> None:
+    """Sets source_baha=True if baha_link is present and airing_status is 'Airing'."""
+    if anime.baha_link and anime.airing_status == "Airing" and anime.source_baha is None:
+        anime.source_baha = True
+
+
 def mark_tv_completed(entry: Anime) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.

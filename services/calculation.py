@@ -10,6 +10,7 @@ from models import Anime
 from services.other_logics import (
     check_is_tv_completed,
     mark_tv_completed,
+    apply_check_baha,
     auto_create_seasonal,
     autofill_ep_previous,
     autofill_watch_order,
@@ -21,6 +22,26 @@ from utils.utils import (
     extract_season_from_title,
     calculate_season_from_month,
 )
+
+
+def bulk_check_baha(db: Session) -> dict:
+    animes = (
+        db.query(Anime)
+        .filter(
+            Anime.baha_link.isnot(None),
+            Anime.airing_status == "Airing",
+            Anime.source_baha.is_(None),
+        )
+        .all()
+    )
+    for anime in animes:
+        apply_check_baha(anime)
+    if animes:
+        db.commit()
+    return {
+        "status": "success",
+        "message": f"Set source_baha=True for {len(animes)} entries.",
+    }
 
 
 def bulk_validate_episode_math(db: Session) -> dict:

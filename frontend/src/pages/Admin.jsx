@@ -1064,6 +1064,12 @@ export default function Admin() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             {
+              key: "checkbaha",
+              label: "Check Baha Source",
+              url: "/api/data-control/calculate/check-baha",
+              icon: "fa-play-circle",
+            },
+            {
               key: "validate",
               label: "Validate Episode Count",
               url: "/api/data-control/calculate/validate-episode",
