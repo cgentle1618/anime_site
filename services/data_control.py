@@ -18,7 +18,7 @@ from models import Franchise, Series, Anime, SystemOption, DataControlLog
 from utils.utils import (
     extract_mal_id,
     extract_season_from_title,
-    calculate_season_from_month,
+    calculate_seasonal_from_month,
 )
 from utils.data_control_utils import (
     format_model_for_sheet,
@@ -38,7 +38,7 @@ from services.other_logics import (
     autofill_anime_from_mal,
     mark_tv_completed,
     apply_single_replace_anime,
-    autofill_ep_previous,
+    derive_ep_previous,
 )
 
 logger = logging.getLogger(__name__)
@@ -201,7 +201,7 @@ async def execute_fill_anime(
                         raise asyncio.CancelledError()
 
                     try:
-                        autofill_ep_previous(db, f_id, s_id)
+                        derive_ep_previous(db, f_id, s_id)
                     except Exception as e:
                         logger.error(
                             f"Failed to recalculate episodes for group ({f_id}, {s_id}): {e}"
@@ -244,7 +244,9 @@ async def execute_fill_anime(
                     and anime.airing_type == "TV"
                     and anime.release_month
                 ):
-                    calculated_season = calculate_season_from_month(anime.release_month)
+                    calculated_season = calculate_seasonal_from_month(
+                        anime.release_month
+                    )
                     if calculated_season:
                         anime.release_season = calculated_season
             except Exception as e:
@@ -524,7 +526,7 @@ async def execute_replace_anime(
                     raise asyncio.CancelledError()
 
                 try:
-                    autofill_ep_previous(db, f_id, s_id)
+                    derive_ep_previous(db, f_id, s_id)
                 except Exception as e:
                     logger.error(
                         f"Failed to recalculate episodes for group ({f_id}, {s_id}): {e}"
@@ -892,7 +894,11 @@ def execute_pull_specific(
         return {"status": "error", "message": str(e)}
 
     if tab_name == "System Options":
-        db.execute(text("SELECT setval('system_options_id_seq', COALESCE((SELECT MAX(id) FROM system_options), 0))"))
+        db.execute(
+            text(
+                "SELECT setval('system_options_id_seq', COALESCE((SELECT MAX(id) FROM system_options), 0))"
+            )
+        )
         db.commit()
 
     logger.info(

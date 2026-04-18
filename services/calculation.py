@@ -18,20 +18,20 @@ from services.other_logics import (
     apply_check_baha,
     auto_create_seasonal,
     sync_seasonal_counts,
-    autofill_ep_previous,
-    autofill_watch_order,
-    autofill_prequel_sequel,
+    derive_ep_previous,
+    derive_watch_order,
+    derive_prequel_sequel,
     autofill_anime_from_mal,
     extract_system_options_from_anime,
 )
 from utils.utils import (
     validate_episode_math,
     extract_season_from_title,
-    calculate_season_from_month,
+    calculate_seasonal_from_month,
 )
 
 
-def bulk_set_season_1(db: Session) -> dict:
+def bulk_derive_season_1(db: Session) -> dict:
     lone_franchise_sq = (
         db.query(Anime.franchise_id)
         .filter(
@@ -130,7 +130,7 @@ def bulk_extract_season_from_title(db: Session) -> dict:
     }
 
 
-def bulk_calculate_season_from_month(db: Session) -> dict:
+def bulk_calculate_seasonal_from_month(db: Session) -> dict:
     animes = (
         db.query(Anime)
         .filter(
@@ -142,7 +142,7 @@ def bulk_calculate_season_from_month(db: Session) -> dict:
     )
     updated = 0
     for anime in animes:
-        season = calculate_season_from_month(anime.release_month)
+        season = calculate_seasonal_from_month(anime.release_month)
         if season:
             anime.release_season = season
             updated += 1
@@ -154,7 +154,7 @@ def bulk_calculate_season_from_month(db: Session) -> dict:
     }
 
 
-def bulk_autofill_ep_previous(db: Session) -> dict:
+def bulk_derive_ep_previous(db: Session) -> dict:
     rows = (
         db.query(Anime.franchise_id)
         .filter(Anime.franchise_id.isnot(None))
@@ -163,7 +163,7 @@ def bulk_autofill_ep_previous(db: Session) -> dict:
     )
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
-        autofill_ep_previous(db, fid)
+        derive_ep_previous(db, fid)
     if franchise_ids:
         db.commit()
     return {
@@ -172,7 +172,7 @@ def bulk_autofill_ep_previous(db: Session) -> dict:
     }
 
 
-def bulk_autofill_watch_order(db: Session) -> dict:
+def bulk_derive_watch_order(db: Session) -> dict:
     rows = (
         db.query(Anime.franchise_id)
         .filter(Anime.franchise_id.isnot(None))
@@ -181,7 +181,7 @@ def bulk_autofill_watch_order(db: Session) -> dict:
     )
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
-        autofill_watch_order(db, fid)
+        derive_watch_order(db, fid)
     if franchise_ids:
         db.commit()
     return {
@@ -190,7 +190,7 @@ def bulk_autofill_watch_order(db: Session) -> dict:
     }
 
 
-def bulk_autofill_prequel_sequel(db: Session) -> dict:
+def bulk_derive_prequel_sequel(db: Session) -> dict:
     rows = (
         db.query(Anime.franchise_id)
         .filter(Anime.franchise_id.isnot(None))
@@ -199,7 +199,7 @@ def bulk_autofill_prequel_sequel(db: Session) -> dict:
     )
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
-        autofill_prequel_sequel(db, fid)
+        derive_prequel_sequel(db, fid)
     if franchise_ids:
         db.commit()
     return {
@@ -241,11 +241,13 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                 or anime.anime_name_romanji
                 or str(anime.system_id)
             )
-            missing.append({
-                "system_id": str(anime.system_id),
-                "name": name,
-                "airing_type": anime.airing_type,
-            })
+            missing.append(
+                {
+                    "system_id": str(anime.system_id),
+                    "name": name,
+                    "airing_type": anime.airing_type,
+                }
+            )
     return {
         "status": "success",
         "total_checked": len(animes),

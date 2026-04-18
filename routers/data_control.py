@@ -20,17 +20,17 @@ from services.data_control import (
 )
 from services.other_logics import find_all_duplicates
 from services.calculation import (
-    bulk_set_season_1,
+    bulk_derive_season_1,
     bulk_check_baha,
     bulk_check_cover_image,
     bulk_download_missing_covers,
     bulk_validate_episode_math,
     bulk_mark_tv_completed,
     bulk_extract_season_from_title,
-    bulk_calculate_season_from_month,
-    bulk_autofill_ep_previous,
-    bulk_autofill_watch_order,
-    bulk_autofill_prequel_sequel,
+    bulk_calculate_seasonal_from_month,
+    bulk_derive_ep_previous,
+    bulk_derive_watch_order,
+    bulk_derive_prequel_sequel,
     run_sync_seasonal_counts,
     run_auto_create_seasonal,
     run_extract_system_options,
@@ -183,9 +183,9 @@ def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
 
 
 @router.post("/calculate/set-season-1")
-def trigger_set_season_1(db: Session = Depends(get_db)):
+def trigger_derive_season_1(db: Session = Depends(get_db)):
     try:
-        return JSONResponse(content=bulk_set_season_1(db))
+        return JSONResponse(content=bulk_derive_season_1(db))
     except Exception as e:
         logger.error(f"Error in set season 1: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -209,7 +209,9 @@ def trigger_download_missing_covers(
     entry_type: Optional[str] = Query(None),
 ):
     try:
-        return JSONResponse(content=bulk_download_missing_covers(db, entry_type=entry_type))
+        return JSONResponse(
+            content=bulk_download_missing_covers(db, entry_type=entry_type)
+        )
     except Exception as e:
         logger.error(f"Error in download missing covers: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -254,7 +256,7 @@ def trigger_extract_season_from_title(db: Session = Depends(get_db)):
 @router.post("/calculate/season-from-month")
 def trigger_season_from_month(db: Session = Depends(get_db)):
     try:
-        return JSONResponse(content=bulk_calculate_season_from_month(db))
+        return JSONResponse(content=bulk_calculate_seasonal_from_month(db))
     except Exception as e:
         logger.error(f"Error in season from month: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -279,9 +281,9 @@ def trigger_create_seasonal(db: Session = Depends(get_db)):
 
 
 @router.post("/calculate/autofill-ep-previous")
-def trigger_autofill_ep_previous(db: Session = Depends(get_db)):
+def trigger_derive_ep_previous(db: Session = Depends(get_db)):
     try:
-        return JSONResponse(content=bulk_autofill_ep_previous(db))
+        return JSONResponse(content=bulk_derive_ep_previous(db))
     except Exception as e:
         logger.error(f"Error in autofill ep previous: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -297,18 +299,18 @@ def trigger_extract_system_options(db: Session = Depends(get_db)):
 
 
 @router.post("/calculate/autofill-prequel-sequel")
-def trigger_autofill_prequel_sequel(db: Session = Depends(get_db)):
+def trigger_derive_prequel_sequel(db: Session = Depends(get_db)):
     try:
-        return JSONResponse(content=bulk_autofill_prequel_sequel(db))
+        return JSONResponse(content=bulk_derive_prequel_sequel(db))
     except Exception as e:
         logger.error(f"Error in autofill prequel/sequel: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/calculate/autofill-watch-order")
-def trigger_autofill_watch_order(db: Session = Depends(get_db)):
+def trigger_derive_watch_order(db: Session = Depends(get_db)):
     try:
-        return JSONResponse(content=bulk_autofill_watch_order(db))
+        return JSONResponse(content=bulk_derive_watch_order(db))
     except Exception as e:
         logger.error(f"Error in autofill watch order: {e}")
         raise HTTPException(status_code=500, detail=str(e))

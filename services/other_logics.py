@@ -25,7 +25,7 @@ from utils.utils import (
     ANIME_FIELDS_TO_FILL,
     extract_mal_id,
     extract_season_from_title,
-    calculate_season_from_month,
+    calculate_seasonal_from_month,
 )
 from utils.jikan_utils import map_jikan_to_anime_data
 
@@ -265,7 +265,7 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
 # ==========================================
 
 
-def autofill_ep_previous(
+def derive_ep_previous(
     db: Session, franchise_id: Any, series_id: Optional[Any] = None
 ) -> None:
     """
@@ -320,7 +320,7 @@ def autofill_ep_previous(
         running_ep_previous = current_prev + current_total
 
 
-def autofill_watch_order(db: Session, franchise_id: Any) -> None:
+def derive_watch_order(db: Session, franchise_id: Any) -> None:
     """
     Assigns watch_order sequentially (1, 2, 3…) to Anime entries within a franchise
     that have season_part set, sorted chronologically by Season and Part number.
@@ -353,7 +353,7 @@ def autofill_watch_order(db: Session, franchise_id: Any) -> None:
             entry.watch_order = float(position)
 
 
-def autofill_prequel_sequel(db: Session, franchise_id: Any) -> None:
+def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
     """
     Sets prequel_id and sequel_id for Anime entries within a franchise
     based on ascending watch_order. Only fills entries where the field is None.
@@ -387,7 +387,11 @@ def autofill_prequel_sequel(db: Session, franchise_id: Any) -> None:
 
 def apply_check_baha(anime: Anime) -> None:
     """Sets source_baha=True if baha_link is present and airing_status is 'Airing'."""
-    if anime.baha_link and anime.airing_status == "Airing" and anime.source_baha is None:
+    if (
+        anime.baha_link
+        and anime.airing_status == "Airing"
+        and anime.source_baha is None
+    ):
         anime.source_baha = True
 
 
@@ -433,7 +437,7 @@ def apply_single_replace_anime(
 
     # Calculate Season From Month with condition
     if not anime.release_season and anime.airing_type == "TV" and anime.release_month:
-        calculated_season = calculate_season_from_month(anime.release_month)
+        calculated_season = calculate_seasonal_from_month(anime.release_month)
         if calculated_season:
             anime.release_season = calculated_season
 
@@ -641,7 +645,9 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
                         "franchise_type": franchise_map[fid].franchise_type,
                         "franchise_name_en": franchise_map[fid].franchise_name_en,
                         "franchise_name_cn": franchise_map[fid].franchise_name_cn,
-                        "franchise_name_romanji": franchise_map[fid].franchise_name_romanji,
+                        "franchise_name_romanji": franchise_map[
+                            fid
+                        ].franchise_name_romanji,
                         "franchise_name_jp": franchise_map[fid].franchise_name_jp,
                         "franchise_name_alt": franchise_map[fid].franchise_name_alt,
                     }
@@ -807,8 +813,16 @@ def find_duplicate_anime(db: Session) -> list[list[dict]]:
                 [
                     {
                         "system_id": aid,
-                        "franchise_id": str(anime_map[aid].franchise_id) if anime_map[aid].franchise_id else None,
-                        "series_id": str(anime_map[aid].series_id) if anime_map[aid].series_id else None,
+                        "franchise_id": (
+                            str(anime_map[aid].franchise_id)
+                            if anime_map[aid].franchise_id
+                            else None
+                        ),
+                        "series_id": (
+                            str(anime_map[aid].series_id)
+                            if anime_map[aid].series_id
+                            else None
+                        ),
                         "airing_type": anime_map[aid].airing_type,
                         "season_part": anime_map[aid].season_part,
                         "is_main": anime_map[aid].is_main,
@@ -843,7 +857,10 @@ def find_duplicate_system_options(db: Session) -> list[list[dict]]:
         groups.setdefault(key, []).append(opt)
 
     return [
-        [{"id": opt.id, "category": opt.category, "option_value": opt.option_value} for opt in members]
+        [
+            {"id": opt.id, "category": opt.category, "option_value": opt.option_value}
+            for opt in members
+        ]
         for members in groups.values()
         if len(members) > 1
     ]
