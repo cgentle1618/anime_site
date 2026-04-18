@@ -18,6 +18,7 @@ from services.data_control import (
 )
 from services.other_logics import find_all_duplicates
 from services.calculation import (
+    bulk_set_season_1,
     bulk_check_baha,
     bulk_validate_episode_math,
     bulk_mark_tv_completed,
@@ -173,6 +174,15 @@ def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
         return JSONResponse(content=result)
     except Exception as e:
         logger.error(f"Error in pull {tab_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/set-season-1")
+def trigger_set_season_1(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_set_season_1(db))
+    except Exception as e:
+        logger.error(f"Error in set season 1: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

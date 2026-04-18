@@ -4,6 +4,7 @@ On-demand bulk calculate and fix operations.
 Wraps single-entry logic from other_logics.py and utils for bulk application across the DB.
 """
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import Anime
@@ -22,6 +23,36 @@ from utils.utils import (
     extract_season_from_title,
     calculate_season_from_month,
 )
+
+
+def bulk_set_season_1(db: Session) -> dict:
+    lone_franchise_sq = (
+        db.query(Anime.franchise_id)
+        .filter(
+            Anime.franchise_id.isnot(None),
+            Anime.airing_type == "TV",
+        )
+        .group_by(Anime.franchise_id)
+        .having(func.count(Anime.system_id) == 1)
+        .subquery()
+    )
+    animes = (
+        db.query(Anime)
+        .filter(
+            Anime.franchise_id.in_(db.query(lone_franchise_sq.c.franchise_id)),
+            Anime.airing_type == "TV",
+            Anime.season_part.is_(None),
+        )
+        .all()
+    )
+    for anime in animes:
+        anime.season_part = "Season 1"
+    if animes:
+        db.commit()
+    return {
+        "status": "success",
+        "message": f"Set season_part='Season 1' for {len(animes)} lone TV entries.",
+    }
 
 
 def bulk_check_baha(db: Session) -> dict:

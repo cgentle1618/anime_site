@@ -1064,6 +1064,12 @@ export default function Admin() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             {
+              key: "sets1",
+              label: "Set S1",
+              url: "/api/data-control/calculate/set-season-1",
+              icon: "fa-star",
+            },
+            {
               key: "checkbaha",
               label: "Check Baha Source",
               url: "/api/data-control/calculate/check-baha",
