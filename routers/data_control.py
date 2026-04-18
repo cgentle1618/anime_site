@@ -23,6 +23,7 @@ from services.calculation import (
     bulk_extract_season_from_title,
     bulk_calculate_season_from_month,
     bulk_autofill_ep_previous,
+    bulk_autofill_watch_order,
     run_auto_create_seasonal,
     run_extract_system_options,
 )
@@ -233,6 +234,15 @@ def trigger_extract_system_options(db: Session = Depends(get_db)):
         return JSONResponse(content=run_extract_system_options(db))
     except Exception as e:
         logger.error(f"Error in extract system options: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/autofill-watch-order")
+def trigger_autofill_watch_order(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_autofill_watch_order(db))
+    except Exception as e:
+        logger.error(f"Error in autofill watch order: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

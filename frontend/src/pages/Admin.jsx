@@ -1105,6 +1105,12 @@ export default function Admin() {
               url: "/api/data-control/calculate/extract-system-options",
               icon: "fa-list-ul",
             },
+            {
+              key: "watchorder",
+              label: "Autofill Watch Order",
+              url: "/api/data-control/calculate/autofill-watch-order",
+              icon: "fa-list-ol",
+            },
           ].map(({ key, label, url, icon }) => (
             <button
               key={key}

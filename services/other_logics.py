@@ -271,6 +271,39 @@ def autofill_ep_previous(
         running_ep_previous = current_prev + current_total
 
 
+def autofill_watch_order(db: Session, franchise_id: Any) -> None:
+    """
+    Assigns watch_order sequentially (1, 2, 3…) to Anime entries within a franchise
+    that have season_part set, sorted chronologically by Season and Part number.
+    Only fills entries where watch_order is currently None.
+    """
+    if not franchise_id:
+        return
+
+    siblings = (
+        db.query(Anime)
+        .filter(Anime.franchise_id == franchise_id, Anime.season_part.isnot(None))
+        .all()
+    )
+
+    if not siblings:
+        return
+
+    def get_sort_key(a: Anime):
+        s_part = str(a.season_part or "")
+        s_match = SEASON_PATTERN.search(s_part)
+        p_match = PART_PATTERN.search(s_part)
+        s_num = int(s_match.group(1)) if s_match else 1
+        p_num = int(p_match.group(1)) if p_match else 1
+        return (s_num, p_num)
+
+    sorted_siblings = sorted(siblings, key=get_sort_key)
+
+    for position, entry in enumerate(sorted_siblings, start=1):
+        if entry.watch_order is None:
+            entry.watch_order = float(position)
+
+
 def mark_tv_completed(entry: Anime) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.

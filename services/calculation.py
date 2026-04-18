@@ -12,6 +12,7 @@ from services.other_logics import (
     mark_tv_completed,
     auto_create_seasonal,
     autofill_ep_previous,
+    autofill_watch_order,
     extract_system_options_from_anime,
 )
 from utils.utils import (
@@ -109,6 +110,24 @@ def bulk_autofill_ep_previous(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"Ran ep_previous cascade for {len(franchise_ids)} franchises.",
+    }
+
+
+def bulk_autofill_watch_order(db: Session) -> dict:
+    rows = (
+        db.query(Anime.franchise_id)
+        .filter(Anime.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        autofill_watch_order(db, fid)
+    if franchise_ids:
+        db.commit()
+    return {
+        "status": "success",
+        "message": f"Ran watch_order autofill for {len(franchise_ids)} franchises.",
     }
 
 
