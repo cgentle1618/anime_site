@@ -24,6 +24,7 @@ export default function Search() {
   const [error, setError] = useState(null)
   const [matchedFranchises, setMatchedFranchises] = useState([])
   const [matchedAnime, setMatchedAnime] = useState([])
+  const [matchedSeasonal, setMatchedSeasonal] = useState([])
   const [allAnime, setAllAnime] = useState([])
   const [selectedFranchise, setSelectedFranchise] = useState('all')
 
@@ -35,13 +36,15 @@ export default function Search() {
 
     async function doSearch() {
       try {
-        const [fRes, aRes] = await Promise.all([
+        const [fRes, aRes, seaRes] = await Promise.all([
           fetch('/api/franchise/', { credentials: 'include' }),
           fetch('/api/anime/', { credentials: 'include' }),
+          fetch('/api/seasonal/', { credentials: 'include' }),
         ])
-        if (!fRes.ok || !aRes.ok) throw new Error('Failed to fetch database')
+        if (!fRes.ok || !aRes.ok || !seaRes.ok) throw new Error('Failed to fetch database')
         const allFranchises = await fRes.json()
         const all = await aRes.json()
+        const allSeasonal = await seaRes.json()
         setAllAnime(all)
 
         const qClean = cleanString(query)
@@ -65,8 +68,13 @@ export default function Search() {
         const ma = all.filter(a => aIdSet.has(a.system_id))
           .sort((a, b) => (a.anime_name_cn || '').localeCompare(b.anime_name_cn || ''))
 
+        const msea = allSeasonal
+          .filter(s => cleanString(s.seasonal).includes(qClean))
+          .sort((a, b) => b.seasonal.localeCompare(a.seasonal))
+
         setMatchedFranchises(mf)
         setMatchedAnime(ma)
+        setMatchedSeasonal(msea)
       } catch (e) {
         setError(e.message)
       } finally {
@@ -128,10 +136,31 @@ export default function Search() {
           Search Results for "<span className="text-brand">{query}</span>"
         </h1>
         <p className="text-sm text-gray-500 mt-1">
+          {matchedSeasonal.length > 0 && <><span className="font-bold">{matchedSeasonal.length}</span> seasonal · </>}
           <span className="font-bold">{matchedFranchises.length}</span> franchises ·{' '}
           <span className="font-bold">{matchedAnime.length}</span> anime entries
         </p>
       </div>
+
+      {/* Seasonal entries */}
+      {matchedSeasonal.length > 0 && (
+        <div>
+          <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <i className="fas fa-calendar-alt text-brand/70"></i> Seasonal
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {matchedSeasonal.map(s => (
+              <button
+                key={s.seasonal}
+                onClick={() => navigate(`/seasonal/${encodeURIComponent(s.seasonal)}`)}
+                className="px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:bg-brand hover:text-white hover:border-brand transition-colors shadow-sm"
+              >
+                {s.seasonal}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Franchise pills */}
       {matchedFranchises.length > 0 && (
