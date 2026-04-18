@@ -16,6 +16,7 @@ from services.data_control import (
     execute_replace_all,
     execute_replace_single_anime,
 )
+from services.other_logics import find_all_duplicates
 from services.calculation import (
     bulk_validate_episode_math,
     bulk_mark_tv_completed,
@@ -232,4 +233,13 @@ def trigger_extract_system_options(db: Session = Depends(get_db)):
         return JSONResponse(content=run_extract_system_options(db))
     except Exception as e:
         logger.error(f"Error in extract system options: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/check/duplicates")
+def check_duplicates(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=find_all_duplicates(db))
+    except Exception as e:
+        logger.error(f"Error in check duplicates: {e}")
         raise HTTPException(status_code=500, detail=str(e))

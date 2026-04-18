@@ -372,6 +372,196 @@ function DeletedTable({ records }) {
   );
 }
 
+function DuplicatesModal({ results, onClose }) {
+  const [tab, setTab] = useState("franchise");
+
+  const tabs = [
+    { key: "franchise", label: "Franchise", groups: results.franchise },
+    { key: "series", label: "Series", groups: results.series },
+    { key: "anime", label: "Anime", groups: results.anime },
+    { key: "system_options", label: "Sys. Options", groups: results.system_options },
+  ];
+
+  const totalGroups = tabs.reduce((s, t) => s + t.groups.length, 0);
+  const activeTab = tabs.find((t) => t.key === tab);
+
+  function renderGroup(group, idx) {
+    if (tab === "franchise") {
+      return (
+        <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded uppercase">
+              {group[0].franchise_type || "—"}
+            </span>
+            <span className="text-xs text-gray-500">{group.length} entries</span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((f, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">{f.system_id.slice(0, 8)}…</td>
+                  <td className="py-1 pr-3 font-bold">{f.franchise_name_cn || "—"}</td>
+                  <td className="py-1">{f.franchise_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "series") {
+      return (
+        <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {group[0].franchise_id?.slice(0, 8)}…
+            </span>
+            <span className="text-xs text-gray-500">{group.length} entries</span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((s, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">{s.system_id.slice(0, 8)}…</td>
+                  <td className="py-1 pr-3 font-bold">{s.series_name_cn || "—"}</td>
+                  <td className="py-1 pr-3">{s.series_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">{s.series_name_alt || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "anime") {
+      const a0 = group[0];
+      return (
+        <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              {a0.airing_type || "—"}
+            </span>
+            {a0.season_part && <span className="text-[10px] text-gray-600">{a0.season_part}</span>}
+            {a0.ep_special != null && (
+              <span className="text-[10px] text-gray-500">Ep.Special: {a0.ep_special}</span>
+            )}
+            <span className="text-xs text-gray-500">{group.length} entries</span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((a, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">{a.system_id.slice(0, 8)}…</td>
+                  <td className="py-1 pr-3 font-bold">{a.anime_name_cn || "—"}</td>
+                  <td className="py-1">{a.anime_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // system_options
+    return (
+      <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+            {group[0].category}
+          </span>
+          <span className="text-xs text-gray-500">{group.length} entries</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {group.map((opt, i) => (
+            <span key={i} className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded font-mono">
+              [{opt.id}] {opt.option_value}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-black text-gray-900">Duplicate Check Results</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {totalGroups === 0
+                ? "No duplicates found across all categories."
+                : `${totalGroups} duplicate group${totalGroups !== 1 ? "s" : ""} detected.`}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-lg">
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div className="flex border-b border-gray-200 px-6">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition ${
+                tab === t.key
+                  ? "border-brand text-brand"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t.label}
+              {t.groups.length > 0 && (
+                <span className="ml-1.5 bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full text-[10px]">
+                  {t.groups.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6">
+          {activeTab.groups.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
+              <p className="font-bold">No duplicates found</p>
+            </div>
+          ) : (
+            activeTab.groups.map((group, idx) => renderGroup(group, idx))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { showToast } = useToast();
 
@@ -405,6 +595,8 @@ export default function Admin() {
 
   // Calculate & Fix state
   const [calcLoading, setCalcLoading] = useState({});
+  const [duplicateResults, setDuplicateResults] = useState(null);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
 
   const loadSeason = useCallback(async () => {
     try {
@@ -574,6 +766,23 @@ export default function Admin() {
     }
   }
 
+  async function runFindDuplicates() {
+    setCalcLoading((prev) => ({ ...prev, duplicates: true }));
+    try {
+      const res = await fetch("/api/data-control/check/duplicates", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to check duplicates.");
+      setDuplicateResults(data);
+      setDuplicateOpen(true);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCalcLoading((prev) => ({ ...prev, duplicates: false }));
+    }
+  }
+
   async function runCalc(key, url) {
     setCalcLoading((prev) => ({ ...prev, [key]: true }));
     try {
@@ -632,6 +841,9 @@ export default function Admin() {
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+      {duplicateOpen && duplicateResults && (
+        <DuplicatesModal results={duplicateResults} onClose={() => setDuplicateOpen(false)} />
+      )}
       {/* 1. Header & Entry Modification Nav */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
         <div>
@@ -908,6 +1120,18 @@ export default function Admin() {
               )}
             </button>
           ))}
+          <button
+            onClick={runFindDuplicates}
+            disabled={!!calcLoading.duplicates}
+            className="flex flex-col items-center gap-2 p-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-300 rounded-xl text-xs font-bold text-orange-700 transition disabled:opacity-60"
+          >
+            <i className="fas fa-clone text-lg"></i>
+            {calcLoading.duplicates ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Find Duplicates"
+            )}
+          </button>
         </div>
       </div>
 

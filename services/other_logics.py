@@ -15,7 +15,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_taipei_now
-from models import Anime, Franchise, Seasonal, SystemOption
+from models import Anime, Franchise, Series, Seasonal, SystemOption
 
 from services.jikan import fetch_jikan_anime_data
 from services.image_manager import download_cover_image
@@ -444,6 +444,299 @@ def resolve_anime_parent_hierarchy(
     final_series_id = series_id
 
     return final_franchise_id, final_series_id
+
+
+# ==========================================
+# DUPLICATE CHECKS
+# ==========================================
+
+_FRANCHISE_NAME_FIELDS = [
+    "franchise_name_en",
+    "franchise_name_cn",
+    "franchise_name_romanji",
+    "franchise_name_jp",
+    "franchise_name_alt",
+]
+
+
+def find_duplicate_franchises(db: Session) -> list[list[dict]]:
+    """
+    Finds Franchise entries that share the same franchise_type and at least one
+    identical name field (case-insensitive). Uses union-find so transitive matches
+    (A=B, B=C) collapse into the same group.
+    Returns a list of duplicate clusters; each cluster is a list of franchise dicts.
+    """
+    franchises = db.query(Franchise).all()
+
+    def get_names(f: Franchise) -> set:
+        return {
+            getattr(f, field).strip().lower()
+            for field in _FRANCHISE_NAME_FIELDS
+            if getattr(f, field) and str(getattr(f, field)).strip()
+        }
+
+    by_type: dict[str, list] = {}
+    for f in franchises:
+        ft = (f.franchise_type or "").strip()
+        if ft:
+            by_type.setdefault(ft, []).append(f)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    franchise_map = {str(f.system_id): f for f in franchises}
+
+    for group in by_type.values():
+        for i in range(len(group)):
+            a_names = get_names(group[i])
+            for j in range(i + 1, len(group)):
+                if a_names & get_names(group[j]):
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for fid in franchise_map:
+        clusters.setdefault(find(fid), []).append(fid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": fid,
+                        "franchise_type": franchise_map[fid].franchise_type,
+                        "franchise_name_en": franchise_map[fid].franchise_name_en,
+                        "franchise_name_cn": franchise_map[fid].franchise_name_cn,
+                        "franchise_name_romanji": franchise_map[fid].franchise_name_romanji,
+                        "franchise_name_jp": franchise_map[fid].franchise_name_jp,
+                        "franchise_name_alt": franchise_map[fid].franchise_name_alt,
+                    }
+                    for fid in members
+                ]
+            )
+
+    return result
+
+
+_SERIES_NAME_FIELDS = [
+    "series_name_en",
+    "series_name_cn",
+    "series_name_alt",
+]
+
+
+def find_duplicate_series(db: Session) -> list[list[dict]]:
+    """
+    Finds Series entries that share the same franchise_id and at least one
+    identical name field (case-insensitive). Uses union-find so transitive matches
+    collapse into the same group.
+    Returns a list of duplicate clusters; each cluster is a list of series dicts.
+    """
+    series_list = db.query(Series).filter(Series.franchise_id.isnot(None)).all()
+
+    def get_names(s: Series) -> set:
+        return {
+            getattr(s, field).strip().lower()
+            for field in _SERIES_NAME_FIELDS
+            if getattr(s, field) and str(getattr(s, field)).strip()
+        }
+
+    by_franchise: dict[str, list] = {}
+    for s in series_list:
+        by_franchise.setdefault(str(s.franchise_id), []).append(s)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    series_map = {str(s.system_id): s for s in series_list}
+
+    for group in by_franchise.values():
+        for i in range(len(group)):
+            a_names = get_names(group[i])
+            for j in range(i + 1, len(group)):
+                if a_names & get_names(group[j]):
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for sid in series_map:
+        clusters.setdefault(find(sid), []).append(sid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": sid,
+                        "franchise_id": str(series_map[sid].franchise_id),
+                        "series_name_en": series_map[sid].series_name_en,
+                        "series_name_cn": series_map[sid].series_name_cn,
+                        "series_name_alt": series_map[sid].series_name_alt,
+                    }
+                    for sid in members
+                ]
+            )
+
+    return result
+
+
+_ANIME_NAME_FIELDS = [
+    "anime_name_en",
+    "anime_name_cn",
+    "anime_name_romanji",
+    "anime_name_jp",
+    "anime_name_alt",
+]
+
+
+def _anime_duplicate_key(a: Anime) -> tuple:
+    season = (a.season_part or "").strip().lower() or None
+    return (
+        str(a.franchise_id) if a.franchise_id else None,
+        str(a.series_id) if a.series_id else None,
+        a.airing_type,
+        season,
+        a.is_main,
+        a.ep_special,
+    )
+
+
+def find_duplicate_anime(db: Session) -> list[list[dict]]:
+    """
+    Finds Anime entries that share the same franchise_id, series_id, airing_type,
+    season_part, is_main, and ep_special, AND at least one identical name field
+    (case-insensitive). Uses union-find so transitive matches collapse into one group.
+    Returns a list of duplicate clusters; each cluster is a list of anime dicts.
+    """
+    animes = db.query(Anime).all()
+
+    def get_names(a: Anime) -> set:
+        return {
+            getattr(a, field).strip().lower()
+            for field in _ANIME_NAME_FIELDS
+            if getattr(a, field) and str(getattr(a, field)).strip()
+        }
+
+    by_key: dict[tuple, list] = {}
+    for a in animes:
+        by_key.setdefault(_anime_duplicate_key(a), []).append(a)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    anime_map = {str(a.system_id): a for a in animes}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = get_names(group[i])
+            for j in range(i + 1, len(group)):
+                if a_names & get_names(group[j]):
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for aid in anime_map:
+        clusters.setdefault(find(aid), []).append(aid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            a = anime_map[members[0]]
+            result.append(
+                [
+                    {
+                        "system_id": aid,
+                        "franchise_id": str(anime_map[aid].franchise_id) if anime_map[aid].franchise_id else None,
+                        "series_id": str(anime_map[aid].series_id) if anime_map[aid].series_id else None,
+                        "airing_type": anime_map[aid].airing_type,
+                        "season_part": anime_map[aid].season_part,
+                        "is_main": anime_map[aid].is_main,
+                        "ep_special": anime_map[aid].ep_special,
+                        "anime_name_en": anime_map[aid].anime_name_en,
+                        "anime_name_cn": anime_map[aid].anime_name_cn,
+                        "anime_name_romanji": anime_map[aid].anime_name_romanji,
+                        "anime_name_jp": anime_map[aid].anime_name_jp,
+                        "anime_name_alt": anime_map[aid].anime_name_alt,
+                    }
+                    for aid in members
+                ]
+            )
+
+    return result
+
+
+def find_duplicate_system_options(db: Session) -> list[list[dict]]:
+    """
+    Finds SystemOption entries that share the same category and option_value
+    (case-insensitive). Returns a list of duplicate clusters; each cluster is
+    a list of system option dicts.
+    """
+    options = db.query(SystemOption).all()
+
+    groups: dict[tuple, list] = {}
+    for opt in options:
+        key = (
+            (opt.category or "").strip().lower(),
+            (opt.option_value or "").strip().lower(),
+        )
+        groups.setdefault(key, []).append(opt)
+
+    return [
+        [{"id": opt.id, "category": opt.category, "option_value": opt.option_value} for opt in members]
+        for members in groups.values()
+        if len(members) > 1
+    ]
+
+
+def find_all_duplicates(db: Session) -> dict:
+    """Runs all four duplicate checks and returns a combined report."""
+    return {
+        "franchise": find_duplicate_franchises(db),
+        "series": find_duplicate_series(db),
+        "anime": find_duplicate_anime(db),
+        "system_options": find_duplicate_system_options(db),
+    }
 
 
 # ==========================================
