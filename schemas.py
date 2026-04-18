@@ -150,6 +150,7 @@ class AnimeBase(BaseModel):
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"
     is_main: Optional[str] = None
+    is_main_entry: Optional[bool] = None
 
     ep_previous: Optional[int] = None
     ep_total: Optional[int] = None

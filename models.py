@@ -169,6 +169,7 @@ class Anime(Base, NameFallbackMixin):
     airing_status = Column(String, nullable=True)
     watching_status = Column(String, nullable=False, default="Might Watch")
     is_main = Column(String, nullable=True)
+    is_main_entry = Column(Boolean, nullable=True)
 
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)

@@ -194,6 +194,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "alternative": parse_from_sheet(raw.get("alternative"), str),
+        "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),

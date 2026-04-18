@@ -85,6 +85,7 @@ function animeToForm(anime, allFranchises, allSeries) {
     prequel_id: anime.prequel_id || null,
     sequel_id: anime.sequel_id || null,
     alternative: anime.alternative || '',
+    is_main_entry: anime.is_main_entry === true,
     watch_order: anime.watch_order ?? '',
     mal_id: anime.mal_id ?? '',
     mal_link: anime.mal_link || '',
@@ -268,6 +269,7 @@ export default function Modify() {
       prequel_id: af.prequel_id || null,
       sequel_id: af.sequel_id || null,
       alternative: af.alternative || null,
+      is_main_entry: af.is_main_entry || null,
       watch_order: af.watch_order !== '' ? parseFloat(af.watch_order) : null,
       mal_id: af.mal_id !== '' ? parseInt(af.mal_id) : null,
       mal_link: af.mal_link || null,
@@ -643,6 +645,12 @@ export default function Modify() {
                   <Field label="Prequel ID" hint="UUID"><input className={inputCls+' font-mono text-xs'} value={af.prequel_id||''} onChange={e=>ua('prequel_id',e.target.value||null)} /></Field>
                   <Field label="Sequel ID" hint="UUID"><input className={inputCls+' font-mono text-xs'} value={af.sequel_id||''} onChange={e=>ua('sequel_id',e.target.value||null)} /></Field>
                   <Field label="Alternative IDs" hint="Comma-separated UUIDs"><input className={inputCls+' font-mono text-xs'} value={af.alternative} onChange={e=>ua('alternative',e.target.value)} /></Field>
+                  <Field label="Is Main Entry">
+                    <label className="flex items-center gap-2 cursor-pointer mt-1">
+                      <input type="checkbox" checked={!!af.is_main_entry} onChange={e=>ua('is_main_entry',e.target.checked)} className="w-4 h-4 rounded accent-brand" />
+                      <span className="text-xs font-medium text-gray-700">Mark as main entry among alternatives</span>
+                    </label>
+                  </Field>
                   <Field label="Watch Order"><input className={inputCls} type="number" step="any" value={af.watch_order} onChange={e=>ua('watch_order',e.target.value)} /></Field>
                 </div>
 

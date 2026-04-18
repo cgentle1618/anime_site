@@ -46,7 +46,7 @@ const defaultAnime = () => ({
   my_rating: '', mal_rating: '', mal_rank: '', anilist_rating: '',
   release_season: '', release_month: '', release_year: '',
   genre_main: '', genre_sub: '', studio: '', director: '', producer: '', music: '', distributor_tw: '',
-  prequel_id: null, sequel_id: null, alternative: '', watch_order: '',
+  prequel_id: null, sequel_id: null, alternative: '', is_main_entry: false, watch_order: '',
   mal_id: '', mal_link: '', anilist_link: '', official_link: '', twitter_link: '',
   source_baha: '', baha_link: '', source_netflix: '', source_other: '', source_other_link: '',
   op: '', ed: '', insert_ost: '', seiyuu: '',
@@ -199,6 +199,7 @@ export default function Add() {
       prequel_id: af.prequel_id || null,
       sequel_id: af.sequel_id || null,
       alternative: af.alternative || null,
+      is_main_entry: af.is_main_entry || null,
       watch_order: af.watch_order !== '' ? parseFloat(af.watch_order) : null,
       mal_id: af.mal_id !== '' ? parseInt(af.mal_id) : null,
       mal_link: af.mal_link || null,
@@ -721,6 +722,12 @@ export default function Add() {
               </Field>
               <Field label="Alternative IDs" hint="Comma-separated UUIDs">
                 <input className={inputCls + ' font-mono text-xs'} value={af.alternative} onChange={e => ua('alternative', e.target.value)} placeholder="uuid1, uuid2, ..." />
+              </Field>
+              <Field label="Is Main Entry">
+                <label className="flex items-center gap-2 cursor-pointer mt-1">
+                  <input type="checkbox" checked={!!af.is_main_entry} onChange={e => ua('is_main_entry', e.target.checked)} className="w-4 h-4 rounded accent-brand" />
+                  <span className="text-xs font-medium text-gray-700">Mark as main entry among alternatives</span>
+                </label>
               </Field>
               <Field label="Watch Order">
                 <input className={inputCls} type="number" step="any" value={af.watch_order} onChange={e => ua('watch_order', e.target.value)} placeholder="e.g. 1, 1.5, 2" />
