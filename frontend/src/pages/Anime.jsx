@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../hooks/useToast'
 import { getCoverUrl, FALLBACK_SVG, isBaha } from '../utils/anime'
+import AnimeNotes from './AnimeNotes'
 
 const WATCHING_STATUSES = ['Might Watch', 'Plan to Watch', 'Watch When Airs', 'Active Watching', 'Passive Watching', 'Paused', 'Temp Dropped', 'Dropped', "Won't Watch", 'Completed']
 const MY_RATINGS = ['S', 'A+', 'A', 'B', 'C', 'D', 'E', 'F']
@@ -690,6 +691,13 @@ export default function Anime() {
               </div>
             </div>
           </div>
+
+          {/* Structured Notes */}
+          <AnimeNotes
+            anime={anime}
+            isAdmin={isAdmin}
+            onSave={updatedNotes => performUpdate({ notes: updatedNotes }, 'Notes saved')}
+          />
 
           {/* Notes & Remarks */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

@@ -103,6 +103,8 @@ function animeToForm(anime, allFranchises, allSeries) {
     seiyuu: anime.seiyuu || '',
     cover_image_file: anime.cover_image_file || '',
     remark: anime.remark || '',
+    notes: anime.notes || {},
+    notes_remark: anime.notes?.remark || '',
   }
 }
 
@@ -284,6 +286,7 @@ export default function Modify() {
       op: af.op || null, ed: af.ed || null, insert_ost: af.insert_ost || null, seiyuu: af.seiyuu || null,
       cover_image_file: af.cover_image_file || null,
       remark: af.remark || null,
+      notes: { ...af.notes, remark: af.notes_remark || null },
     }
   }
 
@@ -689,6 +692,7 @@ export default function Modify() {
                 </div>
                 <Field label="Cover Image File" hint="e.g. 5114.jpg"><input className={inputCls} value={af.cover_image_file} onChange={e=>ua('cover_image_file',e.target.value)} /></Field>
                 <Field label="Remark"><textarea className={inputCls} rows={3} value={af.remark} onChange={e=>ua('remark',e.target.value)} /></Field>
+                <Field label="Notes: Remark"><textarea className={inputCls} rows={3} value={af.notes_remark} onChange={e=>ua('notes_remark',e.target.value)} placeholder="General remarks (stored in Notes)..." /></Field>
               </>
             )}
 

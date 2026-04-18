@@ -4,6 +4,7 @@ Contains business-logic utility functions, primarily focused on serializing
 and deserializing SQLAlchemy models to/from Google Sheets formats.
 """
 
+import json
 import logging
 from typing import Any, List, Dict
 from datetime import datetime
@@ -31,6 +32,8 @@ def format_for_sheet(val: Any, expected_type: type = str) -> str:
         return "TRUE" if val else "FALSE"
     if isinstance(val, datetime):
         return val.isoformat() + "Z"
+    if isinstance(val, (dict, list)):
+        return json.dumps(val, ensure_ascii=False)
     return str(val)
 
 
@@ -195,6 +198,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "alternative": parse_from_sheet(raw.get("alternative"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
+        "notes": json.loads(raw["notes"]) if raw.get("notes") else None,
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),

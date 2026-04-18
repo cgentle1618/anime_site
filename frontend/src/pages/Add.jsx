@@ -50,7 +50,7 @@ const defaultAnime = () => ({
   mal_id: '', mal_link: '', anilist_link: '', official_link: '', twitter_link: '',
   source_baha: '', baha_link: '', source_netflix: '', source_other: '', source_other_link: '',
   op: '', ed: '', insert_ost: '', seiyuu: '',
-  cover_image_file: '', remark: '',
+  cover_image_file: '', remark: '', notes_remark: '',
 })
 
 const defaultFranchise = () => ({
@@ -217,6 +217,7 @@ export default function Add() {
       seiyuu: af.seiyuu || null,
       cover_image_file: af.cover_image_file || null,
       remark: af.remark || null,
+      notes: af.notes_remark ? { remark: af.notes_remark } : null,
     }
   }
 
@@ -812,6 +813,9 @@ export default function Add() {
             </Field>
             <Field label="Remark">
               <textarea className={inputCls} rows={3} value={af.remark} onChange={e => ua('remark', e.target.value)} placeholder="Private notes..." />
+            </Field>
+            <Field label="Notes: Remark">
+              <textarea className={inputCls} rows={3} value={af.notes_remark} onChange={e => ua('notes_remark', e.target.value)} placeholder="General remarks (stored in Notes)..." />
             </Field>
           </div>
         )}

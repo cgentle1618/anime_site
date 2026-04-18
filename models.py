@@ -15,7 +15,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from database import Base, get_taipei_now
@@ -215,6 +215,7 @@ class Anime(Base, NameFallbackMixin):
     source_other = Column(String, default=None, nullable=True)
     source_other_link = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
+    notes = Column(JSONB, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)
