@@ -4,8 +4,12 @@ On-demand bulk calculate and fix operations.
 Wraps single-entry logic from other_logics.py and utils for bulk application across the DB.
 """
 
+from typing import Optional
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from utils.jikan_utils import ALLOWED_AIRING_TYPES
 
 from models import Anime
 from services.other_logics import (
@@ -220,10 +224,14 @@ def run_auto_create_seasonal(db: Session) -> dict:
     }
 
 
-def bulk_check_cover_image(db: Session) -> dict:
+def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dict:
     from services.image_manager import cover_image_exists
 
-    animes = db.query(Anime).filter(Anime.cover_image_file.isnot(None)).all()
+    query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
+    if entry_type:
+        query = query.filter(Anime.airing_type == entry_type)
+    animes = query.all()
+
     missing = []
     for anime in animes:
         if not cover_image_exists(str(anime.system_id)):
@@ -233,32 +241,45 @@ def bulk_check_cover_image(db: Session) -> dict:
                 or anime.anime_name_romanji
                 or str(anime.system_id)
             )
-            missing.append({"system_id": str(anime.system_id), "name": name})
+            missing.append({
+                "system_id": str(anime.system_id),
+                "name": name,
+                "airing_type": anime.airing_type,
+            })
     return {
         "status": "success",
         "total_checked": len(animes),
         "missing_count": len(missing),
         "missing": missing,
+        "entry_type": entry_type,
     }
 
 
-def bulk_download_missing_covers(db: Session) -> dict:
+def bulk_download_missing_covers(db: Session, entry_type: Optional[str] = None) -> dict:
     from services.image_manager import cover_image_exists
 
-    animes = db.query(Anime).filter(Anime.cover_image_file.isnot(None)).all()
+    query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
+    if entry_type:
+        query = query.filter(Anime.airing_type == entry_type)
+    animes = query.all()
+
     to_fix = [a for a in animes if not cover_image_exists(str(a.system_id))]
     downloaded = 0
+    skipped = 0
     for anime in to_fix:
-        anime.cover_image_file = None
-        autofill_anime_from_mal(anime, force_replace_ratings=False)
-        if anime.cover_image_file:
-            downloaded += 1
+        if anime.airing_type in ALLOWED_AIRING_TYPES:
+            anime.cover_image_file = None
+            autofill_anime_from_mal(anime, force_replace_ratings=False)
+            if anime.cover_image_file:
+                downloaded += 1
+        else:
+            skipped += 1
     if to_fix:
         db.commit()
-    return {
-        "status": "success",
-        "message": f"Re-downloaded {downloaded} of {len(to_fix)} missing cover images.",
-    }
+    parts = [f"Downloaded {downloaded} of {len(to_fix)} missing cover images."]
+    if skipped:
+        parts.append(f"{skipped} skipped (no Jikan source for this type).")
+    return {"status": "success", "message": " ".join(parts)}
 
 
 def run_extract_system_options(db: Session) -> dict:

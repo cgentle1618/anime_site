@@ -1,5 +1,7 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -190,18 +192,24 @@ def trigger_set_season_1(db: Session = Depends(get_db)):
 
 
 @router.get("/calculate/check-cover-image")
-def trigger_check_cover_image(db: Session = Depends(get_db)):
+def trigger_check_cover_image(
+    db: Session = Depends(get_db),
+    entry_type: Optional[str] = Query(None),
+):
     try:
-        return JSONResponse(content=bulk_check_cover_image(db))
+        return JSONResponse(content=bulk_check_cover_image(db, entry_type=entry_type))
     except Exception as e:
         logger.error(f"Error in check cover image: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/calculate/download-missing-covers")
-def trigger_download_missing_covers(db: Session = Depends(get_db)):
+def trigger_download_missing_covers(
+    db: Session = Depends(get_db),
+    entry_type: Optional[str] = Query(None),
+):
     try:
-        return JSONResponse(content=bulk_download_missing_covers(db))
+        return JSONResponse(content=bulk_download_missing_covers(db, entry_type=entry_type))
     except Exception as e:
         logger.error(f"Error in download missing covers: {e}")
         raise HTTPException(status_code=500, detail=str(e))

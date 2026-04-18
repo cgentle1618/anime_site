@@ -372,7 +372,11 @@ function DeletedTable({ records }) {
   );
 }
 
+const JIKAN_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
+
 function CoverImageModal({ result, onDownload, onClose, downloading }) {
+  const [downloadType, setDownloadType] = useState("");
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -405,14 +409,31 @@ function CoverImageModal({ result, onDownload, onClose, downloading }) {
                 <div className="max-h-40 overflow-y-auto space-y-0.5">
                   {result.missing.map((m, i) => (
                     <div key={i} className="text-xs text-orange-700 truncate">
+                      <span className="font-mono bg-orange-100 px-1 rounded mr-1">{m.airing_type || "?"}</span>
                       {m.name}
                     </div>
                   ))}
                 </div>
               </div>
-              <p className="text-sm text-gray-600">
-                Download missing cover images from MAL?
-              </p>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Download for entry type
+                </label>
+                <select
+                  value={downloadType}
+                  onChange={(e) => setDownloadType(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium px-3 py-2 focus:ring-brand focus:border-brand"
+                >
+                  <option value="">All Jikan Types</option>
+                  {JIKAN_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400">
+                  Only Jikan-compatible types (TV, ONA, OVA, Movie, Special) can be downloaded. Others will be skipped.
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -422,11 +443,11 @@ function CoverImageModal({ result, onDownload, onClose, downloading }) {
             onClick={onClose}
             className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
           >
-            {result.missing_count === 0 ? "Close" : "No"}
+            {result.missing_count === 0 ? "Close" : "Cancel"}
           </button>
           {result.missing_count > 0 && (
             <button
-              onClick={onDownload}
+              onClick={() => onDownload(downloadType)}
               disabled={downloading}
               className="px-4 py-2 text-sm font-bold text-white bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-60 flex items-center gap-2"
             >
@@ -854,13 +875,13 @@ export default function Admin() {
     }
   }
 
-  async function handleDownloadMissingCovers() {
+  async function handleDownloadMissingCovers(entryType) {
     setCoverDownloading(true);
     try {
-      const res = await fetch(
-        "/api/data-control/calculate/download-missing-covers",
-        { method: "POST", credentials: "include" },
-      );
+      const url = entryType
+        ? `/api/data-control/calculate/download-missing-covers?entry_type=${encodeURIComponent(entryType)}`
+        : "/api/data-control/calculate/download-missing-covers";
+      const res = await fetch(url, { method: "POST", credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Download failed.");
       showToast("success", data.message || "Download complete.");
