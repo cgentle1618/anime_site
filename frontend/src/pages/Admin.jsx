@@ -1196,106 +1196,14 @@ export default function Admin() {
           <i className="fas fa-calculator text-brand mr-2"></i> Calculate &amp;
           Fix
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            {
-              key: "sets1",
-              label: "Set S1",
-              url: "/api/data-control/calculate/set-season-1",
-              icon: "fa-star",
-            },
-            {
-              key: "checkbaha",
-              label: "Check Baha Source",
-              url: "/api/data-control/calculate/check-baha",
-              icon: "fa-play-circle",
-            },
-            {
-              key: "validate",
-              label: "Validate Episode Count",
-              url: "/api/data-control/calculate/validate-episode",
-              icon: "fa-check-circle",
-            },
-            {
-              key: "tvcompleted",
-              label: "Mark TV Completed",
-              url: "/api/data-control/calculate/mark-tv-completed",
-              icon: "fa-flag-checkered",
-            },
-            {
-              key: "seasontitle",
-              label: "Extract Season From Title",
-              url: "/api/data-control/calculate/extract-season-from-title",
-              icon: "fa-font",
-            },
-            {
-              key: "seasonmonth",
-              label: "Season From Month",
-              url: "/api/data-control/calculate/season-from-month",
-              icon: "fa-calendar",
-            },
-            {
-              key: "createseasonal",
-              label: "Auto Create Seasonal",
-              url: "/api/data-control/calculate/create-seasonal",
-              icon: "fa-layer-group",
-            },
-            {
-              key: "syncseasonal",
-              label: "Sync Seasonal Counts",
-              url: "/api/data-control/calculate/sync-seasonal-counts",
-              icon: "fa-sync-alt",
-            },
-            {
-              key: "epprev",
-              label: "Autofill Ep. Previous",
-              url: "/api/data-control/calculate/autofill-ep-previous",
-              icon: "fa-sort-numeric-down",
-            },
-            {
-              key: "syncopts",
-              label: "Extract System Options",
-              url: "/api/data-control/calculate/extract-system-options",
-              icon: "fa-list-ul",
-            },
-            {
-              key: "watchorder",
-              label: "Autofill Watch Order",
-              url: "/api/data-control/calculate/autofill-watch-order",
-              icon: "fa-list-ol",
-            },
-            {
-              key: "prequelsequel",
-              label: "Autofill Prequel / Sequel",
-              url: "/api/data-control/calculate/autofill-prequel-sequel",
-              icon: "fa-link",
-            },
-          ].map(({ key, label, url, icon }) => (
-            <button
-              key={key}
-              onClick={() => runCalc(key, url)}
-              disabled={!!calcLoading[key]}
-              className="flex flex-col items-center gap-2 p-3 bg-gray-50 hover:bg-brand/5 border border-gray-200 hover:border-brand/30 rounded-xl text-xs font-bold text-gray-700 hover:text-brand transition disabled:opacity-60"
-            >
-              <i className={`fas ${icon} text-lg`}></i>
-              {calcLoading[key] ? (
-                <i className="fas fa-circle-notch fa-spin"></i>
-              ) : (
-                label
-              )}
-            </button>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
-            onClick={runCheckCoverImage}
-            disabled={!!calcLoading.checkcoverimage}
-            className="flex flex-col items-center gap-2 p-3 bg-gray-50 hover:bg-brand/5 border border-gray-200 hover:border-brand/30 rounded-xl text-xs font-bold text-gray-700 hover:text-brand transition disabled:opacity-60"
+            onClick={() => runCalc("calculateall", "/api/data-control/calculate/all")}
+            disabled={!!calcLoading.calculateall}
+            className="flex flex-col items-center gap-2 p-3 bg-brand/5 hover:bg-brand/10 border border-brand/30 hover:border-brand/50 rounded-xl text-xs font-bold text-brand transition disabled:opacity-60"
           >
-            <i className="fas fa-image text-lg"></i>
-            {calcLoading.checkcoverimage ? (
-              <i className="fas fa-circle-notch fa-spin"></i>
-            ) : (
-              "Check Cover Image"
-            )}
+            <i className="fas fa-calculator text-lg"></i>
+            {calcLoading.calculateall ? <i className="fas fa-circle-notch fa-spin"></i> : "Calculate All"}
           </button>
           <button
             onClick={runFindDuplicates}
@@ -1303,11 +1211,15 @@ export default function Admin() {
             className="flex flex-col items-center gap-2 p-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-300 rounded-xl text-xs font-bold text-orange-700 transition disabled:opacity-60"
           >
             <i className="fas fa-clone text-lg"></i>
-            {calcLoading.duplicates ? (
-              <i className="fas fa-circle-notch fa-spin"></i>
-            ) : (
-              "Find Duplicates"
-            )}
+            {calcLoading.duplicates ? <i className="fas fa-circle-notch fa-spin"></i> : "Find Duplicates"}
+          </button>
+          <button
+            onClick={runCheckCoverImage}
+            disabled={!!calcLoading.checkcoverimage}
+            className="flex flex-col items-center gap-2 p-3 bg-gray-50 hover:bg-brand/5 border border-gray-200 hover:border-brand/30 rounded-xl text-xs font-bold text-gray-700 hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-image text-lg"></i>
+            {calcLoading.checkcoverimage ? <i className="fas fa-circle-notch fa-spin"></i> : "Check & Download Covers"}
           </button>
         </div>
       </div>
