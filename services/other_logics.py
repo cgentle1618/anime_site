@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
 PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
+_AIRING_TYPE_ORDER = {"TV": 0, "ONA": 1, "Special": 2, "OVA": 3, "OAD": 4}
 
 
 # ==========================================
@@ -107,8 +108,18 @@ def check_is_tv_completed(entry: Anime) -> bool:
 # ==========================================
 
 
-def derive_season_1(anime: Anime) -> None:
-    anime.season_part = "Season 1"
+def derive_season_1(anime: Anime, db: Session) -> None:
+    if anime.season_part is not None:
+        return
+    if not anime.franchise_id or anime.airing_type != "TV":
+        return
+    tv_count = (
+        db.query(Anime)
+        .filter(Anime.franchise_id == anime.franchise_id, Anime.airing_type == "TV")
+        .count()
+    )
+    if tv_count == 1:
+        anime.season_part = "Season 1"
 
 
 def apply_validate_episode_math(anime: Anime) -> bool:
@@ -130,7 +141,12 @@ def apply_extract_season_from_title(anime: Anime) -> bool:
 
 
 def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
-    season = calculate_seasonal_from_month(anime.release_month)
+    if (
+        anime.release_season is None
+        and anime.release_month is not None
+        and anime.airing_type in ("TV", "ONA")
+    ):
+        season = calculate_seasonal_from_month(anime.release_month)
     if season:
         anime.release_season = season
         return True
@@ -150,7 +166,7 @@ def apply_extract_mal_id(anime: Anime) -> bool:
 # ==========================================
 
 
-def process_anime_entry(anime: Anime) -> None:
+def process_anime_entry(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
     apply_check_baha(anime)
 
@@ -166,8 +182,7 @@ def process_anime_entry(anime: Anime) -> None:
 
     if anime.season_part is None:
         apply_extract_season_from_title(anime)
-        if anime.season_part is None:
-            derive_season_1(anime)
+        derive_season_1(anime, db)
 
 
 # ==========================================
@@ -334,77 +349,98 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
 # ==========================================
 
 
+_SERIES_UNSET = object()
+
+
 def derive_ep_previous(
-    db: Session, franchise_id: Any, series_id: Optional[Any] = None
+    db: Session, franchise_id: Any, series_id: Any = _SERIES_UNSET
 ) -> None:
     """
-    Calculates and cascades ep_previous for an entire Franchise or Series group.
-    Sorts valid siblings chronologically by Season and Part.
+    Derives ep_previous for eligible anime entries within an acg franchise.
+    Eligible: same franchise+series, airing_type TV/ONA, ep_special null, season_part set.
+    Each series forms its own sibling group; no-series entries form their own group.
+    When series_id is provided (including None for no-series), only that group is processed.
+    When series_id is omitted, all groups in the franchise are processed.
+    Only fills entries where ep_previous is currently None.
     """
     if not franchise_id:
         return
 
-    # Fetch and filter valid Siblings
-    query = db.query(Anime).filter(Anime.franchise_id == franchise_id)
-    if series_id:
-        query = query.filter(Anime.series_id == series_id)
-
-    siblings = query.all()
-
-    valid_siblings = []
-    for s in siblings:
-        if s.airing_type in ["TV", "ONA"] and s.ep_special is None and s.season_part:
-            valid_siblings.append(s)
-
-    if not valid_siblings:
-        return
-
-    # Sort Chronologically by Season and Part
     def get_sort_key(a: Anime):
         s_part = str(a.season_part or "")
         s_match = SEASON_PATTERN.search(s_part)
         p_match = PART_PATTERN.search(s_part)
-
         s_num = int(s_match.group(1)) if s_match else 1
         p_num = int(p_match.group(1)) if p_match else 1
         return (s_num, p_num)
 
-    sorted_siblings = sorted(valid_siblings, key=get_sort_key)
+    def process_group(siblings: list) -> None:
+        if not siblings:
+            return
+        sorted_siblings = sorted(siblings, key=get_sort_key)
+        for i, entry in enumerate(sorted_siblings):
+            if entry.ep_previous is not None:
+                continue
+            s_part_clean = str(entry.season_part).strip().lower()
+            if s_part_clean in ("season 1", "season 1 part 1"):
+                entry.ep_previous = 0
+                continue
+            if i == 0:
+                break
+            prev = sorted_siblings[i - 1]
+            if not prev.ep_total:
+                break
+            if prev.ep_previous is None:
+                break
+            entry.ep_previous = prev.ep_previous + prev.ep_total
 
-    # Cascade Accumulation Loop
-    running_ep_previous = 0
+    base_query = db.query(Anime).filter(
+        Anime.franchise_id == franchise_id,
+        Anime.airing_type.in_(["TV", "ONA"]),
+        Anime.ep_special.is_(None),
+        Anime.season_part.isnot(None),
+    )
 
-    for s in sorted_siblings:
-        s_part_clean = str(s.season_part).strip().lower()
-
-        if s_part_clean in ["season 1", "season 1 part 1"]:
-            running_ep_previous = 0
-
-        # Fill if missing
-        if s.ep_previous is None:
-            s.ep_previous = running_ep_previous
-
-        current_prev = s.ep_previous or 0
-        current_total = s.ep_total or 0
-        running_ep_previous = current_prev + current_total
+    if series_id is not _SERIES_UNSET:
+        # Specific group: series UUID or None (no-series)
+        if series_id is None:
+            base_query = base_query.filter(Anime.series_id.is_(None))
+        else:
+            base_query = base_query.filter(Anime.series_id == series_id)
+        process_group(base_query.all())
+    else:
+        # All groups: partition by series_id and process each independently
+        all_eligible = base_query.all()
+        groups: dict = {}
+        for anime in all_eligible:
+            groups.setdefault(anime.series_id, []).append(anime)
+        for group in groups.values():
+            process_group(group)
 
 
 def derive_watch_order(db: Session, franchise_id: Any) -> None:
     """
-    Assigns watch_order sequentially (1, 2, 3…) to Anime entries within a franchise
-    that have season_part set, sorted chronologically by Season and Part number.
-    Only fills entries where watch_order is currently None.
+    Assigns watch_order to eligible entries within an acg franchise.
+    Eligible: airing_type not null/Other, season_part set.
+    Entries grouped by series (sorted by series name), no-series entries last.
+    Within each group, sorted by season/part then airing_type (TV, ONA, Special, OVA, OAD).
+    Only fills entries where watch_order is None. Order is consecutive across all groups.
     """
     if not franchise_id:
         return
 
-    siblings = (
+    eligible = (
         db.query(Anime)
-        .filter(Anime.franchise_id == franchise_id, Anime.season_part.isnot(None))
+        .filter(
+            Anime.franchise_id == franchise_id,
+            Anime.season_part.isnot(None),
+            Anime.airing_type.isnot(None),
+            Anime.airing_type.not_in(("Other", None)),
+        )
         .all()
     )
 
-    if not siblings:
+    if not eligible:
         return
 
     def get_sort_key(a: Anime):
@@ -413,19 +449,49 @@ def derive_watch_order(db: Session, franchise_id: Any) -> None:
         p_match = PART_PATTERN.search(s_part)
         s_num = int(s_match.group(1)) if s_match else 1
         p_num = int(p_match.group(1)) if p_match else 1
-        return (s_num, p_num)
+        type_order = _AIRING_TYPE_ORDER.get(a.airing_type or "", 99)
+        return (s_num, p_num, type_order)
 
-    sorted_siblings = sorted(siblings, key=get_sort_key)
+    # Separate into series groups and no-series group
+    series_groups: dict = {}
+    no_series: list = []
 
-    for position, entry in enumerate(sorted_siblings, start=1):
+    for anime in eligible:
+        if anime.series_id:
+            series_groups.setdefault(anime.series_id, []).append(anime)
+        else:
+            no_series.append(anime)
+
+    # Sort entries within each group
+    for entries in series_groups.values():
+        entries.sort(key=get_sort_key)
+    no_series.sort(key=get_sort_key)
+
+    # Order series groups by series display_name for deterministic ordering
+    ordered_series_ids = list(series_groups.keys())
+    if len(ordered_series_ids) > 1:
+        series_objs = (
+            db.query(Series).filter(Series.system_id.in_(ordered_series_ids)).all()
+        )
+        name_map = {s.system_id: (s.display_name or "") for s in series_objs}
+        ordered_series_ids.sort(key=lambda sid: name_map.get(sid, ""))
+
+    # Build final order: series groups first, no-series last
+    ordered_entries = []
+    for sid in ordered_series_ids:
+        ordered_entries.extend(series_groups[sid])
+    ordered_entries.extend(no_series)
+
+    for position, entry in enumerate(ordered_entries, start=1):
         if entry.watch_order is None:
             entry.watch_order = float(position)
 
 
 def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
     """
-    Sets prequel_id and sequel_id for Anime entries within a franchise
-    based on ascending watch_order. Only fills entries where the field is None.
+    Derives prequel_id and sequel_id for eligible entries within an acg franchise.
+    Eligible: watch_order is not null.
+    Entries are ordered by watch_order; only fills fields that are currently None.
     """
     if not franchise_id:
         return
@@ -440,9 +506,6 @@ def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
         .all()
     )
 
-    if len(entries) < 2:
-        return
-
     for i, entry in enumerate(entries):
         prev_entry = entries[i - 1] if i > 0 else None
         next_entry = entries[i + 1] if i < len(entries) - 1 else None
@@ -452,6 +515,23 @@ def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
 
         if entry.sequel_id is None and next_entry is not None:
             entry.sequel_id = next_entry.system_id
+
+
+def derive_related(db: Session) -> None:
+    """Derives watch order, ep_previous, and prequel/sequel for all acg franchises."""
+    rows = (
+        db.query(Anime.franchise_id)
+        .filter(Anime.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        derive_watch_order(db, fid)
+        derive_ep_previous(db, fid)
+        derive_prequel_sequel(db, fid)
+    if franchise_ids:
+        db.commit()
 
 
 def apply_check_baha(anime: Anime) -> None:
@@ -481,34 +561,19 @@ def mark_tv_completed(entry: Anime) -> None:
 
 
 def apply_single_replace_anime(
-    db: Session, anime: Anime, force_replace_ratings: bool = True
+    db: Session, anime: Anime, bulk: bool = False, force_replace_ratings: bool = True
 ) -> None:
     """
     Core 'Replace' logic for a single anime entry.
-    Used by anime router for manual updates from anime detail frontend page.
+    When bulk=False (single-entry update), also derives related entries.
+    When bulk=True (batch replace), caller handles derive_related after the loop.
     """
-    # Extract MAL ID
-    if not anime.mal_id and anime.mal_link:
-        anime.mal_id = extract_mal_id(anime.mal_link)
+    apply_extract_mal_id(anime)
+    autofill_anime_from_mal(anime, force_replace_ratings=force_replace_ratings)
+    process_anime_entry(anime, db)
 
-    # MAL Autofill Anime
-    autofill_anime_from_mal(anime, force_replace_ratings=True)
-
-    # Extract Season From Title if missing
-    if not anime.season_part and anime.anime_name_en:
-        extracted_season = extract_season_from_title(anime.anime_name_en)
-        if extracted_season:
-            anime.season_part = extracted_season
-
-    # Check Completed and Mark Completed
-    if check_is_tv_completed(anime):
-        mark_tv_completed(anime)
-
-    # Calculate Season From Month with condition
-    if not anime.release_season and anime.airing_type == "TV" and anime.release_month:
-        calculated_season = calculate_seasonal_from_month(anime.release_month)
-        if calculated_season:
-            anime.release_season = calculated_season
+    if not bulk:
+        derive_related(db)
 
 
 # ==========================================

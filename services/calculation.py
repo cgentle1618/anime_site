@@ -12,14 +12,12 @@ from utils.jikan_utils import ALLOWED_AIRING_TYPES
 
 from models import Anime
 from services.other_logics import (
-    derive_ep_previous,
-    derive_watch_order,
-    derive_prequel_sequel,
     sync_seasonal_counts,
     create_missing_seasonal,
     extract_system_options_from_anime,
     autofill_anime_from_mal,
     process_anime_entry,
+    derive_related,
 )
 
 
@@ -86,7 +84,7 @@ def bulk_download_missing_covers(db: Session, entry_type: Optional[str] = None) 
 def run_anime_post_processing(db: Session) -> dict:
     animes = db.query(Anime).all()
     for anime in animes:
-        process_anime_entry(anime)
+        process_anime_entry(anime, db)
     db.commit()
     return {
         "status": "success",
@@ -95,22 +93,10 @@ def run_anime_post_processing(db: Session) -> dict:
 
 
 def run_derive_related(db: Session) -> dict:
-    rows = (
-        db.query(Anime.franchise_id)
-        .filter(Anime.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_watch_order(db, fid)
-        derive_ep_previous(db, fid)
-        derive_prequel_sequel(db, fid)
-    if franchise_ids:
-        db.commit()
+    derive_related(db)
     return {
         "status": "success",
-        "message": f"Derived watch order, ep_previous, and prequel/sequel for {len(franchise_ids)} franchises.",
+        "message": "Derived watch order, ep_previous, and prequel/sequel for all franchises.",
     }
 
 
@@ -128,6 +114,7 @@ def run_calculate_all(db: Session) -> dict:
     run_anime_post_processing(db)
     run_derive_related(db)
     run_sync(db)
+    bulk_check_cover_image(db)
     return {
         "status": "success",
         "message": "Full calculation complete.",
