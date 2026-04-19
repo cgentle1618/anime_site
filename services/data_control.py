@@ -1,11 +1,9 @@
 """
 data_control.py
-The master orchestrator for Version 2 data pipelines.
-Strictly handles the business logic loops for Calculation, Fill, Replace, Backup,
-and Pulls by delegating tasks to isolated domain utilities and API clients.
+The master orchestrator for main data control pipelines.
+Handles the business logic loops for Backup, Fill, Replace, and Pull.
 """
 
-import time
 import json
 import logging
 import asyncio
@@ -13,7 +11,7 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
-from models import Franchise, Series, Anime, SystemOption, DataControlLog
+from models import Franchise, Series, Anime, SystemOption
 
 from utils.formatter import (
     format_model_for_sheet,
