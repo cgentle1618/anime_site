@@ -1,227 +1,26 @@
 """
 calculation.py
 On-demand bulk calculate and fix operations.
-Wraps single-entry logic from other_logics.py and utils for bulk application across the DB.
+Wraps single-entry logic from other_logics.py for bulk application across the DB.
 """
 
 from typing import Optional
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 
 from models import Anime
 from services.other_logics import (
-    check_is_tv_completed,
-    mark_tv_completed,
-    apply_check_baha,
-    auto_create_seasonal,
-    sync_seasonal_counts,
     derive_ep_previous,
     derive_watch_order,
     derive_prequel_sequel,
-    autofill_anime_from_mal,
+    sync_seasonal_counts,
+    create_missing_seasonal,
     extract_system_options_from_anime,
+    autofill_anime_from_mal,
+    process_anime_entry,
 )
-from utils.utils import (
-    validate_episode_math,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
-)
-
-
-def bulk_derive_season_1(db: Session) -> dict:
-    lone_franchise_sq = (
-        db.query(Anime.franchise_id)
-        .filter(
-            Anime.franchise_id.isnot(None),
-            Anime.airing_type == "TV",
-        )
-        .group_by(Anime.franchise_id)
-        .having(func.count(Anime.system_id) == 1)
-        .subquery()
-    )
-    animes = (
-        db.query(Anime)
-        .filter(
-            Anime.franchise_id.in_(db.query(lone_franchise_sq.c.franchise_id)),
-            Anime.airing_type == "TV",
-            Anime.season_part.is_(None),
-        )
-        .all()
-    )
-    for anime in animes:
-        anime.season_part = "Season 1"
-    if animes:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Set season_part='Season 1' for {len(animes)} lone TV entries.",
-    }
-
-
-def bulk_check_baha(db: Session) -> dict:
-    animes = (
-        db.query(Anime)
-        .filter(
-            Anime.baha_link.isnot(None),
-            Anime.airing_status == "Airing",
-            Anime.source_baha.is_(None),
-        )
-        .all()
-    )
-    for anime in animes:
-        apply_check_baha(anime)
-    if animes:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Set source_baha=True for {len(animes)} entries.",
-    }
-
-
-def bulk_validate_episode_math(db: Session) -> dict:
-    animes = db.query(Anime).all()
-    updated = 0
-    for anime in animes:
-        safe_total, safe_fin = validate_episode_math(anime.ep_total, anime.ep_fin)
-        if anime.ep_total != safe_total or anime.ep_fin != safe_fin:
-            anime.ep_total = safe_total
-            anime.ep_fin = safe_fin
-            updated += 1
-    if updated > 0:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Validated {len(animes)} entries, fixed {updated}.",
-    }
-
-
-def bulk_mark_tv_completed(db: Session) -> dict:
-    animes = db.query(Anime).filter(Anime.airing_type.in_(["TV", "ONA"])).all()
-    marked = 0
-    for anime in animes:
-        if check_is_tv_completed(anime) and anime.watching_status != "Completed":
-            mark_tv_completed(anime)
-            marked += 1
-    if marked > 0:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Checked {len(animes)} TV/ONA entries, marked {marked} as completed.",
-    }
-
-
-def bulk_extract_season_from_title(db: Session) -> dict:
-    animes = db.query(Anime).filter(Anime.season_part.is_(None)).all()
-    updated = 0
-    for anime in animes:
-        title = anime.anime_name_en or anime.anime_name_romanji or ""
-        extracted = extract_season_from_title(title)
-        if extracted:
-            anime.season_part = extracted
-            updated += 1
-    if updated > 0:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Checked {len(animes)} entries without season_part, extracted {updated}.",
-    }
-
-
-def bulk_calculate_seasonal_from_month(db: Session) -> dict:
-    animes = (
-        db.query(Anime)
-        .filter(
-            Anime.release_season.is_(None),
-            Anime.release_month.isnot(None),
-            Anime.airing_type == "TV",
-        )
-        .all()
-    )
-    updated = 0
-    for anime in animes:
-        season = calculate_seasonal_from_month(anime.release_month)
-        if season:
-            anime.release_season = season
-            updated += 1
-    if updated > 0:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Checked {len(animes)} TV entries, derived release_season for {updated}.",
-    }
-
-
-def bulk_derive_ep_previous(db: Session) -> dict:
-    rows = (
-        db.query(Anime.franchise_id)
-        .filter(Anime.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_ep_previous(db, fid)
-    if franchise_ids:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Ran ep_previous cascade for {len(franchise_ids)} franchises.",
-    }
-
-
-def bulk_derive_watch_order(db: Session) -> dict:
-    rows = (
-        db.query(Anime.franchise_id)
-        .filter(Anime.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_watch_order(db, fid)
-    if franchise_ids:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Ran watch_order autofill for {len(franchise_ids)} franchises.",
-    }
-
-
-def bulk_derive_prequel_sequel(db: Session) -> dict:
-    rows = (
-        db.query(Anime.franchise_id)
-        .filter(Anime.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_prequel_sequel(db, fid)
-    if franchise_ids:
-        db.commit()
-    return {
-        "status": "success",
-        "message": f"Ran prequel/sequel autofill for {len(franchise_ids)} franchises.",
-    }
-
-
-def run_sync_seasonal_counts(db: Session) -> dict:
-    sync_seasonal_counts(db)
-    return {
-        "status": "success",
-        "message": "Seasonal entry counts (completed / watching / dropped) updated.",
-    }
-
-
-def run_auto_create_seasonal(db: Session) -> dict:
-    auto_create_seasonal(db)
-    return {
-        "status": "success",
-        "message": "Seasonal entries created for all unique season/year combinations.",
-    }
 
 
 def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dict:
@@ -284,5 +83,52 @@ def bulk_download_missing_covers(db: Session, entry_type: Optional[str] = None) 
     return {"status": "success", "message": " ".join(parts)}
 
 
-def run_extract_system_options(db: Session) -> dict:
-    return extract_system_options_from_anime(db)
+def run_anime_post_processing(db: Session) -> dict:
+    animes = db.query(Anime).all()
+    for anime in animes:
+        process_anime_entry(anime)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Post-processed {len(animes)} anime entries.",
+    }
+
+
+def run_derive_related(db: Session) -> dict:
+    rows = (
+        db.query(Anime.franchise_id)
+        .filter(Anime.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        derive_watch_order(db, fid)
+        derive_ep_previous(db, fid)
+        derive_prequel_sequel(db, fid)
+    if franchise_ids:
+        db.commit()
+    return {
+        "status": "success",
+        "message": f"Derived watch order, ep_previous, and prequel/sequel for {len(franchise_ids)} franchises.",
+    }
+
+
+def run_sync(db: Session) -> dict:
+    create_missing_seasonal(db)
+    sync_seasonal_counts(db)
+    extract_system_options_from_anime(db)
+    return {
+        "status": "success",
+        "message": "Missing seasonals created, seasonal counts synced, system options extracted.",
+    }
+
+
+def run_calculate_all(db: Session) -> dict:
+    run_anime_post_processing(db)
+    run_derive_related(db)
+    run_sync(db)
+    return {
+        "status": "success",
+        "message": "Full calculation complete.",
+    }

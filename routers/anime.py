@@ -20,7 +20,7 @@ import schemas
 
 from services.image_manager import delete_cover_image
 from services.other_logics import (
-    auto_create_seasonal,
+    create_missing_seasonal,
     derive_ep_previous,
     apply_single_replace_anime,
     resolve_anime_parent_hierarchy,
@@ -131,7 +131,7 @@ def create_anime_entry(
     db.flush()
 
     try:
-        auto_create_seasonal(db)
+        create_missing_seasonal(db)
     except Exception as e:
         logger.warning(f"Auto create seasonal failed: {e}")
 
@@ -184,7 +184,7 @@ def update_anime_entry(
     db.flush()
 
     try:
-        auto_create_seasonal(db)
+        create_missing_seasonal(db)
     except Exception as e:
         logger.warning(f"Auto create seasonal failed: {e}")
 

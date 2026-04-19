@@ -34,7 +34,7 @@ from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
     has_missing_values,
     check_is_tv_completed,
-    auto_create_seasonal,
+    create_missing_seasonal,
     autofill_anime_from_mal,
     mark_tv_completed,
     apply_single_replace_anime,
@@ -138,7 +138,7 @@ async def execute_fill_anime(
         total_in_queue = len(queue_to_process)
 
         # Initialize Set to track unique Franchise/Series groups for cascade recalculation
-        groups_to_recalculate = set()
+        franchise_series_combination = set()
 
         # For each entry with missing values
         if total_in_queue > 0:
@@ -180,7 +180,9 @@ async def execute_fill_anime(
 
                     # Track the group for bulk recalculation
                     if anime.franchise_id:
-                        groups_to_recalculate.add((anime.franchise_id, anime.series_id))
+                        franchise_series_combination.add(
+                            (anime.franchise_id, anime.series_id)
+                        )
 
                     db.commit()
                     processed_count += 1
@@ -193,10 +195,10 @@ async def execute_fill_anime(
                 await asyncio.sleep(1)
 
             # --- POST-PROCESSING: Cascade Recalculation for filled entries ---
-            if groups_to_recalculate:
+            if franchise_series_combination:
                 yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Recalculating episode cascades...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
 
-                for f_id, s_id in groups_to_recalculate:
+                for f_id, s_id in franchise_series_combination:
                     if await request.is_disconnected():
                         raise asyncio.CancelledError()
 
@@ -254,7 +256,7 @@ async def execute_fill_anime(
 
         # Auto Create Seasonal
         try:
-            auto_create_seasonal(db)
+            create_missing_seasonal(db)
         except Exception as e:
             logger.warning(f"Auto create seasonal failed: {e}")
 
@@ -410,7 +412,7 @@ async def execute_replace_single_anime(
 
         # Auto Create Seasonal
         try:
-            auto_create_seasonal(db)
+            create_missing_seasonal(db)
             logger.info("Auto create seasonal completed.")
         except Exception as e:
             logger.warning(f"Auto create seasonal failed: {e}")
@@ -481,7 +483,7 @@ async def execute_replace_anime(
             return
 
         # Initialize our Set to track unique Franchise/Series groups for bulk recalculation
-        groups_to_recalculate = set()
+        franchise_series_combination = set()
 
         for index, anime in enumerate(all_anime_to_process, start=1):
             if await request.is_disconnected():
@@ -507,7 +509,9 @@ async def execute_replace_anime(
 
                 # Track the group (Tuple of UUIDs is hashable and guarantees uniqueness)
                 if anime.franchise_id:
-                    groups_to_recalculate.add((anime.franchise_id, anime.series_id))
+                    franchise_series_combination.add(
+                        (anime.franchise_id, anime.series_id)
+                    )
 
                 db.commit()
                 processed_count += 1
@@ -518,10 +522,10 @@ async def execute_replace_anime(
             await asyncio.sleep(1)
 
         # --- POST-PROCESSING: Cascade Recalculation ---
-        if groups_to_recalculate:
+        if franchise_series_combination:
             yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Recalculating episode cascades...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
 
-            for f_id, s_id in groups_to_recalculate:
+            for f_id, s_id in franchise_series_combination:
                 if await request.is_disconnected():
                     raise asyncio.CancelledError()
 
@@ -536,7 +540,7 @@ async def execute_replace_anime(
 
         # Auto Create Seasonal
         try:
-            auto_create_seasonal(db)
+            create_missing_seasonal(db)
         except Exception as e:
             logger.warning(f"Auto create seasonal failed: {e}")
 

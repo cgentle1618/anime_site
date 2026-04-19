@@ -26,6 +26,7 @@ from utils.utils import (
     extract_mal_id,
     extract_season_from_title,
     calculate_seasonal_from_month,
+    validate_episode_math,
 )
 from utils.jikan_utils import map_jikan_to_anime_data
 
@@ -102,6 +103,74 @@ def check_is_tv_completed(entry: Anime) -> bool:
 
 
 # ==========================================
+# SINGLE-ENTRY DERIVATION ACTIONS
+# ==========================================
+
+
+def derive_season_1(anime: Anime) -> None:
+    anime.season_part = "Season 1"
+
+
+def apply_validate_episode_math(anime: Anime) -> bool:
+    safe_total, safe_fin = validate_episode_math(anime.ep_total, anime.ep_fin)
+    if anime.ep_total != safe_total or anime.ep_fin != safe_fin:
+        anime.ep_total = safe_total
+        anime.ep_fin = safe_fin
+        return True
+    return False
+
+
+def apply_extract_season_from_title(anime: Anime) -> bool:
+    title = anime.anime_name_en or anime.anime_name_romanji or ""
+    extracted = extract_season_from_title(title)
+    if extracted:
+        anime.season_part = extracted
+        return True
+    return False
+
+
+def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
+    season = calculate_seasonal_from_month(anime.release_month)
+    if season:
+        anime.release_season = season
+        return True
+    return False
+
+
+def apply_extract_mal_id(anime: Anime) -> bool:
+    mal_id = extract_mal_id(anime.mal_link)
+    if mal_id:
+        anime.mal_id = mal_id
+        return True
+    return False
+
+
+# ==========================================
+# COMPOSITE ENTRY PIPELINE
+# ==========================================
+
+
+def process_anime_entry(anime: Anime) -> None:
+    apply_validate_episode_math(anime)
+    apply_check_baha(anime)
+
+    if check_is_tv_completed(anime) and anime.watching_status != "Completed":
+        mark_tv_completed(anime)
+
+    if (
+        anime.release_season is None
+        and anime.release_month is not None
+        and anime.airing_type == "TV"
+    ):
+        apply_calculate_seasonal_from_month(anime)
+
+    if anime.season_part is None:
+        apply_extract_season_from_title(anime)
+        if anime.season_part is None:
+            derive_season_1(anime)
+
+
+# ==========================================
 # AUTO ACTIONS
 # ==========================================
 
@@ -155,7 +224,7 @@ def sync_seasonal_counts(db: Session) -> None:
     db.commit()
 
 
-def auto_create_seasonal(db: Session) -> None:
+def create_missing_seasonal(db: Session) -> None:
     """
     Scans the Anime table for unique combinations of release_season and release_year.
     Creates a new entry in the Seasonal table (e.g., 'WIN 2026') if it does not already exist.

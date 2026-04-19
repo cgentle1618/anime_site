@@ -20,20 +20,9 @@ from services.data_control import (
 )
 from services.other_logics import find_all_duplicates
 from services.calculation import (
-    bulk_derive_season_1,
-    bulk_check_baha,
     bulk_check_cover_image,
     bulk_download_missing_covers,
-    bulk_validate_episode_math,
-    bulk_mark_tv_completed,
-    bulk_extract_season_from_title,
-    bulk_calculate_seasonal_from_month,
-    bulk_derive_ep_previous,
-    bulk_derive_watch_order,
-    bulk_derive_prequel_sequel,
-    run_sync_seasonal_counts,
-    run_auto_create_seasonal,
-    run_extract_system_options,
+    run_calculate_all,
 )
 
 logger = logging.getLogger(__name__)
@@ -182,12 +171,12 @@ def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/calculate/set-season-1")
-def trigger_derive_season_1(db: Session = Depends(get_db)):
+@router.post("/calculate/all")
+def trigger_calculate_all(db: Session = Depends(get_db)):
     try:
-        return JSONResponse(content=bulk_derive_season_1(db))
+        return JSONResponse(content=run_calculate_all(db))
     except Exception as e:
-        logger.error(f"Error in set season 1: {e}")
+        logger.error(f"Error in calculate all: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -217,105 +206,6 @@ def trigger_download_missing_covers(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/calculate/check-baha")
-def trigger_check_baha(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_check_baha(db))
-    except Exception as e:
-        logger.error(f"Error in check baha: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/validate-episode")
-def trigger_validate_episode(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_validate_episode_math(db))
-    except Exception as e:
-        logger.error(f"Error in validate episode: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/mark-tv-completed")
-def trigger_mark_tv_completed(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_mark_tv_completed(db))
-    except Exception as e:
-        logger.error(f"Error in mark TV completed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/extract-season-from-title")
-def trigger_extract_season_from_title(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_extract_season_from_title(db))
-    except Exception as e:
-        logger.error(f"Error in extract season from title: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/season-from-month")
-def trigger_season_from_month(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_calculate_seasonal_from_month(db))
-    except Exception as e:
-        logger.error(f"Error in season from month: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/sync-seasonal-counts")
-def trigger_sync_seasonal_counts(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=run_sync_seasonal_counts(db))
-    except Exception as e:
-        logger.error(f"Error in sync seasonal counts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/create-seasonal")
-def trigger_create_seasonal(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=run_auto_create_seasonal(db))
-    except Exception as e:
-        logger.error(f"Error in create seasonal: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/autofill-ep-previous")
-def trigger_derive_ep_previous(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_derive_ep_previous(db))
-    except Exception as e:
-        logger.error(f"Error in autofill ep previous: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/extract-system-options")
-def trigger_extract_system_options(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=run_extract_system_options(db))
-    except Exception as e:
-        logger.error(f"Error in extract system options: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/autofill-prequel-sequel")
-def trigger_derive_prequel_sequel(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_derive_prequel_sequel(db))
-    except Exception as e:
-        logger.error(f"Error in autofill prequel/sequel: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calculate/autofill-watch-order")
-def trigger_derive_watch_order(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_derive_watch_order(db))
-    except Exception as e:
-        logger.error(f"Error in autofill watch order: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/check/duplicates")
 def check_duplicates(db: Session = Depends(get_db)):
     try:
@@ -323,3 +213,5 @@ def check_duplicates(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error in check duplicates: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
