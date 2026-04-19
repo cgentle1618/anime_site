@@ -15,15 +15,15 @@ from sqlalchemy import or_, text
 
 from models import Franchise, Series, Anime, SystemOption, DataControlLog
 
-from utils.data_control_utils import (
+from utils.formatter import (
     format_model_for_sheet,
     parse_row_to_dict,
     parse_franchise_from_sheet,
     parse_series_from_sheet,
     parse_anime_from_sheet,
     parse_system_option_from_sheet,
-    log_data_control,
 )
+from utils.data_control_utils import log_data_control
 
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
