@@ -16,9 +16,13 @@ from services.other_logics import (
     create_missing_seasonal,
     extract_system_options_from_anime,
     autofill_anime_from_mal,
-    process_anime_entry,
+    anime_post_processing,
     derive_related,
 )
+
+# ==========================================
+# BULK ACTIONS
+# ==========================================
 
 
 def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dict:
@@ -81,10 +85,15 @@ def bulk_download_missing_covers(db: Session, entry_type: Optional[str] = None) 
     return {"status": "success", "message": " ".join(parts)}
 
 
+# ==========================================
+# COMPOSITE LOGICS
+# ==========================================
+
+
 def run_anime_post_processing(db: Session) -> dict:
     animes = db.query(Anime).all()
     for anime in animes:
-        process_anime_entry(anime, db)
+        anime_post_processing(anime, db)
     db.commit()
     return {
         "status": "success",
