@@ -29,7 +29,7 @@ from services.other_logics import (
     autofill_anime_from_mal,
     apply_single_replace_anime,
     apply_extract_mal_id,
-    process_anime_entry,
+    anime_post_processing,
     derive_related,
 )
 from services.calculation import run_sync
@@ -145,7 +145,7 @@ async def execute_fill_anime(
             if await request.is_disconnected():
                 raise asyncio.CancelledError()
             try:
-                process_anime_entry(anime, db)
+                anime_post_processing(anime, db)
             except Exception as e:
                 logger.warning(f"Post-processing failed for {anime.display_name}: {e}")
 

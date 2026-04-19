@@ -13,7 +13,8 @@ from typing import Any, Optional, Tuple
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
-
+SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
+PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
 
 # ==========================================
 # CONSTANTS & MAPPINGS & CONFIGURATIONS
