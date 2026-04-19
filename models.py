@@ -32,6 +32,8 @@ class NameFallbackMixin:
     Ensures consistent UI presentation across different media levels.
     """
 
+    _name_fields: list = []
+
     def get_fallback_name(self, sequence_keys: list, start_from: str = "CN") -> str:
         """
         Sequence: Iterate through provided fields and return the first non-empty value.
@@ -50,6 +52,13 @@ class NameFallbackMixin:
                 return str(val).strip()
         return ""
 
+    def get_all_names(self) -> set:
+        return {
+            getattr(self, f).strip().lower()
+            for f in self._name_fields
+            if getattr(self, f) and str(getattr(self, f)).strip()
+        }
+
 
 # ==========================================
 # CORE APPLICATION DATA MODELS
@@ -62,6 +71,7 @@ class Franchise(Base, NameFallbackMixin):
     """
 
     __tablename__ = "franchise"
+    _name_fields = ["franchise_name_en", "franchise_name_cn", "franchise_name_romanji", "franchise_name_jp", "franchise_name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -110,6 +120,7 @@ class Series(Base, NameFallbackMixin):
     """
 
     __tablename__ = "series"
+    _name_fields = ["series_name_en", "series_name_cn", "series_name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -143,6 +154,7 @@ class Anime(Base, NameFallbackMixin):
     """
 
     __tablename__ = "anime"
+    _name_fields = ["anime_name_en", "anime_name_cn", "anime_name_romanji", "anime_name_jp", "anime_name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
