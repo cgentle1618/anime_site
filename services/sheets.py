@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List
 
 import gspread
 from dotenv import load_dotenv
@@ -22,7 +22,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ==========================================
-# CORE GOOGLE API & AUTHENTICATION
+# HELPER FUNCTIONS
 # ==========================================
 
 
@@ -51,6 +51,11 @@ def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -
 
     logger.error("Max retries exceeded for Google Sheets API.")
     return None
+
+
+# ==========================================
+# CORE GOOGLE API & AUTHENTICATION
+# ==========================================
 
 
 def _get_google_spreadsheet() -> gspread.Spreadsheet:
