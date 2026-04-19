@@ -255,15 +255,6 @@ def apply_check_baha(anime: Anime) -> None:
 # DUPLICATE CHECKS
 # ==========================================
 
-_FRANCHISE_NAME_FIELDS = [
-    "franchise_name_en",
-    "franchise_name_cn",
-    "franchise_name_romanji",
-    "franchise_name_jp",
-    "franchise_name_alt",
-]
-
-
 def find_duplicate_franchises(db: Session) -> list[list[dict]]:
     """
     Finds Franchise entries that share the same franchise_type and at least one
@@ -272,13 +263,6 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
     Returns a list of duplicate clusters; each cluster is a list of franchise dicts.
     """
     franchises = db.query(Franchise).all()
-
-    def get_names(f: Franchise) -> set:
-        return {
-            getattr(f, field).strip().lower()
-            for field in _FRANCHISE_NAME_FIELDS
-            if getattr(f, field) and str(getattr(f, field)).strip()
-        }
 
     by_type: dict[str, list] = {}
     for f in franchises:
@@ -307,9 +291,9 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
 
     for group in by_type.values():
         for i in range(len(group)):
-            a_names = get_names(group[i])
+            a_names = group[i].get_all_names()
             for j in range(i + 1, len(group)):
-                if a_names & get_names(group[j]):
+                if a_names & group[j].get_all_names():
                     union(str(group[i].system_id), str(group[j].system_id))
 
     clusters: dict[str, list[str]] = {}
@@ -339,13 +323,6 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
     return result
 
 
-_SERIES_NAME_FIELDS = [
-    "series_name_en",
-    "series_name_cn",
-    "series_name_alt",
-]
-
-
 def find_duplicate_series(db: Session) -> list[list[dict]]:
     """
     Finds Series entries that share the same franchise_id and at least one
@@ -354,13 +331,6 @@ def find_duplicate_series(db: Session) -> list[list[dict]]:
     Returns a list of duplicate clusters; each cluster is a list of series dicts.
     """
     series_list = db.query(Series).filter(Series.franchise_id.isnot(None)).all()
-
-    def get_names(s: Series) -> set:
-        return {
-            getattr(s, field).strip().lower()
-            for field in _SERIES_NAME_FIELDS
-            if getattr(s, field) and str(getattr(s, field)).strip()
-        }
 
     by_franchise: dict[str, list] = {}
     for s in series_list:
@@ -387,9 +357,9 @@ def find_duplicate_series(db: Session) -> list[list[dict]]:
 
     for group in by_franchise.values():
         for i in range(len(group)):
-            a_names = get_names(group[i])
+            a_names = group[i].get_all_names()
             for j in range(i + 1, len(group)):
-                if a_names & get_names(group[j]):
+                if a_names & group[j].get_all_names():
                     union(str(group[i].system_id), str(group[j].system_id))
 
     clusters: dict[str, list[str]] = {}
@@ -415,15 +385,6 @@ def find_duplicate_series(db: Session) -> list[list[dict]]:
     return result
 
 
-_ANIME_NAME_FIELDS = [
-    "anime_name_en",
-    "anime_name_cn",
-    "anime_name_romanji",
-    "anime_name_jp",
-    "anime_name_alt",
-]
-
-
 def _anime_duplicate_key(a: Anime) -> tuple:
     season = (a.season_part or "").strip().lower() or None
     return (
@@ -444,13 +405,6 @@ def find_duplicate_anime(db: Session) -> list[list[dict]]:
     Returns a list of duplicate clusters; each cluster is a list of anime dicts.
     """
     animes = db.query(Anime).all()
-
-    def get_names(a: Anime) -> set:
-        return {
-            getattr(a, field).strip().lower()
-            for field in _ANIME_NAME_FIELDS
-            if getattr(a, field) and str(getattr(a, field)).strip()
-        }
 
     by_key: dict[tuple, list] = {}
     for a in animes:
@@ -477,9 +431,9 @@ def find_duplicate_anime(db: Session) -> list[list[dict]]:
 
     for group in by_key.values():
         for i in range(len(group)):
-            a_names = get_names(group[i])
+            a_names = group[i].get_all_names()
             for j in range(i + 1, len(group)):
-                if a_names & get_names(group[j]):
+                if a_names & group[j].get_all_names():
                     union(str(group[i].system_id), str(group[j].system_id))
 
     clusters: dict[str, list[str]] = {}
