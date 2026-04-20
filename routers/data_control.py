@@ -22,6 +22,7 @@ from services.other_logics import find_all_duplicates
 from services.calculation import (
     bulk_check_cover_image,
     bulk_download_missing_covers,
+    bulk_set_cover_image_fields,
     run_calculate_all,
 )
 
@@ -189,6 +190,15 @@ def trigger_check_cover_image(
         return JSONResponse(content=bulk_check_cover_image(db, entry_type=entry_type))
     except Exception as e:
         logger.error(f"Error in check cover image: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/set-cover-image-fields")
+def trigger_set_cover_image_fields(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_set_cover_image_fields(db))
+    except Exception as e:
+        logger.error(f"Error in set cover image fields: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

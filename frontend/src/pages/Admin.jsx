@@ -374,7 +374,7 @@ function DeletedTable({ records }) {
 
 const JIKAN_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
 
-function CoverImageModal({ result, onDownload, onClose, downloading }) {
+function CoverImageModal({ result, onDownload, onSetFields, onClose, downloading, setting }) {
   const [downloadType, setDownloadType] = useState("");
 
   return (
@@ -382,7 +382,7 @@ function CoverImageModal({ result, onDownload, onClose, downloading }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-black text-gray-900">Cover Image Check</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-lg">
@@ -390,13 +390,47 @@ function CoverImageModal({ result, onDownload, onClose, downloading }) {
           </button>
         </div>
 
-        <div className="p-6 flex flex-col gap-4">
+        <div className="p-6 flex flex-col gap-4 overflow-y-auto">
+          {result.should_use_count > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-sm font-bold text-amber-800 mb-2">
+                {result.should_use_count} image{result.should_use_count !== 1 ? "s" : ""} in storage not linked to any entry
+              </p>
+              <div className="max-h-32 overflow-y-auto space-y-0.5 mb-3">
+                {result.should_use.map((m, i) => (
+                  <div key={i} className="text-xs text-amber-700 truncate">{m.name}</div>
+                ))}
+              </div>
+              <button
+                onClick={onSetFields}
+                disabled={setting}
+                className="w-full px-3 py-1.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {setting && <i className="fas fa-circle-notch fa-spin"></i>}
+                {setting ? "Setting..." : "Set All Cover Image Fields"}
+              </button>
+            </div>
+          )}
+
+          {result.orphaned_count > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm font-bold text-gray-600 mb-2">
+                {result.orphaned_count} orphaned file{result.orphaned_count !== 1 ? "s" : ""} in storage
+              </p>
+              <div className="max-h-28 overflow-y-auto space-y-0.5">
+                {result.orphaned.map((filename, i) => (
+                  <div key={i} className="text-xs text-gray-500 font-mono truncate">{filename}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <p className="text-sm text-gray-500">
             Checked <span className="font-bold text-gray-800">{result.total_checked}</span> entries with a cover image record.
           </p>
 
           {result.missing_count === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               <i className="fas fa-check-circle text-4xl text-emerald-400 block mb-3"></i>
               <p className="font-bold text-gray-700">All cover images are present.</p>
             </div>
@@ -438,7 +472,7 @@ function CoverImageModal({ result, onDownload, onClose, downloading }) {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 pb-5">
+        <div className="flex justify-end gap-3 px-6 pb-5 border-t border-gray-100 pt-4">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
@@ -689,6 +723,7 @@ export default function Admin() {
   const [coverCheckResult, setCoverCheckResult] = useState(null);
   const [coverCheckOpen, setCoverCheckOpen] = useState(false);
   const [coverDownloading, setCoverDownloading] = useState(false);
+  const [coverSetting, setCoverSetting] = useState(false);
 
   const loadSeason = useCallback(async () => {
     try {
@@ -893,6 +928,24 @@ export default function Admin() {
     }
   }
 
+  async function handleSetCoverImageFields() {
+    setCoverSetting(true);
+    try {
+      const res = await fetch("/api/data-control/calculate/set-cover-image-fields", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Set failed.");
+      showToast("success", `Set ${data.updated_count} cover image field${data.updated_count !== 1 ? "s" : ""}.`);
+      setCoverCheckOpen(false);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCoverSetting(false);
+    }
+  }
+
   async function runFindDuplicates() {
     setCalcLoading((prev) => ({ ...prev, duplicates: true }));
     try {
@@ -972,8 +1025,10 @@ export default function Admin() {
         <CoverImageModal
           result={coverCheckResult}
           onDownload={handleDownloadMissingCovers}
+          onSetFields={handleSetCoverImageFields}
           onClose={() => setCoverCheckOpen(false)}
           downloading={coverDownloading}
+          setting={coverSetting}
         />
       )}
       {duplicateOpen && duplicateResults && (
