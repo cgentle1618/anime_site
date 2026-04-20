@@ -23,6 +23,7 @@ export default function FranchiseAcg() {
   const [error, setError] = useState(null);
 
   const [sort, setSort] = useState("release_date");
+  const [groupBySeries, setGroupBySeries] = useState(true);
   const [filters, setFilters] = useState({
     airingType: new Set(),
     airingStatus: new Set(),
@@ -540,34 +541,37 @@ export default function FranchiseAcg() {
             />
             Baha Only
           </label>
+
+          <div className="w-px h-5 bg-gray-200"></div>
+
+          <button
+            onClick={() => setGroupBySeries((v) => !v)}
+            className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+          >
+            <i className="fas fa-layer-group mr-1"></i>Group by Series
+          </button>
         </div>
 
-        {/* Anime groups by series */}
+        {/* Anime grid */}
         {filteredAndSorted.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <i className="fas fa-ghost text-3xl mb-3"></i>
             <p className="font-medium">No entries match the current filters.</p>
           </div>
-        ) : (
+        ) : groupBySeries ? (
           <div className="space-y-10">
-            {seriesGroups.map((group, idx) => {
+            {seriesGroups.map((group) => {
               const label =
                 group.type === "series"
                   ? getDisplayName(group.series, "series") || "Unknown Series"
                   : "Standalone";
               return (
                 <section
-                  key={
-                    group.type === "series"
-                      ? group.series.system_id
-                      : "standalone"
-                  }
+                  key={group.type === "series" ? group.series.system_id : "standalone"}
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                      <i
-                        className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
-                      ></i>
+                      <i className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}></i>
                       {label}
                     </h3>
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -597,6 +601,26 @@ export default function FranchiseAcg() {
                 </section>
               );
             })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {filteredAndSorted.map((a) => (
+              <div key={a.system_id} className="flex flex-col gap-1">
+                {sort === "watch_order" && a.watch_order != null && (
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
+                      #{a.watch_order}
+                    </span>
+                    {a.is_main_entry && (
+                      <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
+                        main
+                      </span>
+                    )}
+                  </div>
+                )}
+                <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+              </div>
+            ))}
           </div>
         )}
       </div>
