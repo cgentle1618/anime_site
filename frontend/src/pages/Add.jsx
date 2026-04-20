@@ -479,16 +479,19 @@ export default function Add() {
     if (failed > 0) showToast('warning', `${failed} option(s) failed to save.`)
   }
 
-  const franchiseItems = allFranchises.map(f => ({ id: f.system_id, label: getDisplayName(f, 'franchise') }))
-  const franchiseItemsSearchable = allFranchises.map(f => ({
+  const franchiseItems = allFranchises.map(f => ({
     id: f.system_id,
     label: getDisplayName(f, 'franchise'),
-    searchText: [f.franchise_name_en, f.franchise_name_cn, f.franchise_name_romanji, f.franchise_name_jp, f.franchise_name_alt].filter(Boolean).join(' '),
+    searchText: [f.franchise_name_cn, f.franchise_name_en, f.franchise_name_jp, f.franchise_name_romanji, f.franchise_name_alt].filter(Boolean).join(' '),
   }))
   const seriesItems = (activeTab === 'anime' && af.franchise_id
     ? allSeries.filter(s => s.franchise_id === af.franchise_id)
     : allSeries
-  ).map(s => ({ id: s.system_id, label: getDisplayName(s, 'series') }))
+  ).map(s => ({
+    id: s.system_id,
+    label: getDisplayName(s, 'series'),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt].filter(Boolean).join(' '),
+  }))
 
   const optionCategories = [...new Set(allOptions.map(o => o.category))].sort()
 
@@ -925,7 +928,7 @@ export default function Add() {
             <SectionHeader icon="fa-layer-group" title="Titles & Naming" />
             <Field label="Parent Franchise" required>
               <ComboBox
-                items={franchiseItemsSearchable}
+                items={franchiseItems}
                 selectedId={sf.franchise_id}
                 inputText={sf.franchise_text}
                 onSelect={(id, label) => { us('franchise_id', id); us('franchise_text', label) }}

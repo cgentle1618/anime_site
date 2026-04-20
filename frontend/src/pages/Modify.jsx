@@ -487,8 +487,16 @@ export default function Modify() {
     ? allAnime.filter(a => a.franchise_id === af.franchise_id && a.system_id !== editingItem?.system_id)
     : []
 
-  const franchiseItems = allFranchises.map(f => ({ id: f.system_id, label: getDisplayName(f, 'franchise') }))
-  const seriesItemsForAnime = (af.franchise_id ? allSeries.filter(s => s.franchise_id === af.franchise_id) : allSeries).map(s => ({ id: s.system_id, label: getDisplayName(s, 'series') }))
+  const franchiseItems = allFranchises.map(f => ({
+    id: f.system_id,
+    label: getDisplayName(f, 'franchise'),
+    searchText: [f.franchise_name_cn, f.franchise_name_en, f.franchise_name_jp, f.franchise_name_romanji, f.franchise_name_alt].filter(Boolean).join(' '),
+  }))
+  const seriesItemsForAnime = (af.franchise_id ? allSeries.filter(s => s.franchise_id === af.franchise_id) : allSeries).map(s => ({
+    id: s.system_id,
+    label: getDisplayName(s, 'series'),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt].filter(Boolean).join(' '),
+  }))
 
   const tabDefs = [
     { key: 'anime', icon: 'fa-tv', label: 'Modify Anime Entry' },
