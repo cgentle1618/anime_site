@@ -133,6 +133,7 @@ class Series(Base, NameFallbackMixin):
     series_name_en = Column(String, nullable=True)
     series_name_cn = Column(String, nullable=True)
     series_name_alt = Column(String, nullable=True)
+    remark = Column(Text, nullable=True)
 
     # Relationships
     franchise = relationship("Franchise", back_populates="series")
