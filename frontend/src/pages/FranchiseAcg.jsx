@@ -22,7 +22,7 @@ export default function FranchiseAcg() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [sort, setSort] = useState("watch_order");
+  const [sort, setSort] = useState("release_date");
   const [filters, setFilters] = useState({
     airingType: new Set(),
     airingStatus: new Set(),
