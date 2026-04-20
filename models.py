@@ -140,6 +140,14 @@ class Series(Base, NameFallbackMixin):
     animes = relationship("Anime", back_populates="series")
 
     @property
+    def names_dict(self) -> dict:
+        return {
+            "en": self.series_name_en,
+            "cn": self.series_name_cn,
+            "alt": self.series_name_alt,
+        }
+
+    @property
     def display_name(self) -> str:
         sequence = [
             ("CN", self.series_name_cn),
