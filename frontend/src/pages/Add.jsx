@@ -36,12 +36,46 @@ function SectionHeader({ icon, title }) {
   )
 }
 
+function FranchiseCreateModal({ onConfirm, onCancel }) {
+  const [expectation, setExpectation] = useState('Low')
+  const [remark, setRemark] = useState('')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="bg-brand/5 border-b border-brand/10 px-6 py-4 flex items-center gap-3">
+          <i className="fas fa-sitemap text-brand text-xl"></i>
+          <h3 className="font-black text-gray-900">Create New Franchise</h3>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            A new <span className="font-bold">Franchise</span> will be created using the anime names you filled in, with type set to <span className="font-bold">ACG</span>.
+          </p>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Expectation</label>
+            <select value={expectation} onChange={e => setExpectation(e.target.value)} className={selectCls}>
+              {['High', 'Medium', 'Low'].map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Remark</label>
+            <textarea value={remark} onChange={e => setRemark(e.target.value)} className={inputCls} rows={3} placeholder="Optional notes about this franchise..." />
+          </div>
+        </div>
+        <div className="px-6 pb-5 flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={() => onConfirm(expectation, remark)} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand-hover transition">Create & Proceed</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const defaultAnime = () => ({
   anime_name_en: '', anime_name_cn: '', anime_name_romanji: '', anime_name_jp: '', anime_name_alt: '',
   franchise_id: null, franchise_text: '',
   series_id: null, series_text: '',
   season_num: '', part_num: '',
-  airing_type: '', airing_status: '', watching_status: 'Might Watch', is_main: '',
+  airing_type: '', airing_status: 'Not Yet Aired', watching_status: 'Might Watch', is_main: '本傳',
   ep_previous: '', ep_total: '', ep_fin: '', ep_special: '',
   my_rating: '', mal_rating: '', mal_rank: '', anilist_rating: '',
   release_season: '', release_month: '', release_year: '',
@@ -84,6 +118,7 @@ export default function Add() {
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null) // {name, onProceed, onCancel}
   const [createModal, setCreateModal] = useState(null) // {entityType, text, onConfirm, onCancel}
+  const [franchiseCreateModal, setFranchiseCreateModal] = useState(null) // {onConfirm, onCancel}
 
   // Forms
   const [af, setAf] = useState(defaultAnime())
@@ -149,6 +184,8 @@ export default function Add() {
       franchise_text: f ? getDisplayName(f, 'franchise') : '',
       series_id: anime.series_id || null,
       series_text: s ? getDisplayName(s, 'series') : '',
+      airing_type: anime.airing_type || '',
+      is_main: anime.is_main || '',
       genre_main: anime.genre_main || '',
       genre_sub: anime.genre_sub || '',
       studio: anime.studio || '',
@@ -239,6 +276,16 @@ export default function Add() {
     if (!af.anime_name_en && !af.anime_name_cn && !af.anime_name_romanji) {
       showToast('warning', 'At least one Anime Name must be provided.'); return
     }
+    if (!af.franchise_id && !af.franchise_text.trim()) {
+      showToast('warning', 'A Franchise must be selected or created.'); return
+    }
+
+    // Validate episode count
+    const epTotal = af.ep_total !== '' ? parseInt(af.ep_total) : null
+    const epFin = af.ep_fin !== '' ? parseInt(af.ep_fin) : null
+    if (epTotal !== null && epFin !== null && epFin > epTotal) {
+      showToast('error', `EP Finished (${epFin}) cannot exceed EP Total (${epTotal}).`); return
+    }
 
     // Duplicate check
     const checkName = af.anime_name_en || af.anime_name_cn || ''
@@ -257,22 +304,29 @@ export default function Add() {
       if (!proceed) return
     }
 
-    // Auto-create franchise
+    // Create franchise if not selected
     let franchiseId = af.franchise_id
-    if (!franchiseId && af.franchise_text.trim()) {
-      const confirmed = await new Promise(resolve => {
-        setCreateModal({
-          entityType: 'Franchise',
-          text: af.franchise_text,
-          onConfirm: () => { setCreateModal(null); resolve(true) },
-          onCancel: () => { setCreateModal(null); resolve(false) },
+    if (!franchiseId) {
+      const result = await new Promise(resolve => {
+        setFranchiseCreateModal({
+          onConfirm: (expectation, remark) => { setFranchiseCreateModal(null); resolve({ confirmed: true, expectation, remark }) },
+          onCancel: () => { setFranchiseCreateModal(null); resolve({ confirmed: false }) },
         })
       })
-      if (!confirmed) return
+      if (!result.confirmed) return
       const res = await fetch('/api/franchise/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ franchise_name_en: af.franchise_text, franchise_name_cn: af.anime_name_cn || null }),
+        body: JSON.stringify({
+          franchise_name_en: af.anime_name_en || null,
+          franchise_name_cn: af.anime_name_cn || null,
+          franchise_name_romanji: af.anime_name_romanji || null,
+          franchise_name_jp: af.anime_name_jp || null,
+          franchise_name_alt: af.anime_name_alt || null,
+          franchise_type: 'ACG',
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
         credentials: 'include',
       })
       if (!res.ok) { showToast('error', 'Failed to create franchise'); return }
@@ -281,7 +335,7 @@ export default function Add() {
       setAllFranchises(prev => [...prev, nf])
     }
 
-    // Auto-create series
+    // Create series if text provided but not selected
     let seriesId = af.series_id
     if (!seriesId && af.series_text.trim()) {
       const confirmed = await new Promise(resolve => {
@@ -296,7 +350,12 @@ export default function Add() {
       const res = await fetch('/api/series/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ franchise_id: franchiseId, series_name_en: af.series_text, series_name_cn: af.anime_name_cn || null }),
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: af.anime_name_en || null,
+          series_name_cn: af.anime_name_cn || null,
+          series_name_alt: af.anime_name_alt || null,
+        }),
         credentials: 'include',
       })
       if (!res.ok) { showToast('error', 'Failed to create series'); return }
@@ -305,6 +364,7 @@ export default function Add() {
       setAllSeries(prev => [...prev, ns])
     }
 
+    // Create anime entry
     const payload = buildAnimePayload(franchiseId, seriesId)
     const res = await fetch('/api/anime/', {
       method: 'POST',
@@ -312,16 +372,23 @@ export default function Add() {
       body: JSON.stringify(payload),
       credentials: 'include',
     })
-    if (res.ok) {
-      const created = await res.json()
-      showToast('success', 'Entry appended successfully.')
-      setLastAdded(created.anime_name_en || created.anime_name_cn || 'New Entry')
-      setAf(defaultAnime())
-      setAllAnime(prev => [...prev, created])
-    } else {
+    if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       showToast('error', err.detail ? JSON.stringify(err.detail) : 'Failed to create entry')
+      return
     }
+    const created = await res.json()
+
+    // Replace (enrich from MAL)
+    await fetch(`/api/data-control/replace/anime/${created.system_id}`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+
+    showToast('success', 'Entry appended and enriched successfully.')
+    setLastAdded(created.anime_name_en || created.anime_name_cn || 'New Entry')
+    setAf(defaultAnime())
+    setAllAnime(prev => [...prev, created])
   }
 
   async function submitFranchise() {
@@ -360,38 +427,15 @@ export default function Add() {
     if (!sf.series_name_en && !sf.series_name_cn && !sf.series_name_alt) {
       showToast('warning', 'At least one Series Name must be provided.'); return
     }
-    if (!sf.franchise_id && !sf.franchise_text.trim()) {
-      showToast('warning', 'A Franchise must be provided.'); return
-    }
-
-    let franchiseId = sf.franchise_id
-    if (!franchiseId && sf.franchise_text.trim()) {
-      const confirmed = await new Promise(resolve => {
-        setCreateModal({
-          entityType: 'Franchise',
-          text: sf.franchise_text,
-          onConfirm: () => { setCreateModal(null); resolve(true) },
-          onCancel: () => { setCreateModal(null); resolve(false) },
-        })
-      })
-      if (!confirmed) return
-      const res = await fetch('/api/franchise/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ franchise_name_en: sf.franchise_text }),
-        credentials: 'include',
-      })
-      if (!res.ok) { showToast('error', 'Failed to create franchise'); return }
-      const nf = await res.json()
-      franchiseId = nf.system_id
-      setAllFranchises(prev => [...prev, nf])
+    if (!sf.franchise_id) {
+      showToast('warning', 'An existing Franchise must be selected.'); return
     }
 
     const res = await fetch('/api/series/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        franchise_id: franchiseId,
+        franchise_id: sf.franchise_id,
         series_name_en: sf.series_name_en || null,
         series_name_cn: sf.series_name_cn || null,
         series_name_alt: sf.series_name_alt || null,
@@ -887,8 +931,7 @@ export default function Add() {
                 onSelect={(id, label) => { us('franchise_id', id); us('franchise_text', label) }}
                 onType={text => { us('franchise_text', text); us('franchise_id', null) }}
                 onClear={() => { us('franchise_id', null); us('franchise_text', '') }}
-                placeholder="Search or type franchise..."
-                allowNew
+                placeholder="Search existing franchises..."
               />
             </Field>
             <Field label="Series Name EN">
@@ -991,6 +1034,14 @@ export default function Add() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── FRANCHISE CREATE MODAL ── */}
+      {franchiseCreateModal && (
+        <FranchiseCreateModal
+          onConfirm={franchiseCreateModal.onConfirm}
+          onCancel={franchiseCreateModal.onCancel}
+        />
       )}
 
       {/* ── CREATE NEW PARENT MODAL ── */}
