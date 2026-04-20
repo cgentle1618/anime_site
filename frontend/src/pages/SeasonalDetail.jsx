@@ -39,7 +39,7 @@ const SECTIONS = [
   },
 ];
 
-const EXPECTATION_WEIGHT = { High: 0, Medium: 1, Low: 2 };
+const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 const RATING_OPTIONS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 function sortAnime(items, franchiseMap) {

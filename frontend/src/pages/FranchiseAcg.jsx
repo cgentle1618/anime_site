@@ -287,7 +287,7 @@ export default function FranchiseAcg() {
                     className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
                   >
                     <option value="">— None —</option>
-                    {['High', 'Medium', 'Low'].map(r => <option key={r} value={r}>{r}</option>)}
+                    {['Highest', 'High', 'Medium', 'Low'].map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
                 <div>

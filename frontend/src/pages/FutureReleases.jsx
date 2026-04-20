@@ -7,7 +7,7 @@ import { getCoverUrl, FALLBACK_SVG, isBaha } from '../utils/anime'
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 }
 const SEASON_LABEL = { WIN: 'Winter', SPR: 'Spring', SUM: 'Summer', FAL: 'Fall' }
 const WATCHING_PRIORITY = { 'Watch When Airs': 0, 'Plan to Watch': 1, 'Might Watch': 2 }
-const EXPECTATION_PRIORITY = { High: 0, Medium: 1, Low: 2 }
+const EXPECTATION_PRIORITY = { Highest: 0, High: 1, Medium: 2, Low: 3 }
 const WATCHING_OPTIONS = ['Might Watch', 'Plan to Watch', 'Watch When Airs']
 
 function getGroupKey(anime) {
@@ -114,7 +114,7 @@ function AnimeCardThird({ anime, franchiseDict, isAdmin, onUpdated }) {
     }
   }
 
-  const expectationColor = { High: 'bg-amber-500/80', Medium: 'bg-sky-500/80', Low: 'bg-gray-500/70' }
+  const expectationColor = { Highest: 'bg-purple-500/80', High: 'bg-amber-500/80', Medium: 'bg-sky-500/80', Low: 'bg-gray-500/70' }
 
   return (
     <div

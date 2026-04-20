@@ -53,7 +53,7 @@ function FranchiseCreateModal({ onConfirm, onCancel }) {
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Expectation</label>
             <select value={expectation} onChange={e => setExpectation(e.target.value)} className={selectCls}>
-              {['High', 'Medium', 'Low'].map(v => <option key={v} value={v}>{v}</option>)}
+              {['Highest', 'High', 'Medium', 'Low'].map(v => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
@@ -903,7 +903,7 @@ export default function Add() {
               <Field label="Expectation">
                 <select className={selectCls} value={ff.franchise_expectation} onChange={e => uf('franchise_expectation', e.target.value)}>
                   <option value="">—</option>
-                  {['High','Medium','Low'].map(v => <option key={v} value={v}>{v}</option>)}
+                  {['Highest','High','Medium','Low'].map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </Field>
               <Field label="Favorite 3x3 Slot" hint="1–9">

@@ -7,10 +7,10 @@ function cleanString(str) {
   return str.toLowerCase().replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, '')
 }
 
-const EXPECTATION_WEIGHT = { High: 0, Medium: 1, Low: 2 }
+const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 }
 
 function getExpectationWeight(exp) {
-  return EXPECTATION_WEIGHT[exp] ?? 3
+  return EXPECTATION_WEIGHT[exp] ?? 4
 }
 
 const KNOWN_TYPES = ['ACG', 'Anime Movie', 'TV or Movie', 'Cartoon']
@@ -41,6 +41,7 @@ const RATING_COLORS = {
 }
 
 const EXPECTATION_STYLES = {
+  Highest:'bg-purple-100 text-purple-700 border-purple-200',
   High:   'bg-emerald-100 text-emerald-700 border-emerald-200',
   Medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   Low:    'bg-gray-100 text-gray-500 border-gray-200',

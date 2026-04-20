@@ -407,7 +407,7 @@ export default function Statistics() {
 
       {/* Block 3 — Watch Next */}
       {(() => {
-        const EXPECTATION_WEIGHT = { High: 0, Medium: 1, Low: 2 };
+        const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
         const WATCH_NEXT_GROUPS = [
           { key: "12ep", label: "12 EP" },
           { key: "24ep", label: "24 EP" },
@@ -550,7 +550,7 @@ export default function Statistics() {
                                   {f.franchise_expectation &&
                                     f.franchise_expectation !== "Low" && (
                                       <span
-                                        className={`text-[10px] font-black ${f.franchise_expectation === "High" ? "text-yellow-300" : "text-blue-300"}`}
+                                        className={`text-[10px] font-black ${f.franchise_expectation === "Highest" ? "text-purple-300" : f.franchise_expectation === "High" ? "text-yellow-300" : "text-blue-300"}`}
                                       >
                                         {f.franchise_expectation}
                                       </span>
@@ -584,7 +584,7 @@ export default function Statistics() {
 
       {/* Block 3.5 — To Rewatch */}
       {(() => {
-        const EXPECTATION_WEIGHT = { High: 0, Medium: 1, Low: 2 };
+        const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
         const REWATCH_TABS = [
           { key: "anime", label: "Anime", icon: "fa-tv", dev: false },
           {
