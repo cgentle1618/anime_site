@@ -38,6 +38,40 @@ function SectionHeader({ icon, title }) {
   )
 }
 
+function FranchiseCreateModal({ onConfirm, onCancel }) {
+  const [expectation, setExpectation] = useState('Low')
+  const [remark, setRemark] = useState('')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="bg-brand/5 border-b border-brand/10 px-6 py-4 flex items-center gap-3">
+          <i className="fas fa-sitemap text-brand text-xl"></i>
+          <h3 className="font-black text-gray-900">Create New Franchise</h3>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            A new <span className="font-bold">Franchise</span> will be created using the anime names you filled in, with type set to <span className="font-bold">ACG</span>.
+          </p>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Expectation</label>
+            <select value={expectation} onChange={e => setExpectation(e.target.value)} className={selectCls}>
+              {['High', 'Medium', 'Low'].map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Remark</label>
+            <textarea value={remark} onChange={e => setRemark(e.target.value)} className={inputCls} rows={3} placeholder="Optional notes about this franchise..." />
+          </div>
+        </div>
+        <div className="px-6 pb-5 flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={() => onConfirm(expectation, remark)} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand-hover transition">Create & Proceed</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: '', part_num: '' }
   const sMatch = sp.match(/Season (\d+)/i)
@@ -160,6 +194,7 @@ export default function Modify() {
   const [optCatFilter, setOptCatFilter] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [createModal, setCreateModal] = useState(null)
+  const [franchiseCreateModal, setFranchiseCreateModal] = useState(null)
 
   const [af, setAf] = useState({})
   const [ff, setFf] = useState({})
@@ -307,11 +342,27 @@ export default function Modify() {
   async function saveAnime() {
     let franchiseId = af.franchise_id
     if (!franchiseId && af.franchise_text.trim()) {
-      const confirmed = await new Promise(resolve => {
-        setCreateModal({ entityType: 'Franchise', text: af.franchise_text, onConfirm: () => { setCreateModal(null); resolve(true) }, onCancel: () => { setCreateModal(null); resolve(false) } })
+      const result = await new Promise(resolve => {
+        setFranchiseCreateModal({
+          onConfirm: (exp, rem) => { setFranchiseCreateModal(null); resolve({ confirmed: true, expectation: exp, remark: rem }) },
+          onCancel: () => { setFranchiseCreateModal(null); resolve({ confirmed: false }) },
+        })
       })
-      if (!confirmed) return
-      const res = await fetch('/api/franchise/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchise_name_en: af.franchise_text }), credentials: 'include' })
+      if (!result.confirmed) return
+      const res = await fetch('/api/franchise/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          franchise_name_en: af.anime_name_en || null,
+          franchise_name_cn: af.anime_name_cn || null,
+          franchise_name_romanji: af.anime_name_romanji || null,
+          franchise_name_jp: af.anime_name_jp || null,
+          franchise_name_alt: af.anime_name_alt || null,
+          franchise_type: 'ACG',
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: 'include',
+      })
       if (!res.ok) { showToast('error', 'Failed to create franchise'); return }
       const nf = await res.json()
       franchiseId = nf.system_id
@@ -323,23 +374,37 @@ export default function Modify() {
         setCreateModal({ entityType: 'Series', text: af.series_text, onConfirm: () => { setCreateModal(null); resolve(true) }, onCancel: () => { setCreateModal(null); resolve(false) } })
       })
       if (!confirmed) return
-      const res = await fetch('/api/series/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchise_id: franchiseId, series_name_en: af.series_text }), credentials: 'include' })
+      const res = await fetch('/api/series/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: af.anime_name_en || null,
+          series_name_cn: af.anime_name_cn || null,
+          series_name_alt: af.anime_name_alt || null,
+        }),
+        credentials: 'include',
+      })
       if (!res.ok) { showToast('error', 'Failed to create series'); return }
       const ns = await res.json()
       seriesId = ns.system_id
       setAllSeries(prev => [...prev, ns])
     }
-    const res = await fetch(`/api/anime/${editingItem.system_id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildAnimePayload(franchiseId, seriesId)), credentials: 'include' })
-    if (res.ok) {
-      const updated = await res.json()
-      setAllAnime(prev => prev.map(a => a.system_id === updated.system_id ? updated : a))
-      setEditingItem(updated)
-      setAf(animeToForm(updated, allFranchises, allSeries))
-      showToast('success', 'Update successful.')
-    } else {
+    const res = await fetch(`/api/anime/${editingItem.system_id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildAnimePayload(franchiseId, seriesId)),
+      credentials: 'include',
+    })
+    if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       showToast('error', err.detail ? JSON.stringify(err.detail) : 'Update failed')
+      return
     }
+    const updated = await res.json()
+    setAllAnime(prev => prev.map(a => a.system_id === updated.system_id ? updated : a))
+    setEditingItem(updated)
+    setAf(animeToForm(updated, allFranchises, allSeries))
+    await fetch(`/api/data-control/replace/anime/${updated.system_id}`, { method: 'POST', credentials: 'include' })
+    showToast('success', 'Update and enrichment successful.')
   }
 
   async function saveFranchise() {
@@ -353,10 +418,31 @@ export default function Modify() {
   }
 
   async function saveSeries() {
-    if (!sf.franchise_id) { showToast('warning', 'A valid Franchise must be selected.'); return }
+    if (!sf.franchise_id && !sf.franchise_text.trim()) {
+      showToast('warning', 'A Franchise must be selected or created.'); return
+    }
+    let franchiseId = sf.franchise_id
+    if (!franchiseId && sf.franchise_text.trim()) {
+      const result = await new Promise(resolve => {
+        setFranchiseCreateModal({
+          onConfirm: (exp, rem) => { setFranchiseCreateModal(null); resolve({ confirmed: true, expectation: exp, remark: rem }) },
+          onCancel: () => { setFranchiseCreateModal(null); resolve({ confirmed: false }) },
+        })
+      })
+      if (!result.confirmed) return
+      const fRes = await fetch('/api/franchise/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ franchise_name_en: sf.franchise_text, franchise_type: 'ACG', franchise_expectation: result.expectation, remark: result.remark || null }),
+        credentials: 'include',
+      })
+      if (!fRes.ok) { showToast('error', 'Failed to create franchise'); return }
+      const nf = await fRes.json()
+      franchiseId = nf.system_id
+      setAllFranchises(prev => [...prev, nf])
+    }
     const res = await fetch(`/api/series/${editingItem.system_id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ franchise_id: sf.franchise_id, series_name_en: sf.series_name_en || null, series_name_cn: sf.series_name_cn || null, series_name_alt: sf.series_name_alt || null, remark: sf.remark || null }),
+      body: JSON.stringify({ franchise_id: franchiseId, series_name_en: sf.series_name_en || null, series_name_cn: sf.series_name_cn || null, series_name_alt: sf.series_name_alt || null, remark: sf.remark || null }),
       credentials: 'include',
     })
     if (res.ok) { const updated = await res.json(); setAllSeries(prev => prev.map(s => s.system_id === updated.system_id ? updated : s)); setEditingItem(updated); showToast('success', 'Update successful.') }
@@ -517,21 +603,42 @@ export default function Modify() {
             <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded truncate">{editingItem.system_id}</span>
           </div>
 
-          {/* Anime ribbon */}
-          {editingType === 'anime' && animeRibbon.length > 0 && (
-            <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Other entries in this franchise</p>
-              <div className="flex gap-2 flex-wrap">
-                {animeRibbon.map(a => (
-                  <button key={a.system_id} type="button" onClick={() => openEditor(a, 'anime')}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition">
-                    {a.airing_type && <span className="text-[9px] font-black text-gray-400 shrink-0">{a.airing_type}</span>}
-                    {a.anime_name_cn || a.anime_name_en || 'Unknown'}
-                  </button>
-                ))}
+          {/* Anime ribbon — grouped by series */}
+          {editingType === 'anime' && animeRibbon.length > 0 && (() => {
+            const bySeries = {}
+            const noSeries = []
+            for (const a of animeRibbon) {
+              if (a.series_id) { (bySeries[a.series_id] = bySeries[a.series_id] || []).push(a) }
+              else noSeries.push(a)
+            }
+            const renderChip = a => (
+              <button key={a.system_id} type="button" onClick={() => openEditor(a, 'anime')}
+                className="flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition">
+                {a.airing_type && <span className="text-[9px] font-black text-gray-400 shrink-0">{a.airing_type}</span>}
+                {a.anime_name_cn || a.anime_name_en || 'Unknown'}
+              </button>
+            )
+            return (
+              <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Other entries in this franchise</p>
+                {Object.entries(bySeries).map(([sid, entries]) => {
+                  const s = allSeries.find(x => x.system_id === sid)
+                  return (
+                    <div key={sid}>
+                      <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">{s ? getDisplayName(s, 'series') : 'Series'}</p>
+                      <div className="flex gap-2 flex-wrap">{entries.map(renderChip)}</div>
+                    </div>
+                  )
+                })}
+                {noSeries.length > 0 && (
+                  <div>
+                    {Object.keys(bySeries).length > 0 && <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">No Series</p>}
+                    <div className="flex gap-2 flex-wrap">{noSeries.map(renderChip)}</div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
             <h2 className="text-lg font-black text-gray-900">{getItemLabel(editingItem, editingType)}</h2>
@@ -774,7 +881,7 @@ export default function Modify() {
                   <ComboBox items={franchiseItems} selectedId={sf.franchise_id} inputText={sf.franchise_text}
                     onSelect={(id, label) => { us('franchise_id', id); us('franchise_text', label) }}
                     onType={text => { us('franchise_text', text); us('franchise_id', null) }}
-                    onClear={() => { us('franchise_id', null); us('franchise_text', '') }} placeholder="Search franchise..." />
+                    onClear={() => { us('franchise_id', null); us('franchise_text', '') }} placeholder="Search or type new franchise..." allowNew />
                 </Field>
                 <Field label="Series Name EN"><input className={inputCls} value={sf.series_name_en} onChange={e=>us('series_name_en',e.target.value)} /></Field>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -803,6 +910,14 @@ export default function Modify() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* ── FRANCHISE CREATE MODAL ── */}
+      {franchiseCreateModal && (
+        <FranchiseCreateModal
+          onConfirm={franchiseCreateModal.onConfirm}
+          onCancel={franchiseCreateModal.onCancel}
+        />
       )}
 
       {/* ── CREATE NEW PARENT MODAL ── */}
