@@ -247,6 +247,9 @@ export default function Nav() {
                     <NavLink to="/library/anime" icon="fas fa-tv">
                       Anime
                     </NavLink>
+                    <NavLink to="/library/franchise" icon="fas fa-layer-group">
+                      Franchise
+                    </NavLink>
                     <DevLink icon="fas fa-film">Anime Movie</DevLink>
                     <DevLink icon="fas fa-book">Manga</DevLink>
                     <DevLink icon="fas fa-book-open">Novel</DevLink>
@@ -476,6 +479,13 @@ export default function Nav() {
                   className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
                   Anime Library
+                </Link>
+                <Link
+                  to="/library/franchise"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Franchise Library
                 </Link>
                 <Link
                   to="/under-development"
