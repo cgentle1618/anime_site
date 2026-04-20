@@ -57,19 +57,6 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
     }
 
 
-def bulk_set_cover_image_fields(db: Session) -> dict:
-    animes = db.query(Anime).filter(Anime.cover_image_file.is_(None)).all()
-    updated = 0
-    for anime in animes:
-        sid = str(anime.system_id)
-        if cover_image_exists(sid):
-            anime.cover_image_file = f"{sid}.jpg"
-            updated += 1
-    if updated:
-        db.commit()
-    return {"status": "success", "updated_count": updated}
-
-
 def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dict:
     unused_result = bulk_check_unused_cover_images(db)
 
@@ -99,6 +86,19 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         "orphaned": unused_result["orphaned"],
         "orphaned_count": unused_result["orphaned_count"],
     }
+
+
+def bulk_set_cover_image_fields(db: Session) -> dict:
+    animes = db.query(Anime).filter(Anime.cover_image_file.is_(None)).all()
+    updated = 0
+    for anime in animes:
+        sid = str(anime.system_id)
+        if cover_image_exists(sid):
+            anime.cover_image_file = f"{sid}.jpg"
+            updated += 1
+    if updated:
+        db.commit()
+    return {"status": "success", "updated_count": updated}
 
 
 def bulk_delete_orphaned_cover_images(db: Session) -> dict:
