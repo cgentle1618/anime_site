@@ -112,12 +112,10 @@ def bulk_delete_orphaned_cover_images(db: Session) -> dict:
     return {"status": "success", "deleted_count": len(orphaned)}
 
 
-def bulk_download_missing_covers(db: Session, entry_type: Optional[str] = None) -> dict:
-    from services.image_manager import cover_image_exists
-
+def bulk_download_missing_covers(db: Session, system_ids: Optional[list[str]] = None) -> dict:
     query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
-    if entry_type:
-        query = query.filter(Anime.airing_type == entry_type)
+    if system_ids is not None:
+        query = query.filter(Anime.system_id.in_(system_ids))
     animes = query.all()
 
     to_fix = [a for a in animes if not cover_image_exists(str(a.system_id))]

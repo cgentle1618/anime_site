@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from dependencies import get_db, get_current_admin
@@ -28,6 +29,10 @@ from services.calculation import (
 )
 
 logger = logging.getLogger(__name__)
+
+class DownloadCoversBody(BaseModel):
+    system_ids: Optional[list[str]] = None
+
 
 router = APIRouter(
     prefix="/api/data-control",
@@ -214,12 +219,12 @@ def trigger_set_cover_image_fields(db: Session = Depends(get_db)):
 
 @router.post("/calculate/download-missing-covers")
 def trigger_download_missing_covers(
+    body: DownloadCoversBody = DownloadCoversBody(),
     db: Session = Depends(get_db),
-    entry_type: Optional[str] = Query(None),
 ):
     try:
         return JSONResponse(
-            content=bulk_download_missing_covers(db, entry_type=entry_type)
+            content=bulk_download_missing_covers(db, system_ids=body.system_ids)
         )
     except Exception as e:
         logger.error(f"Error in download missing covers: {e}")

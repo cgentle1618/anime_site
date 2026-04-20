@@ -375,7 +375,20 @@ function DeletedTable({ records }) {
 const JIKAN_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
 
 function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, onClose, downloading, setting, deleting }) {
-  const [downloadType, setDownloadType] = useState("");
+  const [selected, setSelected] = useState(new Set());
+  const allIds = result.missing.map((m) => m.system_id);
+  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(allIds));
+  }
+  function toggleOne(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div
@@ -443,40 +456,30 @@ function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, on
               <p className="font-bold text-gray-700">All cover images are present.</p>
             </div>
           ) : (
-            <>
-              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                <p className="text-sm font-bold text-orange-800 mb-2">
-                  {result.missing_count} missing cover image{result.missing_count !== 1 ? "s" : ""} detected
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-orange-800">
+                  {result.missing_count} missing cover image{result.missing_count !== 1 ? "s" : ""}
                 </p>
-                <div className="max-h-40 overflow-y-auto space-y-0.5">
-                  {result.missing.map((m, i) => (
-                    <div key={i} className="text-xs text-orange-700 truncate">
-                      <span className="font-mono bg-orange-100 px-1 rounded mr-1">{m.airing_type || "?"}</span>
-                      {m.name}
-                    </div>
-                  ))}
-                </div>
+                <button onClick={toggleAll} className="text-xs text-orange-600 hover:underline">
+                  {allSelected ? "Deselect All" : "Select All"}
+                </button>
               </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  Download for entry type
-                </label>
-                <select
-                  value={downloadType}
-                  onChange={(e) => setDownloadType(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium px-3 py-2 focus:ring-brand focus:border-brand"
-                >
-                  <option value="">All Jikan Types</option>
-                  {JIKAN_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-gray-400">
-                  Only Jikan-compatible types (TV, ONA, OVA, Movie, Special) can be downloaded. Others will be skipped.
-                </p>
+              <div className="max-h-44 overflow-y-auto space-y-1">
+                {result.missing.map((m) => (
+                  <label key={m.system_id} className="flex items-center gap-2 text-xs text-orange-700 cursor-pointer truncate">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(m.system_id)}
+                      onChange={() => toggleOne(m.system_id)}
+                      className="accent-orange-500 shrink-0"
+                    />
+                    <span className="font-mono bg-orange-100 px-1 rounded shrink-0">{m.airing_type || "?"}</span>
+                    <span className="truncate">{m.name}</span>
+                  </label>
+                ))}
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -485,17 +488,26 @@ function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, on
             onClick={onClose}
             className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
           >
-            {result.missing_count === 0 ? "Close" : "Cancel"}
+            Close
           </button>
           {result.missing_count > 0 && (
-            <button
-              onClick={() => onDownload(downloadType)}
-              disabled={downloading}
-              className="px-4 py-2 text-sm font-bold text-white bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-60 flex items-center gap-2"
-            >
-              {downloading && <i className="fas fa-circle-notch fa-spin"></i>}
-              {downloading ? "Downloading..." : "Download"}
-            </button>
+            <>
+              <button
+                onClick={() => onDownload([...selected])}
+                disabled={downloading || selected.size === 0}
+                className="px-4 py-2 text-sm font-bold text-brand border border-brand hover:bg-brand/5 rounded-lg transition disabled:opacity-40"
+              >
+                Download Selected ({selected.size})
+              </button>
+              <button
+                onClick={() => onDownload(null)}
+                disabled={downloading}
+                className="px-4 py-2 text-sm font-bold text-white bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-60 flex items-center gap-2"
+              >
+                {downloading && <i className="fas fa-circle-notch fa-spin"></i>}
+                {downloading ? "Downloading..." : "Download All"}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -919,13 +931,15 @@ export default function Admin() {
     }
   }
 
-  async function handleDownloadMissingCovers(entryType) {
+  async function handleDownloadMissingCovers(systemIds) {
     setCoverDownloading(true);
     try {
-      const url = entryType
-        ? `/api/data-control/calculate/download-missing-covers?entry_type=${encodeURIComponent(entryType)}`
-        : "/api/data-control/calculate/download-missing-covers";
-      const res = await fetch(url, { method: "POST", credentials: "include" });
+      const res = await fetch("/api/data-control/calculate/download-missing-covers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ system_ids: systemIds }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Download failed.");
       showToast("success", data.message || "Download complete.");
