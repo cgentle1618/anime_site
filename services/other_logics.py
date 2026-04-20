@@ -255,6 +255,7 @@ def apply_check_baha(anime: Anime) -> None:
 # DUPLICATE CHECKS
 # ==========================================
 
+
 def find_duplicate_franchises(db: Session) -> list[list[dict]]:
     """
     Finds Franchise entries that share the same franchise_type and at least one
@@ -540,9 +541,9 @@ def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
         and anime.airing_type in ("TV", "ONA")
     ):
         season = calculate_seasonal_from_month(anime.release_month)
-    if season:
-        anime.release_season = season
-        return True
+        if season:
+            anime.release_season = season
+            return True
     return False
 
 
@@ -563,7 +564,7 @@ def derive_watch_order(db: Session, franchise_id: Any) -> None:
             Anime.franchise_id == franchise_id,
             Anime.season_part.isnot(None),
             Anime.airing_type.isnot(None),
-            Anime.airing_type.not_in(("Other", None)),
+            Anime.airing_type.not_in(["Other"]),
         )
         .all()
     )
