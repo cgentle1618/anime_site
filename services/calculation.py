@@ -101,6 +101,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
     }
 
 
+def bulk_delete_orphaned_cover_images(db: Session) -> dict:
+    from services.image_manager import delete_cover_image
+
+    unused_result = bulk_check_unused_cover_images(db)
+    orphaned = unused_result["orphaned"]
+    for filename in orphaned:
+        stem = filename[:-4] if filename.endswith(".jpg") else filename
+        delete_cover_image(stem)
+    return {"status": "success", "deleted_count": len(orphaned)}
+
+
 def bulk_download_missing_covers(db: Session, entry_type: Optional[str] = None) -> dict:
     from services.image_manager import cover_image_exists
 

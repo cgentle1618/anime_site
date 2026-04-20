@@ -21,6 +21,7 @@ from services.data_control import (
 from services.other_logics import find_all_duplicates
 from services.calculation import (
     bulk_check_cover_image,
+    bulk_delete_orphaned_cover_images,
     bulk_download_missing_covers,
     bulk_set_cover_image_fields,
     run_calculate_all,
@@ -190,6 +191,15 @@ def trigger_check_cover_image(
         return JSONResponse(content=bulk_check_cover_image(db, entry_type=entry_type))
     except Exception as e:
         logger.error(f"Error in check cover image: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/calculate/delete-orphaned-covers")
+def trigger_delete_orphaned_covers(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_delete_orphaned_cover_images(db))
+    except Exception as e:
+        logger.error(f"Error in delete orphaned covers: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

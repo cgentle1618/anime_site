@@ -374,7 +374,7 @@ function DeletedTable({ records }) {
 
 const JIKAN_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
 
-function CoverImageModal({ result, onDownload, onSetFields, onClose, downloading, setting }) {
+function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, onClose, downloading, setting, deleting }) {
   const [downloadType, setDownloadType] = useState("");
 
   return (
@@ -417,11 +417,19 @@ function CoverImageModal({ result, onDownload, onSetFields, onClose, downloading
               <p className="text-sm font-bold text-gray-600 mb-2">
                 {result.orphaned_count} orphaned file{result.orphaned_count !== 1 ? "s" : ""} in storage
               </p>
-              <div className="max-h-28 overflow-y-auto space-y-0.5">
+              <div className="max-h-28 overflow-y-auto space-y-0.5 mb-3">
                 {result.orphaned.map((filename, i) => (
                   <div key={i} className="text-xs text-gray-500 font-mono truncate">{filename}</div>
                 ))}
               </div>
+              <button
+                onClick={onDeleteOrphaned}
+                disabled={deleting}
+                className="w-full px-3 py-1.5 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {deleting && <i className="fas fa-circle-notch fa-spin"></i>}
+                {deleting ? "Deleting..." : "Delete All Orphaned Files"}
+              </button>
             </div>
           )}
 
@@ -724,6 +732,7 @@ export default function Admin() {
   const [coverCheckOpen, setCoverCheckOpen] = useState(false);
   const [coverDownloading, setCoverDownloading] = useState(false);
   const [coverSetting, setCoverSetting] = useState(false);
+  const [coverDeleting, setCoverDeleting] = useState(false);
 
   const loadSeason = useCallback(async () => {
     try {
@@ -928,6 +937,24 @@ export default function Admin() {
     }
   }
 
+  async function handleDeleteOrphanedCovers() {
+    setCoverDeleting(true);
+    try {
+      const res = await fetch("/api/data-control/calculate/delete-orphaned-covers", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Delete failed.");
+      showToast("success", `Deleted ${data.deleted_count} orphaned image${data.deleted_count !== 1 ? "s" : ""}.`);
+      setCoverCheckOpen(false);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCoverDeleting(false);
+    }
+  }
+
   async function handleSetCoverImageFields() {
     setCoverSetting(true);
     try {
@@ -1026,9 +1053,11 @@ export default function Admin() {
           result={coverCheckResult}
           onDownload={handleDownloadMissingCovers}
           onSetFields={handleSetCoverImageFields}
+          onDeleteOrphaned={handleDeleteOrphanedCovers}
           onClose={() => setCoverCheckOpen(false)}
           downloading={coverDownloading}
           setting={coverSetting}
+          deleting={coverDeleting}
         />
       )}
       {duplicateOpen && duplicateResults && (
