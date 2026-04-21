@@ -21,8 +21,8 @@ export default function DashboardCard({ anime, franchise, isAdmin, onEpChange })
   const cumTotal = anime.cum_ep_total ?? localTotal
 
   let progressPercent = 0
-  if (cumTotal !== '?') {
-    progressPercent = Math.round((cumFin / cumTotal) * 100)
+  if (localTotal !== '?') {
+    progressPercent = Math.round((localFin / localTotal) * 100)
   } else if (localFin > 0) {
     progressPercent = 'Ongoing'
   }
@@ -94,10 +94,10 @@ export default function DashboardCard({ anime, franchise, isAdmin, onEpChange })
       <div className="bg-gray-50 p-3 border-t border-gray-100 mt-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-end mb-1.5">
           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
-          <span className="text-[10px] font-bold text-brand">{progressPercent}{cumTotal !== '?' ? '%' : ''}</span>
+          <span className="text-[10px] font-bold text-brand">{progressPercent}{localTotal !== '?' ? '%' : ''}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
-          <div className="bg-brand h-1.5 rounded-full transition-all duration-500" style={{ width: cumTotal !== '?' ? `${progressPercent}%` : localFin > 0 ? '100%' : '0%' }}></div>
+          <div className="bg-brand h-1.5 rounded-full transition-all duration-500" style={{ width: localTotal !== '?' ? `${progressPercent}%` : localFin > 0 ? '100%' : '0%' }}></div>
         </div>
 
         {isAdmin ? (
