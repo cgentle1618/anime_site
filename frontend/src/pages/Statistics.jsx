@@ -4,6 +4,17 @@ import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
+const MAL_BUCKETS = [
+  { key: "9+",   min: 9,   max: 11,  color: "bg-purple-500" },
+  { key: "8.7+", min: 8.7, max: 9,   color: "bg-indigo-400" },
+  { key: "8.5+", min: 8.5, max: 8.7, color: "bg-blue-400" },
+  { key: "8.2+", min: 8.2, max: 8.5, color: "bg-cyan-400" },
+  { key: "7.7+", min: 7.7, max: 8.2, color: "bg-green-400" },
+  { key: "7+",   min: 7,   max: 7.7, color: "bg-yellow-400" },
+  { key: "4+",   min: 4,   max: 7,   color: "bg-orange-400" },
+  { key: "<4",   min: 0,   max: 4,   color: "bg-red-400" },
+];
+
 function getDisplayName(f) {
   return (
     f.franchise_name_cn ||
@@ -155,6 +166,15 @@ export default function Statistics() {
   const maxCount = Math.max(...allRows.map((r) => ratingCounts[r]), 1);
   const totalFranchises = franchises.length;
 
+  const malRatingRows = MAL_BUCKETS.map((b) => ({
+    ...b,
+    count: allAnime.filter(
+      (a) => a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
+    ).length,
+  }));
+  const malMaxCount = Math.max(...malRatingRows.map((r) => r.count), 1);
+  const totalWithMal = allAnime.filter((a) => a.mal_rating != null).length;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Page header */}
@@ -239,52 +259,94 @@ export default function Statistics() {
         </div>
       </section>
 
-      {/* Block 2 — My Rating Distribution */}
+      {/* Block 2 — Rating Distribution */}
       <section>
         <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">
           <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
             <i className="fas fa-star text-brand/70"></i>
-            My Rating Distribution
+            Rating Distribution
           </h2>
-          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
-            ACG Franchise
-          </span>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-3 max-w-2xl">
-          {allRows.map((rating) => {
-            const count = ratingCounts[rating];
-            const pct =
-              totalFranchises > 0
-                ? Math.round((count / totalFranchises) * 100)
-                : 0;
-            const barWidth = (count / maxCount) * 100;
-            const isUnrated = rating === "Unrated";
-            return (
-              <div key={rating} className="flex items-center gap-3">
-                <span
-                  className={`w-10 text-right text-sm font-black shrink-0 ${
-                    isUnrated ? "text-gray-400" : "text-gray-700"
-                  }`}
-                >
-                  {rating}
-                </span>
-                <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                  <div
-                    className={`h-5 rounded-full transition-all duration-700 ${
-                      isUnrated ? "bg-gray-300" : "bg-brand"
-                    }`}
-                    style={{ width: `${barWidth}%` }}
-                  />
-                </div>
-                <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
-                  {count}
-                </span>
-                <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
-                  {pct}%
-                </span>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* My Rating */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+              <span>My Rating</span>
+              <span className="text-gray-400 font-medium normal-case">ACG Franchise</span>
+            </p>
+            <div className="space-y-3">
+              {allRows.map((rating) => {
+                const count = ratingCounts[rating];
+                const pct =
+                  totalFranchises > 0
+                    ? Math.round((count / totalFranchises) * 100)
+                    : 0;
+                const barWidth = (count / maxCount) * 100;
+                const isUnrated = rating === "Unrated";
+                return (
+                  <div key={rating} className="flex items-center gap-3">
+                    <span
+                      className={`w-10 text-right text-sm font-black shrink-0 ${
+                        isUnrated ? "text-gray-400" : "text-gray-700"
+                      }`}
+                    >
+                      {rating}
+                    </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      <div
+                        className={`h-5 rounded-full transition-all duration-700 ${
+                          isUnrated ? "bg-gray-300" : "bg-brand"
+                        }`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
+                      {count}
+                    </span>
+                    <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
+                      {pct}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* MAL Rating */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+              <span>MAL Rating</span>
+              <span className="text-gray-400 font-medium normal-case">All Anime</span>
+            </p>
+            <div className="space-y-3">
+              {malRatingRows.map(({ key, count, color }) => {
+                const pct =
+                  totalWithMal > 0
+                    ? Math.round((count / totalWithMal) * 100)
+                    : 0;
+                const barWidth = (count / malMaxCount) * 100;
+                return (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="w-10 text-right text-sm font-black shrink-0 text-gray-700">
+                      {key}
+                    </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      <div
+                        className={`h-5 rounded-full transition-all duration-700 ${color}`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
+                      {count}
+                    </span>
+                    <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
+                      {pct}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
