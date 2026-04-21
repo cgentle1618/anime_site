@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/anime";
@@ -41,6 +41,24 @@ const SECTIONS = [
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 const RATING_OPTIONS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+
+const SEASONS = ["WIN", "SPR", "SUM", "FAL"];
+
+function getAdjacentSeason(current, direction) {
+  const parts = current.split(" ");
+  if (parts.length !== 2) return null;
+  const [season, year] = parts;
+  const idx = SEASONS.indexOf(season);
+  if (idx === -1) return null;
+  if (direction === "prev") {
+    return idx === 0
+      ? `FAL ${parseInt(year, 10) - 1}`
+      : `${SEASONS[idx - 1]} ${year}`;
+  }
+  return idx === SEASONS.length - 1
+    ? `WIN ${parseInt(year, 10) + 1}`
+    : `${SEASONS[idx + 1]} ${year}`;
+}
 
 const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const MY_RATING_COLORS = {
@@ -105,8 +123,12 @@ function sortAnime(items, franchiseMap) {
 export default function SeasonalDetail() {
   const { seasonal_id } = useParams();
   const seasonalId = decodeURIComponent(seasonal_id);
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
+
+  const prevSeason = getAdjacentSeason(seasonalId, "prev");
+  const nextSeason = getAdjacentSeason(seasonalId, "next");
 
   const [seasonal, setSeasonal] = useState(null);
   const [animeData, setAnimeData] = useState([]);
@@ -253,9 +275,23 @@ export default function SeasonalDetail() {
               <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-calendar-alt text-brand text-lg"></i>
               </div>
+              <button
+                onClick={() => navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
+                title={`Previous: ${prevSeason}`}
+              >
+                <i className="fas fa-chevron-left text-xs"></i>
+              </button>
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">
                 {seasonalId}
               </h1>
+              <button
+                onClick={() => navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
+                title={`Next: ${nextSeason}`}
+              >
+                <i className="fas fa-chevron-right text-xs"></i>
+              </button>
               {seasonal?.my_rating && (
                 <span className="bg-yellow-400 text-yellow-900 text-sm font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm">
                   <i className="fas fa-star text-xs"></i>
