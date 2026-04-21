@@ -72,6 +72,23 @@ const STATUS_STYLES = {
   'Might Watch':      { cls: 'bg-gray-50 text-gray-400 border-gray-200',      icon: 'fa-question' },
 }
 
+const STATUS_BUTTON_CONFIG = {
+  'Might Watch':      { symbol: '+', cls: 'bg-gray-50 text-gray-400 border-gray-200',     target: 'Plan to Watch' },
+  'Plan to Watch':    { symbol: '…', cls: 'bg-purple-50 text-purple-600 border-purple-200', target: 'Might Watch' },
+  'Watch When Airs':  { symbol: '…', cls: 'bg-purple-50 text-purple-600 border-purple-200', target: 'Might Watch' },
+  'Active Watching':  { symbol: '~', cls: 'bg-green-50 text-green-600 border-green-200',   target: 'Might Watch' },
+  'Passive Watching': { symbol: '~', cls: 'bg-green-50 text-green-600 border-green-200',   target: 'Might Watch' },
+  'Paused':           { symbol: '~', cls: 'bg-yellow-50 text-yellow-600 border-yellow-200', target: 'Might Watch' },
+  'Completed':        { symbol: '✓', cls: 'bg-blue-50 text-blue-600 border-blue-200',      target: 'Might Watch' },
+  'Temp Dropped':     { symbol: '✕', cls: 'bg-red-50 text-red-500 border-red-200',         target: 'Might Watch' },
+  'Dropped':          { symbol: '✕', cls: 'bg-red-50 text-red-600 border-red-200',         target: 'Might Watch' },
+  "Won't Watch":      { symbol: '✕', cls: 'bg-red-50 text-red-400 border-red-200',         target: 'Might Watch' },
+}
+
+export function getStatusButtonConfig(status) {
+  return STATUS_BUTTON_CONFIG[status] || STATUS_BUTTON_CONFIG['Might Watch']
+}
+
 export function getStatusStyle(status) {
   return STATUS_STYLES[status] || STATUS_STYLES['Might Watch']
 }

@@ -5,7 +5,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../hooks/useToast'
-import { getCoverUrl, FALLBACK_SVG, isBaha, getStatusStyle, getNextStatus, getReleaseFallback } from '../utils/anime'
+import { getCoverUrl, FALLBACK_SVG, isBaha, getStatusButtonConfig, getReleaseFallback } from '../utils/anime'
 
 export default function AnimeCard({ anime, onUpdated, adminOverride }) {
   const { isAdmin } = useAuth()
@@ -27,21 +27,21 @@ export default function AnimeCard({ anime, onUpdated, adminOverride }) {
     ? <><i className="fas fa-star text-blue-500 mr-0.5"></i>{anime.mal_rating}</>
     : <><i className="fas fa-star text-gray-300 mr-0.5"></i>-</>
 
-  const statusStyle = getStatusStyle(anime.watching_status)
-  const nextStatus = getNextStatus(anime.watching_status || 'Might Watch')
+  const btnConfig = getStatusButtonConfig(anime.watching_status)
 
   async function handleStatusToggle(e) {
     e.stopPropagation()
+    const target = btnConfig.target
     try {
       const res = await fetch(`/api/anime/${anime.system_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ watching_status: nextStatus }),
+        body: JSON.stringify({ watching_status: target }),
         credentials: 'include',
       })
       if (res.ok) {
         const updated = await res.json()
-        showToast('success', `Status → ${nextStatus}`)
+        showToast('success', `Status → ${target}`)
         onUpdated?.(updated)
       } else {
         showToast('error', 'Update failed')
@@ -93,10 +93,10 @@ export default function AnimeCard({ anime, onUpdated, adminOverride }) {
           {showAdmin ? (
             <button
               onClick={handleStatusToggle}
-              className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors ${statusStyle.cls}`}
-              title={`${anime.watching_status || 'Might Watch'} → ${nextStatus}`}
+              className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors font-bold text-[13px] leading-none ${btnConfig.cls}`}
+              title={`${anime.watching_status || 'Might Watch'} → ${btnConfig.target}`}
             >
-              <i className={`fas ${statusStyle.icon} text-[10px]`}></i>
+              {btnConfig.symbol}
             </button>
           ) : anime.watching_status ? (
             <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 max-w-[65px] truncate" title={anime.watching_status}>
