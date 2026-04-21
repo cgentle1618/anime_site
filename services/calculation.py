@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
+from utils.data_control_utils import log_data_control
 
 from models import Anime
 
@@ -112,7 +113,9 @@ def bulk_delete_orphaned_cover_images(db: Session) -> dict:
     return {"status": "success", "deleted_count": len(orphaned)}
 
 
-def bulk_download_missing_covers(db: Session, system_ids: Optional[list[str]] = None) -> dict:
+def bulk_download_missing_covers(
+    db: Session, system_ids: Optional[list[str]] = None
+) -> dict:
     query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
     if system_ids is not None:
         query = query.filter(Anime.system_id.in_(system_ids))
@@ -172,11 +175,15 @@ def run_sync(db: Session) -> dict:
 
 
 def run_calculate_all(db: Session) -> dict:
-    run_anime_post_processing(db)
-    run_derive_related(db)
-    run_sync(db)
-    bulk_check_cover_image(db)
-    return {
-        "status": "success",
-        "message": "Full calculation complete.",
-    }
+    try:
+        run_anime_post_processing(db)
+        run_derive_related(db)
+        run_sync(db)
+        bulk_check_cover_image(db)
+        log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
+        return {"status": "success", "message": "Full calculation complete."}
+    except Exception as e:
+        log_data_control(
+            db, "Calculate", "Calculate All", "Manual", "Failed", error_message=str(e)
+        )
+        raise
