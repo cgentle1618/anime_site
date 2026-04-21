@@ -1,0 +1,524 @@
+# Business Logic
+
+All backend logic lives in `services/` and `utils/`. Routers are thin — they validate input and delegate.
+
+## Table of Contents
+
+- [Main Data Control Logic](#main-data-control-logic)
+- [Composite Logics](#composite-logics)
+- [Checking Logics](#checking-logics)
+- [Fill Missing Entry Data](#fill-missing-entry-data)
+- [Fill from External Sources](#fill-from-external-sources)
+- [MAL Data Helpers](#mal-data-helpers)
+- [Sync](#sync)
+- [Other Logics](#other-logics)
+- [Other Actions](#other-actions)
+- [Formatters (DB to Sheet)](#formatters-db-to-sheet)
+- [Parsers (Sheet to Python Types)](#parsers-sheet-to-python-types)
+- [Other Helpers](#other-helpers)
+
+---
+
+## Main Data Control Logic
+
+All pipeline functions live in `services/data_control.py`. SSE functions are async generators; non-SSE functions return dicts.
+
+---
+
+### Backup — `execute_backup(db, action_type="Manual")`
+
+Overwrites all four Google Sheets tabs with the current database state.
+
+**Steps:**
+1. Query all `SystemOption`, `Franchise`, `Series`, `Anime` entries.
+2. For each model, extract column headers from the SQLAlchemy table schema.
+3. Format each row via `format_model_for_sheet()`.
+4. Bulk overwrite each tab (System Options → Franchise → Series → Anime).
+5. Log result to `DataControlLog`.
+
+Tab names match model table names. Column order in the sheet is guaranteed to match DB schema order (see `format_model_for_sheet`).
+
+---
+
+### Fill
+
+#### Fill All — `execute_fill_all(db, request, action_type="Manual")` *(SSE)*
+
+Master orchestrator. Calls Fill Anime with `log_action=False`, parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+
+#### Fill Anime — `execute_fill_anime(db, request, action_specific, action_type, log_action)` *(SSE)*
+
+Fills missing metadata for all anime entries that need it.
+
+**Steps:**
+1. Run `apply_extract_mal_id` on all entries to populate `mal_id` from `mal_link`.
+2. Build queue: entries where `has_missing_values()` returns `True`.
+3. For each queued entry: call `autofill_anime_from_mal(force_replace_ratings=True)`.
+4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
+5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync`.
+6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+---
+
+### Replace
+
+#### Replace All — `execute_replace_all(db, request, action_type="Manual")` *(SSE)*
+
+Master orchestrator. Calls Replace Anime with `log_action=False`, parses SSE output, runs Backup, logs single master entry.
+
+#### Replace Anime — `execute_replace_anime(db, request, action_specific, action_type, log_action)` *(SSE)*
+
+Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
+
+**Steps:**
+1. Query all anime with `mal_id` or `mal_link` set. Return early if queue is empty.
+2. For each entry: call `apply_single_replace_anime(bulk=True)` — skips per-entry `derive_related`.
+3. After loop: call `derive_related(db)` once for all franchises.
+4. Call `run_sync(db)`.
+
+#### Replace for Single Anime Entry — `execute_replace_single_anime(db, anime_id, action_type, log_action)` / `apply_single_replace_anime(db, anime, bulk, force_replace_ratings)`
+
+`execute_replace_single_anime` is the router-level function (handles lookup, sync, logging).
+`apply_single_replace_anime` is the core logic (used in both single and bulk paths).
+
+**`apply_single_replace_anime` steps:**
+1. `apply_extract_mal_id`
+2. `autofill_anime_from_mal`
+3. `anime_post_processing`
+4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles derive_related after the loop.
+
+---
+
+### Pull from Sheets
+
+#### Pull All — `execute_pull_all(db, action_type="Manual")`
+
+Pulls all four tabs in strict dependency order: **System Options → Franchise → Series → Anime**. This order is required to satisfy foreign key constraints.
+
+#### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
+
+Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"System Options"`.
+
+**Steps:**
+1. Read all rows from sheet via `get_all_raw_rows(tab_name)`. First row is headers.
+2. For each data row:
+   - Map row to dict via `parse_row_to_dict(headers, row)`.
+   - Apply tab-specific parser to get typed dict.
+   - Resolve string foreign keys: if `franchise_id` or `series_id` is a string name (not a valid UUID), look up by name fields in DB. Skip row if not found.
+   - **Smart PK logic**: if `pk_value` is empty, search by name fields to find an existing record (prevents duplicates on re-import).
+   - For Anime: sanitize `watching_status`, `airing_status`, `airing_type` (apply defaults if null).
+   - Update existing record if found; otherwise create new.
+   - Flush every 50 rows so the DB generates new UUIDs.
+3. Commit batch. Reset `system_options` sequence after import.
+
+**Returns:** `{status, processed, rows_added, rows_updated}`
+
+---
+
+## Composite Logics
+
+### Anime Post Processing — `anime_post_processing(anime, db)` / `run_anime_post_processing(db)`
+
+Runs all single-entry checks and repairs for one anime. `run_anime_post_processing` applies it to every entry in the DB.
+
+**Steps (in order):**
+1. `apply_validate_episode_math`
+2. `apply_check_baha`
+3. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+4. If `release_season` is None, `release_month` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
+5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1`.
+
+---
+
+### Derive Related — `derive_related(db)` / `run_derive_related(db)`
+
+Runs watch order, episode previous, and prequel/sequel derivation for every franchise in the DB.
+
+**Per franchise_id:**
+1. `derive_watch_order`
+2. `derive_ep_previous` (uses `_SERIES_UNSET` sentinel to process all series groups independently)
+3. `derive_prequel_sequel`
+
+Commits after all franchises processed.
+
+---
+
+### Sync — `run_sync(db)`
+
+1. `create_missing_seasonal`
+2. `sync_seasonal_counts`
+3. `extract_system_options_from_anime`
+
+---
+
+### Calculate All — `run_calculate_all(db)`
+
+1. `run_anime_post_processing`
+2. `run_derive_related`
+3. `run_sync`
+4. `bulk_check_cover_image`
+5. Log to `DataControlLog` (Success or Failed).
+
+---
+
+## Checking Logics
+
+### Validate Episode Count — `apply_validate_episode_math(anime)` / `validate_episode_math(ep_total, ep_fin)`
+
+`validate_episode_math` in `utils/utils.py` is the core rule; `apply_validate_episode_math` applies it to an Anime object and writes changes back if values differ.
+
+**Rules:**
+- `ep_total`: convert to int (handles `"1.0"` from Sheets); treat `None`, `""`, `"?"` as `None`. Clamp to >= 0.
+- `ep_fin`: convert to int; treat `None`, `""` as `0`. Clamp to >= 0.
+- If `ep_fin > ep_total` (and total is known): clamp `ep_fin = ep_total`.
+
+---
+
+### Check Missing Values for Anime — `has_missing_values(anime)`
+
+Returns `True` if any required field is blank.
+
+**Fields checked:** `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
+
+**Special cases:**
+- `airing_status == "Not Yet Aired"`: skip `mal_rating` and `mal_rank` (they don't exist yet on MAL).
+- `ep_previous`: only required if `airing_type` is TV or ONA, `ep_special` is None, and `season_part` is set.
+
+---
+
+### Check Completed for TV Type — `check_is_tv_completed(entry)`
+
+Returns `True` if:
+- `watching_status == "Completed"`, OR
+- `ep_total > 0` AND `ep_fin == ep_total`.
+
+---
+
+### Check Baha — `apply_check_baha(anime)`
+
+Sets `source_baha = True` if all three conditions hold:
+- `baha_link` is set.
+- `airing_status == "Airing"`.
+- `source_baha` is currently `None` (does not overwrite existing `True` or `False`).
+
+---
+
+### Check Cover Image — `bulk_check_cover_image(db, entry_type=None)`
+
+Finds entries whose `cover_image_file` is set but the file is missing from storage. Optionally filtered by `entry_type`. Also includes results from `bulk_check_unused_cover_images` in its output.
+
+---
+
+### Check Cover Image Existence — `cover_image_exists(system_id)`
+
+Returns `True` if the cover file for that `system_id` exists in GCS (Cloud Run) or `static/covers/` (local).
+
+---
+
+### Check Unused Cover Images — `bulk_check_unused_cover_images(db)`
+
+Finds image files in storage not referenced by any `anime.cover_image_file`.
+
+- `should_use`: file whose stem matches an existing anime `system_id` but the anime's field is not set — the field just needs to be populated.
+- `orphaned`: file with no matching anime — safe to delete.
+
+---
+
+### Find Duplicates — `find_all_duplicates(db)` and per-table variants
+
+All use a **union-find** algorithm with transitive closure (A=B, B=C collapses to one cluster).
+
+| Function | Duplicate Key |
+|---|---|
+| `find_duplicate_franchises` | Same `franchise_type` + at least one matching name (case-insensitive) |
+| `find_duplicate_series` | Same `franchise_id` + at least one matching name |
+| `find_duplicate_anime` | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
+| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive) |
+
+`find_all_duplicates` runs all four: returns `{franchise, series, anime, system_options}`.
+
+---
+
+## Fill Missing Entry Data
+
+### Extract MAL ID — `apply_extract_mal_id(anime)` / `extract_mal_id(url)`
+
+Extracts numeric MAL ID from a MAL URL using regex `myanimelist\.net/anime/(\d+)`. Writes to `anime.mal_id`. Returns `True` if extracted.
+
+---
+
+### Extract Season From Title — `apply_extract_season_from_title(anime)` / `extract_season_from_title(title)`
+
+Parses "Season X", "Part X", or "Cour X" from `anime_name_en` or `anime_name_roman`. Title-cases the result (e.g. `"Season 2 Part 1"`). Writes to `anime.season_part`. Returns `True` if set.
+
+---
+
+### Calculate Seasonal From Month — `apply_calculate_seasonal_from_month(anime)` / `calculate_seasonal_from_month(month_str)`
+
+Infers `release_season` from `release_month`. Only applies if `airing_type` is TV or ONA.
+
+| Month | Season |
+|---|---|
+| JAN / FEB / MAR (or 1-3) | WIN |
+| APR / MAY / JUN (or 4-6) | SPR |
+| JUL / AUG / SEP (or 7-9) | SUM |
+| OCT / NOV / DEC (or 10-12) | FAL |
+
+Accepts both string abbreviations (`"APR"`) and numeric strings (`"4"`, `"04"`).
+
+---
+
+### Derive Watch Order — `derive_watch_order(db, franchise_id)`
+
+Assigns consecutive `watch_order` floats (starting at 1.0) to eligible entries within a franchise.
+
+**Eligibility:** `airing_type` is not null or `"Other"`, and `season_part` is set.
+
+**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
+
+**Sort algorithm per series group:**
+1. Season number (from `season_part`)
+2. Part number (from `season_part`)
+3. Airing type priority: TV(0) → ONA(1) → Special(2) → OVA(3) → OAD(4)
+
+**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
+
+---
+
+### Derive Prequel / Sequel — `derive_prequel_sequel(db, franchise_id)`
+
+Sets `prequel_id` and `sequel_id` for entries in a franchise, sorted by `watch_order`.
+
+**Eligibility:** `watch_order` is not null AND `derive_related != False`.
+
+**Only fills entries where the field is currently `None`** — never overwrites.
+
+Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
+
+---
+
+### Derive `ep_previous` — `derive_ep_previous(db, franchise_id, series_id=_SERIES_UNSET)`
+
+Sets cumulative `ep_previous` for eligible TV/ONA entries within the same franchise+series group.
+
+**Eligibility:** `airing_type` is TV or ONA, `ep_special` is null, `season_part` is set.
+
+**Only fills entries where `ep_previous` is currently `None`.**
+
+**Rules:**
+- "Season 1" or "Season 1 Part 1": set `ep_previous = 0`.
+- Otherwise: `ep_previous = previous.ep_previous + previous.ep_total` — only if both values are available.
+
+When called with default `series_id=_SERIES_UNSET`, processes all series groups within the franchise independently.
+
+---
+
+### Derive S1 — `derive_season_1(anime, db)`
+
+Sets `season_part = "Season 1"` if `season_part` is None, `airing_type == "TV"`, `franchise_id` is set, and the franchise has exactly 1 TV entry.
+
+---
+
+### Set Cover Image Fields — `bulk_set_cover_image_fields(db)`
+
+For anime with `cover_image_file = None`, sets it to `"<system_id>.jpg"` if the file actually exists in storage.
+
+---
+
+## Fill from External Sources
+
+### MAL Autofill Anime — `autofill_anime_from_mal(anime, force_replace_ratings=True)`
+
+Enriches a single Anime entry with Jikan API data. Does not commit — caller is responsible.
+
+**Steps:**
+1. Resolve `mal_id` from `anime.mal_id` or extract from `anime.mal_link`. Return if no ID.
+2. Call `fetch_jikan_anime_data(mal_id)`.
+3. Map response via `map_jikan_to_anime_data()`.
+4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `ep_total`, `official_link`, `twitter_link`.
+5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
+6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
+
+---
+
+## MAL Data Helpers
+
+### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `services/jikan.py`
+
+Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
+
+**Rate limiting:** Global `JikanRateLimiter` singleton — sliding window, default 30 requests / 60 seconds. Blocks before each request until under the limit.
+
+**Retry:** 5 attempts, exponential backoff 2-10s. Retries on `RequestException` or `RateLimitExceeded` (HTTP 429). Returns `None` on 404 or >= 500.
+
+---
+
+### MAL Conversion for Anime — `map_jikan_to_anime_data(raw_data)` in `utils/jikan_utils.py`
+
+Transforms raw Jikan `data` dict to a flat standardized dict.
+
+| Output Field | Jikan Source |
+|---|---|
+| `airing_type` | `type` — normalized; `"Other"` if not in allowed set |
+| `airing_status` | `status` — "Finished..." → `"Finished Airing"`, "Currently..." → `"Airing"`, "Not yet..." → `"Not Yet Aired"` |
+| `release_season` | `season` — winter/spring/summer/fall → WIN/SPR/SUM/FAL |
+| `release_year` | `aired.from` (ISO date parsed) |
+| `release_month` | `aired.from` (month → JAN/FEB/...) |
+| `mal_rating` | `score` |
+| `mal_rank` | `rank` (as string) |
+| `ep_total` | `episodes` |
+| `official_link` | `external[]` — first entry with "official" in name |
+| `twitter_link` | `external[]` — first entry with twitter.com or x.com in URL |
+| `cover_image_url` | `images.webp.large_image_url` → `images.jpg.large_image_url` → `images.jpg.image_url` |
+
+---
+
+## Sync
+
+### Create Missing Seasonal — `create_missing_seasonal(db)`
+
+Queries distinct `(release_season, release_year)` pairs from `anime`. Creates a `Seasonal` row keyed `"YYYY SSS"` (e.g. `"2025 SPR"`) for each pair that doesn't already exist.
+
+---
+
+### Sync Seasonal Counts — `sync_seasonal_counts(db)`
+
+Recomputes `entry_completed`, `entry_watching`, `entry_dropped` for all `Seasonal` rows.
+
+**Eligible anime:** `release_season` and `release_year` are set, `airing_type` in `{TV, ONA, Movie, Special}`.
+
+| watching_status | Counter incremented |
+|---|---|
+| `"Completed"` | `entry_completed` |
+| Active Watching / Passive Watching / Paused | `entry_watching` |
+| Temp Dropped / Dropped | `entry_dropped` |
+
+---
+
+### Extract System Options from Anime — `extract_system_options_from_anime(db)`
+
+Scans all Anime entries for values in: `genre_main`, `genre_sub`, `studio`, `distributor_tw`, `director`, `producer`, `music`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
+
+---
+
+## Other Logics
+
+### Calculate Cumulative Episode *(computed field, not a function)*
+
+Computed in `AnimeResponse` (Pydantic schema), never stored in the DB:
+- `cum_ep_fin = (ep_previous or 0) + (ep_fin or 0)`
+- `cum_ep_total = (ep_previous or 0) + ep_total` — returns `None` if `ep_total` is null.
+
+---
+
+## Other Actions
+
+### Mark Completed — `mark_tv_completed(entry)`
+
+Sets atomically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+
+---
+
+### Set Current Season *(router: `POST /api/system/config/current_season`)*
+
+Upserts `current_season` key in `system_configs`. Value format: `"YYYY SSS"` (e.g. `"2025 SPR"`). Drives current-season highlighting and defaults in the UI.
+
+---
+
+### List All Covers — `list_all_cover_images()` in `services/image_manager.py`
+
+Returns all cover image filenames from GCS (Cloud Run) or `static/covers/` (local dev).
+
+---
+
+### Download Missing Covers — `bulk_download_missing_covers(db, system_ids=None)`
+
+Re-downloads cover images for entries whose `cover_image_file` is set but the file is missing. Method: clears `cover_image_file`, calls `autofill_anime_from_mal(force_replace_ratings=False)` to trigger a fresh Jikan fetch and download without overwriting ratings. Skips entries with `airing_type` not in `ALLOWED_AIRING_TYPES = {TV, Movie, ONA, OVA, Special}`.
+
+---
+
+### Delete Orphaned Covers — `bulk_delete_orphaned_cover_images(db)` / `delete_cover_image(system_id)`
+
+`bulk_delete_orphaned_cover_images`: calls `bulk_check_unused_cover_images` to get the orphaned list, then calls `delete_cover_image` for each file.
+
+`delete_cover_image`: removes the file from GCS (Cloud Run) or `static/covers/` (local dev).
+
+---
+
+## Formatters (DB to Sheet)
+
+Located in `utils/formatter.py`.
+
+### `format_for_sheet(val, expected_type=str)`
+
+Converts Python/SQLAlchemy values to Sheets-compatible strings:
+
+| Input | Output |
+|---|---|
+| `None` | `""` |
+| `bool` | `"TRUE"` / `"FALSE"` |
+| `datetime` | ISO 8601 + `"Z"` |
+| `dict` / `list` | JSON string (`ensure_ascii=False`) |
+| anything else | `str(val)` |
+
+---
+
+### `format_model_for_sheet(instance)`
+
+Iterates `instance.__class__.__table__.columns` in exact DB schema order and calls `format_for_sheet` on each. Guarantees sheet column order permanently matches DB column order — prevents column-shifting bugs on schema changes.
+
+---
+
+## Parsers (Sheet to Python Types)
+
+Located in `utils/formatter.py`.
+
+### `parse_row_to_dict(headers, row)`
+
+Maps a sheet row list to a dict using headers. Substitutes `""` for missing trailing columns (sheet rows often omit empty trailing cells).
+
+---
+
+### `parse_from_sheet(val_str, expected_type)`
+
+Core type converter. Returns `None` for empty/whitespace strings.
+
+| expected_type | Conversion |
+|---|---|
+| `int` | `int(float(val_str))` — handles `"1.0"` exported by Sheets |
+| `float` | `float(val_str)` |
+| `bool` | `"true"/"1"/"yes"/"y"/"t"` → `True`; `"false"/"0"/"no"/"n"/"f"` → `False`; else `None` |
+| `datetime` | `datetime.fromisoformat(val.replace("Z", "+00:00"))` |
+| `UUID` | `UUID(val_str)` if valid; **returns raw string on failure** so service layer can resolve string names to UUIDs via DB lookup |
+| `str` | Returns as-is |
+
+---
+
+### Tab-specific parsers
+
+`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+
+**Notable:**
+- `parse_anime_from_sheet`: `notes` field parsed via `json.loads` directly (JSONB). `source_netflix` defaults to `False` if null (unlike `source_baha` which stays `None`).
+- Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`): parsed as `UUID` — if the sheet contains a string name, `parse_from_sheet` returns the string and `execute_pull_specific` resolves it to a real UUID.
+
+---
+
+## Other Helpers
+
+### Resolve Parent for Series — `resolve_series_parent_hierarchy(db, franchise_id, names)`
+
+Ensures a valid `franchise_id` UUID for a Series during Pull.
+
+- Valid UUID provided: return it.
+- Null or string: search all franchise name fields (case-insensitive `ilike`).
+- Found: return existing UUID.
+- Not found: **auto-create** a new Franchise with `uuid4()`, flush, return new UUID.
+
+---
+
+### Resolve Parent for Anime — `resolve_anime_parent_hierarchy(db, franchise_id, series_id, names)`
+
+- Resolves `franchise_id` the same way as Series (with auto-create if missing).
+- Resolves `series_id`: returns the provided value only — **does not auto-create** a Series.
+- Returns `(final_franchise_id, final_series_id)`.

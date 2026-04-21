@@ -4,16 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal anime/media collection. Data is organized in a three-tier relational hierarchy: `Franchise → Series → Anime`. The app has two access levels: Guest (read-only) and Admin (full management).
+**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal anime/media collection. Data is organized in a three-tier relational hierarchy: `Franchise → Series → Single Media Entry`. The app has two access levels: Guest (read-only) and Admin (full management).
+
+## Documentation Map
+
+Note: some files are not yet written yet.
+
+Reference these files in `/docs` for deep technical context:
+
+- **`database-schema.md`**: All table schemas — columns, types, nullability, relationships, computed fields.
+- **`business-logic.md`**: All pipeline logic (Fill, Replace, Pull, Backup, Calculate), derivation rules (watch order, ep_previous, prequel/sequel), checking rules (episode math, missing values, Baha), formatters and parsers. Note that the details are not fully documented yet so it might be different from what we implemented.
+- **`options.md`**: Valid enum values (airing_status, serialization_status), franchise special entries, and required fields per entry type.
+- **`api.md`**: All API endpoints by router with auth requirements and request/response shapes. _(not yet written)_
+- **`pages.md`**: Frontend pages — what each loads and key components used. _(not yet written)_
+- **`reusable-elements.md`**: Shared React components and JS utilities. _(not yet written)_
+- **`integrations.md`**: Jikan API throttling, Google Sheets sync flow, GCS bucket setup. _(not yet written)_
+- **`architecture.md`**: Request flow, service layer details, auth flow, deployment. _(not yet written)_
+- **`dependencies.md`**: Python and NPM packages and their purpose. _(not yet written)_
 
 ## Tech Stack
 
-- **Backend**: FastAPI + SQLAlchemy (sync) + PostgreSQL
-- **Templates**: Jinja2 (server-side HTML), with frontend JS calling `/api/...` endpoints
-- **CSS**: Tailwind CSS v4 (compiled from `static/css/input.css` → `static/css/main.css`)
+- **Backend**: FastAPI + SQLAlchemy + PostgreSQL
+- **Templates**: React + Vite, with frontend JS calling `/api/...` endpoints
+- **CSS**: Tailwind CSS v4
 - **Auth**: PyJWT stored in HTTP-Only cookies; RBAC enforced via `dependencies.get_current_admin()`
 - **Migrations**: Alembic
-- **External Services**: Jikan v4 API (MAL metadata), Google Sheets (bi-directional sync/backup), Google Cloud Storage (cover images)
+- **External Services**: Jikan v4 API (MAL metadata), Google Sheets (bi-directional restore/backup), Google Cloud Storage (cover images)
 - **Deployment**: Docker → GCP Cloud Run + Cloud SQL (PostgreSQL via Unix socket)
 
 ## Development Commands
@@ -25,17 +41,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 docker-compose up -d
 
 # Watch Tailwind CSS (recompile on save)
-npm run watch:css
-# or via Docker: docker-compose up tailwind-watcher
+cd frontend
+npm run dev
 
 # Run FastAPI dev server
 uvicorn main:app --reload
-```
-
-### CSS Build (production)
-
-```bash
-npm run build:css
 ```
 
 ### Database Migrations (Alembic)
@@ -72,13 +82,14 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 ### Request Flow
 
 ```
-Browser → FastAPI Router → Service Layer → DB / External API
-                ↓
-         Jinja2 Template (page load)
-         or JSON API response (JS fetch)
-```
+Initial Load:
+Browser → FastAPI (Catch-all Route) → index.html (SPA Shell) → React App Boot
 
-**Page routers** (`routers/pages.py`) are thin — they only render templates with `is_admin` context. All data fetching happens client-side via JS calling the API routers.
+Data & Interaction:
+User Action → React Component → TanStack Query → FastAPI API Router → Service Layer → Database
+                                     ↑                ↓
+                            Optimistic UI Update ← JSON Response
+```
 
 **API routers** (`routers/anime.py`, `franchise.py`, etc.) handle CRUD operations and delegate business logic to the `services/` layer.
 
@@ -100,10 +111,10 @@ Browser → FastAPI Router → Service Layer → DB / External API
 ```
 Franchise (top-level)
   └── Series (optional grouping layer)
-        └── Anime (granular entry with full metadata)
+        └── Single Entry (granular entry with full metadata, include but not limited to anime and cartoon)
 ```
 
-All three models use `UUID` primary keys and include a `NameFallbackMixin` that provides `display_name` with CN → EN → Alt → Romanji → JP fallback priority.
+All three models use `UUID` primary keys and include a `NameFallbackMixin` that provides `display_name` with CN → EN → Alt → roman → JP fallback priority.
 
 ### Database Connection Routing (`database.py`)
 
