@@ -59,95 +59,80 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
     so the log and the actual deletion succeed or fail together atomically.
     """
     try:
-        franchise_name = None
-        series_name = None
-        anime_cn = None
-        anime_en = None
-        airing_type = None
-
-        # Fallback Helper: CN -> EN -> Alt -> roman -> JP
-        def get_cn_name(item, t):
+        def _cn(item, prefix):
+            """CN fallback: CN → EN → Alt → roman → JP"""
             if not item:
                 return None
-            if t == "series":
-                return (
-                    getattr(item, f"{t}_name_cn")
-                    or getattr(item, f"{t}_name_en")
-                    or getattr(item, f"{t}_name_alt")
-                )
             return (
-                getattr(item, f"{t}_name_cn")
-                or getattr(item, f"{t}_name_en")
-                or getattr(item, f"{t}_name_alt")
-                or getattr(item, f"{t}_name_roman", None)
-                or getattr(item, f"{t}_name_jp", None)
+                getattr(item, f"{prefix}_name_cn", None)
+                or getattr(item, f"{prefix}_name_en", None)
+                or getattr(item, f"{prefix}_name_alt", None)
+                or getattr(item, f"{prefix}_name_roman", None)
+                or getattr(item, f"{prefix}_name_jp", None)
             )
 
-        # Fallback Helper: EN -> roman -> CN -> Alt -> JP
-        def get_en_name(item, t):
+        def _en(item, prefix):
+            """EN fallback: EN → roman → Alt → JP (never CN)"""
             if not item:
                 return None
-            if t == "series":
-                return (
-                    getattr(item, f"{t}_name_en")
-                    or getattr(item, f"{t}_name_cn")
-                    or getattr(item, f"{t}_name_alt")
-                )
             return (
-                getattr(item, f"{t}_name_en")
-                or getattr(item, f"{t}_name_roman", None)
-                or getattr(item, f"{t}_name_cn")
-                or getattr(item, f"{t}_name_alt")
-                or getattr(item, f"{t}_name_jp", None)
+                getattr(item, f"{prefix}_name_en", None)
+                or getattr(item, f"{prefix}_name_roman", None)
+                or getattr(item, f"{prefix}_name_alt", None)
+                or getattr(item, f"{prefix}_name_jp", None)
             )
+
+        def _has_cn(item, prefix):
+            return bool(getattr(item, f"{prefix}_name_cn", None))
+
+        name_cn = None
+        name_en = None
+        franchise_cn = None
+        franchise_type = None
+        series_cn = None
+        category = None
 
         if entry_type == "System Options":
-            # Map category/value to CN/EN columns so it displays nicely in the UI
-            anime_cn = getattr(entry, "category", None)
-            anime_en = getattr(entry, "option_value", None)
+            name_cn = getattr(entry, "option_value", None)
+            category = getattr(entry, "category", None)
 
         elif entry_type == "Franchise":
-            franchise_name = get_cn_name(entry, "franchise")
+            name_cn = _cn(entry, "franchise")
+            if _has_cn(entry, "franchise"):
+                name_en = _en(entry, "franchise")
+            franchise_type = getattr(entry, "franchise_type", None)
 
         elif entry_type == "Series":
-            series_name = get_cn_name(entry, "series")
+            name_cn = _cn(entry, "series")
+            if _has_cn(entry, "series"):
+                name_en = _en(entry, "series")
             if getattr(entry, "franchise_id", None):
-                f = (
-                    db.query(Franchise)
-                    .filter(Franchise.system_id == entry.franchise_id)
-                    .first()
-                )
-                franchise_name = get_cn_name(f, "franchise")
+                f = db.query(Franchise).filter(Franchise.system_id == entry.franchise_id).first()
+                franchise_cn = _cn(f, "franchise")
 
         elif entry_type == "Anime":
-            anime_cn = get_cn_name(entry, "anime")
-            anime_en = get_en_name(entry, "anime")
-            airing_type = getattr(entry, "airing_type", None)
-
+            name_cn = _cn(entry, "anime")
+            if _has_cn(entry, "anime"):
+                name_en = _en(entry, "anime")
             if getattr(entry, "series_id", None):
                 s = db.query(Series).filter(Series.system_id == entry.series_id).first()
-                series_name = get_cn_name(s, "series")
+                series_cn = _cn(s, "series")
             if getattr(entry, "franchise_id", None):
-                f = (
-                    db.query(Franchise)
-                    .filter(Franchise.system_id == entry.franchise_id)
-                    .first()
-                )
-                franchise_name = get_cn_name(f, "franchise")
+                f = db.query(Franchise).filter(Franchise.system_id == entry.franchise_id).first()
+                franchise_cn = _cn(f, "franchise")
 
         deleted_log = DeletedRecord(
             type=entry_type,
-            franchise=franchise_name,
-            series=series_name,
-            anime_cn=anime_cn,
-            anime_en=anime_en,
-            airing_type=airing_type,
+            name_cn=name_cn,
+            name_en=name_en,
+            franchise_cn=franchise_cn,
+            franchise_type=franchise_type,
+            series_cn=series_cn,
+            category=category,
         )
 
         db.add(deleted_log)
-        logger.info(
-            f"Staged deleted record log for {entry_type}: {anime_cn or franchise_name or series_name}"
-        )
+        logger.info(f"Staged deleted record log for {entry_type}: {name_cn}")
 
     except Exception as e:
         logger.error(f"Failed to stage deleted record log: {e}")

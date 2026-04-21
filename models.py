@@ -360,11 +360,11 @@ class DeletedRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     type = Column(String, nullable=False)
-    franchise = Column(String, nullable=True)
-    series = Column(String, nullable=True)
-
-    anime_cn = Column(String, nullable=True)
-    anime_en = Column(String, nullable=True)
-    airing_type = Column(String, nullable=True)
+    franchise_type = Column(String, nullable=True)
+    franchise_cn = Column(String, nullable=True)
+    series_cn = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    name_cn = Column(String, nullable=True)
+    name_en = Column(String, nullable=True)
 
     timestamp = Column(DateTime, default=get_taipei_now)

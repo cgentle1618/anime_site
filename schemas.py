@@ -314,11 +314,12 @@ class DataControlLogResponse(BaseModel):
 class DeletedRecordResponse(BaseModel):
     id: int
     type: str
-    franchise: Optional[str] = None
-    series: Optional[str] = None
-    anime_cn: Optional[str] = None
-    anime_en: Optional[str] = None
-    airing_type: Optional[str] = None
+    name_cn: Optional[str] = None
+    name_en: Optional[str] = None
+    franchise_cn: Optional[str] = None
+    franchise_type: Optional[str] = None
+    series_cn: Optional[str] = None
+    category: Optional[str] = None
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)

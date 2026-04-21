@@ -318,17 +318,62 @@ function LogsTable({ logs, onRefresh }) {
 }
 
 // Paginated deleted records table
-function DeletedTable({ records }) {
+function DeletedTable({ records, onRefresh }) {
   const [page, setPage] = useState(1);
   const pageSize = 8;
   const totalPages = Math.ceil(records.length / pageSize) || 1;
   const slice = records.slice((page - 1) * pageSize, page * pageSize);
 
+  async function handleDeleteRecord(recordId) {
+    await fetch(`/api/system/deleted/${recordId}`, { method: "DELETE", credentials: "include" });
+    onRefresh();
+  }
+
+  async function handleClearOld() {
+    if (!confirm("Delete old records? The 5 most recent entries will be kept.")) return;
+    await fetch("/api/system/deleted", { method: "DELETE", credentials: "include" });
+    onRefresh();
+  }
+
+  function renderAdditional(d) {
+    if (d.type === "System Options" && d.category) {
+      return <span className="text-gray-500 text-xs">Category: {d.category}</span>;
+    }
+    if (d.type === "Franchise" && d.franchise_type) {
+      return <span className="text-gray-500 text-xs">Type: {d.franchise_type}</span>;
+    }
+    if (d.type === "Anime") {
+      return (
+        <div className="text-xs text-gray-500 space-y-0.5">
+          {d.franchise_cn && <div>Franchise: {d.franchise_cn}</div>}
+          {d.series_cn && <div>Series: {d.series_cn}</div>}
+        </div>
+      );
+    }
+    if (d.type === "Series" && d.franchise_cn) {
+      return <span className="text-gray-500 text-xs">Franchise: {d.franchise_cn}</span>;
+    }
+    return null;
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-      <div className="bg-red-50/50 border-b border-red-100 px-5 py-3 font-bold text-red-900">
-        <i className="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted
-        Records
+      <div className="bg-red-50/50 border-b border-red-100 px-5 py-3 flex items-center justify-between">
+        <span className="font-bold text-red-900">
+          <i className="fas fa-trash-alt mr-2 text-red-500"></i> Recently Deleted Records
+        </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleClearOld}
+            className="text-xs font-bold text-red-400 hover:text-red-600 transition"
+            title="Delete old records, keep 5 most recent"
+          >
+            <i className="fas fa-trash mr-1"></i>Clear Old
+          </button>
+          <button onClick={onRefresh} className="text-gray-400 hover:text-red-500 transition">
+            <i className="fas fa-redo"></i>
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto flex-1">
         <table className="w-full text-sm text-left">
@@ -336,44 +381,46 @@ function DeletedTable({ records }) {
             <tr>
               <th className="px-5 py-2.5 whitespace-nowrap">Time</th>
               <th className="px-5 py-2.5">Type</th>
-              <th className="px-5 py-2.5 w-1/2">Deleted Entry Name</th>
-              <th className="px-5 py-2.5 w-1/2">Context</th>
+              <th className="px-5 py-2.5">Name (CN)</th>
+              <th className="px-5 py-2.5">Name (EN)</th>
+              <th className="px-5 py-2.5">Additional Info</th>
+              <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {slice.map((d, i) => {
-              const { name, context } = getDeletedDisplayData(d);
-              return (
-                <tr key={i} className="hover:bg-red-50/30 transition">
-                  <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
-                    {formatDate(d.timestamp)}
-                  </td>
-                  <td className="px-5 py-2.5">
-                    <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">
-                      {d.type}
-                    </span>
-                  </td>
-                  <td
-                    className="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]"
-                    title={name}
+            {slice.map((d, i) => (
+              <tr key={i} className="hover:bg-red-50/30 transition group">
+                <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap text-xs">
+                  {formatDate(d.timestamp)}
+                </td>
+                <td className="px-5 py-2.5">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">
+                    {d.type}
+                  </span>
+                </td>
+                <td className="px-5 py-2.5 font-bold text-gray-800 max-w-[160px] truncate" title={d.name_cn}>
+                  {d.name_cn || "-"}
+                </td>
+                <td className="px-5 py-2.5 text-gray-600 max-w-[160px] truncate text-xs" title={d.name_en}>
+                  {d.name_en || ""}
+                </td>
+                <td className="px-5 py-2.5 max-w-[180px]">
+                  {renderAdditional(d)}
+                </td>
+                <td className="px-3 py-2.5">
+                  <button
+                    onClick={() => handleDeleteRecord(d.id)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition"
+                    title="Delete this record"
                   >
-                    {name}
-                  </td>
-                  <td
-                    className="px-5 py-2.5 text-gray-500 text-xs truncate max-w-[150px]"
-                    title={context}
-                  >
-                    {context}
-                  </td>
-                </tr>
-              );
-            })}
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                </td>
+              </tr>
+            ))}
             {slice.length === 0 && (
               <tr>
-                <td
-                  colSpan={4}
-                  className="text-center py-6 text-gray-400 italic"
-                >
+                <td colSpan={6} className="text-center py-6 text-gray-400 italic">
                   No deleted entries found
                 </td>
               </tr>
@@ -1728,7 +1775,7 @@ export default function Admin() {
         </div>
 
         {/* Recently Deleted Records */}
-        <DeletedTable records={deleted} />
+        <DeletedTable records={deleted} onRefresh={loadDeleted} />
       </div>
     </div>
   );
