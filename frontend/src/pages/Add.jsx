@@ -80,7 +80,7 @@ const defaultAnime = () => ({
   my_rating: '', mal_rating: '', mal_rank: '', anilist_rating: '',
   release_season: '', release_month: '', release_year: '',
   genre_main: '', genre_sub: '', studio: '', director: '', producer: '', music: '', distributor_tw: '',
-  prequel_id: null, sequel_id: null, alternative: '', is_main_entry: false, watch_order: '',
+  prequel_id: null, sequel_id: null, alternative: '', is_main_entry: false, watch_order: '', derive_related: '',
   mal_id: '', mal_link: '', anilist_link: '', official_link: '', twitter_link: '',
   source_baha: '', baha_link: '', source_netflix: '', source_other: '', source_other_link: '',
   op: '', ed: '', insert_ost: '', seiyuu: '',
@@ -243,6 +243,7 @@ export default function Add() {
       anilist_link: af.anilist_link || null,
       official_link: af.official_link || null,
       twitter_link: af.twitter_link || null,
+      derive_related: af.derive_related === 'true' ? true : af.derive_related === 'false' ? false : null,
       source_baha: af.source_baha === 'true' ? true : af.source_baha === 'false' ? false : null,
       baha_link: af.baha_link || null,
       source_netflix: af.source_netflix === 'true' ? true : af.source_netflix === 'false' ? false : null,
@@ -779,6 +780,13 @@ export default function Add() {
               </Field>
               <Field label="Watch Order">
                 <input className={inputCls} type="number" step="any" value={af.watch_order} onChange={e => ua('watch_order', e.target.value)} placeholder="e.g. 1, 1.5, 2" />
+              </Field>
+              <Field label="Derive Related" hint="Set to No to skip prequel/sequel derivation">
+                <select className={selectCls} value={af.derive_related} onChange={e => ua('derive_related', e.target.value)}>
+                  <option value="">—</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
               </Field>
             </div>
 

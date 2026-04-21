@@ -71,7 +71,13 @@ class Franchise(Base, NameFallbackMixin):
     """
 
     __tablename__ = "franchise"
-    _name_fields = ["franchise_name_en", "franchise_name_cn", "franchise_name_romanji", "franchise_name_jp", "franchise_name_alt"]
+    _name_fields = [
+        "franchise_name_en",
+        "franchise_name_cn",
+        "franchise_name_romanji",
+        "franchise_name_jp",
+        "franchise_name_alt",
+    ]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -100,7 +106,9 @@ class Franchise(Base, NameFallbackMixin):
 
     # Relationships
     series = relationship("Series", back_populates="franchise")
-    animes = relationship("Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]")
+    animes = relationship(
+        "Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]"
+    )
 
     @property
     def display_name(self) -> str:
@@ -163,7 +171,13 @@ class Anime(Base, NameFallbackMixin):
     """
 
     __tablename__ = "anime"
-    _name_fields = ["anime_name_en", "anime_name_cn", "anime_name_romanji", "anime_name_jp", "anime_name_alt"]
+    _name_fields = [
+        "anime_name_en",
+        "anime_name_cn",
+        "anime_name_romanji",
+        "anime_name_jp",
+        "anime_name_alt",
+    ]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -214,6 +228,7 @@ class Anime(Base, NameFallbackMixin):
     genre_main = Column(String, nullable=True)
     genre_sub = Column(String, nullable=True)
 
+    derive_related = Column(Boolean, nullable=True)
     prequel_id = Column(UUID(as_uuid=True), nullable=True)
     sequel_id = Column(UUID(as_uuid=True), nullable=True)
     alternative = Column(String, nullable=True)
@@ -244,7 +259,9 @@ class Anime(Base, NameFallbackMixin):
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     # Relationships
-    franchise = relationship("Franchise", back_populates="animes", foreign_keys="[Anime.franchise_id]")
+    franchise = relationship(
+        "Franchise", back_populates="animes", foreign_keys="[Anime.franchise_id]"
+    )
     series = relationship("Series", back_populates="animes")
 
     @property

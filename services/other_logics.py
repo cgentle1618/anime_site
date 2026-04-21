@@ -630,6 +630,7 @@ def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
         .filter(
             Anime.franchise_id == franchise_id,
             Anime.watch_order.isnot(None),
+            Anime.derive_related.isnot(False),
         )
         .order_by(Anime.watch_order)
         .all()
