@@ -4,6 +4,12 @@ import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
+const MY_RATING_COLORS = {
+  S: "bg-purple-500", "A+": "bg-amber-400", A: "bg-green-500",
+  B: "bg-blue-400", C: "bg-orange-400", D: "bg-rose-400",
+  E: "bg-red-600", F: "bg-gray-500", Unrated: "bg-gray-300",
+};
+
 const MAL_BUCKETS = [
   { key: "9+",   min: 9,   max: 11,  color: "bg-purple-500" },
   { key: "8.7+", min: 8.7, max: 9,   color: "bg-indigo-400" },
@@ -175,6 +181,20 @@ export default function Statistics() {
   const malMaxCount = Math.max(...malRatingRows.map((r) => r.count), 1);
   const totalWithMal = allAnime.filter((a) => a.mal_rating != null).length;
 
+  const seasonalRatingCounts = {};
+  RATING_ORDER.forEach((r) => { seasonalRatingCounts[r] = 0; });
+  seasonalRatingCounts["Unrated"] = 0;
+  seasonals.forEach((s) => {
+    const r = s.my_rating;
+    if (r && RATING_ORDER.includes(r)) {
+      seasonalRatingCounts[r]++;
+    } else {
+      seasonalRatingCounts["Unrated"]++;
+    }
+  });
+  const seasonalMaxCount = Math.max(...allRows.map((r) => seasonalRatingCounts[r]), 1);
+  const totalSeasonals = seasonals.length;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Page header */}
@@ -267,7 +287,7 @@ export default function Statistics() {
             Rating Distribution
           </h2>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* My Rating */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
             <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
@@ -295,7 +315,7 @@ export default function Statistics() {
                     <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
                       <div
                         className={`h-5 rounded-full transition-all duration-700 ${
-                          isUnrated ? "bg-gray-300" : "bg-brand"
+                          MY_RATING_COLORS[rating] || "bg-gray-300"
                         }`}
                         style={{ width: `${barWidth}%` }}
                       />
@@ -333,6 +353,50 @@ export default function Statistics() {
                     <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
                       <div
                         className={`h-5 rounded-full transition-all duration-700 ${color}`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
+                      {count}
+                    </span>
+                    <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
+                      {pct}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Seasonal Rating */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+              <span>Seasonal Rating</span>
+              <span className="text-gray-400 font-medium normal-case">Per Season</span>
+            </p>
+            <div className="space-y-3">
+              {allRows.map((rating) => {
+                const count = seasonalRatingCounts[rating];
+                const pct =
+                  totalSeasonals > 0
+                    ? Math.round((count / totalSeasonals) * 100)
+                    : 0;
+                const barWidth = (count / seasonalMaxCount) * 100;
+                const isUnrated = rating === "Unrated";
+                return (
+                  <div key={rating} className="flex items-center gap-3">
+                    <span
+                      className={`w-10 text-right text-sm font-black shrink-0 ${
+                        isUnrated ? "text-gray-400" : "text-gray-700"
+                      }`}
+                    >
+                      {rating}
+                    </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      <div
+                        className={`h-5 rounded-full transition-all duration-700 ${
+                          MY_RATING_COLORS[rating] || "bg-gray-300"
+                        }`}
                         style={{ width: `${barWidth}%` }}
                       />
                     </div>
