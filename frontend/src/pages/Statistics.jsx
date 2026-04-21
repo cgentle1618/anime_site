@@ -169,7 +169,7 @@ export default function Statistics() {
     }
   });
   const allRows = [...RATING_ORDER, "Unrated"];
-  const maxCount = Math.max(...allRows.map((r) => ratingCounts[r]), 1);
+  const maxCount = Math.max(...RATING_ORDER.map((r) => ratingCounts[r]), 1);
   const totalFranchises = franchises.length;
 
   const malRatingRows = MAL_BUCKETS.map((b) => ({
@@ -192,7 +192,7 @@ export default function Statistics() {
       seasonalRatingCounts["Unrated"]++;
     }
   });
-  const seasonalMaxCount = Math.max(...allRows.map((r) => seasonalRatingCounts[r]), 1);
+  const seasonalMaxCount = Math.max(...RATING_ORDER.map((r) => seasonalRatingCounts[r]), 1);
   const totalSeasonals = seasonals.length;
 
   return (
