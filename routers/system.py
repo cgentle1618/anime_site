@@ -84,6 +84,35 @@ def get_system_logs(db: Session = Depends(get_db)):
     return logs
 
 
+@router.delete("/logs", summary="Clear Old Data Control Logs")
+def clear_system_logs(db: Session = Depends(get_db)):
+    """Deletes all log entries except the 10 most recent."""
+    keep_ids = (
+        db.query(models.DataControlLog.id)
+        .order_by(models.DataControlLog.timestamp.desc())
+        .limit(10)
+        .subquery()
+    )
+    count = (
+        db.query(models.DataControlLog)
+        .filter(models.DataControlLog.id.notin_(keep_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": count}
+
+
+@router.delete("/logs/{log_id}", summary="Delete a Data Control Log Entry")
+def delete_system_log(log_id: int, db: Session = Depends(get_db)):
+    """Deletes a single data control log entry by ID."""
+    log = db.query(models.DataControlLog).filter(models.DataControlLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+    db.delete(log)
+    db.commit()
+    return {"deleted": log_id}
+
+
 @router.get(
     "/deleted",
     response_model=List[schemas.DeletedRecordResponse],

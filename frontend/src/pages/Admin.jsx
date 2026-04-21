@@ -146,18 +146,38 @@ function LogsTable({ logs, onRefresh }) {
   const totalPages = Math.ceil(logs.length / pageSize) || 1;
   const slice = logs.slice((page - 1) * pageSize, page * pageSize);
 
+  async function handleDeleteLog(logId) {
+    await fetch(`/api/system/logs/${logId}`, { method: "DELETE", credentials: "include" });
+    onRefresh();
+  }
+
+  async function handleClearAll() {
+    if (!confirm("Delete old logs? The 10 most recent entries will be kept.")) return;
+    await fetch("/api/system/logs", { method: "DELETE", credentials: "include" });
+    onRefresh();
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
       <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
           <i className="fas fa-terminal text-brand mr-2"></i> Data Control Log
         </h2>
-        <button
-          onClick={onRefresh}
-          className="text-gray-400 hover:text-brand transition"
-        >
-          <i className="fas fa-redo"></i>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleClearAll}
+            className="text-xs font-bold text-red-400 hover:text-red-600 transition"
+            title="Delete old logs, keep 10 most recent"
+          >
+            <i className="fas fa-trash mr-1"></i>Clear Old
+          </button>
+          <button
+            onClick={onRefresh}
+            className="text-gray-400 hover:text-brand transition"
+          >
+            <i className="fas fa-redo"></i>
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
@@ -168,6 +188,7 @@ function LogsTable({ logs, onRefresh }) {
               <th className="px-6 py-3">Time</th>
               <th className="px-6 py-3">Status</th>
               <th className="px-6 py-3">Metrics</th>
+              <th className="px-3 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -202,7 +223,7 @@ function LogsTable({ logs, onRefresh }) {
               return (
                 <tr
                   key={i}
-                  className="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors"
+                  className="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors group"
                 >
                   <td className="px-6 py-3">
                     <div className="font-bold text-gray-800">
@@ -236,13 +257,22 @@ function LogsTable({ logs, onRefresh }) {
                       -{log.rows_deleted || 0}
                     </span>
                   </td>
+                  <td className="px-3 py-3">
+                    <button
+                      onClick={() => handleDeleteLog(log.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition"
+                      title="Delete this log entry"
+                    >
+                      <i className="fas fa-times text-xs"></i>
+                    </button>
+                  </td>
                 </tr>
               );
             })}
             {slice.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-6 italic text-gray-400"
                 >
                   No data control logs found
