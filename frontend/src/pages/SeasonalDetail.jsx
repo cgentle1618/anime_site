@@ -62,20 +62,25 @@ function getAdjacentSeason(current, direction) {
 
 const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const MY_RATING_COLORS = {
-  S: "bg-purple-500", "A+": "bg-amber-400", A: "bg-green-500",
-  B: "bg-blue-400", C: "bg-orange-400", D: "bg-rose-400",
-  E: "bg-red-600", F: "bg-gray-500",
+  S: "bg-purple-500",
+  "A+": "bg-amber-400",
+  A: "bg-green-500",
+  B: "bg-blue-400",
+  C: "bg-orange-400",
+  D: "bg-rose-400",
+  E: "bg-red-600",
+  F: "bg-gray-500",
 };
 
 const MAL_BUCKETS = [
-  { key: "9+",   min: 9,   max: 11,  color: "bg-purple-500" },
-  { key: "8.7+", min: 8.7, max: 9,   color: "bg-indigo-400" },
+  { key: "9+", min: 9, max: 11, color: "bg-purple-500" },
+  { key: "8.7+", min: 8.7, max: 9, color: "bg-indigo-400" },
   { key: "8.5+", min: 8.5, max: 8.7, color: "bg-blue-400" },
   { key: "8.2+", min: 8.2, max: 8.5, color: "bg-cyan-400" },
   { key: "7.7+", min: 7.7, max: 8.2, color: "bg-green-400" },
-  { key: "7+",   min: 7,   max: 7.7, color: "bg-yellow-400" },
-  { key: "4+",   min: 4,   max: 7,   color: "bg-orange-400" },
-  { key: "<4",   min: 0,   max: 4,   color: "bg-red-400" },
+  { key: "7+", min: 7, max: 7.7, color: "bg-yellow-400" },
+  { key: "4+", min: 4, max: 7, color: "bg-orange-400" },
+  { key: "<4", min: 0, max: 4, color: "bg-red-400" },
 ];
 
 function BarChart({ items, label }) {
@@ -83,19 +88,30 @@ function BarChart({ items, label }) {
   const hasData = items.some((d) => d.count > 0);
   return (
     <div>
-      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">{label}</p>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
+        {label}
+      </p>
       {!hasData ? (
         <p className="text-xs text-gray-400 italic">No data</p>
       ) : (
         <div className="flex items-end gap-2 h-28">
           {items.map(({ key, count, color }) => (
-            <div key={key} className="flex flex-col items-center flex-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-700 mb-1">{count > 0 ? count : ""}</span>
+            <div
+              key={key}
+              className="flex flex-col items-center flex-1 min-w-0"
+            >
+              <span className="text-[10px] font-bold text-gray-700 mb-1">
+                {count > 0 ? count : ""}
+              </span>
               <div
                 className={`w-full rounded-t-sm transition-all ${color} ${count === 0 ? "opacity-15" : ""}`}
-                style={{ height: `${Math.max((count / max) * 80, count > 0 ? 4 : 2)}px` }}
+                style={{
+                  height: `${Math.max((count / max) * 80, count > 0 ? 4 : 2)}px`,
+                }}
               />
-              <span className="text-[9px] font-semibold text-gray-500 mt-1.5 truncate w-full text-center">{key}</span>
+              <span className="text-[9px] font-semibold text-gray-500 mt-1.5 truncate w-full text-center">
+                {key}
+              </span>
             </div>
           ))}
         </div>
@@ -259,7 +275,8 @@ export default function SeasonalDetail() {
   const malRatingData = MAL_BUCKETS.map((b) => ({
     key: b.key,
     count: animeData.filter(
-      (a) => a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
+      (a) =>
+        a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
     ).length,
     color: b.color,
   }));
@@ -276,7 +293,9 @@ export default function SeasonalDetail() {
                 <i className="fas fa-calendar-alt text-brand text-lg"></i>
               </div>
               <button
-                onClick={() => navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)}
+                onClick={() =>
+                  navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)
+                }
                 className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
                 title={`Previous: ${prevSeason}`}
               >
@@ -286,7 +305,9 @@ export default function SeasonalDetail() {
                 {seasonalId}
               </h1>
               <button
-                onClick={() => navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)}
+                onClick={() =>
+                  navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)
+                }
                 className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
                 title={`Next: ${nextSeason}`}
               >

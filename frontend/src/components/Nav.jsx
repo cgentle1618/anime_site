@@ -11,18 +11,18 @@ function cleanString(str) {
 }
 
 const SCOPES = [
-  { key: "all",       label: "All" },
+  { key: "all", label: "All" },
   { key: "franchise", label: "Franchise" },
-  { key: "series",    label: "Series" },
-  { key: "anime",     label: "Anime" },
-  { key: "seasonal",  label: "Seasonal" },
+  { key: "series", label: "Series" },
+  { key: "anime", label: "Anime" },
+  { key: "seasonal", label: "Seasonal" },
 ];
 
 const TYPE_BADGE = {
-  franchise: { label: "FRAN",   cls: "bg-brand/10 text-brand" },
-  series:    { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
-  anime:     { label: "ANIME",  cls: "bg-gray-100 text-gray-500" },
-  seasonal:  { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
+  franchise: { label: "FRAN", cls: "bg-brand/10 text-brand" },
+  series: { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
+  anime: { label: "ANIME", cls: "bg-gray-100 text-gray-500" },
+  seasonal: { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
 };
 
 function DropdownMenu({ label, icon, items, labelClassName = "" }) {
@@ -82,7 +82,13 @@ export default function Nav() {
   const [backingUp, setBackingUp] = useState(false);
   const searchRef = useRef(null);
   const searchDebounceRef = useRef(null);
-  const dataCacheRef = useRef({ loaded: false, franchises: [], anime: [], series: [], seasonal: [] });
+  const dataCacheRef = useRef({
+    loaded: false,
+    franchises: [],
+    anime: [],
+    series: [],
+    seasonal: [],
+  });
 
   // Universal search — client-side filtering (case/punctuation/space insensitive)
   useEffect(() => {
@@ -95,16 +101,24 @@ export default function Nav() {
     searchDebounceRef.current = setTimeout(async () => {
       try {
         if (!dataCacheRef.current.loaded) {
-          const [franRes, animeRes, seriesRes, seasonalRes] = await Promise.all([
-            fetch("/api/franchise/", { credentials: "include" }),
-            fetch("/api/anime/", { credentials: "include" }),
-            fetch("/api/series/", { credentials: "include" }),
-            fetch("/api/seasonal/", { credentials: "include" }),
-          ]);
-          dataCacheRef.current.franchises = franRes.ok ? await franRes.json() : [];
+          const [franRes, animeRes, seriesRes, seasonalRes] = await Promise.all(
+            [
+              fetch("/api/franchise/", { credentials: "include" }),
+              fetch("/api/anime/", { credentials: "include" }),
+              fetch("/api/series/", { credentials: "include" }),
+              fetch("/api/seasonal/", { credentials: "include" }),
+            ],
+          );
+          dataCacheRef.current.franchises = franRes.ok
+            ? await franRes.json()
+            : [];
           dataCacheRef.current.anime = animeRes.ok ? await animeRes.json() : [];
-          dataCacheRef.current.series = seriesRes.ok ? await seriesRes.json() : [];
-          dataCacheRef.current.seasonal = seasonalRes.ok ? await seasonalRes.json() : [];
+          dataCacheRef.current.series = seriesRes.ok
+            ? await seriesRes.json()
+            : [];
+          dataCacheRef.current.seasonal = seasonalRes.ok
+            ? await seasonalRes.json()
+            : [];
           dataCacheRef.current.loaded = true;
         }
         const qClean = cleanString(searchQuery);
@@ -114,8 +128,15 @@ export default function Nav() {
         if (scope === "all" || scope === "franchise") {
           const limit = scope === "all" ? 3 : 10;
           dataCacheRef.current.franchises
-            .filter((f) => [f.franchise_name_cn, f.franchise_name_en, f.franchise_name_romanji, f.franchise_name_jp, f.franchise_name_alt]
-              .some((n) => cleanString(n).includes(qClean)))
+            .filter((f) =>
+              [
+                f.franchise_name_cn,
+                f.franchise_name_en,
+                f.franchise_name_romanji,
+                f.franchise_name_jp,
+                f.franchise_name_alt,
+              ].some((n) => cleanString(n).includes(qClean)),
+            )
             .slice(0, limit)
             .forEach((f) => results.push({ type: "franchise", ...f }));
         }
@@ -123,8 +144,11 @@ export default function Nav() {
         if (scope === "all" || scope === "series") {
           const limit = scope === "all" ? 2 : 10;
           dataCacheRef.current.series
-            .filter((s) => [s.series_name_cn, s.series_name_en, s.series_name_alt]
-              .some((n) => cleanString(n).includes(qClean)))
+            .filter((s) =>
+              [s.series_name_cn, s.series_name_en, s.series_name_alt].some(
+                (n) => cleanString(n).includes(qClean),
+              ),
+            )
             .slice(0, limit)
             .forEach((s) => results.push({ type: "series", ...s }));
         }
@@ -132,8 +156,15 @@ export default function Nav() {
         if (scope === "all" || scope === "anime") {
           const limit = scope === "all" ? 5 : 10;
           dataCacheRef.current.anime
-            .filter((a) => [a.anime_name_cn, a.anime_name_en, a.anime_name_romanji, a.anime_name_jp, a.anime_name_alt]
-              .some((n) => cleanString(n).includes(qClean)))
+            .filter((a) =>
+              [
+                a.anime_name_cn,
+                a.anime_name_en,
+                a.anime_name_romanji,
+                a.anime_name_jp,
+                a.anime_name_alt,
+              ].some((n) => cleanString(n).includes(qClean)),
+            )
             .slice(0, limit)
             .forEach((a) => results.push({ type: "anime", ...a }));
         }
@@ -181,20 +212,38 @@ export default function Nav() {
 
   function getDisplayName(item) {
     if (item.type === "franchise")
-      return item.franchise_name_cn || item.franchise_name_en || item.franchise_name_romanji || item.franchise_name_jp || "—";
+      return (
+        item.franchise_name_cn ||
+        item.franchise_name_en ||
+        item.franchise_name_romanji ||
+        item.franchise_name_jp ||
+        "—"
+      );
     if (item.type === "series")
-      return item.series_name_cn || item.series_name_en || item.series_name_alt || "—";
-    if (item.type === "seasonal")
-      return item.seasonal || "—";
-    return item.anime_name_cn || item.anime_name_en || item.anime_name_romanji || item.anime_name_jp || "—";
+      return (
+        item.series_name_cn ||
+        item.series_name_en ||
+        item.series_name_alt ||
+        "—"
+      );
+    if (item.type === "seasonal") return item.seasonal || "—";
+    return (
+      item.anime_name_cn ||
+      item.anime_name_en ||
+      item.anime_name_romanji ||
+      item.anime_name_jp ||
+      "—"
+    );
   }
 
   function handleResultClick(item) {
     setShowResults(false);
     setSearchQuery("");
     if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
-    else if (item.type === "series") navigate(`/franchise/${item.franchise_id}`);
-    else if (item.type === "seasonal") navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
+    else if (item.type === "series")
+      navigate(`/franchise/${item.franchise_id}`);
+    else if (item.type === "seasonal")
+      navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
     else navigate(`/anime/${item.system_id}`);
   }
 
@@ -277,7 +326,9 @@ export default function Nav() {
                 label="More"
                 items={
                   <>
-                    <NavLink to="/statistics" icon="fas fa-chart-bar">Statistics</NavLink>
+                    <NavLink to="/statistics" icon="fas fa-chart-bar">
+                      Statistics
+                    </NavLink>
                     <NavLink to="/future-releases" icon="fas fa-calendar-plus">
                       Future Release
                     </NavLink>
@@ -342,14 +393,19 @@ export default function Nav() {
                   className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 text-xs font-bold text-gray-500 hover:text-brand transition whitespace-nowrap"
                 >
                   {SCOPES.find((s) => s.key === searchScope)?.label}
-                  <i className={`fas fa-chevron-down text-[8px] transition-transform ${showScopeMenu ? "rotate-180" : ""}`}></i>
+                  <i
+                    className={`fas fa-chevron-down text-[8px] transition-transform ${showScopeMenu ? "rotate-180" : ""}`}
+                  ></i>
                 </button>
                 {showScopeMenu && (
                   <div className="absolute left-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden min-w-[120px]">
                     {SCOPES.map((s) => (
                       <button
                         key={s.key}
-                        onClick={() => { setSearchScope(s.key); setShowScopeMenu(false); }}
+                        onClick={() => {
+                          setSearchScope(s.key);
+                          setShowScopeMenu(false);
+                        }}
                         className={`w-full text-left px-4 py-2 text-sm font-bold transition ${searchScope === s.key ? "text-brand bg-brand/5" : "text-gray-700 hover:bg-gray-50"}`}
                       >
                         {s.label}
@@ -368,7 +424,11 @@ export default function Nav() {
               {/* Input */}
               <input
                 type="text"
-                placeholder={searchScope === "all" ? "Quick search..." : `Search ${SCOPES.find((s) => s.key === searchScope)?.label}...`}
+                placeholder={
+                  searchScope === "all"
+                    ? "Quick search..."
+                    : `Search ${SCOPES.find((s) => s.key === searchScope)?.label}...`
+                }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKey}
@@ -388,7 +448,9 @@ export default function Nav() {
                         onClick={() => handleResultClick(item)}
                         className="w-full text-left flex items-center px-4 py-2.5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0"
                       >
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mr-2 shrink-0 ${badge.cls}`}>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded mr-2 shrink-0 ${badge.cls}`}
+                        >
                           {badge.label}
                         </span>
                         <span className="text-sm font-medium text-gray-800 truncate">

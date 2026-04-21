@@ -374,10 +374,20 @@ function DeletedTable({ records }) {
 
 const JIKAN_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
 
-function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, onClose, downloading, setting, deleting }) {
+function CoverImageModal({
+  result,
+  onDownload,
+  onSetFields,
+  onDeleteOrphaned,
+  onClose,
+  downloading,
+  setting,
+  deleting,
+}) {
   const [selected, setSelected] = useState(new Set());
   const allIds = result.missing.map((m) => m.system_id);
-  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selected.has(id));
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(allIds));
@@ -397,8 +407,13 @@ function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, on
     >
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-black text-gray-900">Cover Image Check</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-lg">
+          <h2 className="text-lg font-black text-gray-900">
+            Cover Image Check
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition text-lg"
+          >
             <i className="fas fa-times"></i>
           </button>
         </div>
@@ -407,11 +422,15 @@ function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, on
           {result.should_use_count > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
               <p className="text-sm font-bold text-amber-800 mb-2">
-                {result.should_use_count} image{result.should_use_count !== 1 ? "s" : ""} in storage not linked to any entry
+                {result.should_use_count} image
+                {result.should_use_count !== 1 ? "s" : ""} in storage not linked
+                to any entry
               </p>
               <div className="max-h-32 overflow-y-auto space-y-0.5 mb-3">
                 {result.should_use.map((m, i) => (
-                  <div key={i} className="text-xs text-amber-700 truncate">{m.name}</div>
+                  <div key={i} className="text-xs text-amber-700 truncate">
+                    {m.name}
+                  </div>
                 ))}
               </div>
               <button
@@ -428,11 +447,17 @@ function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, on
           {result.orphaned_count > 0 && (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
               <p className="text-sm font-bold text-gray-600 mb-2">
-                {result.orphaned_count} orphaned file{result.orphaned_count !== 1 ? "s" : ""} in storage
+                {result.orphaned_count} orphaned file
+                {result.orphaned_count !== 1 ? "s" : ""} in storage
               </p>
               <div className="max-h-28 overflow-y-auto space-y-0.5 mb-3">
                 {result.orphaned.map((filename, i) => (
-                  <div key={i} className="text-xs text-gray-500 font-mono truncate">{filename}</div>
+                  <div
+                    key={i}
+                    className="text-xs text-gray-500 font-mono truncate"
+                  >
+                    {filename}
+                  </div>
                 ))}
               </div>
               <button
@@ -447,34 +472,49 @@ function CoverImageModal({ result, onDownload, onSetFields, onDeleteOrphaned, on
           )}
 
           <p className="text-sm text-gray-500">
-            Checked <span className="font-bold text-gray-800">{result.total_checked}</span> entries with a cover image record.
+            Checked{" "}
+            <span className="font-bold text-gray-800">
+              {result.total_checked}
+            </span>{" "}
+            entries with a cover image record.
           </p>
 
           {result.missing_count === 0 ? (
             <div className="text-center py-6">
               <i className="fas fa-check-circle text-4xl text-emerald-400 block mb-3"></i>
-              <p className="font-bold text-gray-700">All cover images are present.</p>
+              <p className="font-bold text-gray-700">
+                All cover images are present.
+              </p>
             </div>
           ) : (
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-bold text-orange-800">
-                  {result.missing_count} missing cover image{result.missing_count !== 1 ? "s" : ""}
+                  {result.missing_count} missing cover image
+                  {result.missing_count !== 1 ? "s" : ""}
                 </p>
-                <button onClick={toggleAll} className="text-xs text-orange-600 hover:underline">
+                <button
+                  onClick={toggleAll}
+                  className="text-xs text-orange-600 hover:underline"
+                >
                   {allSelected ? "Deselect All" : "Select All"}
                 </button>
               </div>
               <div className="max-h-44 overflow-y-auto space-y-1">
                 {result.missing.map((m) => (
-                  <label key={m.system_id} className="flex items-center gap-2 text-xs text-orange-700 cursor-pointer truncate">
+                  <label
+                    key={m.system_id}
+                    className="flex items-center gap-2 text-xs text-orange-700 cursor-pointer truncate"
+                  >
                     <input
                       type="checkbox"
                       checked={selected.has(m.system_id)}
                       onChange={() => toggleOne(m.system_id)}
                       className="accent-orange-500 shrink-0"
                     />
-                    <span className="font-mono bg-orange-100 px-1 rounded shrink-0">{m.airing_type || "?"}</span>
+                    <span className="font-mono bg-orange-100 px-1 rounded shrink-0">
+                      {m.airing_type || "?"}
+                    </span>
                     <span className="truncate">{m.name}</span>
                   </label>
                 ))}
@@ -522,7 +562,11 @@ function DuplicatesModal({ results, onClose }) {
     { key: "franchise", label: "Franchise", groups: results.franchise },
     { key: "series", label: "Series", groups: results.series },
     { key: "anime", label: "Anime", groups: results.anime },
-    { key: "system_options", label: "Sys. Options", groups: results.system_options },
+    {
+      key: "system_options",
+      label: "Sys. Options",
+      groups: results.system_options,
+    },
   ];
 
   const totalGroups = tabs.reduce((s, t) => s + t.groups.length, 0);
@@ -531,12 +575,17 @@ function DuplicatesModal({ results, onClose }) {
   function renderGroup(group, idx) {
     if (tab === "franchise") {
       return (
-        <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded uppercase">
               {group[0].franchise_type || "—"}
             </span>
-            <span className="text-xs text-gray-500">{group.length} entries</span>
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -549,8 +598,12 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((f, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">{f.system_id.slice(0, 8)}…</td>
-                  <td className="py-1 pr-3 font-bold">{f.franchise_name_cn || "—"}</td>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {f.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {f.franchise_name_cn || "—"}
+                  </td>
                   <td className="py-1">{f.franchise_name_en || "—"}</td>
                 </tr>
               ))}
@@ -562,12 +615,17 @@ function DuplicatesModal({ results, onClose }) {
 
     if (tab === "series") {
       return (
-        <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-gray-400">
               Franchise: {group[0].franchise_id?.slice(0, 8)}…
             </span>
-            <span className="text-xs text-gray-500">{group.length} entries</span>
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -581,10 +639,16 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((s, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">{s.system_id.slice(0, 8)}…</td>
-                  <td className="py-1 pr-3 font-bold">{s.series_name_cn || "—"}</td>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {s.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {s.series_name_cn || "—"}
+                  </td>
                   <td className="py-1 pr-3">{s.series_name_en || "—"}</td>
-                  <td className="py-1 text-gray-400">{s.series_name_alt || "—"}</td>
+                  <td className="py-1 text-gray-400">
+                    {s.series_name_alt || "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -596,16 +660,27 @@ function DuplicatesModal({ results, onClose }) {
     if (tab === "anime") {
       const a0 = group[0];
       return (
-        <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
               {a0.airing_type || "—"}
             </span>
-            {a0.season_part && <span className="text-[10px] text-gray-600">{a0.season_part}</span>}
-            {a0.ep_special != null && (
-              <span className="text-[10px] text-gray-500">Ep.Special: {a0.ep_special}</span>
+            {a0.season_part && (
+              <span className="text-[10px] text-gray-600">
+                {a0.season_part}
+              </span>
             )}
-            <span className="text-xs text-gray-500">{group.length} entries</span>
+            {a0.ep_special != null && (
+              <span className="text-[10px] text-gray-500">
+                Ep.Special: {a0.ep_special}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -618,8 +693,12 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((a, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">{a.system_id.slice(0, 8)}…</td>
-                  <td className="py-1 pr-3 font-bold">{a.anime_name_cn || "—"}</td>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {a.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {a.anime_name_cn || "—"}
+                  </td>
                   <td className="py-1">{a.anime_name_en || "—"}</td>
                 </tr>
               ))}
@@ -631,7 +710,10 @@ function DuplicatesModal({ results, onClose }) {
 
     // system_options
     return (
-      <div key={idx} className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3">
+      <div
+        key={idx}
+        className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+      >
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
             {group[0].category}
@@ -640,7 +722,10 @@ function DuplicatesModal({ results, onClose }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {group.map((opt, i) => (
-            <span key={i} className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded font-mono">
+            <span
+              key={i}
+              className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded font-mono"
+            >
               [{opt.id}] {opt.option_value}
             </span>
           ))}
@@ -657,14 +742,19 @@ function DuplicatesModal({ results, onClose }) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-black text-gray-900">Duplicate Check Results</h2>
+            <h2 className="text-lg font-black text-gray-900">
+              Duplicate Check Results
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">
               {totalGroups === 0
                 ? "No duplicates found across all categories."
                 : `${totalGroups} duplicate group${totalGroups !== 1 ? "s" : ""} detected.`}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition text-lg">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition text-lg"
+          >
             <i className="fas fa-times"></i>
           </button>
         </div>
@@ -934,12 +1024,15 @@ export default function Admin() {
   async function handleDownloadMissingCovers(systemIds) {
     setCoverDownloading(true);
     try {
-      const res = await fetch("/api/data-control/calculate/download-missing-covers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ system_ids: systemIds }),
-      });
+      const res = await fetch(
+        "/api/data-control/calculate/download-missing-covers",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ system_ids: systemIds }),
+        },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Download failed.");
       showToast("success", data.message || "Download complete.");
@@ -954,13 +1047,19 @@ export default function Admin() {
   async function handleDeleteOrphanedCovers() {
     setCoverDeleting(true);
     try {
-      const res = await fetch("/api/data-control/calculate/delete-orphaned-covers", {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        "/api/data-control/calculate/delete-orphaned-covers",
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Delete failed.");
-      showToast("success", `Deleted ${data.deleted_count} orphaned image${data.deleted_count !== 1 ? "s" : ""}.`);
+      showToast(
+        "success",
+        `Deleted ${data.deleted_count} orphaned image${data.deleted_count !== 1 ? "s" : ""}.`,
+      );
       setCoverCheckOpen(false);
     } catch (e) {
       showToast("error", `Error: ${e.message}`);
@@ -972,13 +1071,19 @@ export default function Admin() {
   async function handleSetCoverImageFields() {
     setCoverSetting(true);
     try {
-      const res = await fetch("/api/data-control/calculate/set-cover-image-fields", {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        "/api/data-control/calculate/set-cover-image-fields",
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Set failed.");
-      showToast("success", `Set ${data.updated_count} cover image field${data.updated_count !== 1 ? "s" : ""}.`);
+      showToast(
+        "success",
+        `Set ${data.updated_count} cover image field${data.updated_count !== 1 ? "s" : ""}.`,
+      );
       setCoverCheckOpen(false);
     } catch (e) {
       showToast("error", `Error: ${e.message}`);
@@ -994,7 +1099,8 @@ export default function Admin() {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Failed to check duplicates.");
+      if (!res.ok)
+        throw new Error(data.detail || "Failed to check duplicates.");
       setDuplicateResults(data);
       setDuplicateOpen(true);
     } catch (e) {
@@ -1075,7 +1181,10 @@ export default function Admin() {
         />
       )}
       {duplicateOpen && duplicateResults && (
-        <DuplicatesModal results={duplicateResults} onClose={() => setDuplicateOpen(false)} />
+        <DuplicatesModal
+          results={duplicateResults}
+          onClose={() => setDuplicateOpen(false)}
+        />
       )}
       {/* 1. Header & Entry Modification Nav */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
@@ -1296,12 +1405,18 @@ export default function Admin() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
-            onClick={() => runCalc("calculateall", "/api/data-control/calculate/all")}
+            onClick={() =>
+              runCalc("calculateall", "/api/data-control/calculate/all")
+            }
             disabled={!!calcLoading.calculateall}
             className="flex flex-col items-center gap-2 p-3 bg-brand/5 hover:bg-brand/10 border border-brand/30 hover:border-brand/50 rounded-xl text-xs font-bold text-brand transition disabled:opacity-60"
           >
             <i className="fas fa-calculator text-lg"></i>
-            {calcLoading.calculateall ? <i className="fas fa-circle-notch fa-spin"></i> : "Calculate All"}
+            {calcLoading.calculateall ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Calculate All"
+            )}
           </button>
           <button
             onClick={runFindDuplicates}
@@ -1309,7 +1424,11 @@ export default function Admin() {
             className="flex flex-col items-center gap-2 p-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-300 rounded-xl text-xs font-bold text-orange-700 transition disabled:opacity-60"
           >
             <i className="fas fa-clone text-lg"></i>
-            {calcLoading.duplicates ? <i className="fas fa-circle-notch fa-spin"></i> : "Find Duplicates"}
+            {calcLoading.duplicates ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Find Duplicates"
+            )}
           </button>
           <button
             onClick={runCheckCoverImage}
@@ -1317,7 +1436,11 @@ export default function Admin() {
             className="flex flex-col items-center gap-2 p-3 bg-gray-50 hover:bg-brand/5 border border-gray-200 hover:border-brand/30 rounded-xl text-xs font-bold text-gray-700 hover:text-brand transition disabled:opacity-60"
           >
             <i className="fas fa-image text-lg"></i>
-            {calcLoading.checkcoverimage ? <i className="fas fa-circle-notch fa-spin"></i> : "Check & Download Covers"}
+            {calcLoading.checkcoverimage ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Check & Download Covers"
+            )}
           </button>
         </div>
       </div>

@@ -161,7 +161,12 @@ function animeToForm(anime, allFranchises, allSeries) {
     sequel_id: anime.sequel_id || null,
     alternative: anime.alternative || "",
     is_main_entry: anime.is_main_entry === true,
-    derive_related: anime.derive_related === true ? 'true' : anime.derive_related === false ? 'false' : '',
+    derive_related:
+      anime.derive_related === true
+        ? "true"
+        : anime.derive_related === false
+          ? "false"
+          : "",
     watch_order: anime.watch_order ?? "",
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
@@ -376,7 +381,12 @@ export default function Modify() {
       sequel_id: af.sequel_id || null,
       alternative: af.alternative || null,
       is_main_entry: af.is_main_entry || null,
-      derive_related: af.derive_related === "true" ? true : af.derive_related === "false" ? false : null,
+      derive_related:
+        af.derive_related === "true"
+          ? true
+          : af.derive_related === "false"
+            ? false
+            : null,
       watch_order: af.watch_order !== "" ? parseFloat(af.watch_order) : null,
       mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
       mal_link: af.mal_link || null,
@@ -1451,7 +1461,10 @@ export default function Modify() {
                       onChange={(e) => ua("watch_order", e.target.value)}
                     />
                   </Field>
-                  <Field label="Derive Related" hint="Set to No to skip prequel/sequel derivation">
+                  <Field
+                    label="Derive Related"
+                    hint="Set to No to skip prequel/sequel derivation"
+                  >
                     <select
                       className={selectCls}
                       value={af.derive_related}

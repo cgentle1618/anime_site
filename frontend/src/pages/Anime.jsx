@@ -26,7 +26,9 @@ function InfoRow({ label, value }) {
       <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
         {label}
       </div>
-      <div className="text-sm font-medium text-gray-800">{value != null && value !== '' ? value : "-"}</div>
+      <div className="text-sm font-medium text-gray-800">
+        {value != null && value !== "" ? value : "-"}
+      </div>
     </div>
   );
 }

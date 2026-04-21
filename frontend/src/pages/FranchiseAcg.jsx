@@ -242,10 +242,10 @@ export default function FranchiseAcg() {
     franchise.franchise_name_jp ||
     "Unknown Franchise";
   const subTitles = [
-    { label: 'EN',     value: franchise.franchise_name_en },
-    { label: 'JP',     value: franchise.franchise_name_jp },
-    { label: 'Romaji', value: franchise.franchise_name_romanji },
-    { label: 'Alt',    value: franchise.franchise_name_alt },
+    { label: "EN", value: franchise.franchise_name_en },
+    { label: "JP", value: franchise.franchise_name_jp },
+    { label: "Romaji", value: franchise.franchise_name_romanji },
+    { label: "Alt", value: franchise.franchise_name_alt },
   ].filter(({ value }) => value && value !== mainTitle);
 
   return (
@@ -287,8 +287,13 @@ export default function FranchiseAcg() {
               {mainTitle}
             </h1>
             {subTitles.map(({ label, value }) => (
-              <p key={label} className="text-sm text-gray-500 font-medium truncate flex items-center gap-1.5">
-                <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{label}</span>
+              <p
+                key={label}
+                className="text-sm text-gray-500 font-medium truncate flex items-center gap-1.5"
+              >
+                <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                  {label}
+                </span>
                 {value}
               </p>
             ))}
@@ -567,11 +572,17 @@ export default function FranchiseAcg() {
                   : "Standalone";
               return (
                 <section
-                  key={group.type === "series" ? group.series.system_id : "standalone"}
+                  key={
+                    group.type === "series"
+                      ? group.series.system_id
+                      : "standalone"
+                  }
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                      <i className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}></i>
+                      <i
+                        className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
+                      ></i>
                       {label}
                     </h3>
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">

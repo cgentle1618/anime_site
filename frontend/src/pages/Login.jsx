@@ -1,46 +1,48 @@
-import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { useToast } from '../hooks/useToast'
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../hooks/useToast";
 
 export default function Login() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const { refetchAuth } = useAuth()
-  const { showToast } = useToast()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { refetchAuth } = useAuth();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    const formData = new URLSearchParams(new FormData(e.target))
+    const formData = new URLSearchParams(new FormData(e.target));
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
-        credentials: 'include',
-      })
+        credentials: "include",
+      });
 
       if (res.ok) {
-        await refetchAuth()
-        const params = new URLSearchParams(location.search)
-        const next = params.get('next')
-        navigate(next && next.startsWith('/') ? next : '/system', { replace: true })
+        await refetchAuth();
+        const params = new URLSearchParams(location.search);
+        const next = params.get("next");
+        navigate(next && next.startsWith("/") ? next : "/system", {
+          replace: true,
+        });
       } else {
-        const data = await res.json()
-        setError(data.detail || 'Authentication failed.')
-        showToast('error', data.detail || 'Authentication failed.')
+        const data = await res.json();
+        setError(data.detail || "Authentication failed.");
+        showToast("error", data.detail || "Authentication failed.");
       }
     } catch {
-      setError('Network error. Please check your connection.')
-      showToast('error', 'Network error.')
+      setError("Network error. Please check your connection.");
+      showToast("error", "Network error.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -53,7 +55,9 @@ export default function Login() {
             <i className="fas fa-shield-alt text-brand text-2xl"></i>
           </div>
           <h1 className="text-2xl font-black text-gray-900">Admin Access</h1>
-          <p className="text-gray-500 mt-1 font-medium">Sign in to manage your collection</p>
+          <p className="text-gray-500 mt-1 font-medium">
+            Sign in to manage your collection
+          </p>
         </div>
 
         {/* Card */}
@@ -67,7 +71,9 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Username</label>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                Username
+              </label>
               <div className="relative">
                 <i className="fas fa-user absolute left-3.5 top-3 text-gray-400 text-sm"></i>
                 <input
@@ -81,7 +87,9 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Password</label>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                Password
+              </label>
               <div className="relative">
                 <i className="fas fa-lock absolute left-3.5 top-3 text-gray-400 text-sm"></i>
                 <input
@@ -100,14 +108,19 @@ export default function Login() {
               className="w-full bg-brand hover:bg-brand-hover text-white font-bold py-3 rounded-xl transition shadow-md disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {loading ? (
-                <><i className="fas fa-circle-notch fa-spin"></i> Verifying...</>
+                <>
+                  <i className="fas fa-circle-notch fa-spin"></i> Verifying...
+                </>
               ) : (
-                <><span>Authenticate</span><i className="fas fa-arrow-right text-sm"></i></>
+                <>
+                  <span>Authenticate</span>
+                  <i className="fas fa-arrow-right text-sm"></i>
+                </>
               )}
             </button>
           </form>
         </div>
       </div>
     </div>
-  )
+  );
 }
