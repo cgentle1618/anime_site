@@ -62,7 +62,7 @@ function FranchiseCard({ franchise, coverUrl }) {
   const name =
     franchise.franchise_name_cn ||
     franchise.franchise_name_en ||
-    franchise.franchise_name_romanji ||
+    franchise.franchise_name_roman ||
     "Unknown Franchise";
   const ratingCls = RATING_COLORS[franchise.my_rating] || "";
   const expectCls =
@@ -181,7 +181,7 @@ export default function FranchiseLibrary() {
         const match = [
           f.franchise_name_cn,
           f.franchise_name_en,
-          f.franchise_name_romanji,
+          f.franchise_name_roman,
           f.franchise_name_jp,
           f.franchise_name_alt,
         ].some((n) => n && cleanString(n).includes(qClean));

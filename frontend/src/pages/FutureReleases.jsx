@@ -78,7 +78,7 @@ function AnimeCardThird({ anime, franchiseDict, isAdmin, onUpdated }) {
     anime.anime_name_cn ||
     anime.anime_name_en ||
     anime.anime_name_alt ||
-    anime.anime_name_romanji ||
+    anime.anime_name_roman ||
     anime.anime_name_jp ||
     "Unknown";
   const imageUrl = getCoverUrl(anime.cover_image_file);

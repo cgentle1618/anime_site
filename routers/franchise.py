@@ -36,7 +36,7 @@ def get_all_franchises(
 ):
     """
     Retrieves all high-level Franchises from the database.
-    If 'search_query' is provided, it intelligently searches across EN, CN, Romanji, JP, and Alt names.
+    If 'search_query' is provided, it intelligently searches across EN, CN, roman, JP, and Alt names.
     Used by the frontend to populate autocomplete search dropdowns.
     """
     query = db.query(models.Franchise)
@@ -47,7 +47,7 @@ def get_all_franchises(
             or_(
                 models.Franchise.franchise_name_en.ilike(search_term),
                 models.Franchise.franchise_name_cn.ilike(search_term),
-                models.Franchise.franchise_name_romanji.ilike(search_term),
+                models.Franchise.franchise_name_roman.ilike(search_term),
                 models.Franchise.franchise_name_jp.ilike(search_term),
                 models.Franchise.franchise_name_alt.ilike(search_term),
             )
@@ -92,7 +92,7 @@ def create_franchise(
             franchise_type=payload.franchise_type,
             franchise_name_en=payload.franchise_name_en,
             franchise_name_cn=payload.franchise_name_cn,
-            franchise_name_romanji=payload.franchise_name_romanji,
+            franchise_name_roman=payload.franchise_name_roman,
             franchise_name_jp=payload.franchise_name_jp,
             franchise_name_alt=payload.franchise_name_alt,
             my_rating=payload.my_rating,

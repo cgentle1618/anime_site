@@ -15,7 +15,7 @@ function getFranchiseTitles(f) {
     f.franchise_name_cn,
     f.franchise_name_en,
     f.franchise_name_alt,
-    f.franchise_name_romanji,
+    f.franchise_name_roman,
     f.franchise_name_jp,
   ];
   const valid = [...new Set(raw.filter((t) => t && t.trim() !== ""))];
@@ -100,7 +100,7 @@ export default function Search() {
           [
             f.franchise_name_cn,
             f.franchise_name_en,
-            f.franchise_name_romanji,
+            f.franchise_name_roman,
             f.franchise_name_jp,
             f.franchise_name_alt,
           ].some((n) => cleanString(n).includes(qClean)),
@@ -109,7 +109,7 @@ export default function Search() {
           [
             a.anime_name_cn,
             a.anime_name_en,
-            a.anime_name_romanji,
+            a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
           ].some((n) => cleanString(n).includes(qClean)),

@@ -132,7 +132,7 @@ export default function Nav() {
               [
                 f.franchise_name_cn,
                 f.franchise_name_en,
-                f.franchise_name_romanji,
+                f.franchise_name_roman,
                 f.franchise_name_jp,
                 f.franchise_name_alt,
               ].some((n) => cleanString(n).includes(qClean)),
@@ -160,7 +160,7 @@ export default function Nav() {
               [
                 a.anime_name_cn,
                 a.anime_name_en,
-                a.anime_name_romanji,
+                a.anime_name_roman,
                 a.anime_name_jp,
                 a.anime_name_alt,
               ].some((n) => cleanString(n).includes(qClean)),
@@ -215,7 +215,7 @@ export default function Nav() {
       return (
         item.franchise_name_cn ||
         item.franchise_name_en ||
-        item.franchise_name_romanji ||
+        item.franchise_name_roman ||
         item.franchise_name_jp ||
         "—"
       );
@@ -230,7 +230,7 @@ export default function Nav() {
     return (
       item.anime_name_cn ||
       item.anime_name_en ||
-      item.anime_name_romanji ||
+      item.anime_name_roman ||
       item.anime_name_jp ||
       "—"
     );

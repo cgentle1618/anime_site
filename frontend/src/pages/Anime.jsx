@@ -204,13 +204,13 @@ export default function Anime() {
   const titleMain =
     anime.anime_name_cn ||
     anime.anime_name_en ||
-    anime.anime_name_romanji ||
+    anime.anime_name_roman ||
     "Unknown";
   const titleSub =
     anime.anime_name_en && anime.anime_name_en !== titleMain
       ? anime.anime_name_en
-      : anime.anime_name_romanji && anime.anime_name_romanji !== titleMain
-        ? anime.anime_name_romanji
+      : anime.anime_name_roman && anime.anime_name_roman !== titleMain
+        ? anime.anime_name_roman
         : null;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
@@ -235,7 +235,7 @@ export default function Anime() {
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
-      franchise.franchise_name_romanji
+      franchise.franchise_name_roman
     : null;
   const seriesName = series
     ? series.series_name_cn || series.series_name_en || series.series_name_alt
@@ -527,7 +527,7 @@ export default function Anime() {
                       <div className="text-sm font-bold text-gray-900 truncate">
                         {rel.anime_name_cn ||
                           rel.anime_name_en ||
-                          rel.anime_name_romanji}
+                          rel.anime_name_roman}
                       </div>
                       <div className="text-[11px] text-gray-500">
                         {rel.airing_type || "TV"} · {rel.release_year || "TBA"}
@@ -788,7 +788,7 @@ export default function Anime() {
                 <InfoRow label="English" value={anime.anime_name_en} />
                 <InfoRow label="Alternative" value={anime.anime_name_alt} />
                 <InfoRow label="Japanese" value={anime.anime_name_jp} />
-                <InfoRow label="Romanji" value={anime.anime_name_romanji} />
+                <InfoRow label="roman" value={anime.anime_name_roman} />
               </div>
             </div>
 

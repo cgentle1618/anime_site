@@ -122,9 +122,7 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_type": parse_from_sheet(raw.get("franchise_type"), str),
         "franchise_name_en": parse_from_sheet(raw.get("franchise_name_en"), str),
         "franchise_name_cn": parse_from_sheet(raw.get("franchise_name_cn"), str),
-        "franchise_name_romanji": parse_from_sheet(
-            raw.get("franchise_name_romanji"), str
-        ),
+        "franchise_name_roman": parse_from_sheet(raw.get("franchise_name_roman"), str),
         "franchise_name_jp": parse_from_sheet(raw.get("franchise_name_jp"), str),
         "franchise_name_alt": parse_from_sheet(raw.get("franchise_name_alt"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
@@ -165,7 +163,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
         "anime_name_en": parse_from_sheet(raw.get("anime_name_en"), str),
         "anime_name_cn": parse_from_sheet(raw.get("anime_name_cn"), str),
-        "anime_name_romanji": parse_from_sheet(raw.get("anime_name_romanji"), str),
+        "anime_name_roman": parse_from_sheet(raw.get("anime_name_roman"), str),
         "anime_name_jp": parse_from_sheet(raw.get("anime_name_jp"), str),
         "anime_name_alt": parse_from_sheet(raw.get("anime_name_alt"), str),
         "season_part": parse_from_sheet(raw.get("season_part"), str),

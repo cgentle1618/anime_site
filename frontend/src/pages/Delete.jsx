@@ -13,7 +13,7 @@ function getDisplayTitle(item, type) {
     return (
       item.anime_name_cn ||
       item.anime_name_en ||
-      item.anime_name_romanji ||
+      item.anime_name_roman ||
       item.anime_name_jp ||
       "Unknown"
     );
@@ -21,7 +21,7 @@ function getDisplayTitle(item, type) {
     return (
       item.franchise_name_cn ||
       item.franchise_name_en ||
-      item.franchise_name_romanji ||
+      item.franchise_name_roman ||
       "Unknown"
     );
   if (type === "series")
@@ -337,7 +337,7 @@ export default function Delete() {
                   </h3>
                   <p className="text-sm text-gray-500">
                     {selectedAnime.anime_name_en ||
-                      selectedAnime.anime_name_romanji ||
+                      selectedAnime.anime_name_roman ||
                       "-"}
                   </p>
                   <div className="flex gap-2 mt-2">

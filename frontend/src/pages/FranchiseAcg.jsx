@@ -238,13 +238,13 @@ export default function FranchiseAcg() {
     franchise.franchise_name_cn ||
     franchise.franchise_name_en ||
     franchise.franchise_name_alt ||
-    franchise.franchise_name_romanji ||
+    franchise.franchise_name_roman ||
     franchise.franchise_name_jp ||
     "Unknown Franchise";
   const subTitles = [
     { label: "EN", value: franchise.franchise_name_en },
     { label: "JP", value: franchise.franchise_name_jp },
-    { label: "Romaji", value: franchise.franchise_name_romanji },
+    { label: "Romaji", value: franchise.franchise_name_roman },
     { label: "Alt", value: franchise.franchise_name_alt },
   ].filter(({ value }) => value && value !== mainTitle);
 

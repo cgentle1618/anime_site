@@ -27,7 +27,7 @@ export function getDisplayName(item, type) {
     item[`${type}_name_cn`] ||
     item[`${type}_name_en`] ||
     item[`${type}_name_alt`] ||
-    item[`${type}_name_romanji`] ||
+    item[`${type}_name_roman`] ||
     item[`${type}_name_jp`] ||
     "Unknown Title"
   );
@@ -42,7 +42,7 @@ export function getSortName(item, type) {
   }
   return (
     item[`${type}_name_en`] ||
-    item[`${type}_name_romanji`] ||
+    item[`${type}_name_roman`] ||
     item[`${type}_name_cn`] ||
     item[`${type}_name_alt`] ||
     item[`${type}_name_jp`] ||

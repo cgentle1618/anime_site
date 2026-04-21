@@ -67,7 +67,7 @@ def resolve_series_parent_hierarchy(
                 [
                     Franchise.franchise_name_en.ilike(name_str),
                     Franchise.franchise_name_cn.ilike(name_str),
-                    Franchise.franchise_name_romanji.ilike(name_str),
+                    Franchise.franchise_name_roman.ilike(name_str),
                     Franchise.franchise_name_jp.ilike(name_str),
                     Franchise.franchise_name_alt.ilike(name_str),
                 ]
@@ -119,7 +119,7 @@ def resolve_anime_parent_hierarchy(
         search_conditions = []
         valid_names = set()
 
-        for lang_key in ["en", "cn", "romanji", "jp", "alt"]:
+        for lang_key in ["en", "cn", "roman", "jp", "alt"]:
             name_val = names.get(lang_key)
             if name_val and str(name_val).strip():
                 valid_names.add(str(name_val).strip())
@@ -129,7 +129,7 @@ def resolve_anime_parent_hierarchy(
                 [
                     Franchise.franchise_name_en.ilike(name_str),
                     Franchise.franchise_name_cn.ilike(name_str),
-                    Franchise.franchise_name_romanji.ilike(name_str),
+                    Franchise.franchise_name_roman.ilike(name_str),
                     Franchise.franchise_name_jp.ilike(name_str),
                     Franchise.franchise_name_alt.ilike(name_str),
                 ]
@@ -152,7 +152,7 @@ def resolve_anime_parent_hierarchy(
                 franchise_type="Anime",  # Default type
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
-                franchise_name_romanji=names.get("romanji"),
+                franchise_name_roman=names.get("roman"),
                 franchise_name_jp=names.get("jp"),
                 franchise_name_alt=names.get("alt"),
                 created_at=get_taipei_now(),
@@ -311,9 +311,7 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
                         "franchise_type": franchise_map[fid].franchise_type,
                         "franchise_name_en": franchise_map[fid].franchise_name_en,
                         "franchise_name_cn": franchise_map[fid].franchise_name_cn,
-                        "franchise_name_romanji": franchise_map[
-                            fid
-                        ].franchise_name_romanji,
+                        "franchise_name_roman": franchise_map[fid].franchise_name_roman,
                         "franchise_name_jp": franchise_map[fid].franchise_name_jp,
                         "franchise_name_alt": franchise_map[fid].franchise_name_alt,
                     }
@@ -465,7 +463,7 @@ def find_duplicate_anime(db: Session) -> list[list[dict]]:
                         "ep_special": anime_map[aid].ep_special,
                         "anime_name_en": anime_map[aid].anime_name_en,
                         "anime_name_cn": anime_map[aid].anime_name_cn,
-                        "anime_name_romanji": anime_map[aid].anime_name_romanji,
+                        "anime_name_roman": anime_map[aid].anime_name_roman,
                         "anime_name_jp": anime_map[aid].anime_name_jp,
                         "anime_name_alt": anime_map[aid].anime_name_alt,
                     }
@@ -526,7 +524,7 @@ def apply_extract_mal_id(anime: Anime) -> bool:
 
 
 def apply_extract_season_from_title(anime: Anime) -> bool:
-    title = anime.anime_name_en or anime.anime_name_romanji or ""
+    title = anime.anime_name_en or anime.anime_name_roman or ""
     extracted = extract_season_from_title(title)
     if extracted:
         anime.season_part = extracted

@@ -126,7 +126,7 @@ function animeToForm(anime, allFranchises, allSeries) {
   return {
     anime_name_en: anime.anime_name_en || "",
     anime_name_cn: anime.anime_name_cn || "",
-    anime_name_romanji: anime.anime_name_romanji || "",
+    anime_name_roman: anime.anime_name_roman || "",
     anime_name_jp: anime.anime_name_jp || "",
     anime_name_alt: anime.anime_name_alt || "",
     franchise_id: anime.franchise_id || null,
@@ -203,7 +203,7 @@ function franchiseToForm(f) {
   return {
     franchise_name_en: f.franchise_name_en || "",
     franchise_name_cn: f.franchise_name_cn || "",
-    franchise_name_romanji: f.franchise_name_romanji || "",
+    franchise_name_roman: f.franchise_name_roman || "",
     franchise_name_jp: f.franchise_name_jp || "",
     franchise_name_alt: f.franchise_name_alt || "",
     franchise_type: f.franchise_type || "",
@@ -349,7 +349,7 @@ export default function Modify() {
     return {
       anime_name_en: af.anime_name_en || null,
       anime_name_cn: af.anime_name_cn || null,
-      anime_name_romanji: af.anime_name_romanji || null,
+      anime_name_roman: af.anime_name_roman || null,
       anime_name_jp: af.anime_name_jp || null,
       anime_name_alt: af.anime_name_alt || null,
       franchise_id: franchiseId || null,
@@ -454,7 +454,7 @@ export default function Modify() {
         body: JSON.stringify({
           franchise_name_en: af.anime_name_en || null,
           franchise_name_cn: af.anime_name_cn || null,
-          franchise_name_romanji: af.anime_name_romanji || null,
+          franchise_name_roman: af.anime_name_roman || null,
           franchise_name_jp: af.anime_name_jp || null,
           franchise_name_alt: af.anime_name_alt || null,
           franchise_type: "ACG",
@@ -541,7 +541,7 @@ export default function Modify() {
       body: JSON.stringify({
         franchise_name_en: ff.franchise_name_en || null,
         franchise_name_cn: ff.franchise_name_cn || null,
-        franchise_name_romanji: ff.franchise_name_romanji || null,
+        franchise_name_roman: ff.franchise_name_roman || null,
         franchise_name_jp: ff.franchise_name_jp || null,
         franchise_name_alt: ff.franchise_name_alt || null,
         franchise_type: ff.franchise_type || null,
@@ -664,7 +664,7 @@ export default function Modify() {
           [
             a.anime_name_en,
             a.anime_name_cn,
-            a.anime_name_romanji,
+            a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
           ].some((n) => n && cleanStr(n).includes(q)),
@@ -676,7 +676,7 @@ export default function Modify() {
           [
             f.franchise_name_en,
             f.franchise_name_cn,
-            f.franchise_name_romanji,
+            f.franchise_name_roman,
             f.franchise_name_jp,
             f.franchise_name_alt,
           ].some((n) => n && cleanStr(n).includes(q)),
@@ -732,7 +732,7 @@ export default function Modify() {
       f.franchise_name_cn,
       f.franchise_name_en,
       f.franchise_name_jp,
-      f.franchise_name_romanji,
+      f.franchise_name_roman,
       f.franchise_name_alt,
     ]
       .filter(Boolean)
@@ -1088,11 +1088,11 @@ export default function Modify() {
                       onChange={(e) => ua("anime_name_cn", e.target.value)}
                     />
                   </Field>
-                  <Field label="Anime Name Romanji">
+                  <Field label="Anime Name roman">
                     <input
                       className={inputCls}
-                      value={af.anime_name_romanji}
-                      onChange={(e) => ua("anime_name_romanji", e.target.value)}
+                      value={af.anime_name_roman}
+                      onChange={(e) => ua("anime_name_roman", e.target.value)}
                     />
                   </Field>
                   <Field label="Anime Name JP">
@@ -1681,12 +1681,12 @@ export default function Modify() {
                       onChange={(e) => uf("franchise_name_cn", e.target.value)}
                     />
                   </Field>
-                  <Field label="Franchise Name Romanji">
+                  <Field label="Franchise Name roman">
                     <input
                       className={inputCls}
-                      value={ff.franchise_name_romanji}
+                      value={ff.franchise_name_roman}
                       onChange={(e) =>
-                        uf("franchise_name_romanji", e.target.value)
+                        uf("franchise_name_roman", e.target.value)
                       }
                     />
                   </Field>
@@ -1797,7 +1797,7 @@ export default function Modify() {
                         <option key={a.system_id} value={a.system_id}>
                           {a.anime_name_cn ||
                             a.anime_name_en ||
-                            a.anime_name_romanji ||
+                            a.anime_name_roman ||
                             a.system_id}
                           {a.release_year ? ` (${a.release_year})` : ""}
                         </option>

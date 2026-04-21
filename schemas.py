@@ -71,7 +71,7 @@ class FranchiseBase(BaseModel):
     franchise_type: Optional[str] = None
     franchise_name_en: Optional[str] = None
     franchise_name_cn: Optional[str] = None
-    franchise_name_romanji: Optional[str] = None
+    franchise_name_roman: Optional[str] = None
     franchise_name_jp: Optional[str] = None
     franchise_name_alt: Optional[str] = None
     my_rating: Optional[str] = None
@@ -141,7 +141,7 @@ class AnimeBase(BaseModel):
 
     anime_name_en: Optional[str] = None
     anime_name_cn: Optional[str] = None
-    anime_name_romanji: Optional[str] = None
+    anime_name_roman: Optional[str] = None
     anime_name_jp: Optional[str] = None
     anime_name_alt: Optional[str] = None
 

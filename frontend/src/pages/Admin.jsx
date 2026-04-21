@@ -17,7 +17,7 @@ function getTitle(item, type) {
     return (
       item.anime_name_cn ||
       item.anime_name_en ||
-      item.anime_name_romanji ||
+      item.anime_name_roman ||
       item.anime_name_jp ||
       item.anime_name_alt ||
       "Unknown"
@@ -26,7 +26,7 @@ function getTitle(item, type) {
     return (
       item.franchise_name_cn ||
       item.franchise_name_en ||
-      item.franchise_name_romanji ||
+      item.franchise_name_roman ||
       item.franchise_name_jp ||
       item.franchise_name_alt ||
       "Unknown"
@@ -147,13 +147,20 @@ function LogsTable({ logs, onRefresh }) {
   const slice = logs.slice((page - 1) * pageSize, page * pageSize);
 
   async function handleDeleteLog(logId) {
-    await fetch(`/api/system/logs/${logId}`, { method: "DELETE", credentials: "include" });
+    await fetch(`/api/system/logs/${logId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
     onRefresh();
   }
 
   async function handleClearAll() {
-    if (!confirm("Delete old logs? The 10 most recent entries will be kept.")) return;
-    await fetch("/api/system/logs", { method: "DELETE", credentials: "include" });
+    if (!confirm("Delete old logs? The 10 most recent entries will be kept."))
+      return;
+    await fetch("/api/system/logs", {
+      method: "DELETE",
+      credentials: "include",
+    });
     onRefresh();
   }
 

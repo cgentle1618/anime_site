@@ -70,7 +70,7 @@ def get_all_anime(
             or_(
                 models.Anime.anime_name_en.ilike(search_term),
                 models.Anime.anime_name_cn.ilike(search_term),
-                models.Anime.anime_name_romanji.ilike(search_term),
+                models.Anime.anime_name_roman.ilike(search_term),
                 models.Anime.anime_name_jp.ilike(search_term),
                 models.Anime.anime_name_alt.ilike(search_term),
             )

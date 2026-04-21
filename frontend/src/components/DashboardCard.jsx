@@ -14,12 +14,12 @@ export default function DashboardCard({
   const title =
     anime.anime_name_cn ||
     anime.anime_name_en ||
-    anime.anime_name_romanji ||
+    anime.anime_name_roman ||
     "Unknown Title";
   const subTitle = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
-      franchise.franchise_name_romanji ||
+      franchise.franchise_name_roman ||
       "Independent"
     : "Independent Series";
 

@@ -65,7 +65,7 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
         anime_en = None
         airing_type = None
 
-        # Fallback Helper: CN -> EN -> Alt -> Romanji -> JP
+        # Fallback Helper: CN -> EN -> Alt -> roman -> JP
         def get_cn_name(item, t):
             if not item:
                 return None
@@ -79,11 +79,11 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 getattr(item, f"{t}_name_cn")
                 or getattr(item, f"{t}_name_en")
                 or getattr(item, f"{t}_name_alt")
-                or getattr(item, f"{t}_name_romanji", None)
+                or getattr(item, f"{t}_name_roman", None)
                 or getattr(item, f"{t}_name_jp", None)
             )
 
-        # Fallback Helper: EN -> Romanji -> CN -> Alt -> JP
+        # Fallback Helper: EN -> roman -> CN -> Alt -> JP
         def get_en_name(item, t):
             if not item:
                 return None
@@ -95,7 +95,7 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 )
             return (
                 getattr(item, f"{t}_name_en")
-                or getattr(item, f"{t}_name_romanji", None)
+                or getattr(item, f"{t}_name_roman", None)
                 or getattr(item, f"{t}_name_cn")
                 or getattr(item, f"{t}_name_alt")
                 or getattr(item, f"{t}_name_jp", None)

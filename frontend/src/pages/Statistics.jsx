@@ -31,7 +31,7 @@ function getDisplayName(f) {
   return (
     f.franchise_name_cn ||
     f.franchise_name_en ||
-    f.franchise_name_romanji ||
+    f.franchise_name_roman ||
     f.franchise_name_jp ||
     f.franchise_name_alt ||
     "—"
@@ -1016,12 +1016,12 @@ export default function Statistics() {
                           const name =
                             anime.anime_name_cn ||
                             anime.anime_name_en ||
-                            anime.anime_name_romanji ||
+                            anime.anime_name_roman ||
                             "—";
                           const franchiseName = franchise
                             ? franchise.franchise_name_cn ||
                               franchise.franchise_name_en ||
-                              franchise.franchise_name_romanji
+                              franchise.franchise_name_roman
                             : null;
                           const dateStr = new Date(
                             anime.completed_at,

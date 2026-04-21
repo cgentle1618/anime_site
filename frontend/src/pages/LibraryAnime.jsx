@@ -126,12 +126,12 @@ export default function LibraryAnime() {
         const fields = [
           a.anime_name_cn,
           a.anime_name_en,
-          a.anime_name_romanji,
+          a.anime_name_roman,
           a.anime_name_jp,
           a.anime_name_alt,
           f?.franchise_name_cn,
           f?.franchise_name_en,
-          f?.franchise_name_romanji,
+          f?.franchise_name_roman,
           s?.series_name_cn,
           s?.series_name_en,
           a.release_season,
@@ -458,7 +458,7 @@ export default function LibraryAnime() {
                   <span className="text-gray-300 italic">None</span>
                 );
                 const mainTitle = getDisplayName(a, "anime");
-                const subTitle = a.anime_name_en || a.anime_name_romanji || "";
+                const subTitle = a.anime_name_en || a.anime_name_roman || "";
                 const cumFin = a.cum_ep_fin ?? (a.ep_fin || 0);
                 const cumTotal =
                   a.cum_ep_total ??

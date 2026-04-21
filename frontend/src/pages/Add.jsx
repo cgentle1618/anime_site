@@ -110,7 +110,7 @@ function FranchiseCreateModal({ onConfirm, onCancel }) {
 const defaultAnime = () => ({
   anime_name_en: "",
   anime_name_cn: "",
-  anime_name_romanji: "",
+  anime_name_roman: "",
   anime_name_jp: "",
   anime_name_alt: "",
   franchise_id: null,
@@ -169,7 +169,7 @@ const defaultAnime = () => ({
 const defaultFranchise = () => ({
   franchise_name_en: "",
   franchise_name_cn: "",
-  franchise_name_romanji: "",
+  franchise_name_roman: "",
   franchise_name_jp: "",
   franchise_name_alt: "",
   franchise_type: "",
@@ -266,7 +266,7 @@ export default function Add() {
           [
             a.anime_name_en,
             a.anime_name_cn,
-            a.anime_name_romanji,
+            a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
           ].some((n) => n && cleanStr(n).includes(cleanStr(fillQuery))),
@@ -281,7 +281,7 @@ export default function Add() {
       ...p,
       anime_name_en: anime.anime_name_en || "",
       anime_name_cn: anime.anime_name_cn || "",
-      anime_name_romanji: anime.anime_name_romanji || "",
+      anime_name_roman: anime.anime_name_roman || "",
       anime_name_jp: anime.anime_name_jp || "",
       anime_name_alt: anime.anime_name_alt || "",
       franchise_id: anime.franchise_id || null,
@@ -309,7 +309,7 @@ export default function Add() {
     return {
       anime_name_en: af.anime_name_en || null,
       anime_name_cn: af.anime_name_cn || null,
-      anime_name_romanji: af.anime_name_romanji || null,
+      anime_name_roman: af.anime_name_roman || null,
       anime_name_jp: af.anime_name_jp || null,
       anime_name_alt: af.anime_name_alt || null,
       franchise_id: franchiseId || null,
@@ -393,7 +393,7 @@ export default function Add() {
   }
 
   async function submitAnime() {
-    if (!af.anime_name_en && !af.anime_name_cn && !af.anime_name_romanji) {
+    if (!af.anime_name_en && !af.anime_name_cn && !af.anime_name_roman) {
       showToast("warning", "At least one Anime Name must be provided.");
       return;
     }
@@ -459,7 +459,7 @@ export default function Add() {
         body: JSON.stringify({
           franchise_name_en: af.anime_name_en || null,
           franchise_name_cn: af.anime_name_cn || null,
-          franchise_name_romanji: af.anime_name_romanji || null,
+          franchise_name_roman: af.anime_name_roman || null,
           franchise_name_jp: af.anime_name_jp || null,
           franchise_name_alt: af.anime_name_alt || null,
           franchise_type: "ACG",
@@ -549,7 +549,7 @@ export default function Add() {
     if (
       !ff.franchise_name_en &&
       !ff.franchise_name_cn &&
-      !ff.franchise_name_romanji &&
+      !ff.franchise_name_roman &&
       !ff.franchise_name_jp &&
       !ff.franchise_name_alt
     ) {
@@ -562,7 +562,7 @@ export default function Add() {
       body: JSON.stringify({
         franchise_name_en: ff.franchise_name_en || null,
         franchise_name_cn: ff.franchise_name_cn || null,
-        franchise_name_romanji: ff.franchise_name_romanji || null,
+        franchise_name_roman: ff.franchise_name_roman || null,
         franchise_name_jp: ff.franchise_name_jp || null,
         franchise_name_alt: ff.franchise_name_alt || null,
         franchise_type: ff.franchise_type || null,
@@ -673,7 +673,7 @@ export default function Add() {
       f.franchise_name_cn,
       f.franchise_name_en,
       f.franchise_name_jp,
-      f.franchise_name_romanji,
+      f.franchise_name_roman,
       f.franchise_name_alt,
     ]
       .filter(Boolean)
@@ -883,11 +883,11 @@ export default function Add() {
                   placeholder="Chinese title"
                 />
               </Field>
-              <Field label="Anime Name Romanji">
+              <Field label="Anime Name roman">
                 <input
                   className={inputCls}
-                  value={af.anime_name_romanji}
-                  onChange={(e) => ua("anime_name_romanji", e.target.value)}
+                  value={af.anime_name_roman}
+                  onChange={(e) => ua("anime_name_roman", e.target.value)}
                   placeholder="Romanized title"
                 />
               </Field>
@@ -1490,11 +1490,11 @@ export default function Add() {
                   onChange={(e) => uf("franchise_name_cn", e.target.value)}
                 />
               </Field>
-              <Field label="Franchise Name Romanji">
+              <Field label="Franchise Name roman">
                 <input
                   className={inputCls}
-                  value={ff.franchise_name_romanji}
-                  onChange={(e) => uf("franchise_name_romanji", e.target.value)}
+                  value={ff.franchise_name_roman}
+                  onChange={(e) => uf("franchise_name_roman", e.target.value)}
                 />
               </Field>
               <Field label="Franchise Name JP">

@@ -74,7 +74,7 @@ class Franchise(Base, NameFallbackMixin):
     _name_fields = [
         "franchise_name_en",
         "franchise_name_cn",
-        "franchise_name_romanji",
+        "franchise_name_roman",
         "franchise_name_jp",
         "franchise_name_alt",
     ]
@@ -85,7 +85,7 @@ class Franchise(Base, NameFallbackMixin):
     franchise_type = Column(String, nullable=True)
     franchise_name_en = Column(String, nullable=True)
     franchise_name_cn = Column(String, nullable=True)
-    franchise_name_romanji = Column(String, nullable=True)
+    franchise_name_roman = Column(String, nullable=True)
     franchise_name_jp = Column(String, nullable=True)
     franchise_name_alt = Column(String, nullable=True)
 
@@ -116,7 +116,7 @@ class Franchise(Base, NameFallbackMixin):
             ("CN", self.franchise_name_cn),
             ("EN", self.franchise_name_en),
             ("Alt", self.franchise_name_alt),
-            ("Romanji", self.franchise_name_romanji),
+            ("roman", self.franchise_name_roman),
             ("JP", self.franchise_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")
@@ -174,7 +174,7 @@ class Anime(Base, NameFallbackMixin):
     _name_fields = [
         "anime_name_en",
         "anime_name_cn",
-        "anime_name_romanji",
+        "anime_name_roman",
         "anime_name_jp",
         "anime_name_alt",
     ]
@@ -195,7 +195,7 @@ class Anime(Base, NameFallbackMixin):
 
     anime_name_en = Column(String, nullable=True)
     anime_name_cn = Column(String, nullable=True)
-    anime_name_romanji = Column(String, nullable=True)
+    anime_name_roman = Column(String, nullable=True)
     anime_name_jp = Column(String, nullable=True)
     anime_name_alt = Column(String, nullable=True)
 
@@ -270,7 +270,7 @@ class Anime(Base, NameFallbackMixin):
         return {
             "en": self.anime_name_en,
             "cn": self.anime_name_cn,
-            "romanji": self.anime_name_romanji,
+            "roman": self.anime_name_roman,
             "jp": self.anime_name_jp,
             "alt": self.anime_name_alt,
         }
@@ -281,7 +281,7 @@ class Anime(Base, NameFallbackMixin):
             ("CN", self.anime_name_cn),
             ("EN", self.anime_name_en),
             ("Alt", self.anime_name_alt),
-            ("Romanji", self.anime_name_romanji),
+            ("roman", self.anime_name_roman),
             ("JP", self.anime_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")
