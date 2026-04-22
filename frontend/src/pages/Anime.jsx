@@ -920,6 +920,32 @@ export default function Anime() {
             </div>
           </div>
 
+          {/* Notes & Remarks */}
+          {anime.remark && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                <h3 className="font-bold text-gray-800">
+                  <i className="fas fa-sticky-note text-brand mr-2"></i>Rough
+                  Notes & Remarks
+                </h3>
+              </div>
+              <div className="p-4">
+                <textarea
+                  key={anime.system_id}
+                  defaultValue={anime.remark || ""}
+                  disabled={!isAdmin}
+                  onBlur={(e) =>
+                    isAdmin &&
+                    performUpdate({ remark: e.target.value }, "Remark saved")
+                  }
+                  rows={5}
+                  placeholder="Add private overview notes, specific remarks, etc."
+                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+                ></textarea>
+              </div>
+            </div>
+          )}
+
           {/* Structured Notes */}
           <AnimeNotes
             key={anime.system_id}
@@ -929,30 +955,6 @@ export default function Anime() {
               performUpdate({ notes: updatedNotes }, "Notes saved")
             }
           />
-
-          {/* Notes & Remarks */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-              <h3 className="font-bold text-gray-800">
-                <i className="fas fa-sticky-note text-brand mr-2"></i>Notes &
-                Remarks
-              </h3>
-            </div>
-            <div className="p-4">
-              <textarea
-                key={anime.system_id}
-                defaultValue={anime.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performUpdate({ remark: e.target.value }, "Remark saved")
-                }
-                rows={5}
-                placeholder="Add private overview notes, specific remarks, etc."
-                className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-              ></textarea>
-            </div>
-          </div>
         </div>
       </div>
 
