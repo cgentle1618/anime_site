@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const SPECIAL_CHANGE_TYPES = ["加長", "變化OP", "變化ED", "特殊OP", "特殊ED"];
 
@@ -156,16 +156,24 @@ function LinkPill({ url }) {
 // ─── Remark Section ───────────────────────────────────────────────────────────
 
 function RemarkSection({ value, isAdmin, onChange }) {
+  const [draft, setDraft] = useState(value || "");
+
+  useEffect(() => {
+    setDraft(value || "");
+  }, [value]);
+
+  const dirty = draft !== (value || "");
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5">
         <h4 className="font-bold text-sm text-gray-800">Remark</h4>
       </div>
-      <div className="p-3">
+      <div className="p-3 flex flex-col gap-2">
         <textarea
-          value={value || ""}
+          value={draft}
           disabled={!isAdmin}
-          onChange={(e) => isAdmin && onChange(e.target.value)}
+          onChange={(e) => isAdmin && setDraft(e.target.value)}
           rows={4}
           placeholder="General remarks..."
           className={
@@ -173,6 +181,17 @@ function RemarkSection({ value, isAdmin, onChange }) {
             (isAdmin ? "" : " bg-gray-50 text-gray-600 cursor-default")
           }
         />
+        {isAdmin && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => onChange(draft || null)}
+              disabled={!dirty}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Save
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
