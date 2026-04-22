@@ -811,6 +811,7 @@ export default function Anime() {
                 </h3>
               </div>
               <div className="p-4 space-y-3">
+                <InfoRow label="本傳/外傳" value={anime.is_main} />
                 <InfoRow label="Season Part" value={anime.season_part} />
                 <InfoRow label="Airing Type" value={anime.airing_type} />
                 <InfoRow label="Release Season" value={releaseSeasonYear} />
