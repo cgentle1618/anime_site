@@ -19,6 +19,7 @@ Reference these files in `/docs` for deep technical context:
 - **`integrations.md`**: Jikan API throttling, Google Sheets sync flow, GCS bucket setup.
 - **`architecture.md`**: Request flow, service layer details, auth flow, deployment.
 - **`dependencies.md`**: Python and NPM packages and their purpose.
+- **`test.md`**: Include testing.
 
 ## Tech Stack
 
