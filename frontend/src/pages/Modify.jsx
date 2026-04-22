@@ -4,6 +4,7 @@ import { useToast } from "../hooks/useToast";
 import { getDisplayName } from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
+import AnimeNotes from "./AnimeNotes";
 
 function cleanStr(s) {
   if (!s) return "";
@@ -196,7 +197,6 @@ function animeToForm(anime, allFranchises, allSeries) {
     cover_image_file: anime.cover_image_file || "",
     remark: anime.remark || "",
     notes: anime.notes || {},
-    notes_remark: anime.notes?.remark || "",
   };
 }
 
@@ -421,7 +421,7 @@ export default function Modify() {
       seiyuu: af.seiyuu || null,
       cover_image_file: af.cover_image_file || null,
       remark: af.remark || null,
-      notes: { ...af.notes, remark: af.notes_remark || null },
+      notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null,
     };
   }
 
@@ -1704,15 +1704,14 @@ export default function Modify() {
                     onChange={(e) => ua("remark", e.target.value)}
                   />
                 </Field>
-                <Field label="Notes: Remark">
-                  <textarea
-                    className={inputCls}
-                    rows={3}
-                    value={af.notes_remark}
-                    onChange={(e) => ua("notes_remark", e.target.value)}
-                    placeholder="General remarks (stored in Notes)..."
-                  />
-                </Field>
+
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <AnimeNotes
+                  key={editingItem.system_id}
+                  anime={{ notes: af.notes, system_id: editingItem.system_id }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => ua("notes", updatedNotes)}
+                />
               </>
             )}
 
