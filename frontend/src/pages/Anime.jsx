@@ -390,10 +390,10 @@ export default function Anime() {
             </div>
           </div>
 
-          {/* Official Sources */}
+          {/* Sources */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-              <i className="fas fa-link mr-1.5"></i>Official Sources
+              <i className="fas fa-link mr-1.5"></i>Sources
             </h3>
             <div className="space-y-2">
               {isBaha(anime) && anime.baha_link && (
