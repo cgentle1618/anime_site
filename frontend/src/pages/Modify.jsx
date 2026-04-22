@@ -630,6 +630,7 @@ export default function Modify() {
         prev.map((s) => (s.system_id === updated.system_id ? updated : s)),
       );
       setEditingItem(updated);
+      setSf(seriesToForm(updated, allFranchises));
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
   }
