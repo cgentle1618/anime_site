@@ -459,6 +459,25 @@ function DescLinksSection({
 
 const emptyNameLink = () => ({ name: "", link: "" });
 
+function NameLinkForm({ val, setVal }) {
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={val.name}
+        onChange={(e) => setVal({ ...val, name: e.target.value })}
+        placeholder="Name (optional)"
+        className={inputCls}
+      />
+      <input
+        value={val.link}
+        onChange={(e) => setVal({ ...val, link: e.target.value })}
+        placeholder="URL (required)"
+        className={inputCls}
+      />
+    </div>
+  );
+}
+
 function NameLinkSection({ sectionKey, label, items, isAdmin, onUpdate }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(emptyNameLink());
@@ -482,23 +501,6 @@ function NameLinkSection({ sectionKey, label, items, isAdmin, onUpdate }) {
   };
   const remove = (i) => onUpdate((items || []).filter((_, idx) => idx !== i));
 
-  const Form = ({ val, setVal }) => (
-    <div className="space-y-1.5">
-      <input
-        value={val.name}
-        onChange={(e) => setVal({ ...val, name: e.target.value })}
-        placeholder="Name (optional)"
-        className={inputCls}
-      />
-      <input
-        value={val.link}
-        onChange={(e) => setVal({ ...val, link: e.target.value })}
-        placeholder="URL (required)"
-        className={inputCls}
-      />
-    </div>
-  );
-
   return (
     <SectionCard
       label={label}
@@ -513,7 +515,7 @@ function NameLinkSection({ sectionKey, label, items, isAdmin, onUpdate }) {
           <div className="flex-1 min-w-0">
             {editIdx === i ? (
               <div>
-                <Form val={editVal} setVal={setEditVal} />
+                <NameLinkForm val={editVal} setVal={setEditVal} />
                 <SaveCancel
                   onSave={saveEdit}
                   onCancel={() => setEditIdx(null)}
@@ -544,7 +546,7 @@ function NameLinkSection({ sectionKey, label, items, isAdmin, onUpdate }) {
       ))}
       {adding && (
         <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
-          <Form val={draft} setVal={setDraft} />
+          <NameLinkForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
             onCancel={() => {
@@ -564,6 +566,26 @@ function NameLinkSection({ sectionKey, label, items, isAdmin, onUpdate }) {
 // ─── Quote / Meme Section ─────────────────────────────────────────────────────
 
 const emptyQuoteMeme = () => ({ description: "", link: "" });
+
+function QuoteMemeForm({ val, setVal }) {
+  return (
+    <div className="space-y-1.5">
+      <textarea
+        value={val.description}
+        onChange={(e) => setVal({ ...val, description: e.target.value })}
+        rows={2}
+        placeholder="Quote / meme (optional)"
+        className={inputCls}
+      />
+      <input
+        value={val.link}
+        onChange={(e) => setVal({ ...val, link: e.target.value })}
+        placeholder="Link (optional)"
+        className={inputCls}
+      />
+    </div>
+  );
+}
 
 function QuoteMemeSection({ sectionKey, label, items, isAdmin, onUpdate }) {
   const [adding, setAdding] = useState(false);
@@ -591,24 +613,6 @@ function QuoteMemeSection({ sectionKey, label, items, isAdmin, onUpdate }) {
   };
   const remove = (i) => onUpdate((items || []).filter((_, idx) => idx !== i));
 
-  const Form = ({ val, setVal }) => (
-    <div className="space-y-1.5">
-      <textarea
-        value={val.description}
-        onChange={(e) => setVal({ ...val, description: e.target.value })}
-        rows={2}
-        placeholder="Quote / meme (optional)"
-        className={inputCls}
-      />
-      <input
-        value={val.link}
-        onChange={(e) => setVal({ ...val, link: e.target.value })}
-        placeholder="Link (optional)"
-        className={inputCls}
-      />
-    </div>
-  );
-
   return (
     <SectionCard
       label={label}
@@ -624,7 +628,7 @@ function QuoteMemeSection({ sectionKey, label, items, isAdmin, onUpdate }) {
         >
           {editIdx === i ? (
             <div>
-              <Form val={editVal} setVal={setEditVal} />
+              <QuoteMemeForm val={editVal} setVal={setEditVal} />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditIdx(null)} />
             </div>
           ) : (
@@ -654,7 +658,7 @@ function QuoteMemeSection({ sectionKey, label, items, isAdmin, onUpdate }) {
       ))}
       {adding && (
         <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
-          <Form val={draft} setVal={setDraft} />
+          <QuoteMemeForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
             onCancel={() => {
@@ -674,6 +678,47 @@ function QuoteMemeSection({ sectionKey, label, items, isAdmin, onUpdate }) {
 // ─── Episode Entry Section ────────────────────────────────────────────────────
 
 const emptyEpisodeEntry = () => ({ episodes: "", type: "", description: "" });
+
+function EpisodeEntryForm({ val, setVal, typeDropdown }) {
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={val.episodes}
+        onChange={(e) => setVal({ ...val, episodes: e.target.value })}
+        placeholder="Episode(s), e.g. ep 6"
+        className={inputCls}
+      />
+      {typeDropdown ? (
+        <select
+          value={val.type}
+          onChange={(e) => setVal({ ...val, type: e.target.value })}
+          className={inputCls}
+        >
+          <option value="">Type...</option>
+          {typeDropdown.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          value={val.type}
+          onChange={(e) => setVal({ ...val, type: e.target.value })}
+          placeholder="Type (optional)"
+          className={inputCls}
+        />
+      )}
+      <textarea
+        value={val.description}
+        onChange={(e) => setVal({ ...val, description: e.target.value })}
+        rows={2}
+        placeholder="Description"
+        className={inputCls}
+      />
+    </div>
+  );
+}
 
 function EpisodeEntrySection({
   sectionKey,
@@ -713,45 +758,6 @@ function EpisodeEntrySection({
   };
   const remove = (i) => onUpdate((items || []).filter((_, idx) => idx !== i));
 
-  const Form = ({ val, setVal }) => (
-    <div className="space-y-1.5">
-      <input
-        value={val.episodes}
-        onChange={(e) => setVal({ ...val, episodes: e.target.value })}
-        placeholder="Episode(s), e.g. ep 6"
-        className={inputCls}
-      />
-      {typeDropdown ? (
-        <select
-          value={val.type}
-          onChange={(e) => setVal({ ...val, type: e.target.value })}
-          className={inputCls}
-        >
-          <option value="">Type...</option>
-          {typeDropdown.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          value={val.type}
-          onChange={(e) => setVal({ ...val, type: e.target.value })}
-          placeholder="Type (optional)"
-          className={inputCls}
-        />
-      )}
-      <textarea
-        value={val.description}
-        onChange={(e) => setVal({ ...val, description: e.target.value })}
-        rows={2}
-        placeholder="Description"
-        className={inputCls}
-      />
-    </div>
-  );
-
   return (
     <SectionCard
       label={label}
@@ -767,7 +773,7 @@ function EpisodeEntrySection({
         >
           {editIdx === i ? (
             <div>
-              <Form val={editVal} setVal={setEditVal} />
+              <EpisodeEntryForm val={editVal} setVal={setEditVal} typeDropdown={typeDropdown} />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditIdx(null)} />
             </div>
           ) : (
@@ -809,7 +815,7 @@ function EpisodeEntrySection({
       ))}
       {adding && (
         <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
-          <Form val={draft} setVal={setDraft} />
+          <EpisodeEntryForm val={draft} setVal={setDraft} typeDropdown={typeDropdown} />
           <SaveCancel
             onSave={commit}
             onCancel={() => {
