@@ -112,12 +112,16 @@ export default function Anime() {
       const all = await allRes.json();
       setAnime(a);
       setAllAnime(all);
-      if (a.franchise_id)
-        setFranchise(
-          allFranchises.find((f) => f.system_id === a.franchise_id) || null,
-        );
-      if (a.series_id)
-        setSeries(allSeries.find((s) => s.system_id === a.series_id) || null);
+      setFranchise(
+        a.franchise_id
+          ? allFranchises.find((f) => f.system_id === a.franchise_id) || null
+          : null,
+      );
+      setSeries(
+        a.series_id
+          ? allSeries.find((s) => s.system_id === a.series_id) || null
+          : null,
+      );
     } catch (e) {
       setError(e.message);
     } finally {
