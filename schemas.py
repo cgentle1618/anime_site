@@ -109,6 +109,7 @@ class SeriesBase(BaseModel):
     series_name_en: Optional[str] = None
     series_name_cn: Optional[str] = None
     series_name_alt: Optional[str] = None
+    remark: Optional[str] = None
 
 
 class SeriesCreate(SeriesBase):
