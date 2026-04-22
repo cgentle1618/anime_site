@@ -907,6 +907,7 @@ export default function Anime() {
 
           {/* Structured Notes */}
           <AnimeNotes
+            key={anime.system_id}
             anime={anime}
             isAdmin={isAdmin}
             onSave={(updatedNotes) =>
@@ -924,6 +925,7 @@ export default function Anime() {
             </div>
             <div className="p-4">
               <textarea
+                key={anime.system_id}
                 defaultValue={anime.remark || ""}
                 disabled={!isAdmin}
                 onBlur={(e) =>
