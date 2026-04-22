@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/anime";
@@ -39,8 +39,86 @@ const SECTIONS = [
   },
 ];
 
-const EXPECTATION_WEIGHT = { High: 0, Medium: 1, Low: 2 };
+const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 const RATING_OPTIONS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+
+const SEASONS = ["WIN", "SPR", "SUM", "FAL"];
+
+function getAdjacentSeason(current, direction) {
+  const parts = current.split(" ");
+  if (parts.length !== 2) return null;
+  const [season, year] = parts;
+  const idx = SEASONS.indexOf(season);
+  if (idx === -1) return null;
+  if (direction === "prev") {
+    return idx === 0
+      ? `FAL ${parseInt(year, 10) - 1}`
+      : `${SEASONS[idx - 1]} ${year}`;
+  }
+  return idx === SEASONS.length - 1
+    ? `WIN ${parseInt(year, 10) + 1}`
+    : `${SEASONS[idx + 1]} ${year}`;
+}
+
+const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+const MY_RATING_COLORS = {
+  S: "bg-purple-500",
+  "A+": "bg-amber-400",
+  A: "bg-green-500",
+  B: "bg-blue-400",
+  C: "bg-orange-400",
+  D: "bg-rose-400",
+  E: "bg-red-600",
+  F: "bg-gray-500",
+};
+
+const MAL_BUCKETS = [
+  { key: "9+", min: 9, max: 11, color: "bg-purple-500" },
+  { key: "8.7+", min: 8.7, max: 9, color: "bg-indigo-400" },
+  { key: "8.5+", min: 8.5, max: 8.7, color: "bg-blue-400" },
+  { key: "8.2+", min: 8.2, max: 8.5, color: "bg-cyan-400" },
+  { key: "7.7+", min: 7.7, max: 8.2, color: "bg-green-400" },
+  { key: "7+", min: 7, max: 7.7, color: "bg-yellow-400" },
+  { key: "4+", min: 4, max: 7, color: "bg-orange-400" },
+  { key: "<4", min: 0, max: 4, color: "bg-red-400" },
+];
+
+function BarChart({ items, label }) {
+  const max = Math.max(...items.map((d) => d.count), 1);
+  const hasData = items.some((d) => d.count > 0);
+  return (
+    <div>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
+        {label}
+      </p>
+      {!hasData ? (
+        <p className="text-xs text-gray-400 italic">No data</p>
+      ) : (
+        <div className="flex items-end gap-2 h-28">
+          {items.map(({ key, count, color }) => (
+            <div
+              key={key}
+              className="flex flex-col items-center flex-1 min-w-0"
+            >
+              <span className="text-[10px] font-bold text-gray-700 mb-1">
+                {count > 0 ? count : ""}
+              </span>
+              <div
+                className={`w-full rounded-t-sm transition-all ${color} ${count === 0 ? "opacity-15" : ""}`}
+                style={{
+                  height: `${Math.max((count / max) * 80, count > 0 ? 4 : 2)}px`,
+                }}
+              />
+              <span className="text-[9px] font-semibold text-gray-500 mt-1.5 truncate w-full text-center">
+                {key}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function sortAnime(items, franchiseMap) {
   return [...items].sort((a, b) => {
@@ -61,8 +139,12 @@ function sortAnime(items, franchiseMap) {
 export default function SeasonalDetail() {
   const { seasonal_id } = useParams();
   const seasonalId = decodeURIComponent(seasonal_id);
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
+
+  const prevSeason = getAdjacentSeason(seasonalId, "prev");
+  const nextSeason = getAdjacentSeason(seasonalId, "next");
 
   const [seasonal, setSeasonal] = useState(null);
   const [animeData, setAnimeData] = useState([]);
@@ -184,6 +266,21 @@ export default function SeasonalDetail() {
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
+  const myRatingData = MY_RATING_ORDER.map((r) => ({
+    key: r,
+    count: animeData.filter((a) => a.my_rating === r).length,
+    color: MY_RATING_COLORS[r],
+  }));
+
+  const malRatingData = MAL_BUCKETS.map((b) => ({
+    key: b.key,
+    count: animeData.filter(
+      (a) =>
+        a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
+    ).length,
+    color: b.color,
+  }));
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Hero */}
@@ -195,9 +292,27 @@ export default function SeasonalDetail() {
               <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-calendar-alt text-brand text-lg"></i>
               </div>
+              <button
+                onClick={() =>
+                  navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)
+                }
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
+                title={`Previous: ${prevSeason}`}
+              >
+                <i className="fas fa-chevron-left text-xs"></i>
+              </button>
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">
                 {seasonalId}
               </h1>
+              <button
+                onClick={() =>
+                  navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)
+                }
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
+                title={`Next: ${nextSeason}`}
+              >
+                <i className="fas fa-chevron-right text-xs"></i>
+              </button>
               {seasonal?.my_rating && (
                 <span className="bg-yellow-400 text-yellow-900 text-sm font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm">
                   <i className="fas fa-star text-xs"></i>
@@ -260,6 +375,18 @@ export default function SeasonalDetail() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Rating Distributions */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h2 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-6 flex items-center gap-2">
+          <i className="fas fa-chart-bar text-brand"></i>
+          Rating Distribution
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <BarChart items={myRatingData} label="My Rating" />
+          <BarChart items={malRatingData} label="MAL Rating" />
         </div>
       </div>
 

@@ -84,6 +84,35 @@ def get_system_logs(db: Session = Depends(get_db)):
     return logs
 
 
+@router.delete("/logs", summary="Clear Old Data Control Logs")
+def clear_system_logs(db: Session = Depends(get_db)):
+    """Deletes all log entries except the 10 most recent."""
+    keep_ids = (
+        db.query(models.DataControlLog.id)
+        .order_by(models.DataControlLog.timestamp.desc())
+        .limit(10)
+        .subquery()
+    )
+    count = (
+        db.query(models.DataControlLog)
+        .filter(models.DataControlLog.id.notin_(keep_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": count}
+
+
+@router.delete("/logs/{log_id}", summary="Delete a Data Control Log Entry")
+def delete_system_log(log_id: int, db: Session = Depends(get_db)):
+    """Deletes a single data control log entry by ID."""
+    log = db.query(models.DataControlLog).filter(models.DataControlLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+    db.delete(log)
+    db.commit()
+    return {"deleted": log_id}
+
+
 @router.get(
     "/deleted",
     response_model=List[schemas.DeletedRecordResponse],
@@ -94,10 +123,39 @@ def get_deleted_records(db: Session = Depends(get_db)):
     records = (
         db.query(models.DeletedRecord)
         .order_by(models.DeletedRecord.timestamp.desc())
-        .limit(20)
+        .limit(50)
         .all()
     )
     return records
+
+
+@router.delete("/deleted", summary="Clear Old Deleted Records")
+def clear_deleted_records(db: Session = Depends(get_db)):
+    """Deletes all deleted record entries except the 5 most recent."""
+    keep_ids = (
+        db.query(models.DeletedRecord.id)
+        .order_by(models.DeletedRecord.timestamp.desc())
+        .limit(5)
+        .subquery()
+    )
+    count = (
+        db.query(models.DeletedRecord)
+        .filter(models.DeletedRecord.id.notin_(keep_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": count}
+
+
+@router.delete("/deleted/{record_id}", summary="Delete a Deleted Record Entry")
+def delete_deleted_record(record_id: int, db: Session = Depends(get_db)):
+    """Deletes a single deleted record entry by ID."""
+    record = db.query(models.DeletedRecord).filter(models.DeletedRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+    db.delete(record)
+    db.commit()
+    return {"deleted": record_id}
 
 
 # ==========================================

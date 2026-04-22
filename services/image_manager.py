@@ -17,6 +17,38 @@ logger = logging.getLogger(__name__)
 COVER_DIR = "static/covers"
 
 
+def list_all_cover_images() -> list[str]:
+    """Returns all cover image filenames currently in storage."""
+    bucket_name = get_active_bucket_name()
+    try:
+        if bucket_name:
+            client = get_gcs_client()
+            blobs = client.bucket(bucket_name).list_blobs()
+            return [b.name for b in blobs if b.name.endswith(".jpg")]
+        else:
+            if not os.path.exists(COVER_DIR):
+                return []
+            return [f for f in os.listdir(COVER_DIR) if f.endswith(".jpg")]
+    except Exception as e:
+        logger.error(f"Error listing cover images: {e}")
+        return []
+
+
+def cover_image_exists(system_id: str) -> bool:
+    """Returns True if the cover image file is present in GCS or local storage."""
+    filename = f"{system_id}.jpg"
+    bucket_name = get_active_bucket_name()
+    try:
+        if bucket_name:
+            client = get_gcs_client()
+            return client.bucket(bucket_name).blob(filename).exists()
+        else:
+            return os.path.exists(os.path.join(COVER_DIR, filename))
+    except Exception as e:
+        logger.error(f"Error checking cover image for {system_id}: {e}")
+        return False
+
+
 def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
     """
     Downloads a cover image from a remote URL and saves it to the active storage provider.

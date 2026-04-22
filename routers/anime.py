@@ -20,8 +20,8 @@ import schemas
 
 from services.image_manager import delete_cover_image
 from services.other_logics import (
-    auto_create_seasonal,
-    autofill_ep_previous,
+    create_missing_seasonal,
+    derive_ep_previous,
     apply_single_replace_anime,
     resolve_anime_parent_hierarchy,
 )
@@ -70,7 +70,7 @@ def get_all_anime(
             or_(
                 models.Anime.anime_name_en.ilike(search_term),
                 models.Anime.anime_name_cn.ilike(search_term),
-                models.Anime.anime_name_romanji.ilike(search_term),
+                models.Anime.anime_name_roman.ilike(search_term),
                 models.Anime.anime_name_jp.ilike(search_term),
                 models.Anime.anime_name_alt.ilike(search_term),
             )
@@ -126,12 +126,12 @@ def create_anime_entry(
 
     db.flush()
 
-    autofill_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
+    derive_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
 
     db.flush()
 
     try:
-        auto_create_seasonal(db)
+        create_missing_seasonal(db)
     except Exception as e:
         logger.warning(f"Auto create seasonal failed: {e}")
 
@@ -163,7 +163,10 @@ def update_anime_entry(
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
-    if update_data.get("watching_status") == "Completed" and db_anime.completed_at is None:
+    if (
+        update_data.get("watching_status") == "Completed"
+        and db_anime.completed_at is None
+    ):
         db_anime.completed_at = get_taipei_now()
 
     final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
@@ -176,12 +179,12 @@ def update_anime_entry(
 
     db.flush()
 
-    autofill_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
+    derive_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
 
     db.flush()
 
     try:
-        auto_create_seasonal(db)
+        create_missing_seasonal(db)
     except Exception as e:
         logger.warning(f"Auto create seasonal failed: {e}")
 

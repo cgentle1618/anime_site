@@ -13,7 +13,8 @@ from typing import Any, Optional, Tuple
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
-
+SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
+PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
 
 # ==========================================
 # CONSTANTS & MAPPINGS & CONFIGURATIONS
@@ -115,7 +116,7 @@ def extract_season_from_title(title: str) -> Optional[str]:
     return None
 
 
-def calculate_season_from_month(month_str: str) -> Optional[str]:
+def calculate_seasonal_from_month(month_str: str) -> Optional[str]:
     """
     Infers the standard anime broadcasting season based on the release month.
     Accepts string abbreviations or numeric strings.

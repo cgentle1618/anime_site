@@ -71,7 +71,7 @@ class FranchiseBase(BaseModel):
     franchise_type: Optional[str] = None
     franchise_name_en: Optional[str] = None
     franchise_name_cn: Optional[str] = None
-    franchise_name_romanji: Optional[str] = None
+    franchise_name_roman: Optional[str] = None
     franchise_name_jp: Optional[str] = None
     franchise_name_alt: Optional[str] = None
     my_rating: Optional[str] = None
@@ -141,7 +141,7 @@ class AnimeBase(BaseModel):
 
     anime_name_en: Optional[str] = None
     anime_name_cn: Optional[str] = None
-    anime_name_romanji: Optional[str] = None
+    anime_name_roman: Optional[str] = None
     anime_name_jp: Optional[str] = None
     anime_name_alt: Optional[str] = None
 
@@ -150,6 +150,7 @@ class AnimeBase(BaseModel):
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"
     is_main: Optional[str] = None
+    is_main_entry: Optional[bool] = None
 
     ep_previous: Optional[int] = None
     ep_total: Optional[int] = None
@@ -173,6 +174,7 @@ class AnimeBase(BaseModel):
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
 
+    derive_related: Optional[bool] = None
     prequel_id: Optional[UUID] = None
     sequel_id: Optional[UUID] = None
     alternative: Optional[str] = None
@@ -191,10 +193,11 @@ class AnimeBase(BaseModel):
 
     source_baha: Optional[bool] = None
     baha_link: Optional[str] = None
-    source_netflix: bool = False
+    source_netflix: Optional[bool] = False
     source_other: Optional[str] = None
     source_other_link: Optional[str] = None
     remark: Optional[str] = None
+    notes: Optional[dict] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
 
@@ -311,11 +314,12 @@ class DataControlLogResponse(BaseModel):
 class DeletedRecordResponse(BaseModel):
     id: int
     type: str
-    franchise: Optional[str] = None
-    series: Optional[str] = None
-    anime_cn: Optional[str] = None
-    anime_en: Optional[str] = None
-    airing_type: Optional[str] = None
+    name_cn: Optional[str] = None
+    name_en: Optional[str] = None
+    franchise_cn: Optional[str] = None
+    franchise_type: Optional[str] = None
+    series_cn: Optional[str] = None
+    category: Optional[str] = None
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)

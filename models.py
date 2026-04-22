@@ -15,7 +15,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from database import Base, get_taipei_now
@@ -31,6 +31,8 @@ class NameFallbackMixin:
     Mixin providing standardized multi-language fallback logic for display names.
     Ensures consistent UI presentation across different media levels.
     """
+
+    _name_fields: list = []
 
     def get_fallback_name(self, sequence_keys: list, start_from: str = "CN") -> str:
         """
@@ -50,6 +52,13 @@ class NameFallbackMixin:
                 return str(val).strip()
         return ""
 
+    def get_all_names(self) -> set:
+        return {
+            getattr(self, f).strip().lower()
+            for f in self._name_fields
+            if getattr(self, f) and str(getattr(self, f)).strip()
+        }
+
 
 # ==========================================
 # CORE APPLICATION DATA MODELS
@@ -62,6 +71,13 @@ class Franchise(Base, NameFallbackMixin):
     """
 
     __tablename__ = "franchise"
+    _name_fields = [
+        "franchise_name_en",
+        "franchise_name_cn",
+        "franchise_name_roman",
+        "franchise_name_jp",
+        "franchise_name_alt",
+    ]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -69,7 +85,7 @@ class Franchise(Base, NameFallbackMixin):
     franchise_type = Column(String, nullable=True)
     franchise_name_en = Column(String, nullable=True)
     franchise_name_cn = Column(String, nullable=True)
-    franchise_name_romanji = Column(String, nullable=True)
+    franchise_name_roman = Column(String, nullable=True)
     franchise_name_jp = Column(String, nullable=True)
     franchise_name_alt = Column(String, nullable=True)
 
@@ -90,7 +106,9 @@ class Franchise(Base, NameFallbackMixin):
 
     # Relationships
     series = relationship("Series", back_populates="franchise")
-    animes = relationship("Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]")
+    animes = relationship(
+        "Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]"
+    )
 
     @property
     def display_name(self) -> str:
@@ -98,7 +116,7 @@ class Franchise(Base, NameFallbackMixin):
             ("CN", self.franchise_name_cn),
             ("EN", self.franchise_name_en),
             ("Alt", self.franchise_name_alt),
-            ("Romanji", self.franchise_name_romanji),
+            ("roman", self.franchise_name_roman),
             ("JP", self.franchise_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")
@@ -110,6 +128,7 @@ class Series(Base, NameFallbackMixin):
     """
 
     __tablename__ = "series"
+    _name_fields = ["series_name_en", "series_name_cn", "series_name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -122,10 +141,19 @@ class Series(Base, NameFallbackMixin):
     series_name_en = Column(String, nullable=True)
     series_name_cn = Column(String, nullable=True)
     series_name_alt = Column(String, nullable=True)
+    remark = Column(Text, nullable=True)
 
     # Relationships
     franchise = relationship("Franchise", back_populates="series")
     animes = relationship("Anime", back_populates="series")
+
+    @property
+    def names_dict(self) -> dict:
+        return {
+            "en": self.series_name_en,
+            "cn": self.series_name_cn,
+            "alt": self.series_name_alt,
+        }
 
     @property
     def display_name(self) -> str:
@@ -143,6 +171,13 @@ class Anime(Base, NameFallbackMixin):
     """
 
     __tablename__ = "anime"
+    _name_fields = [
+        "anime_name_en",
+        "anime_name_cn",
+        "anime_name_roman",
+        "anime_name_jp",
+        "anime_name_alt",
+    ]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -160,7 +195,7 @@ class Anime(Base, NameFallbackMixin):
 
     anime_name_en = Column(String, nullable=True)
     anime_name_cn = Column(String, nullable=True)
-    anime_name_romanji = Column(String, nullable=True)
+    anime_name_roman = Column(String, nullable=True)
     anime_name_jp = Column(String, nullable=True)
     anime_name_alt = Column(String, nullable=True)
 
@@ -169,6 +204,7 @@ class Anime(Base, NameFallbackMixin):
     airing_status = Column(String, nullable=True)
     watching_status = Column(String, nullable=False, default="Might Watch")
     is_main = Column(String, nullable=True)
+    is_main_entry = Column(Boolean, nullable=True)
 
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)
@@ -192,6 +228,7 @@ class Anime(Base, NameFallbackMixin):
     genre_main = Column(String, nullable=True)
     genre_sub = Column(String, nullable=True)
 
+    derive_related = Column(Boolean, nullable=True)
     prequel_id = Column(UUID(as_uuid=True), nullable=True)
     sequel_id = Column(UUID(as_uuid=True), nullable=True)
     alternative = Column(String, nullable=True)
@@ -214,6 +251,7 @@ class Anime(Base, NameFallbackMixin):
     source_other = Column(String, default=None, nullable=True)
     source_other_link = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
+    notes = Column(JSONB, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -221,7 +259,9 @@ class Anime(Base, NameFallbackMixin):
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     # Relationships
-    franchise = relationship("Franchise", back_populates="animes", foreign_keys="[Anime.franchise_id]")
+    franchise = relationship(
+        "Franchise", back_populates="animes", foreign_keys="[Anime.franchise_id]"
+    )
     series = relationship("Series", back_populates="animes")
 
     @property
@@ -230,7 +270,7 @@ class Anime(Base, NameFallbackMixin):
         return {
             "en": self.anime_name_en,
             "cn": self.anime_name_cn,
-            "romanji": self.anime_name_romanji,
+            "roman": self.anime_name_roman,
             "jp": self.anime_name_jp,
             "alt": self.anime_name_alt,
         }
@@ -241,7 +281,7 @@ class Anime(Base, NameFallbackMixin):
             ("CN", self.anime_name_cn),
             ("EN", self.anime_name_en),
             ("Alt", self.anime_name_alt),
-            ("Romanji", self.anime_name_romanji),
+            ("roman", self.anime_name_roman),
             ("JP", self.anime_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")
@@ -320,11 +360,11 @@ class DeletedRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     type = Column(String, nullable=False)
-    franchise = Column(String, nullable=True)
-    series = Column(String, nullable=True)
-
-    anime_cn = Column(String, nullable=True)
-    anime_en = Column(String, nullable=True)
-    airing_type = Column(String, nullable=True)
+    franchise_type = Column(String, nullable=True)
+    franchise_cn = Column(String, nullable=True)
+    series_cn = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    name_cn = Column(String, nullable=True)
+    name_en = Column(String, nullable=True)
 
     timestamp = Column(DateTime, default=get_taipei_now)

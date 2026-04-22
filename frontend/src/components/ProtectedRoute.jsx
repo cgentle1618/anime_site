@@ -1,8 +1,8 @@
-import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function ProtectedRoute() {
-  const { isAdmin, loading } = useAuth()
+  const { isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -12,8 +12,8 @@ export default function ProtectedRoute() {
           <p className="text-gray-500 font-medium">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  return isAdmin ? <Outlet /> : <Navigate to="/login" replace />
+  return isAdmin ? <Outlet /> : <Navigate to="/login" replace />;
 }

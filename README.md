@@ -586,7 +586,7 @@ This ensures every production deployment is traceable to a specific commit, repr
 - **Library (`/library`)** — Full collection grid with client-side filtering by type, watching status, airing type, rating, release season, studio, and genre.
 - **Anime Detail (`/anime/{id}`)** — Full metadata page: Jikan-fetched cover art, MAL/AniList ratings and links, studio, release info, synopsis, episode progress bar, and series/franchise context.
 - **Franchise Hub (`/franchise/{id}`)** — Three-tier hierarchical view showing all series and anime entries within a franchise with aggregate completion data.
-- **Search** — Global search across anime titles (EN, CN, Romanji, JP, Alt), franchise names, and series names with string normalization.
+- **Search** — Global search across anime titles (EN, CN, roman, JP, Alt), franchise names, and series names with string normalization.
 
 ### Admin-Only Features
 

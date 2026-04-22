@@ -1,6 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from dependencies import get_db, get_current_admin
@@ -16,8 +19,20 @@ from services.data_control import (
     execute_replace_all,
     execute_replace_single_anime,
 )
+from services.other_logics import find_all_duplicates
+from services.calculation import (
+    bulk_check_cover_image,
+    bulk_delete_orphaned_cover_images,
+    bulk_download_missing_covers,
+    bulk_set_cover_image_fields,
+    run_calculate_all,
+)
 
 logger = logging.getLogger(__name__)
+
+class DownloadCoversBody(BaseModel):
+    system_ids: Optional[list[str]] = None
+
 
 router = APIRouter(
     prefix="/api/data-control",
@@ -161,3 +176,67 @@ def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error in pull {tab_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/all")
+def trigger_calculate_all(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=run_calculate_all(db))
+    except Exception as e:
+        logger.error(f"Error in calculate all: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/calculate/check-cover-image")
+def trigger_check_cover_image(
+    db: Session = Depends(get_db),
+    entry_type: Optional[str] = Query(None),
+):
+    try:
+        return JSONResponse(content=bulk_check_cover_image(db, entry_type=entry_type))
+    except Exception as e:
+        logger.error(f"Error in check cover image: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/calculate/delete-orphaned-covers")
+def trigger_delete_orphaned_covers(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_delete_orphaned_cover_images(db))
+    except Exception as e:
+        logger.error(f"Error in delete orphaned covers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/set-cover-image-fields")
+def trigger_set_cover_image_fields(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=bulk_set_cover_image_fields(db))
+    except Exception as e:
+        logger.error(f"Error in set cover image fields: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate/download-missing-covers")
+def trigger_download_missing_covers(
+    body: DownloadCoversBody = DownloadCoversBody(),
+    db: Session = Depends(get_db),
+):
+    try:
+        return JSONResponse(
+            content=bulk_download_missing_covers(db, system_ids=body.system_ids)
+        )
+    except Exception as e:
+        logger.error(f"Error in download missing covers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/check/duplicates")
+def check_duplicates(db: Session = Depends(get_db)):
+    try:
+        return JSONResponse(content=find_all_duplicates(db))
+    except Exception as e:
+        logger.error(f"Error in check duplicates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+

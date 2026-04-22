@@ -1,28 +1,30 @@
-import { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
-import Nav from './Nav'
-import Toast from './Toast'
+import { useState, useEffect } from "react";
+import { Outlet } from "react-router-dom";
+import Nav from "./Nav";
+import Toast from "./Toast";
 
 function ScrollToTopButton() {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    function onScroll() { setVisible(window.scrollY > 300) }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+    function onScroll() {
+      setVisible(window.scrollY > 300);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-  if (!visible) return null
+  if (!visible) return null;
 
   return (
     <button
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="Scroll to top"
       className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full bg-brand text-white shadow-lg flex items-center justify-center hover:bg-brand-hover transition-all"
     >
       <i className="fas fa-chevron-up text-sm"></i>
     </button>
-  )
+  );
 }
 
 export default function Layout() {
@@ -43,5 +45,5 @@ export default function Layout() {
       <Toast />
       <ScrollToTopButton />
     </div>
-  )
+  );
 }

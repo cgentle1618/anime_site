@@ -1,25 +1,26 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from './contexts/AuthContext'
-import { ToastProvider } from './hooks/useToast'
-import Layout from './components/Layout'
-import ProtectedRoute from './components/ProtectedRoute'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ToastProvider } from "./hooks/useToast";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-import Index from './pages/Index'
-import Login from './pages/Login'
-import Anime from './pages/Anime'
-import FranchiseAcg from './pages/FranchiseAcg'
-import Search from './pages/Search'
-import FutureReleases from './pages/FutureReleases'
-import SeasonalOverall from './pages/SeasonalOverall'
-import SeasonalDetail from './pages/SeasonalDetail'
-import Statistics from './pages/Statistics'
-import LibraryAnime from './pages/LibraryAnime'
-import Admin from './pages/Admin'
-import Add from './pages/Add'
-import Modify from './pages/Modify'
-import Delete from './pages/Delete'
-import UnderDevelopment from './pages/UnderDevelopment'
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Anime from "./pages/Anime";
+import FranchiseAcg from "./pages/FranchiseAcg";
+import Search from "./pages/Search";
+import FutureReleases from "./pages/FutureReleases";
+import SeasonalOverall from "./pages/SeasonalOverall";
+import SeasonalDetail from "./pages/SeasonalDetail";
+import Statistics from "./pages/Statistics";
+import LibraryAnime from "./pages/LibraryAnime";
+import FranchiseLibrary from "./pages/FranchiseLibrary";
+import Admin from "./pages/Admin";
+import Add from "./pages/Add";
+import Modify from "./pages/Modify";
+import Delete from "./pages/Delete";
+import UnderDevelopment from "./pages/UnderDevelopment";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,14 +29,16 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-})
+});
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <BrowserRouter
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
             <Routes>
               <Route element={<Layout />}>
                 {/* Public routes */}
@@ -43,13 +46,26 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/library/anime" element={<LibraryAnime />} />
+                <Route
+                  path="/library/franchise"
+                  element={<FranchiseLibrary />}
+                />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
-                <Route path="/franchise/:system_id" element={<FranchiseAcg />} />
+                <Route
+                  path="/franchise/:system_id"
+                  element={<FranchiseAcg />}
+                />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
-                <Route path="/seasonal/:seasonal_id" element={<SeasonalDetail />} />
+                <Route
+                  path="/seasonal/:seasonal_id"
+                  element={<SeasonalDetail />}
+                />
                 <Route path="/statistics" element={<Statistics />} />
-                <Route path="/under-development" element={<UnderDevelopment />} />
+                <Route
+                  path="/under-development"
+                  element={<UnderDevelopment />}
+                />
 
                 {/* Admin-only routes */}
                 <Route element={<ProtectedRoute />}>
@@ -64,5 +80,5 @@ export default function App() {
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
-  )
+  );
 }
