@@ -215,7 +215,11 @@ export default function SeasonalDetail() {
 
   async function handleEpChange(sysId, newVal, prevVal) {
     setAnimeData((prev) =>
-      prev.map((a) => (a.system_id === sysId ? { ...a, ep_fin: newVal } : a)),
+      prev.map((a) =>
+        a.system_id === sysId
+          ? { ...a, ep_fin: newVal, cum_ep_fin: (a.ep_previous || 0) + newVal }
+          : a,
+      ),
     );
     try {
       const res = await fetch(`/api/anime/${sysId}`, {
@@ -229,7 +233,13 @@ export default function SeasonalDetail() {
     } catch {
       setAnimeData((prev) =>
         prev.map((a) =>
-          a.system_id === sysId ? { ...a, ep_fin: prevVal } : a,
+          a.system_id === sysId
+            ? {
+                ...a,
+                ep_fin: prevVal,
+                cum_ep_fin: (a.ep_previous || 0) + prevVal,
+              }
+            : a,
         ),
       );
       showToast("error", "Network error. Progress reverted.");
