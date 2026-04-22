@@ -59,6 +59,16 @@ function SeriesModal({ series, isAdmin, onClose }) {
           <InfoRow label="Chinese Name" value={series.series_name_cn} />
           <InfoRow label="English Name" value={series.series_name_en} />
           <InfoRow label="Alternative Name" value={series.series_name_alt} />
+          {series.remark && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
+                Remark
+              </div>
+              <div className="text-sm text-gray-700 bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 whitespace-pre-wrap">
+                {series.remark}
+              </div>
+            </div>
+          )}
         </div>
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
           {isAdmin && (
