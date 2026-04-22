@@ -210,13 +210,12 @@ The granular media entry. Covers anime, cartoons, OVAs, movies, specials, etc.
 
 #### Sources & Streaming
 
-| Column              | Type    | Nullable | Default | Notes                                                                      |
-| ------------------- | ------- | -------- | ------- | -------------------------------------------------------------------------- |
-| `source_baha`       | Boolean | Yes      | `None`  | Three-state: `true` = available, `false` = not available, `null` = unknown |
-| `baha_link`         | String  | Yes      | —       |                                                                            |
-| `source_netflix`    | Boolean | Yes      | `False` | Three-state: `true` / `false` / `null`                                     |
-| `source_other`      | String  | Yes      | `None`  | Name of other streaming source                                             |
-| `source_other_link` | String  | Yes      | —       |                                                                            |
+| Column           | Type    | Nullable | Default | Notes                                                                      |
+| ---------------- | ------- | -------- | ------- | -------------------------------------------------------------------------- |
+| `source_baha`    | Boolean | Yes      | `None`  | Three-state: `true` = available, `false` = not available, `null` = unknown |
+| `baha_link`      | String  | Yes      | —       |                                                                            |
+| `source_netflix` | Boolean | Yes      | `False` | Three-state: `true` / `false` / `null`                                     |
+| `source_other`   | JSONB   | Yes      | `None`  | multiple key-value pairs {name: url}                                       |
 
 #### Misc
 

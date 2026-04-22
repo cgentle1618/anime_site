@@ -155,8 +155,7 @@ const defaultAnime = () => ({
   source_baha: "",
   baha_link: "",
   source_netflix: "",
-  source_other: "",
-  source_other_link: "",
+  source_other: [],
   op: "",
   ed: "",
   insert_ost: "",
@@ -366,8 +365,14 @@ export default function Add() {
           : af.source_netflix === "false"
             ? false
             : null,
-      source_other: af.source_other || null,
-      source_other_link: af.source_other_link || null,
+      source_other:
+        af.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              af.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
       op: af.op || null,
       ed: af.ed || null,
       insert_ost: af.insert_ost || null,
@@ -1363,23 +1368,68 @@ export default function Add() {
                   <option value="false">無 (No)</option>
                 </select>
               </Field>
-              <Field label="Other Source Name">
-                <input
-                  className={inputCls}
-                  value={af.source_other}
-                  onChange={(e) => ua("source_other", e.target.value)}
-                  placeholder="e.g. Crunchyroll"
-                />
-              </Field>
-              <Field label="Other Source Link">
-                <input
-                  className={inputCls}
-                  type="url"
-                  value={af.source_other_link}
-                  onChange={(e) => ua("source_other_link", e.target.value)}
-                  placeholder="https://..."
-                />
-              </Field>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                  Other Sources
+                </label>
+                <div className="space-y-2">
+                  {af.source_other.map((entry, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        className={inputCls}
+                        placeholder="Source name (e.g. Crunchyroll)"
+                        value={entry.name}
+                        onChange={(e) =>
+                          ua(
+                            "source_other",
+                            af.source_other.map((x, j) =>
+                              j === i ? { ...x, name: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                      <input
+                        className={inputCls}
+                        type="url"
+                        placeholder="https://... (optional)"
+                        value={entry.url}
+                        onChange={(e) =>
+                          ua(
+                            "source_other",
+                            af.source_other.map((x, j) =>
+                              j === i ? { ...x, url: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                        onClick={() =>
+                          ua(
+                            "source_other",
+                            af.source_other.filter((_, j) => j !== i),
+                          )
+                        }
+                      >
+                        <i className="fas fa-times" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs text-brand hover:underline mt-1"
+                    onClick={() =>
+                      ua("source_other", [
+                        ...af.source_other,
+                        { name: "", url: "" },
+                      ])
+                    }
+                  >
+                    + Add Source
+                  </button>
+                </div>
+              </div>
             </div>
 
             <SectionHeader icon="fa-music" title="Notes & Other" />

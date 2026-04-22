@@ -426,26 +426,32 @@ export default function Anime() {
                   Netflix
                 </div>
               )}
-              {anime.source_other && anime.source_other_link && (
-                <a
-                  href={anime.source_other_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between w-full bg-purple-50 hover:bg-purple-600 text-purple-800 hover:text-white px-3 py-2 rounded border border-purple-100 transition text-sm font-bold"
-                >
-                  <span>
-                    <i className="fas fa-play-circle mr-2"></i>
-                    {anime.source_other}
-                  </span>
-                  <i className="fas fa-external-link-alt text-[10px]"></i>
-                </a>
-              )}
-              {anime.source_other && !anime.source_other_link && (
-                <div className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
-                  <i className="fas fa-play-circle mr-2 opacity-50"></i>
-                  {anime.source_other}
-                </div>
-              )}
+              {anime.source_other &&
+                Object.entries(anime.source_other).map(([name, url]) =>
+                  url ? (
+                    <a
+                      key={name}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between w-full bg-purple-50 hover:bg-purple-600 text-purple-800 hover:text-white px-3 py-2 rounded border border-purple-100 transition text-sm font-bold"
+                    >
+                      <span>
+                        <i className="fas fa-play-circle mr-2"></i>
+                        {name}
+                      </span>
+                      <i className="fas fa-external-link-alt text-[10px]"></i>
+                    </a>
+                  ) : (
+                    <div
+                      key={name}
+                      className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold"
+                    >
+                      <i className="fas fa-play-circle mr-2 opacity-50"></i>
+                      {name}
+                    </div>
+                  ),
+                )}
               {anime.mal_link && (
                 <a
                   href={anime.mal_link}
@@ -477,7 +483,8 @@ export default function Anime() {
               )}
               {!isBaha(anime) &&
                 !anime.source_netflix &&
-                !anime.source_other &&
+                (!anime.source_other ||
+                  Object.keys(anime.source_other).length === 0) &&
                 !anime.mal_link &&
                 !anime.official_link && (
                   <div className="text-sm text-gray-400 italic">
