@@ -206,8 +206,9 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "insert_ost": parse_from_sheet(raw.get("insert_ost"), str),
         "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
         "baha_link": parse_from_sheet(raw.get("baha_link"), str),
-        "source_other": parse_from_sheet(raw.get("source_other"), str),
-        "source_other_link": parse_from_sheet(raw.get("source_other_link"), str),
+        "source_other": (
+            json.loads(raw["source_other"]) if raw.get("source_other") else None
+        ),
         "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),

@@ -3,27 +3,52 @@ import { Outlet } from "react-router-dom";
 import Nav from "./Nav";
 import Toast from "./Toast";
 
-function ScrollToTopButton() {
-  const [visible, setVisible] = useState(false);
+function ScrollButtons() {
+  const [showTop, setShowTop] = useState(false);
+  const [showBottom, setShowBottom] = useState(false);
 
   useEffect(() => {
     function onScroll() {
-      setVisible(window.scrollY > 300);
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+      setShowTop(scrollY > 300);
+      setShowBottom(scrollY + windowHeight < docHeight - 300);
     }
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  if (!visible) return null;
+  const btnClass =
+    "w-10 h-10 rounded-full bg-brand text-white shadow-lg flex items-center justify-center hover:bg-brand-hover transition-all";
 
   return (
-    <button
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      aria-label="Scroll to top"
-      className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full bg-brand text-white shadow-lg flex items-center justify-center hover:bg-brand-hover transition-all"
-    >
-      <i className="fas fa-chevron-up text-sm"></i>
-    </button>
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+      {showTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Scroll to top"
+          className={btnClass}
+        >
+          <i className="fas fa-chevron-up text-sm"></i>
+        </button>
+      )}
+      {showBottom && (
+        <button
+          onClick={() =>
+            window.scrollTo({
+              top: document.documentElement.scrollHeight,
+              behavior: "smooth",
+            })
+          }
+          aria-label="Scroll to bottom"
+          className={btnClass}
+        >
+          <i className="fas fa-chevron-down text-sm"></i>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -43,7 +68,7 @@ export default function Layout() {
         </div>
       </footer>
       <Toast />
-      <ScrollToTopButton />
+      <ScrollButtons />
     </div>
   );
 }
