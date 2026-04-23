@@ -59,6 +59,16 @@ function SeriesModal({ series, isAdmin, onClose }) {
           <InfoRow label="Chinese Name" value={series.series_name_cn} />
           <InfoRow label="English Name" value={series.series_name_en} />
           <InfoRow label="Alternative Name" value={series.series_name_alt} />
+          {series.remark && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
+                Remark
+              </div>
+              <div className="text-sm text-gray-700 bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 whitespace-pre-wrap">
+                {series.remark}
+              </div>
+            </div>
+          )}
         </div>
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
           {isAdmin && (
@@ -112,12 +122,16 @@ export default function Anime() {
       const all = await allRes.json();
       setAnime(a);
       setAllAnime(all);
-      if (a.franchise_id)
-        setFranchise(
-          allFranchises.find((f) => f.system_id === a.franchise_id) || null,
-        );
-      if (a.series_id)
-        setSeries(allSeries.find((s) => s.system_id === a.series_id) || null);
+      setFranchise(
+        a.franchise_id
+          ? allFranchises.find((f) => f.system_id === a.franchise_id) || null
+          : null,
+      );
+      setSeries(
+        a.series_id
+          ? allSeries.find((s) => s.system_id === a.series_id) || null
+          : null,
+      );
     } catch (e) {
       setError(e.message);
     } finally {
@@ -386,10 +400,10 @@ export default function Anime() {
             </div>
           </div>
 
-          {/* Official Sources */}
+          {/* Sources */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-              <i className="fas fa-link mr-1.5"></i>Official Sources
+              <i className="fas fa-link mr-1.5"></i>Sources
             </h3>
             <div className="space-y-2">
               {isBaha(anime) && anime.baha_link && (
@@ -426,26 +440,32 @@ export default function Anime() {
                   Netflix
                 </div>
               )}
-              {anime.source_other && anime.source_other_link && (
-                <a
-                  href={anime.source_other_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between w-full bg-purple-50 hover:bg-purple-600 text-purple-800 hover:text-white px-3 py-2 rounded border border-purple-100 transition text-sm font-bold"
-                >
-                  <span>
-                    <i className="fas fa-play-circle mr-2"></i>
-                    {anime.source_other}
-                  </span>
-                  <i className="fas fa-external-link-alt text-[10px]"></i>
-                </a>
-              )}
-              {anime.source_other && !anime.source_other_link && (
-                <div className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
-                  <i className="fas fa-play-circle mr-2 opacity-50"></i>
-                  {anime.source_other}
-                </div>
-              )}
+              {anime.source_other &&
+                Object.entries(anime.source_other).map(([name, url]) =>
+                  url ? (
+                    <a
+                      key={name}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between w-full bg-purple-50 hover:bg-purple-600 text-purple-800 hover:text-white px-3 py-2 rounded border border-purple-100 transition text-sm font-bold"
+                    >
+                      <span>
+                        <i className="fas fa-play-circle mr-2"></i>
+                        {name}
+                      </span>
+                      <i className="fas fa-external-link-alt text-[10px]"></i>
+                    </a>
+                  ) : (
+                    <div
+                      key={name}
+                      className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold"
+                    >
+                      <i className="fas fa-play-circle mr-2 opacity-50"></i>
+                      {name}
+                    </div>
+                  ),
+                )}
               {anime.mal_link && (
                 <a
                   href={anime.mal_link}
@@ -477,7 +497,8 @@ export default function Anime() {
               )}
               {!isBaha(anime) &&
                 !anime.source_netflix &&
-                !anime.source_other &&
+                (!anime.source_other ||
+                  Object.keys(anime.source_other).length === 0) &&
                 !anime.mal_link &&
                 !anime.official_link && (
                   <div className="text-sm text-gray-400 italic">
@@ -800,6 +821,7 @@ export default function Anime() {
                 </h3>
               </div>
               <div className="p-4 space-y-3">
+                <InfoRow label="本傳/外傳" value={anime.is_main} />
                 <InfoRow label="Season Part" value={anime.season_part} />
                 <InfoRow label="Airing Type" value={anime.airing_type} />
                 <InfoRow label="Release Season" value={releaseSeasonYear} />
@@ -898,37 +920,41 @@ export default function Anime() {
             </div>
           </div>
 
+          {/* Notes & Remarks */}
+          {anime.remark && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                <h3 className="font-bold text-gray-800">
+                  <i className="fas fa-sticky-note text-brand mr-2"></i>Rough
+                  Notes & Remarks
+                </h3>
+              </div>
+              <div className="p-4">
+                <textarea
+                  key={anime.system_id}
+                  defaultValue={anime.remark || ""}
+                  disabled={!isAdmin}
+                  onBlur={(e) =>
+                    isAdmin &&
+                    performUpdate({ remark: e.target.value }, "Remark saved")
+                  }
+                  rows={5}
+                  placeholder="Add private overview notes, specific remarks, etc."
+                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+                ></textarea>
+              </div>
+            </div>
+          )}
+
           {/* Structured Notes */}
           <AnimeNotes
+            key={anime.system_id}
             anime={anime}
             isAdmin={isAdmin}
             onSave={(updatedNotes) =>
               performUpdate({ notes: updatedNotes }, "Notes saved")
             }
           />
-
-          {/* Notes & Remarks */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-              <h3 className="font-bold text-gray-800">
-                <i className="fas fa-sticky-note text-brand mr-2"></i>Notes &
-                Remarks
-              </h3>
-            </div>
-            <div className="p-4">
-              <textarea
-                defaultValue={anime.remark || ""}
-                disabled={!isAdmin}
-                onBlur={(e) =>
-                  isAdmin &&
-                  performUpdate({ remark: e.target.value }, "Remark saved")
-                }
-                rows={5}
-                placeholder="Add private overview notes, specific remarks, etc."
-                className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-              ></textarea>
-            </div>
-          </div>
         </div>
       </div>
 

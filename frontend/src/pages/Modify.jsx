@@ -4,6 +4,7 @@ import { useToast } from "../hooks/useToast";
 import { getDisplayName } from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
+import AnimeNotes from "./AnimeNotes";
 
 function cleanStr(s) {
   if (!s) return "";
@@ -186,8 +187,9 @@ function animeToForm(anime, allFranchises, allSeries) {
         : anime.source_netflix === false
           ? "false"
           : "",
-    source_other: anime.source_other || "",
-    source_other_link: anime.source_other_link || "",
+    source_other: Object.entries(anime.source_other || {}).map(
+      ([name, url]) => ({ name, url: url || "" }),
+    ),
     op: anime.op || "",
     ed: anime.ed || "",
     insert_ost: anime.insert_ost || "",
@@ -195,7 +197,6 @@ function animeToForm(anime, allFranchises, allSeries) {
     cover_image_file: anime.cover_image_file || "",
     remark: anime.remark || "",
     notes: anime.notes || {},
-    notes_remark: anime.notes?.remark || "",
   };
 }
 
@@ -406,15 +407,21 @@ export default function Modify() {
           : af.source_netflix === "false"
             ? false
             : null,
-      source_other: af.source_other || null,
-      source_other_link: af.source_other_link || null,
+      source_other:
+        af.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              af.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
       op: af.op || null,
       ed: af.ed || null,
       insert_ost: af.insert_ost || null,
       seiyuu: af.seiyuu || null,
       cover_image_file: af.cover_image_file || null,
       remark: af.remark || null,
-      notes: { ...af.notes, remark: af.notes_remark || null },
+      notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null,
     };
   }
 
@@ -623,6 +630,7 @@ export default function Modify() {
         prev.map((s) => (s.system_id === updated.system_id ? updated : s)),
       );
       setEditingItem(updated);
+      setSf(seriesToForm(updated, allFranchises));
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
   }
@@ -1559,21 +1567,68 @@ export default function Modify() {
                       <option value="false">無 (No)</option>
                     </select>
                   </Field>
-                  <Field label="Other Source Name">
-                    <input
-                      className={inputCls}
-                      value={af.source_other}
-                      onChange={(e) => ua("source_other", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Other Source Link">
-                    <input
-                      className={inputCls}
-                      type="url"
-                      value={af.source_other_link}
-                      onChange={(e) => ua("source_other_link", e.target.value)}
-                    />
-                  </Field>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Other Sources
+                    </label>
+                    <div className="space-y-2">
+                      {af.source_other.map((entry, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <input
+                            className={inputCls}
+                            placeholder="Source name (e.g. Crunchyroll)"
+                            value={entry.name}
+                            onChange={(e) =>
+                              ua(
+                                "source_other",
+                                af.source_other.map((x, j) =>
+                                  j === i ? { ...x, name: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <input
+                            className={inputCls}
+                            type="url"
+                            placeholder="https://... (optional)"
+                            value={entry.url}
+                            onChange={(e) =>
+                              ua(
+                                "source_other",
+                                af.source_other.map((x, j) =>
+                                  j === i ? { ...x, url: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                            onClick={() =>
+                              ua(
+                                "source_other",
+                                af.source_other.filter((_, j) => j !== i),
+                              )
+                            }
+                          >
+                            <i className="fas fa-times" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-xs text-brand hover:underline mt-1"
+                        onClick={() =>
+                          ua("source_other", [
+                            ...af.source_other,
+                            { name: "", url: "" },
+                          ])
+                        }
+                      >
+                        + Add Source
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <SectionHeader icon="fa-music" title="Notes & Other" />
@@ -1650,15 +1705,14 @@ export default function Modify() {
                     onChange={(e) => ua("remark", e.target.value)}
                   />
                 </Field>
-                <Field label="Notes: Remark">
-                  <textarea
-                    className={inputCls}
-                    rows={3}
-                    value={af.notes_remark}
-                    onChange={(e) => ua("notes_remark", e.target.value)}
-                    placeholder="General remarks (stored in Notes)..."
-                  />
-                </Field>
+
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <AnimeNotes
+                  key={editingItem.system_id}
+                  anime={{ notes: af.notes, system_id: editingItem.system_id }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => ua("notes", updatedNotes)}
+                />
               </>
             )}
 
