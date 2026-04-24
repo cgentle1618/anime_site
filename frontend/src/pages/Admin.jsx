@@ -449,6 +449,91 @@ function CoverImageModal({
   );
 }
 
+function RemarksModal({ results, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-black text-gray-900">
+              Anime With Remarks
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {results.length === 0
+                ? "No anime entries have a remark."
+                : `${results.length} entr${results.length !== 1 ? "ies" : "y"} with a remark.`}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition text-lg"
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-4">
+          {results.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
+              <p className="font-bold">No remarks found</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm text-left">
+              <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+                <tr>
+                  <th className="pb-2 pr-4 whitespace-nowrap">Name (CN)</th>
+                  <th className="pb-2 pr-4 whitespace-nowrap">Name (EN)</th>
+                  <th className="pb-2 pr-4 whitespace-nowrap">Type</th>
+                  <th className="pb-2 pr-4 whitespace-nowrap">Watching</th>
+                  <th className="pb-2">Remark</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {results.map((a, i) => (
+                  <tr
+                    key={i}
+                    className="hover:bg-amber-50/40 transition cursor-pointer"
+                    onClick={() =>
+                      (window.location.href = `/anime/${a.system_id}`)
+                    }
+                  >
+                    <td
+                      className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                      title={a.anime_name_cn}
+                    >
+                      {a.anime_name_cn || "—"}
+                    </td>
+                    <td
+                      className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                      title={a.anime_name_en}
+                    >
+                      {a.anime_name_en || "—"}
+                    </td>
+                    <td className="py-2.5 pr-4 whitespace-nowrap">
+                      <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                        {a.airing_type || "—"}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 whitespace-nowrap text-xs text-gray-500">
+                      {a.watching_status || "—"}
+                    </td>
+                    <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                      {a.remark}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DuplicatesModal({ results, onClose }) {
   const [tab, setTab] = useState("franchise");
 
@@ -718,6 +803,8 @@ export default function Admin() {
   const [calcLoading, setCalcLoading] = useState({});
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [remarksResults, setRemarksResults] = useState(null);
+  const [remarksOpen, setRemarksOpen] = useState(false);
   const [coverCheckResult, setCoverCheckResult] = useState(null);
   const [coverCheckOpen, setCoverCheckOpen] = useState(false);
   const [coverDownloading, setCoverDownloading] = useState(false);
@@ -967,6 +1054,23 @@ export default function Admin() {
     }
   }
 
+  async function runFindRemarks() {
+    setCalcLoading((prev) => ({ ...prev, remarks: true }));
+    try {
+      const res = await fetch("/api/data-control/check/remarks", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to fetch remarks.");
+      setRemarksResults(data);
+      setRemarksOpen(true);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCalcLoading((prev) => ({ ...prev, remarks: false }));
+    }
+  }
+
   async function runCalc(key, url) {
     setCalcLoading((prev) => ({ ...prev, [key]: true }));
     try {
@@ -1000,6 +1104,12 @@ export default function Admin() {
         <DuplicatesModal
           results={duplicateResults}
           onClose={() => setDuplicateOpen(false)}
+        />
+      )}
+      {remarksOpen && remarksResults && (
+        <RemarksModal
+          results={remarksResults}
+          onClose={() => setRemarksOpen(false)}
         />
       )}
       {/* 1. Header & Entry Modification Nav */}
@@ -1250,6 +1360,18 @@ export default function Admin() {
               <i className="fas fa-circle-notch fa-spin"></i>
             ) : (
               "Find Duplicates"
+            )}
+          </button>
+          <button
+            onClick={runFindRemarks}
+            disabled={!!calcLoading.remarks}
+            className="flex flex-col items-center gap-2 p-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-300 rounded-xl text-xs font-bold text-amber-700 transition disabled:opacity-60"
+          >
+            <i className="fas fa-comment-alt text-lg"></i>
+            {calcLoading.remarks ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "With Remarks"
             )}
           </button>
           <button
