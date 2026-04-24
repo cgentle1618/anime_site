@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from dependencies import get_db, get_current_admin
+from models import Anime
 
 
 from services.data_control import (
@@ -29,6 +30,7 @@ from services.calculation import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 class DownloadCoversBody(BaseModel):
     system_ids: Optional[list[str]] = None
@@ -240,3 +242,28 @@ def check_duplicates(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/check/remarks")
+def check_remarks(db: Session = Depends(get_db)):
+    try:
+        entries = (
+            db.query(Anime)
+            .filter(Anime.remark.isnot(None), Anime.remark != "")
+            .order_by(Anime.updated_at.desc())
+            .all()
+        )
+        return JSONResponse(
+            content=[
+                {
+                    "system_id": str(e.system_id),
+                    "anime_name_cn": e.anime_name_cn,
+                    "anime_name_en": e.anime_name_en,
+                    "airing_type": e.airing_type,
+                    "watching_status": e.watching_status,
+                    "remark": e.remark,
+                }
+                for e in entries
+            ]
+        )
+    except Exception as e:
+        logger.error(f"Error in check remarks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

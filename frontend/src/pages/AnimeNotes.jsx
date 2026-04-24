@@ -17,11 +17,22 @@ const SECTIONS = [
     label: "我的評價 Personal Reviews",
     type: "string_list",
   },
-  { key: "questions", label: "Questions", type: "string_list" },
+  {
+    key: "highlights",
+    label: "神回／神片段 Highlights",
+    type: "episode_entry",
+  },
+
   { key: "analysis", label: "解析 Analysis", type: "desc_links" },
   { key: "cinematography", label: "分鏡／演出／巧思", type: "desc_links" },
   { key: "foreshadowing", label: "Foreshadowing", type: "desc_links" },
   { key: "symmetry", label: "對稱 Symmetry", type: "desc_links" },
+  {
+    key: "special_changes",
+    label: "特殊變動 Special Changes",
+    type: "episode_entry",
+    typeDropdown: SPECIAL_CHANGE_TYPES,
+  },
   {
     key: "adaptation",
     label: "改編 Adaptation",
@@ -30,21 +41,11 @@ const SECTIONS = [
   },
   { key: "resources", label: "Resources", type: "name_link" },
   { key: "unread", label: "Unread", type: "name_link" },
+  { key: "questions", label: "Questions", type: "string_list" },
   {
     key: "quotes_memes",
     label: "名言／梗／迷因 Quotes & Memes",
     type: "quote_meme",
-  },
-  {
-    key: "special_changes",
-    label: "特殊變動 Special Changes",
-    type: "episode_entry",
-    typeDropdown: SPECIAL_CHANGE_TYPES,
-  },
-  {
-    key: "highlights",
-    label: "神回／神片段 Highlights",
-    type: "episode_entry",
   },
 ];
 
@@ -77,6 +78,7 @@ function SectionCard({ label, sectionKey, count, isAdmin, onAdd, children }) {
         >
           {isAdmin && (
             <button
+              type="button"
               onClick={onAdd}
               className={btnCls + " bg-brand text-white hover:bg-brand/90"}
             >
@@ -98,12 +100,14 @@ function ItemActions({ isAdmin, onEdit, onDelete }) {
   return (
     <div className="flex gap-1 shrink-0 mt-0.5">
       <button
+        type="button"
         onClick={onEdit}
         className="text-gray-400 hover:text-brand text-xs px-1"
       >
         <i className="fas fa-pencil-alt"></i>
       </button>
       <button
+        type="button"
         onClick={onDelete}
         className="text-gray-400 hover:text-red-500 text-xs px-1"
       >
@@ -117,12 +121,14 @@ function SaveCancel({ onSave, onCancel }) {
   return (
     <div className="flex gap-2 mt-2">
       <button
+        type="button"
         onClick={onSave}
         className={btnCls + " bg-brand text-white hover:bg-brand/90"}
       >
         Save
       </button>
       <button
+        type="button"
         onClick={onCancel}
         className={btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"}
       >
@@ -184,6 +190,7 @@ function RemarkSection({ value, isAdmin, onChange }) {
         {isAdmin && (
           <div className="flex justify-end">
             <button
+              type="button"
               onClick={() => onChange(draft || null)}
               disabled={!dirty}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -323,6 +330,7 @@ function DescLinksForm({ value, onChange, descRequired }) {
             />
             {(value.links || [""]).length > 1 && (
               <button
+                type="button"
                 onClick={() => removeLink(i)}
                 className="text-red-400 hover:text-red-600 px-1"
               >
@@ -332,6 +340,7 @@ function DescLinksForm({ value, onChange, descRequired }) {
           </div>
         ))}
         <button
+          type="button"
           onClick={addLink}
           className="text-xs text-brand hover:underline"
         >
@@ -773,7 +782,11 @@ function EpisodeEntrySection({
         >
           {editIdx === i ? (
             <div>
-              <EpisodeEntryForm val={editVal} setVal={setEditVal} typeDropdown={typeDropdown} />
+              <EpisodeEntryForm
+                val={editVal}
+                setVal={setEditVal}
+                typeDropdown={typeDropdown}
+              />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditIdx(null)} />
             </div>
           ) : (
@@ -815,7 +828,11 @@ function EpisodeEntrySection({
       ))}
       {adding && (
         <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
-          <EpisodeEntryForm val={draft} setVal={setDraft} typeDropdown={typeDropdown} />
+          <EpisodeEntryForm
+            val={draft}
+            setVal={setDraft}
+            typeDropdown={typeDropdown}
+          />
           <SaveCancel
             onSave={commit}
             onCancel={() => {
