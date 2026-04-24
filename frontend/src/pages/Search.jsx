@@ -365,7 +365,7 @@ export default function Search() {
                   <div>
                     <div className="text-[9px] font-bold text-brand uppercase tracking-widest mb-1.5">
                       <i className="fas fa-sitemap mr-1"></i>
-                      {f.franchise_type || "ACG Franchise"}
+                      {f.franchise_type + " Franchise" || "Franchise"}
                     </div>
                     <h3
                       className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
@@ -381,10 +381,6 @@ export default function Search() {
                         {t.sub}
                       </h4>
                     )}
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs font-bold text-gray-400">
-                    <span>View Hub</span>
-                    <i className="fas fa-arrow-right"></i>
                   </div>
                 </div>
               );
@@ -428,10 +424,6 @@ export default function Search() {
                         {t.sub}
                       </h4>
                     )}
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs font-bold text-gray-400">
-                    <span>View Franchise</span>
-                    <i className="fas fa-arrow-right"></i>
                   </div>
                 </div>
               );
