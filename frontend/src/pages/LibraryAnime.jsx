@@ -8,8 +8,7 @@ import {
   isBaha,
   getCoverUrl,
   FALLBACK_SVG,
-  getStatusStyle,
-  getNextStatus,
+  getStatusButtonConfig,
   getRatingWeight,
 } from "../utils/anime";
 import { useToast } from "../hooks/useToast";
@@ -469,10 +468,7 @@ export default function LibraryAnime() {
                     ? a.ep_total
                     : "?");
                 const bahaFlag = isBaha(a);
-                const statusStyle = getStatusStyle(a.watching_status);
-                const nextStatus = getNextStatus(
-                  a.watching_status || "Might Watch",
-                );
+                const btnConfig = getStatusButtonConfig(a.watching_status);
 
                 let airStatusColor = "text-gray-500 bg-gray-100";
                 if (a.airing_status === "Airing")
@@ -487,13 +483,13 @@ export default function LibraryAnime() {
                   const res = await fetch(`/api/anime/${a.system_id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ watching_status: nextStatus }),
+                    body: JSON.stringify({ watching_status: btnConfig.target }),
                     credentials: "include",
                   });
                   if (res.ok) {
                     const updated = await res.json();
                     handleUpdated(updated);
-                    showToast("success", `Status → ${nextStatus}`);
+                    showToast("success", `Status → ${btnConfig.target}`);
                   }
                 }
 
@@ -589,12 +585,10 @@ export default function LibraryAnime() {
                       {isAdmin ? (
                         <button
                           onClick={handleStatusToggle}
-                          className={`w-6 h-6 flex items-center justify-center rounded-md border transition-colors mx-auto ${statusStyle.cls}`}
-                          title={`${a.watching_status || "Might Watch"} → ${nextStatus}`}
+                          className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors mx-auto font-bold text-[13px] leading-none ${btnConfig.cls}`}
+                          title={`${a.watching_status || "Might Watch"} → ${btnConfig.target}`}
                         >
-                          <i
-                            className={`fas ${statusStyle.icon} text-[10px]`}
-                          ></i>
+                          {btnConfig.symbol}
                         </button>
                       ) : a.watching_status ? (
                         <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 mx-auto max-w-full truncate">
