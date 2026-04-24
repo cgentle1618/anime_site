@@ -41,7 +41,7 @@ export default function ScoreBlock({
       </div>
       <div className="ml-auto text-right">
         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-          Completed / Last Updated
+          Last Updated
         </div>
         <div className="text-sm font-mono text-gray-600">
           {updatedAt ? new Date(updatedAt).toLocaleString() : "-"}
