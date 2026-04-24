@@ -17,6 +17,7 @@ import Statistics from "./pages/Statistics";
 import LibraryAnime from "./pages/LibraryAnime";
 import FranchiseLibrary from "./pages/FranchiseLibrary";
 import Admin from "./pages/Admin";
+import DataHistory from "./pages/DataHistory";
 import Add from "./pages/Add";
 import Modify from "./pages/Modify";
 import Delete from "./pages/Delete";
@@ -70,6 +71,7 @@ export default function App() {
                 {/* Admin-only routes */}
                 <Route element={<ProtectedRoute />}>
                   <Route path="/system" element={<Admin />} />
+                  <Route path="/data-history" element={<DataHistory />} />
                   <Route path="/add" element={<Add />} />
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
