@@ -249,7 +249,7 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 
 Standalone anime movie entries (distinct from the `anime` table which covers series/OVA formats).
 
-**Notes:** `release_date_jp` and `release_date_tw` are strings. `source_other` is a string.
+**Notes:** `release_date_jp` and `release_date_tw` are strings.
 
 #### Identity & Hierarchy
 
@@ -308,13 +308,12 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 
 #### Sources & Streaming
 
-| Column              | Type    | Nullable | Notes                                                                      |
-| ------------------- | ------- | -------- | -------------------------------------------------------------------------- |
-| `source_baha`       | Boolean | Yes      | Three-state: `true` = available, `false` = not available, `null` = unknown |
-| `baha_link`         | String  | Yes      |                                                                            |
-| `source_netflix`    | Boolean | Yes      | Three-state: `true` / `false` / `null`; default `False`                    |
-| `source_other`      | String  | Yes      | Name of other watching source                                              |
-| `source_other_link` | String  | Yes      | Link of other watching source                                              |
+| Column           | Type    | Nullable | Notes                                                                      |
+| ---------------- | ------- | -------- | -------------------------------------------------------------------------- |
+| `source_baha`    | Boolean | Yes      | Three-state: `true` = available, `false` = not available, `null` = unknown |
+| `baha_link`      | String  | Yes      |                                                                            |
+| `source_netflix` | Boolean | Yes      | Three-state: `true` / `false` / `null`; default `False`                    |
+| `source_other`   | JSONB   | Yes      | Key-value pairs of source name → URL                                       |
 
 #### Misc
 
@@ -390,10 +389,9 @@ Live-action and animated movie entries.
 
 #### Sources
 
-| Column              | Type   | Nullable | Notes                         |
-| ------------------- | ------ | -------- | ----------------------------- |
-| `source_other`      | String | Yes      | Name of other watching source |
-| `source_other_link` | String | Yes      | Link of other watching source |
+| Column         | Type  | Nullable | Notes                                |
+| -------------- | ----- | -------- | ------------------------------------ |
+| `source_other` | JSONB | Yes      | Key-value pairs of source name → URL |
 
 #### Misc
 
@@ -411,7 +409,7 @@ Live-action and animated movie entries.
 
 Live-action and scripted TV show entries.
 
-**Notes:** `release_date` is a string. `is_main` is a string. `source_other` is a string.
+**Notes:** `release_date` is a string. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -496,7 +494,7 @@ Live-action and scripted TV show entries.
 
 Western animated TV show entries.
 
-**Notes:** `release_date` is a string. `is_main` is a string. `source_other` is a string.
+**Notes:** `release_date` is a string. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -560,10 +558,9 @@ Western animated TV show entries.
 
 #### Sources
 
-| Column              | Type   | Nullable | Notes                         |
-| ------------------- | ------ | -------- | ----------------------------- |
-| `source_other`      | String | Yes      | Watching source name          |
-| `source_other_link` | String | Yes      | Link of other watching source |
+| Column         | Type  | Nullable | Notes                                |
+| -------------- | ----- | -------- | ------------------------------------ |
+| `source_other` | JSONB | Yes      | Key-value pairs of source name → URL |
 
 #### Misc
 
@@ -581,7 +578,7 @@ Western animated TV show entries.
 
 Manga, manhwa, and manhua entries.
 
-**Notes:** No `series_id` on this table. `release_year` and `end_year` are strings. `mal_rank` and `anilist_rating` are strings. `is_main` is a string. `source_other` is a string.
+**Notes:** No `series_id` on this table. `release_year` and `end_year` are strings. `mal_rank` and `anilist_rating` are strings. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -661,10 +658,9 @@ Manga, manhwa, and manhua entries.
 
 #### Sources
 
-| Column              | Type   | Nullable | Notes                        |
-| ------------------- | ------ | -------- | ---------------------------- |
-| `source_other`      | String | Yes      | Name of other reading source |
-| `source_other_link` | String | Yes      | Link of other reading source |
+| Column         | Type  | Nullable | Notes                                |
+| -------------- | ----- | -------- | ------------------------------------ |
+| `source_other` | JSONB | Yes      | Key-value pairs of source name → URL |
 
 #### Misc
 
