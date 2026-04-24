@@ -560,20 +560,22 @@ export default function Anime() {
             </div>
           )}
 
-          {/* System Info */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-              <i className="fas fa-microchip mr-1.5"></i>System Info
-            </h3>
-            <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
-                System ID
-              </div>
-              <div className="text-xs font-mono text-gray-800 bg-gray-50 px-2 py-1.5 rounded border border-gray-100 break-all select-all">
-                {anime.system_id}
+          {/* System Info — admin only */}
+          {isAdmin && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+                <i className="fas fa-microchip mr-1.5"></i>System Info
+              </h3>
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
+                  System ID
+                </div>
+                <div className="text-xs font-mono text-gray-800 bg-gray-50 px-2 py-1.5 rounded border border-gray-100 break-all select-all">
+                  {anime.system_id}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
