@@ -350,6 +350,13 @@ export default function Nav() {
                       <NavLink to="/system" icon="fas fa-cog">
                         Control Center
                       </NavLink>
+                      <Link
+                        to="/data-history"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-violet-50 hover:text-violet-600 transition"
+                      >
+                        <i className="fas fa-history w-6 text-center text-violet-400 mr-1"></i>
+                        Data History
+                      </Link>
                       <div className="border-t border-gray-50 my-1"></div>
                       <Link
                         to="/add"
@@ -679,6 +686,13 @@ export default function Nav() {
                       className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                     >
                       Control Center
+                    </Link>
+                    <Link
+                      to="/data-history"
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-2 text-sm font-bold text-gray-700 hover:text-violet-600"
+                    >
+                      Data History
                     </Link>
                     <Link
                       to="/add"
