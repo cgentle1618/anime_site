@@ -38,6 +38,7 @@ export default function Search() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [matchedFranchises, setMatchedFranchises] = useState([]);
+  const [filterPillFranchises, setFilterPillFranchises] = useState([]);
   const [matchedSeries, setMatchedSeries] = useState([]);
   const [matchedAnime, setMatchedAnime] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
@@ -115,10 +116,6 @@ export default function Search() {
           ].some((n) => cleanString(n).includes(qClean)),
         );
         const fIdSet = new Set(directF.map((f) => f.system_id));
-        if (scope === "all")
-          directA.forEach((a) => {
-            if (a.franchise_id) fIdSet.add(a.franchise_id);
-          });
         const mf = allFranchises
           .filter((f) => fIdSet.has(f.system_id))
           .sort((a, b) =>
@@ -141,6 +138,18 @@ export default function Search() {
             (a.anime_name_cn || "").localeCompare(b.anime_name_cn || ""),
           );
 
+        // Franchise filter pills — derived from anime results
+        const pillFIdSet = new Set(
+          ma.map((a) => a.franchise_id).filter(Boolean),
+        );
+        const pillFranchises = allFranchises
+          .filter((f) => pillFIdSet.has(f.system_id))
+          .sort((a, b) =>
+            (a.franchise_name_cn || "").localeCompare(
+              b.franchise_name_cn || "",
+            ),
+          );
+
         // Series
         const ms = allSeries
           .filter((s) =>
@@ -154,6 +163,7 @@ export default function Search() {
 
         setMatchedSeasonal(msea);
         setMatchedFranchises(mf);
+        setFilterPillFranchises(pillFranchises);
         setMatchedAnime(ma);
         setMatchedSeries(ms);
       } catch (e) {
@@ -179,7 +189,7 @@ export default function Search() {
   const showSeries = scope === "all" || scope === "series";
   const showAnime = scope === "all" || scope === "anime";
   const showFranchisePills =
-    (scope === "all" || scope === "anime") && matchedFranchises.length > 0;
+    (scope === "all" || scope === "anime") && filterPillFranchises.length > 0;
 
   const displayFranchises =
     selectedFranchise === "all"
@@ -313,7 +323,7 @@ export default function Search() {
           >
             All Results
           </button>
-          {matchedFranchises.map((f) => {
+          {filterPillFranchises.map((f) => {
             const titles = getFranchiseTitles(f);
             return (
               <button
