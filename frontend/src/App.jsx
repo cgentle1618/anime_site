@@ -18,6 +18,7 @@ import LibraryAnime from "./pages/LibraryAnime";
 import FranchiseLibrary from "./pages/FranchiseLibrary";
 import Admin from "./pages/Admin";
 import DataHistory from "./pages/DataHistory";
+import ReviewQueue from "./pages/ReviewQueue";
 import Add from "./pages/Add";
 import Modify from "./pages/Modify";
 import Delete from "./pages/Delete";
@@ -72,6 +73,7 @@ export default function App() {
                 <Route element={<ProtectedRoute />}>
                   <Route path="/system" element={<Admin />} />
                   <Route path="/data-history" element={<DataHistory />} />
+                  <Route path="/review-queue" element={<ReviewQueue />} />
                   <Route path="/add" element={<Add />} />
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
