@@ -189,12 +189,20 @@ export default function Search() {
   const showSeries = scope === "all" || scope === "series";
   const showAnime = scope === "all" || scope === "anime";
   const showFranchisePills =
-    (scope === "all" || scope === "anime") && filterPillFranchises.length > 0;
+    (scope === "all" ||
+      scope === "anime" ||
+      scope === "series" ||
+      scope === "franchise") &&
+    filterPillFranchises.length > 0;
 
   const displayFranchises =
     selectedFranchise === "all"
       ? matchedFranchises
       : matchedFranchises.filter((f) => f.system_id === selectedFranchise);
+  const displaySeries =
+    selectedFranchise === "all"
+      ? matchedSeries
+      : matchedSeries.filter((s) => s.franchise_id === selectedFranchise);
   const displayAnime =
     selectedFranchise === "all"
       ? matchedAnime
@@ -278,9 +286,9 @@ export default function Search() {
               franchises ·{" "}
             </>
           )}
-          {showSeries && matchedSeries.length > 0 && (
+          {showSeries && displaySeries.length > 0 && (
             <>
-              <span className="font-bold">{matchedSeries.length}</span> series
+              <span className="font-bold">{displaySeries.length}</span> series
               ·{" "}
             </>
           )}
@@ -386,13 +394,13 @@ export default function Search() {
       )}
 
       {/* Series cards */}
-      {showSeries && matchedSeries.length > 0 && (
+      {showSeries && displaySeries.length > 0 && (
         <div>
           <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
             <i className="fas fa-layer-group text-brand/70"></i> Series
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {matchedSeries.map((s) => {
+            {displaySeries.map((s) => {
               const t = getSeriesTitles(s);
               return (
                 <div
