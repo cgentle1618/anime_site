@@ -1131,6 +1131,12 @@ export default function Admin() {
             <i className="fas fa-history mr-2 text-violet-500"></i> Data History
           </Link>
           <Link
+            to="/review-queue"
+            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition shadow-sm flex items-center"
+          >
+            <i className="fas fa-tasks mr-2 text-rose-500"></i> Review Queue
+          </Link>
+          <Link
             to="/add"
             className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center"
           >

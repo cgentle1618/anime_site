@@ -357,6 +357,13 @@ export default function Nav() {
                         <i className="fas fa-history w-6 text-center text-violet-400 mr-1"></i>
                         Data History
                       </Link>
+                      <Link
+                        to="/review-queue"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-rose-50 hover:text-rose-600 transition"
+                      >
+                        <i className="fas fa-tasks w-6 text-center text-rose-400 mr-1"></i>
+                        Review Queue
+                      </Link>
                       <div className="border-t border-gray-50 my-1"></div>
                       <Link
                         to="/add"
@@ -693,6 +700,13 @@ export default function Nav() {
                       className="block py-2 text-sm font-bold text-gray-700 hover:text-violet-600"
                     >
                       Data History
+                    </Link>
+                    <Link
+                      to="/review-queue"
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-2 text-sm font-bold text-gray-700 hover:text-rose-600"
+                    >
+                      Review Queue
                     </Link>
                     <Link
                       to="/add"
