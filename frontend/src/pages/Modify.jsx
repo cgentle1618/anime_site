@@ -538,6 +538,7 @@ export default function Modify() {
       method: "POST",
       credentials: "include",
     });
+    window.scrollTo(0, 0);
     showToast("success", "Update and enrichment successful.");
   }
 
@@ -569,6 +570,7 @@ export default function Modify() {
         prev.map((f) => (f.system_id === updated.system_id ? updated : f)),
       );
       setEditingItem(updated);
+      window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
   }
@@ -631,6 +633,7 @@ export default function Modify() {
       );
       setEditingItem(updated);
       setSf(seriesToForm(updated, allFranchises));
+      window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
   }
@@ -648,6 +651,7 @@ export default function Modify() {
         prev.map((o) => (o.system_id === updated.system_id ? updated : o)),
       );
       setEditingItem(updated);
+      window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
   }
