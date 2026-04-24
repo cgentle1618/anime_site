@@ -8,11 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Documentation Map
 
-Reference these files in `/docs` for deep technical context:
+Reference these files in `/docs` for deep technical context (note that the documents are not completed and may contain outdated information):
 
 - **`database-schema.md`**: All table schemas — columns, types, nullability, relationships, computed fields.
 - **`business-logic.md`**: Pipeline logic (Fill, Replace, Pull, Backup, Calculate), derivation rules (watch order, ep_previous, prequel/sequel), checking rules, formatters and parsers.
-- **`options.md`**: Valid enum values (airing_status, serialization_status), franchise special entries, and required fields per entry type.
+- **`options.md`**: Valid enum values, options, dropdowns.
 - **`api.md`**: All API endpoints by router — method, path, auth requirement, parameters, request body, and response model.
 - **`pages.md`**: Frontend pages — what each loads and key components used.
 - **`reusable-elements.md`**: Shared React components and JS utilities.
