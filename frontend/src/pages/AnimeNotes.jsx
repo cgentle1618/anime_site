@@ -17,11 +17,22 @@ const SECTIONS = [
     label: "我的評價 Personal Reviews",
     type: "string_list",
   },
-  { key: "questions", label: "Questions", type: "string_list" },
+  {
+    key: "highlights",
+    label: "神回／神片段 Highlights",
+    type: "episode_entry",
+  },
+
   { key: "analysis", label: "解析 Analysis", type: "desc_links" },
   { key: "cinematography", label: "分鏡／演出／巧思", type: "desc_links" },
   { key: "foreshadowing", label: "Foreshadowing", type: "desc_links" },
   { key: "symmetry", label: "對稱 Symmetry", type: "desc_links" },
+  {
+    key: "special_changes",
+    label: "特殊變動 Special Changes",
+    type: "episode_entry",
+    typeDropdown: SPECIAL_CHANGE_TYPES,
+  },
   {
     key: "adaptation",
     label: "改編 Adaptation",
@@ -30,21 +41,11 @@ const SECTIONS = [
   },
   { key: "resources", label: "Resources", type: "name_link" },
   { key: "unread", label: "Unread", type: "name_link" },
+  { key: "questions", label: "Questions", type: "string_list" },
   {
     key: "quotes_memes",
     label: "名言／梗／迷因 Quotes & Memes",
     type: "quote_meme",
-  },
-  {
-    key: "special_changes",
-    label: "特殊變動 Special Changes",
-    type: "episode_entry",
-    typeDropdown: SPECIAL_CHANGE_TYPES,
-  },
-  {
-    key: "highlights",
-    label: "神回／神片段 Highlights",
-    type: "episode_entry",
   },
 ];
 
@@ -773,7 +774,11 @@ function EpisodeEntrySection({
         >
           {editIdx === i ? (
             <div>
-              <EpisodeEntryForm val={editVal} setVal={setEditVal} typeDropdown={typeDropdown} />
+              <EpisodeEntryForm
+                val={editVal}
+                setVal={setEditVal}
+                typeDropdown={typeDropdown}
+              />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditIdx(null)} />
             </div>
           ) : (
@@ -815,7 +820,11 @@ function EpisodeEntrySection({
       ))}
       {adding && (
         <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
-          <EpisodeEntryForm val={draft} setVal={setDraft} typeDropdown={typeDropdown} />
+          <EpisodeEntryForm
+            val={draft}
+            setVal={setDraft}
+            typeDropdown={typeDropdown}
+          />
           <SaveCancel
             onSave={commit}
             onCancel={() => {
