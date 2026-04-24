@@ -63,7 +63,6 @@ export default function LibraryAnime() {
     airingStatus: new Set(),
     watchingStatus: new Set(),
     bahaOnly: false,
-    studioFilter: "",
   });
 
   useEffect(() => {
@@ -133,6 +132,8 @@ export default function LibraryAnime() {
           f?.franchise_name_cn,
           f?.franchise_name_en,
           f?.franchise_name_roman,
+          f?.franchise_name_jp,
+          f?.franchise_name_alt,
           s?.series_name_cn,
           s?.series_name_en,
           a.release_season,
@@ -150,10 +151,6 @@ export default function LibraryAnime() {
           )
         )
           return false;
-      }
-      if (filters.studioFilter) {
-        const sf = cleanString(filters.studioFilter);
-        if (!a.studio || !cleanString(a.studio).includes(sf)) return false;
       }
       if (filters.airingType.size > 0 && !filters.airingType.has(a.airing_type))
         return false;
@@ -227,7 +224,6 @@ export default function LibraryAnime() {
       airingStatus: new Set(),
       watchingStatus: new Set(),
       bahaOnly: false,
-      studioFilter: "",
     });
   }
 
@@ -235,8 +231,7 @@ export default function LibraryAnime() {
     filters.airingType.size +
     filters.airingStatus.size +
     filters.watchingStatus.size +
-    (filters.bahaOnly ? 1 : 0) +
-    (filters.studioFilter ? 1 : 0);
+    (filters.bahaOnly ? 1 : 0);
 
   if (loading) {
     return (
@@ -385,30 +380,6 @@ export default function LibraryAnime() {
               ].map((v) => (
                 <FilterTag key={v} group="watchingStatus" value={v} label={v} />
               ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs font-bold text-gray-400 mb-1.5">Studio</div>
-            <div className="relative max-w-xs">
-              <input
-                type="text"
-                placeholder="Filter by studio..."
-                value={filters.studioFilter}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, studioFilter: e.target.value }))
-                }
-                className="w-full pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-              />
-              {filters.studioFilter && (
-                <button
-                  onClick={() =>
-                    setFilters((p) => ({ ...p, studioFilter: "" }))
-                  }
-                  className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
-                >
-                  <i className="fas fa-times text-xs"></i>
-                </button>
-              )}
             </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
