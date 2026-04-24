@@ -443,9 +443,6 @@ export default function Search() {
               <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
                 Anime
               </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                TV · ONA · Movie · OVA · Special
-              </p>
             </div>
             <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
               {displayAnime.length} results
