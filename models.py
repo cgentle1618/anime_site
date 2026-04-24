@@ -338,8 +338,7 @@ class AnimeMovies(Base, NameFallbackMixin):
     source_baha = Column(Boolean, default=None, nullable=True)
     baha_link = Column(String, nullable=True)
     source_netflix = Column(Boolean, default=False)
-    source_other = Column(String, nullable=True)
-    source_other_link = Column(String, nullable=True)
+    source_other = Column(JSONB, default=None, nullable=True)
 
     remark = Column(Text, nullable=True)
     cover_image_file = Column(String, nullable=True)
