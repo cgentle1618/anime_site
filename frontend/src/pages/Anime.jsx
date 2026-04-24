@@ -215,6 +215,12 @@ export default function Anime() {
   const hasCum = (anime.ep_previous || 0) > 0;
   const cumFin = anime.cum_ep_fin ?? epFin;
   const cumTotal = anime.cum_ep_total ?? epTotal;
+  const epTotalDisplay =
+    anime.ep_total != null
+      ? hasCum && anime.cum_ep_total != null
+        ? `${anime.ep_total} (${anime.cum_ep_total})`
+        : String(anime.ep_total)
+      : null;
   const progressPct =
     epTotal !== "?" ? Math.round((epFin / parseInt(epTotal)) * 100) : 0;
 
@@ -572,13 +578,18 @@ export default function Anime() {
               title="Information"
               icon="fa-info-circle"
               fields={[
-                { label: "本傳/外傳", value: anime.is_main },
-                { label: "Season Part", value: anime.season_part },
-                { label: "Airing Type", value: anime.airing_type },
-                { label: "Release Season", value: releaseSeasonYear },
-                { label: "Release Date", value: releaseMonthYear },
-                { label: "Total Episodes", value: anime.ep_total },
-                { label: "Special Episode Number", value: anime.ep_special },
+                [
+                  { label: "本傳/外傳", value: anime.is_main },
+                  { label: "Season Part", value: anime.season_part },
+                  { label: "Special Episodes", value: anime.ep_special },
+                  { label: "Total Episodes", value: epTotalDisplay },
+                ],
+                [
+                  { label: "Airing Type", value: anime.airing_type },
+                  { label: "Airing Status", value: anime.airing_status },
+                  { label: "Release Season", value: releaseSeasonYear },
+                  { label: "Release Date", value: releaseMonthYear },
+                ],
                 { label: "Genre (Main)", value: anime.genre_main },
                 { label: "Genre (Sub)", value: anime.genre_sub },
               ]}
@@ -587,10 +598,14 @@ export default function Anime() {
               title="Production"
               icon="fa-video"
               fields={[
-                { label: "台灣代理", value: anime.distributor_tw },
-                { label: "Studio", value: anime.studio },
-                { label: "Director", value: anime.director },
-                { label: "Producer", value: anime.producer },
+                [
+                  { label: "Studio", value: anime.studio },
+                  { label: "台灣代理", value: anime.distributor_tw },
+                ],
+                [
+                  { label: "Director", value: anime.director },
+                  { label: "Producer", value: anime.producer },
+                ],
                 { label: "Music", value: anime.music },
               ]}
             />

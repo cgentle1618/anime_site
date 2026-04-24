@@ -21,9 +21,21 @@ export default function InfoCard({ title, icon, fields }) {
         </h3>
       </div>
       <div className="p-4 space-y-3">
-        {fields.map(({ label, value }) => (
-          <InfoRow key={label} label={label} value={value} />
-        ))}
+        {fields.map((row, i) =>
+          Array.isArray(row) ? (
+            <div
+              key={i}
+              className="grid gap-3"
+              style={{ gridTemplateColumns: `repeat(${row.length}, 1fr)` }}
+            >
+              {row.map(({ label, value }) => (
+                <InfoRow key={label} label={label} value={value} />
+              ))}
+            </div>
+          ) : (
+            <InfoRow key={row.label} label={row.label} value={row.value} />
+          ),
+        )}
       </div>
     </div>
   );
