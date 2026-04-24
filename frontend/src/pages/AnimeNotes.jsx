@@ -78,6 +78,7 @@ function SectionCard({ label, sectionKey, count, isAdmin, onAdd, children }) {
         >
           {isAdmin && (
             <button
+              type="button"
               onClick={onAdd}
               className={btnCls + " bg-brand text-white hover:bg-brand/90"}
             >
@@ -99,12 +100,14 @@ function ItemActions({ isAdmin, onEdit, onDelete }) {
   return (
     <div className="flex gap-1 shrink-0 mt-0.5">
       <button
+        type="button"
         onClick={onEdit}
         className="text-gray-400 hover:text-brand text-xs px-1"
       >
         <i className="fas fa-pencil-alt"></i>
       </button>
       <button
+        type="button"
         onClick={onDelete}
         className="text-gray-400 hover:text-red-500 text-xs px-1"
       >
@@ -118,12 +121,14 @@ function SaveCancel({ onSave, onCancel }) {
   return (
     <div className="flex gap-2 mt-2">
       <button
+        type="button"
         onClick={onSave}
         className={btnCls + " bg-brand text-white hover:bg-brand/90"}
       >
         Save
       </button>
       <button
+        type="button"
         onClick={onCancel}
         className={btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"}
       >
@@ -185,6 +190,7 @@ function RemarkSection({ value, isAdmin, onChange }) {
         {isAdmin && (
           <div className="flex justify-end">
             <button
+              type="button"
               onClick={() => onChange(draft || null)}
               disabled={!dirty}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -324,6 +330,7 @@ function DescLinksForm({ value, onChange, descRequired }) {
             />
             {(value.links || [""]).length > 1 && (
               <button
+                type="button"
                 onClick={() => removeLink(i)}
                 className="text-red-400 hover:text-red-600 px-1"
               >
@@ -333,6 +340,7 @@ function DescLinksForm({ value, onChange, descRequired }) {
           </div>
         ))}
         <button
+          type="button"
           onClick={addLink}
           className="text-xs text-brand hover:underline"
         >
