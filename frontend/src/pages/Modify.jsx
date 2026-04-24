@@ -1239,7 +1239,7 @@ export default function Modify() {
                       className={inputCls}
                       type="number"
                       min="0"
-                      step="0.5"
+                      step="0.01"
                       value={af.ep_special}
                       onChange={(e) => ua("ep_special", e.target.value)}
                     />
