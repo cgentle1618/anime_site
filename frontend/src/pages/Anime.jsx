@@ -4,6 +4,11 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/anime";
 import AnimeNotes from "./AnimeNotes";
+import InfoCard, { InfoRow } from "../components/InfoCard";
+import NamingCard from "../components/NamingCard";
+import ScoreBlock from "../components/ScoreBlock";
+import SourcesCard from "../components/SourcesCard";
+import MyTrackerCard from "../components/MyTrackerCard";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -19,19 +24,6 @@ const WATCHING_STATUSES = [
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const MUSIC_OPTIONS = ["Pending", "Need", "Done"];
-
-function InfoRow({ label, value }) {
-  return (
-    <div>
-      <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
-        {label}
-      </div>
-      <div className="text-sm font-medium text-gray-800">
-        {value != null && value !== "" ? value : "-"}
-      </div>
-    </div>
-  );
-}
 
 function SeriesModal({ series, isAdmin, onClose }) {
   return (
@@ -163,17 +155,6 @@ export default function Anime() {
       showToast("error", "Update failed");
       load();
     }
-  }
-
-  function updateEps(change) {
-    if (!anime || !isAdmin) return;
-    const cur = anime.ep_fin || 0;
-    const total = anime.ep_total != null ? parseInt(anime.ep_total, 10) : null;
-    let next = cur + change;
-    if (total !== null && next > total) next = total;
-    if (next < 0) next = 0;
-    if (next === cur) return;
-    performUpdate({ ep_fin: next }, "Episode progress saved");
   }
 
   async function handleAutofill() {
@@ -401,112 +382,14 @@ export default function Anime() {
           </div>
 
           {/* Sources */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-              <i className="fas fa-link mr-1.5"></i>Sources
-            </h3>
-            <div className="space-y-2">
-              {isBaha(anime) && anime.baha_link && (
-                <a
-                  href={anime.baha_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between w-full bg-blue-50 hover:bg-[#00B4D8] text-blue-800 hover:text-white px-3 py-2 rounded border border-blue-100 transition text-sm font-bold"
-                >
-                  <span className="flex items-center">
-                    <img
-                      src="https://i2.bahamut.com.tw/anime/logo.svg"
-                      className="h-4 mr-2 opacity-80"
-                      alt="Baha"
-                    />{" "}
-                    Bahamut
-                  </span>
-                  <i className="fas fa-external-link-alt text-[10px]"></i>
-                </a>
-              )}
-              {isBaha(anime) && !anime.baha_link && (
-                <div className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
-                  <img
-                    src="https://i2.bahamut.com.tw/anime/logo.svg"
-                    className="h-4 mr-2 grayscale opacity-50"
-                    alt="Baha"
-                  />{" "}
-                  Bahamut (No Link)
-                </div>
-              )}
-              {anime.source_netflix && (
-                <div className="flex items-center w-full bg-red-50 text-red-800 px-3 py-2 rounded border border-red-100 text-sm font-bold">
-                  <span className="text-[#E50914] font-black mr-2">N</span>{" "}
-                  Netflix
-                </div>
-              )}
-              {anime.source_other &&
-                Object.entries(anime.source_other).map(([name, url]) =>
-                  url ? (
-                    <a
-                      key={name}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center justify-between w-full bg-purple-50 hover:bg-purple-600 text-purple-800 hover:text-white px-3 py-2 rounded border border-purple-100 transition text-sm font-bold"
-                    >
-                      <span>
-                        <i className="fas fa-play-circle mr-2"></i>
-                        {name}
-                      </span>
-                      <i className="fas fa-external-link-alt text-[10px]"></i>
-                    </a>
-                  ) : (
-                    <div
-                      key={name}
-                      className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold"
-                    >
-                      <i className="fas fa-play-circle mr-2 opacity-50"></i>
-                      {name}
-                    </div>
-                  ),
-                )}
-              {anime.mal_link && (
-                <a
-                  href={anime.mal_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold border-b border-gray-50"
-                >
-                  <span className="flex items-center">
-                    <span className="bg-[#2E51A2] text-white text-[9px] px-1 py-0.5 rounded mr-2">
-                      MAL
-                    </span>{" "}
-                    MyAnimeList
-                  </span>
-                  <i className="fas fa-external-link-alt text-[10px]"></i>
-                </a>
-              )}
-              {anime.official_link && (
-                <a
-                  href={anime.official_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold"
-                >
-                  <span className="flex items-center">
-                    <i className="fas fa-globe mr-2"></i> Official Site
-                  </span>
-                  <i className="fas fa-external-link-alt text-[10px]"></i>
-                </a>
-              )}
-              {!isBaha(anime) &&
-                !anime.source_netflix &&
-                (!anime.source_other ||
-                  Object.keys(anime.source_other).length === 0) &&
-                !anime.mal_link &&
-                !anime.official_link && (
-                  <div className="text-sm text-gray-400 italic">
-                    No sources recorded.
-                  </div>
-                )}
-            </div>
-          </div>
+          <SourcesCard
+            showBaha={isBaha(anime)}
+            bahaLink={anime.baha_link}
+            sourceNetflix={anime.source_netflix}
+            sourceOther={anime.source_other}
+            malLink={anime.mal_link}
+            officialLink={anime.official_link}
+          />
 
           {/* Watch Order */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -645,213 +528,72 @@ export default function Anime() {
             </div>
 
             {/* Quick Stats: Scores */}
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="bg-blue-50 text-blue-800 border border-blue-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-                <i className="fas fa-star text-blue-500 mr-2 text-lg"></i>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-                    MAL Score
-                  </div>
-                  <div className="font-black text-base leading-none">
-                    {anime.mal_rating || "-"}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-blue-50 text-blue-800 border border-blue-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-                <i className="fas fa-trophy text-blue-500 mr-2 text-lg"></i>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-                    MAL Rank
-                  </div>
-                  <div className="font-black text-base leading-none">
-                    {anime.mal_rank ? `#${anime.mal_rank}` : "-"}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-indigo-50 text-indigo-800 border border-indigo-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-                <i className="fas fa-star-half-alt text-indigo-500 mr-2 text-lg"></i>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-                    AniList Score
-                  </div>
-                  <div className="font-black text-base leading-none">
-                    {anime.anilist_rating || "-"}
-                  </div>
-                </div>
-              </div>
-              <div className="ml-auto text-right">
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Completed / Last Updated
-                </div>
-                <div className="text-sm font-mono text-gray-600">
-                  {anime.updated_at
-                    ? new Date(anime.updated_at).toLocaleString()
-                    : "-"}
-                </div>
-              </div>
-            </div>
+            <ScoreBlock
+              malScore={anime.mal_rating}
+              malRank={anime.mal_rank}
+              anilistScore={anime.anilist_rating}
+              updatedAt={anime.updated_at}
+            />
           </div>
 
           {/* My Tracker Block */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-t-4 border-t-brand">
-            <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <h3 className="font-bold text-gray-800 text-lg flex items-center">
-                  <i className="fas fa-chart-line text-brand mr-2"></i>My
-                  Tracker
-                </h3>
-                {hasCum && (
-                  <div
-                    className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-bold border border-indigo-200 shadow-sm"
-                    title="Cumulative Episodes"
-                  >
-                    Cum: {cumFin}/{cumTotal}
-                  </div>
-                )}
-              </div>
-              {/* Embedded Episode Editor */}
-              <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
-                <button
-                  onClick={() => updateEps(-1)}
-                  disabled={!isAdmin}
-                  className="w-8 h-8 shrink-0 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center disabled:opacity-40"
-                >
-                  <i className="fas fa-minus text-xs"></i>
-                </button>
-                <div className="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center select-none px-2 min-w-[80px] whitespace-nowrap">
-                  <input
-                    type="number"
-                    value={epFin}
-                    disabled={!isAdmin}
-                    onChange={(e) => {
-                      if (!isAdmin) return;
-                      const v = parseInt(e.target.value, 10) || 0;
-                      if (epTotal !== "?" && v > parseInt(epTotal)) return;
-                      performUpdate(
-                        { ep_fin: Math.max(0, v) },
-                        "Progress saved",
-                      );
-                    }}
-                    className="text-gray-900 w-10 text-right bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
-                  />
-                  <span className="text-gray-400 mx-1 text-xs">/</span>
-                  <span className="text-gray-500 text-sm leading-none">
-                    {epTotal}
-                  </span>
-                </div>
-                <button
-                  onClick={() => updateEps(1)}
-                  disabled={!isAdmin}
-                  className="w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center disabled:opacity-40"
-                >
-                  <i className="fas fa-plus text-xs"></i>
-                </button>
-              </div>
-            </div>
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Watching Status */}
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Watching Status
-                </label>
-                <select
-                  value={anime.watching_status || ""}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    isAdmin &&
-                    performUpdate(
-                      { watching_status: e.target.value },
-                      "Status updated",
-                    )
-                  }
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                >
-                  {WATCHING_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* Rating */}
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Rating
-                </label>
-                <select
-                  value={anime.my_rating || ""}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    isAdmin &&
-                    performUpdate({ my_rating: e.target.value }, "Rating saved")
-                  }
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                >
-                  <option value="">Unrated</option>
-                  {MY_RATINGS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+          <MyTrackerCard
+            epFin={epFin}
+            epTotal={epTotal}
+            hasCum={hasCum}
+            cumFin={cumFin}
+            cumTotal={cumTotal}
+            watchingStatus={anime.watching_status}
+            myRating={anime.my_rating}
+            isAdmin={isAdmin}
+            onEpChange={(v) =>
+              performUpdate({ ep_fin: v }, "Episode progress saved")
+            }
+            onStatusChange={(v) =>
+              performUpdate({ watching_status: v }, "Status updated")
+            }
+            onRatingChange={(v) =>
+              performUpdate({ my_rating: v }, "Rating saved")
+            }
+            statusOptions={WATCHING_STATUSES}
+            ratingOptions={MY_RATINGS}
+          />
 
           {/* Naming / Information / Production (stacked) */}
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <h3 className="font-bold text-gray-800">
-                  <i className="fas fa-language text-brand mr-2"></i>Naming
-                </h3>
-              </div>
-              <div className="p-4 space-y-3">
-                <InfoRow label="Chinese" value={anime.anime_name_cn} />
-                <InfoRow label="English" value={anime.anime_name_en} />
-                <InfoRow label="Alternative" value={anime.anime_name_alt} />
-                <InfoRow label="Japanese" value={anime.anime_name_jp} />
-                <InfoRow label="roman" value={anime.anime_name_roman} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <h3 className="font-bold text-gray-800">
-                  <i className="fas fa-info-circle text-brand mr-2"></i>
-                  Information
-                </h3>
-              </div>
-              <div className="p-4 space-y-3">
-                <InfoRow label="本傳/外傳" value={anime.is_main} />
-                <InfoRow label="Season Part" value={anime.season_part} />
-                <InfoRow label="Airing Type" value={anime.airing_type} />
-                <InfoRow label="Release Season" value={releaseSeasonYear} />
-                <InfoRow label="Release Date" value={releaseMonthYear} />
-                <InfoRow label="Total Episodes" value={anime.ep_total} />
-                <InfoRow
-                  label="Special Episode Number"
-                  value={anime.ep_special}
-                />
-                <InfoRow label="Genre (Main)" value={anime.genre_main} />
-                <InfoRow label="Genre (Sub)" value={anime.genre_sub} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <h3 className="font-bold text-gray-800">
-                  <i className="fas fa-video text-brand mr-2"></i>Production
-                </h3>
-              </div>
-              <div className="p-4 space-y-3">
-                <InfoRow label="台灣代理" value={anime.distributor_tw} />
-                <InfoRow label="Studio" value={anime.studio} />
-                <InfoRow label="Director" value={anime.director} />
-                <InfoRow label="Producer" value={anime.producer} />
-                <InfoRow label="Music" value={anime.music} />
-              </div>
-            </div>
+            <NamingCard
+              cn={anime.anime_name_cn}
+              en={anime.anime_name_en}
+              alt={anime.anime_name_alt}
+              jp={anime.anime_name_jp}
+              roman={anime.anime_name_roman}
+            />
+            <InfoCard
+              title="Information"
+              icon="fa-info-circle"
+              fields={[
+                { label: "本傳/外傳", value: anime.is_main },
+                { label: "Season Part", value: anime.season_part },
+                { label: "Airing Type", value: anime.airing_type },
+                { label: "Release Season", value: releaseSeasonYear },
+                { label: "Release Date", value: releaseMonthYear },
+                { label: "Total Episodes", value: anime.ep_total },
+                { label: "Special Episode Number", value: anime.ep_special },
+                { label: "Genre (Main)", value: anime.genre_main },
+                { label: "Genre (Sub)", value: anime.genre_sub },
+              ]}
+            />
+            <InfoCard
+              title="Production"
+              icon="fa-video"
+              fields={[
+                { label: "台灣代理", value: anime.distributor_tw },
+                { label: "Studio", value: anime.studio },
+                { label: "Director", value: anime.director },
+                { label: "Producer", value: anime.producer },
+                { label: "Music", value: anime.music },
+              ]}
+            />
           </div>
 
           {/* Notes Section: Cast & Characters + Music */}
