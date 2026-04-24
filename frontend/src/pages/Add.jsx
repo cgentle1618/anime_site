@@ -543,6 +543,7 @@ export default function Add() {
       credentials: "include",
     });
 
+    window.scrollTo(0, 0);
     showToast("success", "Entry appended and enriched successfully.");
     setLastAdded(created.anime_name_en || created.anime_name_cn || "New Entry");
     setAf(defaultAnime());
@@ -581,6 +582,7 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      window.scrollTo(0, 0);
       showToast("success", "Franchise appended successfully.");
       setLastAdded(
         created.franchise_name_cn ||
@@ -618,6 +620,7 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      window.scrollTo(0, 0);
       showToast("success", "Series appended successfully.");
       setLastAdded(
         created.series_name_cn || created.series_name_en || "New Series",
@@ -1034,7 +1037,7 @@ export default function Add() {
                   className={inputCls}
                   type="number"
                   min="0"
-                  step="0.5"
+                  step="0.01"
                   value={af.ep_special}
                   onChange={(e) => ua("ep_special", e.target.value)}
                   placeholder="0"

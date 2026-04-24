@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 
@@ -73,6 +73,7 @@ export default function Nav() {
   const { isAdmin, refetchAuth } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState("all");
@@ -270,7 +271,7 @@ export default function Nav() {
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     await refetchAuth();
-    navigate("/login");
+    navigate(location.pathname + location.search, { replace: true });
   }
 
   return (
@@ -350,6 +351,20 @@ export default function Nav() {
                       <NavLink to="/system" icon="fas fa-cog">
                         Control Center
                       </NavLink>
+                      <Link
+                        to="/data-history"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-violet-50 hover:text-violet-600 transition"
+                      >
+                        <i className="fas fa-history w-6 text-center text-violet-400 mr-1"></i>
+                        Data History
+                      </Link>
+                      <Link
+                        to="/review-queue"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-rose-50 hover:text-rose-600 transition"
+                      >
+                        <i className="fas fa-tasks w-6 text-center text-rose-400 mr-1"></i>
+                        Review Queue
+                      </Link>
                       <div className="border-t border-gray-50 my-1"></div>
                       <Link
                         to="/add"
@@ -492,7 +507,7 @@ export default function Nav() {
               </>
             ) : (
               <Link
-                to="/login"
+                to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 rounded-lg text-sm font-bold transition shadow-sm flex items-center"
               >
                 <i className="fas fa-sign-in-alt mr-1.5"></i> Login
@@ -681,6 +696,20 @@ export default function Nav() {
                       Control Center
                     </Link>
                     <Link
+                      to="/data-history"
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-2 text-sm font-bold text-gray-700 hover:text-violet-600"
+                    >
+                      Data History
+                    </Link>
+                    <Link
+                      to="/review-queue"
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-2 text-sm font-bold text-gray-700 hover:text-rose-600"
+                    >
+                      Review Queue
+                    </Link>
+                    <Link
                       to="/add"
                       onClick={() => setMobileOpen(false)}
                       className="block py-2 text-sm font-bold text-gray-700 hover:text-emerald-600"
@@ -729,7 +758,7 @@ export default function Nav() {
               <>
                 <div className="border-t border-gray-100 my-2"></div>
                 <Link
-                  to="/login"
+                  to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-2.5 rounded-md text-base font-bold text-gray-900 hover:bg-gray-50 transition flex items-center"
                 >

@@ -33,7 +33,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    print("🚀 [ALEMBIC] Establishing direct engine connection...", flush=True)
+    print("[ALEMBIC] Establishing direct engine connection...", flush=True)
 
     # --- THE FIX ---
     # By constructing the engine directly here, we bypass the ConfigParser
@@ -45,9 +45,9 @@ def run_migrations_online() -> None:
         try:
             with context.begin_transaction():
                 context.run_migrations()
-            print("✅ [ALEMBIC SUCCESS] Database state is verified!", flush=True)
+            print("[ALEMBIC SUCCESS] Database state is verified!", flush=True)
         except Exception as e:
-            print(f"❌ [ALEMBIC FATAL CRASH] {e}", flush=True)
+            print(f"[ALEMBIC FATAL CRASH] {e}", flush=True)
             raise e
 
 
