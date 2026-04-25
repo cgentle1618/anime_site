@@ -38,6 +38,7 @@ export default function Search() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [matchedFranchises, setMatchedFranchises] = useState([]);
+  const [filterPillFranchises, setFilterPillFranchises] = useState([]);
   const [matchedSeries, setMatchedSeries] = useState([]);
   const [matchedAnime, setMatchedAnime] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
@@ -115,10 +116,6 @@ export default function Search() {
           ].some((n) => cleanString(n).includes(qClean)),
         );
         const fIdSet = new Set(directF.map((f) => f.system_id));
-        if (scope === "all")
-          directA.forEach((a) => {
-            if (a.franchise_id) fIdSet.add(a.franchise_id);
-          });
         const mf = allFranchises
           .filter((f) => fIdSet.has(f.system_id))
           .sort((a, b) =>
@@ -141,6 +138,18 @@ export default function Search() {
             (a.anime_name_cn || "").localeCompare(b.anime_name_cn || ""),
           );
 
+        // Franchise filter pills — derived from anime results
+        const pillFIdSet = new Set(
+          ma.map((a) => a.franchise_id).filter(Boolean),
+        );
+        const pillFranchises = allFranchises
+          .filter((f) => pillFIdSet.has(f.system_id))
+          .sort((a, b) =>
+            (a.franchise_name_cn || "").localeCompare(
+              b.franchise_name_cn || "",
+            ),
+          );
+
         // Series
         const ms = allSeries
           .filter((s) =>
@@ -154,6 +163,7 @@ export default function Search() {
 
         setMatchedSeasonal(msea);
         setMatchedFranchises(mf);
+        setFilterPillFranchises(pillFranchises);
         setMatchedAnime(ma);
         setMatchedSeries(ms);
       } catch (e) {
@@ -179,12 +189,20 @@ export default function Search() {
   const showSeries = scope === "all" || scope === "series";
   const showAnime = scope === "all" || scope === "anime";
   const showFranchisePills =
-    (scope === "all" || scope === "anime") && matchedFranchises.length > 0;
+    (scope === "all" ||
+      scope === "anime" ||
+      scope === "series" ||
+      scope === "franchise") &&
+    filterPillFranchises.length > 0;
 
   const displayFranchises =
     selectedFranchise === "all"
       ? matchedFranchises
       : matchedFranchises.filter((f) => f.system_id === selectedFranchise);
+  const displaySeries =
+    selectedFranchise === "all"
+      ? matchedSeries
+      : matchedSeries.filter((s) => s.franchise_id === selectedFranchise);
   const displayAnime =
     selectedFranchise === "all"
       ? matchedAnime
@@ -268,9 +286,9 @@ export default function Search() {
               franchises ·{" "}
             </>
           )}
-          {showSeries && matchedSeries.length > 0 && (
+          {showSeries && displaySeries.length > 0 && (
             <>
-              <span className="font-bold">{matchedSeries.length}</span> series
+              <span className="font-bold">{displaySeries.length}</span> series
               ·{" "}
             </>
           )}
@@ -313,7 +331,7 @@ export default function Search() {
           >
             All Results
           </button>
-          {matchedFranchises.map((f) => {
+          {filterPillFranchises.map((f) => {
             const titles = getFranchiseTitles(f);
             return (
               <button
@@ -347,7 +365,7 @@ export default function Search() {
                   <div>
                     <div className="text-[9px] font-bold text-brand uppercase tracking-widest mb-1.5">
                       <i className="fas fa-sitemap mr-1"></i>
-                      {f.franchise_type || "ACG Franchise"}
+                      {f.franchise_type + " Franchise" || "Franchise"}
                     </div>
                     <h3
                       className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
@@ -364,10 +382,6 @@ export default function Search() {
                       </h4>
                     )}
                   </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs font-bold text-gray-400">
-                    <span>View Hub</span>
-                    <i className="fas fa-arrow-right"></i>
-                  </div>
                 </div>
               );
             })}
@@ -376,13 +390,13 @@ export default function Search() {
       )}
 
       {/* Series cards */}
-      {showSeries && matchedSeries.length > 0 && (
+      {showSeries && displaySeries.length > 0 && (
         <div>
           <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
             <i className="fas fa-layer-group text-brand/70"></i> Series
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {matchedSeries.map((s) => {
+            {displaySeries.map((s) => {
               const t = getSeriesTitles(s);
               return (
                 <div
@@ -411,10 +425,6 @@ export default function Search() {
                       </h4>
                     )}
                   </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs font-bold text-gray-400">
-                    <span>View Franchise</span>
-                    <i className="fas fa-arrow-right"></i>
-                  </div>
                 </div>
               );
             })}
@@ -433,9 +443,6 @@ export default function Search() {
               <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
                 Anime
               </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                TV · ONA · Movie · OVA · Special
-              </p>
             </div>
             <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
               {displayAnime.length} results
