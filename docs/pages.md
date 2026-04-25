@@ -756,7 +756,7 @@ Search-then-edit pattern. Shows most recently modified entry at top. Supports `?
 
 #### Modify Anime Entry Tab (default)
 
-- Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion Entry
+- Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
 - Recently Modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
 - Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and Structured Notes section:
@@ -810,7 +810,7 @@ Search-then-delete pattern. Shows most recently deleted entry at top.
 
 #### Delete Anime Entry Tab (default)
 
-- Search bar → **Search Suggestion Entry for Deletion** (reusable)
+- Search bar → **Search Suggestion for Deletion** (reusable)
 - After selecting: **Anime Entry Info for Deletion** (reusable) + Delete button
 - If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
 - If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
@@ -819,7 +819,7 @@ Deletes: `DELETE /api/anime/:id`
 
 #### Delete Anime Movie Entry Tab
 
-- Search bar → **Search Suggestion Entry for Deletion** (reusable)
+- Search bar → **Search Suggestion for Deletion** (reusable)
 - After selecting: **Anime Movie Entry Info for Deletion** (reusable) + Delete button
 - If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
 
@@ -827,14 +827,14 @@ Deletes: `DELETE /api/anime-movie/:id`
 
 #### Delete Franchise Tab
 
-- Search bar → **Search Suggestion Entry for Deletion** (reusable)
+- Search bar → **Search Suggestion for Deletion** (reusable)
 - After selecting: **Franchise Entry Info for Deletion** (reusable) + Delete button
 
 Deletes: `DELETE /api/franchise/:id`
 
 #### Delete Series Tab
 
-- Search bar (results grouped by franchise) → **Search Suggestion Entry for Deletion** (reusable)
+- Search bar (results grouped by franchise) → **Search Suggestion for Deletion** (reusable)
 - After selecting: **Series Entry Info for Deletion** (reusable) + Delete button
 
 Deletes: `DELETE /api/series/:id`
