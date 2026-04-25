@@ -162,6 +162,52 @@ export default function Delete() {
     setModal(t);
   }
 
+  async function executeDirectDelete(type, item) {
+    setDeleting(true);
+    try {
+      if (type === "franchise") {
+        for (const a of db.anime.filter(
+          (x) => x.franchise_id === item.system_id,
+        )) {
+          await fetch(`/api/anime/${a.system_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        for (const s of db.series.filter(
+          (x) => x.franchise_id === item.system_id,
+        )) {
+          await fetch(`/api/series/${s.system_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+      } else if (type === "series") {
+        for (const a of db.anime.filter(
+          (x) => x.series_id === item.system_id,
+        )) {
+          await fetch(`/api/anime/${a.system_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+      }
+      const res = await fetch(`/api/${type}/${item.system_id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed to delete ${type}`);
+      setSelectedFranchise(null);
+      setSelectedSeries(null);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function executeDelete() {
     if (!modal) return;
     const { type, item } = modal;
@@ -438,17 +484,6 @@ export default function Delete() {
                     }{" "}
                     Anime
                   </p>
-                  {(db.series.filter(
-                    (s) => s.franchise_id === selectedFranchise.system_id,
-                  ).length > 0 ||
-                    db.anime.filter(
-                      (a) => a.franchise_id === selectedFranchise.system_id,
-                    ).length > 0) && (
-                    <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
-                      <i className="fas fa-exclamation-triangle"></i> Cascade
-                      Deletion Supported
-                    </span>
-                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -458,10 +493,16 @@ export default function Delete() {
                     <i className="fas fa-times"></i>
                   </button>
                   <button
-                    onClick={() => initDelete("franchise", selectedFranchise)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    onClick={() =>
+                      executeDirectDelete("franchise", selectedFranchise)
+                    }
+                    disabled={deleting}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 disabled:opacity-50"
                   >
-                    <i className="fas fa-trash-alt"></i> Delete
+                    <i
+                      className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                    ></i>
+                    {deleting ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </div>
@@ -525,14 +566,6 @@ export default function Delete() {
                     }{" "}
                     Anime
                   </p>
-                  {db.anime.filter(
-                    (a) => a.series_id === selectedSeries.system_id,
-                  ).length > 0 && (
-                    <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
-                      <i className="fas fa-exclamation-triangle"></i> Cascade
-                      Deletion Supported
-                    </span>
-                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -542,10 +575,16 @@ export default function Delete() {
                     <i className="fas fa-times"></i>
                   </button>
                   <button
-                    onClick={() => initDelete("series", selectedSeries)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    onClick={() =>
+                      executeDirectDelete("series", selectedSeries)
+                    }
+                    disabled={deleting}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 disabled:opacity-50"
                   >
-                    <i className="fas fa-trash-alt"></i> Delete
+                    <i
+                      className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                    ></i>
+                    {deleting ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </div>
