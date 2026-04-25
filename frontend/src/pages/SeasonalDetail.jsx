@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/anime";
 import DashboardCard from "../components/DashboardCard";
+import BarChart from "../components/BarChart";
 
 // Section definitions — display order and status membership
 const SECTIONS = [
@@ -82,43 +83,6 @@ const MAL_BUCKETS = [
   { key: "4+", min: 4, max: 7, color: "bg-orange-400" },
   { key: "<4", min: 0, max: 4, color: "bg-red-400" },
 ];
-
-function BarChart({ items, label }) {
-  const max = Math.max(...items.map((d) => d.count), 1);
-  const hasData = items.some((d) => d.count > 0);
-  return (
-    <div>
-      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
-        {label}
-      </p>
-      {!hasData ? (
-        <p className="text-xs text-gray-400 italic">No data</p>
-      ) : (
-        <div className="flex items-end gap-2 h-28">
-          {items.map(({ key, count, color }) => (
-            <div
-              key={key}
-              className="flex flex-col items-center flex-1 min-w-0"
-            >
-              <span className="text-[10px] font-bold text-gray-700 mb-1">
-                {count > 0 ? count : ""}
-              </span>
-              <div
-                className={`w-full rounded-t-sm transition-all ${color} ${count === 0 ? "opacity-15" : ""}`}
-                style={{
-                  height: `${Math.max((count / max) * 80, count > 0 ? 4 : 2)}px`,
-                }}
-              />
-              <span className="text-[9px] font-semibold text-gray-500 mt-1.5 truncate w-full text-center">
-                {key}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function sortAnime(items, franchiseMap) {
   return [...items].sort((a, b) => {

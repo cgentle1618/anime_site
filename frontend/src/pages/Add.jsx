@@ -1,13 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "../hooks/useToast";
-import { getDisplayName } from "../utils/anime";
+import { getDisplayName, cleanString } from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
-
-function cleanStr(s) {
-  if (!s) return "";
-  return s.toLowerCase().replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
+import { Field, SectionHeader } from "../components/FormField";
 
 function getOptions(allOptions, category) {
   return allOptions
@@ -19,29 +15,6 @@ const inputCls =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
 const selectCls =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white";
-
-function Field({ label, required, half, children }) {
-  return (
-    <div className={half ? "" : ""}>
-      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function SectionHeader({ icon, title }) {
-  return (
-    <div className="flex items-center gap-2 pb-2 border-b border-gray-200 mt-6 mb-4">
-      <i className={`fas ${icon} text-brand text-sm`}></i>
-      <span className="text-xs font-black text-gray-600 uppercase tracking-widest">
-        {title}
-      </span>
-    </div>
-  );
-}
 
 function FranchiseCreateModal({ onConfirm, onCancel }) {
   const [expectation, setExpectation] = useState("Low");
@@ -267,7 +240,7 @@ export default function Add() {
             a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
-          ].some((n) => n && cleanStr(n).includes(cleanStr(fillQuery))),
+          ].some((n) => n && cleanString(n).includes(cleanString(fillQuery))),
         )
         .slice(0, 10)
     : [];
@@ -421,8 +394,8 @@ export default function Add() {
     const checkName = af.anime_name_en || af.anime_name_cn || "";
     const isDup = allAnime.some(
       (a) =>
-        cleanStr(a.anime_name_en || "") === cleanStr(checkName) ||
-        cleanStr(a.anime_name_cn || "") === cleanStr(checkName),
+        cleanString(a.anime_name_en || "") === cleanString(checkName) ||
+        cleanString(a.anime_name_cn || "") === cleanString(checkName),
     );
     if (isDup && checkName) {
       const proceed = await new Promise((resolve) => {

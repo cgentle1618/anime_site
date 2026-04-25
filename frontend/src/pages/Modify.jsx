@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../hooks/useToast";
-import { getDisplayName } from "../utils/anime";
+import { getDisplayName, cleanString } from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
 import AnimeNotes from "./AnimeNotes";
-
-function cleanStr(s) {
-  if (!s) return "";
-  return s.toLowerCase().replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
+import { Field, SectionHeader } from "../components/FormField";
 
 function getOptions(allOptions, category) {
   return allOptions
@@ -21,30 +17,6 @@ const inputCls =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
 const selectCls =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white";
-
-function Field({ label, required, hint, children }) {
-  return (
-    <div>
-      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      {children}
-      {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
-    </div>
-  );
-}
-
-function SectionHeader({ icon, title }) {
-  return (
-    <div className="flex items-center gap-2 pb-2 border-b border-gray-200 mt-6 mb-4">
-      <i className={`fas ${icon} text-brand text-sm`}></i>
-      <span className="text-xs font-black text-gray-600 uppercase tracking-widest">
-        {title}
-      </span>
-    </div>
-  );
-}
 
 function FranchiseCreateModal({ onConfirm, onCancel }) {
   const [expectation, setExpectation] = useState("Low");
@@ -669,7 +641,7 @@ export default function Modify() {
 
   const searchResults = (() => {
     if (!searchQuery.trim()) return [];
-    const q = cleanStr(searchQuery);
+    const q = cleanString(searchQuery);
     if (activeTab === "anime")
       return allAnime
         .filter((a) =>
@@ -679,7 +651,7 @@ export default function Modify() {
             a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
-          ].some((n) => n && cleanStr(n).includes(q)),
+          ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
     if (activeTab === "franchise")
@@ -691,22 +663,22 @@ export default function Modify() {
             f.franchise_name_roman,
             f.franchise_name_jp,
             f.franchise_name_alt,
-          ].some((n) => n && cleanStr(n).includes(q)),
+          ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
     if (activeTab === "series")
       return allSeries
         .filter((s) =>
           [s.series_name_en, s.series_name_cn, s.series_name_alt].some(
-            (n) => n && cleanStr(n).includes(q),
+            (n) => n && cleanString(n).includes(q),
           ),
         )
         .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
-          cleanStr(o.option_value).includes(q) ||
-          cleanStr(o.category).includes(q),
+          cleanString(o.option_value).includes(q) ||
+          cleanString(o.category).includes(q),
       )
       .slice(0, 10);
   })();

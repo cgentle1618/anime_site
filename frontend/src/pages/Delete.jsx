@@ -312,8 +312,8 @@ export default function Delete() {
                     {getDisplayTitle(item, "anime")}
                   </div>
                   <div className="text-[11px] text-gray-500">
-                    {getFranchiseTitle(item.franchise_id)} /{" "}
-                    {getSeriesTitle(item.series_id)}
+                    {getFranchiseTitle(item.franchise_id)} ·{" "}
+                    {item.airing_type || "TV"}
                   </div>
                 </div>
               )}

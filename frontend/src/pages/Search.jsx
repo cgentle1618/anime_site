@@ -2,13 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AnimeCard from "../components/AnimeCard";
-
-function cleanString(str) {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
+import { cleanString } from "../utils/anime";
 
 function getFranchiseTitles(f) {
   const raw = [
