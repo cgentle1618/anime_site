@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/anime";
 import DashboardCard from "../components/DashboardCard";
-import BarChart from "../components/BarChart";
+import RatingDistributionBlock from "../components/RatingDistributionBlock";
 
 // Section definitions — display order and status membership
 const SECTIONS = [
@@ -60,29 +60,6 @@ function getAdjacentSeason(current, direction) {
     ? `WIN ${parseInt(year, 10) + 1}`
     : `${SEASONS[idx + 1]} ${year}`;
 }
-
-const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
-const MY_RATING_COLORS = {
-  S: "bg-purple-500",
-  "A+": "bg-amber-400",
-  A: "bg-green-500",
-  B: "bg-blue-400",
-  C: "bg-orange-400",
-  D: "bg-rose-400",
-  E: "bg-red-600",
-  F: "bg-gray-500",
-};
-
-const MAL_BUCKETS = [
-  { key: "9+", min: 9, max: 11, color: "bg-purple-500" },
-  { key: "8.7+", min: 8.7, max: 9, color: "bg-indigo-400" },
-  { key: "8.5+", min: 8.5, max: 8.7, color: "bg-blue-400" },
-  { key: "8.2+", min: 8.2, max: 8.5, color: "bg-cyan-400" },
-  { key: "7.7+", min: 7.7, max: 8.2, color: "bg-green-400" },
-  { key: "7+", min: 7, max: 7.7, color: "bg-yellow-400" },
-  { key: "4+", min: 4, max: 7, color: "bg-orange-400" },
-  { key: "<4", min: 0, max: 4, color: "bg-red-400" },
-];
 
 function sortAnime(items, franchiseMap) {
   return [...items].sort((a, b) => {
@@ -234,26 +211,10 @@ export default function SeasonalDetail() {
   }
 
   const totalEntries = animeData.length;
-  const completedCount = animeData.filter(
-    (a) => a.watching_status === "Completed",
-  ).length;
+  const completedCount = seasonal?.entry_completed ?? 0;
+  const plannedCount = seasonal?.entry_planned ?? 0;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
-
-  const myRatingData = MY_RATING_ORDER.map((r) => ({
-    key: r,
-    count: animeData.filter((a) => a.my_rating === r).length,
-    color: MY_RATING_COLORS[r],
-  }));
-
-  const malRatingData = MAL_BUCKETS.map((b) => ({
-    key: b.key,
-    count: animeData.filter(
-      (a) =>
-        a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
-    ).length,
-    color: b.color,
-  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -297,7 +258,10 @@ export default function SeasonalDetail() {
 
             <div className="flex flex-wrap gap-3 mt-4">
               <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
-                {totalEntries} Entries
+                {totalEntries} Total
+              </span>
+              <span className="bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-sm font-bold border border-violet-200">
+                {plannedCount} Planned
               </span>
               <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold border border-blue-200">
                 {completedCount} Completed
@@ -352,17 +316,8 @@ export default function SeasonalDetail() {
         </div>
       </div>
 
-      {/* Rating Distributions */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-6 flex items-center gap-2">
-          <i className="fas fa-chart-bar text-brand"></i>
-          Rating Distribution
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-          <BarChart items={myRatingData} label="My Rating" />
-          <BarChart items={malRatingData} label="MAL Rating" />
-        </div>
-      </div>
+      {/* Rating Distribution */}
+      <RatingDistributionBlock animeData={animeData} />
 
       {/* Sections */}
       <div className="space-y-12">

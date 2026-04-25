@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 # ==========================================
 
 _AIRING_TYPE_ORDER = {"TV": 0, "ONA": 1, "Special": 2, "OVA": 3, "OAD": 4}
+_PLANNED_STATUSES = {"Plan to Watch", "Watch When Airs"}
 _WATCHING_STATUSES = {"Active Watching", "Passive Watching", "Paused"}
 _DROPPED_STATUSES = {"Temp Dropped", "Dropped"}
 _SEASONAL_AIRING_TYPES = {"TV", "ONA", "Movie", "Special"}
@@ -887,9 +888,10 @@ def create_missing_seasonal(db: Session) -> None:
 
 def sync_seasonal_counts(db: Session) -> None:
     """
-    Recomputes entry_completed, entry_watching, and entry_dropped for every
+    Recomputes entry_planned, entry_completed, entry_watching, and entry_dropped for every
     Seasonal by scanning linked Anime entries. Always overwrites existing counts.
     Only considers airing_type in TV, ONA, Movie, Special.
+    Planned  = Plan to Watch | Watch When Airs
     Watching = Active Watching | Passive Watching | Paused.
     Dropped  = Temp Dropped | Dropped.
     """
@@ -900,6 +902,7 @@ def sync_seasonal_counts(db: Session) -> None:
     seasonal_map = {s.seasonal: s for s in seasonals}
 
     for s in seasonals:
+        s.entry_planned = 0
         s.entry_completed = 0
         s.entry_watching = 0
         s.entry_dropped = 0
@@ -921,6 +924,8 @@ def sync_seasonal_counts(db: Session) -> None:
             continue
         if anime.watching_status == "Completed":
             s.entry_completed += 1
+        elif anime.watching_status in _PLANNED_STATUSES:
+            s.entry_planned += 1
         elif anime.watching_status in _WATCHING_STATUSES:
             s.entry_watching += 1
         elif anime.watching_status in _DROPPED_STATUSES:

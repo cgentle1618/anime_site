@@ -1,3 +1,8 @@
+export const inputCls =
+  "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
+export const selectCls =
+  "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white";
+
 export function Field({ label, required, half, hint, children }) {
   return (
     <div className={half ? "" : ""}>

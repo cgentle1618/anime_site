@@ -390,6 +390,7 @@ class Seasonal(Base):
 
     seasonal = Column(String, primary_key=True, unique=True, index=True)
     my_rating = Column(String, nullable=True)
+    entry_planned = Column(Integer, nullable=False, default=0)
     entry_completed = Column(Integer, nullable=False, default=0)
     entry_watching = Column(Integer, nullable=False, default=0)
     entry_dropped = Column(Integer, nullable=False, default=0)

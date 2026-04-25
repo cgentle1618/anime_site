@@ -250,6 +250,7 @@ class SystemConfigResponse(BaseModel):
 class SeasonalBase(BaseModel):
     seasonal: str
     my_rating: Optional[str] = None
+    entry_planned: int = 0
     entry_completed: int = 0
     entry_watching: int = 0
     entry_dropped: int = 0
