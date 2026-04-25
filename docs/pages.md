@@ -727,7 +727,7 @@ Multi-section statistics dashboard.
    - Each chart shows amount and percentage per category
 
 3. **Anime Seasonal Overview** — paginated table (12 per page, new to old; highlights current season with "Current" tag):
-   - Release Season, My Seasonal Rating, # Completed, # Watching, # Dropped
+   - Release Season, My Seasonal Rating, # Completed, # Planned, # Watching, # Dropped
 
 4. **Watch Next** — tabbed franchise/entry grid:
    - Anime tab: grouped by 12ep / 24ep / 30ep+; shows poster, Franchise Name CN with fallback, Franchise Expectation (live)

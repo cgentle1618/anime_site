@@ -133,17 +133,9 @@ function SeasonalBlock({
   const [saving, setSaving] = useState(false);
 
   const totalEntries = animeData.length;
-  const completedCount = animeData.filter(
-    (a) => a.watching_status === "Completed",
-  ).length;
-  const watchingCount = animeData.filter((a) =>
-    ["Active Watching", "Passive Watching", "Paused"].includes(
-      a.watching_status,
-    ),
-  ).length;
-  const plannedCount = animeData.filter((a) =>
-    ["Plan to Watch", "Watch When Airs"].includes(a.watching_status),
-  ).length;
+  const completedCount = seasonal?.entry_completed ?? 0;
+  const watchingCount = seasonal?.entry_watching ?? 0;
+  const plannedCount = seasonal?.entry_planned ?? 0;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
