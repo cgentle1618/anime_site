@@ -62,13 +62,17 @@ Shell rendered for every route. Contains:
 
 Card variants are defined in `reusable-elements.md`. Quick reference:
 
-| Canonical Name         | Code File                      | Used By                                                     |
-| ---------------------- | ------------------------------ | ----------------------------------------------------------- |
-| Anime Entry Card 1     | `DashboardCard.jsx`            | Dashboard, Seasonal Overall, Seasonal Detail                |
-| Anime Entry Card 2     | `AnimeCard.jsx`                | Anime Library, Franchise Hub (ACG), Search                  |
-| Anime Entry Card 3     | Inline in `FutureReleases.jsx` | Future Releases (Anime tab)                                 |
-| Anime Movie Entry Card | TBD                            | ACG Franchise, Anime Movie Library, Search, Future Releases |
-| Franchise Entry Card   | TBD                            | Franchise Library                                           |
+| Canonical Name         | Code File                      | Used By                                                                   |
+| ---------------------- | ------------------------------ | ------------------------------------------------------------------------- |
+| Anime Entry Card 1     | `DashboardCard.jsx`            | Dashboard, Seasonal Overall, Seasonal Detail                              |
+| Anime Entry Card 2     | `AnimeCard.jsx`                | Anime Library, Franchise Hub (ACG), Search                                |
+| Anime Entry Card 3     | Inline in `FutureReleases.jsx` | Future Releases (Anime tab)                                               |
+| Anime Movie Entry Card | TBD                            | ACG Franchise, Anime Movie Library, Search, Future Releases               |
+| Movie Entry Card       | TBD                            | Reality Franchise Hub, Movie Library, Search, Future Releases (Movie tab) |
+| TV Show Entry Card 2   | TBD                            | Reality Franchise Hub, TV Show Library, Search                            |
+| Cartoon Entry Card 2   | TBD                            | Cartoon Franchise Hub, Cartoon Library, Search                            |
+| Manga Entry Card 2     | TBD                            | Manga Library, Search                                                     |
+| Franchise Entry Card   | TBD                            | Franchise Library                                                         |
 
 Full card specs are in `reusable-elements.md`.
 
@@ -221,51 +225,165 @@ Full detail page for a single anime movie entry.
 
 ---
 
-### Movie Detail (TBD)
+### Movie Detail
 
 **File:** `frontend/src/pages/Movie.jsx` (TBD)
 
-**Layout (left column):** Poster, **Sources Card**, Watch Order, **Related Entries Card**, System Info Block (admin only)
+Full detail page for a single movie entry.
 
-**Layout (right column):** Tags (Airing Status), Main Title CN with fallback, Sub Title EN, Franchise link (with navigation), **Series Information Pop Up Entry**, **Score Block**
+**Admin Controls Block** (admin only):
 
-**Detail sections:** **My Tracker Block**, **Naming Card**, **Information Card**, Remarks, **Notes Card**
+- Edit button → `/modify?id=:system_id`
+- Mark Completed button
+- Autofill & Update button → executes Replace for single movie entry
+
+**Layout (left column):**
+
+- Movie poster
+- **Sources Card** (reusable)
+- Watch Order
+- **Related Entries Card** (reusable)
+- System Info Block (admin only): System ID
+
+**Layout (right column):**
+
+- Tags: Airing Status
+- Main Title: Movie Name CN (with fallback)
+- Sub Title: Movie Name EN (hidden if CN used fallback or is null)
+- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
+
+**Detail sections:**
+
+- **My Tracker Block** (reusable)
+- **Naming Card** (reusable)
+- **Information Card** (reusable)
+- Remarks — shown when not null
+- **Notes Card** (reusable, admin editable)
 
 ---
 
-### TV Show Detail (TBD)
+### TV Show Detail
 
 **File:** `frontend/src/pages/TVShow.jsx` (TBD)
 
-**Layout (left column):** Poster, **Sources Card**, Watch Order, **Related Entries Card**, System Info Block (admin only)
+Full detail page for a single TV show entry.
 
-**Layout (right column):** Tags (Airing Status), Main Title CN with fallback, Sub Title EN, Franchise link (with navigation), **Series Information Pop Up Entry**, **Score Block**
+**Admin Controls Block** (admin only):
 
-**Detail sections:** **My Tracker Block**, **Naming Card**, **Information Card**, Remarks, **Notes Card**
+- Edit button → `/modify?id=:system_id`
+- Mark Completed button
+- Autofill & Update button → executes Replace for single TV show entry
+
+**Layout (left column):**
+
+- TV Show poster
+- **Sources Card** (reusable)
+- Watch Order
+- **Related Entries Card** (reusable)
+- System Info Block (admin only): System ID
+
+**Layout (right column):**
+
+- Tags: Airing Status
+- Main Title: TV Show Name CN (with fallback)
+- Sub Title: TV Show Name EN (hidden if CN used fallback or is null)
+- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
+- **Score Block** (reusable): includes Last Updated Time
+
+**My Tracker section:**
+
+- Ep Watched / Ep Total
+  - +/- buttons for episode progress (admin only)
+  - Direct edit input for Ep Watched (admin only)
+- Watching Status dropdown (admin editable)
+- My Rating dropdown (admin editable)
+
+**Detail sections:**
+
+- **My Tracker Block** (reusable)
+- **Naming Card** (reusable)
+- **Information Card** (reusable)
+- Remarks — shown when not null
+- **Notes Card** (reusable, admin editable)
 
 ---
 
-### Cartoon Detail (TBD)
+### Cartoon Detail
 
 **File:** `frontend/src/pages/Cartoon.jsx` (TBD)
 
-**Layout (left column):** Poster, **Sources Card**, Watch Order, **Related Entries Card**, System Info Block (admin only)
+Full detail page for a single cartoon entry.
 
-**Layout (right column):** Tags (Airing Status), Main Title CN with fallback, Sub Title EN, Franchise link (with navigation), **Series Information Pop Up Entry**, **Score Block**
+**Admin Controls Block** (admin only):
 
-**Detail sections:** **My Tracker Block**, **Naming Card**, **Information Card**, Remarks, **Notes Card**
+- Edit button → `/modify?id=:system_id`
+- Mark Completed button
+- Autofill & Update button → executes Replace for single cartoon entry
+
+**Layout (left column):**
+
+- Cartoon poster
+- **Sources Card** (reusable)
+- Watch Order
+- **Related Entries Card** (reusable)
+- System Info Block (admin only): System ID
+
+**Layout (right column):**
+
+- Tags: Airing Status
+- Main Title: Cartoon Name CN (with fallback)
+- Sub Title: Cartoon Name EN (hidden if CN used fallback or is null)
+- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
+- **Score Block** (reusable): includes Last Updated Time
+
+**Detail sections:**
+
+- **My Tracker Block** (reusable)
+- **Naming Card** (reusable)
+- **Information Card** (reusable)
+- Remarks — shown when not null
+- **Notes Card** (reusable, admin editable)
 
 ---
 
-### Manga Detail (TBD)
+### Manga Detail
 
 **File:** `frontend/src/pages/Manga.jsx` (TBD)
 
-**Layout (left column):** Poster, **Sources Card**, System Info Block (admin only)
+Full detail page for a single manga entry.
 
-**Layout (right column):** Tags (Manga Region, Serialization Status), Main Title CN with fallback, Sub Title EN (hidden if CN used fallback or is null), Franchise link (with navigation), **Series Information Pop Up Entry**, **Score Block**
+**Admin Controls Block** (admin only):
 
-**Detail sections:** **My Tracker Block**, **Naming Card**, **Information Card**, **Production Card**, Remarks, **Notes Card**
+- Edit button → `/modify?id=:system_id`
+- Mark Completed button
+- Autofill & Update button → executes Replace for single manga entry
+
+**Layout (left column):**
+
+- Manga poster
+- **Sources Card** (reusable)
+- System Info Block (admin only): System ID
+
+**Layout (right column):**
+
+- Tags: Manga Region, Serialization Status
+- Main Title: Manga Name CN (with fallback)
+- Sub Title: Manga Name EN (hidden if CN used fallback or is null)
+- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
+- **Score Block** (reusable): includes Last Updated Time
+
+**Detail sections:**
+
+- **My Tracker Block** (reusable)
+- **Naming Card** (reusable)
+- **Information Card** (reusable)
+- **Production Card** (reusable)
+- Remarks — shown when not null
+- **Notes Card** (reusable, admin editable)
 
 ---
 
@@ -310,7 +428,7 @@ Admin edit: `PATCH /api/franchise/:system_id` for rating, expectation, remarks.
 
 ---
 
-### Franchise Hub — Reality (TBD)
+### Franchise Hub — Reality
 
 **File:** `frontend/src/pages/FranchiseReality.jsx` (TBD)
 
@@ -318,19 +436,28 @@ Hub for movie/TV show franchises (Movies and TV shows with series).
 
 **Layout:**
 
-- Edit button (admin only)
-- Franchise Name CN with fallback, EN (hidden if CN used fallback), Alt
-- My Franchise Rating, My Franchise Expectations (admin editable)
-- Completion % (Main Story Only), Completion % (Total Entries)
-- Notes and Remarks (admin editable)
-- Sort by: Title (default) / Release Date (USA for movies) / My Rating / Watching Status
-- Filter: Airing Status / Watching Status
-- Movie Entry Section (sticky header, grouped by Series) — **Movie Entry Card**
-- TV Show Entry Section (sticky header, grouped by Series) — **TV Show Entry Card Second Type**
+- Edit button (admin only) → Modify page
+- **Franchise Information Block** (reusable)
+- **Belonging Series Block** (reusable)
+- **Notes and Remarks Block** (reusable, admin editable)
+
+**Movie Entry Section:**
+
+- Sort By: Release Date (default, uses `release_date_tw` with `release_date_us` fallback) / Title / My Rating / IMDB Rating
+- Filter: Airing Status / Watching Status (Watching Status Filter Options)
+- **Group by Series Button** (reusable)
+- Each entry: **Movie Entry Card** (reusable), grouped by Series
+
+**TV Show Entry Section:**
+
+- Sort By: Release Date (default) / Title / My Rating / IMDB Rating
+- Filter: Airing Status / Watching Status (Watching Status Filter Options)
+- **Group by Series Button** (reusable)
+- Each entry: **TV Show Entry Card** (reusable), grouped by Series
 
 ---
 
-### Franchise Hub — Cartoon (TBD)
+### Franchise Hub — Cartoon
 
 **File:** `frontend/src/pages/FranchiseCartoon.jsx` (TBD)
 
@@ -338,13 +465,17 @@ Hub for cartoon franchises.
 
 **Layout:**
 
-- Edit button (admin only)
-- Franchise Name CN with fallback, EN (hidden if CN used fallback), Alt
-- My Franchise Rating, My Franchise Expectations (admin editable)
-- Completion % (Main Story Only), Completion % (Total Entries)
-- Notes and Remarks (admin editable)
-- Sort by: Title (default) / Release Date / My Rating / Watching Status
-- Grouped by Series — **Cartoon Entry Card Second Type**
+- Edit button (admin only) → Modify page
+- **Franchise Information Block** (reusable)
+- **Belonging Series Block** (reusable)
+- **Notes and Remarks Block** (reusable, admin editable)
+
+**Cartoon Entry Section:**
+
+- Sort By: Release Date (default) / Title / My Rating / IMDB Rating
+- Filter: Airing Status / Watching Status (Watching Status Filter Options)
+- **Group by Series Button** (reusable)
+- Each entry: **Cartoon Entry Card 2** (reusable), grouped by Series
 
 ---
 
@@ -418,6 +549,97 @@ Cover image derived from the most-recently-released anime with a cover in each f
 - Grid/Table view toggle (Table: TBD)
 
 Each entry: **Franchise Entry Card** — navigates to `/franchise/:system_id`.
+
+---
+
+### Movie Library
+
+**File:** `frontend/src/pages/LibraryMovie.jsx` (TBD)
+
+**Data loaded:**
+
+- `GET /api/movie/`
+- `GET /api/franchise/`
+- `GET /api/series/`
+
+**Library bar (always visible):**
+
+- Filter search: by Franchise Title, Series Title, Movie Title, Release Year TW, Director. Case/punctuation/space insensitive.
+- Advanced filters (collapsible): Airing Status, Watching Status (Watching Status Filter Options)
+- Sort by: Title (default) / My Rating / IMDB Rating / Release Date TW with Release Date USA as fallback (new to old; TBD first)
+- Grid/Table view toggle
+
+**Grid view** — each entry: **Movie Entry Card**
+
+**Table view** — columns: Franchise Name (fallback), Movie Name CN, Movie Name EN, Main/Spinoff, Airing Status, My Rating, IMDB Rating, Director, Length (Hr + Min), Release Date TW (Month Year), + button (admin only)
+
+---
+
+### TV Show Library
+
+**File:** `frontend/src/pages/LibraryTVShow.jsx` (TBD)
+
+**Data loaded:**
+
+- `GET /api/tv-show/`
+- `GET /api/franchise/`
+- `GET /api/series/`
+
+**Library bar (always visible):**
+
+- Filter search: by Franchise Title, Series Title, TV Show Entry Title, Release Date. Case/punctuation/space insensitive.
+- Sort by: Title (default) / My Rating / IMDB Rating / Release Date (new to old; TBD first)
+- Advanced filters (collapsible): TV Show Region, Airing Status, Watching Status (Watching Status Filter Options)
+- Grid/Table view toggle
+
+**Grid view** — each entry: **TV Show Entry Card 2**
+
+**Table view** — columns: Franchise Name CN (fallback), TV Show Name CN, TV Show Name EN, Airing Type, Season Part, Airing Status, Ep Finished / Ep Total, Region, My Rating, IMDB Rating, + button (admin only)
+
+---
+
+### Cartoon Library
+
+**File:** `frontend/src/pages/LibraryCartoon.jsx` (TBD)
+
+**Data loaded:**
+
+- `GET /api/cartoon/`
+- `GET /api/franchise/`
+- `GET /api/series/`
+
+**Library bar (always visible):**
+
+- Filter search: by Franchise Title, Series Title, Cartoon Title, Release Year. Case/punctuation/space insensitive.
+- Sort by: Title (default) / My Rating / IMDB Rating / Release Date (new to old; TBD first)
+- Advanced filters (collapsible): Official Source, Airing Status, Watching Status (Watching Status Filter Options)
+- Grid/Table view toggle
+
+**Grid view** — each entry: **Cartoon Entry Card 2**
+
+**Table view** — columns: Franchise Name CN (fallback), Cartoon Name CN, Cartoon Name EN, Airing Type, Season Part, Airing Status, Ep Finished / Ep Total, Official Source, My Rating, IMDB Rating, + button (admin only)
+
+---
+
+### Manga Library
+
+**File:** `frontend/src/pages/LibraryManga.jsx` (TBD)
+
+**Data loaded:**
+
+- `GET /api/manga/`
+- `GET /api/franchise/`
+- `GET /api/series/`
+
+**Library bar (always visible):**
+
+- Filter search: by Franchise Title, Series Title, Manga Title, Release Year. Case/punctuation/space insensitive.
+- Advanced filters (collapsible): Serialization Status, Reading Status (Reading Status Filter Options), Region
+- Sort by: Title (default) / My Rating / MAL Rating / Release Date (new to old; TBD first) / Ending Date (new to old; TBD first)
+
+**Grid view** — each entry: **Manga Entry Card 2**
+
+**Table view** — columns: Franchise Name CN (fallback), Manga Name CN, Manga Name EN (fallback: Roman), Serialization Status, Ch Finished / Ch Total, Vol Finished / Vol Total, My Rating, MAL Rating, Anime Studio, Bahamut icon, + button (admin only)
 
 ---
 
@@ -505,7 +727,7 @@ Multi-section statistics dashboard.
    - Each chart shows amount and percentage per category
 
 3. **Anime Seasonal Overview** — paginated table (12 per page, new to old; highlights current season with "Current" tag):
-   - Release Season, My Seasonal Rating, # Completed, # Watching, # Dropped
+   - Release Season, My Seasonal Rating, # Completed, # Planned, # Watching, # Dropped
 
 4. **Watch Next** — tabbed franchise/entry grid:
    - Anime tab: grouped by 12ep / 24ep / 30ep+; shows poster, Franchise Name CN with fallback, Franchise Expectation (live)
@@ -590,11 +812,11 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 - **Series Hub Section** — **Search Result Series Entry** (reusable)
 - **Anime Entry Section** — split by Airing Type: TV/ONA / Movie / Other (non-TV, non-ONA, non-Movie); each entry: **Anime Entry Card 2**
 - **Anime Movie Entry Section** — each entry: **Anime Movie Entry Card**
-- **Manga Entry Section** (TBD)
+- **Manga Entry Section**
 - **Novel Entry Section** (TBD)
-- **Movie Entry Section** (TBD)
-- **TV Show Entry Section** (TBD)
-- **Cartoon Entry Section** (TBD)
+- **Movie Entry Section** — each entry: **Movie Entry Card**
+- **TV Show Entry Section** — each entry: **TV Show Entry Card 2**
+- **Cartoon Entry Section** — each entry: **Cartoon Entry Card 2**
 
 ---
 
@@ -872,15 +1094,15 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 
 ## TBD / Under Development
 
-**Library pages:** Movie Library, TV Show Library, Cartoon Library, Manga Library, Novel Library, Seiyuu Library (table-only)
+**Library pages:** Novel Library, Seiyuu Library (table-only)
 
-**Entry detail pages:** Movie, TV Show, Cartoon, Manga, Novel, Studio
+**Entry detail pages:** Movie, TV Show, Cartoon, Manga, Novel, Studio (pages are specified but not yet implemented)
 
-**Franchise pages:** Reality Franchise, Cartoon Franchise
+**Franchise pages:** Reality Franchise, Cartoon Franchise (pages are specified but not yet implemented)
 
 **Dashboard:** Manga, Novel, TV Show, Cartoon watching/reading sections; filter UI
 
-**Search:** Manga, Novel, Movie, TV Show, Cartoon result sections; Studio/Seiyuu sections (possible)
+**Search:** Manga, Novel result sections; Studio/Seiyuu sections (possible)
 
 **Future Releases:** Overall tab, Movie tab, TV Show tab
 
@@ -890,6 +1112,6 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 
 **Admin:** Data History page split from System page; Review page
 
-**Entry cards:** TV Show Entry Card 1, TV Show Entry Card Second Type, Cartoon Entry Card 1, Cartoon Entry Card Second Type, Manga Entry Card 1, Manga Entry Card Second Type, Novel Entry Card 1, Movie Entry Card, Anime Movie Entry Card, Franchise Entry Card
+**Entry cards:** TV Show Entry Card 1, Cartoon Entry Card 1, Manga Entry Card 1, Novel Entry Card 1, Movie Entry Card, TV Show Entry Card 2, Cartoon Entry Card 2, Manga Entry Card 2, Anime Movie Entry Card, Franchise Entry Card (all TBD)
 
 **Reusable blocks:** All blocks listed in `reusable-elements.md` marked TBD (Franchise Information Block, Belonging Series Block, Notes and Remarks Block, Sources Card, Related Entries Card, Series Information Pop Up Entry, Score Block, My Tracker Block, Rating Distribution Block, Search Result entries, deletion info blocks, etc.)

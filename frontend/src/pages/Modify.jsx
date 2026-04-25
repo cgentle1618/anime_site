@@ -1,114 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../hooks/useToast";
-import { getDisplayName } from "../utils/anime";
+import { getDisplayName, cleanString, getOptions, buildAnimePayload } from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
 import AnimeNotes from "./AnimeNotes";
-
-function cleanStr(s) {
-  if (!s) return "";
-  return s.toLowerCase().replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
-
-function getOptions(allOptions, category) {
-  return allOptions
-    .filter((o) => o.category === category)
-    .map((o) => o.option_value);
-}
-
-const inputCls =
-  "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
-const selectCls =
-  "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white";
-
-function Field({ label, required, hint, children }) {
-  return (
-    <div>
-      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      {children}
-      {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
-    </div>
-  );
-}
-
-function SectionHeader({ icon, title }) {
-  return (
-    <div className="flex items-center gap-2 pb-2 border-b border-gray-200 mt-6 mb-4">
-      <i className={`fas ${icon} text-brand text-sm`}></i>
-      <span className="text-xs font-black text-gray-600 uppercase tracking-widest">
-        {title}
-      </span>
-    </div>
-  );
-}
-
-function FranchiseCreateModal({ onConfirm, onCancel }) {
-  const [expectation, setExpectation] = useState("Low");
-  const [remark, setRemark] = useState("");
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-        <div className="bg-brand/5 border-b border-brand/10 px-6 py-4 flex items-center gap-3">
-          <i className="fas fa-sitemap text-brand text-xl"></i>
-          <h3 className="font-black text-gray-900">Create New Franchise</h3>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-gray-600">
-            A new <span className="font-bold">Franchise</span> will be created
-            using the anime names you filled in, with type set to{" "}
-            <span className="font-bold">ACG</span>.
-          </p>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-              Expectation
-            </label>
-            <select
-              value={expectation}
-              onChange={(e) => setExpectation(e.target.value)}
-              className={selectCls}
-            >
-              {["Highest", "High", "Medium", "Low"].map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-              Remark
-            </label>
-            <textarea
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-              className={inputCls}
-              rows={3}
-              placeholder="Optional notes about this franchise..."
-            />
-          </div>
-        </div>
-        <div className="px-6 pb-5 flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(expectation, remark)}
-            className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand-hover transition"
-          >
-            Create & Proceed
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { Field, SectionHeader, inputCls, selectCls } from "../components/FormField";
+import FranchiseCreateModal from "../components/FranchiseCreateModal";
+import CreateNewEntityModal from "../components/CreateNewEntityModal";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -342,89 +241,6 @@ export default function Modify() {
     setSearchOpen(false);
   }
 
-  function buildAnimePayload(franchiseId, seriesId) {
-    let season_part = "";
-    if (af.season_num) season_part = `Season ${af.season_num}`;
-    if (af.season_num && af.part_num) season_part += ` Part ${af.part_num}`;
-    else if (!af.season_num && af.part_num) season_part = `Part ${af.part_num}`;
-    return {
-      anime_name_en: af.anime_name_en || null,
-      anime_name_cn: af.anime_name_cn || null,
-      anime_name_roman: af.anime_name_roman || null,
-      anime_name_jp: af.anime_name_jp || null,
-      anime_name_alt: af.anime_name_alt || null,
-      franchise_id: franchiseId || null,
-      series_id: seriesId || null,
-      season_part: season_part || null,
-      airing_type: af.airing_type || null,
-      airing_status: af.airing_status || null,
-      watching_status: af.watching_status || "Might Watch",
-      is_main: af.is_main || null,
-      ep_previous: af.ep_previous !== "" ? parseInt(af.ep_previous) : null,
-      ep_total: af.ep_total !== "" ? parseInt(af.ep_total) : null,
-      ep_fin: af.ep_fin !== "" ? parseInt(af.ep_fin) : 0,
-      ep_special: af.ep_special !== "" ? parseFloat(af.ep_special) : null,
-      my_rating: af.my_rating || null,
-      mal_rating: af.mal_rating !== "" ? parseFloat(af.mal_rating) : null,
-      mal_rank: af.mal_rank || null,
-      anilist_rating: af.anilist_rating || null,
-      release_season: af.release_season || null,
-      release_month: af.release_month || null,
-      release_year: af.release_year || null,
-      genre_main: af.genre_main || null,
-      genre_sub: af.genre_sub || null,
-      studio: af.studio || null,
-      director: af.director || null,
-      producer: af.producer || null,
-      music: af.music || null,
-      distributor_tw: af.distributor_tw || null,
-      prequel_id: af.prequel_id || null,
-      sequel_id: af.sequel_id || null,
-      alternative: af.alternative || null,
-      is_main_entry: af.is_main_entry || null,
-      derive_related:
-        af.derive_related === "true"
-          ? true
-          : af.derive_related === "false"
-            ? false
-            : null,
-      watch_order: af.watch_order !== "" ? parseFloat(af.watch_order) : null,
-      mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
-      mal_link: af.mal_link || null,
-      anilist_link: af.anilist_link || null,
-      official_link: af.official_link || null,
-      twitter_link: af.twitter_link || null,
-      source_baha:
-        af.source_baha === "true"
-          ? true
-          : af.source_baha === "false"
-            ? false
-            : null,
-      baha_link: af.baha_link || null,
-      source_netflix:
-        af.source_netflix === "true"
-          ? true
-          : af.source_netflix === "false"
-            ? false
-            : null,
-      source_other:
-        af.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              af.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
-      op: af.op || null,
-      ed: af.ed || null,
-      insert_ost: af.insert_ost || null,
-      seiyuu: af.seiyuu || null,
-      cover_image_file: af.cover_image_file || null,
-      remark: af.remark || null,
-      notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null,
-    };
-  }
-
   async function handleSave(e) {
     e.preventDefault();
     if (submitting || !editingItem) return;
@@ -517,7 +333,7 @@ export default function Modify() {
     const res = await fetch(`/api/anime/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildAnimePayload(franchiseId, seriesId)),
+      body: JSON.stringify(buildAnimePayload(af, { franchiseId, seriesId, notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null })),
       credentials: "include",
     });
     if (!res.ok) {
@@ -669,7 +485,7 @@ export default function Modify() {
 
   const searchResults = (() => {
     if (!searchQuery.trim()) return [];
-    const q = cleanStr(searchQuery);
+    const q = cleanString(searchQuery);
     if (activeTab === "anime")
       return allAnime
         .filter((a) =>
@@ -679,7 +495,7 @@ export default function Modify() {
             a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
-          ].some((n) => n && cleanStr(n).includes(q)),
+          ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
     if (activeTab === "franchise")
@@ -691,22 +507,22 @@ export default function Modify() {
             f.franchise_name_roman,
             f.franchise_name_jp,
             f.franchise_name_alt,
-          ].some((n) => n && cleanStr(n).includes(q)),
+          ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
     if (activeTab === "series")
       return allSeries
         .filter((s) =>
           [s.series_name_en, s.series_name_cn, s.series_name_alt].some(
-            (n) => n && cleanStr(n).includes(q),
+            (n) => n && cleanString(n).includes(q),
           ),
         )
         .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
-          cleanStr(o.option_value).includes(q) ||
-          cleanStr(o.category).includes(q),
+          cleanString(o.option_value).includes(q) ||
+          cleanString(o.category).includes(q),
       )
       .slice(0, 10);
   })();
@@ -2008,44 +1824,12 @@ export default function Modify() {
 
       {/* ── CREATE NEW PARENT MODAL ── */}
       {createModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="bg-brand/5 border-b border-brand/10 px-6 py-4 flex items-center gap-3">
-              <i className="fas fa-magic text-brand text-xl"></i>
-              <h3 className="font-black text-gray-900">
-                Create New {createModal.entityType}
-              </h3>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-sm text-gray-600">
-                "
-                <span className="font-bold text-gray-900">
-                  {createModal.text}
-                </span>
-                " does not match any existing{" "}
-                {createModal.entityType.toLowerCase()}.
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                A new record will be created with this name, then the entry will
-                be saved.
-              </p>
-            </div>
-            <div className="px-6 pb-5 flex gap-3 justify-end">
-              <button
-                onClick={createModal.onCancel}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createModal.onConfirm}
-                className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand-hover transition"
-              >
-                Create & Proceed
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateNewEntityModal
+          entityType={createModal.entityType}
+          text={createModal.text}
+          onConfirm={createModal.onConfirm}
+          onCancel={createModal.onCancel}
+        />
       )}
     </div>
   );

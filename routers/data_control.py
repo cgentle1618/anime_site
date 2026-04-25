@@ -111,7 +111,7 @@ async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_
     """
     try:
         result = await execute_replace_single_anime(
-            db, anime_id, action_type="Manual", log_action=True
+            db, anime_id, action_type="Manual", log_action=False
         )
         if result.get("status") == "error":
             status_code = result.get("status_code", 400)

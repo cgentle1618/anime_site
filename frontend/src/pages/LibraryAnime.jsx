@@ -10,15 +10,9 @@ import {
   FALLBACK_SVG,
   getStatusButtonConfig,
   getRatingWeight,
+  cleanString,
 } from "../utils/anime";
 import { useToast } from "../hooks/useToast";
-
-function cleanString(str) {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
 
 const MONTH_MAP = {
   JAN: 1,
