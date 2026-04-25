@@ -303,7 +303,7 @@ Reusable elements used on the Franchise Detail page.
 - My Franchise Rating _(editable for admin)_
 - My Franchise Expectations _(editable for admin)_
 - Watch Next Group Status _(editable for admin; ACG franchises only)_
-- To Rewatch Status _(editable for admin)_
+- To Rewatch Status _(editable for admin; ACG franchises only)_
 
 ### Belonging Series Block
 
