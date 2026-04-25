@@ -727,6 +727,56 @@ Here is the description for all sub fields in notes:
 
 ---
 
+## Form Shared Elements
+
+Shared components and utilities used across Add and Modify pages.
+
+### Form Styling Constants (`FormField.jsx`)
+
+`inputCls` and `selectCls` — Tailwind class strings for text inputs and select dropdowns respectively. Exported from `FormField.jsx` and imported wherever consistent form styling is needed.
+
+### FormField Components (`FormField.jsx`)
+
+- **`Field`** — Wraps a form control with a label, optional required marker (`*`), and optional hint text below.
+- **`SectionHeader`** — Renders a section divider with a FontAwesome icon and an uppercase title label.
+
+### FranchiseCreateModal (`FranchiseCreateModal.jsx`)
+
+Modal shown when adding an anime entry with a franchise name that doesn't match any existing franchise. Prompts the user to confirm creation of a new franchise before saving the entry.
+
+Props: `onConfirm(expectation, remark)`, `onCancel`
+
+Used by: Add Page, Modify Page
+
+### CreateNewEntityModal (`CreateNewEntityModal.jsx`)
+
+Generic confirmation modal shown when a ComboBox text input doesn't match any existing entity (Franchise or Series). Informs the user that a new record will be created and asks for confirmation before proceeding.
+
+Props: `entityType` (e.g. "Franchise", "Series"), `text` (the unmatched input), `onConfirm`, `onCancel`
+
+Used by: Add Page, Modify Page
+
+### Utility: `getOptions` (`utils/anime.js`)
+
+Filters the global options list by category and returns an array of option values.
+
+```js
+getOptions(allOptions, category) → string[]
+```
+
+### Utility: `buildAnimePayload` (`utils/anime.js`)
+
+Converts the anime form state object into the API request payload. Handles season/part string building, type coercions (int/float/boolean), and source_other object serialization.
+
+```js
+buildAnimePayload(af, { franchiseId, seriesId, notes } = {}) → object
+```
+
+- `franchiseId` / `seriesId` — resolved entity IDs (may be newly created); override `af.franchise_id` / `af.series_id` when provided.
+- `notes` — defaults to `null`; Modify page passes the structured notes object.
+
+---
+
 ## Other
 
 ### Series Information Pop Up Entry
