@@ -16,6 +16,7 @@ Reference these files in `/docs` for deep technical context (note that the docum
 - **`options.md`**: Valid enum values, options, dropdowns.
 - **`api.md`**: All API endpoints by router — method, path, auth requirement, parameters, request body, and response model.
 - **`pages.md`**: Frontend pages — what each loads and key components used.
+- **`admin-forms.md`**: Frontend form interaction logic for Add, Modify, and Delete admin pages — prefill behavior, franchise/series modal flows, form defaults, and post-submit pipeline triggers.
 - **`reusable-elements.md`**: Shared React components and JS utilities.
 - **`integrations.md`**: Jikan API throttling, Google Sheets sync flow, GCS bucket setup.
 - **`architecture.md`**: Request flow, service layer details, auth flow, deployment.
