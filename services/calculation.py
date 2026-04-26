@@ -177,6 +177,15 @@ def run_derive_related(db: Session) -> dict:
     }
 
 
+def run_sync(db: Session) -> dict:
+    run_sync_anime(db)
+    run_sync_anime_movie(db)
+    return {
+        "status": "success",
+        "message": "All synchronization tasks completed.",
+    }
+
+
 def run_sync_anime(db: Session) -> dict:
     create_missing_seasonal(db)
     sync_seasonal_counts(db)
