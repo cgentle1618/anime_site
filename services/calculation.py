@@ -11,15 +11,17 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime
+from models import Anime, AnimeMovies
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
     sync_seasonal_counts,
     create_missing_seasonal,
     extract_system_options_from_anime,
+    extract_system_options_from_anime_movie,
     autofill_anime_from_mal,
     anime_post_processing,
+    anime_movie_post_processing,
     derive_related,
 )
 
@@ -156,6 +158,17 @@ def run_anime_post_processing(db: Session) -> dict:
     }
 
 
+def run_anime_movie_post_processing(db: Session) -> dict:
+    movies = db.query(AnimeMovies).all()
+    for movie in movies:
+        anime_movie_post_processing(movie, db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Post-processed {len(movies)} anime movie entries.",
+    }
+
+
 def run_derive_related(db: Session) -> dict:
     derive_related(db)
     return {
@@ -174,11 +187,21 @@ def run_sync_anime(db: Session) -> dict:
     }
 
 
+def run_sync_anime_movie(db: Session) -> dict:
+    extract_system_options_from_anime_movie(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from anime movies.",
+    }
+
+
 def run_calculate_all(db: Session) -> dict:
     try:
         run_anime_post_processing(db)
+        run_anime_movie_post_processing(db)
         run_derive_related(db)
         run_sync_anime(db)
+        run_sync_anime_movie(db)
         bulk_check_cover_image(db)
         log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
         return {"status": "success", "message": "Full calculation complete."}
