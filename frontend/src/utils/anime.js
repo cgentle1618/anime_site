@@ -208,6 +208,59 @@ export function getOptions(allOptions, category) {
     .map((o) => o.option_value);
 }
 
+export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
+  return {
+    anime_movie_name_en: amf.anime_movie_name_en || null,
+    anime_movie_name_cn: amf.anime_movie_name_cn || null,
+    anime_movie_name_roman: amf.anime_movie_name_roman || null,
+    anime_movie_name_jp: amf.anime_movie_name_jp || null,
+    anime_movie_name_alt: amf.anime_movie_name_alt || null,
+    franchise_id:
+      franchiseId !== undefined
+        ? franchiseId || null
+        : amf.franchise_id || null,
+    airing_status: amf.airing_status || null,
+    watching_status: amf.watching_status || "Might Watch",
+    my_rating: amf.my_rating || null,
+    mal_rating: amf.mal_rating !== "" ? parseFloat(amf.mal_rating) : null,
+    mal_rank: amf.mal_rank || null,
+    anilist_rating: amf.anilist_rating || null,
+    release_date_jp: amf.release_date_jp || null,
+    release_date_tw: amf.release_date_tw || null,
+    length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
+    studio: amf.studio || null,
+    director: amf.director || null,
+    mal_id: amf.mal_id !== "" ? parseInt(amf.mal_id) : null,
+    mal_link: amf.mal_link || null,
+    anilist_link: amf.anilist_link || null,
+    official_link: amf.official_link || null,
+    twitter_link: amf.twitter_link || null,
+    source_baha:
+      amf.source_baha === "true"
+        ? true
+        : amf.source_baha === "false"
+          ? false
+          : null,
+    baha_link: amf.baha_link || null,
+    source_netflix:
+      amf.source_netflix === "true"
+        ? true
+        : amf.source_netflix === "false"
+          ? false
+          : null,
+    source_other:
+      amf.source_other.filter((e) => e.name.trim()).length > 0
+        ? Object.fromEntries(
+            amf.source_other
+              .filter((e) => e.name.trim())
+              .map((e) => [e.name.trim(), e.url.trim()]),
+          )
+        : null,
+    cover_image_file: amf.cover_image_file || null,
+    remark: amf.remark || null,
+  };
+}
+
 export function buildAnimePayload(
   af,
   { franchiseId, seriesId, notes = null } = {},
