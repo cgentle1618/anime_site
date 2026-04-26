@@ -4,14 +4,18 @@ export default function SourcesCard({
   sourceNetflix,
   sourceOther,
   malLink,
+  anilistLink,
   officialLink,
+  twitterLink,
 }) {
   const hasAny =
     showBaha ||
     sourceNetflix ||
     (sourceOther && Object.keys(sourceOther).length > 0) ||
     malLink ||
-    officialLink;
+    anilistLink ||
+    officialLink ||
+    twitterLink;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -94,15 +98,44 @@ export default function SourcesCard({
             <i className="fas fa-external-link-alt text-[10px]"></i>
           </a>
         )}
+        {anilistLink && (
+          <a
+            href={anilistLink}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold border-b border-gray-50"
+          >
+            <span className="flex items-center">
+              <span className="bg-[#02A9FF] text-white text-[9px] px-1 py-0.5 rounded mr-2">
+                AL
+              </span>{" "}
+              AniList
+            </span>
+            <i className="fas fa-external-link-alt text-[10px]"></i>
+          </a>
+        )}
         {officialLink && (
           <a
             href={officialLink}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold"
+            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold border-b border-gray-50"
           >
             <span className="flex items-center">
               <i className="fas fa-globe mr-2"></i> Official Site
+            </span>
+            <i className="fas fa-external-link-alt text-[10px]"></i>
+          </a>
+        )}
+        {twitterLink && (
+          <a
+            href={twitterLink}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold"
+          >
+            <span className="flex items-center">
+              <i className="fab fa-twitter mr-2 text-[#1DA1F2]"></i> Twitter
             </span>
             <i className="fas fa-external-link-alt text-[10px]"></i>
           </a>

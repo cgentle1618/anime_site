@@ -3,6 +3,7 @@
 ## Progress
 
 - We have finished Phase 1, 2, 3, 4, 5, meaning we have finished backend implementation.
+- We have finished Phase 6.1-6.3 and 6.6.
 
 ## Implementation Plan
 
