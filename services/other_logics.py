@@ -8,13 +8,13 @@ called by FastAPI routers or other higher-level orchestrators.
 
 import logging
 import uuid
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Union
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_taipei_now
-from models import Anime, Franchise, Series, Seasonal, SystemOption
+from models import Anime, AnimeMovies, Franchise, Series, Seasonal, SystemOption
 
 from services.jikan import fetch_jikan_anime_data
 from services.image_manager import download_cover_image
@@ -23,12 +23,13 @@ from utils.utils import (
     SEASON_PATTERN,
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
+    ANIME_MOVIE_FIELDS_TO_FILL,
     extract_mal_id_anime,
     extract_season_from_title,
     calculate_seasonal_from_month,
     validate_episode_math,
 )
-from utils.jikan_utils import map_jikan_to_anime_data
+from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
 
 
 logger = logging.getLogger(__name__)
@@ -172,16 +173,75 @@ def resolve_anime_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
+def resolve_anime_movie_parent_hierarchy(
+    db: Session, franchise_id: Any, names: Dict[str, Any]
+) -> Any:
+    """
+    Ensures a valid franchise_id UUID for an AnimeMovies entry.
+    If franchise_id is null or a string name: searches by name, auto-creates if missing.
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        return franchise_id
+
+    valid_names = set()
+    for lang_key in ["en", "cn", "roman", "jp", "alt"]:
+        name_val = names.get(lang_key)
+        if name_val and str(name_val).strip():
+            valid_names.add(str(name_val).strip())
+
+    search_conditions = []
+    for name_str in valid_names:
+        search_conditions.extend(
+            [
+                Franchise.franchise_name_en.ilike(name_str),
+                Franchise.franchise_name_cn.ilike(name_str),
+                Franchise.franchise_name_roman.ilike(name_str),
+                Franchise.franchise_name_jp.ilike(name_str),
+                Franchise.franchise_name_alt.ilike(name_str),
+            ]
+        )
+
+    existing = None
+    if search_conditions:
+        existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+    if existing:
+        logger.info(
+            f"Auto-resolved existing Franchise for AnimeMovie: {existing.system_id}"
+        )
+        return existing.system_id
+
+    new_fran = Franchise(
+        system_id=str(uuid.uuid4()),
+        franchise_type="Anime",
+        franchise_name_en=names.get("en"),
+        franchise_name_cn=names.get("cn"),
+        franchise_name_roman=names.get("roman"),
+        franchise_name_jp=names.get("jp"),
+        franchise_name_alt=names.get("alt"),
+        created_at=get_taipei_now(),
+        updated_at=get_taipei_now(),
+    )
+    db.add(new_fran)
+    db.flush()
+    logger.info(f"Auto-created missing Franchise for AnimeMovie: {new_fran.system_id}")
+    return new_fran.system_id
+
+
 # ==========================================
 # CHECKING LOGICS
 # ==========================================
 
 
-def apply_validate_episode_math(anime: Anime) -> bool:
-    safe_total, safe_fin = validate_episode_math(anime.ep_total, anime.ep_fin)
-    if anime.ep_total != safe_total or anime.ep_fin != safe_fin:
-        anime.ep_total = safe_total
-        anime.ep_fin = safe_fin
+def apply_validate_episode_math(entry: Union[Anime, AnimeMovies]) -> bool:
+    ep_total = getattr(entry, "ep_total", None)
+    ep_fin = getattr(entry, "ep_fin", None)
+    if ep_total is None and ep_fin is None:
+        return False
+    safe_total, safe_fin = validate_episode_math(ep_total, ep_fin)
+    if ep_total != safe_total or ep_fin != safe_fin:
+        entry.ep_total = safe_total
+        entry.ep_fin = safe_fin
         return True
     return False
 
@@ -224,32 +284,48 @@ def has_missing_values_anime(anime: Anime) -> bool:
     return len(missing_fields) > 0
 
 
-def check_is_watching_completed(entry: Anime) -> bool:
+def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
     """
-    Determine if a TV type entry (Anime, TV Show, Cartoon) should be considered completed.
-    Returns True if completed, False otherwise.
+    Returns True if any required field is blank.
+    Skips mal_rating and mal_rank for 'Not Yet Aired' entries.
+    """
+    missing = []
+    for field in ANIME_MOVIE_FIELDS_TO_FILL:
+        val = getattr(anime_movie, field, None)
+        if val is None or str(val).strip() == "":
+            missing.append(field)
+
+    if anime_movie.airing_status == "Not Yet Aired":
+        missing = [f for f in missing if f not in ("mal_rating", "mal_rank")]
+
+    return len(missing) > 0
+
+
+def check_is_watching_completed(entry: Union[Anime, AnimeMovies]) -> bool:
+    """
+    Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
+    should be considered completed.
+    Returns True if watching_status is 'Completed' or ep_fin equals ep_total.
     """
     if entry.watching_status == "Completed":
         return True
 
-    if (
-        entry.ep_total is not None
-        and entry.ep_total > 0
-        and entry.ep_fin == entry.ep_total
-    ):
+    ep_total = getattr(entry, "ep_total", None)
+    ep_fin = getattr(entry, "ep_fin", None)
+    if ep_total is not None and ep_total > 0 and ep_fin == ep_total:
         return True
 
     return False
 
 
-def apply_check_baha(anime: Anime) -> None:
+def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
     """Sets source_baha=True if baha_link is present and airing_status is 'Airing'."""
     if (
-        anime.baha_link
-        and anime.airing_status == "Airing"
-        and anime.source_baha is None
+        entry.baha_link
+        and entry.airing_status == "Airing"
+        and entry.source_baha is None
     ):
-        anime.source_baha = True
+        entry.source_baha = True
 
 
 # ==========================================
@@ -501,12 +577,75 @@ def find_duplicate_system_options(db: Session) -> list[list[dict]]:
     ]
 
 
+def find_duplicate_anime_movie(db: Session) -> list[list[dict]]:
+    """
+    Finds AnimeMovies entries that share the same franchise_id and at least one
+    identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    movies = db.query(AnimeMovies).filter(AnimeMovies.franchise_id.isnot(None)).all()
+
+    by_franchise: dict[str, list] = {}
+    for m in movies:
+        by_franchise.setdefault(str(m.franchise_id), []).append(m)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    movie_map = {str(m.system_id): m for m in movies}
+
+    for group in by_franchise.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for mid in movie_map:
+        clusters.setdefault(find(mid), []).append(mid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": mid,
+                        "franchise_id": str(movie_map[mid].franchise_id),
+                        "anime_movie_name_en": movie_map[mid].anime_movie_name_en,
+                        "anime_movie_name_cn": movie_map[mid].anime_movie_name_cn,
+                        "anime_movie_name_roman": movie_map[mid].anime_movie_name_roman,
+                        "anime_movie_name_jp": movie_map[mid].anime_movie_name_jp,
+                        "anime_movie_name_alt": movie_map[mid].anime_movie_name_alt,
+                    }
+                    for mid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
-    """Runs all four duplicate checks and returns a combined report."""
+    """Runs all duplicate checks and returns a combined report."""
     return {
         "franchise": find_duplicate_franchises(db),
         "series": find_duplicate_series(db),
         "anime": find_duplicate_anime(db),
+        "anime_movie": find_duplicate_anime_movie(db),
         "system_options": find_duplicate_system_options(db),
     }
 
@@ -800,6 +939,56 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
         )
 
 
+def autofill_anime_movie_from_mal(
+    anime_movie: AnimeMovies, force_replace_ratings: bool = True
+) -> None:
+    """
+    Fetches Jikan data for a single AnimeMovies entry and fills/overwrites fields.
+    Does not commit — caller is responsible.
+    """
+    mal_id = anime_movie.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_jikan_anime_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_jikan_to_anime_movie_data(raw_data)
+
+        if anime_movie.airing_type is None:
+            anime_movie.airing_type = j_data.get("airing_type")
+        if anime_movie.airing_status is None:
+            anime_movie.airing_status = j_data.get("airing_status")
+        if anime_movie.release_date_jp is None:
+            anime_movie.release_date_jp = j_data.get("release_date_jp")
+        if anime_movie.ep_total is None:
+            anime_movie.ep_total = j_data.get("ep_total")
+        if not anime_movie.official_link:
+            anime_movie.official_link = j_data.get("official_link")
+        if not anime_movie.twitter_link:
+            anime_movie.twitter_link = j_data.get("twitter_link")
+
+        if force_replace_ratings or anime_movie.mal_rating is None:
+            anime_movie.mal_rating = j_data.get("mal_rating") or anime_movie.mal_rating
+        if force_replace_ratings or anime_movie.mal_rank is None:
+            raw_rank = j_data.get("mal_rank")
+            anime_movie.mal_rank = str(raw_rank) if raw_rank else anime_movie.mal_rank
+
+        if not anime_movie.cover_image_file and j_data.get("cover_image_url"):
+            filename = download_cover_image(
+                j_data.get("cover_image_url"), str(anime_movie.system_id)
+            )
+            if filename:
+                anime_movie.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"MAL Autofill failed for AnimeMovie ID {anime_movie.system_id} (MAL {mal_id}): {e}"
+        )
+
+
 # ==========================================
 # OTHER ACTIONS
 # ==========================================
@@ -813,6 +1002,18 @@ def mark_tv_completed(entry: Anime) -> None:
     entry.airing_status = "Finished Airing"
 
     if entry.ep_total is not None:
+        entry.ep_fin = entry.ep_total
+
+
+def mark_movie_completed(entry: AnimeMovies) -> None:
+    """Mutates an AnimeMovies entry to represent a fully finished state."""
+    entry.watching_status = "Completed"
+    entry.airing_status = "Finished Airing"
+
+    if entry.ep_total is not None:
+        entry.ep_fin = entry.ep_total
+    else:
+        entry.ep_total = 1
         entry.ep_fin = entry.ep_total
 
 
@@ -835,6 +1036,22 @@ def apply_single_replace_anime(
 
     if not bulk:
         derive_related(db)
+
+
+def apply_single_replace_anime_movie(
+    db: Session,
+    anime_movie: AnimeMovies,
+    force_replace_ratings: bool = True,
+) -> None:
+    """
+    Core 'Replace' logic for a single AnimeMovies entry.
+    Used by both single-entry and bulk replace paths.
+    """
+    apply_extract_mal_id_anime(anime_movie)
+    autofill_anime_movie_from_mal(
+        anime_movie, force_replace_ratings=force_replace_ratings
+    )
+    anime_movie_post_processing(anime_movie, db)
 
 
 # ==========================================
@@ -970,6 +1187,43 @@ def extract_system_options_from_anime(db: Session) -> dict:
     }
 
 
+def extract_system_options_from_anime_movie(db: Session) -> dict:
+    """
+    Scans all AnimeMovies entries for studio and director values.
+    Any value not already in SystemOption is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    movies = db.query(AnimeMovies).all()
+    new_options = []
+
+    for category, field in _SYSTEM_OPTION_FIELD_MAP.items():
+        for movie in movies:
+            raw = getattr(movie, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_anime_movie: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(movies)} entries, created {len(new_options)} missing system options.",
+    }
+
+
 # ==========================================
 # COMPOSITE LOGICS
 # ==========================================
@@ -992,6 +1246,17 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
     if anime.season_part is None:
         apply_extract_season_from_title(anime)
         derive_season_1(anime, db)
+
+
+def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
+    apply_validate_episode_math(anime_movie)
+    apply_check_baha(anime_movie)
+
+    if (
+        not check_is_watching_completed(anime_movie)
+        and anime_movie.airing_status == "Finished Airing"
+    ):
+        mark_movie_completed(anime_movie)
 
 
 def derive_related(db: Session) -> None:
