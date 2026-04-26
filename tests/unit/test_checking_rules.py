@@ -7,14 +7,14 @@ Uses SimpleNamespace to create mock Anime objects — no DB required.
 import types
 import pytest
 from services.other_logics import (
-    has_missing_values,
+    has_missing_values_anime,
     check_is_watching_completed,
     apply_check_baha,
 )
 
 
 def make_anime(**kwargs):
-    """Returns a fully-populated Anime-like object that passes has_missing_values."""
+    """Returns a fully-populated Anime-like object that passes has_missing_values_anime."""
     defaults = dict(
         airing_type="TV",
         airing_status="Finished Airing",
@@ -43,75 +43,75 @@ def make_anime(**kwargs):
 
 
 # ---------------------------------------------------------------------------
-# has_missing_values
+# has_missing_values_anime
 # ---------------------------------------------------------------------------
 
 
 class TestHasMissingValues:
     def test_fully_populated_returns_false(self):
         anime = make_anime()
-        assert has_missing_values(anime) is False
+        assert has_missing_values_anime(anime) is False
 
     def test_missing_airing_type_returns_true(self):
         anime = make_anime(airing_type=None)
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
     def test_missing_cover_image_returns_true(self):
         anime = make_anime(cover_image_file=None)
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
     def test_empty_string_treated_as_missing(self):
         anime = make_anime(official_link="")
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
     def test_whitespace_only_treated_as_missing(self):
         anime = make_anime(twitter_link="   ")
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
     def test_not_yet_aired_skips_mal_rating_check(self):
         # mal_rating and mal_rank should be ignored when airing_status is "Not Yet Aired"
         anime = make_anime(
             airing_status="Not Yet Aired", mal_rating=None, mal_rank=None
         )
-        assert has_missing_values(anime) is False
+        assert has_missing_values_anime(anime) is False
 
     def test_not_yet_aired_still_checks_other_fields(self):
         anime = make_anime(airing_status="Not Yet Aired", ep_total=None)
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
     def test_ep_previous_checked_when_tv_with_season(self):
         # TV + no ep_special + has season_part → ep_previous must be set
         anime = make_anime(
             airing_type="TV", ep_special=None, season_part="Season 2", ep_previous=None
         )
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
     def test_ep_previous_not_checked_for_movie(self):
         # Non-TV/ONA types don't need ep_previous
         anime = make_anime(
             airing_type="Movie", ep_special=None, season_part=None, ep_previous=None
         )
-        assert has_missing_values(anime) is False
+        assert has_missing_values_anime(anime) is False
 
     def test_ep_previous_not_checked_when_ep_special_set(self):
         # ep_special set → skip ep_previous check
         anime = make_anime(
             airing_type="TV", ep_special=1.0, season_part="Season 2", ep_previous=None
         )
-        assert has_missing_values(anime) is False
+        assert has_missing_values_anime(anime) is False
 
     def test_ep_previous_not_checked_when_no_season_part(self):
         # No season_part → skip ep_previous check
         anime = make_anime(
             airing_type="TV", ep_special=None, season_part=None, ep_previous=None
         )
-        assert has_missing_values(anime) is False
+        assert has_missing_values_anime(anime) is False
 
     def test_ona_type_also_checks_ep_previous(self):
         anime = make_anime(
             airing_type="ONA", ep_special=None, season_part="Season 2", ep_previous=None
         )
-        assert has_missing_values(anime) is True
+        assert has_missing_values_anime(anime) is True
 
 
 # ---------------------------------------------------------------------------

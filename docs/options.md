@@ -303,7 +303,7 @@ Predefined franchise names used as grouping hubs within each `franchise_type`. T
 
 ## Fields to Fill by Entry Type
 
-Required metadata fields that should be populated for each entry type. Used by `has_missing_values()` to determine Fill eligibility.
+Required metadata fields that should be populated for each entry type. Used by `has_missing_values_anime()` to determine Fill eligibility.
 
 ### Anime (TV / Movie / ONA / OVA / Special)
 

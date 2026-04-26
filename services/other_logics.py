@@ -186,7 +186,7 @@ def apply_validate_episode_math(anime: Anime) -> bool:
     return False
 
 
-def has_missing_values(anime: Anime) -> bool:
+def has_missing_values_anime(anime: Anime) -> bool:
     """
     Evaluates an anime entry against the ANIME_FIELDS_TO_FILL list.
     Returns True if any required fields are missing, False if fully populated.

@@ -54,7 +54,7 @@ Fills missing metadata for all anime entries that need it.
 **Steps:**
 
 1. Run `apply_extract_mal_id_anime` on all entries to populate `mal_id` from `mal_link`.
-2. Build queue: entries where `has_missing_values()` returns `True`.
+2. Build queue: entries where `has_missing_values_anime()` returns `True`.
 3. For each queued entry: call `autofill_anime_from_mal(force_replace_ratings=True)`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
 5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync_anime`.
@@ -136,6 +136,20 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 ---
 
+## Composite Logics
+
+### Anime Movie Post Processing — `anime_move_post_processing(anime, db)` / `run_anime_movie_post_processing(db)`
+
+Runs all single-entry checks and repairs for one anime. `run_anime_movie_post_processing` applies it to every entry in the DB.
+
+**Steps (in order):**
+
+1. `apply_validate_episode_math`
+2. `apply_check_baha`
+3. If `check_is_watching_completed()` and `watching_status != "Completed"`: call `mark_movie_completed`.
+
+---
+
 ### Derive Related — `derive_related(db)` / `run_derive_related(db)`
 
 Runs watch order, episode previous, and prequel/sequel derivation for every franchise in the DB.
@@ -150,6 +164,13 @@ Commits after all franchises processed.
 
 ---
 
+### Sync — `run_sync(db)`
+
+1. `run_sync_anime(db)`
+2. `run_sync_anime_movie(db)`
+
+---
+
 ### Sync — `run_sync_anime(db)`
 
 1. `create_missing_seasonal`
@@ -158,13 +179,20 @@ Commits after all franchises processed.
 
 ---
 
+### Sync — `run_sync_anime_movie(db)`
+
+1. `extract_system_options_from_anime_movie`
+
+---
+
 ### Calculate All — `run_calculate_all(db)`
 
 1. `run_anime_post_processing`
-2. `run_derive_related`
-3. `run_sync_anime`
-4. `bulk_check_cover_image`
-5. Log to `DataControlLog` (Success or Failed).
+1. `run_anime_movie_post_processing`
+1. `run_derive_related`
+1. `run_sync`
+1. `bulk_check_cover_image`
+1. Log to `DataControlLog` (Success or Failed).
 
 ---
 
@@ -182,7 +210,7 @@ Commits after all franchises processed.
 
 ---
 
-### Check Missing Values for Anime — `has_missing_values(anime)`
+### Check Missing Values for Anime — `has_missing_values_anime(anime)`
 
 Returns `True` if any required field is blank.
 
@@ -195,7 +223,20 @@ Returns `True` if any required field is blank.
 
 ---
 
-### Check Completed for TV Type — `check_is_watching_completed(entry)`
+### Check Missing Values for Anime Movie — `has_missing_values_anime_movie(anime_movie)`
+
+Returns `True` if any required field is blank.
+
+**Fields checked:** `airing_type`, `airing_status`, `release_year_jp`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
+
+**Special cases:**
+
+- `airing_status == "Not Yet Aired"`: skip `mal_rating` and `mal_rank` (they don't exist yet on MAL).
+- `ep_previous`: only required if `airing_type` is TV or ONA, `ep_special` is None, and `season_part` is set.
+
+---
+
+### Check Completed for Watching Type — `check_is_watching_completed(entry)`
 
 Returns `True` if:
 
@@ -239,14 +280,16 @@ Finds image files in storage not referenced by any `anime.cover_image_file`.
 
 All use a **union-find** algorithm with transitive closure (A=B, B=C collapses to one cluster).
 
-| Function                        | Duplicate Key                                                                                                |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `find_duplicate_franchises`     | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
-| `find_duplicate_series`         | Same `franchise_id` + at least one matching name                                                             |
-| `find_duplicate_anime`          | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
-| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
+| Function                     | Duplicate Key                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `find_duplicate_franchises`  | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
+| `find_duplicate_series`      | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_anime`       | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
+| `find_duplicate_anime_movie` | Same `franchise_id` + at least one matching name                                                             |
 
-`find_all_duplicates` runs all four: returns `{franchise, series, anime, system_options}`.
+| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive) |
+
+`find_all_duplicates` runs all four: returns `{franchise, series, anime, anime_movie, system_options}`.
 
 ---
 
@@ -430,6 +473,12 @@ Recomputes `entry_planned`, `entry_completed`, `entry_watching`, `entry_dropped`
 ### Extract System Options from Anime — `extract_system_options_from_anime(db)`
 
 Scans all Anime entries for values in: `genre_main`, `genre_sub`, `studio`, `distributor_tw`, `director`, `producer`, `music`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
+
+---
+
+### Extract System Options from Anime Movie — `extract_system_options_from_anime_movie(db)`
+
+Scans all Anime entries for values in: `studio` and `director`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
 
 ---
 

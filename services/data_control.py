@@ -25,7 +25,7 @@ from utils.data_control_utils import log_data_control
 
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
-    has_missing_values,
+    has_missing_values_anime,
     autofill_anime_from_mal,
     apply_single_replace_anime,
     apply_extract_mal_id_anime,
@@ -120,7 +120,7 @@ async def execute_fill_anime(
         queue_to_process = [
             anime
             for anime in all_anime
-            if anime.mal_id is not None and has_missing_values(anime)
+            if anime.mal_id is not None and has_missing_values_anime(anime)
         ]
         total_in_queue = len(queue_to_process)
 

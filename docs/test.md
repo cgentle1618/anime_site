@@ -46,7 +46,7 @@ tests/                          ← backend tests
     test_formatter.py           ← format_model_for_sheet, parse_*_from_sheet
     test_security.py            ← hashing, JWT sign/verify/expiry
     test_derivations.py         ← derive_watch_order, ep_previous, prequel/sequel
-    test_checking_rules.py      ← has_missing_values, check_is_watching_completed
+    test_checking_rules.py      ← has_missing_values_anime, check_is_watching_completed
   api/
     conftest.py                 ← sample DB rows (franchise, series, anime)
     test_auth.py
@@ -113,7 +113,7 @@ Tests for stateless functions with no DB or network dependencies.
 
 ### `tests/unit/test_checking_rules.py` → `services/other_logics.py` + `utils/utils.py`
 
-- `has_missing_values`: blank tracked fields → `True`; all filled → `False`; `"Not Yet Aired"` exceptions; `ep_previous` exemptions
+- `has_missing_values_anime`: blank tracked fields → `True`; all filled → `False`; `"Not Yet Aired"` exceptions; `ep_previous` exemptions
 - `check_is_watching_completed`: `ep_fin == ep_total > 0` → `True`; explicit `"Completed"` → `True`; partial → `False`
 
 ---
