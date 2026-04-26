@@ -1,5 +1,9 @@
 # Anime Movie Implementation Plan
 
+## Progress
+
+- We have finished Phase 1, 2, 3, 4, 5, meaning we have finished backend implementation.
+
 ## Implementation Plan
 
 ### Phase 1 — Database & Schema Foundation
@@ -62,7 +66,7 @@ Add these functions (in logical order):
 | Function                                                                 | Notes                                                                                                                                                                                   |
 | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `has_missing_values_anime_movie(anime_movie)`                            | Required fields: `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `official_link`, `twitter_link`, `cover_image_file`. Skip ratings if `airing_status == "Not Yet Aired"`. |
-| `check_is_tv_completed(entry)`                                           | Rename `check_is_watching_completed` → `check_is_tv_completed`; update all callers                                                                                                      |
+| `check_is_watching_completed(entry)`                                     | Rename `check_is_watching_completed` → `check_is_watching_completed`; update all callers                                                                                                |
 | `mark_movie_completed(entry)`                                            | Sets `watching_status = "Completed"`, `airing_status = "Finished Airing"`. If `ep_fin` is 0 or null, set to 1.                                                                          |
 | `apply_check_baha_anime_movie(anime_movie)`                              | Anime movie variant of `apply_check_baha`; same logic (set `source_baha = True` if `baha_link` set + `airing_status == "Airing"` + `source_baha is None`)                               |
 | `autofill_anime_movie_from_mal(anime_movie, force_replace_ratings=True)` | Like `autofill_anime_from_mal` but uses `map_jikan_to_anime_movie_data`; fills `airing_status`, `release_date_jp`, `official_link`, `twitter_link`; handles cover image download        |
