@@ -8,18 +8,11 @@ import {
   isBaha,
   getCoverUrl,
   FALLBACK_SVG,
-  getStatusStyle,
-  getNextStatus,
+  getStatusButtonConfig,
   getRatingWeight,
+  cleanString,
 } from "../utils/anime";
 import { useToast } from "../hooks/useToast";
-
-function cleanString(str) {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
 
 const MONTH_MAP = {
   JAN: 1,
@@ -63,7 +56,6 @@ export default function LibraryAnime() {
     airingStatus: new Set(),
     watchingStatus: new Set(),
     bahaOnly: false,
-    studioFilter: "",
   });
 
   useEffect(() => {
@@ -133,6 +125,8 @@ export default function LibraryAnime() {
           f?.franchise_name_cn,
           f?.franchise_name_en,
           f?.franchise_name_roman,
+          f?.franchise_name_jp,
+          f?.franchise_name_alt,
           s?.series_name_cn,
           s?.series_name_en,
           a.release_season,
@@ -150,10 +144,6 @@ export default function LibraryAnime() {
           )
         )
           return false;
-      }
-      if (filters.studioFilter) {
-        const sf = cleanString(filters.studioFilter);
-        if (!a.studio || !cleanString(a.studio).includes(sf)) return false;
       }
       if (filters.airingType.size > 0 && !filters.airingType.has(a.airing_type))
         return false;
@@ -227,7 +217,6 @@ export default function LibraryAnime() {
       airingStatus: new Set(),
       watchingStatus: new Set(),
       bahaOnly: false,
-      studioFilter: "",
     });
   }
 
@@ -235,8 +224,7 @@ export default function LibraryAnime() {
     filters.airingType.size +
     filters.airingStatus.size +
     filters.watchingStatus.size +
-    (filters.bahaOnly ? 1 : 0) +
-    (filters.studioFilter ? 1 : 0);
+    (filters.bahaOnly ? 1 : 0);
 
   if (loading) {
     return (
@@ -387,30 +375,6 @@ export default function LibraryAnime() {
               ))}
             </div>
           </div>
-          <div>
-            <div className="text-xs font-bold text-gray-400 mb-1.5">Studio</div>
-            <div className="relative max-w-xs">
-              <input
-                type="text"
-                placeholder="Filter by studio..."
-                value={filters.studioFilter}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, studioFilter: e.target.value }))
-                }
-                className="w-full pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-              />
-              {filters.studioFilter && (
-                <button
-                  onClick={() =>
-                    setFilters((p) => ({ ...p, studioFilter: "" }))
-                  }
-                  className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
-                >
-                  <i className="fas fa-times text-xs"></i>
-                </button>
-              )}
-            </div>
-          </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -498,10 +462,7 @@ export default function LibraryAnime() {
                     ? a.ep_total
                     : "?");
                 const bahaFlag = isBaha(a);
-                const statusStyle = getStatusStyle(a.watching_status);
-                const nextStatus = getNextStatus(
-                  a.watching_status || "Might Watch",
-                );
+                const btnConfig = getStatusButtonConfig(a.watching_status);
 
                 let airStatusColor = "text-gray-500 bg-gray-100";
                 if (a.airing_status === "Airing")
@@ -516,13 +477,13 @@ export default function LibraryAnime() {
                   const res = await fetch(`/api/anime/${a.system_id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ watching_status: nextStatus }),
+                    body: JSON.stringify({ watching_status: btnConfig.target }),
                     credentials: "include",
                   });
                   if (res.ok) {
                     const updated = await res.json();
                     handleUpdated(updated);
-                    showToast("success", `Status → ${nextStatus}`);
+                    showToast("success", `Status → ${btnConfig.target}`);
                   }
                 }
 
@@ -618,12 +579,10 @@ export default function LibraryAnime() {
                       {isAdmin ? (
                         <button
                           onClick={handleStatusToggle}
-                          className={`w-6 h-6 flex items-center justify-center rounded-md border transition-colors mx-auto ${statusStyle.cls}`}
-                          title={`${a.watching_status || "Might Watch"} → ${nextStatus}`}
+                          className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors mx-auto font-bold text-[13px] leading-none ${btnConfig.cls}`}
+                          title={`${a.watching_status || "Might Watch"} → ${btnConfig.target}`}
                         >
-                          <i
-                            className={`fas ${statusStyle.icon} text-[10px]`}
-                          ></i>
+                          {btnConfig.symbol}
                         </button>
                       ) : a.watching_status ? (
                         <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 mx-auto max-w-full truncate">

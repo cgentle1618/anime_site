@@ -471,6 +471,9 @@ export default function Statistics() {
                           <span className="text-green-600">Completed</span>
                         </th>
                         <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                          <span className="text-violet-600">Planned</span>
+                        </th>
+                        <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
                           <span className="text-blue-600">Watching</span>
                         </th>
                         <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
@@ -517,6 +520,13 @@ export default function Statistics() {
                                 className={`text-sm font-bold ${s.entry_completed > 0 ? "text-green-600" : "text-gray-300"}`}
                               >
                                 {s.entry_completed}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={`text-sm font-bold ${s.entry_planned > 0 ? "text-violet-600" : "text-gray-300"}`}
+                              >
+                                {s.entry_planned}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">

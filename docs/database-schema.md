@@ -319,6 +319,8 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
+| `watch_next`       | Boolean  | Yes      | —                                           |
+| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -397,6 +399,8 @@ Live-action and animated movie entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
+| `watch_next`       | Boolean  | Yes      | —                                           |
+| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -482,6 +486,8 @@ Live-action and scripted TV show entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
+| `watch_next`       | Boolean  | Yes      | —                                           |
+| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -566,6 +572,8 @@ Western animated TV show entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
+| `watch_next`       | Boolean  | Yes      | —                                           |
+| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -666,6 +674,8 @@ Manga, manhwa, and manhua entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
+| `read_next_group`  | String   | Yes      | —                                           |
+| `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -735,13 +745,15 @@ Persistent global application settings stored as key-value pairs.
 
 Aggregated metrics per airing season. One row per season string. Only counts `anime` entries with `airing_type` of `"TV"`, `"ONA"`, `"Movie"`, or `"Special"`.
 
-| Column            | Type    | Nullable | Default | Notes                                                             |
-| ----------------- | ------- | -------- | ------- | ----------------------------------------------------------------- |
-| `seasonal`        | String  | No       | —       | Primary key. Format: `"SSS YYYY"` e.g. `"WIN 2025"`, `"FAL 2026"` |
-| `my_rating`       | String  | Yes      | —       | Personal season-level rating                                      |
-| `entry_completed` | Integer | No       | `0`     | Count of completed entries this season                            |
-| `entry_watching`  | Integer | No       | `0`     | Count of currently watching entries                               |
-| `entry_dropped`   | Integer | No       | `0`     | Count of dropped entries                                          |
+| Column          | Type    | Nullable | Default | Notes                                                             |
+| --------------- | ------- | -------- | ------- | ----------------------------------------------------------------- |
+| `seasonal`      | String  | No       | —       | Primary key. Format: `"SSS YYYY"` e.g. `"WIN 2025"`, `"FAL 2026"` |
+| `my_rating`     | String  | Yes      | —       | Personal season-level rating                                      |
+| `entry_planned` | Integer | No       | `0`     | Count of completed entries this season                            |
+
+| `entry_completed` | Integer | No | `0` | Count of completed entries this season |
+| `entry_watching` | Integer | No | `0` | Count of currently watching entries |
+| `entry_dropped` | Integer | No | `0` | Count of dropped entries |
 
 **Note:** Rows are auto-created by `create_missing_seasonal()` and counts synced by `sync_seasonal_counts()` during Calculate All.
 

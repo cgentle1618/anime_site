@@ -2,13 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-
-function cleanString(str) {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
-}
+import { cleanString } from "../utils/anime";
 
 const SCOPES = [
   { key: "all", label: "All" },
@@ -143,7 +137,7 @@ export default function Nav() {
         }
 
         if (scope === "all" || scope === "series") {
-          const limit = scope === "all" ? 2 : 10;
+          const limit = scope === "all" ? 3 : 10;
           dataCacheRef.current.series
             .filter((s) =>
               [s.series_name_cn, s.series_name_en, s.series_name_alt].some(
@@ -155,7 +149,7 @@ export default function Nav() {
         }
 
         if (scope === "all" || scope === "anime") {
-          const limit = scope === "all" ? 5 : 10;
+          const limit = scope === "all" ? 10 : 10;
           dataCacheRef.current.anime
             .filter((a) =>
               [
@@ -171,14 +165,43 @@ export default function Nav() {
         }
 
         if (scope === "all" || scope === "seasonal") {
-          const limit = scope === "all" ? 2 : 10;
+          const limit = scope === "all" ? 10 : 10;
           dataCacheRef.current.seasonal
             .filter((s) => cleanString(s.seasonal).includes(qClean))
             .slice(0, limit)
             .forEach((s) => results.push({ type: "seasonal", ...s }));
         }
 
-        setSearchResults(results);
+        // Exact match floats to top
+        results.sort((a, b) => {
+          const names = (item) => {
+            if (item.type === "franchise")
+              return [
+                item.franchise_name_cn,
+                item.franchise_name_en,
+                item.franchise_name_roman,
+              ];
+            if (item.type === "series")
+              return [
+                item.series_name_cn,
+                item.series_name_en,
+                item.series_name_alt,
+              ];
+            if (item.type === "seasonal") return [item.seasonal];
+            return [
+              item.anime_name_cn,
+              item.anime_name_en,
+              item.anime_name_roman,
+            ];
+          };
+          const aExact = names(a).some((n) => n && cleanString(n) === qClean);
+          const bExact = names(b).some((n) => n && cleanString(n) === qClean);
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+          return 0;
+        });
+
+        setSearchResults(results.slice(0, 10));
         setShowResults(true);
       } catch {
         // ignore search errors
@@ -289,35 +312,33 @@ export default function Nav() {
 
             {/* Desktop Nav */}
             <div className="hidden lg:flex ml-6 xl:ml-8 space-x-1 xl:space-x-2">
-              {/* Library */}
+              {/* ACG */}
               <DropdownMenu
-                label="Library"
+                label="ACG"
                 items={
                   <>
                     <NavLink to="/library/anime" icon="fas fa-tv">
                       Anime
                     </NavLink>
-                    <NavLink to="/library/franchise" icon="fas fa-layer-group">
-                      Franchise
-                    </NavLink>
                     <DevLink icon="fas fa-film">Anime Movie</DevLink>
                     <DevLink icon="fas fa-book">Manga</DevLink>
                     <DevLink icon="fas fa-book-open">Novel</DevLink>
-                    <div className="border-t border-gray-50 my-1"></div>
-                    <DevLink icon="fas fa-video">TV Show</DevLink>
-                    <DevLink icon="fas fa-ticket-alt">Movie</DevLink>
-                    <DevLink icon="fas fa-laugh-squint">Cartoon</DevLink>
+                    <DevLink icon="fas fa-microphone">Seiyuu</DevLink>
                   </>
                 }
               />
 
-              {/* Production */}
+              {/* Library */}
               <DropdownMenu
-                label="Production"
+                label="Reality"
                 items={
                   <>
-                    <DevLink icon="fas fa-building">Studio</DevLink>
-                    <DevLink icon="fas fa-microphone">Seiyuu</DevLink>
+                    <NavLink to="/library/franchise" icon="fas fa-layer-group">
+                      Franchise
+                    </NavLink>
+                    <DevLink icon="fas fa-video">TV Show</DevLink>
+                    <DevLink icon="fas fa-ticket-alt">Movie</DevLink>
+                    <DevLink icon="fas fa-laugh-squint">Cartoon</DevLink>
                   </>
                 }
               />
@@ -457,6 +478,14 @@ export default function Nav() {
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden max-h-[80vh] overflow-y-auto z-50">
                   {searchResults.map((item, i) => {
                     const badge = TYPE_BADGE[item.type];
+                    const secondary =
+                      item.type === "franchise"
+                        ? item.franchise_type
+                        : item.type === "anime"
+                          ? item.airing_type
+                          : item.type === "series"
+                            ? null
+                            : null;
                     return (
                       <button
                         key={i}
@@ -468,9 +497,16 @@ export default function Nav() {
                         >
                           {badge.label}
                         </span>
-                        <span className="text-sm font-medium text-gray-800 truncate">
-                          {getDisplayName(item)}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-800 truncate">
+                            {getDisplayName(item)}
+                          </div>
+                          {secondary && (
+                            <div className="text-[10px] text-gray-400 truncate">
+                              {secondary}
+                            </div>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
@@ -538,12 +574,12 @@ export default function Nav() {
               Dashboard
             </Link>
 
-            {/* Library accordion */}
+            {/* ACG accordion */}
             <details className="group">
               <summary className="flex justify-between items-center px-3 py-2.5 rounded-md text-base font-bold text-gray-900 hover:bg-gray-50 cursor-pointer transition">
                 <span>
-                  <i className="fas fa-layer-group w-6 text-center text-brand/70 mr-2"></i>
-                  Library
+                  <i className="fas fa-tv w-6 text-center text-brand/70 mr-2"></i>
+                  ACG
                 </span>
                 <span className="transition-transform group-open:rotate-180">
                   <i className="fas fa-chevron-down text-xs text-gray-400"></i>
@@ -556,13 +592,6 @@ export default function Nav() {
                   className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
                   Anime Library
-                </Link>
-                <Link
-                  to="/library/franchise"
-                  onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
-                >
-                  Franchise Library
                 </Link>
                 <Link
                   to="/under-development"
@@ -590,6 +619,35 @@ export default function Nav() {
                   onClick={() => setMobileOpen(false)}
                   className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
                 >
+                  Seiyuu (Dev)
+                </Link>
+              </div>
+            </details>
+
+            {/* Reality accordion */}
+            <details className="group">
+              <summary className="flex justify-between items-center px-3 py-2.5 rounded-md text-base font-bold text-gray-900 hover:bg-gray-50 cursor-pointer transition">
+                <span>
+                  <i className="fas fa-layer-group w-6 text-center text-gray-400 mr-2"></i>
+                  Reality
+                </span>
+                <span className="transition-transform group-open:rotate-180">
+                  <i className="fas fa-chevron-down text-xs text-gray-400"></i>
+                </span>
+              </summary>
+              <div className="pl-12 pr-3 py-1 space-y-1 border-l-2 border-gray-100 ml-6 mb-2">
+                <Link
+                  to="/library/franchise"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Franchise Library
+                </Link>
+                <Link
+                  to="/under-development"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                >
                   TV Show (Dev)
                 </Link>
                 <Link
@@ -605,35 +663,6 @@ export default function Nav() {
                   className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
                 >
                   Cartoon (Dev)
-                </Link>
-              </div>
-            </details>
-
-            {/* Production accordion */}
-            <details className="group">
-              <summary className="flex justify-between items-center px-3 py-2.5 rounded-md text-base font-bold text-gray-900 hover:bg-gray-50 cursor-pointer transition">
-                <span>
-                  <i className="fas fa-video w-6 text-center text-gray-400 mr-2"></i>
-                  Production
-                </span>
-                <span className="transition-transform group-open:rotate-180">
-                  <i className="fas fa-chevron-down text-xs text-gray-400"></i>
-                </span>
-              </summary>
-              <div className="pl-12 pr-3 py-1 space-y-1 border-l-2 border-gray-100 ml-6 mb-2">
-                <Link
-                  to="/under-development"
-                  onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
-                >
-                  Studio (Dev)
-                </Link>
-                <Link
-                  to="/under-development"
-                  onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
-                >
-                  Seiyuu (Dev)
                 </Link>
               </div>
             </details>

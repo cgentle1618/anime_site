@@ -7,9 +7,16 @@ Design-level components used across multiple pages. Items marked _(future)_ are 
 - [Universal Bar](#universal-bar)
 - [Reusable Entry (Table Row)](#reusable-entry-table-row)
 - [Search Suggestion Entry](#search-suggestion-entry)
+- [Search Suggestion for Deletion](#search-suggestion-for-deletion)
+- [Search Result Entry](#search-result-entry)
 - [Entry Info for Deletion](#entry-info-for-deletion)
 - [Entry Card](#entry-card)
+- [Franchise Detail Elements](#franchise-detail-elements)
 - [+ Button](#-button)
+- [Mark as Airing Button](#mark-as-airing-button)
+- [Group by Series Button](#group-by-series-button)
+- [Icons](#icons)
+- [Rating Distribution Block](#rating-distribution-block)
 - [Entry Detail Elements](#entry-detail-elements)
 - [Other](#other)
 
@@ -21,12 +28,12 @@ Present on every page. Contains:
 
 **Navigation — Page Dropdowns:**
 
-| Dropdown              | Items                                                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Library               | Franchise Library, Anime Library, Anime Movie Library, Manga Library, Novel Library, TV Show Library, Movie Library, Cartoon Library |
-| Production _(future)_ | Studio Library, Seiyuu Library                                                                                                       |
-| More                  | Statistics, Future Release, Seasonal Overall                                                                                         |
-| Admin _(admin only)_  | System Page, Data History Page, Review Page, Add Page, Modify Page, Delete Page                                                      |
+| Dropdown             | Items                                                                            |
+| -------------------- | -------------------------------------------------------------------------------- |
+| ACG Library          | Anime Library, Anime Movie Library, Manga Library, Novel Library, Seiyuu Library |
+| Other Library        | Franchise Library, TV Show Library, Movie Library, Cartoon Library               |
+| More                 | Statistics, Future Release, Seasonal Overall                                     |
+| Admin _(admin only)_ | System Page, Data History Page, Review Page, Add Page, Modify Page, Delete Page  |
 
 **Other controls:**
 
@@ -34,10 +41,14 @@ Present on every page. Contains:
 - Search bar — see [Search Suggestion Entry](#search-suggestion-entry) for result format
   - Scope selector: All (default), Seasonal, Franchise, Anime, Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio _(future)_, Seiyuu _(future)_
   - Results grouped by kind when searching All; ordered: Seasonal → Franchise → Anime → Anime Movie → Manga → Novel → Movie → TV Show → Cartoon
+  - If an entry exactly matches the input (ignoring case, punctuation, and spaces), it is shown at the top regardless of grouping/ordering
+  - At most 10 suggestions shown; at most 3 franchise and 3 series suggestions
   - Search is case-insensitive, punctuation-insensitive, space-insensitive; supports Alt Name search
-  - Each result uses Search Suggestion Entry First Type
+- Admin Status Tag _(admin only)_
 - Backup button _(admin only)_ — triggers Backup pipeline
 - Login / Logout button
+- Scroll to Top button
+- Scroll to Bottom button
 
 **Footer:** Copyright, Version
 
@@ -71,12 +82,7 @@ Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) 
 
 ## Search Suggestion Entry
 
-Compact entries shown in the universal search bar dropdown and on the Search page.
-
-**Two display types for most entry kinds:**
-
-- **First Type** — shown in search bar dropdown
-- **Second Type** — shown on the Search page results (adds Watching/Reading Status)
+Compact entries shown in the universal search bar dropdown.
 
 ### Seasonal Entry
 
@@ -84,37 +90,31 @@ Seasonal Name (e.g. WIN 2026)
 
 ### Franchise Entry
 
-Franchise Name CN (fallback) · Franchise Name EN (hidden if CN used fallback) · Franchise Type
+Franchise Name CN (fallback) · Franchise Type
 
 ### Anime Entry
 
-First Type: Name CN (fallback) · Franchise Name CN (fallback) · Airing Type
-Second Type: + Watching Status
+Name CN (fallback) · Airing Type
 
 ### Anime Movie Entry
 
-First Type: Name CN (fallback) · Franchise Name CN (fallback) · Airing Type
-Second Type: + Watching Status
+Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
 
 ### Movie Entry _(future)_
 
-First Type: Name CN (fallback) · Franchise Name CN (fallback) · Movie Type
-Second Type: + Watching Status
+Name CN (fallback) · Movie Type
 
 ### TV Show Entry _(future)_
 
-First Type: Name CN (fallback) · Franchise Name CN (fallback) · TV Show Region
-Second Type: + Watching Status
+Name CN (fallback) · TV Show Region
 
 ### Cartoon Entry _(future)_
 
-First Type: Name CN (fallback) · Franchise Name CN (fallback) · Cartoon Airing Type
-Second Type: + Watching Status
+Name CN (fallback) · Cartoon Airing Type
 
 ### Manga Entry _(future)_
 
-First Type: Name CN (fallback) · Franchise Name CN (fallback) · Manga Region
-Second Type: + Reading Status
+Name CN (fallback) · Manga Region
 
 ### Novel Entry _(future)_ / Studio Entry _(future)_ / Seiyuu Entry _(future)_
 
@@ -122,29 +122,65 @@ TBD
 
 ---
 
+## Search Suggestion for Deletion
+
+Compact entries shown in the Delete page search dropdown, used to select an entry before deletion.
+
+### Franchise
+
+Franchise Name CN (fallback) · Amount of belonging series · Amount of each belonging media entries
+
+### Series
+
+Series Name CN (fallback) · Franchise Name CN (fallback) · Amount of each belonging media entries
+
+### Anime
+
+Anime Name CN (fallback) · Franchise Name CN (fallback) · Airing Type
+
+### Anime Movie
+
+Anime Movie Name CN (fallback) · Franchise Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
+
+---
+
+## Search Result Entry
+
+Entries shown on the Search page results.
+
+### Franchise
+
+Franchise Type · Franchise Name CN (fallback) · Franchise Name EN (hidden if CN used fallback)
+
+### Series
+
+"Series" indicator label · Series Name CN (fallback) · Series Name EN (hidden if CN used fallback)
+
+### Seasonal
+
+Seasonal Name · Button navigates to Seasonal Detail page
+
+---
+
 ## Entry Info for Deletion
 
 Shown on the Delete page after selecting an entry. Confirms identity before deletion.
 
-### Seasonal
-
-Seasonal Name (e.g. WIN 2026)
-
 ### Franchise
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Type
+Name CN · Name EN · Name Alt · Franchise Type · Amount of belonging series · Amount of each belonging media entries · System ID
 
 ### Series
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback)
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Amount of each belonging media entries · System ID
 
 ### Anime
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Watching Status Tags · Remark field in notes column · System ID
 
 ### Anime Movie
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Airing Type · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
 ### Movie _(future)_
 
@@ -170,6 +206,16 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ---
 
+### Franchise Entry Card
+
+- Poster (cover image of latest belonging entry; fallback to image cover if `cover_anime_id` is null)
+- Franchise Rating
+- Franchise Name CN (fallback)
+- Franchise Type
+- Franchise Expectation
+
+---
+
 ### Anime Entry Card
 
 **First Type** — used on Dashboard, Seasonal pages
@@ -178,17 +224,17 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 **Second Type** — used on Franchise pages, Library grid, Search page
 
-- Poster · My Rating · MAL Rating · Name CN (fallback) · Airing Type · Release Season (fallback) · Bahamut icon · Ep Watched / Ep Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Airing Type · Bahamut icon · Name CN (fallback) · Release Season (fallback) · MAL Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
 
 **Third Type** — used on Future Release page
 
-- Poster · Name CN (fallback) · Airing Type · Bahamut icon · Ep Total · + button _(admin)_
+- Poster · Franchise Expectation · Airing Type · Name CN (fallback) · Bahamut icon · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
 
 ---
 
 ### Anime Movie Entry Card
 
-- Poster · My Rating · MAL Rating · Name CN (fallback) · Length (Hr + Min) · Release Year JP · Bahamut icon · + button _(admin)_
+- Poster · My Rating (hidden if null) · MAL Rating (hidden if null) · Name CN (fallback) · Length (Hr + Min) · Release Year JP · Bahamut icon · + button _(admin)_
 
 ---
 
@@ -244,6 +290,33 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ---
 
+## Franchise Detail Elements
+
+Reusable elements used on the Franchise Detail page.
+
+### Franchise Information Block
+
+- Franchise Type
+- Main Title: Franchise Name CN (fallback)
+- Sub Titles: Franchise Name EN · Franchise Name JP · Franchise Name Romaji · Franchise Alt Name
+- Completion Stats: completion percentage · entries completed / total
+- My Franchise Rating _(editable for admin)_
+- My Franchise Expectations _(editable for admin)_
+- Watch Next Group Status _(editable for admin; ACG franchises only)_
+- To Rewatch Status _(editable for admin; ACG franchises only)_
+
+### Belonging Series Block
+
+Shown only when at least one series belongs to the franchise. For each series:
+
+- Series Name CN (fallback), using Series Information Pop Up Entry
+
+### Notes and Remarks Block
+
+- Notes and Remarks _(editable for admin)_
+
+---
+
 ## + Button
 
 The status action button shown on entry cards. Displays a symbol reflecting the current status; clicking cycles to the next state.
@@ -269,6 +342,50 @@ The status action button shown on entry cards. Displays a symbol reflecting the 
 | `✕`    | Dropped (Temp Dropped, Dropped, Won't Read)       | → Might Read, button becomes `+`   |
 
 The + button is visible and editable to admin only.
+
+---
+
+## Mark as Airing Button
+
+Sets the entry's `airing_status` to "Airing".
+
+---
+
+## Group by Series Button
+
+Toggle switch to group entries by series or show them ungrouped.
+
+---
+
+## Icons
+
+### Baha Icon
+
+- Shown if `source_baha` is not null
+- Full color with navigation link if available; black and white if no navigation
+- Clickable button when navigation is present
+
+### Netflix Icon
+
+- Shown if `source_netflix` is not null
+
+### Other Watch Source Icon
+
+- Shows source name
+- Clickable button if navigation link is available
+- Each entry in `other_source` gets its own button
+
+---
+
+## Rating Distribution Block
+
+- My Rating Distribution Bar Plot
+  - Categories: S, A+, A, B, C, D, E, F, Unrated
+- MAL Rating Distribution Bar Plot
+  - Categories: 9+, 8.7+, 8.5+, 8.2+, 7.7+, 7+, 4+, <4
+- For each plot, show the amount and percentage per category.
+
+---
 
 ## Entry Detail Elements
 
@@ -479,7 +596,7 @@ Anime Notes Card
 - 優缺點 (similar to double-edged sword)
 - 大眾評價 Public Reviews
 - 我的評價 Personal Reviews
-- 神回/神片段
+- 神回/神片段 Highlights
 - 解析 Analysis
 - 分鏡/演出/巧思
 - Foreshadowing
@@ -546,7 +663,7 @@ Cartoon Notes Card
 - 優缺點 (similar to double-edged sword)
 - 大眾評價 Public Reviews
 - 我的評價 Personal Reviews
-- 神回/神片段
+- 神回/神片段 Highlights
 - 解析 Analysis
 - Resources
 - Unread
@@ -607,6 +724,56 @@ Here is the description for all sub fields in notes:
   - list of items
 - 名言/梗/迷因
   - list of dictionaries ({description: link(optional)})
+
+---
+
+## Form Shared Elements
+
+Shared components and utilities used across Add and Modify pages.
+
+### Form Styling Constants (`FormField.jsx`)
+
+`inputCls` and `selectCls` — Tailwind class strings for text inputs and select dropdowns respectively. Exported from `FormField.jsx` and imported wherever consistent form styling is needed.
+
+### FormField Components (`FormField.jsx`)
+
+- **`Field`** — Wraps a form control with a label, optional required marker (`*`), and optional hint text below.
+- **`SectionHeader`** — Renders a section divider with a FontAwesome icon and an uppercase title label.
+
+### FranchiseCreateModal (`FranchiseCreateModal.jsx`)
+
+Modal shown when adding an anime entry with a franchise name that doesn't match any existing franchise. Prompts the user to confirm creation of a new franchise before saving the entry.
+
+Props: `onConfirm(expectation, remark)`, `onCancel`
+
+Used by: Add Page, Modify Page
+
+### CreateNewEntityModal (`CreateNewEntityModal.jsx`)
+
+Generic confirmation modal shown when a ComboBox text input doesn't match any existing entity (Franchise or Series). Informs the user that a new record will be created and asks for confirmation before proceeding.
+
+Props: `entityType` (e.g. "Franchise", "Series"), `text` (the unmatched input), `onConfirm`, `onCancel`
+
+Used by: Add Page, Modify Page
+
+### Utility: `getOptions` (`utils/anime.js`)
+
+Filters the global options list by category and returns an array of option values.
+
+```js
+getOptions(allOptions, category) → string[]
+```
+
+### Utility: `buildAnimePayload` (`utils/anime.js`)
+
+Converts the anime form state object into the API request payload. Handles season/part string building, type coercions (int/float/boolean), and source_other object serialization.
+
+```js
+buildAnimePayload(af, { franchiseId, seriesId, notes } = {}) → object
+```
+
+- `franchiseId` / `seriesId` — resolved entity IDs (may be newly created); override `af.franchise_id` / `af.series_id` when provided.
+- `notes` — defaults to `null`; Modify page passes the structured notes object.
 
 ---
 
