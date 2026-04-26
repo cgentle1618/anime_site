@@ -164,7 +164,7 @@ def run_derive_related(db: Session) -> dict:
     }
 
 
-def run_sync(db: Session) -> dict:
+def run_sync_anime(db: Session) -> dict:
     create_missing_seasonal(db)
     sync_seasonal_counts(db)
     extract_system_options_from_anime(db)
@@ -178,7 +178,7 @@ def run_calculate_all(db: Session) -> dict:
     try:
         run_anime_post_processing(db)
         run_derive_related(db)
-        run_sync(db)
+        run_sync_anime(db)
         bulk_check_cover_image(db)
         log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
         return {"status": "success", "message": "Full calculation complete."}

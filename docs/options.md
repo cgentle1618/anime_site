@@ -305,7 +305,7 @@ Predefined franchise names used as grouping hubs within each `franchise_type`. T
 
 Required metadata fields that should be populated for each entry type. Used by `has_missing_values()` to determine Fill eligibility.
 
-### Anime (TV / ONA / OVA / Special)
+### Anime (TV / Movie / ONA / OVA / Special)
 
 | Field              | Notes                                         |
 | ------------------ | --------------------------------------------- |
@@ -329,7 +329,9 @@ Required metadata fields that should be populated for each entry type. Used by `
 | `release_date_jp`  |       |
 | `mal_rating`       |       |
 | `mal_rank`         |       |
+| `ep_total`         |       |
 | `official_link`    |       |
+| `twitter_link`     |       |
 | `cover_image_file` |       |
 
 ### Manga

@@ -6,7 +6,11 @@ Uses SimpleNamespace to create mock Anime objects — no DB required.
 
 import types
 import pytest
-from services.other_logics import has_missing_values, check_is_tv_completed, apply_check_baha
+from services.other_logics import (
+    has_missing_values,
+    check_is_watching_completed,
+    apply_check_baha,
+)
 
 
 def make_anime(**kwargs):
@@ -27,7 +31,7 @@ def make_anime(**kwargs):
         ep_previous=0,
         ep_special=None,
         season_part="Season 1",
-        # For check_is_tv_completed
+        # For check_is_watching_completed
         watching_status="Active Watching",
         ep_fin=0,
         # For apply_check_baha
@@ -41,6 +45,7 @@ def make_anime(**kwargs):
 # ---------------------------------------------------------------------------
 # has_missing_values
 # ---------------------------------------------------------------------------
+
 
 class TestHasMissingValues:
     def test_fully_populated_returns_false(self):
@@ -65,7 +70,9 @@ class TestHasMissingValues:
 
     def test_not_yet_aired_skips_mal_rating_check(self):
         # mal_rating and mal_rank should be ignored when airing_status is "Not Yet Aired"
-        anime = make_anime(airing_status="Not Yet Aired", mal_rating=None, mal_rank=None)
+        anime = make_anime(
+            airing_status="Not Yet Aired", mal_rating=None, mal_rank=None
+        )
         assert has_missing_values(anime) is False
 
     def test_not_yet_aired_still_checks_other_fields(self):
@@ -108,49 +115,59 @@ class TestHasMissingValues:
 
 
 # ---------------------------------------------------------------------------
-# check_is_tv_completed
+# check_is_watching_completed
 # ---------------------------------------------------------------------------
+
 
 class TestCheckIsTvCompleted:
     def test_explicit_completed_status_returns_true(self):
         anime = make_anime(watching_status="Completed", ep_total=12, ep_fin=0)
-        assert check_is_tv_completed(anime) is True
+        assert check_is_watching_completed(anime) is True
 
     def test_ep_fin_equals_ep_total_returns_true(self):
         anime = make_anime(watching_status="Active Watching", ep_total=12, ep_fin=12)
-        assert check_is_tv_completed(anime) is True
+        assert check_is_watching_completed(anime) is True
 
     def test_partial_progress_returns_false(self):
         anime = make_anime(watching_status="Active Watching", ep_total=12, ep_fin=6)
-        assert check_is_tv_completed(anime) is False
+        assert check_is_watching_completed(anime) is False
 
     def test_ep_total_zero_returns_false(self):
         # ep_total must be > 0
         anime = make_anime(watching_status="Active Watching", ep_total=0, ep_fin=0)
-        assert check_is_tv_completed(anime) is False
+        assert check_is_watching_completed(anime) is False
 
     def test_ep_total_none_returns_false(self):
         anime = make_anime(watching_status="Active Watching", ep_total=None, ep_fin=0)
-        assert check_is_tv_completed(anime) is False
+        assert check_is_watching_completed(anime) is False
 
     def test_watching_status_takes_precedence_over_episode_count(self):
         # Explicitly "Completed" even if ep_fin < ep_total
         anime = make_anime(watching_status="Completed", ep_total=12, ep_fin=3)
-        assert check_is_tv_completed(anime) is True
+        assert check_is_watching_completed(anime) is True
 
 
 # ---------------------------------------------------------------------------
 # apply_check_baha
 # ---------------------------------------------------------------------------
 
+
 class TestApplyCheckBaha:
     def test_sets_source_baha_true_when_conditions_met(self):
-        anime = make_anime(baha_link="https://ani.gamer.com.tw/123", airing_status="Airing", source_baha=None)
+        anime = make_anime(
+            baha_link="https://ani.gamer.com.tw/123",
+            airing_status="Airing",
+            source_baha=None,
+        )
         apply_check_baha(anime)
         assert anime.source_baha is True
 
     def test_does_not_set_when_not_airing(self):
-        anime = make_anime(baha_link="https://ani.gamer.com.tw/123", airing_status="Finished Airing", source_baha=None)
+        anime = make_anime(
+            baha_link="https://ani.gamer.com.tw/123",
+            airing_status="Finished Airing",
+            source_baha=None,
+        )
         apply_check_baha(anime)
         assert anime.source_baha is None
 
@@ -160,6 +177,10 @@ class TestApplyCheckBaha:
         assert anime.source_baha is None
 
     def test_does_not_overwrite_existing_value(self):
-        anime = make_anime(baha_link="https://ani.gamer.com.tw/123", airing_status="Airing", source_baha=False)
+        anime = make_anime(
+            baha_link="https://ani.gamer.com.tw/123",
+            airing_status="Airing",
+            source_baha=False,
+        )
         apply_check_baha(anime)
         assert anime.source_baha is False  # already set, not overwritten

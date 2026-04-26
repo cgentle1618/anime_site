@@ -85,7 +85,7 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
 # ==========================================
 
 
-def extract_mal_id(url: str) -> Optional[int]:
+def extract_mal_id_anime(url: str) -> Optional[int]:
     """
     Extracts the numeric ID from a standard MyAnimeList URL.
     Returns None if the URL is invalid or the ID cannot be found.

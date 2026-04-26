@@ -28,11 +28,11 @@ from services.other_logics import (
     has_missing_values,
     autofill_anime_from_mal,
     apply_single_replace_anime,
-    apply_extract_mal_id,
+    apply_extract_mal_id_anime,
     anime_post_processing,
     derive_related,
 )
-from services.calculation import run_sync
+from services.calculation import run_sync_anime
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ async def execute_fill_anime(
         # Extract MAL ID for all entries
         all_anime = db.query(Anime).all()
         for anime in all_anime:
-            apply_extract_mal_id(anime)
+            apply_extract_mal_id_anime(anime)
         db.commit()
 
         # Build fill queue (entries with missing values)
@@ -166,7 +166,7 @@ async def execute_fill_anime(
 
         # Sync
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing seasonal data...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        run_sync(db)
+        run_sync_anime(db)
 
         if log_action:
             log_data_control(
@@ -311,7 +311,7 @@ async def execute_replace_single_anime(
         db.commit()
 
         # Sync
-        run_sync(db)
+        run_sync_anime(db)
 
         if log_action:
             log_data_control(
@@ -398,7 +398,7 @@ async def execute_replace_anime(
 
         # Sync
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing seasonal data...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        run_sync(db)
+        run_sync_anime(db)
 
         if log_action:
             log_data_control(

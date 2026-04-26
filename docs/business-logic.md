@@ -53,11 +53,11 @@ Fills missing metadata for all anime entries that need it.
 
 **Steps:**
 
-1. Run `apply_extract_mal_id` on all entries to populate `mal_id` from `mal_link`.
+1. Run `apply_extract_mal_id_anime` on all entries to populate `mal_id` from `mal_link`.
 2. Build queue: entries where `has_missing_values()` returns `True`.
 3. For each queued entry: call `autofill_anime_from_mal(force_replace_ratings=True)`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
-5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync`.
+5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync_anime`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
 ---
@@ -77,7 +77,7 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 1. Query all anime with `mal_id` or `mal_link` set. Return early if queue is empty.
 2. For each entry: call `apply_single_replace_anime(bulk=True)` — skips per-entry `derive_related`.
 3. After loop: call `derive_related(db)` once for all franchises.
-4. Call `run_sync(db)`.
+4. Call `run_sync_anime(db)`.
 
 #### Replace for Single Anime Entry — `execute_replace_single_anime(db, anime_id, action_type, log_action)` / `apply_single_replace_anime(db, anime, bulk, force_replace_ratings)`
 
@@ -86,7 +86,7 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 
 **`apply_single_replace_anime` steps:**
 
-1. `apply_extract_mal_id`
+1. `apply_extract_mal_id_anime`
 2. `autofill_anime_from_mal`
 3. `anime_post_processing`
 4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles derive_related after the loop.
@@ -130,7 +130,7 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 1. `apply_validate_episode_math`
 2. `apply_check_baha`
-3. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+3. If `check_is_watching_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
 4. If `release_season` is None, `release_month` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
 5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1`.
 
@@ -150,7 +150,7 @@ Commits after all franchises processed.
 
 ---
 
-### Sync — `run_sync(db)`
+### Sync — `run_sync_anime(db)`
 
 1. `create_missing_seasonal`
 2. `sync_seasonal_counts`
@@ -162,7 +162,7 @@ Commits after all franchises processed.
 
 1. `run_anime_post_processing`
 2. `run_derive_related`
-3. `run_sync`
+3. `run_sync_anime`
 4. `bulk_check_cover_image`
 5. Log to `DataControlLog` (Success or Failed).
 
@@ -195,7 +195,7 @@ Returns `True` if any required field is blank.
 
 ---
 
-### Check Completed for TV Type — `check_is_tv_completed(entry)`
+### Check Completed for TV Type — `check_is_watching_completed(entry)`
 
 Returns `True` if:
 
@@ -252,7 +252,7 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 
 ## Fill Missing Entry Data
 
-### Extract MAL ID — `apply_extract_mal_id(anime)` / `extract_mal_id(url)`
+### Extract MAL ID — `apply_extract_mal_id_anime(anime)` / `extract_mal_id_anime(url)`
 
 Extracts numeric MAL ID from a MAL URL using regex `myanimelist\.net/anime/(\d+)`. Writes to `anime.mal_id`. Returns `True` if extracted.
 
@@ -346,10 +346,25 @@ Enriches a single Anime entry with Jikan API data. Does not commit — caller is
 
 **Steps:**
 
-1. Resolve `mal_id` from `anime.mal_id` or extract from `anime.mal_link`. Return if no ID.
+1. Resolve `mal_id` from `anime.mal_id`. Return if no ID.
 2. Call `fetch_jikan_anime_data(mal_id)`.
 3. Map response via `map_jikan_to_anime_data()`.
 4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `ep_total`, `official_link`, `twitter_link`.
+5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
+6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
+
+---
+
+### MAL Autofill Anime Movie — `autofill_anime_movie_from_mal(anime, force_replace_ratings=True)`
+
+Enriches a single Anime Movie entry with Jikan API data. Does not commit — caller is responsible.
+
+**Steps:**
+
+1. Resolve `mal_id` from `anime_movie.mal_id`. Return if no ID.
+2. Call `fetch_jikan_anime_data(mal_id)`.
+3. Map response via `map_jikan_to_anime_data()`.
+4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_year_jp`, `ep_total`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
 
@@ -378,12 +393,14 @@ Transforms raw Jikan `data` dict to a flat standardized dict.
 | `release_season`  | `season` — winter/spring/summer/fall → WIN/SPR/SUM/FAL                                                        |
 | `release_year`    | `aired.from` (ISO date parsed)                                                                                |
 | `release_month`   | `aired.from` (month → JAN/FEB/...)                                                                            |
-| `mal_rating`      | `score`                                                                                                       |
-| `mal_rank`        | `rank` (as string)                                                                                            |
-| `ep_total`        | `episodes`                                                                                                    |
-| `official_link`   | `external[]` — first entry with "official" in name                                                            |
-| `twitter_link`    | `external[]` — first entry with twitter.com or x.com in URL                                                   |
-| `cover_image_url` | `images.webp.large_image_url` → `images.jpg.large_image_url` → `images.jpg.image_url`                         |
+| `release_year_jp` | `aired.from` (ISO date parsed)                                                                                |
+
+| `mal_rating` | `score` |
+| `mal_rank` | `rank` (as string) |
+| `ep_total` | `episodes` |
+| `official_link` | `external[]` — first entry with "official" in name |
+| `twitter_link` | `external[]` — first entry with twitter.com or x.com in URL |
+| `cover_image_url` | `images.webp.large_image_url` → `images.jpg.large_image_url` → `images.jpg.image_url` |
 
 ---
 
@@ -431,7 +448,15 @@ Computed in `AnimeResponse` (Pydantic schema), never stored in the DB:
 
 ### Mark Completed — `mark_tv_completed(entry)`
 
-Sets atomically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+
+---
+
+### Mark Completed — `mark_movie_completed(entry)`
+
+Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+
+If ep_fin is 0 or null, sets to 1.
 
 ---
 

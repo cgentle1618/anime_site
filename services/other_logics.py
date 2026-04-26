@@ -23,7 +23,7 @@ from utils.utils import (
     SEASON_PATTERN,
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
-    extract_mal_id,
+    extract_mal_id_anime,
     extract_season_from_title,
     calculate_seasonal_from_month,
     validate_episode_math,
@@ -224,7 +224,7 @@ def has_missing_values(anime: Anime) -> bool:
     return len(missing_fields) > 0
 
 
-def check_is_tv_completed(entry: Anime) -> bool:
+def check_is_watching_completed(entry: Anime) -> bool:
     """
     Determine if a TV type entry (Anime, TV Show, Cartoon) should be considered completed.
     Returns True if completed, False otherwise.
@@ -516,8 +516,8 @@ def find_all_duplicates(db: Session) -> dict:
 # ==========================================
 
 
-def apply_extract_mal_id(anime: Anime) -> bool:
-    mal_id = extract_mal_id(anime.mal_link)
+def apply_extract_mal_id_anime(anime: Anime) -> bool:
+    mal_id = extract_mal_id_anime(anime.mal_link)
     if mal_id:
         anime.mal_id = mal_id
         return True
@@ -739,8 +739,7 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
     Dedicated logic to fetch MAL data via Jikan and enrich a single Anime entry.
     Fills empty fields and overwrites ratings/rankings if instructed.
     """
-    # Extract MAL ID
-    mal_id = anime.mal_id or extract_mal_id(anime.mal_link)
+    mal_id = anime.mal_id
     if not mal_id:
         return
 
@@ -830,7 +829,7 @@ def apply_single_replace_anime(
     When bulk=False (single-entry update), also derives related entries.
     When bulk=True (batch replace), caller handles derive_related after the loop.
     """
-    apply_extract_mal_id(anime)
+    apply_extract_mal_id_anime(anime)
     autofill_anime_from_mal(anime, force_replace_ratings=force_replace_ratings)
     anime_post_processing(anime, db)
 
@@ -980,7 +979,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
     apply_check_baha(anime)
 
-    if check_is_tv_completed(anime) and anime.watching_status != "Completed":
+    if check_is_watching_completed(anime) and anime.watching_status != "Completed":
         mark_tv_completed(anime)
 
     if (
