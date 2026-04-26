@@ -91,7 +91,7 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         anime_movie_matrix = [anime_movie_headers] + [
             format_model_for_sheet(m) for m in anime_movies
         ]
-        bulk_overwrite_sheet("Anime Movie", anime_movie_matrix)
+        bulk_overwrite_sheet("Anime Movies", anime_movie_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
@@ -849,7 +849,7 @@ def execute_pull_specific(
         "Franchise": Franchise,
         "Series": Series,
         "Anime": Anime,
-        "Anime Movie": AnimeMovies,
+        "Anime Movies": AnimeMovies,
         "System Options": SystemOption,
     }
 
@@ -857,7 +857,7 @@ def execute_pull_specific(
         "Franchise": parse_franchise_from_sheet,
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
-        "Anime Movie": parse_anime_movie_from_sheet,
+        "Anime Movies": parse_anime_movie_from_sheet,
         "System Options": parse_system_option_from_sheet,
     }
 
@@ -1118,7 +1118,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
-    tabs_in_order = ["System Options", "Franchise", "Series", "Anime", "Anime Movie"]
+    tabs_in_order = ["System Options", "Franchise", "Series", "Anime", "Anime Movies"]
 
     results = {}
     total_added = 0
