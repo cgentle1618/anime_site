@@ -11,7 +11,7 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
-from models import Franchise, Series, Anime, SystemOption
+from models import Franchise, Series, Anime, SystemOption, Seasonal
 
 from utils.formatter import (
     format_model_for_sheet,
@@ -53,6 +53,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         sysopt_headers = [c.name for c in SystemOption.__table__.columns]
         sysopt_matrix = [sysopt_headers] + [format_model_for_sheet(o) for o in sysopts]
         bulk_overwrite_sheet("System Options", sysopt_matrix)
+
+        seasonals = db.query(Seasonal).all()
+        seasonal_headers = [c.name for c in Seasonal.__table__.columns]
+        seasonal_matrix = [seasonal_headers] + [
+            format_model_for_sheet(o) for o in seasonals
+        ]
+        bulk_overwrite_sheet("Seasonal", seasonal_matrix)
 
         franchises = db.query(Franchise).all()
         franchise_headers = [c.name for c in Franchise.__table__.columns]

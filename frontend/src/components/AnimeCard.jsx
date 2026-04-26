@@ -128,7 +128,7 @@ export default function AnimeCard({ anime, onUpdated, adminOverride }) {
         </div>
         <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-2.5">
           <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
-            {cumFin} <span className="text-gray-400">/</span> {cumTotal}{" "}
+            {localFin} <span className="text-gray-400">/</span> {localTotal}{" "}
             <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
               EP
             </span>
