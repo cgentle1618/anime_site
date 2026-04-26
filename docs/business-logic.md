@@ -27,17 +27,20 @@ All pipeline functions live in `services/data_control.py`. SSE functions are asy
 
 ### Backup — `execute_backup(db, action_type="Manual")`
 
-Overwrites all four Google Sheets tabs with the current database state.
+Overwrites all Google Sheets tabs with the current database state.
 
 **Steps:**
 
-1. Query all `SystemOption`, `Seasonal`, `Franchise`, `Series`, `Anime` entries.
+1. Query all entries for each backed-up model.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
-4. Bulk overwrite each tab (System Options → Seasonal → Franchise → Series → Anime).
+4. Bulk overwrite each tab in this order:
+   - System Options → System Configs → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Seasonal
 5. Log result to `DataControlLog`.
 
 Tab names match model table names. Column order in the sheet is guaranteed to match DB schema order (see `format_model_for_sheet`).
+
+**Note:** `None`, `bool`, and `datetime` values must be converted to sheet-compatible format before writing.
 
 ---
 
@@ -45,7 +48,9 @@ Tab names match model table names. Column order in the sheet is guaranteed to ma
 
 #### Fill All — `execute_fill_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Fill Anime with `log_action=False`, parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+Master orchestrator. Calls Fill Anime (with `log_action=False`), then Fill Anime Movie (with `log_action=False`), parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+
+**Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
 #### Fill Anime — `execute_fill_anime(db, request, action_specific, action_type, log_action)` _(SSE)_
 
@@ -60,13 +65,34 @@ Fills missing metadata for all anime entries that need it.
 5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync_anime`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
+**Note:** Shows entry being processed by anime name (with fallback).
+
+---
+
+#### Fill Anime Movie — `execute_fill_anime_movie(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Fills missing metadata for all anime movie entries that need it.
+
+**Steps:**
+
+1. Run `apply_extract_mal_id_anime` on all anime movie entries to populate `mal_id` from `mal_link`.
+2. Build queue: entries where `has_missing_values_anime_movie()` returns `True`.
+3. For each queued entry: call `autofill_anime_movie_from_mal(force_replace_ratings=True)`.
+4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
+5. After loop: `run_anime_movie_post_processing`, `run_sync_anime_movie`.
+6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Shows entry being processed by anime name (with fallback).
+
 ---
 
 ### Replace
 
 #### Replace All — `execute_replace_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Replace Anime with `log_action=False`, parses SSE output, runs Backup, logs single master entry.
+Master orchestrator. Calls Replace Anime (with `log_action=False`), then Replace Anime Movie (with `log_action=False`), parses SSE output, runs Backup, logs single master entry.
+
+**Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
 #### Replace Anime — `execute_replace_anime(db, request, action_specific, action_type, log_action)` _(SSE)_
 
@@ -79,17 +105,48 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 3. After loop: call `derive_related(db)` once for all franchises.
 4. Call `run_sync_anime(db)`.
 
+**Note:** Shows entry being processed by title (with fallback).
+
+---
+
+#### Replace Anime Movie — `execute_replace_anime_movie(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Replaces metadata for all anime movie entries that have a `mal_id` or `mal_link`.
+
+**Steps:**
+
+1. Query all anime movie entries with `mal_id` or `mal_link` set. Return early if queue is empty.
+2. For each entry: call `apply_single_replace_anime_movie(bulk=True)`.
+3. After loop: call `run_sync_anime_movie(db)`.
+
+**Note:** Shows entry being processed by title (with fallback).
+
+---
+
 #### Replace for Single Anime Entry — `execute_replace_single_anime(db, anime_id, action_type, log_action)` / `apply_single_replace_anime(db, anime, bulk, force_replace_ratings)`
 
-`execute_replace_single_anime` is the router-level function (handles lookup, sync, logging).
-`apply_single_replace_anime` is the core logic (used in both single and bulk paths).
+`execute_replace_single_anime` is the router-level function (handles lookup, sync, logging). Used in the anime endpoint for the Autofill & Update button. Calls `apply_single_replace_anime(bulk=False)`, then runs Sync.
+`apply_single_replace_anime` is the core logic (used in both single and bulk paths); it is not called by routers directly.
 
 **`apply_single_replace_anime` steps:**
 
 1. `apply_extract_mal_id_anime`
 2. `autofill_anime_from_mal`
 3. `anime_post_processing`
-4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles derive_related after the loop.
+4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles `derive_related` after the loop.
+
+---
+
+#### Replace for Single Anime Movie Entry — `execute_replace_single_anime_movie(db, anime_movie_id, action_type, log_action)` / `apply_single_replace_anime_movie(db, anime_movie, bulk, force_replace_ratings)`
+
+`execute_replace_single_anime_movie` is the router-level function (handles lookup, sync, logging). Used in the anime movie endpoint for the Autofill & Update button. Calls `apply_single_replace_anime_movie()`, then runs Sync.
+`apply_single_replace_anime_movie` is the core logic (helper for Replace Anime Movie action); it is not called by routers directly.
+
+**`apply_single_replace_anime_movie` steps:**
+
+1. `apply_extract_mal_id_anime`
+2. `autofill_anime_movie_from_mal`
+3. `anime_movie_post_processing`
 
 ---
 
@@ -97,11 +154,11 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all four tabs in strict dependency order: **System Options → Franchise → Series → Anime**. This order is required to satisfy foreign key constraints.
+Pulls all tabs in strict dependency order: **System Options → Franchise → Series → Anime → Anime Movie**. This order is required to satisfy foreign key constraints.
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"System Options"`.
+Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movie"`, `"System Options"`.
 
 **Steps:**
 
@@ -586,7 +643,7 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 ### Tab-specific parsers
 
-`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
 
 **Notable:**
 
@@ -613,3 +670,14 @@ Ensures a valid `franchise_id` UUID for a Series during Pull.
 - Resolves `franchise_id` the same way as Series (with auto-create if missing).
 - Resolves `series_id`: returns the provided value only — **does not auto-create** a Series.
 - Returns `(final_franchise_id, final_series_id)`.
+
+---
+
+### Resolve Parent for Anime Movie — `resolve_anime_movie_parent_hierarchy(db, franchise_id, names)`
+
+Ensures a valid `franchise_id` UUID for an Anime Movie during Pull.
+
+- Valid UUID provided: return it.
+- Null or string: search all franchise name fields (case-insensitive `ilike`).
+- Found: return existing UUID.
+- Not found: **auto-create** a new Franchise with `uuid4()`, flush, return new UUID.
