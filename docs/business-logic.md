@@ -203,7 +203,6 @@ Runs all single-entry checks and repairs for one anime. `run_anime_movie_post_pr
 
 1. `apply_validate_episode_math`
 2. `apply_check_baha`
-3. If `check_is_watching_completed()` and `watching_status != "Completed"`: call `mark_movie_completed`.
 
 ---
 
@@ -464,7 +463,7 @@ Enriches a single Anime Movie entry with Jikan API data. Does not commit — cal
 1. Resolve `mal_id` from `anime_movie.mal_id`. Return if no ID.
 2. Call `fetch_jikan_anime_data(mal_id)`.
 3. Map response via `map_jikan_to_anime_data()`.
-4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_year_jp`, `ep_total`, `official_link`, `twitter_link`.
+4. Fill each field **only if currently None**: `airing_status`, `release_year_jp`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
 
@@ -555,14 +554,6 @@ Computed in `AnimeResponse` (Pydantic schema), never stored in the DB:
 ### Mark Completed — `mark_tv_completed(entry)`
 
 Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
-
----
-
-### Mark Completed — `mark_movie_completed(entry)`
-
-Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
-
-If ep_fin is 0 or null, sets to 1.
 
 ---
 

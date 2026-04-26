@@ -233,7 +233,7 @@ def resolve_anime_movie_parent_hierarchy(
 # ==========================================
 
 
-def apply_validate_episode_math(entry: Union[Anime, AnimeMovies]) -> bool:
+def apply_validate_episode_math(entry: Anime) -> bool:
     ep_total = getattr(entry, "ep_total", None)
     ep_fin = getattr(entry, "ep_fin", None)
     if ep_total is None and ep_fin is None:
@@ -301,7 +301,7 @@ def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
     return len(missing) > 0
 
 
-def check_is_watching_completed(entry: Union[Anime, AnimeMovies]) -> bool:
+def check_is_watching_completed(entry: Anime) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
     should be considered completed.
@@ -957,14 +957,10 @@ def autofill_anime_movie_from_mal(
 
         j_data = map_jikan_to_anime_movie_data(raw_data)
 
-        if anime_movie.airing_type is None:
-            anime_movie.airing_type = j_data.get("airing_type")
         if anime_movie.airing_status is None:
             anime_movie.airing_status = j_data.get("airing_status")
         if anime_movie.release_date_jp is None:
             anime_movie.release_date_jp = j_data.get("release_date_jp")
-        if anime_movie.ep_total is None:
-            anime_movie.ep_total = j_data.get("ep_total")
         if not anime_movie.official_link:
             anime_movie.official_link = j_data.get("official_link")
         if not anime_movie.twitter_link:
@@ -1009,12 +1005,6 @@ def mark_movie_completed(entry: AnimeMovies) -> None:
     """Mutates an AnimeMovies entry to represent a fully finished state."""
     entry.watching_status = "Completed"
     entry.airing_status = "Finished Airing"
-
-    if entry.ep_total is not None:
-        entry.ep_fin = entry.ep_total
-    else:
-        entry.ep_total = 1
-        entry.ep_fin = entry.ep_total
 
 
 # ==========================================
@@ -1251,12 +1241,6 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
     apply_validate_episode_math(anime_movie)
     apply_check_baha(anime_movie)
-
-    if (
-        not check_is_watching_completed(anime_movie)
-        and anime_movie.airing_status == "Finished Airing"
-    ):
-        mark_movie_completed(anime_movie)
 
 
 def derive_related(db: Session) -> None:

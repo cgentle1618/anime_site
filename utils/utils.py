@@ -50,12 +50,10 @@ ANIME_FIELDS_TO_FILL = [
 ]
 
 ANIME_MOVIE_FIELDS_TO_FILL = [
-    "airing_type",
     "airing_status",
     "release_date_jp",
     "mal_rating",
     "mal_rank",
-    "ep_total",
     "official_link",
     "twitter_link",
     "cover_image_file",
