@@ -67,3 +67,7 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 ## Common Points of Confusion
 
 - Anime Movie is not the same as Anime with airing_type as "movie". Anime Movie has its own database table anime_movie. Anime with airing_type as "movie" belongs to the database table anime. When mentioning Anime Movie, it is more likely to be referring to the entries in anime_movie database table.
+
+## Rule
+
+- If we're implementing or modifying based on current-plan.md, pause and ask for permission to proceed whenever you finish a step. provide git commit message for the changes.
