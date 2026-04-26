@@ -31,10 +31,10 @@ Overwrites all four Google Sheets tabs with the current database state.
 
 **Steps:**
 
-1. Query all `SystemOption`, `Franchise`, `Series`, `Anime` entries.
+1. Query all `SystemOption`, `Seasonal`, `Franchise`, `Series`, `Anime` entries.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
-4. Bulk overwrite each tab (System Options → Franchise → Series → Anime).
+4. Bulk overwrite each tab (System Options → Seasonal → Franchise → Series → Anime).
 5. Log result to `DataControlLog`.
 
 Tab names match model table names. Column order in the sheet is guaranteed to match DB schema order (see `format_model_for_sheet`).
