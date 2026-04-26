@@ -7,6 +7,7 @@ import InfoCard from "../components/InfoCard";
 import NamingCard from "../components/NamingCard";
 import ScoreBlock from "../components/ScoreBlock";
 import SourcesCard from "../components/SourcesCard";
+import AnimeMovieNotes from "./AnimeMovieNotes";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -459,6 +460,16 @@ export default function AnimeMovie() {
               </div>
             </div>
           )}
+
+          {/* Structured Notes */}
+          <AnimeMovieNotes
+            key={movie.system_id}
+            movie={movie}
+            isAdmin={isAdmin}
+            onSave={(updatedNotes) =>
+              performUpdate({ notes: updatedNotes }, "Notes saved")
+            }
+          />
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { getDisplayName, cleanString, getOptions, buildAnimePayload, buildAnimeM
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
 import AnimeNotes from "./AnimeNotes";
+import AnimeMovieNotes from "./AnimeMovieNotes";
 import { Field, SectionHeader, inputCls, selectCls } from "../components/FormField";
 import FranchiseCreateModal from "../components/FranchiseCreateModal";
 import CreateNewEntityModal from "../components/CreateNewEntityModal";
@@ -166,6 +167,7 @@ function movieToForm(movie, allFranchises) {
     })),
     cover_image_file: movie.cover_image_file || "",
     remark: movie.remark || "",
+    notes: movie.notes || {},
   };
 }
 
@@ -562,7 +564,7 @@ export default function Modify() {
     const res = await fetch(`/api/anime-movie/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildAnimeMoviePayload(amf, { franchiseId })),
+      body: JSON.stringify(buildAnimeMoviePayload(amf, { franchiseId, notes: Object.keys(amf.notes || {}).length > 0 ? amf.notes : null })),
       credentials: "include",
     });
     if (!res.ok) {
@@ -2063,6 +2065,14 @@ export default function Modify() {
                 <Field label="Remark">
                   <textarea className={inputCls} rows={3} value={amf.remark} onChange={(e) => uam("remark", e.target.value)} />
                 </Field>
+
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <AnimeMovieNotes
+                  key={editingItem.system_id}
+                  movie={{ notes: amf.notes, system_id: editingItem.system_id }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => uam("notes", updatedNotes)}
+                />
               </>
             )}
 

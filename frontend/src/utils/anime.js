@@ -208,7 +208,10 @@ export function getOptions(allOptions, category) {
     .map((o) => o.option_value);
 }
 
-export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
+export function buildAnimeMoviePayload(
+  amf,
+  { franchiseId, notes = null } = {},
+) {
   return {
     anime_movie_name_en: amf.anime_movie_name_en || null,
     anime_movie_name_cn: amf.anime_movie_name_cn || null,
@@ -258,6 +261,7 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
         : null,
     cover_image_file: amf.cover_image_file || null,
     remark: amf.remark || null,
+    notes: notes,
   };
 }
 

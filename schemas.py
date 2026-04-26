@@ -275,6 +275,7 @@ class AnimeMovieBase(BaseModel):
     source_other: Optional[dict] = None
 
     remark: Optional[str] = None
+    notes: Optional[dict] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
 

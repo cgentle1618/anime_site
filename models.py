@@ -341,6 +341,7 @@ class AnimeMovies(Base, NameFallbackMixin):
     source_other = Column(JSONB, default=None, nullable=True)
 
     remark = Column(Text, nullable=True)
+    notes = Column(JSONB, nullable=True)
     cover_image_file = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
