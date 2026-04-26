@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Reference these files in `/docs` for deep technical context (note that the documents are not completed and may contain outdated information):
 
+- **`current-plan.md`**: Current rough plan for implementation and modification. Remind me to update if we're moving to next media type implementation and I didn't update the plan.
 - **`database-schema.md`**: All table schemas — columns, types, nullability, relationships, computed fields.
 - **`business-logic.md`**: Pipeline logic (Fill, Replace, Pull, Backup, Calculate), derivation rules (watch order, ep_previous, prequel/sequel), checking rules, formatters and parsers.
 - **`options.md`**: Valid enum values, options, dropdowns.
