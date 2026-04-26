@@ -11,7 +11,7 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
-from models import Franchise, Series, Anime, SystemOption, Seasonal
+from models import Franchise, Series, Anime, AnimeMovies, SystemOption, Seasonal
 
 from utils.formatter import (
     format_model_for_sheet,
@@ -19,6 +19,7 @@ from utils.formatter import (
     parse_franchise_from_sheet,
     parse_series_from_sheet,
     parse_anime_from_sheet,
+    parse_anime_movie_from_sheet,
     parse_system_option_from_sheet,
 )
 from utils.data_control_utils import log_data_control
@@ -26,13 +27,18 @@ from utils.data_control_utils import log_data_control
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
     has_missing_values_anime,
+    has_missing_values_anime_movie,
     autofill_anime_from_mal,
+    autofill_anime_movie_from_mal,
     apply_single_replace_anime,
+    apply_single_replace_anime_movie,
     apply_extract_mal_id_anime,
     anime_post_processing,
+    anime_movie_post_processing,
     derive_related,
+    resolve_anime_movie_parent_hierarchy,
 )
-from services.calculation import run_sync_anime
+from services.calculation import run_sync_anime, run_sync_anime_movie
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +85,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         anime_headers = [c.name for c in Anime.__table__.columns]
         anime_matrix = [anime_headers] + [format_model_for_sheet(a) for a in animes]
         bulk_overwrite_sheet("Anime", anime_matrix)
+
+        anime_movies = db.query(AnimeMovies).all()
+        anime_movie_headers = [c.name for c in AnimeMovies.__table__.columns]
+        anime_movie_matrix = [anime_movie_headers] + [
+            format_model_for_sheet(m) for m in anime_movies
+        ]
+        bulk_overwrite_sheet("Anime Movies", anime_movie_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
@@ -211,6 +224,107 @@ async def execute_fill_anime(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
+async def execute_fill_anime_movie(
+    db: Session,
+    request: Request,
+    action_specific: str = "Fill Anime Movie",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE) for 'Fill Anime Movie'. Supports graceful frontend abort."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_movies = db.query(AnimeMovies).all()
+        for movie in all_movies:
+            apply_extract_mal_id_anime(movie)
+        db.commit()
+
+        queue_to_process = [
+            m
+            for m in all_movies
+            if m.mal_id is not None and has_missing_values_anime_movie(m)
+        ]
+        total_in_queue = len(queue_to_process)
+
+        if total_in_queue > 0:
+            for index, movie in enumerate(queue_to_process, start=1):
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError()
+
+                name = movie.display_name or "Unknown Anime Movie"
+                yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+                try:
+                    autofill_anime_movie_from_mal(movie, force_replace_ratings=True)
+                    db.commit()
+                    processed_count += 1
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"MAL Autofill failed for {name}: {e}")
+
+                await asyncio.sleep(1)
+        else:
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No entries need filling. Running post-processing...', 'processed': 0, 'total': 0})}\n\n"
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Running post-processing...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+
+        for movie in all_movies:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+            try:
+                anime_movie_post_processing(movie, db)
+            except Exception as e:
+                logger.warning(f"Post-processing failed for {movie.display_name}: {e}")
+
+        db.commit()
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_anime_movie(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete.', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=processed_count,
+        )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=processed_count,
+            error_message=str(e),
+        )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
 async def execute_fill_all(db: Session, request: Request, action_type: str = "Manual"):
     """
     Master orchestrator for 'Fill All'.
@@ -226,6 +340,23 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
             db,
             request,
             action_specific="Fill Anime",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed += data.get("processed", 0)
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
+        # Fill Anime Movie
+        async for message in execute_fill_anime_movie(
+            db,
+            request,
+            action_specific="Fill Anime Movie",
             action_type=action_type,
             log_action=False,
         ):
@@ -326,6 +457,70 @@ async def execute_replace_single_anime(
     except Exception as e:
         db.rollback()
         logger.error(f"Single Replace Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e), "status_code": 500}
+
+
+async def execute_replace_single_anime_movie(
+    db: Session,
+    anime_movie_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """Fetches Jikan data for a single AnimeMovies entry, runs post-processing, and syncs."""
+    logger.info(
+        f"Starting Single Replace Pipeline for anime movie ID: {anime_movie_id}"
+    )
+    action_specific = "Replace for single anime movie entry"
+
+    try:
+        movie = (
+            db.query(AnimeMovies)
+            .filter(AnimeMovies.system_id == anime_movie_id)
+            .first()
+        )
+        if not movie:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="Anime Movie not found 404",
+                )
+            return {
+                "status": "error",
+                "message": "Anime Movie entry not found",
+                "status_code": 404,
+            }
+
+        apply_single_replace_anime_movie(db, movie)
+        db.commit()
+
+        run_sync_anime_movie(db)
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated {movie.display_name}.",
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Single Replace Anime Movie Error: {e}")
         if log_action:
             log_data_control(
                 db,
@@ -445,6 +640,104 @@ async def execute_replace_anime(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
+async def execute_replace_anime_movie(
+    db: Session,
+    request: Request,
+    action_specific: str = "Replace Anime Movie",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE). Replace all anime movie entries, then sync."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_movies = (
+            db.query(AnimeMovies)
+            .filter(
+                or_(AnimeMovies.mal_id.isnot(None), AnimeMovies.mal_link.isnot(None))
+            )
+            .all()
+        )
+        total_in_queue = len(all_movies)
+
+        if total_in_queue == 0:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Success",
+                    rows_updated=0,
+                )
+            yield f"data: {json.dumps({'status': 'info', 'message': 'No anime movie entries found to replace', 'total': 0, 'processed': 0})}\n\n"
+            return
+
+        for index, movie in enumerate(all_movies, start=1):
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+
+            name = movie.display_name or "Unknown Anime Movie"
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+            try:
+                apply_single_replace_anime_movie(db, movie)
+                db.commit()
+                processed_count += 1
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to replace {name}: {e}")
+
+            await asyncio.sleep(1)
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_anime_movie(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Aborted",
+                rows_updated=processed_count,
+            )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=processed_count,
+                error_message=str(e),
+            )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
 async def execute_replace_all(
     db: Session,
     request: Request,
@@ -479,14 +772,22 @@ async def execute_replace_all(
         if await request.is_disconnected():
             raise asyncio.CancelledError()
 
-        # ==========================================
-        # OTHER ACTIONS (TBD)
-        # ==========================================
-        # async for message in execute_replace_movies(db, request, ...):
-        #     yield message
+        # Replace Anime Movie
+        async for message in execute_replace_anime_movie(
+            db,
+            request,
+            action_specific="Replace Anime Movie",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed_across_all += data.get("processed", 0)
+            yield message
 
-        # async for message in execute_replace_manga(db, request, ...):
-        #     yield message
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
 
         # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
@@ -548,6 +849,7 @@ def execute_pull_specific(
         "Franchise": Franchise,
         "Series": Series,
         "Anime": Anime,
+        "Anime Movie": AnimeMovies,
         "System Options": SystemOption,
     }
 
@@ -555,6 +857,7 @@ def execute_pull_specific(
         "Franchise": parse_franchise_from_sheet,
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
+        "Anime Movie": parse_anime_movie_from_sheet,
         "System Options": parse_system_option_from_sheet,
     }
 
@@ -587,8 +890,22 @@ def execute_pull_specific(
         raw_header_dict = parse_row_to_dict(headers, row)
         clean_header_dict = parser(raw_header_dict)
 
-        # Resolve String Foreign Keys -> Actual UUIDs (For Series and Anime)
-        if "franchise_id" in clean_header_dict and isinstance(
+        # Resolve String Foreign Keys -> Actual UUIDs
+        # Anime Movie uses resolve_anime_movie_parent_hierarchy (auto-creates franchise if missing)
+        if tab_name == "Anime Movie" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            if fid is None or isinstance(fid, str):
+                name_fields = {
+                    "en": clean_header_dict.get("anime_movie_name_en"),
+                    "cn": clean_header_dict.get("anime_movie_name_cn"),
+                    "roman": clean_header_dict.get("anime_movie_name_roman"),
+                    "jp": clean_header_dict.get("anime_movie_name_jp"),
+                    "alt": clean_header_dict.get("anime_movie_name_alt"),
+                }
+                clean_header_dict["franchise_id"] = (
+                    resolve_anime_movie_parent_hierarchy(db, fid, name_fields)
+                )
+        elif "franchise_id" in clean_header_dict and isinstance(
             clean_header_dict["franchise_id"], str
         ):
             fname = clean_header_dict["franchise_id"]
@@ -684,6 +1001,21 @@ def execute_pull_specific(
                         .filter(
                             or_(
                                 Anime.anime_name_en == name, Anime.anime_name_cn == name
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Anime Movie":
+                name = clean_header_dict.get(
+                    "anime_movie_name_en"
+                ) or clean_header_dict.get("anime_movie_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(AnimeMovies)
+                        .filter(
+                            or_(
+                                AnimeMovies.anime_movie_name_en == name,
+                                AnimeMovies.anime_movie_name_cn == name,
                             )
                         )
                         .first()
@@ -786,7 +1118,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
-    tabs_in_order = ["System Options", "Franchise", "Series", "Anime"]
+    tabs_in_order = ["System Options", "Franchise", "Series", "Anime", "Anime Movie"]
 
     results = {}
     total_added = 0
