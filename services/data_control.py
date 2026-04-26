@@ -91,7 +91,7 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         anime_movie_matrix = [anime_movie_headers] + [
             format_model_for_sheet(m) for m in anime_movies
         ]
-        bulk_overwrite_sheet("Anime Movies", anime_movie_matrix)
+        bulk_overwrite_sheet("Anime Movie", anime_movie_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
