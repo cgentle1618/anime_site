@@ -437,7 +437,7 @@ export default function AnimeMovie() {
           </div>
 
           {/* Remarks */}
-          {(movie.remark || isAdmin) && (
+          {movie.remark && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
                 <h3 className="font-bold text-gray-800">
