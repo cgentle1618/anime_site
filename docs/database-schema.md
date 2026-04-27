@@ -366,12 +366,12 @@ Live-action and animated movie entries.
 
 #### Release & Production
 
-| Column            | Type    | Nullable | Notes                                            |
-| ----------------- | ------- | -------- | ------------------------------------------------ |
-| `length_min`      | Integer | Yes      | Length of the movie in minutes                   |
-| `release_date_us` | String  | Yes      | USA release date, e.g. `"JUL 2001"`, `"2001"`    |
-| `release_date_tw` | String  | Yes      | Taiwan release date, e.g. `"FEB 2023"`, `"2001"` |
-| `director`        | String  | Yes      | Can be multiple directors                        |
+| Column             | Type    | Nullable | Notes                                            |
+| ------------------ | ------- | -------- | ------------------------------------------------ |
+| `length_min`       | Integer | Yes      | Length of the movie in minutes                   |
+| `release_date_usa` | String  | Yes      | USA release date, e.g. `"JUL 2001"`, `"2001"`    |
+| `release_date_tw`  | String  | Yes      | Taiwan release date, e.g. `"FEB 2023"`, `"2001"` |
+| `director`         | String  | Yes      | Can be multiple directors                        |
 
 #### Relational & Ordering
 

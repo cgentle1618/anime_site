@@ -55,32 +55,6 @@ Present on every page. Contains:
 
 ---
 
-## Reusable Entry (Table Row)
-
-Compact rows used in list views (library table view, franchise pages, etc.).
-
-### Anime Entry
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Release Season (fallback: Release Date → Release Year) · Total Ep · My Rating · Completed Time (`updated_at`)
-
-### Anime Movie Entry
-
-Name CN (fallback) · Franchise Name CN (fallback) · Director · Length (Hr + Min) · Release Date JP (fallback: Release Year TW) · My Rating · Completed Time
-
-### Movie Entry _(future)_
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Director · Length (Hr + Min) · Release Date TW (fallback: Release Year US) · My Rating · Completed Time
-
-### TV Show Entry _(future)_
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · TV Show Region · TV Show Official Source · Release Date · My Rating · Completed Time
-
-### Cartoon Entry _(future)_
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Cartoon Airing Type · Cartoon Official Source · Release Date · My Rating · Completed Time
-
----
-
 ## Search Suggestion Entry
 
 Compact entries shown in the universal search bar dropdown.
@@ -101,17 +75,17 @@ Name CN (fallback) · Airing Type
 
 Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
 
-### Movie Entry _(future)_
+### Movie Entry
 
 Name CN (fallback) · Movie Type
 
-### TV Show Entry _(future)_
+### TV Show Entry
 
 Name CN (fallback) · TV Show Region
 
-### Cartoon Entry _(future)_
+### Cartoon Entry
 
-Name CN (fallback) · Cartoon Airing Type
+Name CN (fallback) · Cartoon Official Source
 
 ### Manga Entry _(future)_
 
@@ -142,6 +116,18 @@ Anime Name CN (fallback) · Franchise Name CN (fallback) · Airing Type
 ### Anime Movie
 
 Anime Movie Name CN (fallback) · Franchise Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
+
+### Movie
+
+Main Title: Movie Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Release Date (fallback: release_date_us → release_date_tw)
+
+### TV Show
+
+Main Title: TV Show Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Season Part
+
+### Cartoon
+
+Main Title: Cartoon Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Season Part
 
 ---
 
@@ -183,17 +169,17 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN
 
 Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### Movie _(future)_
+### Movie
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Movie Type · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Movie Type · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### TV Show _(future)_
+### TV Show
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · TV Show Region · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### Cartoon _(future)_
+### Cartoon
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Cartoon Airing Type · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
 ### Manga _(future)_
 
@@ -239,33 +225,47 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ---
 
-### Movie Entry Card _(future)_
+### Movie Entry Card
 
-- Poster · My Rating · IMDB Rating · Name CN (fallback) · Length (Hr + Min) · Release Year TW (fallback) · + button _(admin)_
+**First Type** — used on Library, Franchise page, Search page
+
+- Poster · My Rating (hidden if null) · IMDB Rating (hidden if null) · Name CN (fallback) · Length (Hr + Min) · Release Year USA (fallback) · + button _(admin)_
+
+**Second Type** — used on Future Release page
+
+- Poster · Name CN (fallback) · Length (Hr + Min) · Release Year USA (fallback) · Mark as Airing button _(admin)_
 
 ---
 
-### TV Show Entry Card _(future)_
+### TV Show Entry Card
 
 **First Type** — used on Dashboard
 
-- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar · Ep Watched / Ep Total · +/- controls _(admin)_ · direct ep edit _(admin)_ · Edit button _(admin)_
+- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
 **Second Type** — used on Library, Franchise page, Search page
 
-- Poster · My Rating · IMDB Rating · Name CN (fallback) · Season Part · Airing Status · Ep Watched / Ep Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+
+**Third Type** — used on Future Release page
+
+- Poster · Franchise Expectation · Release Date (fallback) · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
 
 ---
 
-### Cartoon Entry Card _(future)_
+### Cartoon Entry Card
 
 **First Type** — used on Dashboard
 
-- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Cartoon Airing Type · Progress % bar · Ep Watched / Ep Total · +/- controls _(admin)_ · direct ep edit _(admin)_ · Edit button _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
-**Second Type** — used on Franchise page, Library, Search page
+**Second Type** — used on Library, Franchise page, Search page
 
-- Poster · Name CN (fallback) · My Rating · Season Part · Cartoon Airing Type · Airing Status · Ep Watched / Ep Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+
+**Third Type** — used on Future Release page
+
+- Poster · Franchise Expectation · Release Date (fallback) · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
 
 ---
 

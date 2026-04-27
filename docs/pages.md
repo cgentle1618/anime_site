@@ -419,7 +419,7 @@ Hub page for an ACG franchise (Anime, Anime Movie, Manga, Novel types).
 **Anime Movie Entry Section** (shown when not null):
 
 - Sort By: Release Date (default, uses `release_date_jp` with `release_date_tw` fallback) / Title / My Rating / MAL Rating
-- Each entry: **Anime Movie Entry Card** (see `reusable-elements.md`)
+- Each entry: **Anime Movie Entry Card 1** (see `reusable-elements.md`)
 
 **Manga Entry Section** (TBD)
 
@@ -447,14 +447,14 @@ Hub for movie/TV show franchises (Movies and TV shows with series).
 - Sort By: Release Date (default, uses `release_date_us` with `release_date_tw` fallback) / Title / My Rating / IMDB Rating
 - Filter: Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
-- Each entry: **Movie Entry Card** (reusable), grouped by Series
+- Each entry: **Movie Entry Card 1** (reusable), grouped by Series
 
 **TV Show Entry Section:**
 
 - Sort By: Release Date (default) / Title / My Rating / IMDB Rating
 - Filter: Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
-- Each entry: **TV Show Entry Card** (reusable), grouped by Series
+- Each entry: **TV Show Entry Card 2** (reusable), grouped by Series
 
 ---
 
@@ -523,7 +523,7 @@ Admin: inline quick-status toggle via `PATCH /api/anime/:system_id`.
 - Advanced filters (collapsible): Airing Status, Watching Status, 巴哈
 - Grid/Table view toggle
 
-**Grid view** — each entry: **Anime Movie Entry Card**
+**Grid view** — each entry: **Anime Movie Entry Card 1**
 
 **Table view** — columns: Franchise Name (fallback), Anime Movie Name CN, Anime Movie Name EN (fallback: Roman), Airing Status, My Rating, MAL Rating, Studio, Director, Bahamut icon, + button (admin only)
 
@@ -570,7 +570,7 @@ Each entry: **Franchise Entry Card** — navigates to `/franchise/:system_id`.
 - Sort by: Title (default) / My Rating / IMDB Rating / Release Date TW with Release Date USA as fallback (new to old; TBD first)
 - Grid/Table view toggle
 
-**Grid view** — each entry: **Movie Entry Card**
+**Grid view** — each entry: **Movie Entry Card 1**
 
 **Table view** — columns: Franchise Name (fallback), Movie Name CN, Movie Name EN, Main/Spinoff, Airing Status, My Rating, IMDB Rating, Director, Length (Hr + Min), Release Date TW (Month Year), + button (admin only)
 
@@ -773,18 +773,24 @@ Upcoming entries by release timeline. No future release page planned for Manga, 
 **Anime Movie Future Release Tab:**
 
 - Grouped by release year JP, sorted by release date JP (old to new), then title
-- Each entry: **Anime Movie Entry Card**
+- Each entry: **Anime Movie Entry Card 2**
 
-**Movie Future Release Tab** (TBD):
+**Movie Future Release Tab:**
 
-- Sorted by release date TW (old to new), then title
-- Filter by Movie Type, Movie Franchise
-- Each entry: **Movie Entry Card**
+- Filter chips: TV Show Region / TV Show Franchise for Filter Options
+- Grouped by release year USA, sorted by release date USA (old to new), then title
+- Each entry: **Movie Entry Card 2**
 
-**TV Show Future Release Tab** (TBD):
+**TV Show Future Release Tab:**
 
-- Sorted by release date (old to new), then title
-- Each entry: **TV Show Entry Card**
+- Filter chips: Movie Type / Movie Franchise for Filter Options
+- Grouped by release year, sorted by release date (old to new), then title
+- Each entry: **TV Show Entry Card 3**
+
+**Cartoon Future Release Tab:**
+
+- Grouped by release year, sorted by release date (old to new), then title
+- Each entry: **Cartoon Entry Card 3**
 
 ---
 
@@ -812,10 +818,10 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 - **Franchise Hub Section** — **Search Result Franchise Entry** (reusable): Franchise Name CN + EN (hidden if CN used fallback) + Franchise Type
 - **Series Hub Section** — **Search Result Series Entry** (reusable)
 - **Anime Entry Section** — split by Airing Type: TV/ONA / Movie / Other (non-TV, non-ONA, non-Movie); each entry: **Anime Entry Card 2**
-- **Anime Movie Entry Section** — each entry: **Anime Movie Entry Card**
+- **Anime Movie Entry Section** — each entry: **Anime Movie Entry Card 1**
 - **Manga Entry Section**
 - **Novel Entry Section** (TBD)
-- **Movie Entry Section** — each entry: **Movie Entry Card**
+- **Movie Entry Section** — each entry: **Movie Entry Card 1**
 - **TV Show Entry Section** — each entry: **TV Show Entry Card 2**
 - **Cartoon Entry Section** — each entry: **Cartoon Entry Card 2**
 
@@ -963,9 +969,43 @@ Parent Franchise, Series Name EN/CN/Alt, Remark
 
 Category dropdown, Option Values field, "More Entries" button (batch add), Append Entry button
 
-#### Planned Add Tabs (TBD)
+#### Add New Movie Entry Tab
 
-Movie, TV Show, Cartoon, Manga, Novel — field details in source spec.
+- **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), Movie Name EN/CN/Alt
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, My Rating dropdown, IMDB Rating
+- **Classification:** Movie Type dropdown, Main/Spinoff dropdown
+- **Production:** Director, Length (Min), Release Date USA, Release Date TW
+- **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
+- **Source & Links:** IMDB ID, IMDB Link, Other Source
+- **Notes & Other:** Cover Image File, Remark, Notes
+
+#### Add New TV Show Entry Tab
+
+- **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), TV Show Name EN/CN/Alt, Season dropdown, Part dropdown
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, IMDB Rating
+- **Classification & Production:** TV Show Region dropdown, TV Show Official Source, Main/Spinoff dropdown, Release Date
+- **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
+- **Source & Links:** IMDB ID, IMDB Link, Other Source
+- **Notes & Other:** Cover Image File, Remark, Notes
+
+#### Add New Cartoon Entry Tab
+
+- **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), Cartoon Name EN/CN/Alt, Season dropdown, Part dropdown
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown
+- **Classification & Production:** Cartoon Official Source, Cartoon Airing Type dropdown, Main/Spinoff dropdown, Release Date
+- **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
+- **Source & Links:** IMDB ID, IMDB Link, Other Source
+- **Notes & Other:** Cover Image File, Remark, Notes
+
+#### Add New Manga Entry Tab (TBD)
+
+- **Titles & Naming:** Franchise (ComboBox), Manga Name EN/CN/JP/Alt
+- **Classification:** Manga Region dropdown, Main/Spinoff dropdown
+- **Status & Progress:** Serialization Status dropdown, Reading Status dropdown, Volumes Total, Volumes Read, Pages Read for Current Volume, Ch Total, Ch Watched, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating
+- **Production:** 原作 (Author Plot dropdown), 作畫 (Author Draw dropdown), Release Year, Ending Year, Studio dropdown (multi-selectable), Serialization Platform, Distributor TW dropdown (multi-selectable)
+- **Source & Links & Other:** MAL ID, MAL Link, AniList Link, Other Source, Other Source Link, Remark
+
+#### Add New Novel Entry Tab (TBD)
 
 ---
 
@@ -1017,9 +1057,46 @@ Category dropdown → all options for that category; select one to show: Option 
 
 Writes: `PATCH /api/options/:id`
 
-#### Planned Modify Tabs (TBD)
+#### Modify Movie Entry Tab
 
-Movie, TV Show, Cartoon, Manga, Novel — field details in source spec.
+- Search bar; recently modified entries: Movie Type, Entry Name CN with fallback, Franchise Name CN with fallback
+- After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback (hidden for 獨立電影/影集, Disney, Marvel franchises), Entry Name CN with fallback (immutable), then full edit form
+- Form sections: Titles & Naming, Status & Progress, Classification, Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
+- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- Save Changes Button
+
+Writes: `PATCH /api/movie/:id`
+
+#### Modify TV Show Entry Tab
+
+- Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
+- After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback (hidden for 獨立電影/影集, Disney, Marvel franchises), Entry Name CN with fallback (immutable), then full edit form
+- Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
+- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 神回/神片段 / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- Save Changes Button
+
+Writes: `PATCH /api/tv-show/:id`
+
+#### Modify Cartoon Entry Tab
+
+- Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
+- After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
+- Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
+- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 神回/神片段 Highlights / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- Save Changes Button
+
+Writes: `PATCH /api/cartoon/:id`
+
+#### Modify Manga Entry Tab (TBD)
+
+- Search bar (searches Franchise Name, Series Name, Manga Name); results grouped by franchise then series, sorted by Franchise Name then Manga Name (fallback: EN, Roman, CN, JP, Alt); shown as Search Suggestion First Type; recently added entries shown with title fallback CN, EN, Alt, Roman, JP
+- After selecting: Other entries in franchise block (scrollable), System ID (immutable), then full edit form
+- Form sections: Titles & Naming (Franchise Name, Manga Name EN/CN/JP/Alt), Classification, Status & Progress, Production, Source & Links & Other (MAL ID, MAL Link, AniList Link, Other Source, Other Source Link, Remark)
+- Update Button
+
+Writes: `PATCH /api/manga/:id`
+
+#### Modify Novel Entry Tab (TBD)
 
 ---
 
@@ -1068,9 +1145,44 @@ Category dropdown → all options shown; per-row Delete button (no confirmation 
 
 Deletes: `DELETE /api/options/:id`
 
-#### Planned Delete Tabs (TBD)
+#### Delete Movie Entry Tab
 
-Movie, TV Show, Cartoon, Manga, Novel — same search-then-delete pattern with cascade options for series/franchise deletion.
+- Search bar → **Search Suggestion for Deletion** (reusable)
+- After selecting: **Movie Entry Info for Deletion** (reusable) + Delete button
+- If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
+- If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
+
+Deletes: `DELETE /api/movie/:id`
+
+#### Delete TV Show Entry Tab
+
+- Search bar → **Search Suggestion for Deletion** (reusable)
+- After selecting: **TV Show Entry Info for Deletion** (reusable) + Delete button
+- If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
+- If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
+
+Deletes: `DELETE /api/tv-show/:id`
+
+#### Delete Cartoon Entry Tab
+
+- Search bar → **Search Suggestion for Deletion** (reusable)
+- After selecting: **Cartoon Entry Info for Deletion** (reusable) + Delete button
+- If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
+- If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
+
+Deletes: `DELETE /api/cartoon/:id`
+
+#### Delete Manga Entry Tab (TBD)
+
+- Search bar (searches Franchise Name, Series Name, Manga Name); results grouped by franchise then series, sorted by Franchise Name then Manga Name; shown as Search Suggestion First Type
+- After selecting: Entry Info for Deletion + Delete button
+- If only entry in series: offer to delete series or keep it (show how many entries for each media type)
+- If only entry in franchise: offer to delete franchise or keep it (show how many entries for each media type)
+- Note: different media types may belong to the same series/franchise
+
+Deletes: `DELETE /api/manga/:id`
+
+#### Delete Novel Entry Tab (TBD)
 
 ---
 
