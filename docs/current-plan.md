@@ -6,7 +6,7 @@ Implement full Movie entry support (live-action and animated films from the `mov
 
 ---
 
-## Step 1 — Backend: Models, Migrations, Schemas
+## Step 1 — Backend: Models, Migrations, Schemas ✅ COMPLETED
 
 **Files:** `models.py`, Alembic, `schemas.py`
 
