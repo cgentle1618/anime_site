@@ -444,7 +444,7 @@ Admin edit: `PATCH /api/franchise/:system_id` for rating, expectation, remarks.
 
 **File:** `frontend/src/pages/FranchiseReality.jsx` (TBD)
 
-Hub for movie/TV show franchises (Movies and TV shows with series).
+Hub for movie/TV show franchises.
 
 **Layout:**
 
