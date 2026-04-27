@@ -195,7 +195,7 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 ## Composite Logics
 
-### Anime Movie Post Processing — `anime_move_post_processing(anime, db)` / `run_anime_movie_post_processing(db)`
+### Anime Movie Post Processing — `anime_movie_post_processing(anime, db)` / `run_anime_movie_post_processing(db)`
 
 Runs all single-entry checks and repairs for one anime. `run_anime_movie_post_processing` applies it to every entry in the DB.
 

@@ -1,5 +1,7 @@
 # Testing Strategy
 
+> **Status (as of 2026-04-27):** Tiers 1 and part of Tier 3 are implemented. Tiers 4–7 and most of Tier 3 are planned but not yet written. See the directory layout below — files marked _(planned)_ do not exist yet.
+
 This document is the canonical reference for the CG1618 Media Tracker test suite. Tests are organized in a pyramid from fast, isolated unit tests up through full end-to-end flows.
 
 ---
@@ -43,7 +45,7 @@ tests/                          ← backend tests
   unit/
     test_utils.py               ← validate_episode_math, extract_mal_id_anime, etc.
     test_jikan_utils.py         ← map_jikan_to_anime_data
-    test_formatter.py           ← format_model_for_sheet, parse_*_from_sheet
+    test_formatter.py           ← format_model_for_sheet, parse_*_from_sheet  (planned)
     test_security.py            ← hashing, JWT sign/verify/expiry
     test_derivations.py         ← derive_watch_order, ep_previous, prequel/sequel
     test_checking_rules.py      ← has_missing_values_anime, check_is_watching_completed
@@ -51,26 +53,27 @@ tests/                          ← backend tests
     conftest.py                 ← sample DB rows (franchise, series, anime)
     test_auth.py
     test_franchise.py
-    test_series.py
-    test_anime.py
-    test_options.py
-    test_seasonal.py
-    test_system.py
+    test_series.py              (planned)
+    test_anime.py               (planned)
+    test_anime_movie.py         (planned)
+    test_options.py             (planned)
+    test_seasonal.py            (planned)
+    test_system.py              (planned)
   services/
-    test_jikan_service.py       ← Jikan HTTP client + rate limiter
-    test_image_manager.py       ← GCS / local cover image abstraction
-    test_sheets.py              ← Google Sheets sync
-    test_pipelines.py           ← Fill / Replace / Pull / Backup pipelines
+    test_jikan_service.py       ← Jikan HTTP client + rate limiter  (planned)
+    test_image_manager.py       ← GCS / local cover image abstraction  (planned)
+    test_sheets.py              ← Google Sheets sync  (planned)
+    test_pipelines.py           ← Fill / Replace / Pull / Backup pipelines  (planned)
 
 frontend/src/
-  utils/anime.test.js           ← getDisplayName, getNextStatus, getCoverUrl, etc.
+  utils/anime.test.js           ← getDisplayName, getNextStatus, getCoverUrl, etc.  (planned)
   components/
-    AnimeCard.test.jsx
-    ProtectedRoute.test.jsx
-  contexts/AuthContext.test.jsx
-  pages/Login.test.jsx
+    AnimeCard.test.jsx          (planned)
+    ProtectedRoute.test.jsx     (planned)
+  contexts/AuthContext.test.jsx (planned)
+  pages/Login.test.jsx          (planned)
 
-e2e/
+e2e/                            (planned — directory does not exist yet)
   playwright.config.js
   browse.spec.js                ← public pages load
   auth.spec.js                  ← login / logout / protected routes
