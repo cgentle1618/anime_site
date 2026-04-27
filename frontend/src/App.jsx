@@ -9,7 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Anime from "./pages/Anime";
 import AnimeMovie from "./pages/AnimeMovie";
-import FranchiseAcg from "./pages/FranchiseAcg";
+import Franchise from "./pages/Franchise";
 import Search from "./pages/Search";
 import FutureReleases from "./pages/FutureReleases";
 import SeasonalOverall from "./pages/SeasonalOverall";
@@ -68,10 +68,7 @@ export default function App() {
                   element={<AnimeMovie />}
                 />
                 <Route path="/movie/:system_id" element={<Movie />} />
-                <Route
-                  path="/franchise/:system_id"
-                  element={<FranchiseAcg />}
-                />
+                <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
                   path="/seasonal/:seasonal_id"
