@@ -151,9 +151,9 @@ Create `routers/movie.py` with:
 
 ---
 
-## Step 6 — Frontend: New Pages
+## Step 6 — Frontend: New Pages ✅ COMPLETED
 
-**Files:** `frontend/src/components/MovieCard.jsx`, `frontend/src/Movie.jsx`, `frontend/src/LibraryMovie.jsx`
+**Files:** `frontend/src/components/MovieCard.jsx`, `frontend/src/pages/Movie.jsx`, `frontend/src/pages/LibraryMovie.jsx`
 
 ### 6a — MovieCard.jsx
 
