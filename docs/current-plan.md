@@ -22,7 +22,7 @@ Implement full Movie entry support (live-action and animated films from the `mov
 
 ---
 
-## Step 2 — IMDb Service: `fetch_imdb_data` Orchestrator
+## Step 2 — IMDb Service: `fetch_imdb_data` Orchestrator ✅ COMPLETED
 
 **Files:** `services/tmdb.py`, `utils/tmdb_utils.py`
 
