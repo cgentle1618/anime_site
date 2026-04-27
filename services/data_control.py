@@ -8,6 +8,7 @@ import json
 import logging
 import asyncio
 from fastapi import Request
+from database import get_taipei_now
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
@@ -1345,6 +1346,10 @@ def execute_pull_specific(
         elif tab_name in ("Movies", "Anime Movies"):
             if clean_header_dict.get("watching_status") is None:
                 clean_header_dict["watching_status"] = "Might Watch"
+            if clean_header_dict.get("created_at") is None:
+                clean_header_dict["created_at"] = get_taipei_now()
+            if clean_header_dict.get("updated_at") is None:
+                clean_header_dict["updated_at"] = get_taipei_now()
 
         # UPSERT LOGIC
         if pk_value:
