@@ -125,7 +125,7 @@ In `services/data_control.py`:
 
 ---
 
-## Step 5 — Router
+## Step 5 — Router ✅ COMPLETED
 
 **Files:** `routers/movie.py`, `main.py`, `routers/data_control.py`
 
