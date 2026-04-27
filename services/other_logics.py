@@ -176,6 +176,57 @@ def resolve_anime_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
+def resolve_movie_parent_hierarchy(
+    db: Session, franchise_id: Any, names: Dict[str, Any]
+) -> Any:
+    """
+    Ensures a valid franchise_id UUID for a Movies entry.
+    If franchise_id is null or a string name: searches by name, auto-creates if missing.
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        return franchise_id
+
+    valid_names = set()
+    for lang_key in ["en", "cn", "alt"]:
+        name_val = names.get(lang_key)
+        if name_val and str(name_val).strip():
+            valid_names.add(str(name_val).strip())
+
+    search_conditions = []
+    for name_str in valid_names:
+        search_conditions.extend(
+            [
+                Franchise.franchise_name_en.ilike(name_str),
+                Franchise.franchise_name_cn.ilike(name_str),
+                Franchise.franchise_name_alt.ilike(name_str),
+            ]
+        )
+
+    existing = None
+    if search_conditions:
+        existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+    if existing:
+        logger.info(
+            f"Auto-resolved existing Franchise for Movie: {existing.system_id}"
+        )
+        return existing.system_id
+
+    new_fran = Franchise(
+        system_id=str(uuid.uuid4()),
+        franchise_type="TV or Movie",
+        franchise_name_en=names.get("en"),
+        franchise_name_cn=names.get("cn"),
+        franchise_name_alt=names.get("alt"),
+        created_at=get_taipei_now(),
+        updated_at=get_taipei_now(),
+    )
+    db.add(new_fran)
+    db.flush()
+    logger.info(f"Auto-created missing Franchise for Movie: {new_fran.system_id}")
+    return new_fran.system_id
+
+
 def resolve_anime_movie_parent_hierarchy(
     db: Session, franchise_id: Any, names: Dict[str, Any]
 ) -> Any:
@@ -1173,6 +1224,14 @@ def apply_single_replace_anime_movie(
         anime_movie, force_replace_ratings=force_replace_ratings
     )
     anime_movie_post_processing(anime_movie, db)
+
+
+def apply_single_replace_movie(
+    db: Session, movie: Movies, bulk: bool = False
+) -> None:
+    """Core 'Replace' logic for a single Movies entry."""
+    apply_extract_imdb_id(movie)
+    autofill_movie_from_imdb(movie, db)
 
 
 # ==========================================

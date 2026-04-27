@@ -261,6 +261,47 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_movie_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Movies sheet into typed data ready for the Database.
+    franchise_id and series_id may be a UUID or a raw string name — handled in data_control.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "movie_name_en": parse_from_sheet(raw.get("movie_name_en"), str),
+        "movie_name_cn": parse_from_sheet(raw.get("movie_name_cn"), str),
+        "movie_name_alt": parse_from_sheet(raw.get("movie_name_alt"), str),
+        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
+        "movie_type": parse_from_sheet(raw.get("movie_type"), str),
+        "is_main": parse_from_sheet(raw.get("is_main"), str),
+        "length_min": parse_from_sheet(raw.get("length_min"), int),
+        "release_date_usa": parse_from_sheet(raw.get("release_date_usa"), str),
+        "release_date_tw": parse_from_sheet(raw.get("release_date_tw"), str),
+        "director": parse_from_sheet(raw.get("director"), str),
+        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
+        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
+        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
+        "watch_order": parse_from_sheet(raw.get("watch_order"), float),
+        "imdb_id": parse_from_sheet(raw.get("imdb_id"), int),
+        "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
+        "source_other": (
+            json.loads(raw["source_other"]) if raw.get("source_other") else None
+        ),
+        "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
+        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.
