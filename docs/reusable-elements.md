@@ -28,18 +28,19 @@ Present on every page. Contains:
 
 **Navigation — Page Dropdowns:**
 
-| Dropdown             | Items                                                                            |
-| -------------------- | -------------------------------------------------------------------------------- |
-| ACG Library          | Anime Library, Anime Movie Library, Manga Library, Novel Library, Seiyuu Library |
-| Other Library        | Franchise Library, TV Show Library, Movie Library, Cartoon Library               |
-| More                 | Statistics, Future Release, Seasonal Overall                                     |
-| Admin _(admin only)_ | System Page, Data History Page, Review Page, Add Page, Modify Page, Delete Page  |
+| Dropdown             | Items                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ACG                  | Anime Library, Anime Movie Library, Manga Library _(future)_, Novel Library _(future)_, Seiyuu Library _(future)_                                      |
+| Reality              | Franchise Library, TV Show Library _(future)_, Movie Library _(future)_, Cartoon Library _(future)_                                                    |
+| More                 | Statistics, Future Release, Seasonal                                                                                                                   |
+| Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
 
 **Other controls:**
 
 - Website logo — navigates to Dashboard
 - Search bar — see [Search Suggestion Entry](#search-suggestion-entry) for result format
-  - Scope selector: All (default), Seasonal, Franchise, Anime, Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio _(future)_, Seiyuu _(future)_
+  - Scope selector (implemented): All (default), Franchise, Series, Anime, Seasonal
+  - Scope selector _(future)_: Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio, Seiyuu
   - Results grouped by kind when searching All; ordered: Seasonal → Franchise → Anime → Anime Movie → Manga → Novel → Movie → TV Show → Cartoon
   - If an entry exactly matches the input (ignoring case, punctuation, and spaces), it is shown at the top regardless of grouping/ordering
   - At most 10 suggestions shown; at most 3 franchise and 3 series suggestions

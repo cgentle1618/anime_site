@@ -13,6 +13,7 @@ function formatDate(dateStr) {
 }
 
 // Streaming box (Fill or Replace)
+// specificOptions: [{ label, url }] — renders a select+play row below the "All" button
 function StreamBox({
   color,
   borderColor,
@@ -20,28 +21,58 @@ function StreamBox({
   statusColor,
   title,
   icon,
-  buttons,
+  allLabel,
+  allUrl,
+  specificOptions,
   streamRunning,
   onStart,
   onStop,
   status,
 }) {
+  const [specificSelected, setSpecificSelected] = useState(
+    specificOptions?.[0]?.url ?? "",
+  );
+
+  const selectCls = `w-full bg-white border rounded-lg text-[10px] font-bold px-1 py-2 focus:outline-none ${borderColor.replace("border ", "border-")} ${titleColor}`;
+
   return (
     <div className={`${color} ${borderColor} rounded-xl p-4 flex flex-col`}>
       <h3 className={`text-sm font-bold ${titleColor} mb-3 flex items-center`}>
         <i className={`fas ${icon} mr-2 ${statusColor}`}></i> {title}
       </h3>
       <div className="space-y-2 mt-auto">
-        {!streamRunning &&
-          buttons.map((btn) => (
+        {!streamRunning && (
+          <>
             <button
-              key={btn.label}
-              onClick={() => onStart(btn.url)}
-              className={btn.cls}
+              onClick={() => onStart(allUrl)}
+              className={`w-full bg-white hover:opacity-80 border py-2 rounded-lg text-xs font-bold shadow-sm transition ${borderColor.replace("border ", "border-")} ${titleColor}`}
             >
-              {btn.label}
+              {allLabel}
             </button>
-          ))}
+            {specificOptions && specificOptions.length > 0 && (
+              <div className="flex gap-2">
+                <select
+                  value={specificSelected}
+                  onChange={(e) => setSpecificSelected(e.target.value)}
+                  className={selectCls}
+                >
+                  {specificOptions.map((opt) => (
+                    <option key={opt.url} value={opt.url}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => onStart(specificSelected)}
+                  disabled={!specificSelected}
+                  className={`bg-white hover:opacity-80 border px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-40 ${borderColor.replace("border ", "border-")} ${titleColor}`}
+                >
+                  <i className="fas fa-play"></i>
+                </button>
+              </div>
+            )}
+          </>
+        )}
         {streamRunning && (
           <button
             onClick={onStop}
@@ -1216,22 +1247,19 @@ export default function Admin() {
               statusColor="text-blue-800"
               title="Fill"
               icon="fa-magic"
+              allLabel="Fill All"
+              allUrl="/api/data-control/fill/all"
+              specificOptions={[
+                { label: "Anime", url: "/api/data-control/fill/anime" },
+                {
+                  label: "Anime Movie",
+                  url: "/api/data-control/fill/anime-movie",
+                },
+              ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}
               onStop={stopStream}
               status={fillStatus}
-              buttons={[
-                {
-                  label: "Fill All",
-                  url: "/api/data-control/fill/all",
-                  cls: "w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition",
-                },
-                {
-                  label: "Fill Anime",
-                  url: "/api/data-control/fill/anime",
-                  cls: "w-full bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold shadow-sm transition",
-                },
-              ]}
             />
 
             {/* Replace */}
@@ -1242,22 +1270,19 @@ export default function Admin() {
               statusColor="text-amber-800"
               title="Replace"
               icon="fa-bolt"
+              allLabel="Replace All"
+              allUrl="/api/data-control/replace/all"
+              specificOptions={[
+                { label: "Anime", url: "/api/data-control/replace/anime" },
+                {
+                  label: "Anime Movie",
+                  url: "/api/data-control/replace/anime-movie",
+                },
+              ]}
               streamRunning={streamRunning === "replace"}
               onStart={(url) => startStream(url, "replace")}
               onStop={stopStream}
               status={replaceStatus}
-              buttons={[
-                {
-                  label: "Replace All",
-                  url: "/api/data-control/replace/all",
-                  cls: "w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition",
-                },
-                {
-                  label: "Replace Anime",
-                  url: "/api/data-control/replace/anime",
-                  cls: "w-full bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-lg text-xs font-bold shadow-sm transition",
-                },
-              ]}
             />
 
             {/* Pull */}
@@ -1289,6 +1314,7 @@ export default function Admin() {
                   className="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold px-1 py-2"
                 >
                   <option value="Anime">Anime</option>
+                  <option value="Anime Movies">Anime Movies</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
                   <option value="System Options">Options</option>

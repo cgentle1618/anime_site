@@ -23,6 +23,7 @@ from routers import (
     franchise,
     series,
     anime,
+    anime_movie,
     seasonal,
     data_control,
     system,
@@ -91,7 +92,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Serve Vite build output (production only — frontend_dist/ is created by docker build)
 FRONTEND_DIST = Path("frontend_dist")
 if FRONTEND_DIST.exists():
-    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="vite-assets")
+    app.mount(
+        "/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="vite-assets"
+    )
 
 
 # ==========================================
@@ -104,6 +107,7 @@ app.include_router(options.router)
 app.include_router(franchise.router)
 app.include_router(series.router)
 app.include_router(anime.router)
+app.include_router(anime_movie.router)
 app.include_router(seasonal.router)
 
 app.include_router(data_control.router)
@@ -113,6 +117,7 @@ app.include_router(system.router)
 # ==========================================
 # SPA CATCH-ALL (must be last)
 # ==========================================
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str):

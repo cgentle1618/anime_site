@@ -7,7 +7,7 @@ Tests pure functions with no DB or network dependencies.
 import pytest
 from utils.utils import (
     validate_episode_math,
-    extract_mal_id,
+    extract_mal_id_anime,
     extract_season_from_title,
     calculate_seasonal_from_month,
 )
@@ -77,23 +77,23 @@ class TestValidateEpisodeMath:
 class TestExtractMalId:
     def test_valid_mal_url_returns_id(self):
         url = "https://myanimelist.net/anime/1234/some-title"
-        assert extract_mal_id(url) == 1234
+        assert extract_mal_id_anime(url) == 1234
 
     def test_url_without_anime_path_returns_none(self):
-        assert extract_mal_id("https://myanimelist.net/manga/1234") is None
+        assert extract_mal_id_anime("https://myanimelist.net/manga/1234") is None
 
     def test_none_input_returns_none(self):
-        assert extract_mal_id(None) is None
+        assert extract_mal_id_anime(None) is None
 
     def test_empty_string_returns_none(self):
-        assert extract_mal_id("") is None
+        assert extract_mal_id_anime("") is None
 
     def test_plain_string_returns_none(self):
-        assert extract_mal_id("not a url") is None
+        assert extract_mal_id_anime("not a url") is None
 
     def test_url_with_query_params_still_extracts(self):
         url = "https://myanimelist.net/anime/5678?q=test"
-        assert extract_mal_id(url) == 5678
+        assert extract_mal_id_anime(url) == 5678
 
 
 class TestExtractSeasonFromTitle:
@@ -125,18 +125,36 @@ class TestExtractSeasonFromTitle:
 
 
 class TestCalculateSeasonalFromMonth:
-    @pytest.mark.parametrize("month,expected", [
-        ("JAN", "WIN"), ("FEB", "WIN"), ("MAR", "WIN"),
-        ("APR", "SPR"), ("MAY", "SPR"), ("JUN", "SPR"),
-        ("JUL", "SUM"), ("AUG", "SUM"), ("SEP", "SUM"),
-        ("OCT", "FAL"), ("NOV", "FAL"), ("DEC", "FAL"),
-    ])
+    @pytest.mark.parametrize(
+        "month,expected",
+        [
+            ("JAN", "WIN"),
+            ("FEB", "WIN"),
+            ("MAR", "WIN"),
+            ("APR", "SPR"),
+            ("MAY", "SPR"),
+            ("JUN", "SPR"),
+            ("JUL", "SUM"),
+            ("AUG", "SUM"),
+            ("SEP", "SUM"),
+            ("OCT", "FAL"),
+            ("NOV", "FAL"),
+            ("DEC", "FAL"),
+        ],
+    )
     def test_month_abbrev_maps_to_season(self, month, expected):
         assert calculate_seasonal_from_month(month) == expected
 
-    @pytest.mark.parametrize("month,expected", [
-        ("1", "WIN"), ("01", "WIN"), ("4", "SPR"), ("7", "SUM"), ("10", "FAL"),
-    ])
+    @pytest.mark.parametrize(
+        "month,expected",
+        [
+            ("1", "WIN"),
+            ("01", "WIN"),
+            ("4", "SPR"),
+            ("7", "SUM"),
+            ("10", "FAL"),
+        ],
+    )
     def test_numeric_string_maps_to_season(self, month, expected):
         assert calculate_seasonal_from_month(month) == expected
 

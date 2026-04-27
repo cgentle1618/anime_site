@@ -10,11 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Reference these files in `/docs` for deep technical context (note that the documents are not completed and may contain outdated information):
 
+- **`current-plan.md`**: Current rough plan for implementation and modification. Remind me to update if we're moving to next media type implementation and I didn't update the plan.
 - **`database-schema.md`**: All table schemas — columns, types, nullability, relationships, computed fields.
 - **`business-logic.md`**: Pipeline logic (Fill, Replace, Pull, Backup, Calculate), derivation rules (watch order, ep_previous, prequel/sequel), checking rules, formatters and parsers.
 - **`options.md`**: Valid enum values, options, dropdowns.
 - **`api.md`**: All API endpoints by router — method, path, auth requirement, parameters, request body, and response model.
 - **`pages.md`**: Frontend pages — what each loads and key components used.
+- **`admin-forms.md`**: Frontend form interaction logic for Add, Modify, and Delete admin pages — prefill behavior, franchise/series modal flows, form defaults, and post-submit pipeline triggers.
 - **`reusable-elements.md`**: Shared React components and JS utilities.
 - **`integrations.md`**: Jikan API throttling, Google Sheets sync flow, GCS bucket setup.
 - **`architecture.md`**: Request flow, service layer details, auth flow, deployment.
@@ -62,3 +64,11 @@ alembic downgrade -1
 | `INSTANCE_CONNECTION_NAME`                            | Cloud SQL connection name (Cloud Run only)                    |
 
 Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and production behaviors (secure cookies, IAM auth for GCS, Cloud SQL socket routing).
+
+## Common Points of Confusion
+
+- Anime Movie is not the same as Anime with airing_type as "movie". Anime Movie has its own database table anime_movie. Anime with airing_type as "movie" belongs to the database table anime. When mentioning Anime Movie, it is more likely to be referring to the entries in anime_movie database table.
+
+## Rule
+
+- If we're implementing or modifying based on current-plan.md, pause and ask for permission to proceed whenever you finish a step. provide git commit message for the changes.

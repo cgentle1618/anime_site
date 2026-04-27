@@ -216,6 +216,51 @@ def parse_anime_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_anime_movie_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Anime Movies sheet into typed data ready for the Database.
+    franchise_id may be a UUID or a raw string name — handled in data_control.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "anime_movie_name_en": parse_from_sheet(raw.get("anime_movie_name_en"), str),
+        "anime_movie_name_cn": parse_from_sheet(raw.get("anime_movie_name_cn"), str),
+        "anime_movie_name_roman": parse_from_sheet(
+            raw.get("anime_movie_name_roman"), str
+        ),
+        "anime_movie_name_jp": parse_from_sheet(raw.get("anime_movie_name_jp"), str),
+        "anime_movie_name_alt": parse_from_sheet(raw.get("anime_movie_name_alt"), str),
+        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
+        "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "length_min": parse_from_sheet(raw.get("length_min"), int),
+        "release_date_jp": parse_from_sheet(raw.get("release_date_jp"), str),
+        "release_date_tw": parse_from_sheet(raw.get("release_date_tw"), str),
+        "studio": parse_from_sheet(raw.get("studio"), str),
+        "director": parse_from_sheet(raw.get("director"), str),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
+        "official_link": parse_from_sheet(raw.get("official_link"), str),
+        "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
+        "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
+        "baha_link": parse_from_sheet(raw.get("baha_link"), str),
+        "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
+        "source_other": (
+            json.loads(raw["source_other"]) if raw.get("source_other") else None
+        ),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.

@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Anime from "./pages/Anime";
+import AnimeMovie from "./pages/AnimeMovie";
 import FranchiseAcg from "./pages/FranchiseAcg";
 import Search from "./pages/Search";
 import FutureReleases from "./pages/FutureReleases";
@@ -15,6 +16,7 @@ import SeasonalOverall from "./pages/SeasonalOverall";
 import SeasonalDetail from "./pages/SeasonalDetail";
 import Statistics from "./pages/Statistics";
 import LibraryAnime from "./pages/LibraryAnime";
+import LibraryAnimeMovie from "./pages/LibraryAnimeMovie";
 import FranchiseLibrary from "./pages/FranchiseLibrary";
 import Admin from "./pages/Admin";
 import DataHistory from "./pages/DataHistory";
@@ -49,11 +51,19 @@ export default function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/library/anime" element={<LibraryAnime />} />
                 <Route
+                  path="/library/anime-movie"
+                  element={<LibraryAnimeMovie />}
+                />
+                <Route
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
+                <Route
+                  path="/anime-movie/:system_id"
+                  element={<AnimeMovie />}
+                />
                 <Route
                   path="/franchise/:system_id"
                   element={<FranchiseAcg />}

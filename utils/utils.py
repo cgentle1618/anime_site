@@ -49,6 +49,16 @@ ANIME_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+ANIME_MOVIE_FIELDS_TO_FILL = [
+    "airing_status",
+    "release_date_jp",
+    "mal_rating",
+    "mal_rank",
+    "official_link",
+    "twitter_link",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================
@@ -85,7 +95,7 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
 # ==========================================
 
 
-def extract_mal_id(url: str) -> Optional[int]:
+def extract_mal_id_anime(url: str) -> Optional[int]:
     """
     Extracts the numeric ID from a standard MyAnimeList URL.
     Returns None if the URL is invalid or the ID cannot be found.

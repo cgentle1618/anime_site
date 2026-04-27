@@ -24,7 +24,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/under-development`      | `UnderDevelopment`  | Public     |
 | `/system`                 | `Admin`             | Admin only |
 | `/data-history`           | `DataHistory`       | Admin only |
-| `/review`                 | `Review`            | Admin only |
+| `/review-queue`           | `ReviewQueue`       | Admin only |
 | `/add`                    | `Add`               | Admin only |
 | `/modify`                 | `Modify`            | Admin only |
 | `/delete`                 | `Delete`            | Admin only |
@@ -49,9 +49,10 @@ Shell rendered for every route. Contains:
 
 - **Logo** — navigates to dashboard (`/`)
 - **Page navigation dropdowns:**
-  - Library → Anime Library, Anime Movie Library, Franchise Library (others redirect to `/under-development`)
-  - More → Statistics, Future Releases, Seasonal Overall, Seasonal Detail
-  - Admin dropdown (admin only) → System, Data History, Review, Add, Modify, Delete
+  - ACG → Anime, Anime Movie, Manga (dev), Novel (dev), Seiyuu (dev)
+  - Reality → Franchise, TV Show (dev), Movie (dev), Cartoon (dev)
+  - More → Statistics, Future Release, Seasonal
+  - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry
 - **Universal search bar** — debounced, client-side filtering; caches full DB on first query; supports scope selector (All / Seasonal / Franchise / Anime — others show under-development stub). Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
 - **Login / Logout button**
@@ -67,7 +68,7 @@ Card variants are defined in `reusable-elements.md`. Quick reference:
 | Anime Entry Card 1     | `DashboardCard.jsx`            | Dashboard, Seasonal Overall, Seasonal Detail                              |
 | Anime Entry Card 2     | `AnimeCard.jsx`                | Anime Library, Franchise Hub (ACG), Search                                |
 | Anime Entry Card 3     | Inline in `FutureReleases.jsx` | Future Releases (Anime tab)                                               |
-| Anime Movie Entry Card | TBD                            | ACG Franchise, Anime Movie Library, Search, Future Releases               |
+| Anime Movie Entry Card | `AnimeMovieCard.jsx`           | ACG Franchise, Anime Movie Library, Search, Future Releases               |
 | Movie Entry Card       | TBD                            | Reality Franchise Hub, Movie Library, Search, Future Releases (Movie tab) |
 | TV Show Entry Card 2   | TBD                            | Reality Franchise Hub, TV Show Library, Search                            |
 | Cartoon Entry Card 2   | TBD                            | Cartoon Franchise Hub, Cartoon Library, Search                            |
@@ -184,7 +185,7 @@ Admin writes use `PATCH /api/anime/:system_id`.
 
 ### Anime Movie Detail (`/anime-movie/:system_id`)
 
-**File:** `frontend/src/pages/AnimeMovie.jsx` (TBD)
+**File:** `frontend/src/pages/AnimeMovie.jsx`
 
 Full detail page for a single anime movie entry.
 
@@ -197,7 +198,7 @@ Full detail page for a single anime movie entry.
 
 - Edit button → `/modify?id=:system_id`
 - Mark Completed button
-- Autofill & Update button
+- Autofill & Update button → `POST /api/data-control/replace/anime-movie/:system_id`
 
 **Layout (left column):**
 
@@ -443,7 +444,7 @@ Hub for movie/TV show franchises (Movies and TV shows with series).
 
 **Movie Entry Section:**
 
-- Sort By: Release Date (default, uses `release_date_tw` with `release_date_us` fallback) / Title / My Rating / IMDB Rating
+- Sort By: Release Date (default, uses `release_date_us` with `release_date_tw` fallback) / Title / My Rating / IMDB Rating
 - Filter: Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
 - Each entry: **Movie Entry Card** (reusable), grouped by Series

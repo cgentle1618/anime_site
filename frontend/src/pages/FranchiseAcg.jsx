@@ -9,6 +9,7 @@ import {
   getRatingWeight,
 } from "../utils/anime";
 import AnimeCard from "../components/AnimeCard";
+import AnimeMovieCard from "../components/AnimeMovieCard";
 import { InfoRow } from "../components/InfoCard";
 import SeriesModal from "../components/SeriesModal";
 
@@ -21,8 +22,10 @@ export default function FranchiseAcg() {
   const [franchise, setFranchise] = useState(null);
   const [seriesList, setSeriesList] = useState([]);
   const [animeList, setAnimeList] = useState([]);
+  const [movieList, setMovieList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [movieSort, setMovieSort] = useState("release_date");
 
   const [sort, setSort] = useState("release_date");
   const [groupBySeries, setGroupBySeries] = useState(true);
@@ -46,7 +49,7 @@ export default function FranchiseAcg() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes] = await Promise.all([
+        const [fRes, sRes, aRes, mRes] = await Promise.all([
           fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
           fetch(`/api/series/?franchise_id=${system_id}`, {
             credentials: "include",
@@ -54,16 +57,21 @@ export default function FranchiseAcg() {
           fetch(`/api/anime/?franchise_id=${system_id}`, {
             credentials: "include",
           }),
+          fetch(`/api/anime-movie/?franchise_id=${system_id}`, {
+            credentials: "include",
+          }),
         ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a] = await Promise.all([
+        const [f, s, a, m] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
+          mRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
         setAnimeList(a);
+        setMovieList(m);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
         setWatchNextGroup(f.watch_next_group || "");
@@ -83,6 +91,44 @@ export default function FranchiseAcg() {
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
   }, []);
+
+  const handleMovieUpdated = useCallback((updated) => {
+    setMovieList((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
+  const sortedMovies = useMemo(() => {
+    return [...movieList].sort((a, b) => {
+      if (movieSort === "release_date") {
+        const dateScore = (m) => {
+          const raw = m.release_date_jp || m.release_date_tw || "";
+          if (!raw) return 0;
+          const parts = String(raw).trim().split(/[-\s]/);
+          const year = parseInt(parts[0]) || 0;
+          const month = parseInt(parts[1]) || 0;
+          const day = parseInt(parts[2]) || 0;
+          return year * 10000 + month * 100 + day;
+        };
+        return dateScore(a) - dateScore(b);
+      }
+      if (movieSort === "my_rating") {
+        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+      }
+      if (movieSort === "mal_rating") {
+        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
+        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
+        if (wA !== wB) return wB - wA;
+      }
+      // title
+      const titleOf = (m) =>
+        m.anime_movie_name_en ||
+        m.anime_movie_name_roman ||
+        m.anime_movie_name_cn ||
+        "";
+      return titleOf(a).localeCompare(titleOf(b));
+    });
+  }, [movieList, movieSort]);
 
   async function saveField(field, value) {
     try {
@@ -671,6 +717,52 @@ export default function FranchiseAcg() {
           </div>
         )}
       </div>
+
+      {/* Anime Movie Section — shown only when entries exist */}
+      {movieList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-film text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Anime Movie
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Standalone theatrical films
+              </p>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {movieList.length} entries
+            </span>
+          </div>
+
+          {/* Sort */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={movieSort}
+              onChange={(e) => setMovieSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+            >
+              <option value="release_date">Sort: Release Date</option>
+              <option value="title">Sort: Title</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="mal_rating">Sort: MAL Rating</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {sortedMovies.map((m) => (
+              <AnimeMovieCard
+                key={m.system_id}
+                movie={m}
+                onUpdated={handleMovieUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Manga — Under Development */}
       <div>
