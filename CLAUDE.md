@@ -73,4 +73,4 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 
 ## Rule
 
-- If we're implementing or modifying based on current-plan.md, pause and ask for permission to proceed whenever you finish a step. provide git commit message for the changes.
+- If we're implementing or modifying based on current-plan.md, pause and ask for permission to proceed whenever you finish a step or a set of steps. Update current-plan.md for our progress in an individual section. Do not modify the plan itself. Provide git commit message for the changes.
