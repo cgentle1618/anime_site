@@ -12,6 +12,7 @@ from typing import Any, Optional, Tuple
 # PRE-COMPILED REGEX PATTERNS
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
+IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
 PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
@@ -59,6 +60,15 @@ ANIME_MOVIE_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+MOVIE_FIELDS_TO_FILL = [
+    "length_min",
+    "director",
+    "airing_status",
+    "release_date_usa",
+    "imdb_rating",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================
@@ -93,6 +103,37 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
 # ==========================================
 # Data Extraction & Transformation
 # ==========================================
+
+
+def extract_imdb_id(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a standard IMDb URL.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+    match = IMDB_ID_PATTERN.search(url)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def apply_extract_imdb_id(movie) -> bool:
+    """Extracts IMDb ID from imdb_link and writes it to imdb_id. Returns True if set."""
+    imdb_id = extract_imdb_id(movie.imdb_link)
+    if imdb_id:
+        movie.imdb_id = imdb_id
+        return True
+    return False
+
+
+def has_missing_values_movie(movie) -> bool:
+    """Returns True if any required Movies field is missing."""
+    for field in MOVIE_FIELDS_TO_FILL:
+        val = getattr(movie, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
 
 
 def extract_mal_id_anime(url: str) -> Optional[int]:

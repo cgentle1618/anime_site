@@ -8,13 +8,14 @@ called by FastAPI routers or other higher-level orchestrators.
 
 import logging
 import uuid
+from datetime import date
 from typing import Any, Dict, Tuple, Union
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_taipei_now
-from models import Anime, AnimeMovies, Franchise, Series, Seasonal, SystemOption
+from models import Anime, AnimeMovies, Movies, Franchise, Series, Seasonal, SystemOption
 
 from services.jikan import fetch_jikan_anime_data
 from services.image_manager import download_cover_image
@@ -28,8 +29,10 @@ from utils.utils import (
     extract_season_from_title,
     calculate_seasonal_from_month,
     validate_episode_math,
+    apply_extract_imdb_id,
 )
 from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
+from utils.tmdb_utils import map_imdb_to_movie_data
 
 
 logger = logging.getLogger(__name__)
@@ -639,6 +642,75 @@ def find_duplicate_anime_movie(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_movie(db: Session) -> list[list[dict]]:
+    """
+    Finds Movies entries that share the same (franchise_id, series_id) and at least one
+    identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    movies = db.query(Movies).filter(Movies.franchise_id.isnot(None)).all()
+
+    by_key: dict[tuple, list] = {}
+    for m in movies:
+        key = (
+            str(m.franchise_id),
+            str(m.series_id) if m.series_id else None,
+        )
+        by_key.setdefault(key, []).append(m)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    movie_map = {str(m.system_id): m for m in movies}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for mid in movie_map:
+        clusters.setdefault(find(mid), []).append(mid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": mid,
+                        "franchise_id": str(movie_map[mid].franchise_id),
+                        "series_id": (
+                            str(movie_map[mid].series_id)
+                            if movie_map[mid].series_id
+                            else None
+                        ),
+                        "movie_name_en": movie_map[mid].movie_name_en,
+                        "movie_name_cn": movie_map[mid].movie_name_cn,
+                        "movie_name_alt": movie_map[mid].movie_name_alt,
+                    }
+                    for mid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -646,6 +718,7 @@ def find_all_duplicates(db: Session) -> dict:
         "series": find_duplicate_series(db),
         "anime": find_duplicate_anime(db),
         "anime_movie": find_duplicate_anime_movie(db),
+        "movie": find_duplicate_movie(db),
         "system_options": find_duplicate_system_options(db),
     }
 
@@ -982,6 +1055,64 @@ def autofill_anime_movie_from_mal(
     except Exception as e:
         logger.error(
             f"MAL Autofill failed for AnimeMovie ID {anime_movie.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
+    """
+    Fetches TMDB + OMDb data for a single Movies entry and fills/overwrites fields.
+    Does not commit — caller is responsible.
+    """
+    if movie.imdb_id is None:
+        return
+
+    try:
+        from services.tmdb import fetch_imdb_data
+
+        result = fetch_imdb_data(movie.imdb_id)
+        tmdb_raw = result.get("tmdb_raw")
+        omdb_raw = result.get("omdb_raw")
+
+        mapped = map_imdb_to_movie_data(tmdb_raw, omdb_raw)
+
+        # Fill-only fields
+        if movie.length_min is None:
+            movie.length_min = mapped.get("length_min")
+        if movie.director is None:
+            movie.director = mapped.get("director")
+        if movie.release_date_usa is None:
+            movie.release_date_usa = mapped.get("release_date_usa")
+
+        # Always overwrite imdb_rating if fetched
+        fetched_rating = mapped.get("imdb_rating")
+        if fetched_rating is not None:
+            movie.imdb_rating = fetched_rating
+
+        # Derive airing_status from raw release_date (fill-only)
+        if movie.airing_status is None and tmdb_raw is not None:
+            raw_date = tmdb_raw.get("release_date")
+            if raw_date:
+                try:
+                    release_date = date.fromisoformat(raw_date)
+                    movie.airing_status = (
+                        "Finished Airing"
+                        if release_date <= date.today()
+                        else "Not Yet Aired"
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+        # Download cover image if missing
+        if movie.cover_image_file is None and mapped.get("cover_image_url"):
+            filename = download_cover_image(
+                mapped["cover_image_url"], str(movie.system_id)
+            )
+            if filename:
+                movie.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"IMDb Autofill failed for Movie ID {movie.system_id} (IMDb {movie.imdb_id}): {e}"
         )
 
 
