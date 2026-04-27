@@ -1239,7 +1239,6 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
-    apply_validate_episode_math(anime_movie)
     apply_check_baha(anime_movie)
 
 
