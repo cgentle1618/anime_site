@@ -1,12 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "../hooks/useToast";
-import { getDisplayName, cleanString, getOptions, buildAnimePayload, buildAnimeMoviePayload } from "../utils/anime";
+import {
+  getDisplayName,
+  cleanString,
+  getOptions,
+  buildAnimePayload,
+  buildAnimeMoviePayload,
+} from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
 import AnimeNotes from "./AnimeNotes";
 import AnimeMovieNotes from "./AnimeMovieNotes";
-import { Field, SectionHeader, inputCls, selectCls } from "../components/FormField";
+import {
+  Field,
+  SectionHeader,
+  inputCls,
+  selectCls,
+} from "../components/FormField";
 import FranchiseCreateModal from "../components/FranchiseCreateModal";
 import CreateNewEntityModal from "../components/CreateNewEntityModal";
 
@@ -157,14 +168,24 @@ function movieToForm(movie, allFranchises) {
     official_link: movie.official_link || "",
     twitter_link: movie.twitter_link || "",
     source_baha:
-      movie.source_baha === true ? "true" : movie.source_baha === false ? "false" : "",
+      movie.source_baha === true
+        ? "true"
+        : movie.source_baha === false
+          ? "false"
+          : "",
     baha_link: movie.baha_link || "",
     source_netflix:
-      movie.source_netflix === true ? "true" : movie.source_netflix === false ? "false" : "",
-    source_other: Object.entries(movie.source_other || {}).map(([name, url]) => ({
-      name,
-      url: url || "",
-    })),
+      movie.source_netflix === true
+        ? "true"
+        : movie.source_netflix === false
+          ? "false"
+          : "",
+    source_other: Object.entries(movie.source_other || {}).map(
+      ([name, url]) => ({
+        name,
+        url: url || "",
+      }),
+    ),
     cover_image_file: movie.cover_image_file || "",
     remark: movie.remark || "",
     notes: movie.notes || {},
@@ -180,6 +201,7 @@ export default function Modify() {
   const [allSeries, setAllSeries] = useState([]);
   const [allOptions, setAllOptions] = useState([]);
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
+  const [allMovies, setAllMovies] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -200,38 +222,53 @@ export default function Modify() {
   const [ff, setFf] = useState({});
   const [sf, setSf] = useState({});
   const [amf, setAmf] = useState({});
+  const [mmf, setMmf] = useState({});
   const [optValue, setOptValue] = useState("");
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
   const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
+  const umm = (k, v) => setMmf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes] = await Promise.all([
+        const [aRes, fRes, sRes, oRes, amRes, mvRes] = await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
           fetch("/api/series/", { credentials: "include" }),
           fetch("/api/options/", { credentials: "include" }),
           fetch("/api/anime-movie/", { credentials: "include" }),
+          fetch("/api/movies/", { credentials: "include" }),
         ]);
-        const [anime, franchises, series, options, animeMovies] = await Promise.all([
-          aRes.json(),
-          fRes.json(),
-          sRes.json(),
-          oRes.json(),
-          amRes.json(),
-        ]);
+        const [anime, franchises, series, options, animeMovies, movies] =
+          await Promise.all([
+            aRes.json(),
+            fRes.json(),
+            sRes.json(),
+            oRes.json(),
+            amRes.json(),
+            mvRes.json(),
+          ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
         setAllSeries(series);
         setAllOptions(options);
         setAllAnimeMovies(animeMovies);
+        setAllMovies(movies);
 
         const urlId = searchParams.get("id");
+        const urlType = searchParams.get("type");
         if (urlId) {
+          if (urlType === "movie") {
+            const mv = movies.find((x) => x.system_id === urlId);
+            if (mv) {
+              openEditorWith(mv, "movie", franchises, series);
+              setActiveTab("movie");
+              return;
+            }
+          }
           const a = anime.find((x) => x.system_id === urlId);
           if (a) {
             openEditorWith(a, "anime", franchises, series);
@@ -274,6 +311,33 @@ export default function Modify() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  function liveMovieToForm(m, allFranchises) {
+    const f = allFranchises.find((x) => x.system_id === m.franchise_id);
+    return {
+      movie_name_en: m.movie_name_en || "",
+      movie_name_cn: m.movie_name_cn || "",
+      movie_name_alt: m.movie_name_alt || "",
+      franchise_id: m.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      airing_status: m.airing_status || "",
+      watching_status: m.watching_status || "Might Watch",
+      my_rating: m.my_rating || "",
+      movie_type: m.movie_type || "",
+      length_min: m.length_min ?? "",
+      release_date_usa: m.release_date_usa || "",
+      release_date_tw: m.release_date_tw || "",
+      director: m.director || "",
+      imdb_id: m.imdb_id ?? "",
+      imdb_link: m.imdb_link || "",
+      source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
+        name,
+        url: url || "",
+      })),
+      cover_image_file: m.cover_image_file || "",
+      remark: m.remark || "",
+    };
+  }
+
   function openEditorWith(item, type, franchises, series) {
     setEditingItem(item);
     setEditingType(type);
@@ -281,6 +345,7 @@ export default function Modify() {
     else if (type === "franchise") setFf(franchiseToForm(item));
     else if (type === "series") setSf(seriesToForm(item, franchises));
     else if (type === "anime-movie") setAmf(movieToForm(item, franchises));
+    else if (type === "movie") setMmf(liveMovieToForm(item, franchises));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -305,6 +370,7 @@ export default function Modify() {
       else if (editingType === "franchise") await saveFranchise();
       else if (editingType === "series") await saveSeries();
       else if (editingType === "anime-movie") await saveAnimeMovie();
+      else if (editingType === "movie") await saveMovie();
       else if (editingType === "options") await saveOption();
     } finally {
       setSubmitting(false);
@@ -389,7 +455,13 @@ export default function Modify() {
     const res = await fetch(`/api/anime/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildAnimePayload(af, { franchiseId, seriesId, notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null })),
+      body: JSON.stringify(
+        buildAnimePayload(af, {
+          franchiseId,
+          seriesId,
+          notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null,
+        }),
+      ),
       credentials: "include",
     });
     if (!res.ok) {
@@ -537,7 +609,10 @@ export default function Modify() {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation: exp, remark: rem });
           },
-          onCancel: () => { setFranchiseCreateModal(null); resolve({ confirmed: false }); },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
         });
       });
       if (!result.confirmed) return;
@@ -556,7 +631,10 @@ export default function Modify() {
         }),
         credentials: "include",
       });
-      if (!res.ok) { showToast("error", "Failed to create franchise"); return; }
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
       const nf = await res.json();
       franchiseId = nf.system_id;
       setAllFranchises((prev) => [...prev, nf]);
@@ -564,12 +642,20 @@ export default function Modify() {
     const res = await fetch(`/api/anime-movie/${editingItem.system_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildAnimeMoviePayload(amf, { franchiseId, notes: Object.keys(amf.notes || {}).length > 0 ? amf.notes : null })),
+      body: JSON.stringify(
+        buildAnimeMoviePayload(amf, {
+          franchiseId,
+          notes: Object.keys(amf.notes || {}).length > 0 ? amf.notes : null,
+        }),
+      ),
       credentials: "include",
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showToast("error", err.detail ? JSON.stringify(err.detail) : "Update failed");
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
       return;
     }
     const updated = await res.json();
@@ -586,6 +672,93 @@ export default function Modify() {
     showToast("success", "Update and enrichment successful.");
   }
 
+  async function saveMovie() {
+    let franchiseId = mmf.franchise_id;
+    if (!franchiseId && mmf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: mmf.movie_name_en || null,
+          franchise_name_cn: mmf.movie_name_cn || null,
+          franchise_name_alt: mmf.movie_name_alt || null,
+          franchise_type: "TV or Movie",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    const payload = {
+      movie_name_en: mmf.movie_name_en || null,
+      movie_name_cn: mmf.movie_name_cn || null,
+      movie_name_alt: mmf.movie_name_alt || null,
+      franchise_id: franchiseId || null,
+      airing_status: mmf.airing_status || null,
+      watching_status: mmf.watching_status || "Might Watch",
+      my_rating: mmf.my_rating || null,
+      movie_type: mmf.movie_type || null,
+      length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
+      release_date_usa: mmf.release_date_usa || null,
+      release_date_tw: mmf.release_date_tw || null,
+      director: mmf.director || null,
+      imdb_id: mmf.imdb_id !== "" ? parseInt(mmf.imdb_id) : null,
+      imdb_link: mmf.imdb_link || null,
+      source_other:
+        mmf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              mmf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      cover_image_file: mmf.cover_image_file || null,
+      remark: mmf.remark || null,
+    };
+    const res = await fetch(`/api/movies/${editingItem.system_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    setAllMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    setEditingItem(updated);
+    setMmf(liveMovieToForm(updated, allFranchises));
+    window.scrollTo(0, 0);
+    showToast("success", "Movie updated and enriched successfully.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -595,6 +768,8 @@ export default function Modify() {
       return item.series_name_cn || item.series_name_en || "Unknown";
     if (type === "anime-movie")
       return item.anime_movie_name_cn || item.anime_movie_name_en || "Unknown";
+    if (type === "movie")
+      return item.movie_name_cn || item.movie_name_en || "Unknown";
     if (type === "options") return `${item.category}: ${item.option_value}`;
     return "Unknown";
   }
@@ -646,6 +821,14 @@ export default function Modify() {
           ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
+    if (activeTab === "movie")
+      return allMovies
+        .filter((m) =>
+          [m.movie_name_en, m.movie_name_cn, m.movie_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
@@ -664,6 +847,7 @@ export default function Modify() {
     if (activeTab === "series") return [...allSeries].sort(sort).slice(0, 12);
     if (activeTab === "anime-movie")
       return [...allAnimeMovies].sort(sort).slice(0, 12);
+    if (activeTab === "movie") return [...allMovies].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -711,6 +895,7 @@ export default function Modify() {
   const tabDefs = [
     { key: "anime", icon: "fa-tv", label: "Modify Anime Entry" },
     { key: "anime-movie", icon: "fa-film", label: "Modify Anime Movie" },
+    { key: "movie", icon: "fa-ticket-alt", label: "Modify Movie" },
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
@@ -1917,9 +2102,18 @@ export default function Modify() {
                     items={franchiseItems}
                     selectedId={amf.franchise_id}
                     inputText={amf.franchise_text}
-                    onSelect={(id, label) => { uam("franchise_id", id); uam("franchise_text", label); }}
-                    onType={(text) => { uam("franchise_text", text); uam("franchise_id", null); }}
-                    onClear={() => { uam("franchise_id", null); uam("franchise_text", ""); }}
+                    onSelect={(id, label) => {
+                      uam("franchise_id", id);
+                      uam("franchise_text", label);
+                    }}
+                    onType={(text) => {
+                      uam("franchise_text", text);
+                      uam("franchise_id", null);
+                    }}
+                    onClear={() => {
+                      uam("franchise_id", null);
+                      uam("franchise_text", "");
+                    }}
                     placeholder="Search franchise..."
                     allowNew
                   />
@@ -1933,125 +2127,320 @@ export default function Modify() {
                 </Field>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Anime Movie Name CN">
-                    <input className={inputCls} value={amf.anime_movie_name_cn} onChange={(e) => uam("anime_movie_name_cn", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={amf.anime_movie_name_cn}
+                      onChange={(e) =>
+                        uam("anime_movie_name_cn", e.target.value)
+                      }
+                    />
                   </Field>
                   <Field label="Anime Movie Name roman">
-                    <input className={inputCls} value={amf.anime_movie_name_roman} onChange={(e) => uam("anime_movie_name_roman", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={amf.anime_movie_name_roman}
+                      onChange={(e) =>
+                        uam("anime_movie_name_roman", e.target.value)
+                      }
+                    />
                   </Field>
                   <Field label="Anime Movie Name JP">
-                    <input className={inputCls} value={amf.anime_movie_name_jp} onChange={(e) => uam("anime_movie_name_jp", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={amf.anime_movie_name_jp}
+                      onChange={(e) =>
+                        uam("anime_movie_name_jp", e.target.value)
+                      }
+                    />
                   </Field>
                   <Field label="Anime Movie Name Alt">
-                    <input className={inputCls} value={amf.anime_movie_name_alt} onChange={(e) => uam("anime_movie_name_alt", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={amf.anime_movie_name_alt}
+                      onChange={(e) =>
+                        uam("anime_movie_name_alt", e.target.value)
+                      }
+                    />
                   </Field>
                 </div>
 
                 <SectionHeader icon="fa-chart-bar" title="Status & Progress" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Field label="Airing Status">
-                    <select className={selectCls} value={amf.airing_status} onChange={(e) => uam("airing_status", e.target.value)}>
+                    <select
+                      className={selectCls}
+                      value={amf.airing_status}
+                      onChange={(e) => uam("airing_status", e.target.value)}
+                    >
                       <option value="">—</option>
-                      {["Not Yet Aired","Airing","Finished Airing"].map((v) => <option key={v} value={v}>{v}</option>)}
+                      {["Not Yet Aired", "Airing", "Finished Airing"].map(
+                        (v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ),
+                      )}
                     </select>
                   </Field>
                   <Field label="Watching Status">
-                    <select className={selectCls} value={amf.watching_status} onChange={(e) => uam("watching_status", e.target.value)}>
-                      {["Might Watch","Plan to Watch","Watch When Airs","Active Watching","Passive Watching","Paused","Completed","Temp Dropped","Dropped","Won't Watch"].map((v) => <option key={v} value={v}>{v}</option>)}
+                    <select
+                      className={selectCls}
+                      value={amf.watching_status}
+                      onChange={(e) => uam("watching_status", e.target.value)}
+                    >
+                      {[
+                        "Might Watch",
+                        "Plan to Watch",
+                        "Watch When Airs",
+                        "Active Watching",
+                        "Passive Watching",
+                        "Paused",
+                        "Completed",
+                        "Temp Dropped",
+                        "Dropped",
+                        "Won't Watch",
+                      ].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                   <Field label="My Rating">
-                    <select className={selectCls} value={amf.my_rating} onChange={(e) => uam("my_rating", e.target.value)}>
+                    <select
+                      className={selectCls}
+                      value={amf.my_rating}
+                      onChange={(e) => uam("my_rating", e.target.value)}
+                    >
                       <option value="">—</option>
-                      {["S","A+","A","B","C","D","E","F"].map((v) => <option key={v} value={v}>{v}</option>)}
+                      {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Field label="MAL Rating">
-                    <input className={inputCls} type="number" step="0.01" min="0" max="10" value={amf.mal_rating} onChange={(e) => uam("mal_rating", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={amf.mal_rating}
+                      onChange={(e) => uam("mal_rating", e.target.value)}
+                    />
                   </Field>
                   <Field label="MAL Rank">
-                    <input className={inputCls} value={amf.mal_rank} onChange={(e) => uam("mal_rank", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={amf.mal_rank}
+                      onChange={(e) => uam("mal_rank", e.target.value)}
+                    />
                   </Field>
                   <Field label="AniList Rating">
-                    <input className={inputCls} value={amf.anilist_rating} onChange={(e) => uam("anilist_rating", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={amf.anilist_rating}
+                      onChange={(e) => uam("anilist_rating", e.target.value)}
+                    />
                   </Field>
                 </div>
 
-                <SectionHeader icon="fa-info-circle" title="Release & Details" />
+                <SectionHeader
+                  icon="fa-info-circle"
+                  title="Release & Details"
+                />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Field label="Release Date JP" hint="YYYY-MM-DD">
-                    <input className={inputCls} type="date" value={amf.release_date_jp} onChange={(e) => uam("release_date_jp", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="date"
+                      value={amf.release_date_jp}
+                      onChange={(e) => uam("release_date_jp", e.target.value)}
+                    />
                   </Field>
                   <Field label="Release Date TW" hint="YYYY-MM-DD">
-                    <input className={inputCls} type="date" value={amf.release_date_tw} onChange={(e) => uam("release_date_tw", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="date"
+                      value={amf.release_date_tw}
+                      onChange={(e) => uam("release_date_tw", e.target.value)}
+                    />
                   </Field>
                   <Field label="Length (min)">
-                    <input className={inputCls} type="number" min="0" value={amf.length_min} onChange={(e) => uam("length_min", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      value={amf.length_min}
+                      onChange={(e) => uam("length_min", e.target.value)}
+                    />
                   </Field>
                 </div>
 
                 <SectionHeader icon="fa-video" title="Production" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Studio">
-                    <MultiSelect options={getOptions(allOptions, "Studio")} value={amf.studio} onChange={(v) => uam("studio", v)} placeholder="Select studio..." />
+                    <MultiSelect
+                      options={getOptions(allOptions, "Studio")}
+                      value={amf.studio}
+                      onChange={(v) => uam("studio", v)}
+                      placeholder="Select studio..."
+                    />
                   </Field>
                   <Field label="Director">
-                    <MultiSelect options={getOptions(allOptions, "Director")} value={amf.director} onChange={(v) => uam("director", v)} placeholder="Select director..." />
+                    <MultiSelect
+                      options={getOptions(allOptions, "Director")}
+                      value={amf.director}
+                      onChange={(v) => uam("director", v)}
+                      placeholder="Select director..."
+                    />
                   </Field>
                 </div>
 
-                <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
+                <SectionHeader
+                  icon="fa-external-link-alt"
+                  title="Source & Links"
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="MAL ID">
-                    <input className={inputCls} type="number" value={amf.mal_id} onChange={(e) => uam("mal_id", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={amf.mal_id}
+                      onChange={(e) => uam("mal_id", e.target.value)}
+                    />
                   </Field>
                   <Field label="MAL Link">
-                    <input className={inputCls} type="url" value={amf.mal_link} onChange={(e) => uam("mal_link", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={amf.mal_link}
+                      onChange={(e) => uam("mal_link", e.target.value)}
+                    />
                   </Field>
                   <Field label="AniList Link">
-                    <input className={inputCls} type="url" value={amf.anilist_link} onChange={(e) => uam("anilist_link", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={amf.anilist_link}
+                      onChange={(e) => uam("anilist_link", e.target.value)}
+                    />
                   </Field>
                   <Field label="Official Website">
-                    <input className={inputCls} type="url" value={amf.official_link} onChange={(e) => uam("official_link", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={amf.official_link}
+                      onChange={(e) => uam("official_link", e.target.value)}
+                    />
                   </Field>
                   <Field label="Twitter Link">
-                    <input className={inputCls} type="url" value={amf.twitter_link} onChange={(e) => uam("twitter_link", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={amf.twitter_link}
+                      onChange={(e) => uam("twitter_link", e.target.value)}
+                    />
                   </Field>
                 </div>
 
-                <SectionHeader icon="fa-broadcast-tower" title="Source Availability" />
+                <SectionHeader
+                  icon="fa-broadcast-tower"
+                  title="Source Availability"
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Bahamut Source">
-                    <select className={selectCls} value={amf.source_baha} onChange={(e) => uam("source_baha", e.target.value)}>
+                    <select
+                      className={selectCls}
+                      value={amf.source_baha}
+                      onChange={(e) => uam("source_baha", e.target.value)}
+                    >
                       <option value="">—</option>
                       <option value="true">有 (Yes)</option>
                       <option value="false">無 (No)</option>
                     </select>
                   </Field>
                   <Field label="Bahamut Link">
-                    <input className={inputCls} type="url" value={amf.baha_link} onChange={(e) => uam("baha_link", e.target.value)} />
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={amf.baha_link}
+                      onChange={(e) => uam("baha_link", e.target.value)}
+                    />
                   </Field>
                   <Field label="Netflix Source">
-                    <select className={selectCls} value={amf.source_netflix} onChange={(e) => uam("source_netflix", e.target.value)}>
+                    <select
+                      className={selectCls}
+                      value={amf.source_netflix}
+                      onChange={(e) => uam("source_netflix", e.target.value)}
+                    >
                       <option value="">—</option>
                       <option value="true">有 (Yes)</option>
                       <option value="false">無 (No)</option>
                     </select>
                   </Field>
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Other Sources</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Other Sources
+                    </label>
                     <div className="space-y-2">
                       {(amf.source_other || []).map((entry, i) => (
                         <div key={i} className="flex gap-2 items-center">
-                          <input className={inputCls} placeholder="Source name" value={entry.name} onChange={(e) => uam("source_other", amf.source_other.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-                          <input className={inputCls} type="url" placeholder="https://..." value={entry.url} onChange={(e) => uam("source_other", amf.source_other.map((x, j) => j === i ? { ...x, url: e.target.value } : x))} />
-                          <button type="button" className="text-red-400 hover:text-red-600 px-1 shrink-0" onClick={() => uam("source_other", amf.source_other.filter((_, j) => j !== i))}>
+                          <input
+                            className={inputCls}
+                            placeholder="Source name"
+                            value={entry.name}
+                            onChange={(e) =>
+                              uam(
+                                "source_other",
+                                amf.source_other.map((x, j) =>
+                                  j === i ? { ...x, name: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <input
+                            className={inputCls}
+                            type="url"
+                            placeholder="https://..."
+                            value={entry.url}
+                            onChange={(e) =>
+                              uam(
+                                "source_other",
+                                amf.source_other.map((x, j) =>
+                                  j === i ? { ...x, url: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                            onClick={() =>
+                              uam(
+                                "source_other",
+                                amf.source_other.filter((_, j) => j !== i),
+                              )
+                            }
+                          >
                             <i className="fas fa-times" />
                           </button>
                         </div>
                       ))}
-                      <button type="button" className="text-xs text-brand hover:underline mt-1" onClick={() => uam("source_other", [...(amf.source_other || []), { name: "", url: "" }])}>
+                      <button
+                        type="button"
+                        className="text-xs text-brand hover:underline mt-1"
+                        onClick={() =>
+                          uam("source_other", [
+                            ...(amf.source_other || []),
+                            { name: "", url: "" },
+                          ])
+                        }
+                      >
                         + Add Source
                       </button>
                     </div>
@@ -2060,10 +2449,19 @@ export default function Modify() {
 
                 <SectionHeader icon="fa-image" title="Cover & Notes" />
                 <Field label="Cover Image File" hint="e.g. 5114.jpg">
-                  <input className={inputCls} value={amf.cover_image_file} onChange={(e) => uam("cover_image_file", e.target.value)} />
+                  <input
+                    className={inputCls}
+                    value={amf.cover_image_file}
+                    onChange={(e) => uam("cover_image_file", e.target.value)}
+                  />
                 </Field>
                 <Field label="Remark">
-                  <textarea className={inputCls} rows={3} value={amf.remark} onChange={(e) => uam("remark", e.target.value)} />
+                  <textarea
+                    className={inputCls}
+                    rows={3}
+                    value={amf.remark}
+                    onChange={(e) => uam("remark", e.target.value)}
+                  />
                 </Field>
 
                 <SectionHeader icon="fa-book-open" title="Structured Notes" />
@@ -2073,6 +2471,281 @@ export default function Modify() {
                   isAdmin={true}
                   onSave={(updatedNotes) => uam("notes", updatedNotes)}
                 />
+              </>
+            )}
+
+            {/* ── MOVIE EDITOR ── */}
+            {editingType === "movie" && (
+              <>
+                <SectionHeader icon="fa-ticket-alt" title="Titles & Naming" />
+                <Field label="Franchise">
+                  <ComboBox
+                    items={allFranchises
+                      .filter(
+                        (f) =>
+                          f.franchise_type === "TV or Movie" ||
+                          !f.franchise_type,
+                      )
+                      .map((f) => ({
+                        id: f.system_id,
+                        label: getDisplayName(f, "franchise"),
+                        searchText: [
+                          f.franchise_name_cn,
+                          f.franchise_name_en,
+                          f.franchise_name_alt,
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
+                      }))}
+                    selectedId={mmf.franchise_id}
+                    inputText={mmf.franchise_text}
+                    onSelect={(id, label) => {
+                      umm("franchise_id", id);
+                      umm("franchise_text", label);
+                    }}
+                    onType={(text) => {
+                      umm("franchise_text", text);
+                      umm("franchise_id", null);
+                    }}
+                    onClear={() => {
+                      umm("franchise_id", null);
+                      umm("franchise_text", "");
+                    }}
+                    placeholder="Search franchise..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Movie Name EN">
+                  <input
+                    className={inputCls}
+                    value={mmf.movie_name_en || ""}
+                    onChange={(e) => umm("movie_name_en", e.target.value)}
+                  />
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Movie Name CN">
+                    <input
+                      className={inputCls}
+                      value={mmf.movie_name_cn || ""}
+                      onChange={(e) => umm("movie_name_cn", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Movie Name Alt">
+                    <input
+                      className={inputCls}
+                      value={mmf.movie_name_alt || ""}
+                      onChange={(e) => umm("movie_name_alt", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader
+                  icon="fa-chart-bar"
+                  title="Status & Classification"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Airing Status">
+                    <select
+                      className={selectCls}
+                      value={mmf.airing_status || ""}
+                      onChange={(e) => umm("airing_status", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["Not Yet Aired", "Airing", "Finished Airing"].map(
+                        (v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </Field>
+                  <Field label="Watching Status">
+                    <select
+                      className={selectCls}
+                      value={mmf.watching_status || "Might Watch"}
+                      onChange={(e) => umm("watching_status", e.target.value)}
+                    >
+                      {[
+                        "Might Watch",
+                        "Plan to Watch",
+                        "Watch When Airs",
+                        "Active Watching",
+                        "Passive Watching",
+                        "Paused",
+                        "Completed",
+                        "Temp Dropped",
+                        "Dropped",
+                        "Won't Watch",
+                      ].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Movie Type">
+                    <select
+                      className={selectCls}
+                      value={mmf.movie_type || ""}
+                      onChange={(e) => umm("movie_type", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="Reality">Reality</option>
+                      <option value="Animation">Animation</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="My Rating">
+                    <select
+                      className={selectCls}
+                      value={mmf.my_rating || ""}
+                      onChange={(e) => umm("my_rating", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader
+                  icon="fa-info-circle"
+                  title="Release & Production"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Release Date USA">
+                    <input
+                      className={inputCls}
+                      value={mmf.release_date_usa || ""}
+                      onChange={(e) => umm("release_date_usa", e.target.value)}
+                      placeholder="e.g. JUL 2024"
+                    />
+                  </Field>
+                  <Field label="Release Date TW">
+                    <input
+                      className={inputCls}
+                      value={mmf.release_date_tw || ""}
+                      onChange={(e) => umm("release_date_tw", e.target.value)}
+                      placeholder="e.g. AUG 2024"
+                    />
+                  </Field>
+                  <Field label="Length (min)">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={mmf.length_min ?? ""}
+                      onChange={(e) => umm("length_min", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Director">
+                    <input
+                      className={inputCls}
+                      value={mmf.director || ""}
+                      onChange={(e) => umm("director", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-link" title="IMDb & Sources" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="IMDb ID">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={mmf.imdb_id ?? ""}
+                      onChange={(e) => umm("imdb_id", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="IMDb Link">
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={mmf.imdb_link || ""}
+                      onChange={(e) => umm("imdb_link", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <Field label="Other Sources">
+                  <div className="space-y-2">
+                    {(mmf.source_other || []).map((entry, i) => (
+                      <div key={i} className="flex gap-2">
+                        <input
+                          className={inputCls}
+                          placeholder="Platform name"
+                          value={entry.name}
+                          onChange={(e) =>
+                            umm(
+                              "source_other",
+                              mmf.source_other.map((x, j) =>
+                                j === i ? { ...x, name: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        />
+                        <input
+                          className={inputCls}
+                          type="url"
+                          placeholder="https://..."
+                          value={entry.url}
+                          onChange={(e) =>
+                            umm(
+                              "source_other",
+                              mmf.source_other.map((x, j) =>
+                                j === i ? { ...x, url: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                          onClick={() =>
+                            umm(
+                              "source_other",
+                              mmf.source_other.filter((_, j) => j !== i),
+                            )
+                          }
+                        >
+                          <i className="fas fa-times" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="text-xs text-brand hover:underline mt-1"
+                      onClick={() =>
+                        umm("source_other", [
+                          ...(mmf.source_other || []),
+                          { name: "", url: "" },
+                        ])
+                      }
+                    >
+                      + Add Source
+                    </button>
+                  </div>
+                </Field>
+
+                <SectionHeader icon="fa-image" title="Cover & Notes" />
+                <Field label="Cover Image File">
+                  <input
+                    className={inputCls}
+                    value={mmf.cover_image_file || ""}
+                    onChange={(e) => umm("cover_image_file", e.target.value)}
+                  />
+                </Field>
+                <Field label="Remark">
+                  <textarea
+                    className={inputCls}
+                    rows={3}
+                    value={mmf.remark || ""}
+                    onChange={(e) => umm("remark", e.target.value)}
+                  />
+                </Field>
               </>
             )}
 

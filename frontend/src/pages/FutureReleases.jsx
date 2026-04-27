@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import AnimeCardFuture from "../components/AnimeCardFuture";
 import AnimeMovieCard from "../components/AnimeMovieCard";
+import MovieCard from "../components/MovieCard";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -91,6 +92,11 @@ export default function FutureReleases() {
   const [movieLoaded, setMovieLoaded] = useState(false);
   const [movieError, setMovieError] = useState(null);
 
+  const [allLiveMovies, setAllLiveMovies] = useState([]);
+  const [liveMovieLoading, setLiveMovieLoading] = useState(false);
+  const [liveMovieLoaded, setLiveMovieLoaded] = useState(false);
+  const [liveMovieError, setLiveMovieError] = useState(null);
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -154,6 +160,28 @@ export default function FutureReleases() {
     }
   }, [mainTab, movieLoaded]);
 
+  useEffect(() => {
+    if (mainTab === "movie" && !liveMovieLoaded) {
+      setLiveMovieLoading(true);
+      setLiveMovieError(null);
+      fetch("/api/movies/?airing_status=Not+Yet+Aired", {
+        credentials: "include",
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error("API error");
+          return r.json();
+        })
+        .then((data) => {
+          setAllLiveMovies(
+            data.filter((m) => m.release_date_usa || m.release_date_tw),
+          );
+          setLiveMovieLoaded(true);
+        })
+        .catch((e) => setLiveMovieError(e.message))
+        .finally(() => setLiveMovieLoading(false));
+    }
+  }, [mainTab, liveMovieLoaded]);
+
   const handleUpdated = useCallback((updated) => {
     setAllAnime((prev) => {
       const idx = prev.findIndex((a) => a.system_id === updated.system_id);
@@ -169,6 +197,12 @@ export default function FutureReleases() {
 
   const handleMovieUpdated = useCallback((updated) => {
     setAllAnimeMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
+  const handleLiveMovieUpdated = useCallback((updated) => {
+    setAllLiveMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
   }, []);
@@ -196,6 +230,25 @@ export default function FutureReleases() {
     movieGroups[year].push(movie);
   }
   const movieYears = Object.keys(movieGroups).sort((a, b) => {
+    if (a === "TBD") return 1;
+    if (b === "TBD") return -1;
+    return a.localeCompare(b);
+  });
+
+  function getLiveMovieYear(m) {
+    const d = m.release_date_usa || m.release_date_tw || "";
+    if (!d) return "TBD";
+    const parts = String(d).trim().split(/[\s-]/);
+    const year = parts[parts.length - 1];
+    return /^\d{4}$/.test(year) ? year : "TBD";
+  }
+  const liveMovieGroups = {};
+  for (const movie of allLiveMovies) {
+    const year = getLiveMovieYear(movie);
+    if (!liveMovieGroups[year]) liveMovieGroups[year] = [];
+    liveMovieGroups[year].push(movie);
+  }
+  const liveMovieYears = Object.keys(liveMovieGroups).sort((a, b) => {
     if (a === "TBD") return 1;
     if (b === "TBD") return -1;
     return a.localeCompare(b);
@@ -252,6 +305,7 @@ export default function FutureReleases() {
         {[
           { key: "anime", icon: "fa-tv", label: "Anime" },
           { key: "anime-movie", icon: "fa-film", label: "Anime Movies" },
+          { key: "movie", icon: "fa-ticket-alt", label: "Movies" },
         ].map((t) => (
           <button
             key={t.key}
@@ -396,6 +450,58 @@ export default function FutureReleases() {
                   </section>
                 );
               })}
+            </div>
+          )}
+        </>
+      )}
+      {/* ── MOVIE TAB ── */}
+      {mainTab === "movie" && (
+        <>
+          {liveMovieLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="text-center">
+                <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+                <p className="text-gray-500 font-medium">Loading movies...</p>
+              </div>
+            </div>
+          ) : liveMovieError ? (
+            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+              <p className="font-bold">Failed to load movies</p>
+              <p className="text-sm mt-1">{liveMovieError}</p>
+            </div>
+          ) : liveMovieYears.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <i className="fas fa-calendar-times text-4xl text-gray-300 mb-4"></i>
+              <p className="text-gray-500 font-medium">
+                No upcoming movies found.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {liveMovieYears.map((year) => (
+                <section key={year}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-base font-black text-gray-800">
+                      {year}
+                    </h2>
+                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {liveMovieGroups[year].length}
+                    </span>
+                    <div className="flex-1 border-t border-gray-100"></div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {liveMovieGroups[year].map((movie) => (
+                      <MovieCard
+                        key={movie.system_id}
+                        movie={movie}
+                        isAdmin={isAdmin}
+                        onUpdated={handleLiveMovieUpdated}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </>

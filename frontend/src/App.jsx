@@ -25,6 +25,8 @@ import Add from "./pages/Add";
 import Modify from "./pages/Modify";
 import Delete from "./pages/Delete";
 import UnderDevelopment from "./pages/UnderDevelopment";
+import Movie from "./pages/Movie";
+import LibraryMovie from "./pages/LibraryMovie";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,12 +60,14 @@ export default function App() {
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
+                <Route path="/library/movie" element={<LibraryMovie />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
                 <Route
                   path="/anime-movie/:system_id"
                   element={<AnimeMovie />}
                 />
+                <Route path="/movie/:system_id" element={<Movie />} />
                 <Route
                   path="/franchise/:system_id"
                   element={<FranchiseAcg />}
