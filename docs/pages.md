@@ -443,7 +443,7 @@ Hub for movie/TV show franchises (Movies and TV shows with series).
 
 **Movie Entry Section:**
 
-- Sort By: Release Date (default, uses `release_date_tw` with `release_date_us` fallback) / Title / My Rating / IMDB Rating
+- Sort By: Release Date (default, uses `release_date_us` with `release_date_tw` fallback) / Title / My Rating / IMDB Rating
 - Filter: Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
 - Each entry: **Movie Entry Card** (reusable), grouped by Series
