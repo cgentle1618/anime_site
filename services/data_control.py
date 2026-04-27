@@ -98,6 +98,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         ]
         bulk_overwrite_sheet("Anime Movies", anime_movie_matrix)
 
+        movie_entries = db.query(Movies).all()
+        movie_headers = [c.name for c in Movies.__table__.columns]
+        movie_matrix = [movie_headers] + [
+            format_model_for_sheet(m) for m in movie_entries
+        ]
+        bulk_overwrite_sheet("Movies", movie_matrix)
+
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
         return {"status": "success", "message": "All tabs backed up to Google Sheets"}
@@ -349,9 +356,7 @@ async def execute_fill_movie(
             apply_extract_imdb_id(movie)
         db.commit()
 
-        queue_to_process = [
-            m for m in all_movies if has_missing_values_movie(m)
-        ]
+        queue_to_process = [m for m in all_movies if has_missing_values_movie(m)]
         total_in_queue = len(queue_to_process)
 
         if total_in_queue > 0:
@@ -390,7 +395,12 @@ async def execute_fill_movie(
         db.rollback()
         logger.info(f"Client disconnected. Aborting {action_specific}.")
         log_data_control(
-            db, "Fill", action_specific, action_type, "Aborted", rows_updated=processed_count
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=processed_count,
         )
         return
 
@@ -398,8 +408,13 @@ async def execute_fill_movie(
         db.rollback()
         logger.error(f"{action_specific} Pipeline crashed: {e}")
         log_data_control(
-            db, "Fill", action_specific, action_type, "Failed",
-            rows_updated=processed_count, error_message=str(e),
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=processed_count,
+            error_message=str(e),
         )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
@@ -849,10 +864,18 @@ async def execute_replace_single_movie(
         if not movie:
             if log_action:
                 log_data_control(
-                    db, "Replace", action_specific, action_type, "Failed",
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
                     error_message="Movie not found 404",
                 )
-            return {"status": "error", "message": "Movie entry not found", "status_code": 404}
+            return {
+                "status": "error",
+                "message": "Movie entry not found",
+                "status_code": 404,
+            }
 
         apply_single_replace_movie(db, movie, bulk=False)
         db.commit()
@@ -862,14 +885,22 @@ async def execute_replace_single_movie(
                 db, "Replace", action_specific, action_type, "Success", rows_updated=1
             )
 
-        return {"status": "success", "message": f"Successfully updated {movie.display_name}."}
+        return {
+            "status": "success",
+            "message": f"Successfully updated {movie.display_name}.",
+        }
 
     except Exception as e:
         db.rollback()
         logger.error(f"Single Replace Movie Error: {e}")
         if log_action:
             log_data_control(
-                db, "Replace", action_specific, action_type, "Failed", error_message=str(e)
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
             )
         return {"status": "error", "message": str(e), "status_code": 500}
 
@@ -898,7 +929,12 @@ async def execute_replace_movie(
         if total_in_queue == 0:
             if log_action:
                 log_data_control(
-                    db, "Replace", action_specific, action_type, "Success", rows_updated=0
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Success",
+                    rows_updated=0,
                 )
             yield f"data: {json.dumps({'status': 'info', 'message': 'No movie entries found to replace', 'total': 0, 'processed': 0})}\n\n"
             return
@@ -922,7 +958,12 @@ async def execute_replace_movie(
 
         if log_action:
             log_data_control(
-                db, "Replace", action_specific, action_type, "Success", rows_updated=processed_count
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
             )
 
         yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
@@ -932,7 +973,12 @@ async def execute_replace_movie(
         logger.info(f"Client disconnected. Aborting {action_specific}.")
         if log_action:
             log_data_control(
-                db, "Replace", action_specific, action_type, "Aborted", rows_updated=processed_count
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Aborted",
+                rows_updated=processed_count,
             )
         return
 
@@ -941,8 +987,13 @@ async def execute_replace_movie(
         logger.error(f"{action_specific} Pipeline crashed: {e}")
         if log_action:
             log_data_control(
-                db, "Replace", action_specific, action_type, "Failed",
-                rows_updated=processed_count, error_message=str(e),
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=processed_count,
+                error_message=str(e),
             )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
@@ -1076,7 +1127,7 @@ def execute_pull_specific(
         "Series": Series,
         "Anime": Anime,
         "Anime Movies": AnimeMovies,
-        "Movie": Movies,
+        "Movies": Movies,
         "System Options": SystemOption,
     }
 
@@ -1085,7 +1136,7 @@ def execute_pull_specific(
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
         "Anime Movies": parse_anime_movie_from_sheet,
-        "Movie": parse_movie_from_sheet,
+        "Movies": parse_movie_from_sheet,
         "System Options": parse_system_option_from_sheet,
     }
 
@@ -1120,7 +1171,7 @@ def execute_pull_specific(
 
         # Resolve String Foreign Keys -> Actual UUIDs
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise if missing)
-        if tab_name == "Movie" and "franchise_id" in clean_header_dict:
+        if tab_name == "Movies" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             if fid is None or isinstance(fid, str):
                 name_fields = {
@@ -1260,10 +1311,10 @@ def execute_pull_specific(
                         )
                         .first()
                     )
-            elif tab_name == "Movie":
-                name = clean_header_dict.get(
-                    "movie_name_en"
-                ) or clean_header_dict.get("movie_name_cn")
+            elif tab_name == "Movies":
+                name = clean_header_dict.get("movie_name_en") or clean_header_dict.get(
+                    "movie_name_cn"
+                )
                 if name:
                     existing_record = (
                         db.query(Movies)
@@ -1291,6 +1342,9 @@ def execute_pull_specific(
                 clean_header_dict["airing_status"] = ""
             if clean_header_dict.get("airing_type") is None:
                 clean_header_dict["airing_type"] = ""
+        elif tab_name in ("Movies", "Anime Movies"):
+            if clean_header_dict.get("watching_status") is None:
+                clean_header_dict["watching_status"] = "Might Watch"
 
         # UPSERT LOGIC
         if pk_value:
@@ -1373,7 +1427,14 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
-    tabs_in_order = ["System Options", "Franchise", "Series", "Anime", "Anime Movies", "Movie"]
+    tabs_in_order = [
+        "System Options",
+        "Franchise",
+        "Series",
+        "Anime",
+        "Anime Movies",
+        "Movies",
+    ]
 
     results = {}
     total_added = 0

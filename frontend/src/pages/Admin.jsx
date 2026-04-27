@@ -1317,7 +1317,7 @@ export default function Admin() {
                 >
                   <option value="Anime">Anime</option>
                   <option value="Anime Movies">Anime Movies</option>
-                  <option value="Movie">Movie</option>
+                  <option value="Movies">Movies</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
                   <option value="System Options">Options</option>
