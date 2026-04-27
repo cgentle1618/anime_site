@@ -212,7 +212,7 @@ Movie library page (`/library/movie`).
 
 ---
 
-## Step 8 — Documentation Cleanup
+## Step 8 — Documentation Cleanup ✅ COMPLETED
 
 - Update `docs/api.md`: add all Movie endpoints from Step 5.
 - Update `docs/pages.md`: add Movie detail page and LibraryMovie page.

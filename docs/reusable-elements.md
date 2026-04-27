@@ -31,7 +31,7 @@ Present on every page. Contains:
 | Dropdown             | Items                                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ACG                  | Anime Library, Anime Movie Library, Manga Library _(future)_, Novel Library _(future)_, Seiyuu Library _(future)_                                      |
-| Reality              | Franchise Library, TV Show Library _(future)_, Movie Library _(future)_, Cartoon Library _(future)_                                                    |
+| Reality              | Franchise Library, Movie Library (`/library/movie`), TV Show Library _(future)_, Cartoon Library _(future)_                                            |
 | More                 | Statistics, Future Release, Seasonal                                                                                                                   |
 | Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
 
@@ -227,13 +227,18 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Movie Entry Card
 
-**First Type** — used on Library, Franchise page, Search page
+**File:** `frontend/src/components/MovieCard.jsx`
 
-- Poster · My Rating (hidden if null) · IMDB Rating (hidden if null) · Name CN (fallback) · Length (Hr + Min) · Release Year USA (fallback) · + button _(admin)_
+Single card type used on Movie Library, Search, and Future Releases (Movie tab).
 
-**Second Type** — used on Future Release page
-
-- Poster · Name CN (fallback) · Length (Hr + Min) · Release Year USA (fallback) · Mark as Airing button _(admin)_
+- Poster (aspect 3:4, cover image from GCS or `/static/covers/`)
+- My Rating badge (yellow, top-left) — hidden if null
+- IMDb Rating badge (yellow-500, top-right) — hidden if null or "N/A"
+- Movie Name CN (fallback: EN → Alt)
+- Length (formatted as `Hr + min`) — hidden if null
+- Release Date USA — hidden if null
+- Status toggle button _(admin only)_ — cycles watching status via `PATCH /api/movies/:id`
+- Clicking card navigates to `/movie/:system_id`
 
 ---
 

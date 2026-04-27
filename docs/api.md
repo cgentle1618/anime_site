@@ -17,6 +17,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Series — `/api/series`](#series--apiseries)
 - [Anime — `/api/anime`](#anime--apianime)
 - [Anime Movie — `/api/anime-movie`](#anime-movie--apianime-movie)
+- [Movie — `/api/movies`](#movie--apimovies)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
@@ -96,6 +97,24 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 ---
 
+## Movie — `/api/movies`
+
+| Method   | Path                   | Auth   | Description                                                                                                             |
+| -------- | ---------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`                    | Public | List all movie entries. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `movie_type`. |
+| `GET`    | `/{movie_id}`          | Public | Get a single movie entry by UUID.                                                                                       |
+| `POST`   | `/`                    | Admin  | Create a movie entry. Auto-runs `execute_replace_single_movie` after creation. Body: `MovieCreate`.                     |
+| `PUT`    | `/{movie_id}`          | Admin  | Full update of a movie entry. Auto-runs `execute_replace_single_movie` after update. Body: `MovieUpdate`.               |
+| `PATCH`  | `/{movie_id}`          | Admin  | Partial update (e.g. watching status, rating). Does not re-run pipeline. Body: raw JSON dict.                           |
+| `DELETE` | `/{movie_id}`          | Admin  | Delete a movie entry. Removes cover image from GCS if present. Logs to `deleted_record`.                                |
+| `POST`   | `/{movie_id}/autofill` | Admin  | Run `execute_replace_single_movie` for a single entry (Manual trigger). Returns updated `MovieResponse`.                |
+
+**Response model:** `MovieResponse`
+
+**IMDb pipeline:** `POST /` and `PUT /{id}` both automatically trigger `execute_replace_single_movie`, which extracts the IMDb ID from `imdb_link`, calls TMDB and OMDb, and fills missing fields (length, director, release dates, imdb_rating, cover image).
+
+---
+
 ## Seasonal — `/api/seasonal`
 
 | Method  | Path              | Auth   | Description                                                                                         |
@@ -133,6 +152,7 @@ All endpoints in this router require admin authentication.
 | ------ | ------------------- | ---------------------------------------------------------------------------- |
 | `POST` | `/fill/anime`       | Fill missing metadata for all anime from Jikan. Streams SSE progress.        |
 | `POST` | `/fill/anime-movie` | Fill missing metadata for all anime movies from Jikan. Streams SSE progress. |
+| `POST` | `/fill/movie`       | Fill missing metadata for all movies from TMDB/OMDb. Streams SSE progress.   |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
 ### Replace
@@ -143,6 +163,8 @@ All endpoints in this router require admin authentication.
 | `POST` | `/replace/anime/{anime_id}`             | Replace metadata for a single anime entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/anime-movie`                  | Replace metadata for all anime movies that have a MAL ID. Streams SSE progress.      |
 | `POST` | `/replace/anime-movie/{anime_movie_id}` | Replace metadata for a single anime movie entry by UUID. Returns JSON.               |
+| `POST` | `/replace/movie`                        | Replace metadata for all movies that have an IMDb ID or link. Streams SSE progress.  |
+| `POST` | `/replace/movie/{movie_id}`             | Replace metadata for a single movie entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
 ### Backup & Pull
