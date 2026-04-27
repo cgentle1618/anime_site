@@ -83,7 +83,7 @@ def map_tmdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "length_min": raw_data.get("runtime"),
-        "release_date_us": _parse_tmdb_date(raw_data.get("release_date")),
+        "release_date_usa": _parse_tmdb_date(raw_data.get("release_date")),
         "director": _extract_director(crew),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
     }
