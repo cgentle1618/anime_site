@@ -12,6 +12,7 @@ import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
 import AnimeNotes from "./AnimeNotes";
 import AnimeMovieNotes from "./AnimeMovieNotes";
+import MovieNotes from "./MovieNotes";
 import {
   Field,
   SectionHeader,
@@ -335,6 +336,7 @@ export default function Modify() {
       })),
       cover_image_file: m.cover_image_file || "",
       remark: m.remark || "",
+      notes: m.notes || {},
     };
   }
 
@@ -734,6 +736,7 @@ export default function Modify() {
           : null,
       cover_image_file: mmf.cover_image_file || null,
       remark: mmf.remark || null,
+      notes: Object.keys(mmf.notes || {}).length > 0 ? mmf.notes : null,
     };
     const res = await fetch(`/api/movies/${editingItem.system_id}`, {
       method: "PUT",
@@ -866,6 +869,24 @@ export default function Modify() {
             a.system_id !== editingItem?.system_id,
         )
       : [];
+
+  const EXCLUDED_MOVIE_FRANCHISE_NAMES = ["獨立電影", "影集", "Disney", "Marvel"];
+  const movieRibbon = (() => {
+    if (editingType !== "movie" || !mmf.franchise_id) return [];
+    const franchise = allFranchises.find((f) => f.system_id === mmf.franchise_id);
+    if (!franchise) return [];
+    const names = [
+      franchise.franchise_name_cn,
+      franchise.franchise_name_en,
+      franchise.franchise_name_alt,
+    ].filter(Boolean);
+    if (names.some((n) => EXCLUDED_MOVIE_FRANCHISE_NAMES.includes(n))) return [];
+    return allMovies.filter(
+      (m) =>
+        m.franchise_id === mmf.franchise_id &&
+        m.system_id !== editingItem?.system_id,
+    );
+  })();
 
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
@@ -1127,6 +1148,61 @@ export default function Modify() {
                     </span>
                   )}
                   {a.anime_name_cn || a.anime_name_en || "Unknown"}
+                </button>
+              );
+              return (
+                <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Other entries in this franchise
+                  </p>
+                  {Object.entries(bySeries).map(([sid, entries]) => {
+                    const s = allSeries.find((x) => x.system_id === sid);
+                    return (
+                      <div key={sid}>
+                        <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                          {s ? getDisplayName(s, "series") : "Series"}
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {entries.map(renderChip)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {noSeries.length > 0 && (
+                    <div>
+                      {Object.keys(bySeries).length > 0 && (
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                          No Series
+                        </p>
+                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        {noSeries.map(renderChip)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+          {/* Movie ribbon — grouped by series */}
+          {editingType === "movie" &&
+            movieRibbon.length > 0 &&
+            (() => {
+              const bySeries = {};
+              const noSeries = [];
+              for (const m of movieRibbon) {
+                if (m.series_id) {
+                  (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
+                } else noSeries.push(m);
+              }
+              const renderChip = (m) => (
+                <button
+                  key={m.system_id}
+                  type="button"
+                  onClick={() => openEditor(m, "movie")}
+                  className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+                >
+                  {m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "Unknown"}
                 </button>
               );
               return (
@@ -2746,6 +2822,14 @@ export default function Modify() {
                     onChange={(e) => umm("remark", e.target.value)}
                   />
                 </Field>
+
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <MovieNotes
+                  key={editingItem.system_id}
+                  movie={{ notes: mmf.notes, system_id: editingItem.system_id }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => umm("notes", updatedNotes)}
+                />
               </>
             )}
 

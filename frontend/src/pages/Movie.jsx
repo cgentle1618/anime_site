@@ -6,6 +6,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 import InfoCard from "../components/InfoCard";
 import NamingCard from "../components/NamingCard";
 import SourcesCard from "../components/SourcesCard";
+import MovieNotes from "./MovieNotes";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -469,6 +470,15 @@ export default function Movie() {
               </div>
             </div>
           )}
+
+          <MovieNotes
+            key={movie.system_id}
+            movie={movie}
+            isAdmin={isAdmin}
+            onSave={(updatedNotes) =>
+              performPatch({ notes: updatedNotes }, "Notes saved")
+            }
+          />
         </div>
       </div>
     </div>

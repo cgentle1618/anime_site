@@ -408,6 +408,7 @@ class Movies(Base, NameFallbackMixin):
     watch_next = Column(Boolean, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
+    notes = Column(JSONB, nullable=True)
     cover_image_file = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
