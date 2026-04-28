@@ -199,9 +199,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "alternative": parse_from_sheet(raw.get("alternative"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
-        "notes": _safe_json(raw.get("notes")),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
-        "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "official_link": parse_from_sheet(raw.get("official_link"), str),
         "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
@@ -215,11 +213,14 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "insert_ost": parse_from_sheet(raw.get("insert_ost"), str),
         "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
         "baha_link": parse_from_sheet(raw.get("baha_link"), str),
-        "source_other": _safe_json(raw.get("source_other")),
         "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
+        "source_other": _safe_json(raw.get("source_other")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
 
 
@@ -259,10 +260,11 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
         "source_other": _safe_json(raw.get("source_other")),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
 
 
@@ -298,10 +300,11 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
         "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
 
 
