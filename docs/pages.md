@@ -792,7 +792,7 @@ Upcoming entries by release timeline. No future release page planned for Manga, 
 
 - Lazy-loaded from `GET /api/movies/?airing_status=Not+Yet+Aired`; further filtered to entries with `release_date_usa` or `release_date_tw` set
 - Grouped by release year (parsed from `release_date_usa`, fallback `release_date_tw`), sorted by year old to new; TBD last
-- Each entry: **Movie Entry Card** (`MovieCard.jsx`)
+- Each entry: **Movie Entry Card 2** (`MovieCard.jsx`)
 
 **TV Show Future Release Tab:**
 

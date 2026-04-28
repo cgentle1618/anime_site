@@ -221,7 +221,18 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Anime Movie Entry Card
 
+**First Type** — `frontend/src/components/AnimeMovieCard.jsx` — used on Anime Movie Library, Franchise page, Search page
+
 - Poster · My Rating (hidden if null) · MAL Rating (hidden if null) · Name CN (fallback) · Length (Hr + Min) · Release Year JP · Bahamut icon · + button _(admin)_
+
+**Second Type** — `frontend/src/components/AnimeMovieCardFuture.jsx` — used on Future Release page (Anime Movies tab)
+
+- Poster (aspect 3:4)
+- Anime Movie Name CN (fallback: EN → Alt → Romaji → JP)
+- Length (Hr + min) — hidden if null
+- Release Year JP — hidden if null
+- Mark as Airing button _(admin only)_ — sets `airing_status` to "Airing" via `PATCH /api/anime-movie/:id`; removes entry from list on success
+- Clicking card navigates to `/anime-movie/:system_id`
 
 ---
 
