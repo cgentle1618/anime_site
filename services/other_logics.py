@@ -33,7 +33,7 @@ from utils.utils import (
     validate_episode_math,
 )
 from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
-from utils.tmdb_utils import map_imdb_to_movie_data
+from utils.imdb_utils import map_imdb_to_movie_data
 
 
 logger = logging.getLogger(__name__)

@@ -38,7 +38,7 @@ MONTH_MAP = {
 # ==========================================
 
 
-def _parse_tmdb_date(date_str: Optional[str]) -> Optional[str]:
+def _convert_tmdb_date(date_str: Optional[str]) -> Optional[str]:
     """
     Converts TMDB's ISO date string to our "MON YYYY" format.
     e.g. "2008-07-18" -> "JUL 2008", "2008" -> "2008"
@@ -85,28 +85,10 @@ def map_tmdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "length_min": raw_data.get("runtime"),
-        "release_date_usa": _parse_tmdb_date(raw_data.get("release_date")),
+        "release_date_usa": _convert_tmdb_date(raw_data.get("release_date")),
         "director": _extract_director(crew),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
     }
-
-
-def map_imdb_to_movie_data(
-    tmdb_raw: Optional[Dict[str, Any]], omdb_raw: Optional[Dict[str, Any]]
-) -> Dict[str, Any]:
-    """
-    Merges TMDB and OMDb mapped data for a Movies entry.
-    OMDb overwrites on key conflict (only imdb_rating overlaps).
-    """
-    merged: Dict[str, Any] = {}
-
-    if tmdb_raw is not None:
-        merged.update(map_tmdb_to_movie_data(tmdb_raw))
-
-    if omdb_raw is not None:
-        merged.update(map_omdb_to_movie_data(omdb_raw))
-
-    return merged
 
 
 def map_tmdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -114,7 +96,7 @@ def map_tmdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     Parses raw TMDB TV JSON into the flat dict expected by the TvShows model.
     """
     return {
-        "release_date": _parse_tmdb_date(raw_data.get("first_air_date")),
+        "release_date": _convert_tmdb_date(raw_data.get("first_air_date")),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
     }
 
@@ -124,6 +106,6 @@ def map_tmdb_to_cartoon_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     Parses raw TMDB TV JSON into the flat dict expected by the Cartoons model.
     """
     return {
-        "release_date": _parse_tmdb_date(raw_data.get("first_air_date")),
+        "release_date": _convert_tmdb_date(raw_data.get("first_air_date")),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
     }
