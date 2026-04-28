@@ -591,7 +591,10 @@ Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_ra
 
 ### TMDB Fetch — `fetch_tmdb_data(imdb_id)` in `services/tmdb.py`
 
-Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media type, then `/movie/{id}?append_to_response=credits` (movie) or `/tv/{id}` (TV).
+Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media type, then delegates to `_fetch_movie_details` (movie) or `_fetch_tv_details` (tv show and cartoon).
+
+- **`_fetch_movie_details`** — fetches `/movie/{id}?append_to_response=credits`.
+- **`_fetch_tv_details`** — fetches `/tv/{id}`. Used for tv show and cartoon entries.
 
 **Rate limiting:** Global `TMDbRateLimiter` singleton — sliding window, 40 requests / 10 seconds.
 **Retry:** 5 attempts, exponential backoff 2–10s. Retries on `RequestException` or `RateLimitExceeded`. Returns `None` on 404 or >= 500.
@@ -600,7 +603,7 @@ Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media typ
 
 ### OMDb Fetch — `fetch_omdb_data(imdb_id)` in `services/omdb.py`
 
-Fetches `GET http://www.omdbapi.com/?i=tt{id}&apikey={key}`.
+Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com/?i=tt{id}&apikey={key}`.
 
 **Rate limiting:** Global `OMDbRateLimiter` singleton — sliding window daily quota, 1000 requests / 24 hours.
 **Retry:** 5 attempts, exponential backoff 2–10s. Returns `None` on `Response: False`, 401, or >= 500.
@@ -619,12 +622,12 @@ Merges results from both APIs into one flat dict for the Movie model.
 
 ### TMDB Conversion for Movie — `map_tmdb_to_movie_data(raw)` in `utils/tmdb_utils.py`
 
-| Output Field       | TMDB Source                                           |
-| ------------------ | ----------------------------------------------------- |
-| `length_min`       | `runtime`                                             |
-| `release_date_usa` | `release_date` (parsed to `"MON YYYY"` format)        |
-| `director`         | `credits.crew[]` — first member with job `"Director"` |
-| `cover_image_url`  | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix       |
+| Output Field       | TMDB Source                                                            |
+| ------------------ | ---------------------------------------------------------------------- |
+| `length_min`       | `runtime`                                                              |
+| `release_date_usa` | `_convert_tmdb_date(release_date)` — parsed to `"MON YYYY"` format     |
+| `director`         | `_extract_director(credits.crew)` — first member with job `"Director"` |
+| `cover_image_url`  | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix                        |
 
 ---
 
@@ -640,10 +643,10 @@ Merges results from both APIs into one flat dict for the Movie model.
 
 ### TMDB Conversion for TV Show — `map_tmdb_to_tv_show_data(raw)` in `utils/tmdb_utils.py`
 
-| Output Field      | TMDB Source      |
-| ----------------- | ---------------- |
-| `release_date`    | `first_air_date` |
-| `cover_image_url` | `poster_path`    |
+| Output Field      | TMDB Source                                     |
+| ----------------- | ----------------------------------------------- |
+| `release_date`    | `_convert_tmdb_date(first_air_date)`            |
+| `cover_image_url` | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix |
 
 ---
 
@@ -653,14 +656,26 @@ Merges results from both APIs into one flat dict for the Movie model.
 | ------------- | ------------ |
 | `imdb_rating` | `imdbRating` |
 
+`"N/A"` → `None`.
+
 ---
 
 ### TMDB Conversion for Cartoon — `map_tmdb_to_cartoon_data(raw)` in `utils/tmdb_utils.py`
 
-| Output Field      | TMDB Source      |
-| ----------------- | ---------------- |
-| `release_date`    | `first_air_date` |
-| `cover_image_url` | `poster_path`    |
+| Output Field      | TMDB Source                                     |
+| ----------------- | ----------------------------------------------- |
+| `release_date`    | `_convert_tmdb_date(first_air_date)`            |
+| `cover_image_url` | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix |
+
+---
+
+### OMDB Conversion for Cartoon — `map_omdb_to_cartoon_data(raw)` in `utils/omdb_utils.py`
+
+| Output Field  | OMDb Source  |
+| ------------- | ------------ |
+| `imdb_rating` | `imdbRating` |
+
+`"N/A"` → `None`.
 
 ---
 
