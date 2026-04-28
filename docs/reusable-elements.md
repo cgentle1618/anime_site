@@ -227,17 +227,24 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Movie Entry Card
 
-**File:** `frontend/src/components/MovieCard.jsx`
+**First Type** — `frontend/src/components/MovieCard.jsx` — used on Movie Library, Search page
 
-Single card type used on Movie Library, Search, and Future Releases (Movie tab).
-
-- Poster (aspect 3:4, cover image from GCS or `/static/covers/`)
-- My Rating badge (yellow, top-left) — hidden if null
-- IMDb Rating badge (yellow-500, top-right) — hidden if null or "N/A"
+- Poster (aspect 3:4)
+- My Rating (hidden if null)
+- IMDb Rating (hidden if null or "N/A")
 - Movie Name CN (fallback: EN → Alt)
-- Length (formatted as `Hr + min`) — hidden if null
-- Release Date USA — hidden if null
-- Status toggle button _(admin only)_ — cycles watching status via `PATCH /api/movies/:id`
+- Length (Hr + min) — hidden if null
+- Release Year USA (fallback: TW) — hidden if null
+- - button _(admin only)_ — cycles watching status via `PATCH /api/movies/:id`
+- Clicking card navigates to `/movie/:system_id`
+
+**Second Type** — `frontend/src/components/MovieCardFuture.jsx` — used on Future Release page (Movie tab)
+
+- Poster (aspect 3:4)
+- Movie Name CN (fallback: EN → Alt)
+- Length (Hr + min) — hidden if null
+- Release Year USA (fallback: TW)
+- Mark as Airing button _(admin only)_ — sets `airing_status` to "Airing" via `PATCH /api/movies/:id`; removes entry from list on success
 - Clicking card navigates to `/movie/:system_id`
 
 ---

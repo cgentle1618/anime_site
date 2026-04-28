@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import AnimeCardFuture from "../components/AnimeCardFuture";
 import AnimeMovieCard from "../components/AnimeMovieCard";
-import MovieCard from "../components/MovieCard";
+import MovieCardFuture from "../components/MovieCardFuture";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -202,9 +202,12 @@ export default function FutureReleases() {
   }, []);
 
   const handleLiveMovieUpdated = useCallback((updated) => {
-    setAllLiveMovies((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
-    );
+    setAllLiveMovies((prev) => {
+      if (updated.airing_status === "Airing") {
+        return prev.filter((m) => m.system_id !== updated.system_id);
+      }
+      return prev.map((m) => (m.system_id === updated.system_id ? updated : m));
+    });
   }, []);
 
   const filtered = allAnime.filter((a) => {
@@ -492,7 +495,7 @@ export default function FutureReleases() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {liveMovieGroups[year].map((movie) => (
-                      <MovieCard
+                      <MovieCardFuture
                         key={movie.system_id}
                         movie={movie}
                         isAdmin={isAdmin}
