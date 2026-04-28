@@ -199,24 +199,3 @@ def delete_movie(
     db.delete(entry)
     db.commit()
     return {"status": "success", "message": "Movie entry deleted successfully."}
-
-
-@router.post(
-    "/{movie_id}/autofill",
-    response_model=schemas.MovieResponse,
-    summary="Autofill Movie from IMDb",
-)
-async def autofill_movie(
-    movie_id: str,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    result = await execute_replace_single_movie(
-        db, movie_id, action_type="Manual", log_action=True
-    )
-    if result.get("status") == "error":
-        status_code = result.get("status_code", 400)
-        raise HTTPException(status_code=status_code, detail=result.get("message"))
-
-    entry = db.query(models.Movies).filter(models.Movies.system_id == movie_id).first()
-    return entry
