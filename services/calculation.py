@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime, AnimeMovies
+from models import Anime, AnimeMovies, Movies
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
@@ -32,21 +32,37 @@ from services.other_logics import (
 
 def bulk_check_unused_cover_images(db: Session) -> dict:
     all_files = set(list_all_cover_images())
-    referenced = {
-        row[0]
-        for row in db.query(Anime.cover_image_file)
-        .filter(Anime.cover_image_file.isnot(None))
-        .all()
-    }
-    anime_map = {str(a.system_id): a for a in db.query(Anime).all()}
+    referenced = (
+        {
+            row[0]
+            for row in db.query(Anime.cover_image_file)
+            .filter(Anime.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
+            for row in db.query(AnimeMovies.cover_image_file)
+            .filter(AnimeMovies.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
+            for row in db.query(Movies.cover_image_file)
+            .filter(Movies.cover_image_file.isnot(None))
+            .all()
+        }
+    )
+    entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
+    entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
 
     should_use = []
     orphaned = []
     for filename in sorted(all_files - referenced):
         stem = filename[:-4] if filename.endswith(".jpg") else filename
-        if stem in anime_map:
-            a = anime_map[stem]
-            should_use.append({"system_id": stem, "name": a.display_name or stem})
+        if stem in entry_map:
+            e = entry_map[stem]
+            should_use.append({"system_id": stem, "name": e.display_name or stem})
         else:
             orphaned.append(filename)
 
@@ -63,24 +79,51 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
 def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dict:
     unused_result = bulk_check_unused_cover_images(db)
 
+    missing = []
+
     query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
     if entry_type:
         query = query.filter(Anime.airing_type == entry_type)
     animes = query.all()
-
-    missing = []
     for anime in animes:
         if not cover_image_exists(str(anime.system_id)):
             missing.append(
                 {
                     "system_id": str(anime.system_id),
                     "name": anime.display_name or str(anime.system_id),
-                    "airing_type": anime.airing_type,
+                    "entry_type": anime.airing_type,
                 }
             )
+
+    if not entry_type:
+        anime_movies = (
+            db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None)).all()
+        )
+        for am in anime_movies:
+            if not cover_image_exists(str(am.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(am.system_id),
+                        "name": am.display_name or str(am.system_id),
+                        "entry_type": "anime_movie",
+                    }
+                )
+
+        movies = db.query(Movies).filter(Movies.cover_image_file.isnot(None)).all()
+        for m in movies:
+            if not cover_image_exists(str(m.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(m.system_id),
+                        "name": m.display_name or str(m.system_id),
+                        "entry_type": "movie",
+                    }
+                )
+
+    total_checked = len(animes) + (0 if entry_type else len(anime_movies) + len(movies))
     return {
         "status": "success",
-        "total_checked": len(animes),
+        "total_checked": total_checked,
         "missing_count": len(missing),
         "missing": missing,
         "entry_type": entry_type,
