@@ -118,15 +118,6 @@ def extract_imdb_id(url: str) -> Optional[int]:
     return None
 
 
-def apply_extract_imdb_id(movie) -> bool:
-    """Extracts IMDb ID from imdb_link and writes it to imdb_id. Returns True if set."""
-    imdb_id = extract_imdb_id(movie.imdb_link)
-    if imdb_id:
-        movie.imdb_id = imdb_id
-        return True
-    return False
-
-
 def extract_mal_id_anime(url: str) -> Optional[int]:
     """
     Extracts the numeric ID from a standard MyAnimeList URL.

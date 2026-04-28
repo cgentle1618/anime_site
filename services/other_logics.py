@@ -27,10 +27,10 @@ from utils.utils import (
     ANIME_MOVIE_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     extract_mal_id_anime,
+    extract_imdb_id,
     extract_season_from_title,
     calculate_seasonal_from_month,
     validate_episode_math,
-    apply_extract_imdb_id,
 )
 from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
 from utils.tmdb_utils import map_imdb_to_movie_data
@@ -791,6 +791,15 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     mal_id = extract_mal_id_anime(anime.mal_link)
     if mal_id:
         anime.mal_id = mal_id
+        return True
+    return False
+
+
+def apply_extract_imdb_id(movie) -> bool:
+    """Extracts IMDb ID from imdb_link and writes it to imdb_id. Returns True if set."""
+    imdb_id = extract_imdb_id(movie.imdb_link)
+    if imdb_id:
+        movie.imdb_id = imdb_id
         return True
     return False
 

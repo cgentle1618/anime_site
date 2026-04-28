@@ -25,7 +25,6 @@ from utils.formatter import (
     parse_system_option_from_sheet,
 )
 from utils.data_control_utils import log_data_control
-from utils.utils import apply_extract_imdb_id
 
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
@@ -39,6 +38,7 @@ from services.other_logics import (
     apply_single_replace_anime_movie,
     apply_single_replace_movie,
     apply_extract_mal_id_anime,
+    apply_extract_imdb_id,
     anime_post_processing,
     anime_movie_post_processing,
     derive_related,
