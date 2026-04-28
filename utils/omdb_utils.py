@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # ==========================================
 
 
-def _parse_imdb_rating(rating_str: Optional[str]) -> Optional[str]:
+def _convert_imdb_rating(rating_str: Optional[str]) -> Optional[str]:
     """Returns the rating string as-is, or None if missing or 'N/A'."""
     if not rating_str or rating_str.strip() == "N/A":
         return None
@@ -33,7 +33,7 @@ def map_omdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     Extracts OMDb fields relevant to the Movies model.
     """
     return {
-        "imdb_rating": _parse_imdb_rating(raw_data.get("imdbRating")),
+        "imdb_rating": _convert_imdb_rating(raw_data.get("imdbRating")),
     }
 
 
@@ -42,5 +42,5 @@ def map_omdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     Extracts OMDb fields relevant to the TvShows model.
     """
     return {
-        "imdb_rating": _parse_imdb_rating(raw_data.get("imdbRating")),
+        "imdb_rating": _convert_imdb_rating(raw_data.get("imdbRating")),
     }
