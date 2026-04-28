@@ -411,7 +411,7 @@ class Movies(Base, NameFallbackMixin):
     sequel_id = Column(UUID(as_uuid=True), nullable=True)
     watch_order = Column(Float, nullable=True)
 
-    imdb_id = Column(Integer, nullable=True)
+    imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)
 
     source_other = Column(JSONB, default=None, nullable=True)

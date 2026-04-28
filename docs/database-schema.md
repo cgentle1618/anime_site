@@ -384,10 +384,10 @@ Live-action and animated movie entries.
 
 #### External Links
 
-| Column      | Type    | Nullable |
-| ----------- | ------- | -------- |
-| `imdb_id`   | Integer | Yes      |
-| `imdb_link` | String  | Yes      |
+| Column      | Type   | Nullable |
+| ----------- | ------ | -------- |
+| `imdb_id`   | String | Yes      |
+| `imdb_link` | String | Yes      |
 
 #### Sources
 
@@ -470,10 +470,10 @@ Live-action and scripted TV show entries.
 
 #### External Links
 
-| Column      | Type    | Nullable |
-| ----------- | ------- | -------- |
-| `imdb_id`   | Integer | Yes      |
-| `imdb_link` | String  | Yes      |
+| Column      | Type   | Nullable |
+| ----------- | ------ | -------- |
+| `imdb_id`   | String | Yes      |
+| `imdb_link` | String | Yes      |
 
 #### Sources
 
@@ -557,10 +557,10 @@ Western animated TV show entries.
 
 #### External Links
 
-| Column      | Type    | Nullable |
-| ----------- | ------- | -------- |
-| `imdb_id`   | Integer | Yes      |
-| `imdb_link` | String  | Yes      |
+| Column      | Type   | Nullable |
+| ----------- | ------ | -------- |
+| `imdb_id`   | String | Yes      |
+| `imdb_link` | String | Yes      |
 
 #### Sources
 

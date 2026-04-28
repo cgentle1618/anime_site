@@ -70,9 +70,9 @@ class RateLimitExceeded(Exception):
     ),
     reraise=False,
 )
-def fetch_omdb_data(imdb_id: int) -> Optional[Dict[str, Any]]:
+def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
     """
-    Fetches title data from OMDb by IMDb integer ID.
+    Fetches title data from OMDb by IMDb ID (e.g. 'tt1234567').
     Used to retrieve imdb_rating, which TMDB does not provide.
     Includes daily quota tracking and exponential backoff retry.
     """
@@ -86,8 +86,7 @@ def fetch_omdb_data(imdb_id: int) -> Optional[Dict[str, Any]]:
 
     omdb_rate_limiter.wait_if_needed()
 
-    imdb_tt_id = f"tt{imdb_id:07d}"
-    params = {"i": imdb_tt_id, "apikey": api_key}
+    params = {"i": imdb_id, "apikey": api_key}
 
     try:
         response = requests.get(OMDB_BASE_URL, params=params, timeout=15)

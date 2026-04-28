@@ -105,16 +105,16 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
 # ==========================================
 
 
-def extract_imdb_id(url: str) -> Optional[int]:
+def extract_imdb_id(url: str) -> Optional[str]:
     """
-    Extracts the numeric ID from a standard IMDb URL.
+    Extracts the IMDb ID (e.g. 'tt1234567') from a standard IMDb URL.
     Returns None if the URL is invalid or the ID cannot be found.
     """
     if not url:
         return None
     match = IMDB_ID_PATTERN.search(url)
     if match:
-        return int(match.group(1))
+        return f"tt{match.group(1)}"
     return None
 
 

@@ -794,7 +794,7 @@ export default function Add() {
       release_date_usa: mf.release_date_usa || null,
       release_date_tw: mf.release_date_tw || null,
       director: mf.director || null,
-      imdb_id: mf.imdb_id !== "" ? parseInt(mf.imdb_id) : null,
+      imdb_id: mf.imdb_id !== "" ? mf.imdb_id : null,
       imdb_link: mf.imdb_link || null,
       source_other:
         mf.source_other.filter((e) => e.name.trim()).length > 0
@@ -2264,13 +2264,13 @@ export default function Add() {
 
             <SectionHeader icon="fa-link" title="IMDb & Sources" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="IMDb ID" hint="Numeric ID only (e.g. 1234567)">
+              <Field label="IMDb ID" hint="Full IMDb ID (e.g. tt1234567)">
                 <input
                   className={inputCls}
-                  type="number"
+                  type="text"
                   value={mf.imdb_id}
                   onChange={(e) => umf("imdb_id", e.target.value)}
-                  placeholder="1234567"
+                  placeholder="tt1234567"
                 />
               </Field>
               <Field label="IMDb Link">

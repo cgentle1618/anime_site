@@ -173,9 +173,9 @@ def _fetch_tv_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]:
     ),
     reraise=False,
 )
-def fetch_tmdb_data(imdb_id: int) -> Optional[Dict[str, Any]]:
+def fetch_tmdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
     """
-    Fetches title details from TMDB by IMDb integer ID.
+    Fetches title details from TMDB by IMDb ID (e.g. 'tt1234567').
     Makes two API calls: Find (IMDb ID → TMDB ID + media type),
     then Details (movie with credits, or TV without).
     Returns raw TMDB dict with '_media_type' key ('movie' or 'tv'), or None.
@@ -187,9 +187,7 @@ def fetch_tmdb_data(imdb_id: int) -> Optional[Dict[str, Any]]:
     if not api_key:
         return None
 
-    imdb_tt_id = f"tt{imdb_id:07d}"
-
-    find_result = _find_tmdb_id(imdb_tt_id, api_key)
+    find_result = _find_tmdb_id(imdb_id, api_key)
     if not find_result:
         return None
 

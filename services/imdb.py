@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def fetch_imdb_data(imdb_id: int) -> dict:
+def fetch_imdb_data(imdb_id: str) -> dict:
     """
     Orchestrates TMDB + OMDb fetches for a single IMDb ID.
     Both calls run regardless of individual failure.

@@ -294,7 +294,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
-        "imdb_id": parse_from_sheet(raw.get("imdb_id"), int),
+        "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": (_safe_json(raw.get("source_other"))),
         "watch_next": parse_from_sheet(raw.get("watch_next"), bool),

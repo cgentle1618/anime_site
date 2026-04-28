@@ -331,7 +331,7 @@ class MovieBase(BaseModel):
     sequel_id: Optional[UUID] = None
     watch_order: Optional[float] = None
 
-    imdb_id: Optional[int] = None
+    imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
 
     source_other: Optional[dict] = None

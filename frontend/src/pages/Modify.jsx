@@ -314,7 +314,9 @@ export default function Modify() {
 
   function liveMovieToForm(m, allFranchises, seriesList) {
     const f = allFranchises.find((x) => x.system_id === m.franchise_id);
-    const s = (seriesList || allSeries).find((x) => x.system_id === m.series_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === m.series_id,
+    );
     return {
       movie_name_en: m.movie_name_en || "",
       movie_name_cn: m.movie_name_cn || "",
@@ -350,7 +352,8 @@ export default function Modify() {
     else if (type === "franchise") setFf(franchiseToForm(item));
     else if (type === "series") setSf(seriesToForm(item, franchises));
     else if (type === "anime-movie") setAmf(movieToForm(item, franchises));
-    else if (type === "movie") setMmf(liveMovieToForm(item, franchises, series));
+    else if (type === "movie")
+      setMmf(liveMovieToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -764,7 +767,7 @@ export default function Modify() {
       release_date_usa: mmf.release_date_usa || null,
       release_date_tw: mmf.release_date_tw || null,
       director: mmf.director || null,
-      imdb_id: mmf.imdb_id !== "" ? parseInt(mmf.imdb_id) : null,
+      imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
       source_other:
         mmf.source_other.filter((e) => e.name.trim()).length > 0
@@ -910,17 +913,25 @@ export default function Modify() {
         )
       : [];
 
-  const EXCLUDED_MOVIE_FRANCHISE_NAMES = ["獨立電影", "影集", "Disney", "Marvel"];
+  const EXCLUDED_MOVIE_FRANCHISE_NAMES = [
+    "獨立電影",
+    "影集",
+    "Disney",
+    "Marvel",
+  ];
   const movieRibbon = (() => {
     if (editingType !== "movie" || !mmf.franchise_id) return [];
-    const franchise = allFranchises.find((f) => f.system_id === mmf.franchise_id);
+    const franchise = allFranchises.find(
+      (f) => f.system_id === mmf.franchise_id,
+    );
     if (!franchise) return [];
     const names = [
       franchise.franchise_name_cn,
       franchise.franchise_name_en,
       franchise.franchise_name_alt,
     ].filter(Boolean);
-    if (names.some((n) => EXCLUDED_MOVIE_FRANCHISE_NAMES.includes(n))) return [];
+    if (names.some((n) => EXCLUDED_MOVIE_FRANCHISE_NAMES.includes(n)))
+      return [];
     return allMovies.filter(
       (m) =>
         m.franchise_id === mmf.franchise_id &&
@@ -1253,7 +1264,10 @@ export default function Modify() {
                   onClick={() => openEditor(m, "movie")}
                   className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
                 >
-                  {m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "Unknown"}
+                  {m.movie_name_cn ||
+                    m.movie_name_en ||
+                    m.movie_name_alt ||
+                    "Unknown"}
                 </button>
               );
               return (
@@ -2810,9 +2824,10 @@ export default function Modify() {
                   <Field label="IMDb ID">
                     <input
                       className={inputCls}
-                      type="number"
+                      type="text"
                       value={mmf.imdb_id ?? ""}
                       onChange={(e) => umm("imdb_id", e.target.value)}
+                      placeholder="tt1234567"
                     />
                   </Field>
                   <Field label="IMDb Link">
