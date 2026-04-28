@@ -38,13 +38,13 @@ export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
       const res = await fetch(`/api/anime-movie/${movie.system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ airing_status: "Airing" }),
+        body: JSON.stringify({ airing_status: "Finished Airing" }),
         credentials: "include",
       });
       if (res.ok) {
         const updated = await res.json();
         onUpdated?.(updated);
-        showToast("success", `${title} marked as Airing`);
+        showToast("success", `${title} marked as Finished Airing`);
       } else {
         showToast("error", "Update failed");
       }
