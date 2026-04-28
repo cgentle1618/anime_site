@@ -18,6 +18,7 @@ from database import get_taipei_now
 from models import Anime, AnimeMovies, Movies, Franchise, Series, Seasonal, SystemOption
 
 from services.jikan import fetch_jikan_anime_data
+from services.imdb import fetch_imdb_data
 from services.image_manager import download_cover_image
 
 from utils.utils import (
@@ -1135,7 +1136,6 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         return
 
     try:
-        from services.tmdb import fetch_imdb_data
 
         result = fetch_imdb_data(movie.imdb_id)
         tmdb_raw = result.get("tmdb_raw")
