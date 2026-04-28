@@ -4,8 +4,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 import InfoCard from "../components/InfoCard";
-import NamingCard from "../components/NamingCard";
+import MovieNamingCard from "../components/MovieNamingCard";
 import SourcesCard from "../components/SourcesCard";
+import SeriesModal from "../components/SeriesModal";
 import MovieNotes from "./MovieNotes";
 
 const WATCHING_STATUSES = [
@@ -39,23 +40,32 @@ export default function Movie() {
 
   const [movie, setMovie] = useState(null);
   const [franchise, setFranchise] = useState(null);
+  const [series, setSeries] = useState(null);
+  const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [mRes, fRes] = await Promise.all([
+      const [mRes, fRes, sRes] = await Promise.all([
         fetch(`/api/movies/${system_id}`, { credentials: "include" }),
         fetch("/api/franchise/", { credentials: "include" }),
+        fetch("/api/series/", { credentials: "include" }),
       ]);
       if (!mRes.ok) throw new Error("Movie not found");
       const m = await mRes.json();
       const allFranchises = await fRes.json();
+      const allSeries = await sRes.json();
       setMovie(m);
       setFranchise(
         m.franchise_id
           ? allFranchises.find((f) => f.system_id === m.franchise_id) || null
+          : null,
+      );
+      setSeries(
+        m.series_id
+          ? allSeries.find((s) => s.system_id === m.series_id) || null
           : null,
       );
     } catch (e) {
@@ -317,7 +327,7 @@ export default function Movie() {
               </h2>
             )}
 
-            {/* Franchise Bar */}
+            {/* Franchise / Series Bar */}
             <div className="flex items-center gap-4 text-sm text-gray-500 bg-gray-50 py-2 px-3 rounded-lg border border-gray-200 mb-6">
               {franchise ? (
                 <span>
@@ -333,6 +343,22 @@ export default function Movie() {
                 <span className="text-gray-400">
                   <i className="fas fa-unlink mr-1.5"></i>No Franchise
                 </span>
+              )}
+              {series && (
+                <>
+                  <div className="hidden sm:block text-gray-300">|</div>
+                  <span>
+                    <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
+                    <button
+                      onClick={() => setShowSeriesModal(true)}
+                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition bg-transparent border-none cursor-pointer p-0"
+                    >
+                      {series.series_name_cn ||
+                        series.series_name_en ||
+                        series.series_name_alt}
+                    </button>
+                  </span>
+                </>
               )}
             </div>
 
@@ -421,7 +447,7 @@ export default function Movie() {
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard
+            <MovieNamingCard
               cn={movie.movie_name_cn}
               en={movie.movie_name_en}
               alt={movie.movie_name_alt}
@@ -481,6 +507,14 @@ export default function Movie() {
           />
         </div>
       </div>
+
+      {showSeriesModal && series && (
+        <SeriesModal
+          series={series}
+          isAdmin={isAdmin}
+          onClose={() => setShowSeriesModal(false)}
+        />
+      )}
     </div>
   );
 }

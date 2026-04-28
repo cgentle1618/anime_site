@@ -399,6 +399,8 @@ The reusable elements used in the entry detail pages.
 
 ### Naming Card
 
+**File:** `frontend/src/components/NamingCard.jsx`
+
 Anime / Anime Movie / Manga / Novel Naming Card
 
 - Entry CN Name
@@ -406,6 +408,10 @@ Anime / Anime Movie / Manga / Novel Naming Card
 - Entry Entry Name JP
 - Entry Entry Name Romaji
 - Entry Alt Name
+
+### Movie Naming Card
+
+**File:** `frontend/src/components/MovieNamingCard.jsx`
 
 Movie / TV Show / Cartoon Naming Card
 

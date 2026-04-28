@@ -312,14 +312,17 @@ export default function Modify() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  function liveMovieToForm(m, allFranchises) {
+  function liveMovieToForm(m, allFranchises, seriesList) {
     const f = allFranchises.find((x) => x.system_id === m.franchise_id);
+    const s = (seriesList || allSeries).find((x) => x.system_id === m.series_id);
     return {
       movie_name_en: m.movie_name_en || "",
       movie_name_cn: m.movie_name_cn || "",
       movie_name_alt: m.movie_name_alt || "",
       franchise_id: m.franchise_id || null,
       franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: m.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
       airing_status: m.airing_status || "",
       watching_status: m.watching_status || "Might Watch",
       my_rating: m.my_rating || "",
@@ -347,7 +350,7 @@ export default function Modify() {
     else if (type === "franchise") setFf(franchiseToForm(item));
     else if (type === "series") setSf(seriesToForm(item, franchises));
     else if (type === "anime-movie") setAmf(movieToForm(item, franchises));
-    else if (type === "movie") setMmf(liveMovieToForm(item, franchises));
+    else if (type === "movie") setMmf(liveMovieToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -711,11 +714,48 @@ export default function Modify() {
       franchiseId = nf.system_id;
       setAllFranchises((prev) => [...prev, nf]);
     }
+    let seriesId = mmf.series_id;
+    if (!seriesId && (mmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: mmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: mmf.movie_name_en || null,
+          series_name_cn: mmf.movie_name_cn || null,
+          series_name_alt: mmf.movie_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
     const payload = {
       movie_name_en: mmf.movie_name_en || null,
       movie_name_cn: mmf.movie_name_cn || null,
       movie_name_alt: mmf.movie_name_alt || null,
       franchise_id: franchiseId || null,
+      series_id: seriesId || null,
       airing_status: mmf.airing_status || null,
       watching_status: mmf.watching_status || "Might Watch",
       my_rating: mmf.my_rating || null,
@@ -757,7 +797,7 @@ export default function Modify() {
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     setEditingItem(updated);
-    setMmf(liveMovieToForm(updated, allFranchises));
+    setMmf(liveMovieToForm(updated, allFranchises, allSeries));
     window.scrollTo(0, 0);
     showToast("success", "Movie updated and enriched successfully.");
   }
@@ -904,6 +944,17 @@ export default function Modify() {
   const seriesItemsForAnime = (
     af.franchise_id
       ? allSeries.filter((s) => s.franchise_id === af.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForMovie = (
+    mmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === mmf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -2578,16 +2629,43 @@ export default function Modify() {
                     onSelect={(id, label) => {
                       umm("franchise_id", id);
                       umm("franchise_text", label);
+                      umm("series_id", null);
+                      umm("series_text", "");
                     }}
                     onType={(text) => {
                       umm("franchise_text", text);
                       umm("franchise_id", null);
+                      umm("series_id", null);
+                      umm("series_text", "");
                     }}
                     onClear={() => {
                       umm("franchise_id", null);
                       umm("franchise_text", "");
+                      umm("series_id", null);
+                      umm("series_text", "");
                     }}
                     placeholder="Search franchise..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Series">
+                  <ComboBox
+                    items={seriesItemsForMovie}
+                    selectedId={mmf.series_id}
+                    inputText={mmf.series_text || ""}
+                    onSelect={(id, label) => {
+                      umm("series_id", id);
+                      umm("series_text", label);
+                    }}
+                    onType={(text) => {
+                      umm("series_text", text);
+                      umm("series_id", null);
+                    }}
+                    onClear={() => {
+                      umm("series_id", null);
+                      umm("series_text", "");
+                    }}
+                    placeholder="Search or type new series..."
                     allowNew
                   />
                 </Field>

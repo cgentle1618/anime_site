@@ -238,6 +238,7 @@ Full detail page for a single movie entry.
 
 - `GET /api/movies/:system_id`
 - `GET /api/franchise/`
+- `GET /api/series/`
 
 **Admin Controls Block** (admin only):
 
@@ -258,6 +259,7 @@ Full detail page for a single movie entry.
 - Main Title: Movie Name CN (with fallback to EN → Alt)
 - Sub Title: Movie Name EN (shown only when CN is the main title)
 - From Franchise: Franchise Name CN with fallback (navigates to `/franchise/:id`)
+- From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
 - IMDb Score block (replaces Score Block — shows `imdb_rating` and Last Updated time)
 
 **My Tracker section:**
@@ -267,7 +269,7 @@ Full detail page for a single movie entry.
 
 **Detail cards:**
 
-- **Naming Card** (reusable): CN, EN, Alt
+- **Movie Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): Airing Status, Movie Type, Length, Director, Release Date USA, Release Date TW
 - Remarks — shown when `remark` is not null (admin editable via blur)
 - **MovieNotes** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor always rendered at the bottom; sections: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes; saves via `PATCH /api/movies/:id` with `notes` field.
@@ -982,7 +984,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 
 #### Add New Movie Entry Tab
 
-- **Titles & Naming:** Franchise (ComboBox, filtered to `franchise_type = "TV or Movie"`), Movie Name EN (primary), Movie Name CN, Movie Name Alt
+- **Titles & Naming:** Franchise (ComboBox, filtered to `franchise_type = "TV or Movie"`), Series (ComboBox + auto-create modal, filtered by selected franchise), Movie Name EN (primary), Movie Name CN, Movie Name Alt
 - **Status & Classification:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), Movie Type (Reality / Animation), My Rating
 - **Release & Production:** Release Date USA, Release Date TW, Length (Min), Director
 - **IMDb & Sources:** IMDb ID (numeric), IMDb Link, Other Sources (name → URL pairs)
@@ -1073,7 +1075,7 @@ Writes: `PATCH /api/options/:id`
 
 - Search bar (searches Movie Name EN/CN/Alt); recently modified entries shown by `updated_at` desc
 - After selecting: Other Entries in franchise block (grouped by series) — show Movie Name CN with fallback; hidden for 獨立電影, 影集, Disney, Marvel franchises
-- Full edit form — same fields as Add Movie tab
+- Full edit form — same fields as Add Movie tab (includes Series ComboBox + auto-create modal)
 - Franchise ComboBox filtered to `franchise_type = "TV or Movie"`
 - Structured Notes section at the bottom (`MovieNotes`): Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
 - Save Changes Button

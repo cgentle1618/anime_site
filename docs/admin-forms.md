@@ -95,6 +95,12 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 - Supports searching existing franchises filtered to `franchise_type = "TV or Movie"` or typing a new name.
 - Franchise is optional (can leave blank).
+- Changing franchise clears the series field.
+
+**Series field**
+
+- Supports searching existing series (filtered by selected franchise) or typing a new name.
+- Series is optional.
 
 **Form defaults**
 | Field | Default |
@@ -105,14 +111,19 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 **On submit**
 
 1. If franchise text was typed but no existing franchise selected → show Franchise Generation modal.
-2. Auto-generate `system_id`, `created_at`, `updated_at`.
-3. `POST /api/movies/` — which internally triggers `execute_replace_single_movie` (IMDb autofill pipeline).
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Auto-generate `system_id`, `created_at`, `updated_at`.
+4. `POST /api/movies/` — which internally triggers `execute_replace_single_movie` (IMDb autofill pipeline).
 
 **Franchise Generation modal**
 
 - User selects Franchise Expectation (default: Low) and optionally adds a remark.
 - Franchise is created using Movie Name EN/CN/Alt fields from the form.
 - `franchise_type` is set to `"TV or Movie"`.
+
+**Series Generation modal**
+
+- Series is created using all anime name fields filled in the form (the text typed in the Series field is ignored for name generation).
 
 ---
 
@@ -185,14 +196,22 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 **Franchise field**
 
 - Supports searching existing franchises filtered to `franchise_type = "TV or Movie"` or typing a new name.
+- Changing franchise clears the series field.
+
+**Series field**
+
+- Supports searching existing series (filtered by selected franchise) or typing a new name.
 
 **On submit**
 
 1. If no existing franchise was selected and franchise text is non-blank → show Franchise Generation modal.
-2. Update all fields and refresh `updated_at`.
-3. `PUT /api/movies/:id` — which internally triggers `execute_replace_single_movie` (IMDb autofill pipeline).
+2. If no existing series was selected and series text is non-blank → show Series Generation modal.
+3. Update all fields and refresh `updated_at`.
+4. `PUT /api/movies/:id` — which internally triggers `execute_replace_single_movie` (IMDb autofill pipeline).
 
 **Franchise Generation modal** — names from Movie Name EN/CN/Alt fields; `franchise_type = "TV or Movie"`.
+
+**Series Generation modal** — series is created using Movie Name EN/CN/Alt fields from the form.
 
 **Deep-link:** Movie detail page Quick Edit button navigates to `/modify?id=:uuid&type=movie`, which pre-selects and opens the movie editor directly.
 

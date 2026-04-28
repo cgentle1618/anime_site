@@ -103,6 +103,8 @@ const defaultMovie = () => ({
   movie_name_alt: "",
   franchise_id: null,
   franchise_text: "",
+  series_id: null,
+  series_text: "",
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
   my_rating: "",
@@ -741,11 +743,49 @@ export default function Add() {
       setAllFranchises((prev) => [...prev, nf]);
     }
 
+    let seriesId = mf.series_id;
+    if (!seriesId && mf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: mf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: mf.movie_name_en || null,
+          series_name_cn: mf.movie_name_cn || null,
+          series_name_alt: mf.movie_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
     const payload = {
       movie_name_en: mf.movie_name_en || null,
       movie_name_cn: mf.movie_name_cn || null,
       movie_name_alt: mf.movie_name_alt || null,
       franchise_id: franchiseId || null,
+      series_id: seriesId || null,
       airing_status: mf.airing_status || null,
       watching_status: mf.watching_status || "Might Watch",
       my_rating: mf.my_rating || null,
@@ -806,6 +846,17 @@ export default function Add() {
   const seriesItems = (
     activeTab === "anime" && af.franchise_id
       ? allSeries.filter((s) => s.franchise_id === af.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForMovie = (
+    mf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === mf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -2015,7 +2066,10 @@ export default function Add() {
             <Field label="Franchise">
               <ComboBox
                 items={allFranchises
-                  .filter((f) => f.franchise_type === "TV or Movie" || !f.franchise_type)
+                  .filter(
+                    (f) =>
+                      f.franchise_type === "TV or Movie" || !f.franchise_type,
+                  )
                   .map((f) => ({
                     id: f.system_id,
                     label: getDisplayName(f, "franchise"),
@@ -2032,16 +2086,43 @@ export default function Add() {
                 onSelect={(id, label) => {
                   umf("franchise_id", id);
                   umf("franchise_text", label);
+                  umf("series_id", null);
+                  umf("series_text", "");
                 }}
                 onType={(text) => {
                   umf("franchise_text", text);
                   umf("franchise_id", null);
+                  umf("series_id", null);
+                  umf("series_text", "");
                 }}
                 onClear={() => {
                   umf("franchise_id", null);
                   umf("franchise_text", "");
+                  umf("series_id", null);
+                  umf("series_text", "");
                 }}
                 placeholder="Search or type new franchise..."
+                allowNew
+              />
+            </Field>
+            <Field label="Series">
+              <ComboBox
+                items={seriesItemsForMovie}
+                selectedId={mf.series_id}
+                inputText={mf.series_text}
+                onSelect={(id, label) => {
+                  umf("series_id", id);
+                  umf("series_text", label);
+                }}
+                onType={(text) => {
+                  umf("series_text", text);
+                  umf("series_id", null);
+                }}
+                onClear={() => {
+                  umf("series_id", null);
+                  umf("series_text", "");
+                }}
+                placeholder="Search or type new series..."
                 allowNew
               />
             </Field>
@@ -2072,7 +2153,10 @@ export default function Add() {
               </Field>
             </div>
 
-            <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
+            <SectionHeader
+              icon="fa-chart-bar"
+              title="Status & Classification"
+            />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Field label="Airing Status">
                 <select
