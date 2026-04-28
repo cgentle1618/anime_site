@@ -1172,18 +1172,18 @@ def execute_pull_specific(
         clean_header_dict = parser(raw_header_dict)
 
         # Resolve String Foreign Keys -> Actual UUIDs
-        # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise if missing)
+        # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         if tab_name == "Movies" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
-            if fid is None or isinstance(fid, str):
-                name_fields = {
-                    "en": clean_header_dict.get("movie_name_en"),
-                    "cn": clean_header_dict.get("movie_name_cn"),
-                    "alt": clean_header_dict.get("movie_name_alt"),
-                }
-                clean_header_dict["franchise_id"] = resolve_movie_parent_hierarchy(
-                    db, fid, name_fields
-                )
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("movie_name_en"),
+                "cn": clean_header_dict.get("movie_name_cn"),
+                "alt": clean_header_dict.get("movie_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_movie_parent_hierarchy(db, fid, sid, name_fields)
+            )
         # Anime Movie uses resolve_anime_movie_parent_hierarchy (auto-creates franchise if missing)
         elif tab_name == "Anime Movie" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")

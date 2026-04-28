@@ -840,8 +840,20 @@ Ensures a valid `franchise_id` UUID for an Anime Movie during Pull.
 
 ### Resolve Parent for Movie — `resolve_movie_parent_hierarchy(db, franchise_id, series_id, names)`
 
-Ensures valid `franchise_id` and `series_id` UUIDs for a Movie during Pull.
+Ensures valid `franchise_id` and `series_id` UUIDs for a Movie. Used by the Pull pipeline and Create/Update endpoints.
 
-- Resolves `franchise_id` the same way as Anime Movie (with auto-create if missing).
-- Resolves `series_id`: returns the provided value only — **does not auto-create** a Series.
-- Returns `(final_franchise_id, final_series_id)`.
+**Franchise resolution** (same as Anime Movie):
+
+- Valid UUID object provided: use it as-is.
+- Null or string: search all franchise name fields (`ilike` on `en`, `cn`, `alt`).
+- Found: return existing UUID.
+- Not found: **auto-create** a new Franchise with `franchise_type="TV or Movie"`, flush, return new UUID.
+
+**Series resolution:**
+
+- Non-string (UUID object or null): pass through unchanged.
+- Non-empty string: search Series by name (`ilike` on `series_name_en`, `series_name_cn`, `series_name_alt`).
+  - Found: return existing UUID.
+  - Not found: set to `null` and log a warning. **Does not auto-create** a Series.
+
+Returns `(final_franchise_id, final_series_id)`.

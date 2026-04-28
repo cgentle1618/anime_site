@@ -88,9 +88,10 @@ async def create_movie(
     new_entry = models.Movies(**data.model_dump())
     new_entry.system_id = uuid.uuid4()
 
-    new_entry.franchise_id = resolve_movie_parent_hierarchy(
+    new_entry.franchise_id, new_entry.series_id = resolve_movie_parent_hierarchy(
         db,
         new_entry.franchise_id,
+        new_entry.series_id,
         {
             "en": new_entry.movie_name_en,
             "cn": new_entry.movie_name_cn,
@@ -131,9 +132,10 @@ async def update_movie(
     if data.watching_status == "Completed" and entry.completed_at is None:
         entry.completed_at = get_taipei_now()
 
-    entry.franchise_id = resolve_movie_parent_hierarchy(
+    entry.franchise_id, entry.series_id = resolve_movie_parent_hierarchy(
         db,
         entry.franchise_id,
+        entry.series_id,
         {
             "en": entry.movie_name_en,
             "cn": entry.movie_name_cn,
