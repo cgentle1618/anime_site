@@ -348,6 +348,17 @@ class AnimeMovies(Base, NameFallbackMixin):
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     @property
+    def names_dict(self) -> dict:
+        """Returns all name variations for hierarchy resolution."""
+        return {
+            "en": self.anime_movie_name_en,
+            "cn": self.anime_movie_name_cn,
+            "roman": self.anime_movie_name_roman,
+            "jp": self.anime_movie_name_jp,
+            "alt": self.anime_movie_name_alt,
+        }
+
+    @property
     def display_name(self) -> str:
         sequence = [
             ("CN", self.anime_movie_name_cn),
