@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import AnimeCardFuture from "../components/AnimeCardFuture";
-import AnimeMovieCard from "../components/AnimeMovieCard";
+import AnimeMovieCardFuture from "../components/AnimeMovieCardFuture";
 import MovieCardFuture from "../components/MovieCardFuture";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
@@ -196,9 +196,12 @@ export default function FutureReleases() {
   }, []);
 
   const handleMovieUpdated = useCallback((updated) => {
-    setAllAnimeMovies((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
-    );
+    setAllAnimeMovies((prev) => {
+      if (updated.airing_status === "Airing") {
+        return prev.filter((m) => m.system_id !== updated.system_id);
+      }
+      return prev.map((m) => (m.system_id === updated.system_id ? updated : m));
+    });
   }, []);
 
   const handleLiveMovieUpdated = useCallback((updated) => {
@@ -441,10 +444,9 @@ export default function FutureReleases() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((movie) => (
-                        <AnimeMovieCard
+                        <AnimeMovieCardFuture
                           key={movie.system_id}
                           movie={movie}
-                          franchises={Object.values(franchiseDict)}
                           isAdmin={isAdmin}
                           onUpdated={handleMovieUpdated}
                         />
