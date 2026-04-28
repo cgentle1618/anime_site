@@ -1255,6 +1255,7 @@ export default function Admin() {
                   label: "Anime Movie",
                   url: "/api/data-control/fill/anime-movie",
                 },
+                { label: "Movie", url: "/api/data-control/fill/movie" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}
@@ -1278,6 +1279,7 @@ export default function Admin() {
                   label: "Anime Movie",
                   url: "/api/data-control/replace/anime-movie",
                 },
+                { label: "Movie", url: "/api/data-control/replace/movie" },
               ]}
               streamRunning={streamRunning === "replace"}
               onStart={(url) => startStream(url, "replace")}
@@ -1315,6 +1317,7 @@ export default function Admin() {
                 >
                   <option value="Anime">Anime</option>
                   <option value="Anime Movies">Anime Movies</option>
+                  <option value="Movies">Movies</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
                   <option value="System Options">Options</option>

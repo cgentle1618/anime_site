@@ -12,6 +12,7 @@ from typing import Any, Optional, Tuple
 # PRE-COMPILED REGEX PATTERNS
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
+IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
 PART_PATTERN = re.compile(r"part\s*(\d+)", re.IGNORECASE)
@@ -59,6 +60,15 @@ ANIME_MOVIE_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+MOVIE_FIELDS_TO_FILL = [
+    "length_min",
+    "director",
+    "airing_status",
+    "release_date_usa",
+    "imdb_rating",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================
@@ -93,6 +103,19 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
 # ==========================================
 # Data Extraction & Transformation
 # ==========================================
+
+
+def extract_imdb_id(url: str) -> Optional[str]:
+    """
+    Extracts the IMDb ID (e.g. 'tt1234567') from a standard IMDb URL.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+    match = IMDB_ID_PATTERN.search(url)
+    if match:
+        return f"tt{match.group(1)}"
+    return None
 
 
 def extract_mal_id_anime(url: str) -> Optional[int]:

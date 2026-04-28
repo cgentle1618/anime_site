@@ -8,15 +8,17 @@ called by FastAPI routers or other higher-level orchestrators.
 
 import logging
 import uuid
+from datetime import date
 from typing import Any, Dict, Tuple, Union
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_taipei_now
-from models import Anime, AnimeMovies, Franchise, Series, Seasonal, SystemOption
+from models import Anime, AnimeMovies, Movies, Franchise, Series, Seasonal, SystemOption
 
 from services.jikan import fetch_jikan_anime_data
+from services.imdb import fetch_imdb_data
 from services.image_manager import download_cover_image
 
 from utils.utils import (
@@ -24,12 +26,15 @@ from utils.utils import (
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
+    MOVIE_FIELDS_TO_FILL,
     extract_mal_id_anime,
+    extract_imdb_id,
     extract_season_from_title,
     calculate_seasonal_from_month,
     validate_episode_math,
 )
 from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
+from utils.imdb_utils import map_imdb_to_movie_data
 
 
 logger = logging.getLogger(__name__)
@@ -228,6 +233,88 @@ def resolve_anime_movie_parent_hierarchy(
     return new_fran.system_id
 
 
+def resolve_movie_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
+    """
+    Ensures valid franchise_id and series_id UUIDs for a Movies entry.
+    Franchise: searches by name, auto-creates if missing.
+    Series: searches by name if a string is provided; does not auto-create.
+    Returns (final_franchise_id, final_series_id).
+    """
+    # Resolve Franchise
+    if franchise_id and not isinstance(franchise_id, str):
+        final_franchise_id = franchise_id
+    else:
+        valid_names = set()
+        for lang_key in ["en", "cn", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        search_conditions = []
+        for name_str in valid_names:
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing = None
+        if search_conditions:
+            existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+        if existing:
+            final_franchise_id = existing.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise for Movie: {final_franchise_id}"
+            )
+        else:
+            new_fran = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type="TV or Movie",
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_fran)
+            db.flush()
+            final_franchise_id = new_fran.system_id
+            logger.info(
+                f"Auto-created missing Franchise for Movie: {final_franchise_id}"
+            )
+
+    # Resolve Series: look up by name if a string was provided; no auto-create
+    final_series_id = series_id
+    if series_id and isinstance(series_id, str) and series_id.strip():
+        sname = series_id.strip()
+        existing_series = (
+            db.query(Series)
+            .filter(
+                or_(
+                    Series.series_name_en.ilike(sname),
+                    Series.series_name_cn.ilike(sname),
+                    Series.series_name_alt.ilike(sname),
+                )
+            )
+            .first()
+        )
+        if existing_series:
+            final_series_id = existing_series.system_id
+            logger.info(f"Auto-resolved existing Series for Movie: {final_series_id}")
+        else:
+            final_series_id = None
+            logger.warning(
+                f"Could not resolve Series by name '{sname}' for Movie. Setting to null."
+            )
+
+    return final_franchise_id, final_series_id
+
+
 # ==========================================
 # CHECKING LOGICS
 # ==========================================
@@ -299,6 +386,15 @@ def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
         missing = [f for f in missing if f not in ("mal_rating", "mal_rank")]
 
     return len(missing) > 0
+
+
+def has_missing_values_movie(movie) -> bool:
+    """Returns True if any required Movies field is missing."""
+    for field in MOVIE_FIELDS_TO_FILL:
+        val = getattr(movie, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
 
 
 def check_is_watching_completed(entry: Anime) -> bool:
@@ -639,6 +735,75 @@ def find_duplicate_anime_movie(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_movie(db: Session) -> list[list[dict]]:
+    """
+    Finds Movies entries that share the same (franchise_id, series_id) and at least one
+    identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    movies = db.query(Movies).filter(Movies.franchise_id.isnot(None)).all()
+
+    by_key: dict[tuple, list] = {}
+    for m in movies:
+        key = (
+            str(m.franchise_id),
+            str(m.series_id) if m.series_id else None,
+        )
+        by_key.setdefault(key, []).append(m)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    movie_map = {str(m.system_id): m for m in movies}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for mid in movie_map:
+        clusters.setdefault(find(mid), []).append(mid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": mid,
+                        "franchise_id": str(movie_map[mid].franchise_id),
+                        "series_id": (
+                            str(movie_map[mid].series_id)
+                            if movie_map[mid].series_id
+                            else None
+                        ),
+                        "movie_name_en": movie_map[mid].movie_name_en,
+                        "movie_name_cn": movie_map[mid].movie_name_cn,
+                        "movie_name_alt": movie_map[mid].movie_name_alt,
+                    }
+                    for mid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -646,6 +811,7 @@ def find_all_duplicates(db: Session) -> dict:
         "series": find_duplicate_series(db),
         "anime": find_duplicate_anime(db),
         "anime_movie": find_duplicate_anime_movie(db),
+        "movie": find_duplicate_movie(db),
         "system_options": find_duplicate_system_options(db),
     }
 
@@ -659,6 +825,15 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     mal_id = extract_mal_id_anime(anime.mal_link)
     if mal_id:
         anime.mal_id = mal_id
+        return True
+    return False
+
+
+def apply_extract_imdb_id(movie) -> bool:
+    """Extracts IMDb ID from imdb_link and writes it to imdb_id. Returns True if set."""
+    imdb_id = extract_imdb_id(movie.imdb_link)
+    if imdb_id:
+        movie.imdb_id = imdb_id
         return True
     return False
 
@@ -985,6 +1160,63 @@ def autofill_anime_movie_from_mal(
         )
 
 
+def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
+    """
+    Fetches TMDB + OMDb data for a single Movies entry and fills/overwrites fields.
+    Does not commit — caller is responsible.
+    """
+    if movie.imdb_id is None:
+        return
+
+    try:
+
+        result = fetch_imdb_data(movie.imdb_id)
+        tmdb_raw = result.get("tmdb_raw")
+        omdb_raw = result.get("omdb_raw")
+
+        mapped = map_imdb_to_movie_data(tmdb_raw, omdb_raw)
+
+        # Fill-only fields
+        if movie.length_min is None:
+            movie.length_min = mapped.get("length_min")
+        if movie.director is None:
+            movie.director = mapped.get("director")
+        if movie.release_date_usa is None:
+            movie.release_date_usa = mapped.get("release_date_usa")
+
+        # Always overwrite imdb_rating if fetched
+        fetched_rating = mapped.get("imdb_rating")
+        if fetched_rating is not None:
+            movie.imdb_rating = fetched_rating
+
+        # Derive airing_status from raw release_date (fill-only)
+        if movie.airing_status is None and tmdb_raw is not None:
+            raw_date = tmdb_raw.get("release_date")
+            if raw_date:
+                try:
+                    release_date = date.fromisoformat(raw_date)
+                    movie.airing_status = (
+                        "Finished Airing"
+                        if release_date <= date.today()
+                        else "Not Yet Aired"
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+        # Download cover image if missing
+        if movie.cover_image_file is None and mapped.get("cover_image_url"):
+            filename = download_cover_image(
+                mapped["cover_image_url"], str(movie.system_id)
+            )
+            if filename:
+                movie.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"IMDb Autofill failed for Movie ID {movie.system_id} (IMDb {movie.imdb_id}): {e}"
+        )
+
+
 # ==========================================
 # OTHER ACTIONS
 # ==========================================
@@ -1001,8 +1233,8 @@ def mark_tv_completed(entry: Anime) -> None:
         entry.ep_fin = entry.ep_total
 
 
-def mark_movie_completed(entry: AnimeMovies) -> None:
-    """Mutates an AnimeMovies entry to represent a fully finished state."""
+def mark_movie_completed(entry: Union[AnimeMovies, Movies]) -> None:
+    """Mutates an AnimeMovies or Movie entry to represent a fully finished state."""
     entry.watching_status = "Completed"
     entry.airing_status = "Finished Airing"
 
@@ -1042,6 +1274,12 @@ def apply_single_replace_anime_movie(
         anime_movie, force_replace_ratings=force_replace_ratings
     )
     anime_movie_post_processing(anime_movie, db)
+
+
+def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -> None:
+    """Core 'Replace' logic for a single Movies entry."""
+    apply_extract_imdb_id(movie)
+    autofill_movie_from_imdb(movie, db)
 
 
 # ==========================================
@@ -1239,7 +1477,6 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
-    apply_validate_episode_math(anime_movie)
     apply_check_baha(anime_movie)
 
 

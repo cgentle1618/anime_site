@@ -67,6 +67,15 @@ def parse_row_to_dict(headers: List[str], row: List[Any]) -> Dict[str, Any]:
     return data
 
 
+def _safe_json(val: Any) -> Any:
+    if not val or not str(val).strip():
+        return None
+    try:
+        return json.loads(val)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
     """
     Converts a string from Google Sheets to the expected Python type based on SQLAlchemy column type.
@@ -190,9 +199,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "alternative": parse_from_sheet(raw.get("alternative"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
-        "notes": json.loads(raw["notes"]) if raw.get("notes") else None,
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
-        "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "official_link": parse_from_sheet(raw.get("official_link"), str),
         "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
@@ -206,13 +213,14 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "insert_ost": parse_from_sheet(raw.get("insert_ost"), str),
         "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
         "baha_link": parse_from_sheet(raw.get("baha_link"), str),
-        "source_other": (
-            json.loads(raw["source_other"]) if raw.get("source_other") else None
-        ),
         "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
+        "source_other": _safe_json(raw.get("source_other")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
 
 
@@ -250,14 +258,53 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
         "baha_link": parse_from_sheet(raw.get("baha_link"), str),
         "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
-        "source_other": (
-            json.loads(raw["source_other"]) if raw.get("source_other") else None
-        ),
+        "source_other": _safe_json(raw.get("source_other")),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+    }
+
+
+def parse_movie_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Movies sheet into typed data ready for the Database.
+    franchise_id and series_id may be a UUID or a raw string name — handled in data_control.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "movie_name_en": parse_from_sheet(raw.get("movie_name_en"), str),
+        "movie_name_cn": parse_from_sheet(raw.get("movie_name_cn"), str),
+        "movie_name_alt": parse_from_sheet(raw.get("movie_name_alt"), str),
+        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
+        "movie_type": parse_from_sheet(raw.get("movie_type"), str),
+        "is_main": parse_from_sheet(raw.get("is_main"), str),
+        "length_min": parse_from_sheet(raw.get("length_min"), int),
+        "release_date_usa": parse_from_sheet(raw.get("release_date_usa"), str),
+        "release_date_tw": parse_from_sheet(raw.get("release_date_tw"), str),
+        "director": parse_from_sheet(raw.get("director"), str),
+        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
+        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
+        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
+        "watch_order": parse_from_sheet(raw.get("watch_order"), float),
+        "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
+        "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
+        "source_other": (_safe_json(raw.get("source_other"))),
+        "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
+        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
 
 
