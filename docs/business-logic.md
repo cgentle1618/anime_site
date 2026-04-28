@@ -10,6 +10,7 @@ All backend logic lives in `services/` and `utils/`. Routers are thin — they v
 - [Fill Missing Entry Data](#fill-missing-entry-data)
 - [Fill from External Sources](#fill-from-external-sources)
 - [MAL Data Helpers](#mal-data-helpers)
+- [IMDb Data Helpers](#imdb-data-helpers)
 - [Sync](#sync)
 - [Other Logics](#other-logics)
 - [Other Actions](#other-actions)
@@ -27,17 +28,20 @@ All pipeline functions live in `services/data_control.py`. SSE functions are asy
 
 ### Backup — `execute_backup(db, action_type="Manual")`
 
-Overwrites all four Google Sheets tabs with the current database state.
+Overwrites all Google Sheets tabs with the current database state.
 
 **Steps:**
 
-1. Query all `SystemOption`, `Seasonal`, `Franchise`, `Series`, `Anime` entries.
+1. Query all entries for each backed-up model.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
-4. Bulk overwrite each tab (System Options → Seasonal → Franchise → Series → Anime).
+4. Bulk overwrite each tab in this order:
+   - System Options → System Configs → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Seasonal
 5. Log result to `DataControlLog`.
 
 Tab names match model table names. Column order in the sheet is guaranteed to match DB schema order (see `format_model_for_sheet`).
+
+**Note:** `None`, `bool`, and `datetime` values must be converted to sheet-compatible format before writing.
 
 ---
 
@@ -45,7 +49,9 @@ Tab names match model table names. Column order in the sheet is guaranteed to ma
 
 #### Fill All — `execute_fill_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Fill Anime with `log_action=False`, parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+Master orchestrator. Calls Fill Anime (with `log_action=False`), then Fill Anime Movie (with `log_action=False`), then Fill Movie (with `log_action=False`), parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+
+**Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
 #### Fill Anime — `execute_fill_anime(db, request, action_specific, action_type, log_action)` _(SSE)_
 
@@ -53,12 +59,47 @@ Fills missing metadata for all anime entries that need it.
 
 **Steps:**
 
-1. Run `apply_extract_mal_id` on all entries to populate `mal_id` from `mal_link`.
-2. Build queue: entries where `has_missing_values()` returns `True`.
+1. Run `apply_extract_mal_id_anime` on all entries to populate `mal_id` from `mal_link`.
+2. Build queue: entries where `has_missing_values_anime()` returns `True`.
 3. For each queued entry: call `autofill_anime_from_mal(force_replace_ratings=True)`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
-5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync`.
+5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync_anime`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Shows entry being processed by anime name (with fallback).
+
+---
+
+#### Fill Anime Movie — `execute_fill_anime_movie(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Fills missing metadata for all anime movie entries that need it.
+
+**Steps:**
+
+1. Run `apply_extract_mal_id_anime` on all anime movie entries to populate `mal_id` from `mal_link`.
+2. Build queue: entries where `has_missing_values_anime_movie()` returns `True`.
+3. For each queued entry: call `autofill_anime_movie_from_mal(force_replace_ratings=True)`.
+4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
+5. After loop: `run_anime_movie_post_processing`, `run_sync_anime_movie`.
+6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Shows entry being processed by anime name (with fallback).
+
+---
+
+#### Fill Movie — `execute_fill_movie(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Fills missing metadata for all movie entries that need it.
+
+**Steps:**
+
+1. Run `apply_extract_imdb_id` on all movie entries to populate `imdb_id` from `imdb_link`.
+2. Build queue: entries where `has_missing_values_movie()` returns `True`.
+3. For each queued entry: call `autofill_movie_from_imdb()`.
+4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
+5. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Shows entry being processed by movie name (with fallback).
 
 ---
 
@@ -66,7 +107,9 @@ Fills missing metadata for all anime entries that need it.
 
 #### Replace All — `execute_replace_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Replace Anime with `log_action=False`, parses SSE output, runs Backup, logs single master entry.
+Master orchestrator. Calls Replace Anime (with `log_action=False`), then Replace Anime Movie (with `log_action=False`), then Replace Movie (with `log_action=False`), parses SSE output, runs Backup, logs single master entry.
+
+**Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
 #### Replace Anime — `execute_replace_anime(db, request, action_specific, action_type, log_action)` _(SSE)_
 
@@ -77,19 +120,75 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 1. Query all anime with `mal_id` or `mal_link` set. Return early if queue is empty.
 2. For each entry: call `apply_single_replace_anime(bulk=True)` — skips per-entry `derive_related`.
 3. After loop: call `derive_related(db)` once for all franchises.
-4. Call `run_sync(db)`.
+4. Call `run_sync_anime(db)`.
+
+**Note:** Shows entry being processed by title (with fallback).
+
+---
+
+#### Replace Anime Movie — `execute_replace_anime_movie(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Replaces metadata for all anime movie entries that have a `mal_id` or `mal_link`.
+
+**Steps:**
+
+1. Query all anime movie entries with `mal_id` or `mal_link` set. Return early if queue is empty.
+2. For each entry: call `apply_single_replace_anime_movie(bulk=True)`.
+3. After loop: call `run_sync_anime_movie(db)`.
+
+**Note:** Shows entry being processed by title (with fallback).
+
+---
+
+#### Replace Movie — `execute_replace_movie(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Replaces metadata for all movie entries that have an `imdb_id` or `imdb_link`.
+
+**Steps:**
+
+1. Query all movies with `imdb_id` or `imdb_link` set. Return early if queue is empty.
+2. For each entry: call `apply_single_replace_movie(bulk=True)`.
+
+**Note:** Shows entry being processed by movie name (with fallback).
+
+---
 
 #### Replace for Single Anime Entry — `execute_replace_single_anime(db, anime_id, action_type, log_action)` / `apply_single_replace_anime(db, anime, bulk, force_replace_ratings)`
 
-`execute_replace_single_anime` is the router-level function (handles lookup, sync, logging).
-`apply_single_replace_anime` is the core logic (used in both single and bulk paths).
+`execute_replace_single_anime` is the router-level function (handles lookup, sync, logging). Used in the anime endpoint for the Autofill & Update button. Calls `apply_single_replace_anime(bulk=False)`, then runs Sync.
+`apply_single_replace_anime` is the core logic (used in both single and bulk paths); it is not called by routers directly.
 
 **`apply_single_replace_anime` steps:**
 
-1. `apply_extract_mal_id`
+1. `apply_extract_mal_id_anime`
 2. `autofill_anime_from_mal`
 3. `anime_post_processing`
-4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles derive_related after the loop.
+4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles `derive_related` after the loop.
+
+---
+
+#### Replace for Single Anime Movie Entry — `execute_replace_single_anime_movie(db, anime_movie_id, action_type, log_action)` / `apply_single_replace_anime_movie(db, anime_movie, bulk, force_replace_ratings)`
+
+`execute_replace_single_anime_movie` is the router-level function (handles lookup, sync, logging). Used in the anime movie endpoint for the Autofill & Update button. Calls `apply_single_replace_anime_movie()`, then runs Sync.
+`apply_single_replace_anime_movie` is the core logic (helper for Replace Anime Movie action); it is not called by routers directly.
+
+**`apply_single_replace_anime_movie` steps:**
+
+1. `apply_extract_mal_id_anime`
+2. `autofill_anime_movie_from_mal`
+3. `anime_movie_post_processing`
+
+---
+
+#### Replace for Single Movie Entry — `execute_replace_single_movie(db, movie_id, action_type, log_action)` / `apply_single_replace_movie(db, movie, bulk)`
+
+`execute_replace_single_movie` is the router-level function (handles lookup, logging). Used in the movie endpoint for the Autofill & Update button. Calls `apply_single_replace_movie(bulk=False)`.
+`apply_single_replace_movie` is the core logic (used in both single and bulk paths); it is not called by routers directly.
+
+**`apply_single_replace_movie` steps:**
+
+1. `apply_extract_imdb_id`
+2. `autofill_movie_from_imdb`
 
 ---
 
@@ -97,11 +196,11 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all four tabs in strict dependency order: **System Options → Franchise → Series → Anime**. This order is required to satisfy foreign key constraints.
+Pulls all tabs in strict dependency order: **System Options → Franchise → Series → Anime → Anime Movie → Movie**. This order is required to satisfy foreign key constraints.
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"System Options"`.
+Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movie"`, `"Movie"`, `"System Options"`.
 
 **Steps:**
 
@@ -130,9 +229,19 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 1. `apply_validate_episode_math`
 2. `apply_check_baha`
-3. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+3. If `check_is_watching_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
 4. If `release_season` is None, `release_month` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
 5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1`.
+
+---
+
+### Anime Movie Post Processing — `anime_movie_post_processing(anime, db)` / `run_anime_movie_post_processing(db)`
+
+Runs all single-entry checks and repairs for one anime. `run_anime_movie_post_processing` applies it to every entry in the DB.
+
+**Steps (in order):**
+
+1. `apply_check_baha`
 
 ---
 
@@ -152,19 +261,33 @@ Commits after all franchises processed.
 
 ### Sync — `run_sync(db)`
 
+1. `run_sync_anime(db)`
+2. `run_sync_anime_movie(db)`
+
+---
+
+### Sync — `run_sync_anime(db)`
+
 1. `create_missing_seasonal`
 2. `sync_seasonal_counts`
 3. `extract_system_options_from_anime`
 
 ---
 
+### Sync — `run_sync_anime_movie(db)`
+
+1. `extract_system_options_from_anime_movie`
+
+---
+
 ### Calculate All — `run_calculate_all(db)`
 
 1. `run_anime_post_processing`
-2. `run_derive_related`
-3. `run_sync`
-4. `bulk_check_cover_image`
-5. Log to `DataControlLog` (Success or Failed).
+1. `run_anime_movie_post_processing`
+1. `run_derive_related`
+1. `run_sync`
+1. `bulk_check_cover_image`
+1. Log to `DataControlLog` (Success or Failed).
 
 ---
 
@@ -182,7 +305,7 @@ Commits after all franchises processed.
 
 ---
 
-### Check Missing Values for Anime — `has_missing_values(anime)`
+### Check Missing Values for Anime — `has_missing_values_anime(anime)`
 
 Returns `True` if any required field is blank.
 
@@ -195,7 +318,28 @@ Returns `True` if any required field is blank.
 
 ---
 
-### Check Completed for TV Type — `check_is_tv_completed(entry)`
+### Check Missing Values for Anime Movie — `has_missing_values_anime_movie(anime_movie)`
+
+Returns `True` if any required field is blank.
+
+**Fields checked:** `airing_type`, `airing_status`, `release_year_jp`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
+
+**Special cases:**
+
+- `airing_status == "Not Yet Aired"`: skip `mal_rating` and `mal_rank` (they don't exist yet on MAL).
+- `ep_previous`: only required if `airing_type` is TV or ONA, `ep_special` is None, and `season_part` is set.
+
+---
+
+### Check Missing Values for Movie — `has_missing_values_movie(movie)`
+
+Returns `True` if any required field is blank.
+
+**Fields checked:** `length_min`, `director`, `airing_status`, `release_date_usa`, `imdb_rating`, `cover_image_file`.
+
+---
+
+### Check Completed for Watching Type — `check_is_watching_completed(entry)`
 
 Returns `True` if:
 
@@ -239,22 +383,31 @@ Finds image files in storage not referenced by any `anime.cover_image_file`.
 
 All use a **union-find** algorithm with transitive closure (A=B, B=C collapses to one cluster).
 
-| Function                        | Duplicate Key                                                                                                |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `find_duplicate_franchises`     | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
-| `find_duplicate_series`         | Same `franchise_id` + at least one matching name                                                             |
-| `find_duplicate_anime`          | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
-| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
+| Function                     | Duplicate Key                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `find_duplicate_franchises`  | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
+| `find_duplicate_series`      | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_anime`       | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
+| `find_duplicate_anime_movie` | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_movie`       | Same `(franchise_id, series_id)` + at least one matching name                                                |
 
-`find_all_duplicates` runs all four: returns `{franchise, series, anime, system_options}`.
+| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive) |
+
+`find_all_duplicates` runs all five: returns `{franchise, series, anime, anime_movie, movie, system_options}`.
 
 ---
 
 ## Fill Missing Entry Data
 
-### Extract MAL ID — `apply_extract_mal_id(anime)` / `extract_mal_id(url)`
+### Extract MAL ID — `apply_extract_mal_id_anime(anime)` / `extract_mal_id_anime(url)`
 
 Extracts numeric MAL ID from a MAL URL using regex `myanimelist\.net/anime/(\d+)`. Writes to `anime.mal_id`. Returns `True` if extracted.
+
+---
+
+### Extract IMDb ID — `apply_extract_imdb_id(movie)` / `extract_imdb_id(url)`
+
+Extracts the IMDb integer ID from an IMDb URL using regex `imdb\.com/title/tt(\d+)`. Writes to `movie.imdb_id`. Returns `True` if extracted.
 
 ---
 
@@ -346,12 +499,43 @@ Enriches a single Anime entry with Jikan API data. Does not commit — caller is
 
 **Steps:**
 
-1. Resolve `mal_id` from `anime.mal_id` or extract from `anime.mal_link`. Return if no ID.
+1. Resolve `mal_id` from `anime.mal_id`. Return if no ID.
 2. Call `fetch_jikan_anime_data(mal_id)`.
 3. Map response via `map_jikan_to_anime_data()`.
 4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `ep_total`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
+
+---
+
+### MAL Autofill Anime Movie — `autofill_anime_movie_from_mal(anime, force_replace_ratings=True)`
+
+Enriches a single Anime Movie entry with Jikan API data. Does not commit — caller is responsible.
+
+**Steps:**
+
+1. Resolve `mal_id` from `anime_movie.mal_id`. Return if no ID.
+2. Call `fetch_jikan_anime_data(mal_id)`.
+3. Map response via `map_jikan_to_anime_data()`.
+4. Fill each field **only if currently None**: `airing_status`, `release_year_jp`, `official_link`, `twitter_link`.
+5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
+6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
+
+---
+
+### IMDb Autofill Movie — `autofill_movie_from_imdb(movie)`
+
+Enriches a single Movie entry with TMDB + OMDb data. Does not commit — caller is responsible.
+
+**Steps:**
+
+1. Resolve `imdb_id` from `movie.imdb_id`. Return if no ID.
+2. Call `fetch_imdb_data(imdb_id)` — returns `{"tmdb_raw": ..., "omdb_raw": ...}`. Either may be `None`.
+3. Call `map_imdb_to_movie_data(tmdb_raw, omdb_raw)` — merges both sources into a flat dict.
+4. Fill each field **only if currently None**: `length_min`, `director`, `release_date_usa`.
+5. `imdb_rating`: always overwrite if fetched value is not None.
+6. `airing_status` (fill-only if currently None): read raw `tmdb_raw.get("release_date")` and compare to today — past date → `"Finished Airing"`, future date → `"Not Yet Aired"`. Skip if TMDB returned no date.
+7. Cover image: if `cover_image_file` is None and `cover_image_url` is in the mapped data, download and upload to GCS as `{system_id}.jpg`, set `cover_image_file`.
 
 ---
 
@@ -378,12 +562,120 @@ Transforms raw Jikan `data` dict to a flat standardized dict.
 | `release_season`  | `season` — winter/spring/summer/fall → WIN/SPR/SUM/FAL                                                        |
 | `release_year`    | `aired.from` (ISO date parsed)                                                                                |
 | `release_month`   | `aired.from` (month → JAN/FEB/...)                                                                            |
-| `mal_rating`      | `score`                                                                                                       |
-| `mal_rank`        | `rank` (as string)                                                                                            |
-| `ep_total`        | `episodes`                                                                                                    |
-| `official_link`   | `external[]` — first entry with "official" in name                                                            |
-| `twitter_link`    | `external[]` — first entry with twitter.com or x.com in URL                                                   |
-| `cover_image_url` | `images.webp.large_image_url` → `images.jpg.large_image_url` → `images.jpg.image_url`                         |
+| `release_year_jp` | `aired.from` (ISO date parsed)                                                                                |
+
+| `mal_rating` | `score` |
+| `mal_rank` | `rank` (as string) |
+| `ep_total` | `episodes` |
+| `official_link` | `external[]` — first entry with "official" in name |
+| `twitter_link` | `external[]` — first entry with twitter.com or x.com in URL |
+| `cover_image_url` | `images.webp.large_image_url` → `images.jpg.large_image_url` → `images.jpg.image_url` |
+
+---
+
+## IMDb Data Helpers
+
+### IMDb Fetch — `fetch_imdb_data(imdb_id)` in `services/tmdb.py`
+
+Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_raw": ..., "omdb_raw": ...}`. Either value may be `None` if the respective API call fails.
+
+**Steps:**
+
+1. Call `fetch_tmdb_data(imdb_id)` — returns raw TMDB dict with `_media_type` key, or `None`.
+2. Call `fetch_omdb_data(imdb_id)` — returns raw OMDb dict, or `None`.
+3. Return both results as a dict.
+
+**Note:** Both fetches run regardless of individual failure — a TMDB failure does not skip OMDb.
+
+---
+
+### TMDB Fetch — `fetch_tmdb_data(imdb_id)` in `services/tmdb.py`
+
+Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media type, then delegates to `_fetch_movie_details` (movie) or `_fetch_tv_details` (tv show and cartoon).
+
+- **`_fetch_movie_details`** — fetches `/movie/{id}?append_to_response=credits`.
+- **`_fetch_tv_details`** — fetches `/tv/{id}`. Used for tv show and cartoon entries.
+
+**Rate limiting:** Global `TMDbRateLimiter` singleton — sliding window, 40 requests / 10 seconds.
+**Retry:** 5 attempts, exponential backoff 2–10s. Retries on `RequestException` or `RateLimitExceeded`. Returns `None` on 404 or >= 500.
+
+---
+
+### OMDb Fetch — `fetch_omdb_data(imdb_id)` in `services/omdb.py`
+
+Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com/?i=tt{id}&apikey={key}`.
+
+**Rate limiting:** Global `OMDbRateLimiter` singleton — sliding window daily quota, 1000 requests / 24 hours.
+**Retry:** 5 attempts, exponential backoff 2–10s. Returns `None` on `Response: False`, 401, or >= 500.
+
+---
+
+### IMDb Conversion for Movie — `map_imdb_to_movie_data(tmdb_raw, omdb_raw)` in `utils/tmdb_utils.py`
+
+Merges results from both APIs into one flat dict for the Movie model.
+
+1. If `tmdb_raw` is available: call `map_tmdb_to_movie_data(tmdb_raw)`.
+2. If `omdb_raw` is available: call `map_omdb_to_movie_data(omdb_raw)`.
+3. Merge, with `omdb_raw` values taking precedence for `imdb_rating`.
+
+---
+
+### TMDB Conversion for Movie — `map_tmdb_to_movie_data(raw)` in `utils/tmdb_utils.py`
+
+| Output Field       | TMDB Source                                                            |
+| ------------------ | ---------------------------------------------------------------------- |
+| `length_min`       | `runtime`                                                              |
+| `release_date_usa` | `_convert_tmdb_date(release_date)` — parsed to `"MON YYYY"` format     |
+| `director`         | `_extract_director(credits.crew)` — first member with job `"Director"` |
+| `cover_image_url`  | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix                        |
+
+---
+
+### OMDB Conversion for Movie — `map_omdb_to_movie_data(raw)` in `utils/omdb_utils.py`
+
+| Output Field  | OMDb Source  |
+| ------------- | ------------ |
+| `imdb_rating` | `imdbRating` |
+
+`"N/A"` → `None`.
+
+---
+
+### TMDB Conversion for TV Show — `map_tmdb_to_tv_show_data(raw)` in `utils/tmdb_utils.py`
+
+| Output Field      | TMDB Source                                     |
+| ----------------- | ----------------------------------------------- |
+| `release_date`    | `_convert_tmdb_date(first_air_date)`            |
+| `cover_image_url` | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix |
+
+---
+
+### OMDB Conversion for TV Show — `map_omdb_to_tv_show_data(raw)` in `utils/omdb_utils.py`
+
+| Output Field  | OMDb Source  |
+| ------------- | ------------ |
+| `imdb_rating` | `imdbRating` |
+
+`"N/A"` → `None`.
+
+---
+
+### TMDB Conversion for Cartoon — `map_tmdb_to_cartoon_data(raw)` in `utils/tmdb_utils.py`
+
+| Output Field      | TMDB Source                                     |
+| ----------------- | ----------------------------------------------- |
+| `release_date`    | `_convert_tmdb_date(first_air_date)`            |
+| `cover_image_url` | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix |
+
+---
+
+### OMDB Conversion for Cartoon — `map_omdb_to_cartoon_data(raw)` in `utils/omdb_utils.py`
+
+| Output Field  | OMDb Source  |
+| ------------- | ------------ |
+| `imdb_rating` | `imdbRating` |
+
+`"N/A"` → `None`.
 
 ---
 
@@ -416,6 +708,12 @@ Scans all Anime entries for values in: `genre_main`, `genre_sub`, `studio`, `dis
 
 ---
 
+### Extract System Options from Anime Movie — `extract_system_options_from_anime_movie(db)`
+
+Scans all Anime entries for values in: `studio` and `director`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
+
+---
+
 ## Other Logics
 
 ### Calculate Cumulative Episode _(computed field, not a function)_
@@ -431,7 +729,7 @@ Computed in `AnimeResponse` (Pydantic schema), never stored in the DB:
 
 ### Mark Completed — `mark_tv_completed(entry)`
 
-Sets atomically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
 
 ---
 
@@ -512,7 +810,9 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 ### Tab-specific parsers
 
-`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+
+**`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
 
 **Notable:**
 
@@ -539,3 +839,36 @@ Ensures a valid `franchise_id` UUID for a Series during Pull.
 - Resolves `franchise_id` the same way as Series (with auto-create if missing).
 - Resolves `series_id`: returns the provided value only — **does not auto-create** a Series.
 - Returns `(final_franchise_id, final_series_id)`.
+
+---
+
+### Resolve Parent for Anime Movie — `resolve_anime_movie_parent_hierarchy(db, franchise_id, names)`
+
+Ensures a valid `franchise_id` UUID for an Anime Movie during Pull.
+
+- Valid UUID provided: return it.
+- Null or string: search all franchise name fields (case-insensitive `ilike`).
+- Found: return existing UUID.
+- Not found: **auto-create** a new Franchise with `uuid4()`, flush, return new UUID.
+
+---
+
+### Resolve Parent for Movie — `resolve_movie_parent_hierarchy(db, franchise_id, series_id, names)`
+
+Ensures valid `franchise_id` and `series_id` UUIDs for a Movie. Used by the Pull pipeline and Create/Update endpoints.
+
+**Franchise resolution** (same as Anime Movie):
+
+- Valid UUID object provided: use it as-is.
+- Null or string: search all franchise name fields (`ilike` on `en`, `cn`, `alt`).
+- Found: return existing UUID.
+- Not found: **auto-create** a new Franchise with `franchise_type="TV or Movie"`, flush, return new UUID.
+
+**Series resolution:**
+
+- Non-string (UUID object or null): pass through unchanged.
+- Non-empty string: search Series by name (`ilike` on `series_name_en`, `series_name_cn`, `series_name_alt`).
+  - Found: return existing UUID.
+  - Not found: set to `null` and log a warning. **Does not auto-create** a Series.
+
+Returns `(final_franchise_id, final_series_id)`.

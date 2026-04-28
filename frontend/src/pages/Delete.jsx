@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 
-const TABS = ["anime", "franchise", "series", "options"];
+const TABS = ["anime", "anime-movie", "movie", "franchise", "series", "options"];
 
 function getClean(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -17,6 +17,16 @@ function getDisplayTitle(item, type) {
       item.anime_name_jp ||
       "Unknown"
     );
+  if (type === "anime-movie")
+    return (
+      item.anime_movie_name_cn ||
+      item.anime_movie_name_en ||
+      item.anime_movie_name_roman ||
+      item.anime_movie_name_jp ||
+      "Unknown"
+    );
+  if (type === "movie")
+    return item.movie_name_cn || item.movie_name_en || item.movie_name_alt || "Unknown";
   if (type === "franchise")
     return (
       item.franchise_name_cn ||
@@ -99,6 +109,8 @@ export default function Delete() {
   const [tab, setTab] = useState("anime");
   const [db, setDb] = useState({
     anime: [],
+    "anime-movie": [],
+    movie: [],
     franchise: [],
     series: [],
     options: [],
@@ -107,6 +119,8 @@ export default function Delete() {
   const [deleting, setDeleting] = useState(false);
 
   const [selectedAnime, setSelectedAnime] = useState(null);
+  const [selectedAnimeMovie, setSelectedAnimeMovie] = useState(null);
+  const [selectedMovie, setSelectedMovie] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -119,19 +133,30 @@ export default function Delete() {
 
   const loadDb = useCallback(async () => {
     try {
-      const [aRes, fRes, sRes, oRes] = await Promise.all([
+      const [aRes, fRes, sRes, oRes, amRes, mRes] = await Promise.all([
         fetch("/api/anime/", { credentials: "include" }),
         fetch("/api/franchise/", { credentials: "include" }),
         fetch("/api/series/", { credentials: "include" }),
         fetch("/api/options/", { credentials: "include" }),
+        fetch("/api/anime-movie/", { credentials: "include" }),
+        fetch("/api/movies/", { credentials: "include" }),
       ]);
-      const [a, f, s, o] = await Promise.all([
+      const [a, f, s, o, am, mv] = await Promise.all([
         aRes.json(),
         fRes.json(),
         sRes.json(),
         oRes.json(),
+        amRes.json(),
+        mRes.json(),
       ]);
-      setDb({ anime: a, franchise: f, series: s, options: o });
+      setDb({
+        anime: a,
+        "anime-movie": am,
+        movie: mv,
+        franchise: f,
+        series: s,
+        options: o,
+      });
     } catch {
       showToast("error", "Database load failed");
     } finally {
@@ -170,6 +195,14 @@ export default function Delete() {
           (x) => x.franchise_id === item.system_id,
         )) {
           await fetch(`/api/anime/${a.system_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        for (const m of db["anime-movie"].filter(
+          (x) => x.franchise_id === item.system_id,
+        )) {
+          await fetch(`/api/anime-movie/${m.system_id}`, {
             method: "DELETE",
             credentials: "include",
           });
@@ -226,12 +259,58 @@ export default function Delete() {
         return;
       }
 
+      if (type === "anime-movie") {
+        const res = await fetch(`/api/anime-movie/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete anime movie");
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedAnimeMovie(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
+      if (type === "movie") {
+        const res = await fetch(`/api/movies/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete movie");
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedMovie(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
       // Cascade deletions
       if (type === "franchise" && cascadeChecked) {
         for (const a of db.anime.filter(
           (x) => x.franchise_id === item.system_id,
         )) {
           await fetch(`/api/anime/${a.system_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        for (const m of db["anime-movie"].filter(
+          (x) => x.franchise_id === item.system_id,
+        )) {
+          await fetch(`/api/anime-movie/${m.system_id}`, {
             method: "DELETE",
             credentials: "include",
           });
@@ -332,6 +411,8 @@ export default function Delete() {
             onClick={() => {
               setTab(t);
               setSelectedAnime(null);
+              setSelectedAnimeMovie(null);
+              setSelectedMovie(null);
               setSelectedFranchise(null);
               setSelectedSeries(null);
               setSelectedOption(null);
@@ -411,6 +492,162 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("anime", selectedAnime)}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ANIME MOVIE TAB */}
+      {tab === "anime-movie" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <SearchBox
+              placeholder="Search anime movie to delete..."
+              items={db["anime-movie"]}
+              type="anime-movie"
+              onSelect={setSelectedAnimeMovie}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-gray-800 text-sm">
+                    {getDisplayTitle(item, "anime-movie")}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {getFranchiseTitle(item.franchise_id)} ·{" "}
+                    {item.airing_status || "Unknown"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedAnimeMovie && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">
+                    {getDisplayTitle(selectedAnimeMovie, "anime-movie")}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedAnimeMovie.anime_movie_name_en ||
+                      selectedAnimeMovie.anime_movie_name_roman ||
+                      "-"}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedAnimeMovie.airing_status || "Unknown"}
+                    </span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedAnimeMovie.watching_status || "Unset"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedAnimeMovie.franchise_id)}
+                  </p>
+                  <p className="text-xs font-mono text-gray-400">
+                    {selectedAnimeMovie.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedAnimeMovie(null)}
+                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() =>
+                      initDelete("anime-movie", selectedAnimeMovie)
+                    }
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MOVIE TAB */}
+      {tab === "movie" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <SearchBox
+              placeholder="Search movie to delete..."
+              items={db.movie}
+              type="movie"
+              onSelect={setSelectedMovie}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-gray-800 text-sm">
+                    {getDisplayTitle(item, "movie")}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {getFranchiseTitle(item.franchise_id)} ·{" "}
+                    {item.airing_status || "Unknown"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedMovie && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedMovie.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">
+                    {getDisplayTitle(selectedMovie, "movie")}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedMovie.movie_name_en || "-"}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedMovie.airing_status || "Unknown"}
+                    </span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedMovie.watching_status || "Unset"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedMovie.franchise_id)}
+                  </p>
+                  <p className="text-xs font-mono text-gray-400">
+                    {selectedMovie.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedMovie(null)}
+                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("movie", selectedMovie)}
                     className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
@@ -688,13 +925,19 @@ export default function Delete() {
                             (s) => s.franchise_id === modal.item.system_id,
                           ).length
                         }{" "}
-                        series and{" "}
+                        series,{" "}
                         {
                           db.anime.filter(
                             (a) => a.franchise_id === modal.item.system_id,
                           ).length
                         }{" "}
-                        anime entries.
+                        anime, and{" "}
+                        {
+                          db["anime-movie"].filter(
+                            (m) => m.franchise_id === modal.item.system_id,
+                          ).length
+                        }{" "}
+                        anime movie entries.
                       </div>
                     </div>
                   </label>
@@ -806,6 +1049,75 @@ export default function Delete() {
                     <div>
                       <div className="text-xs font-bold text-orange-800">
                         <i className="fas fa-link mr-1"></i> Last Series in
+                        Franchise
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Franchise Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan franchise warning (movie) */}
+              {modal.type === "movie" &&
+                modal.item.franchise_id &&
+                db.anime.filter(
+                  (a) => a.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.movie.filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 1 &&
+                db.series.filter(
+                  (s) => s.franchise_id === modal.item.franchise_id,
+                ).length === 0 && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanFranchiseChecked}
+                      onChange={(e) =>
+                        setOrphanFranchiseChecked(e.target.checked)
+                      }
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Franchise
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Franchise Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan franchise warning (anime-movie) */}
+              {modal.type === "anime-movie" &&
+                modal.item.franchise_id &&
+                db.anime.filter(
+                  (a) => a.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 1 &&
+                db.series.filter(
+                  (s) => s.franchise_id === modal.item.franchise_id,
+                ).length === 0 && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanFranchiseChecked}
+                      onChange={(e) =>
+                        setOrphanFranchiseChecked(e.target.checked)
+                      }
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
                       <div className="text-xs text-orange-700 mt-0.5">

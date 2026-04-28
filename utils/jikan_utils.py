@@ -170,3 +170,41 @@ def map_jikan_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "twitter_link": twitter_link,
         "cover_image_url": cover_image_url,
     }
+
+
+def map_jikan_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Parses raw Jikan JSON into the flat dict expected by AnimeMovies.
+    Differs from map_jikan_to_anime_data: returns release_date_jp (YYYY-MM-DD),
+    no season fields.
+    """
+    airing_type = _convert_airing_type(raw_data.get("type"))
+    airing_status = _convert_airing_status(raw_data.get("status"))
+
+    aired_from = raw_data.get("aired", {}).get("from")
+    _, _, release_date_jp = _extract_date_parts(aired_from)
+
+    raw_rank = raw_data.get("rank")
+    mal_rank = str(raw_rank) if raw_rank is not None else None
+
+    external_links = raw_data.get("external", [])
+    official_link, twitter_link = _extract_external_links(external_links)
+
+    images = raw_data.get("images", {})
+    cover_image_url = (
+        images.get("webp", {}).get("large_image_url")
+        or images.get("jpg", {}).get("large_image_url")
+        or images.get("jpg", {}).get("image_url")
+    )
+
+    return {
+        "airing_type": airing_type,
+        "airing_status": airing_status,
+        "release_date_jp": release_date_jp,
+        "mal_rating": raw_data.get("score"),
+        "mal_rank": mal_rank,
+        "ep_total": raw_data.get("episodes"),
+        "official_link": official_link,
+        "twitter_link": twitter_link,
+        "cover_image_url": cover_image_url,
+    }

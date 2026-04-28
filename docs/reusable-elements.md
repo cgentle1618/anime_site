@@ -28,18 +28,19 @@ Present on every page. Contains:
 
 **Navigation — Page Dropdowns:**
 
-| Dropdown             | Items                                                                            |
-| -------------------- | -------------------------------------------------------------------------------- |
-| ACG Library          | Anime Library, Anime Movie Library, Manga Library, Novel Library, Seiyuu Library |
-| Other Library        | Franchise Library, TV Show Library, Movie Library, Cartoon Library               |
-| More                 | Statistics, Future Release, Seasonal Overall                                     |
-| Admin _(admin only)_ | System Page, Data History Page, Review Page, Add Page, Modify Page, Delete Page  |
+| Dropdown             | Items                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ACG                  | Anime Library, Anime Movie Library, Manga Library _(future)_, Novel Library _(future)_, Seiyuu Library _(future)_                                      |
+| Reality              | Franchise Library, Movie Library (`/library/movie`), TV Show Library _(future)_, Cartoon Library _(future)_                                            |
+| More                 | Statistics, Future Release, Seasonal                                                                                                                   |
+| Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
 
 **Other controls:**
 
 - Website logo — navigates to Dashboard
 - Search bar — see [Search Suggestion Entry](#search-suggestion-entry) for result format
-  - Scope selector: All (default), Seasonal, Franchise, Anime, Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio _(future)_, Seiyuu _(future)_
+  - Scope selector (implemented): All (default), Franchise, Series, Anime, Seasonal
+  - Scope selector _(future)_: Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio, Seiyuu
   - Results grouped by kind when searching All; ordered: Seasonal → Franchise → Anime → Anime Movie → Manga → Novel → Movie → TV Show → Cartoon
   - If an entry exactly matches the input (ignoring case, punctuation, and spaces), it is shown at the top regardless of grouping/ordering
   - At most 10 suggestions shown; at most 3 franchise and 3 series suggestions
@@ -51,32 +52,6 @@ Present on every page. Contains:
 - Scroll to Bottom button
 
 **Footer:** Copyright, Version
-
----
-
-## Reusable Entry (Table Row)
-
-Compact rows used in list views (library table view, franchise pages, etc.).
-
-### Anime Entry
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Release Season (fallback: Release Date → Release Year) · Total Ep · My Rating · Completed Time (`updated_at`)
-
-### Anime Movie Entry
-
-Name CN (fallback) · Franchise Name CN (fallback) · Director · Length (Hr + Min) · Release Date JP (fallback: Release Year TW) · My Rating · Completed Time
-
-### Movie Entry _(future)_
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Director · Length (Hr + Min) · Release Date TW (fallback: Release Year US) · My Rating · Completed Time
-
-### TV Show Entry _(future)_
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · TV Show Region · TV Show Official Source · Release Date · My Rating · Completed Time
-
-### Cartoon Entry _(future)_
-
-Name CN (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Cartoon Airing Type · Cartoon Official Source · Release Date · My Rating · Completed Time
 
 ---
 
@@ -100,17 +75,17 @@ Name CN (fallback) · Airing Type
 
 Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
 
-### Movie Entry _(future)_
+### Movie Entry
 
 Name CN (fallback) · Movie Type
 
-### TV Show Entry _(future)_
+### TV Show Entry
 
 Name CN (fallback) · TV Show Region
 
-### Cartoon Entry _(future)_
+### Cartoon Entry
 
-Name CN (fallback) · Cartoon Airing Type
+Name CN (fallback) · Cartoon Official Source
 
 ### Manga Entry _(future)_
 
@@ -141,6 +116,18 @@ Anime Name CN (fallback) · Franchise Name CN (fallback) · Airing Type
 ### Anime Movie
 
 Anime Movie Name CN (fallback) · Franchise Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
+
+### Movie
+
+Main Title: Movie Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Release Date (fallback: release_date_us → release_date_tw)
+
+### TV Show
+
+Main Title: TV Show Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Season Part
+
+### Cartoon
+
+Main Title: Cartoon Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Season Part
 
 ---
 
@@ -182,17 +169,17 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN
 
 Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### Movie _(future)_
+### Movie
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Movie Type · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Movie Type · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### TV Show _(future)_
+### TV Show
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · TV Show Region · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### Cartoon _(future)_
+### Cartoon
 
-Name CN (fallback) · Name EN (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Cartoon Airing Type · Watching Status
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
 ### Manga _(future)_
 
@@ -234,37 +221,74 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Anime Movie Entry Card
 
+**First Type** — `frontend/src/components/AnimeMovieCard.jsx` — used on Anime Movie Library, Franchise page, Search page
+
 - Poster · My Rating (hidden if null) · MAL Rating (hidden if null) · Name CN (fallback) · Length (Hr + Min) · Release Year JP · Bahamut icon · + button _(admin)_
 
+**Second Type** — `frontend/src/components/AnimeMovieCardFuture.jsx` — used on Future Release page (Anime Movies tab)
+
+- Poster (aspect 3:4)
+- Anime Movie Name CN (fallback: EN → Alt → Romaji → JP)
+- Length (Hr + min) — hidden if null
+- Release Year JP — hidden if null
+- Mark as Airing button _(admin only)_ — sets `airing_status` to "Airing" via `PATCH /api/anime-movie/:id`; removes entry from list on success
+- Clicking card navigates to `/anime-movie/:system_id`
+
 ---
 
-### Movie Entry Card _(future)_
+### Movie Entry Card
 
-- Poster · My Rating · IMDB Rating · Name CN (fallback) · Length (Hr + Min) · Release Year TW (fallback) · + button _(admin)_
+**First Type** — `frontend/src/components/MovieCard.jsx` — used on Movie Library, Search page
+
+- Poster (aspect 3:4)
+- My Rating (hidden if null)
+- IMDb Rating (hidden if null or "N/A")
+- Movie Name CN (fallback: EN → Alt)
+- Length (Hr + min) — hidden if null
+- Release Year USA (fallback: TW) — hidden if null
+- - button _(admin only)_ — cycles watching status via `PATCH /api/movies/:id`
+- Clicking card navigates to `/movie/:system_id`
+
+**Second Type** — `frontend/src/components/MovieCardFuture.jsx` — used on Future Release page (Movie tab)
+
+- Poster (aspect 3:4)
+- Movie Name CN (fallback: EN → Alt)
+- Length (Hr + min) — hidden if null
+- Release Year USA (fallback: TW)
+- Mark as Airing button _(admin only)_ — sets `airing_status` to "Airing" via `PATCH /api/movies/:id`; removes entry from list on success
+- Clicking card navigates to `/movie/:system_id`
 
 ---
 
-### TV Show Entry Card _(future)_
+### TV Show Entry Card
 
 **First Type** — used on Dashboard
 
-- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar · Ep Watched / Ep Total · +/- controls _(admin)_ · direct ep edit _(admin)_ · Edit button _(admin)_
+- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
 **Second Type** — used on Library, Franchise page, Search page
 
-- Poster · My Rating · IMDB Rating · Name CN (fallback) · Season Part · Airing Status · Ep Watched / Ep Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+
+**Third Type** — used on Future Release page
+
+- Poster · Franchise Expectation · Release Date (fallback) · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
 
 ---
 
-### Cartoon Entry Card _(future)_
+### Cartoon Entry Card
 
 **First Type** — used on Dashboard
 
-- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Cartoon Airing Type · Progress % bar · Ep Watched / Ep Total · +/- controls _(admin)_ · direct ep edit _(admin)_ · Edit button _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
-**Second Type** — used on Franchise page, Library, Search page
+**Second Type** — used on Library, Franchise page, Search page
 
-- Poster · Name CN (fallback) · My Rating · Season Part · Cartoon Airing Type · Airing Status · Ep Watched / Ep Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+
+**Third Type** — used on Future Release page
+
+- Poster · Franchise Expectation · Release Date (fallback) · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
 
 ---
 
@@ -393,6 +417,8 @@ The reusable elements used in the entry detail pages.
 
 ### Naming Card
 
+**File:** `frontend/src/components/NamingCard.jsx`
+
 Anime / Anime Movie / Manga / Novel Naming Card
 
 - Entry CN Name
@@ -400,6 +426,10 @@ Anime / Anime Movie / Manga / Novel Naming Card
 - Entry Entry Name JP
 - Entry Entry Name Romaji
 - Entry Alt Name
+
+### Movie Naming Card
+
+**File:** `frontend/src/components/MovieNamingCard.jsx`
 
 Movie / TV Show / Cartoon Naming Card
 
@@ -586,9 +616,9 @@ Manga Production Card
 
 ### Notes Card
 
-The information is broken down into multiple fields from the notes column in the database.
+The information is broken down into multiple fields from the `notes` JSONB column in the database. Each notes card is a self-contained component that manages its own section state and saves via a callback.
 
-Anime Notes Card
+**Anime Notes Card** — `frontend/src/pages/AnimeNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -608,7 +638,9 @@ Anime Notes Card
 - Questions
 - 名言/梗/迷因 Quotes & Memes
 
-Anime Movie Notes Card
+Used on: Anime Detail page, Modify Anime tab.
+
+**Anime Movie Notes Card** — `frontend/src/pages/AnimeMovieNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -626,7 +658,11 @@ Anime Movie Notes Card
 - Questions
 - 名言/梗/迷因 Quotes & Memes
 
-Movie Notes Card
+Used on: Anime Movie Detail page, Modify Anime Movie tab.
+
+**Movie Notes Card** — `frontend/src/pages/MovieNotes.jsx`
+
+Stores data in `movies.notes` JSONB column.
 
 - Remark
 - 優點 Advantages
@@ -639,6 +675,8 @@ Movie Notes Card
 - Unread
 - Questions
 - 名言/梗/迷因 Quotes & Memes
+
+Used on: Movie Detail page, Modify Movie tab.
 
 TV Show Notes Card
 

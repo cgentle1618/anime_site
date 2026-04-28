@@ -11,15 +11,17 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime
+from models import Anime, AnimeMovies, Movies
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
     sync_seasonal_counts,
     create_missing_seasonal,
     extract_system_options_from_anime,
+    extract_system_options_from_anime_movie,
     autofill_anime_from_mal,
     anime_post_processing,
+    anime_movie_post_processing,
     derive_related,
 )
 
@@ -30,21 +32,37 @@ from services.other_logics import (
 
 def bulk_check_unused_cover_images(db: Session) -> dict:
     all_files = set(list_all_cover_images())
-    referenced = {
-        row[0]
-        for row in db.query(Anime.cover_image_file)
-        .filter(Anime.cover_image_file.isnot(None))
-        .all()
-    }
-    anime_map = {str(a.system_id): a for a in db.query(Anime).all()}
+    referenced = (
+        {
+            row[0]
+            for row in db.query(Anime.cover_image_file)
+            .filter(Anime.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
+            for row in db.query(AnimeMovies.cover_image_file)
+            .filter(AnimeMovies.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
+            for row in db.query(Movies.cover_image_file)
+            .filter(Movies.cover_image_file.isnot(None))
+            .all()
+        }
+    )
+    entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
+    entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
 
     should_use = []
     orphaned = []
     for filename in sorted(all_files - referenced):
         stem = filename[:-4] if filename.endswith(".jpg") else filename
-        if stem in anime_map:
-            a = anime_map[stem]
-            should_use.append({"system_id": stem, "name": a.display_name or stem})
+        if stem in entry_map:
+            e = entry_map[stem]
+            should_use.append({"system_id": stem, "name": e.display_name or stem})
         else:
             orphaned.append(filename)
 
@@ -61,24 +79,51 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
 def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dict:
     unused_result = bulk_check_unused_cover_images(db)
 
+    missing = []
+
     query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
     if entry_type:
         query = query.filter(Anime.airing_type == entry_type)
     animes = query.all()
-
-    missing = []
     for anime in animes:
         if not cover_image_exists(str(anime.system_id)):
             missing.append(
                 {
                     "system_id": str(anime.system_id),
                     "name": anime.display_name or str(anime.system_id),
-                    "airing_type": anime.airing_type,
+                    "entry_type": anime.airing_type,
                 }
             )
+
+    if not entry_type:
+        anime_movies = (
+            db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None)).all()
+        )
+        for am in anime_movies:
+            if not cover_image_exists(str(am.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(am.system_id),
+                        "name": am.display_name or str(am.system_id),
+                        "entry_type": "anime_movie",
+                    }
+                )
+
+        movies = db.query(Movies).filter(Movies.cover_image_file.isnot(None)).all()
+        for m in movies:
+            if not cover_image_exists(str(m.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(m.system_id),
+                        "name": m.display_name or str(m.system_id),
+                        "entry_type": "movie",
+                    }
+                )
+
+    total_checked = len(animes) + (0 if entry_type else len(anime_movies) + len(movies))
     return {
         "status": "success",
-        "total_checked": len(animes),
+        "total_checked": total_checked,
         "missing_count": len(missing),
         "missing": missing,
         "entry_type": entry_type,
@@ -156,6 +201,17 @@ def run_anime_post_processing(db: Session) -> dict:
     }
 
 
+def run_anime_movie_post_processing(db: Session) -> dict:
+    movies = db.query(AnimeMovies).all()
+    for movie in movies:
+        anime_movie_post_processing(movie, db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Post-processed {len(movies)} anime movie entries.",
+    }
+
+
 def run_derive_related(db: Session) -> dict:
     derive_related(db)
     return {
@@ -165,6 +221,15 @@ def run_derive_related(db: Session) -> dict:
 
 
 def run_sync(db: Session) -> dict:
+    run_sync_anime(db)
+    run_sync_anime_movie(db)
+    return {
+        "status": "success",
+        "message": "All synchronization tasks completed.",
+    }
+
+
+def run_sync_anime(db: Session) -> dict:
     create_missing_seasonal(db)
     sync_seasonal_counts(db)
     extract_system_options_from_anime(db)
@@ -174,11 +239,21 @@ def run_sync(db: Session) -> dict:
     }
 
 
+def run_sync_anime_movie(db: Session) -> dict:
+    extract_system_options_from_anime_movie(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from anime movies.",
+    }
+
+
 def run_calculate_all(db: Session) -> dict:
     try:
         run_anime_post_processing(db)
+        run_anime_movie_post_processing(db)
         run_derive_related(db)
-        run_sync(db)
+        run_sync_anime(db)
+        run_sync_anime_movie(db)
         bulk_check_cover_image(db)
         log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
         return {"status": "success", "message": "Full calculation complete."}

@@ -101,8 +101,6 @@ Field: `reading_status` _(future)_ — Default: `Might Read`
 
 ## Airing Type
 
-### Anime
-
 Field: `anime.airing_type` — Default: `null`
 
 | Value     | Default |
@@ -115,20 +113,6 @@ Field: `anime.airing_type` — Default: `null`
 | `OAD`     |         |
 | `Special` |         |
 | `Other`   |         |
-
-### Cartoon _(future)_
-
-Field: `airing_type` _(future)_ — Default: `null`
-
-| Value      | Default |
-| ---------- | ------- |
-| `null`     | Yes     |
-| `TV`       |         |
-| `TV重製版` |         |
-| `TV重啟版` |         |
-| `Movie`    |         |
-| `Special`  |         |
-| `Other`    |         |
 
 ---
 
@@ -301,11 +285,29 @@ Predefined franchise names used as grouping hubs within each `franchise_type`. T
 
 ---
 
+## Movie Franchise for Filter Options
+
+| 獨立電影 / 影集 |
+| Disney |
+| Marvel |
+| Christopher Nolan |
+
+---
+
+## TV Show Franchise for Filter Options
+
+| 獨立電影 / 影集 |
+| Disney |
+| Marvel |
+| The Game of Thrones |
+
+---
+
 ## Fields to Fill by Entry Type
 
-Required metadata fields that should be populated for each entry type. Used by `has_missing_values()` to determine Fill eligibility.
+Required metadata fields that should be populated for each entry type. Used by `has_missing_values_anime()` to determine Fill eligibility.
 
-### Anime (TV / ONA / OVA / Special)
+### Anime (TV / Movie / ONA / OVA / Special)
 
 | Field              | Notes                                         |
 | ------------------ | --------------------------------------------- |
@@ -329,7 +331,31 @@ Required metadata fields that should be populated for each entry type. Used by `
 | `release_date_jp`  |       |
 | `mal_rating`       |       |
 | `mal_rank`         |       |
+| `ep_total`         |       |
 | `official_link`    |       |
+| `twitter_link`     |       |
+| `cover_image_file` |       |
+
+### Movie
+
+| Field              | Notes |
+| ------------------ | ----- |
+| `length_min`       |       |
+| `director`         |       |
+| `airing_status`    |       |
+| `release_date_usa` |       |
+| `imdb_rating`      |       |
+| `ep_total`         |       |
+| `cover_image_file` |       |
+
+### TV Show
+
+| Field              | Notes |
+| ------------------ | ----- |
+| `airing_status`    |       |
+| `release_date`     |       |
+| `imdb_rating`      |       |
+| `ep_total`         |       |
 | `cover_image_file` |       |
 
 ### Manga

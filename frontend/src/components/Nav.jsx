@@ -320,7 +320,9 @@ export default function Nav() {
                     <NavLink to="/library/anime" icon="fas fa-tv">
                       Anime
                     </NavLink>
-                    <DevLink icon="fas fa-film">Anime Movie</DevLink>
+                    <NavLink to="/library/anime-movie" icon="fas fa-film">
+                      Anime Movie
+                    </NavLink>
                     <DevLink icon="fas fa-book">Manga</DevLink>
                     <DevLink icon="fas fa-book-open">Novel</DevLink>
                     <DevLink icon="fas fa-microphone">Seiyuu</DevLink>
@@ -337,7 +339,9 @@ export default function Nav() {
                       Franchise
                     </NavLink>
                     <DevLink icon="fas fa-video">TV Show</DevLink>
-                    <DevLink icon="fas fa-ticket-alt">Movie</DevLink>
+                    <NavLink to="/library/movie" icon="fas fa-ticket-alt">
+                      Movie
+                    </NavLink>
                     <DevLink icon="fas fa-laugh-squint">Cartoon</DevLink>
                   </>
                 }
@@ -594,11 +598,11 @@ export default function Nav() {
                   Anime Library
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/anime-movie"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  Anime Movie (Dev)
+                  Anime Movie Library
                 </Link>
                 <Link
                   to="/under-development"
@@ -651,11 +655,11 @@ export default function Nav() {
                   TV Show (Dev)
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/movie"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  Movie (Dev)
+                  Movie Library
                 </Link>
                 <Link
                   to="/under-development"

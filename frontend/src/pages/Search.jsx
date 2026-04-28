@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AnimeCard from "../components/AnimeCard";
+import AnimeMovieCard from "../components/AnimeMovieCard";
+import MovieCard from "../components/MovieCard";
 import { cleanString } from "../utils/anime";
 
 function getFranchiseTitles(f) {
@@ -35,8 +37,12 @@ export default function Search() {
   const [filterPillFranchises, setFilterPillFranchises] = useState([]);
   const [matchedSeries, setMatchedSeries] = useState([]);
   const [matchedAnime, setMatchedAnime] = useState([]);
+  const [matchedAnimeMovies, setMatchedAnimeMovies] = useState([]);
+  const [matchedMovies, setMatchedMovies] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
+  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
+  const [allMovies, setAllMovies] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   useEffect(() => {
@@ -53,6 +59,8 @@ export default function Search() {
         const needsFranchise =
           scope === "all" || scope === "franchise" || scope === "anime";
         const needsAnime = scope === "all" || scope === "anime";
+        const needsAnimeMovie = scope === "all" || scope === "anime-movie";
+        const needsMovie = scope === "all" || scope === "movie";
         const needsSeries = scope === "all" || scope === "series";
         const needsSeasonal = scope === "all" || scope === "seasonal";
 
@@ -67,13 +75,21 @@ export default function Search() {
           needsSeasonal
             ? fetch("/api/seasonal/", { credentials: "include" })
             : null,
+          needsAnimeMovie
+            ? fetch("/api/anime-movie/", { credentials: "include" })
+            : null,
+          needsMovie
+            ? fetch("/api/movies/", { credentials: "include" })
+            : null,
         ]);
-        const [fRes, aRes, sRes, seaRes] = fetches;
+        const [fRes, aRes, sRes, seaRes, amRes, mvRes] = fetches;
         if (
           (fRes && !fRes.ok) ||
           (aRes && !aRes.ok) ||
           (sRes && !sRes.ok) ||
-          (seaRes && !seaRes.ok)
+          (seaRes && !seaRes.ok) ||
+          (amRes && !amRes.ok) ||
+          (mvRes && !mvRes.ok)
         )
           throw new Error("Failed to fetch database");
 
@@ -81,7 +97,11 @@ export default function Search() {
         const all = aRes ? await aRes.json() : [];
         const allSeries = sRes ? await sRes.json() : [];
         const allSeasonal = seaRes ? await seaRes.json() : [];
+        const animeMovieResults = amRes ? await amRes.json() : [];
+        const movieResults = mvRes ? await mvRes.json() : [];
         setAllAnime(all);
+        setAllAnimeMovies(animeMovieResults);
+        setAllMovies(movieResults);
 
         const qClean = cleanString(query);
 
@@ -155,11 +175,41 @@ export default function Search() {
             (a.series_name_cn || "").localeCompare(b.series_name_cn || ""),
           );
 
+        // Anime Movies
+        const mam = animeMovieResults
+          .filter((m) =>
+            [
+              m.anime_movie_name_cn,
+              m.anime_movie_name_en,
+              m.anime_movie_name_roman,
+              m.anime_movie_name_jp,
+              m.anime_movie_name_alt,
+            ].some((n) => cleanString(n).includes(qClean)),
+          )
+          .sort((a, b) =>
+            (a.anime_movie_name_cn || "").localeCompare(
+              b.anime_movie_name_cn || "",
+            ),
+          );
+
+        // Movies
+        const mmv = movieResults
+          .filter((m) =>
+            [m.movie_name_cn, m.movie_name_en, m.movie_name_alt].some((n) =>
+              cleanString(n).includes(qClean),
+            ),
+          )
+          .sort((a, b) =>
+            (a.movie_name_cn || "").localeCompare(b.movie_name_cn || ""),
+          );
+
         setMatchedSeasonal(msea);
         setMatchedFranchises(mf);
         setFilterPillFranchises(pillFranchises);
         setMatchedAnime(ma);
         setMatchedSeries(ms);
+        setMatchedAnimeMovies(mam);
+        setMatchedMovies(mmv);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -178,10 +228,30 @@ export default function Search() {
     );
   }, []);
 
+  const handleMovieUpdated = useCallback((updated) => {
+    setMatchedAnimeMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    setAllAnimeMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
+  const handleLiveMovieUpdated = useCallback((updated) => {
+    setMatchedMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    setAllMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
   const showSeasonal = scope === "all" || scope === "seasonal";
   const showFranchise = scope === "all" || scope === "franchise";
   const showSeries = scope === "all" || scope === "series";
   const showAnime = scope === "all" || scope === "anime";
+  const showAnimeMovie = scope === "all" || scope === "anime-movie";
+  const showMovie = scope === "all" || scope === "movie";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -217,6 +287,7 @@ export default function Search() {
     franchise: "Franchise",
     series: "Series",
     anime: "Anime",
+    "anime-movie": "Anime Movie",
     seasonal: "Seasonal",
   };
 
@@ -289,6 +360,19 @@ export default function Search() {
           {showAnime && (
             <>
               <span className="font-bold">{matchedAnime.length}</span> anime
+              {showAnimeMovie && matchedAnimeMovies.length > 0 && " · "}
+            </>
+          )}
+          {showAnimeMovie && matchedAnimeMovies.length > 0 && (
+            <>
+              <span className="font-bold">{matchedAnimeMovies.length}</span>{" "}
+              anime movies
+              {showMovie && matchedMovies.length > 0 && " · "}
+            </>
+          )}
+          {showMovie && matchedMovies.length > 0 && (
+            <>
+              <span className="font-bold">{matchedMovies.length}</span> movies
             </>
           )}
         </p>
@@ -490,6 +574,62 @@ export default function Search() {
         </div>
       )}
 
+      {/* Anime Movies */}
+      {showAnimeMovie && matchedAnimeMovies.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-film text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Anime Movies
+              </h2>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {matchedAnimeMovies.length} results
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {matchedAnimeMovies.map((m) => (
+              <AnimeMovieCard
+                key={m.system_id}
+                movie={m}
+                onUpdated={handleMovieUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Movies */}
+      {showMovie && matchedMovies.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-ticket-alt text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Movies
+              </h2>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {matchedMovies.length} results
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {matchedMovies.map((m) => (
+              <MovieCard
+                key={m.system_id}
+                movie={m}
+                onUpdated={handleLiveMovieUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Under Development (all scope only) */}
       {scope === "all" &&
         [
@@ -500,7 +640,6 @@ export default function Search() {
             desc: "Light Novel · Web Novel",
           },
           { label: "TV Show", icon: "fa-video", desc: "Live Action Series" },
-          { label: "Movie", icon: "fa-film", desc: "Live Action Films" },
           {
             label: "Cartoon",
             icon: "fa-laugh-squint",

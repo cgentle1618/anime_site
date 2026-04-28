@@ -8,13 +8,15 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Anime from "./pages/Anime";
-import FranchiseAcg from "./pages/FranchiseAcg";
+import AnimeMovie from "./pages/AnimeMovie";
+import Franchise from "./pages/Franchise";
 import Search from "./pages/Search";
 import FutureReleases from "./pages/FutureReleases";
 import SeasonalOverall from "./pages/SeasonalOverall";
 import SeasonalDetail from "./pages/SeasonalDetail";
 import Statistics from "./pages/Statistics";
 import LibraryAnime from "./pages/LibraryAnime";
+import LibraryAnimeMovie from "./pages/LibraryAnimeMovie";
 import FranchiseLibrary from "./pages/FranchiseLibrary";
 import Admin from "./pages/Admin";
 import DataHistory from "./pages/DataHistory";
@@ -23,6 +25,8 @@ import Add from "./pages/Add";
 import Modify from "./pages/Modify";
 import Delete from "./pages/Delete";
 import UnderDevelopment from "./pages/UnderDevelopment";
+import Movie from "./pages/Movie";
+import LibraryMovie from "./pages/LibraryMovie";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,15 +53,22 @@ export default function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/library/anime" element={<LibraryAnime />} />
                 <Route
+                  path="/library/anime-movie"
+                  element={<LibraryAnimeMovie />}
+                />
+                <Route
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
+                <Route path="/library/movie" element={<LibraryMovie />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
                 <Route
-                  path="/franchise/:system_id"
-                  element={<FranchiseAcg />}
+                  path="/anime-movie/:system_id"
+                  element={<AnimeMovie />}
                 />
+                <Route path="/movie/:system_id" element={<Movie />} />
+                <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
                   path="/seasonal/:seasonal_id"

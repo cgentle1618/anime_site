@@ -2,18 +2,40 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-import {
-  getDisplayName,
-  getSortName,
-  isBaha,
-  getRatingWeight,
-} from "../utils/anime";
-import AnimeCard from "../components/AnimeCard";
-import AnimeMovieCard from "../components/AnimeMovieCard";
-import { InfoRow } from "../components/InfoCard";
+import { getRatingWeight } from "../utils/anime";
+import MovieCard from "../components/MovieCard";
 import SeriesModal from "../components/SeriesModal";
 
-export default function FranchiseAcg() {
+const WATCHING_STATUS_GROUPS = {
+  Planned: ["Plan to Watch", "Watch When Airs"],
+  Watching: ["Active Watching", "Passive Watching", "Paused"],
+  Completed: ["Completed"],
+  Dropped: ["Temp Dropped", "Dropped", "Won't Watch"],
+  "Might Watch": ["Might Watch"],
+};
+
+function getWatchingGroup(status) {
+  for (const [group, statuses] of Object.entries(WATCHING_STATUS_GROUPS)) {
+    if (statuses.includes(status)) return group;
+  }
+  return "Might Watch";
+}
+
+function releaseDateScore(movie) {
+  const raw = movie.release_date_usa || movie.release_date_tw || "";
+  if (!raw) return 0;
+  const parts = String(raw).trim().split(/[-\s]/);
+  const year = parseInt(parts[0]) || 0;
+  const month = parseInt(parts[1]) || 0;
+  const day = parseInt(parts[2]) || 0;
+  return year * 10000 + month * 100 + day;
+}
+
+function movieDisplayName(m) {
+  return m.movie_name_en || m.movie_name_cn || m.movie_name_alt || "";
+}
+
+export default function FranchiseReality() {
   const { system_id } = useParams();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
@@ -21,19 +43,15 @@ export default function FranchiseAcg() {
 
   const [franchise, setFranchise] = useState(null);
   const [seriesList, setSeriesList] = useState([]);
-  const [animeList, setAnimeList] = useState([]);
   const [movieList, setMovieList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [movieSort, setMovieSort] = useState("release_date");
 
   const [sort, setSort] = useState("release_date");
   const [groupBySeries, setGroupBySeries] = useState(true);
   const [filters, setFilters] = useState({
-    airingType: new Set(),
     airingStatus: new Set(),
     watchingStatus: new Set(),
-    bahaOnly: false,
   });
 
   const [selectedSeries, setSelectedSeries] = useState(null);
@@ -42,40 +60,31 @@ export default function FranchiseAcg() {
   // Admin editable fields
   const [rating, setRating] = useState("");
   const [expectation, setExpectation] = useState("");
-  const [watchNextGroup, setWatchNextGroup] = useState("");
-  const [toRewatch, setToRewatch] = useState(false);
   const [remark, setRemark] = useState("");
 
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes, mRes] = await Promise.all([
+        const [fRes, sRes, mRes] = await Promise.all([
           fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
           fetch(`/api/series/?franchise_id=${system_id}`, {
             credentials: "include",
           }),
-          fetch(`/api/anime/?franchise_id=${system_id}`, {
-            credentials: "include",
-          }),
-          fetch(`/api/anime-movie/?franchise_id=${system_id}`, {
+          fetch(`/api/movies/?franchise_id=${system_id}`, {
             credentials: "include",
           }),
         ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, m] = await Promise.all([
+        const [f, s, m] = await Promise.all([
           fRes.json(),
           sRes.json(),
-          aRes.json(),
           mRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
-        setAnimeList(a);
         setMovieList(m);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
-        setWatchNextGroup(f.watch_next_group || "");
-        setToRewatch(f.to_rewatch || false);
         setRemark(f.remark || "");
       } catch (e) {
         setError(e.message);
@@ -86,49 +95,11 @@ export default function FranchiseAcg() {
     load();
   }, [system_id]);
 
-  const handleAnimeUpdated = useCallback((updated) => {
-    setAnimeList((prev) =>
-      prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
-    );
-  }, []);
-
   const handleMovieUpdated = useCallback((updated) => {
     setMovieList((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
   }, []);
-
-  const sortedMovies = useMemo(() => {
-    return [...movieList].sort((a, b) => {
-      if (movieSort === "release_date") {
-        const dateScore = (m) => {
-          const raw = m.release_date_jp || m.release_date_tw || "";
-          if (!raw) return 0;
-          const parts = String(raw).trim().split(/[-\s]/);
-          const year = parseInt(parts[0]) || 0;
-          const month = parseInt(parts[1]) || 0;
-          const day = parseInt(parts[2]) || 0;
-          return year * 10000 + month * 100 + day;
-        };
-        return dateScore(a) - dateScore(b);
-      }
-      if (movieSort === "my_rating") {
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      }
-      if (movieSort === "mal_rating") {
-        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
-        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      // title
-      const titleOf = (m) =>
-        m.anime_movie_name_en ||
-        m.anime_movie_name_roman ||
-        m.anime_movie_name_cn ||
-        "";
-      return titleOf(a).localeCompare(titleOf(b));
-    });
-  }, [movieList, movieSort]);
 
   async function saveField(field, value) {
     try {
@@ -160,70 +131,46 @@ export default function FranchiseAcg() {
   }
 
   const filteredAndSorted = useMemo(() => {
-    let result = animeList.filter((a) => {
-      if (filters.airingType.size > 0 && !filters.airingType.has(a.airing_type))
-        return false;
+    let result = movieList.filter((m) => {
       if (
         filters.airingStatus.size > 0 &&
-        !filters.airingStatus.has(a.airing_status)
+        !filters.airingStatus.has(m.airing_status)
       )
         return false;
-      if (filters.bahaOnly && !isBaha(a)) return false;
       if (filters.watchingStatus.size > 0) {
-        const ws = a.watching_status || "Might Watch";
-        let group = "Might Watch";
-        if (["Plan to Watch", "Watch When Airs"].includes(ws))
-          group = "Planned";
-        else if (["Active Watching", "Passive Watching", "Paused"].includes(ws))
-          group = "Watching";
-        else if (ws === "Completed") group = "Completed";
-        else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(ws))
-          group = "Dropped";
+        const group = getWatchingGroup(m.watching_status || "Might Watch");
         if (!filters.watchingStatus.has(group)) return false;
       }
       return true;
     });
 
     result.sort((a, b) => {
-      if (sort === "watch_order")
-        return (a.watch_order ?? 999999) - (b.watch_order ?? 999999);
       if (sort === "release_date") {
-        const MONTH_MAP = {
-          JAN: 1,
-          FEB: 2,
-          MAR: 3,
-          APR: 4,
-          MAY: 5,
-          JUN: 6,
-          JUL: 7,
-          AUG: 8,
-          SEP: 9,
-          OCT: 10,
-          NOV: 11,
-          DEC: 12,
-        };
-        const scoreA =
-          (parseInt(a.release_year) || 0) * 100 +
-          (MONTH_MAP[(a.release_month || "").toUpperCase()] || 0);
-        const scoreB =
-          (parseInt(b.release_year) || 0) * 100 +
-          (MONTH_MAP[(b.release_month || "").toUpperCase()] || 0);
-        if (scoreA !== scoreB) return scoreA - scoreB;
+        const diff = releaseDateScore(a) - releaseDateScore(b);
+        if (diff !== 0) return diff;
       }
-      if (sort === "my_rating")
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (sort === "mal_rating") {
-        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
-        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
+      if (sort === "my_rating") {
+        const diff =
+          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+        if (diff !== 0) return diff;
+      }
+      if (sort === "imdb_rating") {
+        const wA =
+          a.imdb_rating && a.imdb_rating !== "N/A"
+            ? parseFloat(a.imdb_rating)
+            : -1;
+        const wB =
+          b.imdb_rating && b.imdb_rating !== "N/A"
+            ? parseFloat(b.imdb_rating)
+            : -1;
         if (wA !== wB) return wB - wA;
       }
-      return getSortName(a, "anime").localeCompare(getSortName(b, "anime"));
+      return movieDisplayName(a).localeCompare(movieDisplayName(b));
     });
 
     return result;
-  }, [animeList, filters, sort]);
+  }, [movieList, filters, sort]);
 
-  // Group by series
   const seriesGroups = useMemo(() => {
     const seriesMap = Object.fromEntries(
       seriesList.map((s) => [s.system_id, s]),
@@ -231,33 +178,37 @@ export default function FranchiseAcg() {
     const grouped = {};
     const standalone = [];
 
-    filteredAndSorted.forEach((a) => {
-      if (a.series_id && seriesMap[a.series_id]) {
-        if (!grouped[a.series_id]) grouped[a.series_id] = [];
-        grouped[a.series_id].push(a);
+    filteredAndSorted.forEach((m) => {
+      if (m.series_id && seriesMap[m.series_id]) {
+        if (!grouped[m.series_id]) grouped[m.series_id] = [];
+        grouped[m.series_id].push(m);
       } else {
-        standalone.push(a);
+        standalone.push(m);
       }
     });
 
     const result = [];
     seriesList.forEach((s) => {
       if (grouped[s.system_id]?.length > 0) {
-        result.push({ type: "series", series: s, anime: grouped[s.system_id] });
+        result.push({
+          type: "series",
+          series: s,
+          movies: grouped[s.system_id],
+        });
       }
     });
     if (standalone.length > 0) {
-      result.push({ type: "standalone", anime: standalone });
+      result.push({ type: "standalone", movies: standalone });
     }
     return result;
   }, [filteredAndSorted, seriesList]);
 
-  const completedCount = animeList.filter(
-    (a) => a.watching_status === "Completed",
+  const completedCount = movieList.filter(
+    (m) => m.watching_status === "Completed",
   ).length;
   const completionPct =
-    animeList.length > 0
-      ? Math.round((completedCount / animeList.length) * 100)
+    movieList.length > 0
+      ? Math.round((completedCount / movieList.length) * 100)
       : 0;
 
   if (loading) {
@@ -265,9 +216,7 @@ export default function FranchiseAcg() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">
-            Loading ACG Franchise Hub...
-          </p>
+          <p className="text-gray-500 font-medium">Loading Franchise Hub...</p>
         </div>
       </div>
     );
@@ -294,8 +243,6 @@ export default function FranchiseAcg() {
     "Unknown Franchise";
   const subTitles = [
     { label: "EN", value: franchise.franchise_name_en },
-    { label: "JP", value: franchise.franchise_name_jp },
-    { label: "Romaji", value: franchise.franchise_name_roman },
     { label: "Alt", value: franchise.franchise_name_alt },
   ].filter(({ value }) => value && value !== mainTitle);
 
@@ -303,8 +250,8 @@ export default function FranchiseAcg() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 flex items-center gap-1.5 flex-wrap">
-        <Link to="/library/anime" className="hover:text-brand font-medium">
-          <i className="fas fa-tv mr-1"></i>Anime
+        <Link to="/library/movie" className="hover:text-brand font-medium">
+          <i className="fas fa-film mr-1"></i>Movies
         </Link>
         <span>/</span>
         <span className="font-bold text-gray-800 truncate">{mainTitle}</span>
@@ -331,8 +278,8 @@ export default function FranchiseAcg() {
           {/* Left: title + info */}
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-black text-brand uppercase tracking-widest mb-2">
-              <i className="fas fa-sitemap mr-1"></i>
-              {franchise.franchise_type || "ACG Franchise"}
+              <i className="fas fa-film mr-1"></i>
+              {franchise.franchise_type || "Reality Franchise"}
             </div>
             <h1 className="text-2xl font-black text-gray-900 leading-tight mb-1">
               {mainTitle}
@@ -361,24 +308,8 @@ export default function FranchiseAcg() {
                   {franchise.franchise_expectation} Expectation
                 </span>
               )}
-              {franchise.watch_next_group && (
-                <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-list-ol mr-1"></i>
-                  Watch Next:{" "}
-                  {
-                    { "12ep": "12 EP", "24ep": "24 EP", "30ep_plus": "30+ EP" }[
-                      franchise.watch_next_group
-                    ]
-                  }
-                </span>
-              )}
-              {franchise.to_rewatch && (
-                <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-redo mr-1"></i>To Rewatch
-                </span>
-              )}
               <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
-                {animeList.length} Entries
+                {movieList.length} {movieList.length === 1 ? "Movie" : "Movies"}
               </span>
             </div>
           </div>
@@ -400,7 +331,7 @@ export default function FranchiseAcg() {
                 ></div>
               </div>
               <div className="text-xs text-gray-500 font-medium">
-                {completedCount} / {animeList.length} completed
+                {completedCount} / {movieList.length} watched
               </div>
             </div>
 
@@ -446,43 +377,6 @@ export default function FranchiseAcg() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                    Watch Next Group
-                  </label>
-                  <select
-                    value={watchNextGroup}
-                    onChange={(e) => {
-                      setWatchNextGroup(e.target.value);
-                      saveField("watch_next_group", e.target.value);
-                    }}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-                  >
-                    <option value="">— Not in Watch List —</option>
-                    <option value="12ep">12 EP</option>
-                    <option value="24ep">24 EP</option>
-                    <option value="30ep_plus">30+ EP</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                    To Rewatch
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={toRewatch}
-                      onChange={(e) => {
-                        setToRewatch(e.target.checked);
-                        saveField("to_rewatch", e.target.checked);
-                      }}
-                      className="w-4 h-4 rounded accent-brand"
-                    />
-                    <span className="text-xs font-medium text-gray-700">
-                      Mark for rewatch
-                    </span>
-                  </label>
                 </div>
               </div>
             )}
@@ -532,23 +426,23 @@ export default function FranchiseAcg() {
           onBlur={() => saveField("remark", remark)}
           disabled={!isAdmin}
           rows={3}
-          placeholder="Add private overview notes, watch order guides, or specific remarks for the entire franchise..."
+          placeholder="Add overview notes or franchise remarks..."
           className={`w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
         />
       </div>
 
-      {/* Anime Section */}
+      {/* Movie Section */}
       <div>
         <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
           <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-            <i className="fas fa-tv text-brand"></i>
+            <i className="fas fa-film text-brand"></i>
           </div>
           <div>
             <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-              Anime
+              Movies
             </h2>
             <p className="text-xs text-gray-400 font-medium mt-0.5">
-              TV · ONA · Movie · OVA · Special
+              Live-action &amp; animated films
             </p>
           </div>
           <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
@@ -556,38 +450,23 @@ export default function FranchiseAcg() {
           </span>
         </div>
 
-        {/* Filters + Sort */}
+        {/* Sort + Filter controls */}
         <div className="flex flex-wrap gap-2 mb-6 items-center">
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
             className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
           >
-            <option value="watch_order">Sort: Watch Order</option>
-            <option value="title">Sort: Title</option>
             <option value="release_date">Sort: Release Date</option>
+            <option value="title">Sort: Title</option>
             <option value="my_rating">Sort: My Rating</option>
-            <option value="mal_rating">Sort: MAL Rating</option>
+            <option value="imdb_rating">Sort: IMDb Rating</option>
           </select>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          {/* Airing Type filters */}
-          {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
-            <button
-              key={v}
-              onClick={() => toggleFilter("airingType", v)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-            >
-              {v}
-            </button>
-          ))}
 
           <div className="w-px h-5 bg-gray-200"></div>
 
           {/* Airing Status filters */}
           {[
-            ["Airing", "Airing"],
             ["Finished", "Finished Airing"],
             ["Not Aired", "Not Yet Aired"],
           ].map(([label, val]) => (
@@ -617,20 +496,6 @@ export default function FranchiseAcg() {
 
           <div className="w-px h-5 bg-gray-200"></div>
 
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.bahaOnly}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, bahaOnly: e.target.checked }))
-              }
-              className="rounded"
-            />
-            Baha Only
-          </label>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
           <button
             onClick={() => setGroupBySeries((v) => !v)}
             className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
@@ -639,7 +504,7 @@ export default function FranchiseAcg() {
           </button>
         </div>
 
-        {/* Anime grid */}
+        {/* Movie grid */}
         {filteredAndSorted.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <i className="fas fa-ghost text-3xl mb-3"></i>
@@ -650,7 +515,10 @@ export default function FranchiseAcg() {
             {seriesGroups.map((group) => {
               const label =
                 group.type === "series"
-                  ? getDisplayName(group.series, "series") || "Unknown Series"
+                  ? group.series.series_name_cn ||
+                    group.series.series_name_en ||
+                    group.series.series_name_alt ||
+                    "Unknown Series"
                   : "Standalone";
               return (
                 <section
@@ -668,27 +536,17 @@ export default function FranchiseAcg() {
                       {label}
                     </h3>
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {group.anime.length}
+                      {group.movies.length}
                     </span>
                     <div className="flex-1 border-t border-gray-100"></div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {group.anime.map((a) => (
-                      <div key={a.system_id} className="flex flex-col gap-1">
-                        {sort === "watch_order" && a.watch_order != null && (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                              #{a.watch_order}
-                            </span>
-                            {a.is_main_entry && (
-                              <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                                main
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
-                      </div>
+                    {group.movies.map((m) => (
+                      <MovieCard
+                        key={m.system_id}
+                        movie={m}
+                        onUpdated={handleMovieUpdated}
+                      />
                     ))}
                   </div>
                 </section>
@@ -697,106 +555,29 @@ export default function FranchiseAcg() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {filteredAndSorted.map((a) => (
-              <div key={a.system_id} className="flex flex-col gap-1">
-                {sort === "watch_order" && a.watch_order != null && (
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                      #{a.watch_order}
-                    </span>
-                    {a.is_main_entry && (
-                      <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                        main
-                      </span>
-                    )}
-                  </div>
-                )}
-                <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Anime Movie Section — shown only when entries exist */}
-      {movieList.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-film text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Anime Movie
-              </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                Standalone theatrical films
-              </p>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {movieList.length} entries
-            </span>
-          </div>
-
-          {/* Sort */}
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
-            <select
-              value={movieSort}
-              onChange={(e) => setMovieSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-            >
-              <option value="release_date">Sort: Release Date</option>
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="mal_rating">Sort: MAL Rating</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {sortedMovies.map((m) => (
-              <AnimeMovieCard
+            {filteredAndSorted.map((m) => (
+              <MovieCard
                 key={m.system_id}
                 movie={m}
                 onUpdated={handleMovieUpdated}
               />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Manga — Under Development */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-book text-gray-400"></i>
-          </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-              Manga
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Manga · Manhwa · Manhua
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-          <p className="text-sm font-bold text-gray-400">Under Development</p>
-        </div>
+        )}
       </div>
 
-      {/* Novel — Under Development */}
+      {/* TV Show Section — Under Development */}
       <div>
         <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
           <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-book-open text-gray-400"></i>
+            <i className="fas fa-tv text-gray-400"></i>
           </div>
           <div>
             <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-              Novel
+              TV Shows
             </h2>
             <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Light Novel · Web Novel
+              Live-action series
             </p>
           </div>
         </div>
