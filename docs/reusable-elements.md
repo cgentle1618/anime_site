@@ -592,9 +592,9 @@ Manga Production Card
 
 ### Notes Card
 
-The information is broken down into multiple fields from the notes column in the database.
+The information is broken down into multiple fields from the `notes` JSONB column in the database. Each notes card is a self-contained component that manages its own section state and saves via a callback.
 
-Anime Notes Card
+**Anime Notes Card** — `frontend/src/pages/AnimeNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -614,7 +614,9 @@ Anime Notes Card
 - Questions
 - 名言/梗/迷因 Quotes & Memes
 
-Anime Movie Notes Card
+Used on: Anime Detail page, Modify Anime tab.
+
+**Anime Movie Notes Card** — `frontend/src/pages/AnimeMovieNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -632,7 +634,11 @@ Anime Movie Notes Card
 - Questions
 - 名言/梗/迷因 Quotes & Memes
 
-Movie Notes Card
+Used on: Anime Movie Detail page, Modify Anime Movie tab.
+
+**Movie Notes Card** — `frontend/src/pages/MovieNotes.jsx`
+
+Stores data in `movies.notes` JSONB column.
 
 - Remark
 - 優點 Advantages
@@ -645,6 +651,8 @@ Movie Notes Card
 - Unread
 - Questions
 - 名言/梗/迷因 Quotes & Memes
+
+Used on: Movie Detail page, Modify Movie tab.
 
 TV Show Notes Card
 

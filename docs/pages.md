@@ -270,6 +270,7 @@ Full detail page for a single movie entry.
 - **Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): Airing Status, Movie Type, Length, Director, Release Date USA, Release Date TW
 - Remarks — shown when `remark` is not null (admin editable via blur)
+- **MovieNotes** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor always rendered at the bottom; sections: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes; saves via `PATCH /api/movies/:id` with `notes` field.
 
 Admin writes use `PATCH /api/movies/:system_id`.
 
@@ -1071,8 +1072,10 @@ Writes: `PATCH /api/options/:id`
 #### Modify Movie Entry Tab
 
 - Search bar (searches Movie Name EN/CN/Alt); recently modified entries shown by `updated_at` desc
-- After selecting: full edit form — same fields as Add Movie tab
+- After selecting: Other Entries in franchise block (grouped by series) — show Movie Name CN with fallback; hidden for 獨立電影, 影集, Disney, Marvel franchises
+- Full edit form — same fields as Add Movie tab
 - Franchise ComboBox filtered to `franchise_type = "TV or Movie"`
+- Structured Notes section at the bottom (`MovieNotes`): Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
 - Save Changes Button
 
 Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatically)
