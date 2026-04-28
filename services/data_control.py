@@ -646,6 +646,62 @@ async def execute_replace_single_anime_movie(
         return {"status": "error", "message": str(e), "status_code": 500}
 
 
+async def execute_replace_single_movie(
+    db: Session,
+    movie_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """Fetches IMDb data for a single Movies entry, runs autofill, and syncs."""
+    logger.info(f"Starting Single Replace Pipeline for movie ID: {movie_id}")
+    action_specific = "Replace for single movie entry"
+
+    try:
+        movie = db.query(Movies).filter(Movies.system_id == movie_id).first()
+        if not movie:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="Movie not found 404",
+                )
+            return {
+                "status": "error",
+                "message": "Movie entry not found",
+                "status_code": 404,
+            }
+
+        apply_single_replace_movie(db, movie, bulk=False)
+        db.commit()
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated {movie.display_name}.",
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Single Replace Movie Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e), "status_code": 500}
+
+
 async def execute_replace_anime(
     db: Session,
     request: Request,
@@ -849,62 +905,6 @@ async def execute_replace_anime_movie(
                 error_message=str(e),
             )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-
-
-async def execute_replace_single_movie(
-    db: Session,
-    movie_id: str,
-    action_type: str = "Manual",
-    log_action: bool = True,
-) -> dict:
-    """Fetches IMDb data for a single Movies entry, runs autofill, and syncs."""
-    logger.info(f"Starting Single Replace Pipeline for movie ID: {movie_id}")
-    action_specific = "Replace for single movie entry"
-
-    try:
-        movie = db.query(Movies).filter(Movies.system_id == movie_id).first()
-        if not movie:
-            if log_action:
-                log_data_control(
-                    db,
-                    "Replace",
-                    action_specific,
-                    action_type,
-                    "Failed",
-                    error_message="Movie not found 404",
-                )
-            return {
-                "status": "error",
-                "message": "Movie entry not found",
-                "status_code": 404,
-            }
-
-        apply_single_replace_movie(db, movie, bulk=False)
-        db.commit()
-
-        if log_action:
-            log_data_control(
-                db, "Replace", action_specific, action_type, "Success", rows_updated=1
-            )
-
-        return {
-            "status": "success",
-            "message": f"Successfully updated {movie.display_name}.",
-        }
-
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Single Replace Movie Error: {e}")
-        if log_action:
-            log_data_control(
-                db,
-                "Replace",
-                action_specific,
-                action_type,
-                "Failed",
-                error_message=str(e),
-            )
-        return {"status": "error", "message": str(e), "status_code": 500}
 
 
 async def execute_replace_movie(
