@@ -25,12 +25,13 @@ from utils.formatter import (
     parse_system_option_from_sheet,
 )
 from utils.data_control_utils import log_data_control
-from utils.utils import apply_extract_imdb_id, has_missing_values_movie
+from utils.utils import apply_extract_imdb_id
 
 from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
     has_missing_values_anime,
     has_missing_values_anime_movie,
+    has_missing_values_movie,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_movie_from_imdb,

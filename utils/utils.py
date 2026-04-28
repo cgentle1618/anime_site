@@ -127,15 +127,6 @@ def apply_extract_imdb_id(movie) -> bool:
     return False
 
 
-def has_missing_values_movie(movie) -> bool:
-    """Returns True if any required Movies field is missing."""
-    for field in MOVIE_FIELDS_TO_FILL:
-        val = getattr(movie, field, None)
-        if val is None or str(val).strip() == "":
-            return True
-    return False
-
-
 def extract_mal_id_anime(url: str) -> Optional[int]:
     """
     Extracts the numeric ID from a standard MyAnimeList URL.

@@ -25,6 +25,7 @@ from utils.utils import (
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
+    MOVIE_FIELDS_TO_FILL,
     extract_mal_id_anime,
     extract_season_from_title,
     calculate_seasonal_from_month,
@@ -207,9 +208,7 @@ def resolve_movie_parent_hierarchy(
         existing = db.query(Franchise).filter(or_(*search_conditions)).first()
 
     if existing:
-        logger.info(
-            f"Auto-resolved existing Franchise for Movie: {existing.system_id}"
-        )
+        logger.info(f"Auto-resolved existing Franchise for Movie: {existing.system_id}")
         return existing.system_id
 
     new_fran = Franchise(
@@ -353,6 +352,15 @@ def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
         missing = [f for f in missing if f not in ("mal_rating", "mal_rank")]
 
     return len(missing) > 0
+
+
+def has_missing_values_movie(movie) -> bool:
+    """Returns True if any required Movies field is missing."""
+    for field in MOVIE_FIELDS_TO_FILL:
+        val = getattr(movie, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
 
 
 def check_is_watching_completed(entry: Anime) -> bool:
@@ -1226,9 +1234,7 @@ def apply_single_replace_anime_movie(
     anime_movie_post_processing(anime_movie, db)
 
 
-def apply_single_replace_movie(
-    db: Session, movie: Movies, bulk: bool = False
-) -> None:
+def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -> None:
     """Core 'Replace' logic for a single Movies entry."""
     apply_extract_imdb_id(movie)
     autofill_movie_from_imdb(movie, db)
