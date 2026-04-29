@@ -539,6 +539,28 @@ Enriches a single Movie entry with TMDB + OMDb data. Does not commit — caller 
 
 ---
 
+### IMDb Autofill TV Show — `autofill_tv_show_from_imdb(tv_show, db)`
+
+Enriches a single TV show entry (one season) with TMDB + OMDb data. Does not commit — caller is responsible.
+
+Each entry represents **one season** of a show. The `imdb_id` field stores the show-level IMDb ID (shared across all seasons). The `season_part` field (e.g., `"Season 1"`, `"Season 2 Part 1"`) determines which season number to query on TMDB for season-specific data.
+
+**Steps:**
+
+1. Return early if `tv_show.imdb_id` is None.
+2. Call `fetch_imdb_data(tv_show.imdb_id)` → `{"tmdb_raw": ..., "omdb_raw": ...}` (show-level).
+3. If `tmdb_raw` is not None:
+   - Extract `tmdb_id = tmdb_raw.get("id")`.
+   - Parse season number: `season_number = _parse_season_number(tv_show.season_part)`.
+   - Call `fetch_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`.
+4. Call `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` → flat merged dict.
+5. Fill each field **only if currently None**: `release_date`, `ep_total`.
+6. `imdb_rating`: always overwrite if fetched value is not None.
+7. `airing_status` (fill-only if currently None): derive via `_derive_tv_season_airing_status(season_air_date, episodes)`.
+8. Cover image (fill-only): if `cover_image_file` is None and `cover_image_url` is in the mapped data, download and upload to GCS as `{system_id}.jpg`, set `cover_image_file`.
+
+---
+
 ## MAL Data Helpers
 
 ### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `services/jikan.py`
@@ -641,12 +663,69 @@ Merges results from both APIs into one flat dict for the Movie model.
 
 ---
 
+### Parse Season Number — `_parse_season_number(season_part)` in `utils/tmdb_utils.py`
+
+Extracts the season number from the `season_part` string using regex `Season\s+(\d+)`. Defaults to `1` if `season_part` is None or no match is found.
+
+| `season_part` value | Returns |
+| ------------------- | ------- |
+| `"Season 1"`        | `1`     |
+| `"Season 2"`        | `2`     |
+| `"Season 2 Part 1"` | `2`     |
+| `None`              | `1`     |
+| `"Special"`         | `1`     |
+
+---
+
+### TMDB Season Fetch — `fetch_tv_season_data(tmdb_id, season_number)` in `services/tmdb.py`
+
+Fetches `GET /3/tv/{tmdb_id}/season/{season_number}`. Returns raw season JSON or `None`.
+
+Uses the same `TMDbRateLimiter` and `@retry` configuration as `fetch_tmdb_data`.
+
+---
+
 ### TMDB Conversion for TV Show — `map_tmdb_to_tv_show_data(raw)` in `utils/tmdb_utils.py`
 
 | Output Field      | TMDB Source                                     |
 | ----------------- | ----------------------------------------------- |
 | `release_date`    | `_convert_tmdb_date(first_air_date)`            |
 | `cover_image_url` | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix |
+
+---
+
+### TMDB Conversion for TV Season — `map_tmdb_to_tv_season_data(raw)` in `utils/tmdb_utils.py`
+
+Maps the TMDB Season Details endpoint response. The `_season_air_date` and `_episodes` keys are private — used only for `airing_status` derivation in the autofill function; not written to the database.
+
+| Output Field       | TMDB Source                                     |
+| ------------------ | ----------------------------------------------- |
+| `release_date`     | `_convert_tmdb_date(air_date)`                  |
+| `ep_total`         | `len(episodes[])`                               |
+| `cover_image_url`  | `poster_path` with `TMDB_IMAGE_BASE_URL` prefix |
+| `_season_air_date` | `air_date` (raw ISO string)                     |
+| `_episodes`        | `episodes[]` (raw list)                         |
+
+---
+
+### IMDb Conversion for TV Show — `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` in `utils/imdb_utils.py`
+
+Merges show-level and season-level TMDB data with OMDb data into one flat dict.
+
+1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_season_data(tmdb_season_raw)`.
+2. If `cover_image_url` is still None and `tmdb_raw` is not None: fall back to show-level `poster_path` via `_build_poster_url`.
+3. If `omdb_raw` is not None: apply `map_omdb_to_tv_show_data(omdb_raw)` (adds `imdb_rating`).
+
+---
+
+### TV Season Airing Status Derivation — `_derive_tv_season_airing_status(season_air_date, episodes)`
+
+| Condition                                                             | Result              |
+| --------------------------------------------------------------------- | ------------------- |
+| `season_air_date` is None or unparseable                              | `None` (skip)       |
+| `season_air_date` > today                                             | `"Not Yet Aired"`   |
+| `season_air_date` ≤ today AND all episodes have `air_date` ≤ today    | `"Finished Airing"` |
+| `season_air_date` ≤ today AND not all episodes have a past `air_date` | `"Airing"`          |
 
 ---
 
