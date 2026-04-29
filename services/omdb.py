@@ -96,12 +96,12 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
             return None
 
         if response.status_code == 429:
-            logger.warning(f"OMDb Rate Limit (429) for IMDb ID {imdb_tt_id}.")
+            logger.warning(f"OMDb Rate Limit (429) for IMDb ID {imdb_id}.")
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code >= 500:
             logger.warning(
-                f"OMDb server error ({response.status_code}) for IMDb ID {imdb_tt_id} — skipping retries."
+                f"OMDb server error ({response.status_code}) for IMDb ID {imdb_id} — skipping retries."
             )
             return None
 
@@ -111,7 +111,7 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
 
         if data.get("Response") == "False":
             logger.warning(
-                f"OMDb: Title not found for IMDb ID {imdb_tt_id}: {data.get('Error')}"
+                f"OMDb: Title not found for IMDb ID {imdb_id}: {data.get('Error')}"
             )
             return None
 
@@ -119,6 +119,6 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
 
     except requests.exceptions.RequestException as e:
         logger.error(
-            f"Network/Timeout Error connecting to OMDb for IMDb ID {imdb_tt_id}: {e}"
+            f"Network/Timeout Error connecting to OMDb for IMDb ID {imdb_id}: {e}"
         )
         raise
