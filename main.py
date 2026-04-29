@@ -25,6 +25,7 @@ from routers import (
     anime,
     anime_movie,
     movie,
+    tv_show,
     seasonal,
     data_control,
     system,
@@ -110,6 +111,7 @@ app.include_router(series.router)
 app.include_router(anime.router)
 app.include_router(anime_movie.router)
 app.include_router(movie.router)
+app.include_router(tv_show.router)
 app.include_router(seasonal.router)
 
 app.include_router(data_control.router)

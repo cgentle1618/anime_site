@@ -24,7 +24,7 @@ Add the `TVShows` SQLAlchemy model mirroring the `tv_shows` schema:
 
 Use `NameFallbackMixin` (CN → EN → Alt). `release_date` and `is_main` are stored as strings.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -32,7 +32,7 @@ Use `NameFallbackMixin` (CN → EN → Alt). `release_date` and `is_main` are st
 
 Run `alembic revision --autogenerate -m "add tv_shows table"` after Step 1, then `alembic upgrade head`.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -45,7 +45,7 @@ Add:
 - `TVShowUpdate(TVShowBase)` — for PUT
 - `TVShowResponse(TVShowBase)` — with `display_name` computed property (CN → EN → Alt fallback), `from_attributes = True`
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -65,7 +65,7 @@ Endpoints:
 
 Response model: `TVShowResponse`
 
-- [ ] Done
+- [x] Done (execute_replace_single_tv_show stub added to data_control.py; full implementation in Phase 3)
 
 ---
 
@@ -73,7 +73,7 @@ Response model: `TVShowResponse`
 
 Include `routers/tv_show.py` router in `main.py`.
 
-- [ ] Done
+- [x] Done
 
 ---
 

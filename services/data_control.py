@@ -1426,6 +1426,17 @@ def execute_pull_specific(
     }
 
 
+async def execute_replace_single_tv_show(
+    db: Session,
+    tv_show_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """Stub — full autofill implementation added in Phase 3."""
+    logger.info(f"execute_replace_single_tv_show stub called for {tv_show_id}")
+    return {"status": "success", "message": "TV show autofill pipeline not yet implemented."}
+
+
 def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     Pulls ALL tabs from Google Sheets into the database.
