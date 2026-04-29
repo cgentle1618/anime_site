@@ -479,10 +479,9 @@ Live-action and scripted TV show entries.
 
 #### Sources
 
-| Column              | Type   | Nullable | Notes                         |
-| ------------------- | ------ | -------- | ----------------------------- |
-| `source_other`      | String | Yes      | Name of other watching source |
-| `source_other_link` | String | Yes      | Link of other watching source |
+| Column         | Type  | Nullable | Notes                                |
+| -------------- | ----- | -------- | ------------------------------------ |
+| `source_other` | JSONB | Yes      | Key-value pairs of source name → URL |
 
 #### Misc
 

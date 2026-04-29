@@ -416,8 +416,7 @@ class TVShows(Base, NameFallbackMixin):
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)
 
-    source_other = Column(String, nullable=True)
-    source_other_link = Column(String, nullable=True)
+    source_other = Column(JSONB, default=None, nullable=True)
 
     watch_next = Column(Boolean, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
