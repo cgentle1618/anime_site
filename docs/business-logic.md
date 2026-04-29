@@ -49,7 +49,7 @@ Tab names match model table names. Column order in the sheet is guaranteed to ma
 
 #### Fill All — `execute_fill_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Fill Anime (with `log_action=False`), then Fill Anime Movie (with `log_action=False`), then Fill Movie (with `log_action=False`), parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+Master orchestrator. Calls Fill Anime (with `log_action=False`), then Fill Anime Movie (with `log_action=False`), then Fill Movie (with `log_action=False`), then Fill TV Show (with `log_action=False`), parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
 
 **Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
@@ -63,7 +63,7 @@ Fills missing metadata for all anime entries that need it.
 2. Build queue: entries where `has_missing_values_anime()` returns `True`.
 3. For each queued entry: call `autofill_anime_from_mal(force_replace_ratings=True)`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
-5. After loop: `run_anime_post_processing`, `run_derive_related`, `run_sync_anime`.
+5. After loop: `run_anime_post_processing`, `run_derive_related_anime`, `run_sync_anime`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
 **Note:** Shows entry being processed by anime name (with fallback).
@@ -103,11 +103,28 @@ Fills missing metadata for all movie entries that need it.
 
 ---
 
+#### Fill TV Show — `execute_fill_tv_show(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Fills missing metadata for all TV show entries that need it.
+
+**Steps:**
+
+1. Run `apply_extract_imdb_id` on all TV show entries to populate `imdb_id` from `imdb_link`.
+2. Build queue: entries where `has_missing_values_tv_show()` returns `True`.
+3. For each queued entry: call `autofill_tv_show_from_imdb()`.
+4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
+5. After loop: `run_tv_show_post_processing`, `run_derive_related_tv_show`, `run_sync_tv_show`.
+6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Shows entry being processed by TV show name (with fallback).
+
+---
+
 ### Replace
 
 #### Replace All — `execute_replace_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Replace Anime (with `log_action=False`), then Replace Anime Movie (with `log_action=False`), then Replace Movie (with `log_action=False`), parses SSE output, runs Backup, logs single master entry.
+Master orchestrator. Calls Replace Anime (with `log_action=False`), then Replace Anime Movie (with `log_action=False`), then Replace Movie (with `log_action=False`), then Replace TV Show (with `log_action=False`), parses SSE output, runs Backup, logs single master entry.
 
 **Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
@@ -119,7 +136,7 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 
 1. Query all anime with `mal_id` or `mal_link` set. Return early if queue is empty.
 2. For each entry: call `apply_single_replace_anime(bulk=True)` — skips per-entry `derive_related`.
-3. After loop: call `derive_related(db)` once for all franchises.
+3. After loop: call `run_derive_related_anime(db)` once for all franchises.
 4. Call `run_sync_anime(db)`.
 
 **Note:** Shows entry being processed by title (with fallback).
@@ -153,6 +170,21 @@ Replaces metadata for all movie entries that have an `imdb_id` or `imdb_link`.
 
 ---
 
+#### Replace TV Show — `execute_replace_tv_show(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Replaces metadata for all TV show entries that have an `imdb_id` or `imdb_link`.
+
+**Steps:**
+
+1. Query all TV shows with `imdb_id` or `imdb_link` set. Return early if queue is empty.
+2. For each entry: call `apply_single_replace_tv_show(bulk=True)`.
+3. After loop: call `run_derive_related_tv_show(db)`.
+4. Call `run_sync_tv_show(db)`.
+
+**Note:** Shows entry being processed by TV show name (with fallback).
+
+---
+
 #### Replace for Single Anime Entry — `execute_replace_single_anime(db, anime_id, action_type, log_action)` / `apply_single_replace_anime(db, anime, bulk, force_replace_ratings)`
 
 `execute_replace_single_anime` is the router-level function (handles lookup, sync, logging). Used in the anime endpoint for the Autofill & Update button. Calls `apply_single_replace_anime(bulk=False)`, then runs Sync.
@@ -163,7 +195,7 @@ Replaces metadata for all movie entries that have an `imdb_id` or `imdb_link`.
 1. `apply_extract_mal_id_anime`
 2. `autofill_anime_from_mal`
 3. `anime_post_processing`
-4. If `bulk=False`: call `derive_related(db)` inline. If `bulk=True`: caller handles `derive_related` after the loop.
+4. If `bulk=False`: call `run_derive_related_anime(db)` inline. If `bulk=True`: caller handles `run_derive_related_anime` after the loop.
 
 ---
 
@@ -189,6 +221,20 @@ Replaces metadata for all movie entries that have an `imdb_id` or `imdb_link`.
 
 1. `apply_extract_imdb_id`
 2. `autofill_movie_from_imdb`
+
+---
+
+#### Replace for Single TV Show Entry — `execute_replace_single_tv_show(db, tv_show_id, action_type, log_action)` / `apply_single_replace_tv_show(db, tv_show, bulk)`
+
+`execute_replace_single_tv_show` is the router-level function (handles lookup, sync, logging). Used in the TV show endpoint for the Autofill & Update button. Calls `apply_single_replace_tv_show(bulk=False)`, then runs `run_sync_tv_show`.
+`apply_single_replace_tv_show` is the core logic (used in both single and bulk paths); it is not called by routers directly.
+
+**`apply_single_replace_tv_show` steps:**
+
+1. `apply_extract_imdb_id`
+2. `autofill_tv_show_from_imdb`
+3. `tv_show_post_processing`
+4. If `bulk=False`: call `run_derive_related_tv_show(db)` inline. If `bulk=True`: caller handles `run_derive_related_tv_show` after the loop.
 
 ---
 
@@ -229,15 +275,15 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 1. `apply_validate_episode_math`
 2. `apply_check_baha`
-3. If `check_is_watching_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+3. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
 4. If `release_season` is None, `release_month` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
 5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_anime`.
 
 ---
 
-### Anime Movie Post Processing — `anime_movie_post_processing(anime, db)` / `run_anime_movie_post_processing(db)`
+### Anime Movie Post Processing — `anime_movie_post_processing(anime_movie, db)` / `run_anime_movie_post_processing(db)`
 
-Runs all single-entry checks and repairs for one anime. `run_anime_movie_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one anime movie. `run_anime_movie_post_processing` applies it to every entry in the DB.
 
 **Steps (in order):**
 
@@ -245,9 +291,33 @@ Runs all single-entry checks and repairs for one anime. `run_anime_movie_post_pr
 
 ---
 
-### Derive Related — `derive_related(db)` / `run_derive_related(db)`
+### TV Show Post Processing — `tv_show_post_processing(tv_show, db)` / `run_tv_show_post_processing(db)`
 
-Runs watch order, episode previous, and prequel/sequel derivation for every franchise in the DB.
+Runs all single-entry checks and repairs for one TV show. `run_tv_show_post_processing` applies it to every entry in the DB.
+
+**Steps (in order):**
+
+1. `apply_validate_episode_math`
+2. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+3. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_tv_show`.
+
+---
+
+### Post Processing — `run_post_processing(db)`
+
+Master orchestrator. Calls all post-processing functions across every media type.
+
+**Steps:**
+
+1. `run_anime_post_processing`
+2. `run_anime_movie_post_processing`
+3. `run_tv_show_post_processing`
+
+---
+
+### Derive Related Anime — `derive_related_anime(db, franchise_id)` / `run_derive_related_anime(db)`
+
+Runs watch order, episode previous, and prequel/sequel derivation for every ACG franchise in the DB.
 
 **Per franchise_id:**
 
@@ -259,10 +329,24 @@ Commits after all franchises processed.
 
 ---
 
+### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)` / `run_derive_related_tv_show(db)`
+
+Runs watch order and prequel/sequel derivation for every TV or Movie franchise in the DB.
+
+**Per franchise_id:**
+
+1. `derive_watch_order_tv_show`
+2. `derive_prequel_sequel_tv_show`
+
+Commits after all franchises processed.
+
+---
+
 ### Sync — `run_sync(db)`
 
 1. `run_sync_anime(db)`
 2. `run_sync_anime_movie(db)`
+3. `run_sync_tv_show(db)`
 
 ---
 
@@ -280,14 +364,20 @@ Commits after all franchises processed.
 
 ---
 
+### Sync — `run_sync_tv_show(db)`
+
+1. `extract_system_options_from_tv_show`
+
+---
+
 ### Calculate All — `run_calculate_all(db)`
 
-1. `run_anime_post_processing`
-1. `run_anime_movie_post_processing`
-1. `run_derive_related`
-1. `run_sync`
-1. `bulk_check_cover_image`
-1. Log to `DataControlLog` (Success or Failed).
+1. `run_post_processing`
+2. `run_derive_related_anime`
+3. `run_derive_related_tv_show`
+4. `run_sync`
+5. `bulk_check_cover_image`
+6. Log to `DataControlLog` (Success or Failed).
 
 ---
 
@@ -339,12 +429,28 @@ Returns `True` if any required field is blank.
 
 ---
 
-### Check Completed for Watching Type — `check_is_watching_completed(entry)`
+### Check Missing Values for TV Show — `has_missing_values_tv_show(tv_show)`
 
-Returns `True` if:
+Returns `True` if any required field is blank.
+
+**Fields checked:** `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
+
+---
+
+### Check Completed for TV Type — `check_is_tv_completed(entry)`
+
+Applicable for anime, TV show, and cartoon entries. Returns `True` if:
 
 - `watching_status == "Completed"`, OR
 - `ep_total > 0` AND `ep_fin == ep_total`.
+
+---
+
+### Check Completed for Movie Type — `check_is_movie_completed(entry)`
+
+Applicable for anime movie and movie entries. Returns `True` if:
+
+- `watching_status == "Completed"`.
 
 ---
 
@@ -390,10 +496,11 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 | `find_duplicate_anime`       | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
 | `find_duplicate_anime_movie` | Same `franchise_id` + at least one matching name                                                             |
 | `find_duplicate_movie`       | Same `(franchise_id, series_id)` + at least one matching name                                                |
+| `find_duplicate_tv_show`     | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
 
 | `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive) |
 
-`find_all_duplicates` runs all five: returns `{franchise, series, anime, anime_movie, movie, system_options}`.
+`find_all_duplicates` runs all six: returns `{franchise, series, anime, anime_movie, movie, tv_show, system_options}`.
 
 ---
 
@@ -432,7 +539,7 @@ Accepts both string abbreviations (`"APR"`) and numeric strings (`"4"`, `"04"`).
 
 ---
 
-### Derive Watch Order — `derive_watch_order_anime(db, franchise_id)`
+### Derive Watch Order Anime — `derive_watch_order_anime(db, franchise_id)`
 
 Assigns consecutive `watch_order` floats (starting at 1.0) to eligible entries within a franchise.
 
@@ -450,15 +557,53 @@ Assigns consecutive `watch_order` floats (starting at 1.0) to eligible entries w
 
 ---
 
-### Derive Prequel / Sequel — `derive_prequel_sequel_anime(db, franchise_id)`
+### Derive Watch Order TV Show — `derive_watch_order_tv_show(db, franchise_id)`
 
-Sets `prequel_id` and `sequel_id` for entries in a franchise, sorted by `watch_order`.
+Assigns consecutive `watch_order` floats (starting at 1.0) to eligible TV show entries within a franchise.
+
+**Eligibility:** `season_part` is set.
+
+**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
+
+**Sort algorithm per series group:** Season number (from `season_part`), then part number.
+
+**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
+
+---
+
+### Derive Watch Order Movie — `derive_watch_order_movie(db, franchise_id)`
+
+TBD.
+
+---
+
+### Derive Prequel Sequel Anime — `derive_prequel_sequel_anime(db, franchise_id)`
+
+Sets `prequel_id` and `sequel_id` for anime entries in an ACG franchise, sorted by `watch_order`.
 
 **Eligibility:** `watch_order` is not null AND `derive_related != False`.
 
 **Only fills entries where the field is currently `None`** — never overwrites.
 
 Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
+
+---
+
+### Derive Prequel Sequel TV Show — `derive_prequel_sequel_tv_show(db, franchise_id)`
+
+Sets `prequel_id` and `sequel_id` for TV show entries in a TV or Movie franchise, sorted by `watch_order`.
+
+**Eligibility:** `watch_order` is not null AND `derive_related != False`. Does not apply to Special Franchises.
+
+**Only fills entries where the field is currently `None`** — never overwrites.
+
+Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
+
+---
+
+### Derive Prequel Sequel Movie — `derive_prequel_sequel_movie(db, franchise_id)`
+
+TBD.
 
 ---
 
@@ -479,9 +624,21 @@ When called with default `series_id=_SERIES_UNSET`, processes all series groups 
 
 ---
 
-### Derive S1 — `derive_season_1_anime(anime, db)`
+### Derive S1 Anime — `derive_season_1_anime(anime, db)`
 
 Sets `season_part = "Season 1"` if `season_part` is None, `airing_type == "TV"`, `franchise_id` is set, and the franchise has exactly 1 TV entry.
+
+---
+
+### Derive S1 TV Show — `derive_season_1_tv_show(tv_show, db)`
+
+Sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set, and the franchise has exactly 1 TV show entry.
+
+---
+
+### Derive S1 Cartoon — `derive_season_1_cartoon(cartoon, db)`
+
+Sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set, and the franchise has exactly 1 cartoon entry.
 
 ---
 
@@ -561,6 +718,12 @@ Each entry represents **one season** of a show. The `imdb_id` field stores the s
 
 ---
 
+### IMDb Autofill Cartoon — `autofill_cartoon_from_imdb(cartoon, db)`
+
+TBD. Follows same architecture as `autofill_tv_show_from_imdb`.
+
+---
+
 ## MAL Data Helpers
 
 ### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `services/jikan.py`
@@ -615,6 +778,7 @@ Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_ra
 
 Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media type, then delegates to `_fetch_movie_details` (movie) or `_fetch_tv_details` (tv show and cartoon).
 
+- **`_find_tmdb_id(imdb_tt_id, api_key)`** — resolves an IMDb `tt` ID to a TMDB integer ID and media type (`"movie"` or `"tv"`). Calls `GET /3/find/{imdb_tt_id}?external_source=imdb_id`.
 - **`_fetch_movie_details`** — fetches `/movie/{id}?append_to_response=credits`.
 - **`_fetch_tv_details`** — fetches `/tv/{id}`. Used for tv show and cartoon entries.
 
@@ -789,7 +953,13 @@ Scans all Anime entries for values in: `genre_main`, `genre_sub`, `studio`, `dis
 
 ### Extract System Options from Anime Movie — `extract_system_options_from_anime_movie(db)`
 
-Scans all Anime entries for values in: `studio` and `director`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
+Scans all Anime Movie entries for values in: `studio` and `director`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
+
+---
+
+### Extract System Options from TV Show — `extract_system_options_from_tv_show(db)`
+
+Scans all TV Show entries for values in: `source_official`. Any value not already in `system_options` for that category is added automatically.
 
 ---
 
@@ -889,9 +1059,11 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 ### Tab-specific parsers
 
-`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_tv_show_from_sheet`, `parse_cartoon_from_sheet`, `parse_manga_from_sheet`, `parse_novel_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
 
 **`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
+
+**`parse_tv_show_from_sheet`**: Parses a raw dictionary from the TV Shows sheet into typed data ready for the database. Foreign keys parsed as `UUID`. `imdb_id` parsed as `str`.
 
 **Notable:**
 
@@ -937,6 +1109,28 @@ Ensures a valid `franchise_id` UUID for an Anime Movie during Pull.
 Ensures valid `franchise_id` and `series_id` UUIDs for a Movie. Used by the Pull pipeline and Create/Update endpoints.
 
 **Franchise resolution** (same as Anime Movie):
+
+- Valid UUID object provided: use it as-is.
+- Null or string: search all franchise name fields (`ilike` on `en`, `cn`, `alt`).
+- Found: return existing UUID.
+- Not found: **auto-create** a new Franchise with `franchise_type="TV or Movie"`, flush, return new UUID.
+
+**Series resolution:**
+
+- Non-string (UUID object or null): pass through unchanged.
+- Non-empty string: search Series by name (`ilike` on `series_name_en`, `series_name_cn`, `series_name_alt`).
+  - Found: return existing UUID.
+  - Not found: set to `null` and log a warning. **Does not auto-create** a Series.
+
+Returns `(final_franchise_id, final_series_id)`.
+
+---
+
+### Resolve Parent for TV Show — `resolve_tv_show_parent_hierarchy(db, franchise_id, series_id, names)`
+
+Ensures valid `franchise_id` and `series_id` UUIDs for a TV Show. Used by the Pull pipeline and Create/Update endpoints.
+
+**Franchise resolution:**
 
 - Valid UUID object provided: use it as-is.
 - Null or string: search all franchise name fields (`ilike` on `en`, `cn`, `alt`).
