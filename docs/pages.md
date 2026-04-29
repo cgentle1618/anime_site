@@ -175,11 +175,9 @@ Full detail page for a single anime entry.
 - **Information Card** (reusable): Season/Part, Airing Type, Airing Status, Release Season, Release Date, Total Ep (+ cumulative), Genre Main, Genre Sub
 - **Production Card** (reusable): Studio, Distributor TW, Director, Producer, Music/Composer
 - Characters & Cast Card (TBD)
-- Music Card (admin editable): OP, ED, Insert/OST dropdowns — rendered in `AnimeNotes`
+- Music Card (admin editable): OP, ED, Insert/OST dropdowns
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable) — rendered in `AnimeNotes`
-
-**Sub-component:** `AnimeNotes` (`frontend/src/pages/AnimeNotes.jsx`) — structured notes editor with 17 sections; saves via callback to parent which PATCHes `notes` field.
+- **`AnimeNotes`** (`frontend/src/pages/AnimeNotes.jsx`) — structured notes editor with 17 sections; always rendered at the bottom; saves via `PATCH /api/anime/:id` with `notes` field.
 
 Admin writes use `PATCH /api/anime/:system_id`.
 
@@ -224,7 +222,7 @@ Full detail page for a single anime movie entry.
 - **Production Card** (reusable)
 - Characters & Cast Card (TBD)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`AnimeMovieNotes`** (`frontend/src/pages/AnimeMovieNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/anime-movie/:id` with `notes` field.
 
 ---
 
@@ -272,7 +270,7 @@ Full detail page for a single movie entry.
 - **Movie Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): Airing Status, Movie Type, Length, Director, Release Date USA, Release Date TW
 - Remarks — shown when `remark` is not null (admin editable via blur)
-- **MovieNotes** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor always rendered at the bottom; sections: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes; saves via `PATCH /api/movies/:id` with `notes` field.
+- **`MovieNotes`** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom; saves via `PATCH /api/movies/:id` with `notes` field.
 
 Admin writes use `PATCH /api/movies/:system_id`.
 
@@ -321,7 +319,7 @@ Full detail page for a single TV show entry.
 - **Naming Card** (reusable)
 - **Information Card** (reusable)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/tv-shows/:id` with `notes` field.
 
 ---
 
@@ -360,7 +358,7 @@ Full detail page for a single cartoon entry.
 - **Naming Card** (reusable)
 - **Information Card** (reusable)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/cartoon/:id` with `notes` field.
 
 ---
 
@@ -398,7 +396,7 @@ Full detail page for a single manga entry.
 - **Information Card** (reusable)
 - **Production Card** (reusable)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`MangaNotes`** (`frontend/src/pages/MangaNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/manga/:id` with `notes` field.
 
 ---
 
@@ -1036,8 +1034,7 @@ Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit butt
 - Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
 - Recently Modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
-- Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and Structured Notes section:
-  - 優點 / 缺點 / 優缺點 / 大眾評價 / 我的評價 / 神回/神片段 / 解析 / 分鏡/演出/巧思 / Foreshadowing / 對稱 / 特殊變動 / 改編 / Resources / Unread / Questions / 名言/梗/迷因
+- Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeNotes`** — structured notes editor with 17 sections.
 
 Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/replace/anime/:id`
 
@@ -1045,8 +1042,7 @@ Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/rep
 
 - Search bar; recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block, then full edit form
-- Form mirrors Add Anime Movie tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and Structured Notes section:
-  - 優點 / 缺點 / 優缺點 / 大眾評價 / 我的評價 / 解析 / 分鏡/演出/巧思 / Foreshadowing / 對稱 / 改編 / Resources / Unread / Questions / 名言/梗/迷因
+- Form mirrors Add Anime Movie tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeMovieNotes`** — structured notes editor with 15 sections.
 
 Writes: `PATCH /api/anime-movie/:id`
 
@@ -1077,7 +1073,7 @@ Writes: `PATCH /api/options/:id`
 - After selecting: Other Entries in franchise block (grouped by series) — show Movie Name CN with fallback; hidden for 獨立電影, 影集, Disney, Marvel franchises
 - Full edit form — same fields as Add Movie tab (includes Series ComboBox + auto-create modal)
 - Franchise ComboBox filtered to `franchise_type = "TV or Movie"`
-- Structured Notes section at the bottom (`MovieNotes`): Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- **`MovieNotes`** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatically)
@@ -1087,7 +1083,7 @@ Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatic
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback (hidden for 獨立電影/影集, Disney, Marvel franchises), Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 神回/神片段 / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/tv-show/:id`
@@ -1097,7 +1093,7 @@ Writes: `PATCH /api/tv-show/:id`
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 神回/神片段 Highlights / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/cartoon/:id`
