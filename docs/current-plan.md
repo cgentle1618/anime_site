@@ -238,7 +238,7 @@ Update existing:
 - `POST /pull/specific` — verify `"TV Show"` tab name is handled in `execute_pull_specific`
 - Pull All and Fill All and Replace All endpoints already call the updated orchestrators
 
-- [ ] Done
+- [x] Done
 
 ---
 
