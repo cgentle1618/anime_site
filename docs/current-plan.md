@@ -248,7 +248,7 @@ Update existing:
 
 Naming/identity card for TV show detail page. Shows: `tv_name_cn`, `tv_name_en`, `tv_name_alt`, `region`, `season_part`, `source_official`, `is_main`. Follows same layout as `MovieNamingCard.jsx`.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -256,7 +256,7 @@ Naming/identity card for TV show detail page. Shows: `tv_name_cn`, `tv_name_en`,
 
 Entry card for use in TV Library, Reality Franchise Hub, Search. Shows: cover image, `display_name` (CN primary), `region`, `season_part`, `airing_status`, `watching_status`, `imdb_rating`, `ep_fin`/`ep_total`. Clicking navigates to `/tv-show/:system_id`. Follows same pattern as `MovieCard.jsx`.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -264,7 +264,7 @@ Entry card for use in TV Library, Reality Franchise Hub, Search. Shows: cover im
 
 Card for TV shows with `airing_status = "Not Yet Aired"` or `"Airing"` in FutureReleases. Shows: cover image, `display_name`, `region`, `release_date`, `airing_status`. Follows `MovieCardFuture.jsx` pattern.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -286,7 +286,7 @@ Displays:
 - Franchise and Series breadcrumb links
 - Admin quick-edit button → `/modify?id=:uuid&type=tv-show`
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -300,7 +300,7 @@ Filters: Region, Airing Status, Watching Status
 
 Displays: Grid of `TVCard` components, ordered by `created_at` desc
 
-- [ ] Done
+- [x] Done
 
 ---
 
