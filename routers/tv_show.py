@@ -219,18 +219,3 @@ def delete_tv_show(
     db.delete(entry)
     db.commit()
     return {"status": "success", "message": "TV show entry deleted successfully."}
-
-
-@router.post("/{tv_show_id}/autofill", summary="Autofill TV Show")
-async def autofill_tv_show(
-    tv_show_id: str,
-    db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
-):
-    result = await execute_replace_single_tv_show(
-        db, tv_show_id, action_type="Manual", log_action=True
-    )
-    if result.get("status") == "error":
-        status_code = result.get("status_code", 400)
-        raise HTTPException(status_code=status_code, detail=result.get("message"))
-    return JSONResponse(content=result)
