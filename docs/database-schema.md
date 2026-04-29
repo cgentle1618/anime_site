@@ -322,6 +322,7 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -402,6 +403,7 @@ Live-action and animated movie entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -453,11 +455,11 @@ Live-action and scripted TV show entries.
 
 #### Ratings & Release
 
-| Column         | Type   | Nullable | Notes                                                     |
-| -------------- | ------ | -------- | --------------------------------------------------------- |
-| `my_rating`    | String | Yes      | S / A+ / A / B / C / D / E / F                            |
-| `imdb_rating`  | String | Yes      | IMDB score stored as string (e.g. `"9.2"`, `"N/A"`)       |
-| `release_date` | String | Yes      | Release month + year or year, e.g. `"FEB 2026"`, `"2025"` |
+| Column         | Type   | Nullable | Notes                                                                                           |
+| -------------- | ------ | -------- | ----------------------------------------------------------------------------------------------- |
+| `my_rating`    | String | Yes      | S / A+ / A / B / C / D / E / F                                                                  |
+| `imdb_rating`  | String | Yes      | IMDB score stored as string (e.g. `"9.2"`, `"N/A"`); It is series rating not per-season rating. |
+| `release_date` | String | Yes      | Release month + year or year, e.g. `"FEB 2026"`, `"2025"`                                       |
 
 #### Relational & Ordering
 
@@ -489,6 +491,7 @@ Live-action and scripted TV show entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -575,6 +578,7 @@ Western animated TV show entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -677,6 +681,7 @@ Manga, manhwa, and manhua entries.
 | `read_next_group`  | String   | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
