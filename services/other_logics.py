@@ -1639,6 +1639,22 @@ def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -
     autofill_movie_from_imdb(movie, db)
 
 
+def apply_single_replace_tv_show(
+    db: Session, tv_show: TVShows, bulk: bool = False
+) -> None:
+    """
+    Core 'Replace' logic for a single TVShows entry.
+    When bulk=False, also derives related entries for all TV show franchises.
+    When bulk=True, caller handles derive_related after the loop.
+    """
+    apply_extract_imdb_id(tv_show)
+    autofill_tv_show_from_imdb(tv_show, db)
+    tv_show_post_processing(tv_show, db)
+
+    if not bulk:
+        derive_related_tv_show(db)
+
+
 # ==========================================
 # SYNC
 # ==========================================

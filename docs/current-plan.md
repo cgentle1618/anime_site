@@ -222,7 +222,7 @@ Update existing functions:
 - `execute_pull_all` — add `"TV Show"` tab pull in dependency order (after Movie)
 - `execute_pull_specific` — add `"TV Show"` case: parse via `parse_tv_show_from_sheet`, resolve hierarchy via `resolve_tv_show_parent_hierarchy`
 
-- [ ] Done
+- [x] Done
 
 ---
 

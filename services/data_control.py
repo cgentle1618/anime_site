@@ -12,7 +12,16 @@ from database import get_taipei_now
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
-from models import Franchise, Series, Anime, AnimeMovies, Movies, SystemOption, Seasonal
+from models import (
+    Franchise,
+    Series,
+    Anime,
+    AnimeMovies,
+    Movies,
+    TVShows,
+    SystemOption,
+    Seasonal,
+)
 
 from utils.formatter import (
     format_model_for_sheet,
@@ -22,6 +31,7 @@ from utils.formatter import (
     parse_anime_from_sheet,
     parse_anime_movie_from_sheet,
     parse_movie_from_sheet,
+    parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
 )
 from utils.data_control_utils import log_data_control
@@ -31,21 +41,31 @@ from services.other_logics import (
     has_missing_values_anime,
     has_missing_values_anime_movie,
     has_missing_values_movie,
+    has_missing_values_tv_show,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_movie_from_imdb,
+    autofill_tv_show_from_imdb,
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
     apply_single_replace_movie,
+    apply_single_replace_tv_show,
     apply_extract_mal_id_anime,
     apply_extract_imdb_id,
     anime_post_processing,
     anime_movie_post_processing,
-    derive_related,
+    tv_show_post_processing,
+    derive_related_anime,
+    derive_related_tv_show,
     resolve_anime_movie_parent_hierarchy,
     resolve_movie_parent_hierarchy,
+    resolve_tv_show_parent_hierarchy,
 )
-from services.calculation import run_sync_anime, run_sync_anime_movie
+from services.calculation import (
+    run_sync_anime,
+    run_sync_anime_movie,
+    run_sync_tv_show,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +126,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(m) for m in movie_entries
         ]
         bulk_overwrite_sheet("Movies", movie_matrix)
+
+        tv_show_entries = db.query(TVShows).all()
+        tv_show_headers = [c.name for c in TVShows.__table__.columns]
+        tv_show_matrix = [tv_show_headers] + [
+            format_model_for_sheet(t) for t in tv_show_entries
+        ]
+        bulk_overwrite_sheet("TV Show", tv_show_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
@@ -189,7 +216,7 @@ async def execute_fill_anime(
         if await request.is_disconnected():
             raise asyncio.CancelledError()
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        derive_related(db)
+        derive_related_anime(db)
 
         # Sync
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing seasonal data...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
@@ -421,6 +448,108 @@ async def execute_fill_movie(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
+async def execute_fill_tv_show(
+    db: Session,
+    request: Request,
+    action_specific: str = "Fill TV Show",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE) for 'Fill TV Show'. Supports graceful frontend abort."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_shows = db.query(TVShows).all()
+        for show in all_shows:
+            apply_extract_imdb_id(show)
+        db.commit()
+
+        queue_to_process = [s for s in all_shows if has_missing_values_tv_show(s)]
+        total_in_queue = len(queue_to_process)
+
+        if total_in_queue > 0:
+            for index, show in enumerate(queue_to_process, start=1):
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError()
+
+                name = show.display_name or "Unknown TV Show"
+                yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+                try:
+                    autofill_tv_show_from_imdb(show, db)
+                    db.commit()
+                    processed_count += 1
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"IMDb Autofill failed for {name}: {e}")
+
+                await asyncio.sleep(0)
+        else:
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No entries need filling. Running post-processing...', 'processed': 0, 'total': 0})}\n\n"
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Running post-processing...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+
+        for show in all_shows:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+            try:
+                tv_show_post_processing(show, db)
+            except Exception as e:
+                logger.warning(f"Post-processing failed for {show.display_name}: {e}")
+
+        db.commit()
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        derive_related_tv_show(db)
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_tv_show(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete.', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=processed_count,
+        )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=processed_count,
+            error_message=str(e),
+        )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
 async def execute_fill_all(db: Session, request: Request, action_type: str = "Manual"):
     """
     Master orchestrator for 'Fill All'.
@@ -470,6 +599,23 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
             db,
             request,
             action_specific="Fill Movie",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed += data.get("processed", 0)
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
+        # Fill TV Show
+        async for message in execute_fill_tv_show(
+            db,
+            request,
+            action_specific="Fill TV Show",
             action_type=action_type,
             log_action=False,
         ):
@@ -702,6 +848,64 @@ async def execute_replace_single_movie(
         return {"status": "error", "message": str(e), "status_code": 500}
 
 
+async def execute_replace_single_tv_show(
+    db: Session,
+    tv_show_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """Fetches IMDb/TMDB data for a single TVShows entry, runs autofill and post-processing."""
+    logger.info(f"Starting Single Replace Pipeline for TV show ID: {tv_show_id}")
+    action_specific = "Replace for single TV show entry"
+
+    try:
+        tv_show = db.query(TVShows).filter(TVShows.system_id == tv_show_id).first()
+        if not tv_show:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="TV Show not found 404",
+                )
+            return {
+                "status": "error",
+                "message": "TV show entry not found",
+                "status_code": 404,
+            }
+
+        apply_single_replace_tv_show(db, tv_show, bulk=False)
+        db.commit()
+
+        run_sync_tv_show(db)
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated {tv_show.display_name}.",
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Single Replace TV Show Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e), "status_code": 500}
+
+
 async def execute_replace_anime(
     db: Session,
     request: Request,
@@ -758,7 +962,7 @@ async def execute_replace_anime(
         if await request.is_disconnected():
             raise asyncio.CancelledError()
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        derive_related(db)
+        derive_related_anime(db)
 
         # Sync
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing seasonal data...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
@@ -1000,6 +1204,107 @@ async def execute_replace_movie(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
+async def execute_replace_tv_show(
+    db: Session,
+    request: Request,
+    action_specific: str = "Replace TV Show",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE). Replace all TV show entries with IMDb/TMDB data."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_shows = (
+            db.query(TVShows)
+            .filter(or_(TVShows.imdb_id.isnot(None), TVShows.imdb_link.isnot(None)))
+            .all()
+        )
+        total_in_queue = len(all_shows)
+
+        if total_in_queue == 0:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Success",
+                    rows_updated=0,
+                )
+            yield f"data: {json.dumps({'status': 'info', 'message': 'No TV show entries found to replace', 'total': 0, 'processed': 0})}\n\n"
+            return
+
+        for index, show in enumerate(all_shows, start=1):
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+
+            name = show.display_name or "Unknown TV Show"
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+            try:
+                apply_single_replace_tv_show(db, show, bulk=True)
+                db.commit()
+                processed_count += 1
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to replace {name}: {e}")
+
+            await asyncio.sleep(0)
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        derive_related_tv_show(db)
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_tv_show(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Aborted",
+                rows_updated=processed_count,
+            )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=processed_count,
+                error_message=str(e),
+            )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
 async def execute_replace_all(
     db: Session,
     request: Request,
@@ -1056,6 +1361,23 @@ async def execute_replace_all(
             db,
             request,
             action_specific="Replace Movie",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed_across_all += data.get("processed", 0)
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
+        # Replace TV Show
+        async for message in execute_replace_tv_show(
+            db,
+            request,
+            action_specific="Replace TV Show",
             action_type=action_type,
             log_action=False,
         ):
@@ -1130,6 +1452,7 @@ def execute_pull_specific(
         "Anime": Anime,
         "Anime Movies": AnimeMovies,
         "Movies": Movies,
+        "TV Show": TVShows,
         "System Options": SystemOption,
     }
 
@@ -1139,6 +1462,7 @@ def execute_pull_specific(
         "Anime": parse_anime_from_sheet,
         "Anime Movies": parse_anime_movie_from_sheet,
         "Movies": parse_movie_from_sheet,
+        "TV Show": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
     }
 
@@ -1172,8 +1496,20 @@ def execute_pull_specific(
         clean_header_dict = parser(raw_header_dict)
 
         # Resolve String Foreign Keys -> Actual UUIDs
+        # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
+        if tab_name == "TV Show" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("tv_name_en"),
+                "cn": clean_header_dict.get("tv_name_cn"),
+                "alt": clean_header_dict.get("tv_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_tv_show_parent_hierarchy(db, fid, sid, name_fields)
+            )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
-        if tab_name == "Movies" and "franchise_id" in clean_header_dict:
+        elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
             name_fields = {
@@ -1328,6 +1664,21 @@ def execute_pull_specific(
                         )
                         .first()
                     )
+            elif tab_name == "TV Show":
+                name = clean_header_dict.get("tv_name_en") or clean_header_dict.get(
+                    "tv_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(TVShows)
+                        .filter(
+                            or_(
+                                TVShows.tv_name_en == name,
+                                TVShows.tv_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
 
             if existing_record:
                 pk_value = getattr(existing_record, pk_field)
@@ -1344,7 +1695,7 @@ def execute_pull_specific(
                 clean_header_dict["airing_status"] = ""
             if clean_header_dict.get("airing_type") is None:
                 clean_header_dict["airing_type"] = ""
-        elif tab_name in ("Movies", "Anime Movies"):
+        elif tab_name in ("Movies", "Anime Movies", "TV Show"):
             if clean_header_dict.get("watching_status") is None:
                 clean_header_dict["watching_status"] = "Might Watch"
             if clean_header_dict.get("created_at") is None:
@@ -1426,17 +1777,6 @@ def execute_pull_specific(
     }
 
 
-async def execute_replace_single_tv_show(
-    db: Session,
-    tv_show_id: str,
-    action_type: str = "Manual",
-    log_action: bool = True,
-) -> dict:
-    """Stub — full autofill implementation added in Phase 3."""
-    logger.info(f"execute_replace_single_tv_show stub called for {tv_show_id}")
-    return {"status": "success", "message": "TV show autofill pipeline not yet implemented."}
-
-
 def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     Pulls ALL tabs from Google Sheets into the database.
@@ -1451,6 +1791,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Anime",
         "Anime Movies",
         "Movies",
+        "TV Show",
     ]
 
     results = {}
