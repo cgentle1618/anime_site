@@ -709,7 +709,7 @@ Each entry represents **one season** of a show. The `imdb_id` field stores the s
 3. If `tmdb_raw` is not None:
    - Extract `tmdb_id = tmdb_raw.get("id")`.
    - Parse season number: `season_number = _parse_season_number(tv_show.season_part)`.
-   - Call `fetch_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`.
+   - Call `fetch_tmdb_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`.
 4. Call `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` → flat merged dict.
 5. Fill each field **only if currently None**: `release_date`, `ep_total`.
 6. `imdb_rating`: always overwrite if fetched value is not None.
@@ -841,7 +841,7 @@ Extracts the season number from the `season_part` string using regex `Season\s+(
 
 ---
 
-### TMDB Season Fetch — `fetch_tv_season_data(tmdb_id, season_number)` in `services/tmdb.py`
+### TMDB Season Fetch — `fetch_tmdb_tv_season_data(tmdb_id, season_number)` in `services/tmdb.py`
 
 Fetches `GET /3/tv/{tmdb_id}/season/{season_number}`. Returns raw season JSON or `None`.
 
@@ -858,7 +858,7 @@ Uses the same `TMDbRateLimiter` and `@retry` configuration as `fetch_tmdb_data`.
 
 ---
 
-### TMDB Conversion for TV Season — `map_tmdb_to_tv_season_data(raw)` in `utils/tmdb_utils.py`
+### TMDB Conversion for TV Season — `map_tmdb_to_tv_show_data(raw)` in `utils/tmdb_utils.py`
 
 Maps the TMDB Season Details endpoint response. The `_season_air_date` and `_episodes` keys are private — used only for `airing_status` derivation in the autofill function; not written to the database.
 
@@ -876,7 +876,7 @@ Maps the TMDB Season Details endpoint response. The `_season_air_date` and `_epi
 
 Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
-1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_season_data(tmdb_season_raw)`.
+1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_show_data(tmdb_season_raw)`.
 2. If `cover_image_url` is still None and `tmdb_raw` is not None: fall back to show-level `poster_path` via `_build_poster_url`.
 3. If `omdb_raw` is not None: apply `map_omdb_to_tv_show_data(omdb_raw)` (adds `imdb_rating`).
 

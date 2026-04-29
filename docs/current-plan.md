@@ -84,14 +84,14 @@ Include `routers/tv_show.py` router in `main.py`.
 Add:
 
 - `_parse_season_number(season_part: str | None) -> int` — regex `Season\s+(\d+)`, defaults to `1`
-- `map_tmdb_to_tv_season_data(raw: dict) -> dict` — maps TMDB season details response:
+- `map_tmdb_to_tv_show_data(raw: dict) -> dict` — maps TMDB season details response:
   - `release_date` from `_convert_tmdb_date(air_date)`
   - `ep_total` from `len(episodes[])`
   - `cover_image_url` from `poster_path` with `TMDB_IMAGE_BASE_URL` prefix
   - `_season_air_date` = raw `air_date` (private, for airing status derivation)
   - `_episodes` = raw `episodes[]` (private, for airing status derivation)
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -100,11 +100,11 @@ Add:
 Add:
 
 - `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw) -> dict` — merges all three sources:
-  1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_season_data`
+  1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_show_data`
   2. If `cover_image_url` still None and `tmdb_raw` is not None: fall back to show-level `poster_path` via `_build_poster_url`
   3. If `omdb_raw` is not None: apply `map_omdb_to_tv_show_data` (adds `imdb_rating`)
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -112,20 +112,20 @@ Add:
 
 Add `parse_tv_show_from_sheet(row_dict)` — calls `parse_from_sheet` for every TV show field with correct types. Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID`. `imdb_id` parsed as `str`.
 
-- [ ] Done
+- [x] Done
 
 ---
 
-### Step 9 — `services/tmdb.py`: Add `fetch_tv_season_data`
+### Step 9 — `services/tmdb.py`: Add `fetch_tmdb_tv_season_data`
 
 Add:
 
-- `fetch_tv_season_data(tmdb_id: int, season_number: int) -> dict | None`
+- `fetch_tmdb_tv_season_data(tmdb_id: int, season_number: int) -> dict | None`
   - Fetches `GET /3/tv/{tmdb_id}/season/{season_number}`
   - Uses same `TMDbRateLimiter` and `@retry` config as `fetch_tmdb_data`
   - Returns raw season JSON or `None`
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -135,7 +135,7 @@ Add `autofill_tv_show_from_imdb(tv_show, db)`:
 
 1. Return early if `tv_show.imdb_id` is None
 2. `fetch_imdb_data(tv_show.imdb_id)` → `{tmdb_raw, omdb_raw}`
-3. If `tmdb_raw` is not None: extract `tmdb_id`, parse season number via `_parse_season_number(tv_show.season_part)`, call `fetch_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`
+3. If `tmdb_raw` is not None: extract `tmdb_id`, parse season number via `_parse_season_number(tv_show.season_part)`, call `fetch_tmdb_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`
 4. `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` → flat dict
 5. Fill only if currently None: `release_date`, `ep_total`
 6. `imdb_rating`: always overwrite if fetched value is not None
@@ -144,7 +144,7 @@ Add `autofill_tv_show_from_imdb(tv_show, db)`:
 
 Does not commit — caller is responsible.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -414,6 +414,6 @@ Update the Reality Franchise Hub to fetch and display TV shows belonging to the 
 
 ## Notes
 
-- The spec note says IMDB-related features are not exhaustive in the spec — `autofill_tv_show_from_imdb` and all supporting helpers (`fetch_tv_season_data`, `_parse_season_number`, `map_tmdb_to_tv_season_data`, `map_imdb_to_tv_show_data`, `_derive_tv_season_airing_status`) are planned based on `business-logic.md`.
+- The spec note says IMDB-related features are not exhaustive in the spec — `autofill_tv_show_from_imdb` and all supporting helpers (`fetch_tmdb_tv_season_data`, `_parse_season_number`, `map_tmdb_to_tv_show_data`, `map_imdb_to_tv_show_data`, `_derive_tv_season_airing_status`) are planned based on `business-logic.md`.
 - Steps should be implemented and committed in phase order. Pause and confirm before starting each new phase.
 - After Phase 3 is complete, backend should be fully functional and testable via API before frontend work begins.

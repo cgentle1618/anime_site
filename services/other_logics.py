@@ -15,10 +15,20 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_taipei_now
-from models import Anime, AnimeMovies, Movies, TVShows, Franchise, Series, Seasonal, SystemOption
+from models import (
+    Anime,
+    AnimeMovies,
+    Movies,
+    TVShows,
+    Franchise,
+    Series,
+    Seasonal,
+    SystemOption,
+)
 
 from services.jikan import fetch_jikan_anime_data
 from services.imdb import fetch_imdb_data
+from services.tmdb import fetch_tmdb_tv_season_data
 from services.image_manager import download_cover_image
 
 from utils.utils import (
@@ -34,7 +44,12 @@ from utils.utils import (
     validate_episode_math,
 )
 from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
-from utils.imdb_utils import map_imdb_to_movie_data
+from utils.imdb_utils import (
+    _parse_season_number,
+    _derive_tv_season_airing_status,
+    map_imdb_to_movie_data,
+    map_imdb_to_tv_show_data,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -1295,6 +1310,63 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
     except Exception as e:
         logger.error(
             f"IMDb Autofill failed for Movie ID {movie.system_id} (IMDb {movie.imdb_id}): {e}"
+        )
+
+
+def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
+    """
+    Fetches TMDB + OMDb season data for a single TVShows entry and fills/overwrites fields.
+    Does not commit — caller is responsible.
+    """
+    if tv_show.imdb_id is None:
+        return
+
+    try:
+        result = fetch_imdb_data(tv_show.imdb_id)
+        tmdb_raw = result.get("tmdb_raw")
+        omdb_raw = result.get("omdb_raw")
+
+        tmdb_season_raw = None
+        if tmdb_raw is not None:
+            tmdb_id = tmdb_raw.get("id")
+            if tmdb_id:
+                season_number = _parse_season_number(tv_show.season_part)
+                tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
+
+        mapped = map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+
+        # Fill-only fields
+        if tv_show.release_date is None:
+            tv_show.release_date = mapped.get("release_date")
+        if tv_show.ep_total is None:
+            fetched_ep_total = mapped.get("ep_total")
+            if fetched_ep_total:
+                tv_show.ep_total = fetched_ep_total
+
+        # Always overwrite imdb_rating if fetched
+        fetched_rating = mapped.get("imdb_rating")
+        if fetched_rating is not None:
+            tv_show.imdb_rating = fetched_rating
+
+        # Derive airing_status (fill-only)
+        if tv_show.airing_status is None:
+            derived_status = _derive_tv_season_airing_status(
+                mapped.get("_season_air_date"), mapped.get("_episodes")
+            )
+            if derived_status is not None:
+                tv_show.airing_status = derived_status
+
+        # Download cover image if missing
+        if tv_show.cover_image_file is None and mapped.get("cover_image_url"):
+            filename = download_cover_image(
+                mapped["cover_image_url"], str(tv_show.system_id)
+            )
+            if filename:
+                tv_show.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"IMDb Autofill failed for TV Show ID {tv_show.system_id} (IMDb {tv_show.imdb_id}): {e}"
         )
 
 
