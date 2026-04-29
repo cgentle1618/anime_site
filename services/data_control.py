@@ -132,7 +132,7 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         tv_show_matrix = [tv_show_headers] + [
             format_model_for_sheet(t) for t in tv_show_entries
         ]
-        bulk_overwrite_sheet("TV Show", tv_show_matrix)
+        bulk_overwrite_sheet("TV Shows", tv_show_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
