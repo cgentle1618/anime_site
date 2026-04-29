@@ -166,7 +166,7 @@ Update `find_all_duplicates` to include `tv_show` in its returned dict.
 Update `bulk_check_cover_image` and `bulk_check_unused_cover_images` to include TV shows.
 Update `apply_validate_episode_math` if needed to accept TV show entries (likely already works generically).
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -189,7 +189,7 @@ Update `run_post_processing` to include `run_tv_show_post_processing`.
 Update `run_sync` to include `run_sync_tv_show`.
 Update `run_calculate_all` to include `run_derive_related_tv_show`.
 
-- [ ] Done
+- [x] Done
 
 ---
 

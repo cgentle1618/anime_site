@@ -37,6 +37,7 @@ from utils.utils import (
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
+    TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
     extract_imdb_id,
     extract_season_from_title,
@@ -416,7 +417,7 @@ def resolve_tv_show_parent_hierarchy(
 # ==========================================
 
 
-def apply_validate_episode_math(entry: Anime) -> bool:
+def apply_validate_episode_math(entry: Union[Anime, TVShows]) -> bool:
     ep_total = getattr(entry, "ep_total", None)
     ep_fin = getattr(entry, "ep_fin", None)
     if ep_total is None and ep_fin is None:
@@ -493,7 +494,16 @@ def has_missing_values_movie(movie) -> bool:
     return False
 
 
-def check_is_watching_completed(entry: Anime) -> bool:
+def has_missing_values_tv_show(tv_show: TVShows) -> bool:
+    """Returns True if any required TVShows field is missing."""
+    for field in TV_SHOW_FIELDS_TO_FILL:
+        val = getattr(tv_show, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
+
+
+def check_is_watching_completed(entry: Union[Anime, TVShows]) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
     should be considered completed.
@@ -900,6 +910,82 @@ def find_duplicate_movie(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_tv_show(db: Session) -> list[list[dict]]:
+    """
+    Finds TVShows entries that share the same (franchise_id, series_id, season_part, is_main)
+    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    shows = db.query(TVShows).filter(TVShows.franchise_id.isnot(None)).all()
+
+    def _key(t: TVShows) -> tuple:
+        season = (t.season_part or "").strip().lower() or None
+        return (
+            str(t.franchise_id),
+            str(t.series_id) if t.series_id else None,
+            season,
+            t.is_main,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for t in shows:
+        by_key.setdefault(_key(t), []).append(t)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    show_map = {str(t.system_id): t for t in shows}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for tid in show_map:
+        clusters.setdefault(find(tid), []).append(tid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": tid,
+                        "franchise_id": str(show_map[tid].franchise_id),
+                        "series_id": (
+                            str(show_map[tid].series_id)
+                            if show_map[tid].series_id
+                            else None
+                        ),
+                        "season_part": show_map[tid].season_part,
+                        "is_main": show_map[tid].is_main,
+                        "tv_name_en": show_map[tid].tv_name_en,
+                        "tv_name_cn": show_map[tid].tv_name_cn,
+                        "tv_name_alt": show_map[tid].tv_name_alt,
+                    }
+                    for tid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -908,6 +994,7 @@ def find_all_duplicates(db: Session) -> dict:
         "anime": find_duplicate_anime(db),
         "anime_movie": find_duplicate_anime_movie(db),
         "movie": find_duplicate_movie(db),
+        "tv_show": find_duplicate_tv_show(db),
         "system_options": find_duplicate_system_options(db),
     }
 
@@ -939,6 +1026,15 @@ def apply_extract_season_from_title(entry: Anime) -> bool:
     extracted = extract_season_from_title(title)
     if extracted:
         entry.season_part = extracted
+        return True
+    return False
+
+
+def apply_extract_season_from_title_tv_show(tv_show: TVShows) -> bool:
+    title = tv_show.tv_name_en or tv_show.tv_name_alt or ""
+    extracted = extract_season_from_title(title)
+    if extracted:
+        tv_show.season_part = extracted
         return True
     return False
 
@@ -1025,6 +1121,61 @@ def derive_watch_order_anime(db: Session, franchise_id: Any) -> None:
             entry.watch_order = float(position)
 
 
+def derive_watch_order_tv_show(db: Session, franchise_id) -> None:
+    if not franchise_id:
+        return
+
+    eligible = (
+        db.query(TVShows)
+        .filter(
+            TVShows.franchise_id == franchise_id,
+            TVShows.season_part.isnot(None),
+        )
+        .all()
+    )
+
+    if not eligible:
+        return
+
+    def get_sort_key(t: TVShows):
+        s_part = str(t.season_part or "")
+        s_match = SEASON_PATTERN.search(s_part)
+        p_match = PART_PATTERN.search(s_part)
+        s_num = int(s_match.group(1)) if s_match else 1
+        p_num = int(p_match.group(1)) if p_match else 1
+        return (s_num, p_num)
+
+    series_groups: dict = {}
+    no_series: list = []
+
+    for show in eligible:
+        if show.series_id:
+            series_groups.setdefault(show.series_id, []).append(show)
+        else:
+            no_series.append(show)
+
+    for entries in series_groups.values():
+        entries.sort(key=get_sort_key)
+    no_series.sort(key=get_sort_key)
+
+    ordered_series_ids = list(series_groups.keys())
+    if len(ordered_series_ids) > 1:
+        series_objs = (
+            db.query(Series).filter(Series.system_id.in_(ordered_series_ids)).all()
+        )
+        name_map = {s.system_id: (s.display_name or "") for s in series_objs}
+        ordered_series_ids.sort(key=lambda sid: name_map.get(sid, ""))
+
+    ordered_entries = []
+    for sid in ordered_series_ids:
+        ordered_entries.extend(series_groups[sid])
+    ordered_entries.extend(no_series)
+
+    for position, entry in enumerate(ordered_entries, start=1):
+        if entry.watch_order is None:
+            entry.watch_order = float(position)
+
+
 def derive_prequel_sequel_anime(db: Session, franchise_id: Any) -> None:
     """
     Derives prequel_id and sequel_id for eligible entries within an acg franchise.
@@ -1042,6 +1193,47 @@ def derive_prequel_sequel_anime(db: Session, franchise_id: Any) -> None:
             Anime.derive_related.isnot(False),
         )
         .order_by(Anime.watch_order)
+        .all()
+    )
+
+    for i, entry in enumerate(entries):
+        prev_entry = entries[i - 1] if i > 0 else None
+        next_entry = entries[i + 1] if i < len(entries) - 1 else None
+
+        if entry.prequel_id is None and prev_entry is not None:
+            entry.prequel_id = prev_entry.system_id
+
+        if entry.sequel_id is None and next_entry is not None:
+            entry.sequel_id = next_entry.system_id
+
+
+_TV_SPECIAL_FRANCHISE_NAMES = {
+    "獨立電影 / 影集",
+    "Marvel",
+    "Disney",
+    "Christopher Nolan",
+    "周星馳",
+}
+
+
+def derive_prequel_sequel_tv_show(db: Session, franchise_id) -> None:
+    if not franchise_id:
+        return
+
+    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
+    if franchise:
+        franchise_names = franchise.get_all_names()
+        if franchise_names & _TV_SPECIAL_FRANCHISE_NAMES:
+            return
+
+    entries = (
+        db.query(TVShows)
+        .filter(
+            TVShows.franchise_id == franchise_id,
+            TVShows.watch_order.isnot(None),
+            TVShows.derive_related.isnot(False),
+        )
+        .order_by(TVShows.watch_order)
         .all()
     )
 
@@ -1137,6 +1329,18 @@ def derive_season_1_anime(anime: Anime, db: Session) -> None:
     )
     if tv_count == 1:
         anime.season_part = "Season 1"
+
+
+def derive_season_1_tv_show(tv_show: TVShows, db: Session) -> None:
+    if tv_show.season_part is not None:
+        return
+    if not tv_show.franchise_id:
+        return
+    count = (
+        db.query(TVShows).filter(TVShows.franchise_id == tv_show.franchise_id).count()
+    )
+    if count == 1:
+        tv_show.season_part = "Season 1"
 
 
 # ==========================================
@@ -1375,7 +1579,7 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
 # ==========================================
 
 
-def mark_tv_completed(entry: Anime) -> None:
+def mark_tv_completed(entry: Union[Anime, TVShows]) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.
     """
@@ -1410,7 +1614,7 @@ def apply_single_replace_anime(
     anime_post_processing(anime, db)
 
     if not bulk:
-        derive_related(db)
+        derive_related_anime(db)
 
 
 def apply_single_replace_anime_movie(
@@ -1605,6 +1809,48 @@ def extract_system_options_from_anime_movie(db: Session) -> dict:
     }
 
 
+_TV_SHOW_OPTION_FIELD_MAP = {
+    "TV Official Source": "source_official",
+}
+
+
+def extract_system_options_from_tv_show(db: Session) -> dict:
+    """
+    Scans all TVShows entries for source_official values.
+    Any value not already in SystemOption is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    shows = db.query(TVShows).all()
+    new_options = []
+
+    for category, field in _TV_SHOW_OPTION_FIELD_MAP.items():
+        for show in shows:
+            raw = getattr(show, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_tv_show: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(shows)} entries, created {len(new_options)} missing system options.",
+    }
+
+
 # ==========================================
 # COMPOSITE LOGICS
 # ==========================================
@@ -1633,7 +1879,18 @@ def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
     apply_check_baha(anime_movie)
 
 
-def derive_related(db: Session) -> None:
+def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
+    apply_validate_episode_math(tv_show)
+
+    if check_is_watching_completed(tv_show) and tv_show.watching_status != "Completed":
+        mark_tv_completed(tv_show)
+
+    if tv_show.season_part is None:
+        apply_extract_season_from_title_tv_show(tv_show)
+        derive_season_1_tv_show(tv_show, db)
+
+
+def derive_related_anime(db: Session) -> None:
     """Derives watch order, ep_previous, and prequel/sequel for all acg franchises."""
     rows = (
         db.query(Anime.franchise_id)
@@ -1646,5 +1903,21 @@ def derive_related(db: Session) -> None:
         derive_watch_order_anime(db, fid)
         derive_ep_previous_anime(db, fid)
         derive_prequel_sequel_anime(db, fid)
+    if franchise_ids:
+        db.commit()
+
+
+def derive_related_tv_show(db: Session) -> None:
+    """Derives watch order and prequel/sequel for all TV show franchises."""
+    rows = (
+        db.query(TVShows.franchise_id)
+        .filter(TVShows.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        derive_watch_order_tv_show(db, fid)
+        derive_prequel_sequel_tv_show(db, fid)
     if franchise_ids:
         db.commit()

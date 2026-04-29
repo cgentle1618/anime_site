@@ -69,6 +69,14 @@ MOVIE_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+TV_SHOW_FIELDS_TO_FILL = [
+    "airing_status",
+    "release_date",
+    "imdb_rating",
+    "ep_total",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================
