@@ -21,7 +21,7 @@ import schemas
 from services.image_manager import delete_cover_image
 from services.other_logics import (
     create_missing_seasonal,
-    derive_ep_previous,
+    derive_ep_previous_anime,
     apply_single_replace_anime,
     resolve_anime_parent_hierarchy,
 )
@@ -126,7 +126,7 @@ def create_anime_entry(
 
     db.flush()
 
-    derive_ep_previous(db, new_anime.franchise_id, new_anime.series_id)
+    derive_ep_previous_anime(db, new_anime.franchise_id, new_anime.series_id)
 
     db.flush()
 
@@ -179,7 +179,7 @@ def update_anime_entry(
 
     db.flush()
 
-    derive_ep_previous(db, db_anime.franchise_id, db_anime.series_id)
+    derive_ep_previous_anime(db, db_anime.franchise_id, db_anime.series_id)
 
     db.flush()
 

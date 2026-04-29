@@ -838,11 +838,11 @@ def apply_extract_imdb_id(movie) -> bool:
     return False
 
 
-def apply_extract_season_from_title(anime: Anime) -> bool:
-    title = anime.anime_name_en or anime.anime_name_roman or ""
+def apply_extract_season_from_title(entry: Anime) -> bool:
+    title = entry.anime_name_en or entry.anime_name_roman or ""
     extracted = extract_season_from_title(title)
     if extracted:
-        anime.season_part = extracted
+        entry.season_part = extracted
         return True
     return False
 
@@ -860,7 +860,7 @@ def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
     return False
 
 
-def derive_watch_order(db: Session, franchise_id: Any) -> None:
+def derive_watch_order_anime(db: Session, franchise_id: Any) -> None:
     """
     Assigns watch_order to eligible entries within an acg franchise.
     Eligible: airing_type not null/Other, season_part set.
@@ -929,7 +929,7 @@ def derive_watch_order(db: Session, franchise_id: Any) -> None:
             entry.watch_order = float(position)
 
 
-def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
+def derive_prequel_sequel_anime(db: Session, franchise_id: Any) -> None:
     """
     Derives prequel_id and sequel_id for eligible entries within an acg franchise.
     Eligible: watch_order is not null.
@@ -963,7 +963,7 @@ def derive_prequel_sequel(db: Session, franchise_id: Any) -> None:
 _SERIES_UNSET = object()
 
 
-def derive_ep_previous(
+def derive_ep_previous_anime(
     db: Session, franchise_id: Any, series_id: Any = _SERIES_UNSET
 ) -> None:
     """
@@ -1029,7 +1029,7 @@ def derive_ep_previous(
             process_group(group)
 
 
-def derive_season_1(anime: Anime, db: Session) -> None:
+def derive_season_1_anime(anime: Anime, db: Session) -> None:
     if anime.season_part is not None:
         return
     if not anime.franchise_id or anime.airing_type != "TV":
@@ -1473,7 +1473,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
     if anime.season_part is None:
         apply_extract_season_from_title(anime)
-        derive_season_1(anime, db)
+        derive_season_1_anime(anime, db)
 
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
@@ -1490,8 +1490,8 @@ def derive_related(db: Session) -> None:
     )
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
-        derive_watch_order(db, fid)
-        derive_ep_previous(db, fid)
-        derive_prequel_sequel(db, fid)
+        derive_watch_order_anime(db, fid)
+        derive_ep_previous_anime(db, fid)
+        derive_prequel_sequel_anime(db, fid)
     if franchise_ids:
         db.commit()

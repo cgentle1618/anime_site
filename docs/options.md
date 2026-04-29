@@ -30,21 +30,21 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 
 These categories are stored in the `system_options` table and power dynamic dropdowns in the frontend. Values are user-managed via the admin Options page and auto-extracted from anime entries by `extract_system_options`.
 
-| Category                     | Notes |
-| ---------------------------- | ----- |
-| `Studio`                     |       |
-| `Distributor TW`             |       |
-| `Director`                   |       |
-| `Producer`                   |       |
-| `Music / Composer`           |       |
-| `Manga Author`               |       |
-| `Genre Main`                 |       |
-| `Genre Sub`                  |       |
-| `TV Show Official Source`    |       |
-| `Cartoon Official Source`    |       |
-| `Movie Franchise for Filter` |       |
-| `Main / Spinoff`             |       |
-| `Dub Preference`             |       |
+| Category                     | Notes                          |
+| ---------------------------- | ------------------------------ |
+| `Studio`                     |                                |
+| `Distributor TW`             |                                |
+| `Director`                   | referring to director in anime |
+| `Producer`                   |                                |
+| `Music / Composer`           |                                |
+| `Manga Author`               |                                |
+| `Genre Main`                 |                                |
+| `Genre Sub`                  |                                |
+| `TV Show Official Source`    |                                |
+| `Cartoon Official Source`    |                                |
+| `Movie Franchise for Filter` |                                |
+| `Main / Spinoff`             |                                |
+| `Dub Preference`             |                                |
 
 ---
 
@@ -254,7 +254,7 @@ Field: `serialization_status` _(future)_ — Default: `null`
 
 ---
 
-## Franchise — Special Entries
+## Special Franchises
 
 Predefined franchise names used as grouping hubs within each `franchise_type`. These are not enum values — they are specific database entries.
 

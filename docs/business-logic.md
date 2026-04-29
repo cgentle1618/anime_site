@@ -231,7 +231,7 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 2. `apply_check_baha`
 3. If `check_is_watching_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
 4. If `release_season` is None, `release_month` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
-5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1`.
+5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_anime`.
 
 ---
 
@@ -251,9 +251,9 @@ Runs watch order, episode previous, and prequel/sequel derivation for every fran
 
 **Per franchise_id:**
 
-1. `derive_watch_order`
-2. `derive_ep_previous` (uses `_SERIES_UNSET` sentinel to process all series groups independently)
-3. `derive_prequel_sequel`
+1. `derive_watch_order_anime`
+2. `derive_ep_previous_anime` (uses `_SERIES_UNSET` sentinel to process all series groups independently)
+3. `derive_prequel_sequel_anime`
 
 Commits after all franchises processed.
 
@@ -295,7 +295,7 @@ Commits after all franchises processed.
 
 ### Validate Episode Count — `apply_validate_episode_math(anime)` / `validate_episode_math(ep_total, ep_fin)`
 
-`validate_episode_math` in `utils/utils.py` is the core rule; `apply_validate_episode_math` applies it to an Anime object and writes changes back if values differ.
+`validate_episode_math` in `utils/utils.py` is the core rule; `apply_validate_episode_math` applies it to an Anime/TV Show/Cartoon object and writes changes back if values differ.
 
 **Rules:**
 
@@ -372,7 +372,7 @@ Returns `True` if the cover file for that `system_id` exists in GCS (Cloud Run) 
 
 ### Check Unused Cover Images — `bulk_check_unused_cover_images(db)`
 
-Finds image files in storage not referenced by any `anime.cover_image_file`.
+Finds image files in storage not referenced by `cover_image_file` of any media type entry.
 
 - `should_use`: file whose stem matches an existing anime `system_id` but the anime's field is not set — the field just needs to be populated.
 - `orphaned`: file with no matching anime — safe to delete.
@@ -413,7 +413,7 @@ Extracts the IMDb integer ID from an IMDb URL using regex `imdb\.com/title/tt(\d
 
 ### Extract Season From Title — `apply_extract_season_from_title(anime)` / `extract_season_from_title(title)`
 
-Parses "Season X", "Part X", or "Cour X" from `anime_name_en` or `anime_name_roman`. Title-cases the result (e.g. `"Season 2 Part 1"`). Writes to `anime.season_part`. Returns `True` if set.
+Parses "Season X", "Part X", or "Cour X" from `anime_name_en`, `tv_show_name_en`, or `cartoon_name_en`. Title-cases the result (e.g. `"Season 2 Part 1"`). Writes to corresponding `season_part` of the entry. Returns `True` if set.
 
 ---
 
@@ -432,7 +432,7 @@ Accepts both string abbreviations (`"APR"`) and numeric strings (`"4"`, `"04"`).
 
 ---
 
-### Derive Watch Order — `derive_watch_order(db, franchise_id)`
+### Derive Watch Order — `derive_watch_order_anime(db, franchise_id)`
 
 Assigns consecutive `watch_order` floats (starting at 1.0) to eligible entries within a franchise.
 
@@ -450,7 +450,7 @@ Assigns consecutive `watch_order` floats (starting at 1.0) to eligible entries w
 
 ---
 
-### Derive Prequel / Sequel — `derive_prequel_sequel(db, franchise_id)`
+### Derive Prequel / Sequel — `derive_prequel_sequel_anime(db, franchise_id)`
 
 Sets `prequel_id` and `sequel_id` for entries in a franchise, sorted by `watch_order`.
 
@@ -462,7 +462,7 @@ Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after i
 
 ---
 
-### Derive `ep_previous` — `derive_ep_previous(db, franchise_id, series_id=_SERIES_UNSET)`
+### Derive `ep_previous` — `derive_ep_previous_anime(db, franchise_id, series_id=_SERIES_UNSET)`
 
 Sets cumulative `ep_previous` for eligible TV/ONA entries within the same franchise+series group.
 
@@ -479,7 +479,7 @@ When called with default `series_id=_SERIES_UNSET`, processes all series groups 
 
 ---
 
-### Derive S1 — `derive_season_1(anime, db)`
+### Derive S1 — `derive_season_1_anime(anime, db)`
 
 Sets `season_part = "Season 1"` if `season_part` is None, `airing_type == "TV"`, `franchise_id` is set, and the franchise has exactly 1 TV entry.
 
