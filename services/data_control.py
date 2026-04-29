@@ -1452,7 +1452,7 @@ def execute_pull_specific(
         "Anime": Anime,
         "Anime Movies": AnimeMovies,
         "Movies": Movies,
-        "TV Show": TVShows,
+        "TV Shows": TVShows,
         "System Options": SystemOption,
     }
 
@@ -1462,7 +1462,7 @@ def execute_pull_specific(
         "Anime": parse_anime_from_sheet,
         "Anime Movies": parse_anime_movie_from_sheet,
         "Movies": parse_movie_from_sheet,
-        "TV Show": parse_tv_show_from_sheet,
+        "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
     }
 
@@ -1497,7 +1497,7 @@ def execute_pull_specific(
 
         # Resolve String Foreign Keys -> Actual UUIDs
         # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
-        if tab_name == "TV Show" and "franchise_id" in clean_header_dict:
+        if tab_name == "TV Shows" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
             name_fields = {
@@ -1664,7 +1664,7 @@ def execute_pull_specific(
                         )
                         .first()
                     )
-            elif tab_name == "TV Show":
+            elif tab_name == "TV Shows":
                 name = clean_header_dict.get("tv_name_en") or clean_header_dict.get(
                     "tv_name_cn"
                 )
@@ -1695,7 +1695,7 @@ def execute_pull_specific(
                 clean_header_dict["airing_status"] = ""
             if clean_header_dict.get("airing_type") is None:
                 clean_header_dict["airing_type"] = ""
-        elif tab_name in ("Movies", "Anime Movies", "TV Show"):
+        elif tab_name in ("Movies", "Anime Movies", "TV Shows"):
             if clean_header_dict.get("watching_status") is None:
                 clean_header_dict["watching_status"] = "Might Watch"
             if clean_header_dict.get("created_at") is None:
@@ -1791,7 +1791,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Anime",
         "Anime Movies",
         "Movies",
-        "TV Show",
+        "TV Shows",
     ]
 
     results = {}
