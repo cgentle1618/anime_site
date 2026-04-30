@@ -315,7 +315,7 @@ Master orchestrator. Calls all post-processing functions across every media type
 
 ---
 
-### Derive Related Anime — `derive_related_anime(db, franchise_id)` / `run_derive_related_anime(db)`
+### Derive Related Anime — `derive_related_anime(db, franchise_id)`
 
 Runs watch order, episode previous, and prequel/sequel derivation for every ACG franchise in the DB.
 
@@ -329,7 +329,7 @@ Commits after all franchises processed.
 
 ---
 
-### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)` / `run_derive_related_tv_show(db)`
+### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)`
 
 Runs watch order and prequel/sequel derivation for every TV or Movie franchise in the DB.
 
@@ -342,11 +342,25 @@ Commits after all franchises processed.
 
 ---
 
+### Derive Related Cartoon — `derive_related_cartoon(db, franchise_id)`
+
+Runs watch order and prequel/sequel derivation for every Cartoon franchise in the DB.
+
+**Per franchise_id:**
+
+1. `derive_watch_order_cartoon`
+2. `derive_prequel_sequel_cartoon`
+
+Commits after all franchises processed.
+
+---
+
 ### Sync — `run_sync(db)`
 
 1. `run_sync_anime(db)`
 2. `run_sync_anime_movie(db)`
 3. `run_sync_tv_show(db)`
+4. `run_sync_cartoon(db)`
 
 ---
 
@@ -370,14 +384,19 @@ Commits after all franchises processed.
 
 ---
 
+### Sync — `run_sync_cartoon(db)`
+
+1. `extract_system_options_from_cartoon`
+
+---
+
 ### Calculate All — `run_calculate_all(db)`
 
 1. `run_post_processing`
-2. `run_derive_related_anime`
-3. `run_derive_related_tv_show`
-4. `run_sync`
-5. `bulk_check_cover_image`
-6. Log to `DataControlLog` (Success or Failed).
+2. `run_derive_related`
+3. `run_sync`
+4. `bulk_check_cover_image`
+5. Log to `DataControlLog` (Success or Failed).
 
 ---
 
@@ -437,6 +456,12 @@ Returns `True` if any required field is blank.
 
 ---
 
+### Check Missing Values for Cartoon — `has_missing_values_tv_cartoon(cartoon)`
+
+Returns `True` if any required field is blank.
+
+## **Fields checked:** `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
+
 ### Check Completed for TV Type — `check_is_tv_completed(entry)`
 
 Applicable for anime, TV show, and cartoon entries. Returns `True` if:
@@ -489,16 +514,16 @@ Finds image files in storage not referenced by `cover_image_file` of any media t
 
 All use a **union-find** algorithm with transitive closure (A=B, B=C collapses to one cluster).
 
-| Function                     | Duplicate Key                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `find_duplicate_franchises`  | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
-| `find_duplicate_series`      | Same `franchise_id` + at least one matching name                                                             |
-| `find_duplicate_anime`       | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
-| `find_duplicate_anime_movie` | Same `franchise_id` + at least one matching name                                                             |
-| `find_duplicate_movie`       | Same `(franchise_id, series_id)` + at least one matching name                                                |
-| `find_duplicate_tv_show`     | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
-
-| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive) |
+| Function                        | Duplicate Key                                                                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `find_duplicate_franchises`     | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
+| `find_duplicate_series`         | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_anime`          | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
+| `find_duplicate_anime_movie`    | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_movie`          | Same `(franchise_id, series_id)` + at least one matching name                                                |
+| `find_duplicate_tv_show`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
+| `find_duplicate_cartoon`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
+| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
 
 `find_all_duplicates` runs all six: returns `{franchise, series, anime, anime_movie, movie, tv_show, system_options}`.
 
@@ -571,6 +596,20 @@ Assigns consecutive `watch_order` floats (starting at 1.0) to eligible TV show e
 
 ---
 
+### Derive Watch Order Cartoon — `derive_watch_order_cartoon(db, franchise_id)`
+
+Assigns consecutive `watch_order` floats (starting at 1.0) to eligible Cartoon show entries within a franchise.
+
+**Eligibility:** `season_part` is set.
+
+**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
+
+**Sort algorithm per series group:** Season number (from `season_part`), then part number.
+
+**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
+
+---
+
 ### Derive Watch Order Movie — `derive_watch_order_movie(db, franchise_id)`
 
 TBD.
@@ -589,6 +628,10 @@ Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after i
 
 ---
 
+### Derive Prequel Sequel Movie — `derive_prequel_sequel_movie(db, franchise_id)`
+
+## TBD.
+
 ### Derive Prequel Sequel TV Show — `derive_prequel_sequel_tv_show(db, franchise_id)`
 
 Sets `prequel_id` and `sequel_id` for TV show entries in a TV or Movie franchise, sorted by `watch_order`.
@@ -601,9 +644,15 @@ Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after i
 
 ---
 
-### Derive Prequel Sequel Movie — `derive_prequel_sequel_movie(db, franchise_id)`
+### Derive Prequel Sequel Cartoon — `derive_prequel_sequel_cartoon(db, franchise_id)`
 
-TBD.
+Sets `prequel_id` and `sequel_id` for Cartoon entries in a Cartoon franchise, sorted by `watch_order`.
+
+**Eligibility:** `watch_order` is not null AND `derive_related != False`. Does not apply to Special Franchises.
+
+**Only fills entries where the field is currently `None`** — never overwrites.
+
+Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
 
 ---
 
@@ -979,6 +1028,12 @@ Computed in `AnimeResponse` (Pydantic schema), never stored in the DB:
 ### Mark Completed — `mark_tv_completed(entry)`
 
 Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+
+---
+
+### Mark Completed — `mark_movie_completed(entry)`
+
+Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`.
 
 ---
 
