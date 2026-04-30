@@ -314,7 +314,7 @@ Add:
 - `/library/tv-show` → `LibraryTV`
 - `/franchise/reality/:system_id` (if not already present) → `FranchiseReality`
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -323,7 +323,7 @@ Add:
 - Reality dropdown: add "TV Show" link → `/library/tv-show`
 - Universal search bar: add TV show to the "All" scope search; show TV show results grouped as "TV Show"
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -331,7 +331,7 @@ Add:
 
 Ensure `SourcesCard` renders `imdb_link`, `source_other`, `source_other_link` for TV show entries (may already be generic; verify and extend if needed).
 
-- [ ] Done
+- [x] Done (already generic, no changes needed)
 
 ---
 
@@ -339,7 +339,7 @@ Ensure `SourcesCard` renders `imdb_link`, `source_other`, `source_other_link` fo
 
 Add TV show count / quick stats to the system admin overview page (alongside Movie and Anime Movie sections).
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -355,7 +355,7 @@ New "Add TV Show" tab following the spec in `admin-forms.md`:
 - Franchise modal: uses TV show name fields; `franchise_type = "TV or Movie"`; Expectation default = Low
 - Series modal: uses TV show name fields
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -369,7 +369,7 @@ New "Modify TV Show" tab following `admin-forms.md`:
 - On submit: Franchise Generation modal if needed; Series Generation modal if needed; `PUT /api/tv-shows/:id`
 - Deep-link: TV show detail page Quick Edit → `/modify?id=:uuid&type=tv-show`
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -382,7 +382,7 @@ New "Delete TV Show" tab:
 - Confirmation modal: if deleted TV show is the only entry in its franchise, offer to also delete orphaned Franchise Hub
 - Deletes: `DELETE /api/tv-shows/:id`
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -390,7 +390,7 @@ New "Delete TV Show" tab:
 
 Add TV show results section to Search page. Loads TV shows when search query matches TV show names. Displays `TVCard` components in "TV Show" group. Also update the Nav universal search bar to include TV shows in "All" scope.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -398,7 +398,7 @@ Add TV show results section to Search page. Loads TV shows when search query mat
 
 Add "TV Show" tab to FutureReleases page showing TV shows with `airing_status` in `["Not Yet Aired", "Airing"]`, ordered by `release_date`. Displays `TVCardFuture` components.
 
-- [ ] Done
+- [x] Done
 
 ---
 
@@ -408,7 +408,7 @@ Add "TV Show" tab to FutureReleases page showing TV shows with `airing_status` i
 
 Update the Reality Franchise Hub to fetch and display TV shows belonging to the franchise via `GET /api/tv-shows/?franchise_id=:id`. Display using `TVCard` components, grouped by series.
 
-- [ ] Done
+- [x] Done
 
 ---
 

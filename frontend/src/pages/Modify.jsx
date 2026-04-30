@@ -13,6 +13,7 @@ import MultiSelect from "../components/MultiSelect";
 import AnimeNotes from "./AnimeNotes";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 import MovieNotes from "./MovieNotes";
+import TVShowNotes from "./TVShowNotes";
 import {
   Field,
   SectionHeader,
@@ -203,6 +204,7 @@ export default function Modify() {
   const [allOptions, setAllOptions] = useState([]);
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
+  const [allTvShows, setAllTvShows] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -224,6 +226,7 @@ export default function Modify() {
   const [sf, setSf] = useState({});
   const [amf, setAmf] = useState({});
   const [mmf, setMmf] = useState({});
+  const [tvmf, setTvmf] = useState({});
   const [optValue, setOptValue] = useState("");
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
@@ -231,37 +234,58 @@ export default function Modify() {
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
   const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
   const umm = (k, v) => setMmf((p) => ({ ...p, [k]: v }));
+  const utv = (k, v) => setTvmf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes] = await Promise.all([
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/series/", { credentials: "include" }),
-          fetch("/api/options/", { credentials: "include" }),
-          fetch("/api/anime-movie/", { credentials: "include" }),
-          fetch("/api/movies/", { credentials: "include" }),
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes] = await Promise.all(
+          [
+            fetch("/api/anime/", { credentials: "include" }),
+            fetch("/api/franchise/", { credentials: "include" }),
+            fetch("/api/series/", { credentials: "include" }),
+            fetch("/api/options/", { credentials: "include" }),
+            fetch("/api/anime-movie/", { credentials: "include" }),
+            fetch("/api/movies/", { credentials: "include" }),
+            fetch("/api/tv-shows/", { credentials: "include" }),
+          ],
+        );
+        const [
+          anime,
+          franchises,
+          series,
+          options,
+          animeMovies,
+          movies,
+          tvShows,
+        ] = await Promise.all([
+          aRes.json(),
+          fRes.json(),
+          sRes.json(),
+          oRes.json(),
+          amRes.json(),
+          mvRes.json(),
+          tvRes.json(),
         ]);
-        const [anime, franchises, series, options, animeMovies, movies] =
-          await Promise.all([
-            aRes.json(),
-            fRes.json(),
-            sRes.json(),
-            oRes.json(),
-            amRes.json(),
-            mvRes.json(),
-          ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
         setAllSeries(series);
         setAllOptions(options);
         setAllAnimeMovies(animeMovies);
         setAllMovies(movies);
+        setAllTvShows(tvShows);
 
         const urlId = searchParams.get("id");
         const urlType = searchParams.get("type");
         if (urlId) {
+          if (urlType === "tv-show") {
+            const tv = tvShows.find((x) => x.system_id === urlId);
+            if (tv) {
+              openEditorWith(tv, "tv-show", franchises, series);
+              setActiveTab("tv-show");
+              return;
+            }
+          }
           if (urlType === "movie") {
             const mv = movies.find((x) => x.system_id === urlId);
             if (mv) {
@@ -333,6 +357,15 @@ export default function Modify() {
       release_date_usa: m.release_date_usa || "",
       release_date_tw: m.release_date_tw || "",
       director: m.director || "",
+      prequel_id: m.prequel_id || null,
+      sequel_id: m.sequel_id || null,
+      watch_order: m.watch_order ?? "",
+      derive_related:
+        m.derive_related === true
+          ? "true"
+          : m.derive_related === false
+            ? "false"
+            : "",
       imdb_id: m.imdb_id ?? "",
       imdb_link: m.imdb_link || "",
       source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
@@ -345,6 +378,50 @@ export default function Modify() {
     };
   }
 
+  function tvShowToForm(t, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === t.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === t.series_id,
+    );
+    return {
+      tv_name_cn: t.tv_name_cn || "",
+      tv_name_en: t.tv_name_en || "",
+      tv_name_alt: t.tv_name_alt || "",
+      franchise_id: t.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: t.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      season_part: t.season_part || "",
+      region: t.region || "",
+      source_official: t.source_official || "",
+      is_main: t.is_main || "",
+      airing_status: t.airing_status || "",
+      watching_status: t.watching_status || "Might Watch",
+      ep_total: t.ep_total ?? "",
+      ep_fin: t.ep_fin ?? "",
+      my_rating: t.my_rating || "",
+      imdb_rating: t.imdb_rating || "",
+      release_date: t.release_date || "",
+      prequel_id: t.prequel_id || null,
+      sequel_id: t.sequel_id || null,
+      watch_order: t.watch_order ?? "",
+      derive_related:
+        t.derive_related === true
+          ? "true"
+          : t.derive_related === false
+            ? "false"
+            : "",
+      imdb_id: t.imdb_id ?? "",
+      imdb_link: t.imdb_link || "",
+      source_other: Object.entries(t.source_other || {}).map(([name, url]) => ({
+        name,
+        url: url || "",
+      })),
+      remark: t.remark || "",
+      notes: t.notes || {},
+    };
+  }
+
   function openEditorWith(item, type, franchises, series) {
     setEditingItem(item);
     setEditingType(type);
@@ -354,6 +431,8 @@ export default function Modify() {
     else if (type === "anime-movie") setAmf(movieToForm(item, franchises));
     else if (type === "movie")
       setMmf(liveMovieToForm(item, franchises, series));
+    else if (type === "tv-show")
+      setTvmf(tvShowToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -379,6 +458,7 @@ export default function Modify() {
       else if (editingType === "series") await saveSeries();
       else if (editingType === "anime-movie") await saveAnimeMovie();
       else if (editingType === "movie") await saveMovie();
+      else if (editingType === "tv-show") await saveTvShow();
       else if (editingType === "options") await saveOption();
     } finally {
       setSubmitting(false);
@@ -767,6 +847,16 @@ export default function Modify() {
       release_date_usa: mmf.release_date_usa || null,
       release_date_tw: mmf.release_date_tw || null,
       director: mmf.director || null,
+      prequel_id: mmf.prequel_id || null,
+      sequel_id: mmf.sequel_id || null,
+      watch_order:
+        mmf.watch_order !== "" ? parseFloat(mmf.watch_order) : null,
+      derive_related:
+        mmf.derive_related === "true"
+          ? true
+          : mmf.derive_related === "false"
+            ? false
+            : null,
       imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
       source_other:
@@ -805,6 +895,143 @@ export default function Modify() {
     showToast("success", "Movie updated and enriched successfully.");
   }
 
+  async function saveTvShow() {
+    let franchiseId = tvmf.franchise_id;
+    if (!franchiseId && (tvmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: tvmf.tv_name_en || null,
+          franchise_name_cn: tvmf.tv_name_cn || null,
+          franchise_name_alt: tvmf.tv_name_alt || null,
+          franchise_type: "TV or Movie",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = tvmf.series_id;
+    if (!seriesId && (tvmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: tvmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: tvmf.tv_name_en || null,
+          series_name_cn: tvmf.tv_name_cn || null,
+          series_name_alt: tvmf.tv_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      tv_name_cn: tvmf.tv_name_cn || null,
+      tv_name_en: tvmf.tv_name_en || null,
+      tv_name_alt: tvmf.tv_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      season_part: tvmf.season_part || null,
+      region: tvmf.region || null,
+      source_official: tvmf.source_official || null,
+      is_main: tvmf.is_main || null,
+      airing_status: tvmf.airing_status || null,
+      watching_status: tvmf.watching_status || "Might Watch",
+      ep_total: tvmf.ep_total !== "" ? parseInt(tvmf.ep_total) : null,
+      ep_fin: tvmf.ep_fin !== "" ? parseInt(tvmf.ep_fin) : null,
+      my_rating: tvmf.my_rating || null,
+      imdb_rating: tvmf.imdb_rating || null,
+      release_date: tvmf.release_date || null,
+      prequel_id: tvmf.prequel_id || null,
+      sequel_id: tvmf.sequel_id || null,
+      watch_order:
+        tvmf.watch_order !== "" ? parseFloat(tvmf.watch_order) : null,
+      derive_related:
+        tvmf.derive_related === "true"
+          ? true
+          : tvmf.derive_related === "false"
+            ? false
+            : null,
+      imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
+      imdb_link: tvmf.imdb_link || null,
+      source_other:
+        tvmf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              tvmf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      remark: tvmf.remark || null,
+      notes: Object.keys(tvmf.notes || {}).length > 0 ? tvmf.notes : null,
+    };
+    const res = await fetch(`/api/tv-shows/${editingItem.system_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    setAllTvShows((prev) =>
+      prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
+    );
+    setEditingItem(updated);
+    setTvmf(tvShowToForm(updated, allFranchises, allSeries));
+    window.scrollTo(0, 0);
+    showToast("success", "TV show updated successfully.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -816,6 +1043,10 @@ export default function Modify() {
       return item.anime_movie_name_cn || item.anime_movie_name_en || "Unknown";
     if (type === "movie")
       return item.movie_name_cn || item.movie_name_en || "Unknown";
+    if (type === "tv-show")
+      return (
+        item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "Unknown"
+      );
     if (type === "options") return `${item.category}: ${item.option_value}`;
     return "Unknown";
   }
@@ -875,6 +1106,14 @@ export default function Modify() {
           ),
         )
         .slice(0, 10);
+    if (activeTab === "tv-show")
+      return allTvShows
+        .filter((t) =>
+          [t.tv_name_cn, t.tv_name_en, t.tv_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
@@ -894,6 +1133,7 @@ export default function Modify() {
     if (activeTab === "anime-movie")
       return [...allAnimeMovies].sort(sort).slice(0, 12);
     if (activeTab === "movie") return [...allMovies].sort(sort).slice(0, 12);
+    if (activeTab === "tv-show") return [...allTvShows].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -974,11 +1214,32 @@ export default function Modify() {
       .filter(Boolean)
       .join(" "),
   }));
+  const seriesItemsForTvShow = (
+    tvmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === tvmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const tvRibbon =
+    editingType === "tv-show" && tvmf.franchise_id
+      ? allTvShows.filter(
+          (t) =>
+            t.franchise_id === tvmf.franchise_id &&
+            t.system_id !== editingItem?.system_id,
+        )
+      : [];
 
   const tabDefs = [
     { key: "anime", icon: "fa-tv", label: "Modify Anime Entry" },
     { key: "anime-movie", icon: "fa-film", label: "Modify Anime Movie" },
     { key: "movie", icon: "fa-ticket-alt", label: "Modify Movie" },
+    { key: "tv-show", icon: "fa-video", label: "Modify TV Show" },
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
@@ -1268,6 +1529,61 @@ export default function Modify() {
                     m.movie_name_en ||
                     m.movie_name_alt ||
                     "Unknown"}
+                </button>
+              );
+              return (
+                <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Other entries in this franchise
+                  </p>
+                  {Object.entries(bySeries).map(([sid, entries]) => {
+                    const s = allSeries.find((x) => x.system_id === sid);
+                    return (
+                      <div key={sid}>
+                        <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                          {s ? getDisplayName(s, "series") : "Series"}
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {entries.map(renderChip)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {noSeries.length > 0 && (
+                    <div>
+                      {Object.keys(bySeries).length > 0 && (
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                          No Series
+                        </p>
+                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        {noSeries.map(renderChip)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+          {/* TV Show ribbon — grouped by series */}
+          {editingType === "tv-show" &&
+            tvRibbon.length > 0 &&
+            (() => {
+              const bySeries = {};
+              const noSeries = [];
+              for (const t of tvRibbon) {
+                if (t.series_id) {
+                  (bySeries[t.series_id] = bySeries[t.series_id] || []).push(t);
+                } else noSeries.push(t);
+              }
+              const renderChip = (t) => (
+                <button
+                  key={t.system_id}
+                  type="button"
+                  onClick={() => openEditor(t, "tv-show")}
+                  className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+                >
+                  {t.tv_name_cn || t.tv_name_en || t.tv_name_alt || "Unknown"}
                 </button>
               );
               return (
@@ -2819,6 +3135,54 @@ export default function Modify() {
                   </Field>
                 </div>
 
+                <SectionHeader icon="fa-link" title="Relational & Timeline" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Prequel ID" hint="UUID of prequel entry">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={mmf.prequel_id || ""}
+                      onChange={(e) =>
+                        umm("prequel_id", e.target.value || null)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Sequel ID" hint="UUID of sequel entry">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={mmf.sequel_id || ""}
+                      onChange={(e) =>
+                        umm("sequel_id", e.target.value || null)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="any"
+                      value={mmf.watch_order}
+                      onChange={(e) => umm("watch_order", e.target.value)}
+                      placeholder="e.g. 1, 1.5, 2"
+                    />
+                  </Field>
+                  <Field
+                    label="Derive Related"
+                    hint="Set to No to skip prequel/sequel derivation"
+                  >
+                    <select
+                      className={selectCls}
+                      value={mmf.derive_related}
+                      onChange={(e) => umm("derive_related", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </Field>
+                </div>
+
                 <SectionHeader icon="fa-link" title="IMDb & Sources" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="IMDb ID">
@@ -2922,6 +3286,394 @@ export default function Modify() {
                   movie={{ notes: mmf.notes, system_id: editingItem.system_id }}
                   isAdmin={true}
                   onSave={(updatedNotes) => umm("notes", updatedNotes)}
+                />
+              </>
+            )}
+
+            {/* ── TV SHOW EDITOR ── */}
+            {editingType === "tv-show" && (
+              <>
+                <SectionHeader icon="fa-video" title="Titles & Naming" />
+                <Field label="Franchise">
+                  <ComboBox
+                    items={allFranchises
+                      .filter(
+                        (f) =>
+                          f.franchise_type === "TV or Movie" ||
+                          !f.franchise_type,
+                      )
+                      .map((f) => ({
+                        id: f.system_id,
+                        label: getDisplayName(f, "franchise"),
+                        searchText: [
+                          f.franchise_name_cn,
+                          f.franchise_name_en,
+                          f.franchise_name_alt,
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
+                      }))}
+                    selectedId={tvmf.franchise_id}
+                    inputText={tvmf.franchise_text || ""}
+                    onSelect={(id, label) => {
+                      utv("franchise_id", id);
+                      utv("franchise_text", label);
+                      utv("series_id", null);
+                      utv("series_text", "");
+                    }}
+                    onType={(text) => {
+                      utv("franchise_text", text);
+                      utv("franchise_id", null);
+                      utv("series_id", null);
+                      utv("series_text", "");
+                    }}
+                    onClear={() => {
+                      utv("franchise_id", null);
+                      utv("franchise_text", "");
+                      utv("series_id", null);
+                      utv("series_text", "");
+                    }}
+                    placeholder="Search franchise..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Series">
+                  <ComboBox
+                    items={seriesItemsForTvShow}
+                    selectedId={tvmf.series_id}
+                    inputText={tvmf.series_text || ""}
+                    onSelect={(id, label) => {
+                      utv("series_id", id);
+                      utv("series_text", label);
+                    }}
+                    onType={(text) => {
+                      utv("series_text", text);
+                      utv("series_id", null);
+                    }}
+                    onClear={() => {
+                      utv("series_id", null);
+                      utv("series_text", "");
+                    }}
+                    placeholder="Search or type new series..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="TV Name CN">
+                  <input
+                    className={inputCls}
+                    value={tvmf.tv_name_cn || ""}
+                    onChange={(e) => utv("tv_name_cn", e.target.value)}
+                  />
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="TV Name EN">
+                    <input
+                      className={inputCls}
+                      value={tvmf.tv_name_en || ""}
+                      onChange={(e) => utv("tv_name_en", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="TV Name Alt">
+                    <input
+                      className={inputCls}
+                      value={tvmf.tv_name_alt || ""}
+                      onChange={(e) => utv("tv_name_alt", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Season" hint="e.g. Season 1">
+                    <input
+                      className={inputCls}
+                      value={tvmf.season_part || ""}
+                      onChange={(e) => utv("season_part", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Region">
+                    <select
+                      className={selectCls}
+                      value={tvmf.region || ""}
+                      onChange={(e) => utv("region", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map(
+                        (v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader
+                  icon="fa-chart-bar"
+                  title="Status & Classification"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Airing Status">
+                    <select
+                      className={selectCls}
+                      value={tvmf.airing_status || ""}
+                      onChange={(e) => utv("airing_status", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["Not Yet Aired", "Airing", "Finished Airing"].map(
+                        (v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </Field>
+                  <Field label="Watching Status">
+                    <select
+                      className={selectCls}
+                      value={tvmf.watching_status || "Might Watch"}
+                      onChange={(e) => utv("watching_status", e.target.value)}
+                    >
+                      {[
+                        "Might Watch",
+                        "Plan to Watch",
+                        "Watch When Airs",
+                        "Active Watching",
+                        "Passive Watching",
+                        "Paused",
+                        "Completed",
+                        "Temp Dropped",
+                        "Dropped",
+                        "Won't Watch",
+                      ].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Is Main">
+                    <select
+                      className={selectCls}
+                      value={tvmf.is_main || ""}
+                      onChange={(e) => utv("is_main", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Episodes Total">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      value={tvmf.ep_total ?? ""}
+                      onChange={(e) => utv("ep_total", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Episodes Finished">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      value={tvmf.ep_fin ?? ""}
+                      onChange={(e) => utv("ep_fin", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="My Rating">
+                    <select
+                      className={selectCls}
+                      value={tvmf.my_rating || ""}
+                      onChange={(e) => utv("my_rating", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Official Source">
+                    <input
+                      className={inputCls}
+                      value={tvmf.source_official || ""}
+                      onChange={(e) => utv("source_official", e.target.value)}
+                      placeholder="e.g. Netflix"
+                    />
+                  </Field>
+                  <Field label="Release Date" hint="e.g. FEB 2026">
+                    <input
+                      className={inputCls}
+                      value={tvmf.release_date || ""}
+                      onChange={(e) => utv("release_date", e.target.value)}
+                      placeholder="FEB 2026"
+                    />
+                  </Field>
+                  <Field label="IMDB Rating" hint="e.g. 9.2">
+                    <input
+                      className={inputCls}
+                      value={tvmf.imdb_rating || ""}
+                      onChange={(e) => utv("imdb_rating", e.target.value)}
+                      placeholder="9.2"
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-link" title="Relational & Timeline" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Prequel ID" hint="UUID of prequel entry">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={tvmf.prequel_id || ""}
+                      onChange={(e) =>
+                        utv("prequel_id", e.target.value || null)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Sequel ID" hint="UUID of sequel entry">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={tvmf.sequel_id || ""}
+                      onChange={(e) =>
+                        utv("sequel_id", e.target.value || null)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="any"
+                      value={tvmf.watch_order}
+                      onChange={(e) => utv("watch_order", e.target.value)}
+                      placeholder="e.g. 1, 1.5, 2"
+                    />
+                  </Field>
+                  <Field
+                    label="Derive Related"
+                    hint="Set to No to skip prequel/sequel derivation"
+                  >
+                    <select
+                      className={selectCls}
+                      value={tvmf.derive_related}
+                      onChange={(e) => utv("derive_related", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-link" title="IMDb & Sources" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="IMDb ID">
+                    <input
+                      className={inputCls}
+                      type="text"
+                      value={tvmf.imdb_id ?? ""}
+                      onChange={(e) => utv("imdb_id", e.target.value)}
+                      placeholder="tt1234567"
+                    />
+                  </Field>
+                  <Field label="IMDb Link">
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={tvmf.imdb_link || ""}
+                      onChange={(e) => utv("imdb_link", e.target.value)}
+                    />
+                  </Field>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Other Sources
+                    </label>
+                    <div className="space-y-2">
+                      {(tvmf.source_other || []).map((entry, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <input
+                            className={inputCls}
+                            placeholder="Source name (e.g. Disney+)"
+                            value={entry.name}
+                            onChange={(e) =>
+                              utv(
+                                "source_other",
+                                tvmf.source_other.map((x, j) =>
+                                  j === i ? { ...x, name: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <input
+                            className={inputCls}
+                            type="url"
+                            placeholder="https://... (optional)"
+                            value={entry.url}
+                            onChange={(e) =>
+                              utv(
+                                "source_other",
+                                tvmf.source_other.map((x, j) =>
+                                  j === i ? { ...x, url: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                            onClick={() =>
+                              utv(
+                                "source_other",
+                                tvmf.source_other.filter((_, j) => j !== i),
+                              )
+                            }
+                          >
+                            <i className="fas fa-times" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-xs text-brand hover:underline mt-1"
+                        onClick={() =>
+                          utv("source_other", [
+                            ...(tvmf.source_other || []),
+                            { name: "", url: "" },
+                          ])
+                        }
+                      >
+                        + Add Source
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <SectionHeader icon="fa-sticky-note" title="Notes" />
+                <Field label="Remark">
+                  <textarea
+                    className={inputCls}
+                    rows={3}
+                    value={tvmf.remark || ""}
+                    onChange={(e) => utv("remark", e.target.value)}
+                  />
+                </Field>
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <TVShowNotes
+                  show={{
+                    notes: tvmf.notes,
+                    system_id: editingItem?.system_id,
+                  }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => utv("notes", updatedNotes)}
                 />
               </>
             )}

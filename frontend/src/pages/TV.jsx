@@ -6,7 +6,9 @@ import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 import InfoCard from "../components/InfoCard";
 import TVNamingCard from "../components/TVNamingCard";
 import SourcesCard from "../components/SourcesCard";
+import MyTrackerCard from "../components/MyTrackerCard";
 import SeriesModal from "../components/SeriesModal";
+import TVShowNotes from "./TVShowNotes";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -37,7 +39,6 @@ export default function TV() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
-  const [epFinEdit, setEpFinEdit] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -130,14 +131,6 @@ export default function TV() {
     }
   }
 
-  function handleEpFinBlur(val) {
-    const parsed = parseInt(val, 10);
-    if (!isNaN(parsed) && parsed !== show.ep_fin) {
-      performPatch({ ep_fin: parsed }, "Episode progress saved");
-    }
-    setEpFinEdit(null);
-  }
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
@@ -181,9 +174,7 @@ export default function TV() {
       franchise.franchise_name_roman
     : null;
 
-  const sourceOtherDict = show.source_other
-    ? { [show.source_other]: show.source_other_link || "" }
-    : null;
+  const sourceOtherDict = show.source_other || null;
 
   const relatedEntries = [];
   if (prequel)
@@ -247,6 +238,7 @@ export default function TV() {
                   {
                     watching_status: "Completed",
                     airing_status: "Finished Airing",
+                    ep_fin: show.ep_total ? parseInt(show.ep_total) : epFin,
                   },
                   "Marked as Completed!",
                 )
@@ -294,31 +286,73 @@ export default function TV() {
             </div>
           </div>
 
-          {/* IMDb Link */}
-          {show.imdb_link && (
+          {/* Sources */}
+          <SourcesCard
+            sourceOther={sourceOtherDict}
+            officialSource={show.source_official}
+            imdbLink={show.imdb_link}
+          />
+
+          {/* Watch Order */}
+          {show.watch_order != null && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
-                <i className="fas fa-film mr-1.5"></i>External
+                <i className="fas fa-sort-numeric-up mr-1.5"></i>Watch Order
               </h3>
-              <a
-                href={show.imdb_link}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between w-full bg-yellow-50 hover:bg-yellow-400 text-yellow-800 hover:text-yellow-900 px-3 py-2 rounded border border-yellow-100 transition text-sm font-bold"
-              >
-                <span className="flex items-center">
-                  <span className="bg-yellow-400 text-yellow-900 text-[9px] px-1 py-0.5 rounded mr-2 font-black">
-                    IMDb
-                  </span>
-                  IMDb Page
-                </span>
-                <i className="fas fa-external-link-alt text-[10px]"></i>
-              </a>
+              <div className="text-2xl font-black text-brand text-center py-1">
+                #{show.watch_order}
+              </div>
             </div>
           )}
 
-          {/* Sources */}
-          <SourcesCard sourceOther={sourceOtherDict} />
+          {/* Related Entries */}
+          {relatedEntries.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+                <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
+              </h3>
+              <div className="flex flex-col gap-3">
+                {relatedEntries.map(({ entry: rel, tag, color }) => {
+                  const relTitle =
+                    rel.tv_name_cn ||
+                    rel.tv_name_en ||
+                    rel.tv_name_alt ||
+                    "Unknown";
+                  return (
+                    <div
+                      key={`${tag}-${rel.system_id}`}
+                      onClick={() => navigate(`/tv-show/${rel.system_id}`)}
+                      className="bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 cursor-pointer hover:bg-brand/5 hover:border-brand/30 transition"
+                    >
+                      <img
+                        src={getCoverUrl(rel.cover_image_file)}
+                        className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
+                        onError={(e) => {
+                          e.target.src = FALLBACK_SVG;
+                        }}
+                        alt=""
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className={`text-[9px] font-bold uppercase tracking-wider ${color} mb-0.5`}
+                        >
+                          {tag}
+                        </div>
+                        <div className="text-sm font-bold text-gray-900 truncate">
+                          {relTitle}
+                        </div>
+                        {rel.season_part && (
+                          <div className="text-[10px] text-gray-500 truncate">
+                            {rel.season_part}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* System Info — admin only */}
           {isAdmin && (
@@ -376,7 +410,7 @@ export default function TV() {
                 <span>
                   <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
                   <Link
-                    to={`/franchise/reality/${franchise.system_id}`}
+                    to={`/franchise/${franchise.system_id}`}
                     className="text-brand hover:underline font-medium"
                   >
                     {franchiseName}
@@ -434,88 +468,24 @@ export default function TV() {
           </div>
 
           {/* My Tracker Block */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-t-4 border-t-brand">
-            <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5">
-              <h3 className="font-bold text-gray-800 text-lg flex items-center">
-                <i className="fas fa-chart-line text-brand mr-2"></i>My Tracker
-              </h3>
-            </div>
-            <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Watching Status
-                </label>
-                <select
-                  value={show.watching_status || ""}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    isAdmin &&
-                    performPatch(
-                      { watching_status: e.target.value },
-                      "Status updated",
-                    )
-                  }
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                >
-                  {WATCHING_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Episodes
-                </label>
-                <div className="flex items-center gap-2">
-                  {isAdmin ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={epFinEdit !== null ? epFinEdit : epFin}
-                      onFocus={() => setEpFinEdit(epFin)}
-                      onChange={(e) => setEpFinEdit(e.target.value)}
-                      onBlur={(e) => handleEpFinBlur(e.target.value)}
-                      className="w-16 border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm text-center font-mono font-bold"
-                    />
-                  ) : (
-                    <span className="font-mono font-bold text-gray-800">
-                      {epFin}
-                    </span>
-                  )}
-                  <span className="text-gray-400 font-bold">/</span>
-                  <span className="font-mono font-bold text-gray-800">
-                    {epTotal ?? "?"}
-                  </span>
-                  <span className="text-[10px] text-gray-400 font-sans">
-                    EP
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Rating
-                </label>
-                <select
-                  value={show.my_rating || ""}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    isAdmin &&
-                    performPatch({ my_rating: e.target.value }, "Rating saved")
-                  }
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                >
-                  <option value="">Unrated</option>
-                  {MY_RATINGS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+          <MyTrackerCard
+            epFin={epFin}
+            epTotal={epTotal ?? "?"}
+            watchingStatus={show.watching_status}
+            myRating={show.my_rating}
+            isAdmin={isAdmin}
+            onEpChange={(v) =>
+              performPatch({ ep_fin: v }, "Episode progress saved")
+            }
+            onStatusChange={(v) =>
+              performPatch({ watching_status: v }, "Status updated")
+            }
+            onRatingChange={(v) =>
+              performPatch({ my_rating: v }, "Rating saved")
+            }
+            statusOptions={WATCHING_STATUSES}
+            ratingOptions={MY_RATINGS}
+          />
 
           {/* Detail Cards */}
           <div className="space-y-6">
@@ -523,82 +493,32 @@ export default function TV() {
               cn={show.tv_name_cn}
               en={show.tv_name_en}
               alt={show.tv_name_alt}
-              region={show.region}
-              seasonPart={show.season_part}
-              isMain={show.is_main}
-              sourceOfficial={show.source_official}
             />
             <InfoCard
               title="Information"
               icon="fa-info-circle"
               fields={[
                 [
-                  { label: "Airing Status", value: show.airing_status },
-                  { label: "Release Date", value: show.release_date },
+                  { label: "本傳 / 外傳", value: show.is_main },
+                  { label: "Season", value: show.season_part },
                 ],
                 [
                   {
-                    label: "Watch Order",
-                    value:
-                      show.watch_order != null ? `#${show.watch_order}` : null,
+                    label: "Total Ep",
+                    value: show.ep_total != null ? String(show.ep_total) : null,
                   },
-                  { label: "IMDb ID", value: show.imdb_id },
+                  { label: "Official Source", value: show.source_official },
+                ],
+                [
+                  { label: "Airing Status", value: show.airing_status },
+                  { label: "Release Date", value: show.release_date },
                 ],
               ]}
             />
           </div>
 
-          {/* Related Entries */}
-          {relatedEntries.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-                <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
-              </h3>
-              <div className="flex flex-col gap-3">
-                {relatedEntries.map(({ entry: rel, tag, color }) => {
-                  const relTitle =
-                    rel.tv_name_cn ||
-                    rel.tv_name_en ||
-                    rel.tv_name_alt ||
-                    "Unknown";
-                  return (
-                    <div
-                      key={`${tag}-${rel.system_id}`}
-                      onClick={() => navigate(`/tv-show/${rel.system_id}`)}
-                      className="bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 cursor-pointer hover:bg-brand/5 hover:border-brand/30 transition"
-                    >
-                      <img
-                        src={getCoverUrl(rel.cover_image_file)}
-                        className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
-                        onError={(e) => {
-                          e.target.src = FALLBACK_SVG;
-                        }}
-                        alt=""
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className={`text-[9px] font-bold uppercase tracking-wider ${color} mb-0.5`}
-                        >
-                          {tag}
-                        </div>
-                        <div className="text-sm font-bold text-gray-900 truncate">
-                          {relTitle}
-                        </div>
-                        {rel.season_part && (
-                          <div className="text-[10px] text-gray-500 truncate">
-                            {rel.season_part}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Remarks */}
-          {(show.remark || isAdmin) && (
+          {show.remark && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
                 <h3 className="font-bold text-gray-800">
@@ -621,6 +541,16 @@ export default function TV() {
               </div>
             </div>
           )}
+
+          {/* Structured Notes */}
+          <TVShowNotes
+            key={show.system_id}
+            show={show}
+            isAdmin={isAdmin}
+            onSave={(updatedNotes) =>
+              performPatch({ notes: updatedNotes }, "Notes saved")
+            }
+          />
         </div>
       </div>
 

@@ -16,21 +16,26 @@ function getExpectationWeight(exp) {
 
 const KNOWN_TYPES = ["ACG", "Anime Movie", "TV or Movie", "Cartoon"];
 
-function getFranchiseCover(franchise, animeDict, animesByFranchise) {
+function getEntryYear(entry) {
+  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
+  const d = entry.release_date_jp || entry.release_date_tw || entry.release_date_usa || entry.release_date;
+  if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
+  return 0;
+}
+
+function getFranchiseCover(franchise, allEntriesDict, allEntriesByFranchise) {
   if (franchise.cover_anime_id) {
-    const coverAnime = animeDict[franchise.cover_anime_id];
-    if (coverAnime?.cover_image_file && coverAnime.cover_image_file !== "N/A") {
-      return getCoverUrl(coverAnime.cover_image_file);
+    const coverEntry = allEntriesDict[franchise.cover_anime_id];
+    if (coverEntry?.cover_image_file && coverEntry.cover_image_file !== "N/A") {
+      return getCoverUrl(coverEntry.cover_image_file);
     }
   }
-  const franchiseAnime = animesByFranchise[franchise.system_id] || [];
-  const withCovers = franchiseAnime.filter(
-    (a) => a.cover_image_file && a.cover_image_file !== "N/A",
+  const entries = allEntriesByFranchise[franchise.system_id] || [];
+  const withCovers = entries.filter(
+    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
   );
   if (withCovers.length === 0) return FALLBACK_SVG;
-  withCovers.sort(
-    (a, b) => (parseInt(b.release_year) || 0) - (parseInt(a.release_year) || 0),
-  );
+  withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
   return getCoverUrl(withCovers[0].cover_image_file);
 }
 
@@ -38,8 +43,8 @@ const EMPTY_FILTERS = { franchiseType: new Set() };
 
 export default function FranchiseLibrary() {
   const [allFranchises, setAllFranchises] = useState([]);
-  const [animeDict, setAnimeDict] = useState({});
-  const [animesByFranchise, setAnimesByFranchise] = useState({});
+  const [allEntriesDict, setAllEntriesDict] = useState({});
+  const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,24 +56,32 @@ export default function FranchiseLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes] = await Promise.all([
+        const [fRes, aRes, amRes, mRes, tvRes] = await Promise.all([
           fetch("/api/franchise/", { credentials: "include" }),
           fetch("/api/anime/", { credentials: "include" }),
+          fetch("/api/anime-movie/", { credentials: "include" }),
+          fetch("/api/movies/", { credentials: "include" }),
+          fetch("/api/tv-shows/", { credentials: "include" }),
         ]);
-        if (!fRes.ok || !aRes.ok) throw new Error("Failed to load data");
-        const [franchises, anime] = await Promise.all([
+        if (!fRes.ok || !aRes.ok || !amRes.ok || !mRes.ok || !tvRes.ok)
+          throw new Error("Failed to load data");
+        const [franchises, anime, animeMovies, movies, tvShows] = await Promise.all([
           fRes.json(),
           aRes.json(),
+          amRes.json(),
+          mRes.json(),
+          tvRes.json(),
         ]);
+        const allEntries = [...anime, ...animeMovies, ...movies, ...tvShows];
         setAllFranchises(franchises);
-        setAnimeDict(Object.fromEntries(anime.map((a) => [a.system_id, a])));
+        setAllEntriesDict(Object.fromEntries(allEntries.map((e) => [e.system_id, e])));
         const byFranchise = {};
-        for (const a of anime) {
-          if (!a.franchise_id) continue;
-          if (!byFranchise[a.franchise_id]) byFranchise[a.franchise_id] = [];
-          byFranchise[a.franchise_id].push(a);
+        for (const e of allEntries) {
+          if (!e.franchise_id) continue;
+          if (!byFranchise[e.franchise_id]) byFranchise[e.franchise_id] = [];
+          byFranchise[e.franchise_id].push(e);
         }
-        setAnimesByFranchise(byFranchise);
+        setAllEntriesByFranchise(byFranchise);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -325,8 +338,8 @@ export default function FranchiseLibrary() {
                 franchise={franchise}
                 coverUrl={getFranchiseCover(
                   franchise,
-                  animeDict,
-                  animesByFranchise,
+                  allEntriesDict,
+                  allEntriesByFranchise,
                 )}
               />
             ))}

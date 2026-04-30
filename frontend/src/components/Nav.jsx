@@ -338,7 +338,9 @@ export default function Nav() {
                     <NavLink to="/library/franchise" icon="fas fa-layer-group">
                       Franchise
                     </NavLink>
-                    <DevLink icon="fas fa-video">TV Show</DevLink>
+                    <NavLink to="/library/tv-show" icon="fas fa-video">
+                      TV Show
+                    </NavLink>
                     <NavLink to="/library/movie" icon="fas fa-ticket-alt">
                       Movie
                     </NavLink>
@@ -648,11 +650,11 @@ export default function Nav() {
                   Franchise Library
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/tv-show"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  TV Show (Dev)
+                  TV Show Library
                 </Link>
                 <Link
                   to="/library/movie"

@@ -13,6 +13,10 @@ function getTVTitle(s) {
   return s.tv_name_cn || s.tv_name_en || s.tv_name_alt || "";
 }
 
+function getTVSortKey(s) {
+  return s.tv_name_en || s.tv_name_alt || s.tv_name_cn || "";
+}
+
 const WATCHING_STATUS_GROUP = {
   "Plan to Watch": "Planned",
   "Watch When Airs": "Planned",
@@ -139,9 +143,9 @@ export default function LibraryTV() {
             : -1;
         if (wA !== wB) return wB - wA;
       }
-      return getTVTitle(a)
+      return getTVSortKey(a)
         .toLowerCase()
-        .localeCompare(getTVTitle(b).toLowerCase());
+        .localeCompare(getTVSortKey(b).toLowerCase());
     });
 
     return result;

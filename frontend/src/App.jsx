@@ -27,6 +27,8 @@ import Delete from "./pages/Delete";
 import UnderDevelopment from "./pages/UnderDevelopment";
 import Movie from "./pages/Movie";
 import LibraryMovie from "./pages/LibraryMovie";
+import TV from "./pages/TV";
+import LibraryTV from "./pages/LibraryTV";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +70,8 @@ export default function App() {
                   element={<AnimeMovie />}
                 />
                 <Route path="/movie/:system_id" element={<Movie />} />
+                <Route path="/tv-show/:system_id" element={<TV />} />
+                <Route path="/library/tv-show" element={<LibraryTV />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route

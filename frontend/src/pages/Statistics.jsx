@@ -38,30 +38,39 @@ function getDisplayName(f) {
   );
 }
 
-function getCoverForSlot(franchise, franchiseAnimeMap) {
-  const animes = franchiseAnimeMap[String(franchise.system_id)] || [];
+function getEntryYear(entry) {
+  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
+  const d =
+    entry.release_date_jp ||
+    entry.release_date_tw ||
+    entry.release_date_usa ||
+    entry.release_date;
+  if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
+  return 0;
+}
+
+function getCoverForSlot(franchise, allEntriesByFranchise) {
+  const entries = allEntriesByFranchise[String(franchise.system_id)] || [];
   if (franchise.cover_anime_id) {
-    const chosen = animes.find((a) => a.system_id === franchise.cover_anime_id);
+    const chosen = entries.find(
+      (e) => e.system_id === franchise.cover_anime_id,
+    );
     if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
       return getCoverUrl(chosen.cover_image_file);
     }
   }
-  const withCover = animes.filter(
-    (a) => a.cover_image_file && a.cover_image_file !== "N/A",
+  const withCover = entries.filter(
+    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
   );
   if (withCover.length === 0) return FALLBACK_SVG;
-  withCover.sort((a, b) => {
-    const yr =
-      (parseInt(b.release_year, 10) || 0) - (parseInt(a.release_year, 10) || 0);
-    return yr !== 0 ? yr : (b.release_month || 0) - (a.release_month || 0);
-  });
+  withCover.sort((a, b) => getEntryYear(b) - getEntryYear(a));
   return getCoverUrl(withCover[0].cover_image_file);
 }
 
 export default function Statistics() {
   const [franchises, setFranchises] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
-  const [franchiseAnimeMap, setFranchiseAnimeMap] = useState({});
+  const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
   const [franchiseMap, setFranchiseMap] = useState({});
   const [completionsTab, setCompletionsTab] = useState("anime");
   const [groupPages, setGroupPages] = useState({
@@ -81,20 +90,37 @@ export default function Statistics() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, sRes, csRes] = await Promise.all([
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/seasonal/", { credentials: "include" }),
-          fetch("/api/seasonal/current-season", { credentials: "include" }),
-        ]);
-        if (!fRes.ok || !aRes.ok || !sRes.ok || !csRes.ok)
+        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes] = await Promise.all(
+          [
+            fetch("/api/franchise/", { credentials: "include" }),
+            fetch("/api/anime/", { credentials: "include" }),
+            fetch("/api/anime-movie/", { credentials: "include" }),
+            fetch("/api/movies/", { credentials: "include" }),
+            fetch("/api/tv-shows/", { credentials: "include" }),
+            fetch("/api/seasonal/", { credentials: "include" }),
+            fetch("/api/seasonal/current-season", { credentials: "include" }),
+          ],
+        );
+        if (
+          !fRes.ok ||
+          !aRes.ok ||
+          !amRes.ok ||
+          !mRes.ok ||
+          !tvRes.ok ||
+          !sRes.ok ||
+          !csRes.ok
+        )
           throw new Error("Failed to load data.");
-        const [fData, aData, sData, csData] = await Promise.all([
-          fRes.json(),
-          aRes.json(),
-          sRes.json(),
-          csRes.json(),
-        ]);
+        const [fData, aData, amData, mData, tvData, sData, csData] =
+          await Promise.all([
+            fRes.json(),
+            aRes.json(),
+            amRes.json(),
+            mRes.json(),
+            tvRes.json(),
+            sRes.json(),
+            csRes.json(),
+          ]);
         setCurrentSeason(csData.current_season);
         setFranchises(fData);
         setAllAnime(aData);
@@ -103,13 +129,14 @@ export default function Statistics() {
           fMap[String(f.system_id)] = f;
         });
         setFranchiseMap(fMap);
-        const map = {};
-        aData.forEach((a) => {
-          const id = String(a.franchise_id);
-          if (!map[id]) map[id] = [];
-          map[id].push(a);
+        const allEntries = [...aData, ...amData, ...mData, ...tvData];
+        const byFranchise = {};
+        allEntries.forEach((e) => {
+          const id = String(e.franchise_id);
+          if (!byFranchise[id]) byFranchise[id] = [];
+          byFranchise[id].push(e);
         });
-        setFranchiseAnimeMap(map);
+        setAllEntriesByFranchise(byFranchise);
         // Sort seasonals newest-first by year then season weight
         const SEASON_WEIGHT = { FAL: 4, SUM: 3, SPR: 2, WIN: 1 };
         const sorted = [...sData].sort((a, b) => {
@@ -236,7 +263,7 @@ export default function Statistics() {
           {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
             const f = slotMap[slot];
             if (f) {
-              const coverUrl = getCoverForSlot(f, franchiseAnimeMap);
+              const coverUrl = getCoverForSlot(f, allEntriesByFranchise);
               return (
                 <Link
                   key={slot}
@@ -698,7 +725,7 @@ export default function Statistics() {
                           {items.map((f) => {
                             const coverUrl = getCoverForSlot(
                               f,
-                              franchiseAnimeMap,
+                              allEntriesByFranchise,
                             );
                             return (
                               <Link
@@ -842,7 +869,7 @@ export default function Statistics() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {rewatchItems.map((f) => {
-                    const coverUrl = getCoverForSlot(f, franchiseAnimeMap);
+                    const coverUrl = getCoverForSlot(f, allEntriesByFranchise);
                     return (
                       <Link
                         key={f.system_id}
