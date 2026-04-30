@@ -75,8 +75,6 @@ from services.calculation import (
     run_sync_anime_movie,
     run_sync_cartoon,
     run_sync_tv_show,
-    run_cartoon_post_processing,
-    run_derive_related_cartoon,
 )
 
 logger = logging.getLogger(__name__)
