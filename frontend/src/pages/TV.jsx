@@ -4,10 +4,11 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 import InfoCard from "../components/InfoCard";
-import MovieNamingCard from "../components/MovieNamingCard";
+import TVNamingCard from "../components/TVNamingCard";
 import SourcesCard from "../components/SourcesCard";
+import MyTrackerCard from "../components/MyTrackerCard";
 import SeriesModal from "../components/SeriesModal";
-import MovieNotes from "./MovieNotes";
+import TVShowNotes from "./TVShowNotes";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -23,24 +24,17 @@ const WATCHING_STATUSES = [
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
-function formatLength(minutes) {
-  if (!minutes) return null;
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hrs === 0) return `${mins}min`;
-  if (mins === 0) return `${hrs}hr`;
-  return `${hrs}hr ${mins}min`;
-}
-
-export default function Movie() {
+export default function TV() {
   const { system_id } = useParams();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
-  const [movie, setMovie] = useState(null);
+  const [show, setShow] = useState(null);
   const [franchise, setFranchise] = useState(null);
   const [series, setSeries] = useState(null);
+  const [prequel, setPrequel] = useState(null);
+  const [sequel, setSequel] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,26 +42,44 @@ export default function Movie() {
 
   const load = useCallback(async () => {
     try {
-      const [mRes, fRes, sRes] = await Promise.all([
-        fetch(`/api/movies/${system_id}`, { credentials: "include" }),
+      const [tvRes, fRes, sRes] = await Promise.all([
+        fetch(`/api/tv-shows/${system_id}`, { credentials: "include" }),
         fetch("/api/franchise/", { credentials: "include" }),
         fetch("/api/series/", { credentials: "include" }),
       ]);
-      if (!mRes.ok) throw new Error("Movie not found");
-      const m = await mRes.json();
+      if (!tvRes.ok) throw new Error("TV show not found");
+      const tv = await tvRes.json();
       const allFranchises = await fRes.json();
       const allSeries = await sRes.json();
-      setMovie(m);
+
+      setShow(tv);
       setFranchise(
-        m.franchise_id
-          ? allFranchises.find((f) => f.system_id === m.franchise_id) || null
+        tv.franchise_id
+          ? allFranchises.find((f) => f.system_id === tv.franchise_id) || null
           : null,
       );
       setSeries(
-        m.series_id
-          ? allSeries.find((s) => s.system_id === m.series_id) || null
+        tv.series_id
+          ? allSeries.find((s) => s.system_id === tv.series_id) || null
           : null,
       );
+
+      const relatedFetches = [];
+      if (tv.prequel_id)
+        relatedFetches.push(
+          fetch(`/api/tv-shows/${tv.prequel_id}`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        );
+      if (tv.sequel_id)
+        relatedFetches.push(
+          fetch(`/api/tv-shows/${tv.sequel_id}`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        );
+      const results = await Promise.all(relatedFetches);
+      setPrequel(tv.prequel_id ? results[0] || null : null);
+      setSequel(tv.sequel_id ? results[tv.prequel_id ? 1 : 0] || null : null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -81,9 +93,9 @@ export default function Movie() {
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
-    setMovie((prev) => ({ ...prev, ...payload }));
+    setShow((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/movies/${system_id}`, {
+      const res = await fetch(`/api/tv-shows/${system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -91,10 +103,10 @@ export default function Movie() {
       });
       if (!res.ok) throw new Error("Sync failed");
       showToast("success", msg || "Saved");
-      const fresh = await fetch(`/api/movies/${system_id}`, {
+      const fresh = await fetch(`/api/tv-shows/${system_id}`, {
         credentials: "include",
       });
-      setMovie(await fresh.json());
+      setShow(await fresh.json());
     } catch {
       showToast("error", "Update failed");
       load();
@@ -104,10 +116,10 @@ export default function Movie() {
   async function handleAutofill() {
     setAutofilling(true);
     try {
-      const res = await fetch(`/api/data-control/replace/movie/${system_id}`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/data-control/replace/tv-show/${system_id}`,
+        { method: "POST", credentials: "include" },
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Autofill failed");
       showToast("success", "Autofill completed");
@@ -128,12 +140,12 @@ export default function Movie() {
     );
   }
 
-  if (error || !movie) {
+  if (error || !show) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
           <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error Loading Movie</p>
+          <p className="font-bold">Error Loading TV Show</p>
           <p className="text-sm mt-1">{error}</p>
         </div>
       </div>
@@ -141,23 +153,18 @@ export default function Movie() {
   }
 
   const titleMain =
-    movie.movie_name_cn ||
-    movie.movie_name_en ||
-    movie.movie_name_alt ||
-    "Unknown";
+    show.tv_name_cn || show.tv_name_en || show.tv_name_alt || "Unknown";
   const titleSub =
-    movie.movie_name_en && movie.movie_name_en !== titleMain
-      ? movie.movie_name_en
-      : null;
+    show.tv_name_en && show.tv_name_en !== titleMain ? show.tv_name_en : null;
 
-  const imageUrl = getCoverUrl(movie.cover_image_file);
+  const imageUrl = getCoverUrl(show.cover_image_file);
 
   let airingStatusColor = "bg-gray-100 text-gray-600 border border-gray-200";
-  if (movie.airing_status === "Airing")
+  if (show.airing_status === "Airing")
     airingStatusColor = "bg-green-100 text-green-700 border border-green-200";
-  else if (movie.airing_status === "Finished Airing")
+  else if (show.airing_status === "Finished Airing")
     airingStatusColor = "bg-blue-100 text-blue-700 border border-blue-200";
-  else if (movie.airing_status === "Not Yet Aired")
+  else if (show.airing_status === "Not Yet Aired")
     airingStatusColor =
       "bg-orange-100 text-orange-700 border border-orange-200";
 
@@ -166,6 +173,28 @@ export default function Movie() {
       franchise.franchise_name_en ||
       franchise.franchise_name_roman
     : null;
+
+  const sourceOtherDict = show.source_other || null;
+
+  const relatedEntries = [];
+  if (prequel)
+    relatedEntries.push({
+      entry: prequel,
+      tag: "Prequel",
+      color: "text-orange-500",
+    });
+  if (sequel)
+    relatedEntries.push({
+      entry: sequel,
+      tag: "Sequel",
+      color: "text-green-500",
+    });
+
+  const epFin = show.ep_fin ?? 0;
+  const epTotal =
+    show.ep_total !== null && show.ep_total !== undefined
+      ? show.ep_total
+      : null;
 
   const selectDisabledCls = !isAdmin
     ? "bg-gray-50 text-gray-500 cursor-not-allowed"
@@ -177,8 +206,8 @@ export default function Movie() {
       <nav className="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
         <ol className="inline-flex items-center space-x-2">
           <li>
-            <Link to="/library/movie" className="hover:text-brand transition">
-              <i className="fas fa-ticket-alt mr-1.5"></i>Movies
+            <Link to="/library/tv-show" className="hover:text-brand transition">
+              <i className="fas fa-tv mr-1.5"></i>TV Shows
             </Link>
           </li>
           <li>
@@ -198,7 +227,7 @@ export default function Movie() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => navigate(`/modify?id=${system_id}&type=movie`)}
+              onClick={() => navigate(`/modify?id=${system_id}&type=tv-show`)}
               className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
               <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
@@ -209,6 +238,7 @@ export default function Movie() {
                   {
                     watching_status: "Completed",
                     airing_status: "Finished Airing",
+                    ep_fin: show.ep_total ? parseInt(show.ep_total) : epFin,
                   },
                   "Marked as Completed!",
                 )
@@ -232,16 +262,16 @@ export default function Movie() {
         </div>
       )}
 
-      {/* Main Grid: 4 columns */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
           {/* Poster */}
           <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
-            {movie.my_rating && (
+            {show.my_rating && (
               <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
                 <i className="fas fa-star text-[9px] mr-1"></i>
-                {movie.my_rating}
+                {show.my_rating}
               </div>
             )}
             <div className="w-full aspect-[2/3] bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
@@ -258,9 +288,71 @@ export default function Movie() {
 
           {/* Sources */}
           <SourcesCard
-            sourceOther={movie.source_other}
-            imdbLink={movie.imdb_link}
+            sourceOther={sourceOtherDict}
+            officialSource={show.source_official}
+            imdbLink={show.imdb_link}
           />
+
+          {/* Watch Order */}
+          {show.watch_order != null && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
+                <i className="fas fa-sort-numeric-up mr-1.5"></i>Watch Order
+              </h3>
+              <div className="text-2xl font-black text-brand text-center py-1">
+                #{show.watch_order}
+              </div>
+            </div>
+          )}
+
+          {/* Related Entries */}
+          {relatedEntries.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+                <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
+              </h3>
+              <div className="flex flex-col gap-3">
+                {relatedEntries.map(({ entry: rel, tag, color }) => {
+                  const relTitle =
+                    rel.tv_name_cn ||
+                    rel.tv_name_en ||
+                    rel.tv_name_alt ||
+                    "Unknown";
+                  return (
+                    <div
+                      key={`${tag}-${rel.system_id}`}
+                      onClick={() => navigate(`/tv-show/${rel.system_id}`)}
+                      className="bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 cursor-pointer hover:bg-brand/5 hover:border-brand/30 transition"
+                    >
+                      <img
+                        src={getCoverUrl(rel.cover_image_file)}
+                        className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
+                        onError={(e) => {
+                          e.target.src = FALLBACK_SVG;
+                        }}
+                        alt=""
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className={`text-[9px] font-bold uppercase tracking-wider ${color} mb-0.5`}
+                        >
+                          {tag}
+                        </div>
+                        <div className="text-sm font-bold text-gray-900 truncate">
+                          {relTitle}
+                        </div>
+                        {rel.season_part && (
+                          <div className="text-[10px] text-gray-500 truncate">
+                            {rel.season_part}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* System Info — admin only */}
           {isAdmin && (
@@ -273,7 +365,7 @@ export default function Movie() {
                   System ID
                 </div>
                 <div className="text-xs font-mono text-gray-800 bg-gray-50 px-2 py-1.5 rounded border border-gray-100 break-all select-all">
-                  {movie.system_id}
+                  {show.system_id}
                 </div>
               </div>
             </div>
@@ -282,19 +374,24 @@ export default function Movie() {
 
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-8">
-          {/* Header & Titles */}
+          {/* Header */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              {movie.airing_status && (
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {show.airing_status && (
                 <span
                   className={`${airingStatusColor} px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider`}
                 >
-                  {movie.airing_status}
+                  {show.airing_status}
                 </span>
               )}
-              {movie.movie_type && (
+              {show.season_part && (
                 <span className="bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {movie.movie_type}
+                  {show.season_part}
+                </span>
+              )}
+              {show.region && (
+                <span className="bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
+                  {show.region}
                 </span>
               )}
             </div>
@@ -342,7 +439,7 @@ export default function Movie() {
               )}
             </div>
 
-            {/* IMDb Score Block */}
+            {/* IMDb Score + Updated */}
             <div className="flex flex-wrap gap-4 items-center">
               <div className="bg-yellow-50 text-yellow-800 border border-yellow-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
                 <i className="fas fa-star text-yellow-500 mr-2 text-lg"></i>
@@ -351,8 +448,8 @@ export default function Movie() {
                     IMDb Score
                   </div>
                   <div className="font-black text-base leading-none">
-                    {movie.imdb_rating && movie.imdb_rating !== "N/A"
-                      ? movie.imdb_rating
+                    {show.imdb_rating && show.imdb_rating !== "N/A"
+                      ? show.imdb_rating
                       : "-"}
                   </div>
                 </div>
@@ -362,8 +459,8 @@ export default function Movie() {
                   Last Updated
                 </div>
                 <div className="text-sm font-mono text-gray-600">
-                  {movie.updated_at
-                    ? new Date(movie.updated_at).toLocaleString()
+                  {show.updated_at
+                    ? new Date(show.updated_at).toLocaleString()
                     : "-"}
                 </div>
               </div>
@@ -371,141 +468,71 @@ export default function Movie() {
           </div>
 
           {/* My Tracker Block */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-t-4 border-t-brand">
-            <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5">
-              <h3 className="font-bold text-gray-800 text-lg flex items-center">
-                <i className="fas fa-chart-line text-brand mr-2"></i>My Tracker
-              </h3>
-            </div>
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Watching Status
-                </label>
-                <select
-                  value={movie.watching_status || ""}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    isAdmin &&
-                    performPatch(
-                      { watching_status: e.target.value },
-                      "Status updated",
-                    )
-                  }
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                >
-                  {WATCHING_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Rating
-                </label>
-                <select
-                  value={movie.my_rating || ""}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    isAdmin &&
-                    performPatch({ my_rating: e.target.value }, "Rating saved")
-                  }
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                >
-                  <option value="">Unrated</option>
-                  {MY_RATINGS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Watch Next
-                </label>
-                <label
-                  className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!movie.watch_next}
-                    disabled={!isAdmin}
-                    onChange={(e) =>
-                      isAdmin &&
-                      performPatch(
-                        { watch_next: e.target.checked },
-                        e.target.checked
-                          ? "Added to Watch Next"
-                          : "Removed from Watch Next",
-                      )
-                    }
-                    className="w-4 h-4 rounded accent-brand"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    Watch Next
-                  </span>
-                </label>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  To Rewatch
-                </label>
-                <label
-                  className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!movie.to_rewatch}
-                    disabled={!isAdmin}
-                    onChange={(e) =>
-                      isAdmin &&
-                      performPatch(
-                        { to_rewatch: e.target.checked },
-                        e.target.checked
-                          ? "Marked for rewatch"
-                          : "Removed from rewatch",
-                      )
-                    }
-                    className="w-4 h-4 rounded accent-brand"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    To Rewatch
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
+          <MyTrackerCard
+            epFin={epFin}
+            epTotal={epTotal ?? "?"}
+            watchingStatus={show.watching_status}
+            myRating={show.my_rating}
+            watchNext={show.watch_next}
+            toRewatch={show.to_rewatch}
+            isAdmin={isAdmin}
+            onEpChange={(v) =>
+              performPatch({ ep_fin: v }, "Episode progress saved")
+            }
+            onStatusChange={(v) =>
+              performPatch({ watching_status: v }, "Status updated")
+            }
+            onRatingChange={(v) =>
+              performPatch({ my_rating: v }, "Rating saved")
+            }
+            onWatchNextChange={(v) =>
+              performPatch(
+                { watch_next: v },
+                v ? "Added to Watch Next" : "Removed from Watch Next",
+              )
+            }
+            onToRewatchChange={(v) =>
+              performPatch(
+                { to_rewatch: v },
+                v ? "Marked for rewatch" : "Removed from rewatch",
+              )
+            }
+            statusOptions={WATCHING_STATUSES}
+            ratingOptions={MY_RATINGS}
+          />
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <MovieNamingCard
-              cn={movie.movie_name_cn}
-              en={movie.movie_name_en}
-              alt={movie.movie_name_alt}
+            <TVNamingCard
+              cn={show.tv_name_cn}
+              en={show.tv_name_en}
+              alt={show.tv_name_alt}
             />
             <InfoCard
               title="Information"
               icon="fa-info-circle"
               fields={[
                 [
-                  { label: "本傳 / 外傳", value: movie.is_main },
-                  { label: "Airing Status", value: movie.airing_status },
-                  { label: "Length", value: formatLength(movie.length_min) },
+                  { label: "本傳 / 外傳", value: show.is_main },
+                  { label: "Season", value: show.season_part },
                 ],
-                { label: "Director", value: movie.director },
                 [
-                  { label: "Release Date TW", value: movie.release_date_tw },
-                  { label: "Release Date USA", value: movie.release_date_usa },
+                  {
+                    label: "Total Ep",
+                    value: show.ep_total != null ? String(show.ep_total) : null,
+                  },
+                  { label: "Official Source", value: show.source_official },
+                ],
+                [
+                  { label: "Airing Status", value: show.airing_status },
+                  { label: "Release Date", value: show.release_date },
                 ],
               ]}
             />
           </div>
 
           {/* Remarks */}
-          {movie.remark && (
+          {show.remark && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
                 <h3 className="font-bold text-gray-800">
@@ -514,8 +541,8 @@ export default function Movie() {
               </div>
               <div className="p-4">
                 <textarea
-                  key={movie.system_id}
-                  defaultValue={movie.remark || ""}
+                  key={show.system_id}
+                  defaultValue={show.remark || ""}
                   disabled={!isAdmin}
                   onBlur={(e) =>
                     isAdmin &&
@@ -529,9 +556,10 @@ export default function Movie() {
             </div>
           )}
 
-          <MovieNotes
-            key={movie.system_id}
-            movie={movie}
+          {/* Structured Notes */}
+          <TVShowNotes
+            key={show.system_id}
+            show={show}
             isAdmin={isAdmin}
             onSave={(updatedNotes) =>
               performPatch({ notes: updatedNotes }, "Notes saved")

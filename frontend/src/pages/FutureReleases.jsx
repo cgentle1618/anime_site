@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import AnimeCardFuture from "../components/AnimeCardFuture";
 import AnimeMovieCardFuture from "../components/AnimeMovieCardFuture";
 import MovieCardFuture from "../components/MovieCardFuture";
+import TVCardFuture from "../components/TVCardFuture";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -97,6 +98,11 @@ export default function FutureReleases() {
   const [liveMovieLoaded, setLiveMovieLoaded] = useState(false);
   const [liveMovieError, setLiveMovieError] = useState(null);
 
+  const [allTvShows, setAllTvShows] = useState([]);
+  const [tvShowLoading, setTvShowLoading] = useState(false);
+  const [tvShowLoaded, setTvShowLoaded] = useState(false);
+  const [tvShowError, setTvShowError] = useState(null);
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -182,6 +188,30 @@ export default function FutureReleases() {
     }
   }, [mainTab, liveMovieLoaded]);
 
+  useEffect(() => {
+    if (mainTab === "tv-show" && !tvShowLoaded) {
+      setTvShowLoading(true);
+      setTvShowError(null);
+      fetch("/api/tv-shows/", { credentials: "include" })
+        .then((r) => {
+          if (!r.ok) throw new Error("API error");
+          return r.json();
+        })
+        .then((data) => {
+          setAllTvShows(
+            data.filter(
+              (t) =>
+                t.airing_status === "Not Yet Aired" ||
+                t.airing_status === "Airing",
+            ),
+          );
+          setTvShowLoaded(true);
+        })
+        .catch((e) => setTvShowError(e.message))
+        .finally(() => setTvShowLoading(false));
+    }
+  }, [mainTab, tvShowLoaded]);
+
   const handleUpdated = useCallback((updated) => {
     setAllAnime((prev) => {
       const idx = prev.findIndex((a) => a.system_id === updated.system_id);
@@ -210,6 +240,18 @@ export default function FutureReleases() {
         return prev.filter((m) => m.system_id !== updated.system_id);
       }
       return prev.map((m) => (m.system_id === updated.system_id ? updated : m));
+    });
+  }, []);
+
+  const handleTvShowUpdated = useCallback((updated) => {
+    setAllTvShows((prev) => {
+      if (
+        updated.airing_status !== "Not Yet Aired" &&
+        updated.airing_status !== "Airing"
+      ) {
+        return prev.filter((t) => t.system_id !== updated.system_id);
+      }
+      return prev.map((t) => (t.system_id === updated.system_id ? updated : t));
     });
   }, []);
 
@@ -312,6 +354,7 @@ export default function FutureReleases() {
           { key: "anime", icon: "fa-tv", label: "Anime" },
           { key: "anime-movie", icon: "fa-film", label: "Anime Movies" },
           { key: "movie", icon: "fa-ticket-alt", label: "Movies" },
+          { key: "tv-show", icon: "fa-video", label: "TV Shows" },
         ].map((t) => (
           <button
             key={t.key}
@@ -507,6 +550,51 @@ export default function FutureReleases() {
                   </div>
                 </section>
               ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── TV SHOW TAB ── */}
+      {mainTab === "tv-show" && (
+        <>
+          {tvShowLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="text-center">
+                <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+                <p className="text-gray-500 font-medium">Loading TV shows...</p>
+              </div>
+            </div>
+          ) : tvShowError ? (
+            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+              <p className="font-bold">Failed to load TV shows</p>
+              <p className="text-sm mt-1">{tvShowError}</p>
+            </div>
+          ) : allTvShows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <i className="fas fa-calendar-times text-4xl text-gray-300 mb-4"></i>
+              <p className="text-gray-500 font-medium">
+                No upcoming TV shows found.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {allTvShows
+                .sort((a, b) => {
+                  if (!a.release_date && !b.release_date) return 0;
+                  if (!a.release_date) return 1;
+                  if (!b.release_date) return -1;
+                  return a.release_date.localeCompare(b.release_date);
+                })
+                .map((show) => (
+                  <TVCardFuture
+                    key={show.system_id}
+                    show={show}
+                    isAdmin={isAdmin}
+                    onUpdated={handleTvShowUpdated}
+                  />
+                ))}
             </div>
           )}
         </>

@@ -7,10 +7,14 @@ export default function SourcesCard({
   anilistLink,
   officialLink,
   twitterLink,
+  imdbLink,
+  officialSource,
 }) {
   const hasAny =
     showBaha ||
     sourceNetflix ||
+    officialSource ||
+    imdbLink ||
     (sourceOther && Object.keys(sourceOther).length > 0) ||
     malLink ||
     anilistLink ||
@@ -55,6 +59,28 @@ export default function SourcesCard({
           <div className="flex items-center w-full bg-red-50 text-red-800 px-3 py-2 rounded border border-red-100 text-sm font-bold">
             <span className="text-[#E50914] font-black mr-2">N</span> Netflix
           </div>
+        )}
+        {officialSource && (
+          <div className="flex items-center w-full bg-gray-50 text-gray-700 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
+            <i className="fas fa-tv mr-2 text-gray-400"></i>
+            {officialSource}
+          </div>
+        )}
+        {imdbLink && (
+          <a
+            href={imdbLink}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between w-full bg-yellow-50 hover:bg-yellow-400 text-yellow-800 hover:text-yellow-900 px-3 py-2 rounded border border-yellow-100 transition text-sm font-bold"
+          >
+            <span className="flex items-center">
+              <span className="bg-yellow-400 text-yellow-900 text-[9px] px-1 py-0.5 rounded mr-2 font-black">
+                IMDb
+              </span>
+              IMDb Page
+            </span>
+            <i className="fas fa-external-link-alt text-[10px]"></i>
+          </a>
         )}
         {sourceOther &&
           Object.entries(sourceOther).map(([name, url]) =>

@@ -127,9 +127,50 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ---
 
+### Add TV Show Entry Tab
+
+**Prefill from existing entry**
+
+- A search box allows typing to find an existing TV show entry. Selecting one prefills: Franchise, Series, all TV Show Name fields, Main / Spinoff, Region.
+
+**Franchise field**
+
+- Supports searching existing TV or Movie franchises or typing a new name.
+- A franchise must be chosen or typed before the form can be submitted.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+- Series is optional.
+
+**Form defaults**
+| Field | Default |
+|---|---|
+| Airing Status | Not Yet Aired |
+| Watching Status | Might Watch |
+| Main / Spinoff | 本傳 |
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Auto-generate `system_id`, `created_at`, `updated_at`.
+4. Call `execute_replace_single_tv_show` (Replace pipeline for this entry).
+
+**Franchise Generation modal**
+
+- User selects Franchise Expectation (default: Low) and optionally adds a remark.
+- Franchise is created using all TV show name fields filled in the form (the text typed in the Franchise field is ignored for name generation).
+- `franchise_type` is set to `"TV or Movie"`.
+
+**Series Generation modal**
+
+- Series is created using all TV show name fields filled in the form (the text typed in the Series field is ignored for name generation).
+
+---
+
 ### Planned Tabs (Under Development)
 
-- Add TV Show Entry
 - Add Cartoon Entry
 - Add Manga Entry
 
@@ -217,9 +258,32 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ---
 
+### Modify TV Show Entry Form
+
+**Franchise field**
+
+- Supports searching existing TV or Movie franchises or typing a new name.
+- When an existing franchise is selected, a sibling ribbon shows all other TV show entries in that franchise, grouped by series.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Update all fields and refresh `updated_at`.
+4. Call `execute_replace_single_tv_show` (Replace pipeline for this entry).
+
+**Franchise Generation modal** — names from all TV show name fields; `franchise_type = "TV or Movie"`, expectation default Low.
+
+**Series Generation modal** — series is created using all TV show name fields from the form.
+
+---
+
 ### Planned Forms (Under Development)
 
-- Modify TV Show Entry
 - Modify Cartoon Entry
 - Modify Manga Entry
 

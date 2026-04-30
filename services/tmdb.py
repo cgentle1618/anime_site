@@ -173,6 +173,52 @@ def _fetch_tv_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]:
     ),
     reraise=False,
 )
+def fetch_tmdb_tv_season_data(
+    tmdb_id: int, season_number: int
+) -> Optional[Dict[str, Any]]:
+    """
+    Fetches season-level details from TMDB for a specific TV show season.
+    Returns raw season JSON or None.
+    """
+    api_key = _get_api_key()
+    if not api_key:
+        return None
+
+    tmdb_rate_limiter.wait_if_needed()
+    url = f"{TMDB_BASE_URL}/tv/{tmdb_id}/season/{season_number}"
+    params = {"api_key": api_key}
+
+    response = requests.get(url, params=params, timeout=15)
+
+    if response.status_code == 429:
+        logger.warning(
+            f"TMDB Rate Limit (429) on season details for TMDB ID {tmdb_id} S{season_number}."
+        )
+        raise RateLimitExceeded("429 Too Many Requests")
+
+    if response.status_code == 404:
+        logger.warning(f"TMDB: Season {season_number} not found for TV show {tmdb_id}.")
+        return None
+
+    if response.status_code >= 500:
+        logger.warning(
+            f"TMDB server error ({response.status_code}) on season details for {tmdb_id} S{season_number}."
+        )
+        return None
+
+    response.raise_for_status()
+    return response.json()
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
 def fetch_tmdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
     """
     Fetches title details from TMDB by IMDb ID (e.g. 'tt1234567').

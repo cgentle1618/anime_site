@@ -5,9 +5,9 @@ TMDB (The Movie Database) API into the formats required by our database models.
 """
 
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
-from utils.omdb_utils import map_omdb_to_movie_data
 
 logger = logging.getLogger(__name__)
 
@@ -91,13 +91,18 @@ def map_tmdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_tmdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+def map_tmdb_to_tv_show_data(raw: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Parses raw TMDB TV JSON into the flat dict expected by the TvShows model.
+    Maps TMDB season details response to a flat dict.
+    Private keys (_season_air_date, _episodes) are used only for airing status derivation.
     """
+    episodes = raw.get("episodes") or []
     return {
-        "release_date": _convert_tmdb_date(raw_data.get("first_air_date")),
-        "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
+        "release_date": _convert_tmdb_date(raw.get("air_date")),
+        "ep_total": len(episodes),
+        "cover_image_url": _build_poster_url(raw.get("poster_path")),
+        "_season_air_date": raw.get("air_date"),
+        "_episodes": episodes,
     }
 
 

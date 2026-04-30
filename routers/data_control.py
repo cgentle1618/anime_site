@@ -17,14 +17,17 @@ from services.data_control import (
     execute_fill_anime,
     execute_fill_anime_movie,
     execute_fill_movie,
+    execute_fill_tv_show,
     execute_fill_all,
     execute_replace_anime,
     execute_replace_anime_movie,
     execute_replace_movie,
+    execute_replace_tv_show,
     execute_replace_all,
     execute_replace_single_anime,
     execute_replace_single_anime_movie,
     execute_replace_single_movie,
+    execute_replace_single_tv_show,
 )
 from services.other_logics import find_all_duplicates
 from services.calculation import (
@@ -259,6 +262,73 @@ async def trigger_replace_single_movie(movie_id: str, db: Session = Depends(get_
         raise
     except Exception as e:
         logger.error(f"Error in replace single movie: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fill/tv-show")
+async def trigger_fill_tv_show(request: Request, db: Session = Depends(get_db)):
+    """
+    Triggers the Fill Pipeline specifically for TV Show entries.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(
+            execute_fill_tv_show(
+                db,
+                request,
+                action_specific="Fill TV Show",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in fill tv show: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/tv-show")
+async def trigger_replace_tv_show(request: Request, db: Session = Depends(get_db)):
+    """
+    Triggers the Replace Pipeline specifically for TV Show entries.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(
+            execute_replace_tv_show(
+                db,
+                request,
+                action_specific="Replace TV Show",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in replace tv show: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/tv-show/{tv_show_id}")
+async def trigger_replace_single_tv_show(
+    tv_show_id: str, db: Session = Depends(get_db)
+):
+    """
+    Triggers the Replace Pipeline for a single TV show entry (Autofill & Update).
+    Returns standard JSON response.
+    """
+    try:
+        result = await execute_replace_single_tv_show(
+            db, tv_show_id, action_type="Manual", log_action=False
+        )
+        if result.get("status") == "error":
+            status_code = result.get("status_code", 400)
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in replace single tv show: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -530,6 +530,8 @@ Anime Movie / Movie My Tracker Block
 
 - Watching Status (editable for admin only)
 - My Rating (editable for admin only)
+- Watch Next checkbox (editable for admin only)
+- To Rewatch checkbox (editable for admin only)
 
 TV Show / Cartoon My Tracker Block
 
@@ -538,6 +540,8 @@ TV Show / Cartoon My Tracker Block
   - directly modify ep watched (admin only)
 - Watching Status (editable for admin only)
 - My Rating (editable for admin only)
+- Watch Next checkbox (editable for admin only)
+- To Rewatch checkbox (editable for admin only)
 
 Manga My Tracker Block
 
@@ -678,7 +682,7 @@ Stores data in `movies.notes` JSONB column.
 
 Used on: Movie Detail page, Modify Movie tab.
 
-TV Show Notes Card
+**TV Show Notes Card** — `frontend/src/pages/TVShowNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -693,7 +697,9 @@ TV Show Notes Card
 - Questions
 - 名言/梗/迷因 Quotes & Memes
 
-Cartoon Notes Card
+Used on: TV Show Detail page, Modify TV Show tab.
+
+**Cartoon Notes Card** — `frontend/src/pages/CartoonNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -708,7 +714,9 @@ Cartoon Notes Card
 - Questions
 - 名言/梗/迷因 Quotes & Memes
 
-Manga Notes Card
+Used on: Cartoon Detail page, Modify Cartoon tab.
+
+**Manga Notes Card** — `frontend/src/pages/MangaNotes.jsx`
 
 - Remark
 - 優點 Advantages
@@ -725,6 +733,8 @@ Manga Notes Card
 - Unread
 - Questions
 - 名言/梗/迷因 Quotes & Memes
+
+Used on: Manga Detail page, Modify Manga tab.
 
 Here is the description for all sub fields in notes:
 
