@@ -54,7 +54,6 @@ from utils.imdb_utils import (
     map_imdb_to_tv_show_data,
 )
 
-
 logger = logging.getLogger(__name__)
 
 # ==========================================
@@ -485,9 +484,7 @@ def resolve_cartoon_parent_hierarchy(
         )
         if existing_series:
             final_series_id = existing_series.system_id
-            logger.info(
-                f"Auto-resolved existing Series for Cartoon: {final_series_id}"
-            )
+            logger.info(f"Auto-resolved existing Series for Cartoon: {final_series_id}")
         else:
             final_series_id = None
             logger.warning(
@@ -502,7 +499,7 @@ def resolve_cartoon_parent_hierarchy(
 # ==========================================
 
 
-def apply_validate_episode_math(entry: Union[Anime, TVShows]) -> bool:
+def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     ep_total = getattr(entry, "ep_total", None)
     ep_fin = getattr(entry, "ep_fin", None)
     if ep_total is None and ep_fin is None:
@@ -588,7 +585,16 @@ def has_missing_values_tv_show(tv_show: TVShows) -> bool:
     return False
 
 
-def check_is_watching_completed(entry: Union[Anime, TVShows]) -> bool:
+def has_missing_values_cartoon(cartoon: Cartoon) -> bool:
+    """Returns True if any required Cartoon field is missing."""
+    for field in CARTOON_FIELDS_TO_FILL:
+        val = getattr(cartoon, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
+
+
+def check_is_tv_completed(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
     should be considered completed.
@@ -1071,6 +1077,82 @@ def find_duplicate_tv_show(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_cartoon(db: Session) -> list[list[dict]]:
+    """
+    Finds Cartoon entries that share the same (franchise_id, series_id, season_part, is_main)
+    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    cartoons = db.query(Cartoon).filter(Cartoon.franchise_id.isnot(None)).all()
+
+    def _key(c: Cartoon) -> tuple:
+        season = (c.season_part or "").strip().lower() or None
+        return (
+            str(c.franchise_id),
+            str(c.series_id) if c.series_id else None,
+            season,
+            c.is_main,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for c in cartoons:
+        by_key.setdefault(_key(c), []).append(c)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    cartoon_map = {str(c.system_id): c for c in cartoons}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for cid in cartoon_map:
+        clusters.setdefault(find(cid), []).append(cid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": cid,
+                        "franchise_id": str(cartoon_map[cid].franchise_id),
+                        "series_id": (
+                            str(cartoon_map[cid].series_id)
+                            if cartoon_map[cid].series_id
+                            else None
+                        ),
+                        "season_part": cartoon_map[cid].season_part,
+                        "is_main": cartoon_map[cid].is_main,
+                        "cartoon_name_en": cartoon_map[cid].cartoon_name_en,
+                        "cartoon_name_cn": cartoon_map[cid].cartoon_name_cn,
+                        "cartoon_name_alt": cartoon_map[cid].cartoon_name_alt,
+                    }
+                    for cid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -1078,6 +1160,7 @@ def find_all_duplicates(db: Session) -> dict:
         "series": find_duplicate_series(db),
         "anime": find_duplicate_anime(db),
         "anime_movie": find_duplicate_anime_movie(db),
+        "cartoon": find_duplicate_cartoon(db),
         "movie": find_duplicate_movie(db),
         "tv_show": find_duplicate_tv_show(db),
         "system_options": find_duplicate_system_options(db),
@@ -1664,7 +1747,7 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
 # ==========================================
 
 
-def mark_tv_completed(entry: Union[Anime, TVShows]) -> None:
+def mark_tv_completed(entry: Union[Anime, Cartoon, TVShows]) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.
     """
@@ -1961,7 +2044,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
     apply_check_baha(anime)
 
-    if check_is_watching_completed(anime) and anime.watching_status != "Completed":
+    if check_is_tv_completed(anime) and anime.watching_status != "Completed":
         mark_tv_completed(anime)
 
     if (
@@ -1983,7 +2066,7 @@ def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
 def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
     apply_validate_episode_math(tv_show)
 
-    if check_is_watching_completed(tv_show) and tv_show.watching_status != "Completed":
+    if check_is_tv_completed(tv_show) and tv_show.watching_status != "Completed":
         mark_tv_completed(tv_show)
 
     if tv_show.season_part is None:

@@ -927,7 +927,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_show_data(tmdb_season_raw)`.
 2. If `cover_image_url` is still None and `tmdb_raw` is not None: fall back to show-level `poster_path` via `_build_poster_url`.
-3. If `omdb_raw` is not None: apply `map_omdb_to_tv_show_data(omdb_raw)` (adds `imdb_rating`).
+3. If `omdb_raw` is not None: apply `map_omdb_to_tv_data(omdb_raw)` (adds `imdb_rating`).
 
 ---
 
@@ -942,7 +942,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### OMDB Conversion for TV Show — `map_omdb_to_tv_show_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for TV Show — `map_omdb_to_tv_data(raw)` in `utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |
@@ -961,7 +961,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### OMDB Conversion for Cartoon — `map_omdb_to_cartoon_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for Cartoon — `map_omdb_to_tv_data(raw)` in `utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |

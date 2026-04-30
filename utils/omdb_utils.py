@@ -37,9 +37,9 @@ def map_omdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_omdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+def map_omdb_to_tv_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Extracts OMDb fields relevant to the TvShows model.
+    Extracts OMDb fields relevant to the TvShows and Cartoons models.
     """
     return {
         "imdb_rating": _convert_imdb_rating(raw_data.get("imdbRating")),

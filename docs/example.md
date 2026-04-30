@@ -95,7 +95,7 @@ array has `episode_count: 10` but no individual episode air dates.
 
 2. `cover_image_url` is already set — skip show-level poster fallback.
 
-3. Apply `map_omdb_to_tv_show_data(omdb_raw)`:
+3. Apply `map_omdb_to_tv_data(omdb_raw)`:
    - `imdb_rating` = `"8.8"`
 
 Final merged dict:

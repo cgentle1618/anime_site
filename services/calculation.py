@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime, AnimeMovies, Movies, TVShows
+from models import Anime, AnimeMovies, Cartoon, Movies, TVShows
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
@@ -50,6 +50,12 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
         }
         | {
             row[0]
+            for row in db.query(Cartoon.cover_image_file)
+            .filter(Cartoon.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
             for row in db.query(Movies.cover_image_file)
             .filter(Movies.cover_image_file.isnot(None))
             .all()
@@ -63,6 +69,7 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
     )
     entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
     entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Cartoon).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
     entry_map.update({str(e.system_id): e for e in db.query(TVShows).all()})
 
@@ -119,6 +126,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        cartoons = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None)).all()
+        for c in cartoons:
+            if not cover_image_exists(str(c.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(c.system_id),
+                        "name": c.display_name or str(c.system_id),
+                        "entry_type": "cartoon",
+                    }
+                )
+
         movies = db.query(Movies).filter(Movies.cover_image_file.isnot(None)).all()
         for m in movies:
             if not cover_image_exists(str(m.system_id)):
@@ -142,7 +160,9 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                 )
 
     total_checked = len(animes) + (
-        0 if entry_type else len(anime_movies) + len(movies) + len(tv_shows)
+        0
+        if entry_type
+        else len(anime_movies) + len(cartoons) + len(movies) + len(tv_shows)
     )
     return {
         "status": "success",
