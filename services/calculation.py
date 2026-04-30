@@ -19,12 +19,15 @@ from services.other_logics import (
     create_missing_seasonal,
     extract_system_options_from_anime,
     extract_system_options_from_anime_movie,
+    extract_system_options_from_cartoon,
     extract_system_options_from_tv_show,
     autofill_anime_from_mal,
     anime_post_processing,
     anime_movie_post_processing,
+    cartoon_post_processing,
     tv_show_post_processing,
     derive_related_anime,
+    derive_related_cartoon,
     derive_related_tv_show,
 )
 
@@ -249,15 +252,21 @@ def run_post_processing(db: Session) -> dict:
         tv_show_post_processing(show, db)
     db.commit()
 
+    cartoons = db.query(Cartoon).all()
+    for cartoon in cartoons:
+        cartoon_post_processing(cartoon, db)
+    db.commit()
+
     return {
         "status": "success",
-        "message": f"Post-processed {len(animes)} anime, {len(movies)} anime movies, and {len(shows)} TV show entries.",
+        "message": f"Post-processed {len(animes)} anime, {len(movies)} anime movies, {len(shows)} TV show entries, and {len(cartoons)} cartoon entries.",
     }
 
 
 def run_derive_related(db: Session) -> dict:
     derive_related_anime(db)
     derive_related_tv_show(db)
+    derive_related_cartoon(db)
     return {
         "status": "success",
         "message": "Derived watch order, ep_previous, and prequel/sequel for all franchises.",
@@ -268,9 +277,18 @@ def run_sync(db: Session) -> dict:
     run_sync_anime(db)
     run_sync_anime_movie(db)
     run_sync_tv_show(db)
+    run_sync_cartoon(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
+    }
+
+
+def run_sync_cartoon(db: Session) -> dict:
+    extract_system_options_from_cartoon(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from cartoons.",
     }
 
 

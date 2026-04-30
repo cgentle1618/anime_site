@@ -50,6 +50,7 @@ from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_
 from utils.imdb_utils import (
     _parse_season_number,
     _derive_tv_season_airing_status,
+    map_imdb_to_cartoon_data,
     map_imdb_to_movie_data,
     map_imdb_to_tv_show_data,
 )
@@ -1180,29 +1181,20 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     return False
 
 
-def apply_extract_imdb_id(movie) -> bool:
+def apply_extract_imdb_id(entry: Union[Movies, TVShows, Cartoon]) -> bool:
     """Extracts IMDb ID from imdb_link and writes it to imdb_id. Returns True if set."""
-    imdb_id = extract_imdb_id(movie.imdb_link)
+    imdb_id = extract_imdb_id(entry.imdb_link)
     if imdb_id:
-        movie.imdb_id = imdb_id
+        entry.imdb_id = imdb_id
         return True
     return False
 
 
-def apply_extract_season_from_title(entry: Anime) -> bool:
+def apply_extract_season_from_title(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     title = entry.anime_name_en or entry.anime_name_roman or ""
     extracted = extract_season_from_title(title)
     if extracted:
         entry.season_part = extracted
-        return True
-    return False
-
-
-def apply_extract_season_from_title_tv_show(tv_show: TVShows) -> bool:
-    title = tv_show.tv_name_en or tv_show.tv_name_alt or ""
-    extracted = extract_season_from_title(title)
-    if extracted:
-        tv_show.season_part = extracted
         return True
     return False
 
@@ -1344,6 +1336,61 @@ def derive_watch_order_tv_show(db: Session, franchise_id) -> None:
             entry.watch_order = float(position)
 
 
+def derive_watch_order_cartoon(db: Session, franchise_id) -> None:
+    if not franchise_id:
+        return
+
+    eligible = (
+        db.query(Cartoon)
+        .filter(
+            Cartoon.franchise_id == franchise_id,
+            Cartoon.season_part.isnot(None),
+        )
+        .all()
+    )
+
+    if not eligible:
+        return
+
+    def get_sort_key(c: Cartoon):
+        s_part = str(c.season_part or "")
+        s_match = SEASON_PATTERN.search(s_part)
+        p_match = PART_PATTERN.search(s_part)
+        s_num = int(s_match.group(1)) if s_match else 1
+        p_num = int(p_match.group(1)) if p_match else 1
+        return (s_num, p_num)
+
+    series_groups: dict = {}
+    no_series: list = []
+
+    for cartoon in eligible:
+        if cartoon.series_id:
+            series_groups.setdefault(cartoon.series_id, []).append(cartoon)
+        else:
+            no_series.append(cartoon)
+
+    for entries in series_groups.values():
+        entries.sort(key=get_sort_key)
+    no_series.sort(key=get_sort_key)
+
+    ordered_series_ids = list(series_groups.keys())
+    if len(ordered_series_ids) > 1:
+        series_objs = (
+            db.query(Series).filter(Series.system_id.in_(ordered_series_ids)).all()
+        )
+        name_map = {s.system_id: (s.display_name or "") for s in series_objs}
+        ordered_series_ids.sort(key=lambda sid: name_map.get(sid, ""))
+
+    ordered_entries = []
+    for sid in ordered_series_ids:
+        ordered_entries.extend(series_groups[sid])
+    ordered_entries.extend(no_series)
+
+    for position, entry in enumerate(ordered_entries, start=1):
+        if entry.watch_order is None:
+            entry.watch_order = float(position)
+
+
 def derive_prequel_sequel_anime(db: Session, franchise_id: Any) -> None:
     """
     Derives prequel_id and sequel_id for eligible entries within an acg franchise.
@@ -1402,6 +1449,41 @@ def derive_prequel_sequel_tv_show(db: Session, franchise_id) -> None:
             TVShows.derive_related.isnot(False),
         )
         .order_by(TVShows.watch_order)
+        .all()
+    )
+
+    for i, entry in enumerate(entries):
+        prev_entry = entries[i - 1] if i > 0 else None
+        next_entry = entries[i + 1] if i < len(entries) - 1 else None
+
+        if entry.prequel_id is None and prev_entry is not None:
+            entry.prequel_id = prev_entry.system_id
+
+        if entry.sequel_id is None and next_entry is not None:
+            entry.sequel_id = next_entry.system_id
+
+
+_CARTOON_SPECIAL_FRANCHISE_NAMES: set[str] = set()
+
+
+def derive_prequel_sequel_cartoon(db: Session, franchise_id) -> None:
+    if not franchise_id:
+        return
+
+    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
+    if franchise:
+        franchise_names = franchise.get_all_names()
+        if franchise_names & _CARTOON_SPECIAL_FRANCHISE_NAMES:
+            return
+
+    entries = (
+        db.query(Cartoon)
+        .filter(
+            Cartoon.franchise_id == franchise_id,
+            Cartoon.watch_order.isnot(None),
+            Cartoon.derive_related.isnot(False),
+        )
+        .order_by(Cartoon.watch_order)
         .all()
     )
 
@@ -1509,6 +1591,18 @@ def derive_season_1_tv_show(tv_show: TVShows, db: Session) -> None:
     )
     if count == 1:
         tv_show.season_part = "Season 1"
+
+
+def derive_season_1_cartoon(cartoon: Cartoon, db: Session) -> None:
+    if cartoon.season_part is not None:
+        return
+    if not cartoon.franchise_id:
+        return
+    count = (
+        db.query(Cartoon).filter(Cartoon.franchise_id == cartoon.franchise_id).count()
+    )
+    if count == 1:
+        cartoon.season_part = "Season 1"
 
 
 # ==========================================
@@ -1739,6 +1833,59 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
     except Exception as e:
         logger.error(
             f"IMDb Autofill failed for TV Show ID {tv_show.system_id} (IMDb {tv_show.imdb_id}): {e}"
+        )
+
+
+def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
+    """
+    Fetches TMDB + OMDb season data for a single Cartoon entry and fills/overwrites fields.
+    Does not commit — caller is responsible.
+    """
+    if cartoon.imdb_id is None:
+        return
+
+    try:
+        result = fetch_imdb_data(cartoon.imdb_id)
+        tmdb_raw = result.get("tmdb_raw")
+        omdb_raw = result.get("omdb_raw")
+
+        tmdb_season_raw = None
+        if tmdb_raw is not None:
+            tmdb_id = tmdb_raw.get("id")
+            if tmdb_id:
+                season_number = _parse_season_number(cartoon.season_part)
+                tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
+
+        mapped = map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+
+        if cartoon.release_date is None:
+            cartoon.release_date = mapped.get("release_date")
+        if cartoon.ep_total is None:
+            fetched_ep_total = mapped.get("ep_total")
+            if fetched_ep_total:
+                cartoon.ep_total = fetched_ep_total
+
+        fetched_rating = mapped.get("imdb_rating")
+        if fetched_rating is not None:
+            cartoon.imdb_rating = fetched_rating
+
+        if cartoon.airing_status is None:
+            derived_status = _derive_tv_season_airing_status(
+                mapped.get("_season_air_date"), mapped.get("_episodes")
+            )
+            if derived_status is not None:
+                cartoon.airing_status = derived_status
+
+        if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+            filename = download_cover_image(
+                mapped["cover_image_url"], str(cartoon.system_id)
+            )
+            if filename:
+                cartoon.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"IMDb Autofill failed for Cartoon ID {cartoon.system_id} (IMDb {cartoon.imdb_id}): {e}"
         )
 
 
@@ -2035,6 +2182,48 @@ def extract_system_options_from_tv_show(db: Session) -> dict:
     }
 
 
+_CARTOON_OPTION_FIELD_MAP = {
+    "Cartoon Official Source": "source_official",
+}
+
+
+def extract_system_options_from_cartoon(db: Session) -> dict:
+    """
+    Scans all Cartoon entries for source_official values.
+    Any value not already in SystemOption is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    cartoons = db.query(Cartoon).all()
+    new_options = []
+
+    for category, field in _CARTOON_OPTION_FIELD_MAP.items():
+        for cartoon in cartoons:
+            raw = getattr(cartoon, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_cartoon: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(cartoons)} entries, created {len(new_options)} missing system options.",
+    }
+
+
 # ==========================================
 # COMPOSITE LOGICS
 # ==========================================
@@ -2070,8 +2259,19 @@ def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
         mark_tv_completed(tv_show)
 
     if tv_show.season_part is None:
-        apply_extract_season_from_title_tv_show(tv_show)
+        apply_extract_season_from_title(tv_show)
         derive_season_1_tv_show(tv_show, db)
+
+
+def cartoon_post_processing(cartoon: Cartoon, db: Session) -> None:
+    apply_validate_episode_math(cartoon)
+
+    if check_is_tv_completed(cartoon) and cartoon.watching_status != "Completed":
+        mark_tv_completed(cartoon)
+
+    if cartoon.season_part is None:
+        apply_extract_season_from_title(cartoon)
+        derive_season_1_cartoon(cartoon, db)
 
 
 def derive_related_anime(db: Session) -> None:
@@ -2103,5 +2303,21 @@ def derive_related_tv_show(db: Session) -> None:
     for fid in franchise_ids:
         derive_watch_order_tv_show(db, fid)
         derive_prequel_sequel_tv_show(db, fid)
+    if franchise_ids:
+        db.commit()
+
+
+def derive_related_cartoon(db: Session) -> None:
+    """Derives watch order and prequel/sequel for all cartoon franchises."""
+    rows = (
+        db.query(Cartoon.franchise_id)
+        .filter(Cartoon.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        derive_watch_order_cartoon(db, fid)
+        derive_prequel_sequel_cartoon(db, fid)
     if franchise_ids:
         db.commit()

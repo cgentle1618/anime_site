@@ -89,7 +89,7 @@ _(Note: `map_tmdb_to_tv_show_data` is already reused for season-level data in th
 
 ### 2.2 — `utils/omdb_utils.py`
 
-Add `map_omdb_to_cartoon_data(raw)`:
+Add `map_omdb_to_tv_data(raw)`:
 
 - `imdb_rating` ← `imdbRating`; `"N/A"` → `None`
 
@@ -100,7 +100,7 @@ Add `map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)`:
 - Mirrors `map_imdb_to_tv_show_data`:
   1. If `tmdb_season_raw`: apply `map_tmdb_to_tv_show_data(tmdb_season_raw)` (reuse — returns release_date, ep_total, cover_image_url, \_season_air_date, \_episodes)
   2. If `cover_image_url` still None and `tmdb_raw`: fall back to show-level poster via `_build_poster_url`
-  3. If `omdb_raw`: apply `map_omdb_to_cartoon_data(omdb_raw)` (adds `imdb_rating`)
+  3. If `omdb_raw`: apply `map_omdb_to_tv_data(omdb_raw)` (adds `imdb_rating`)
 
 ### 2.4 — `utils/formatter.py`
 
@@ -587,8 +587,8 @@ Add **Cartoon Future Release Tab**:
 | Step | Description                                                                                                   | Status      |
 | ---- | ------------------------------------------------------------------------------------------------------------- | ----------- |
 | 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Done        |
-| 2    | Backend Utils (map functions, parsers, check functions)                                                       | Not Started |
-| 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | Not Started |
+| 2    | Backend Utils (map functions, parsers, check functions)                                                       | Done        |
+| 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | In Progress |
 | 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Not Started |
 | 5    | Frontend New Pages (Cartoon, CartoonNotes, LibraryCartoon, FranchiseCartoon)                                  | Not Started |
 | 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Not Started |
