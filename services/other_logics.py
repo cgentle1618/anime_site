@@ -1197,7 +1197,12 @@ def apply_extract_imdb_id(entry: Union[Movies, TVShows, Cartoon]) -> bool:
 
 
 def apply_extract_season_from_title(entry: Union[Anime, TVShows, Cartoon]) -> bool:
-    title = entry.anime_name_en or entry.anime_name_roman or ""
+    if isinstance(entry, Cartoon):
+        title = entry.cartoon_name_en or ""
+    elif isinstance(entry, TVShows):
+        title = entry.tv_name_en or ""
+    else:
+        title = entry.anime_name_en or entry.anime_name_roman or ""
     extracted = extract_season_from_title(title)
     if extracted:
         entry.season_part = extracted
