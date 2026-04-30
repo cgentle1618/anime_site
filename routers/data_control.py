@@ -16,16 +16,19 @@ from services.data_control import (
     execute_pull_specific,
     execute_fill_anime,
     execute_fill_anime_movie,
+    execute_fill_cartoon,
     execute_fill_movie,
     execute_fill_tv_show,
     execute_fill_all,
     execute_replace_anime,
     execute_replace_anime_movie,
+    execute_replace_cartoon,
     execute_replace_movie,
     execute_replace_tv_show,
     execute_replace_all,
     execute_replace_single_anime,
     execute_replace_single_anime_movie,
+    execute_replace_single_cartoon,
     execute_replace_single_movie,
     execute_replace_single_tv_show,
 )
@@ -329,6 +332,90 @@ async def trigger_replace_single_tv_show(
         raise
     except Exception as e:
         logger.error(f"Error in replace single tv show: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fill/cartoon")
+async def trigger_fill_cartoon(request: Request, db: Session = Depends(get_db)):
+    """
+    Triggers the Fill Pipeline specifically for Cartoon entries.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(
+            execute_fill_cartoon(
+                db,
+                request,
+                action_specific="Fill Cartoon",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in fill cartoon: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/cartoon")
+async def trigger_replace_cartoon(request: Request, db: Session = Depends(get_db)):
+    """
+    Triggers the Replace Pipeline specifically for Cartoon entries.
+    Streams progress back to the client using Server-Sent Events (SSE).
+    """
+    try:
+        return StreamingResponse(
+            execute_replace_cartoon(
+                db,
+                request,
+                action_specific="Replace Cartoon",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in replace cartoon: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/cartoon/{cartoon_id}")
+async def trigger_replace_single_cartoon(
+    cartoon_id: str, db: Session = Depends(get_db)
+):
+    """
+    Triggers the Replace Pipeline for a single cartoon entry (Autofill & Update).
+    Returns standard JSON response.
+    """
+    try:
+        result = await execute_replace_single_cartoon(
+            db, cartoon_id, action_type="Manual", log_action=False
+        )
+        if result.get("status") == "error":
+            status_code = result.get("status_code", 400)
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in replace single cartoon: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pull/cartoon")
+def trigger_pull_cartoon(db: Session = Depends(get_db)):
+    """Triggers a pull from the Cartoon Google Sheets tab."""
+    try:
+        result = execute_pull_specific(
+            db, "Cartoon", action_type="Manual", log_action=True
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in pull cartoon: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

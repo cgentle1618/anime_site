@@ -1970,6 +1970,22 @@ def apply_single_replace_tv_show(
         derive_related_tv_show(db)
 
 
+def apply_single_replace_cartoon(
+    db: Session, cartoon: Cartoon, bulk: bool = False
+) -> None:
+    """
+    Core 'Replace' logic for a single Cartoon entry.
+    When bulk=False, also derives related entries for all cartoon franchises.
+    When bulk=True, caller handles derive_related after the loop.
+    """
+    apply_extract_imdb_id(cartoon)
+    autofill_cartoon_from_imdb(cartoon, db)
+    cartoon_post_processing(cartoon, db)
+
+    if not bulk:
+        derive_related_cartoon(db)
+
+
 # ==========================================
 # SYNC
 # ==========================================
