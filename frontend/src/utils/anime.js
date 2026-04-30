@@ -259,6 +259,8 @@ export function buildAnimeMoviePayload(
               .map((e) => [e.name.trim(), e.url.trim()]),
           )
         : null,
+    watch_next: amf.watch_next ?? null,
+    to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
     remark: amf.remark || null,
     notes: notes,
