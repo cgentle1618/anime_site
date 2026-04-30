@@ -33,6 +33,7 @@ from utils.formatter import (
     parse_movie_from_sheet,
     parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
+    parse_seasonal_from_sheet,
 )
 from utils.data_control_utils import log_data_control
 
@@ -1454,6 +1455,7 @@ def execute_pull_specific(
         "Movies": Movies,
         "TV Shows": TVShows,
         "System Options": SystemOption,
+        "Seasonal": Seasonal,
     }
 
     PARSER_MAP = {
@@ -1464,6 +1466,7 @@ def execute_pull_specific(
         "Movies": parse_movie_from_sheet,
         "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
+        "Seasonal": parse_seasonal_from_sheet,
     }
 
     if tab_name not in MODEL_MAP:
@@ -1583,8 +1586,13 @@ def execute_pull_specific(
                     )
                     continue
 
-        # System Options uses 'id', others use 'system_id'
-        pk_field = "id" if tab_name == "System Options" else "system_id"
+        # System Options uses 'id', Seasonal uses 'seasonal', others use 'system_id'
+        if tab_name == "System Options":
+            pk_field = "id"
+        elif tab_name == "Seasonal":
+            pk_field = "seasonal"
+        else:
+            pk_field = "system_id"
         pk_value = clean_header_dict.get(pk_field)
 
         # Smart Primary Key Logic (Upsert vs Insert)
@@ -1792,6 +1800,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Anime Movies",
         "Movies",
         "TV Shows",
+        "Seasonal",
     ]
 
     results = {}

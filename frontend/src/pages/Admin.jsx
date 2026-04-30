@@ -1324,6 +1324,7 @@ export default function Admin() {
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
                   <option value="System Options">Options</option>
+                  <option value="Seasonal">Seasonal</option>
                 </select>
                 <button
                   onClick={() =>

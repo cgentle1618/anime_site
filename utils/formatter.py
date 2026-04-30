@@ -9,7 +9,6 @@ from typing import Any, List, Dict
 from datetime import datetime
 from uuid import UUID
 
-
 # ==========================================
 # FORMATTERS (DB -> Google Sheets)
 # ==========================================
@@ -357,4 +356,18 @@ def parse_system_option_from_sheet(raw: dict) -> dict:
         "id": parse_from_sheet(raw.get("id"), int),
         "category": parse_from_sheet(raw.get("category"), str),
         "option_value": parse_from_sheet(raw.get("option_value"), str),
+    }
+
+
+def parse_seasonal_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Seasonal sheet into typed data ready for the Database.
+    """
+    return {
+        "seasonal": parse_from_sheet(raw.get("seasonal"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "entry_planned": parse_from_sheet(raw.get("entry_planned"), int),
+        "entry_completed": parse_from_sheet(raw.get("entry_completed"), int),
+        "entry_watching": parse_from_sheet(raw.get("entry_watching"), int),
+        "entry_dropped": parse_from_sheet(raw.get("entry_dropped"), int),
     }
