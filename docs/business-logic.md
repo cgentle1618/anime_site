@@ -267,9 +267,9 @@ Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"An
 
 ## Composite Logics
 
-### Anime Post Processing — `anime_post_processing(anime, db)` / `run_anime_post_processing(db)`
+### Anime Post Processing — `anime_post_processing(anime, db)`
 
-Runs all single-entry checks and repairs for one anime. `run_anime_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one anime.
 
 **Steps (in order):**
 
@@ -281,25 +281,49 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 ---
 
-### Anime Movie Post Processing — `anime_movie_post_processing(anime_movie, db)` / `run_anime_movie_post_processing(db)`
+### Movie Post Processing — `movie_post_processing(anime_movie, db)`
 
-Runs all single-entry checks and repairs for one anime movie. `run_anime_movie_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one movie.
 
 **Steps (in order):**
 
 1. `apply_check_baha`
+2. If `check_is_movie_completed()` and `watching_status != "Completed"`: call `mark_movie_completed`.
 
 ---
 
-### TV Show Post Processing — `tv_show_post_processing(tv_show, db)` / `run_tv_show_post_processing(db)`
+### Anime Movie Post Processing — `anime_movie_post_processing(anime_movie, db)`
 
-Runs all single-entry checks and repairs for one TV show. `run_tv_show_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one anime movie.
+
+**Steps (in order):**
+
+1. `apply_check_baha`
+2. If `check_is_movie_completed()` and `watching_status != "Completed"`: call `mark_movie_completed`.
+
+---
+
+### TV Show Post Processing — `tv_show_post_processing(tv_show, db)`
+
+Runs all single-entry checks and repairs for one TV show.
 
 **Steps (in order):**
 
 1. `apply_validate_episode_math`
 2. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
 3. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_tv_show`.
+
+---
+
+### Cartoon Post Processing — `cartoon_post_processing(cartoon, db)`
+
+Runs all single-entry checks and repairs for one Cartoon.
+
+**Steps (in order):**
+
+1. `apply_validate_episode_math`
+2. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+3. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_cartoon`.
 
 ---
 

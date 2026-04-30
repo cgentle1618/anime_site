@@ -618,6 +618,18 @@ def check_is_tv_completed(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     return False
 
 
+def check_is_movie_completed(entry: Union[AnimeMovies, Movies]) -> bool:
+    """
+    Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
+    should be considered completed.
+    Returns True if watching_status is 'Completed' or ep_fin equals ep_total.
+    """
+    if entry.watching_status == "Completed":
+        return True
+
+    return False
+
+
 def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
     """Sets source_baha=True if baha_link is present and airing_status is 'Airing'."""
     if (
@@ -2320,6 +2332,11 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
     apply_check_baha(anime_movie)
+    if (
+        check_is_movie_completed(anime_movie)
+        and anime_movie.watching_status != "Completed"
+    ):
+        mark_movie_completed(anime_movie)
 
 
 def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
