@@ -745,19 +745,27 @@ Multi-section statistics dashboard.
 
 4. **Watch Next** — tabbed franchise/entry grid:
    - Anime tab: grouped by 12ep / 24ep / 30ep+; shows poster, Franchise Name CN with fallback, Franchise Expectation (live)
-   - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
-   - Movie / TV Show / Cartoon / Manga / Novel tabs (TBD)
+   - Anime Movie tab: grouped by Franchise with the order of 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
+   - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, Movie Name CN with fallback
+   - TV Show: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
+   - Cartoon / Manga / Novel tabs (TBD)
    - Note: Anime uses franchise entries; other media types use the media entry directly
 
 5. **To Rewatch** — tabbed grid:
    - Anime tab: sorted by Franchise Name EN; shows poster, Franchise Name CN with fallback, Franchise Rating
    - Anime Movie tab: sorted by Anime Movie Name EN; shows poster, Anime Movie Name CN with fallback, My Rating
-   - Movie / TV Show / Cartoon / Manga / Novel tabs (TBD)
+   - Movie tab: sorted by Movie Name EN; shows poster, Movie Name CN with fallback, My Rating
+   - TV Show tab: sorted by TV Show Name EN; shows poster, TV Show Name CN with fallback, My Rating
+   - Cartoon tab: sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating
+   - Manga / Novel tabs (TBD)
 
 6. **Recent Completions** — paginated list (10 per page):
    - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date (live)
    - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
-   - Movie / TV Show / Cartoon / Manga / Novel tabs (TBD)
+   - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+   - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+   - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+   - Manga / Novel tabs (TBD)
 
 ---
 
@@ -961,7 +969,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 #### Add New Anime Movie Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Anime Movie Name EN/CN/Roman/JP/Alt
-- **Status & Progress:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), My Rating, MAL Rating/Rank, AniList Rating
+- **Status & Progress:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), My Rating, Watch Next checkbox, To Rewatch checkbox, MAL Rating/Rank, AniList Rating
 - **Production:** Length (Min), Release Date JP (Month + Year), Release Date TW (Month + Year), Studio (multi-selectable), Director (multi-selectable)
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter
 - **Source Availability:** Baha dropdown, Baha Link, Netflix dropdown, Add Source button
@@ -983,7 +991,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New Movie Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox, filtered to `franchise_type = "TV or Movie"`), Series (ComboBox + auto-create modal, filtered by selected franchise), Movie Name EN (primary), Movie Name CN, Movie Name Alt
-- **Status & Classification:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), Movie Type (Reality / Animation), My Rating
+- **Status & Classification:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), Movie Type (Reality / Animation), My Rating, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
 - **Release & Production:** Release Date USA, Release Date TW, Length (Min), Director
 - **IMDb & Sources:** IMDb ID (numeric), IMDb Link, Other Sources (name → URL pairs)
 - **Cover & Notes:** Cover Image File, Remark
@@ -992,7 +1000,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New TV Show Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), TV Show Name EN/CN/Alt, Season dropdown, Part dropdown
-- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, IMDB Rating
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
 - **Classification & Production:** TV Show Region dropdown, TV Show Official Source, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
@@ -1001,7 +1009,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New Cartoon Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), Cartoon Name EN/CN/Alt, Season dropdown, Part dropdown
-- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
 - **Classification & Production:** Cartoon Official Source, Cartoon Airing Type dropdown, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
