@@ -373,6 +373,25 @@ Required metadata fields that should be populated for each entry type. Used by `
 | `ep_total`         |       |
 | `cover_image_file` |       |
 
+### Cartoon (Movie airing type)
+
+| Field              | Notes                                               |
+| ------------------ | --------------------------------------------------- |
+| `airing_status`    |                                                     |
+| `release_date`     | Mapped from `release_date_usa` in TMDB movie output |
+| `imdb_rating`      |                                                     |
+| `cover_image_file` |                                                     |
+
+### Cartoon (TV airing type)
+
+| Field              | Notes |
+| ------------------ | ----- |
+| `airing_status`    |       |
+| `release_date`     |       |
+| `imdb_rating`      |       |
+| `ep_total`         |       |
+| `cover_image_file` |       |
+
 ### Manga
 
 | Field                  | Notes |

@@ -250,6 +250,60 @@ Add endpoints (pattern: same as TV show):
 - `POST /api/data-control/pull/cartoon` — calls `execute_pull_specific("Cartoon")`
 - Update `POST /api/data-control/fill/all` and `POST /api/data-control/replace/all` (no new route needed — orchestrators updated).
 
+**Checkpoint — pause and ask for permission before proceeding to Step 3.5.**
+
+---
+
+## Step 3.5 — Add `airing_type` Column to Cartoon
+
+**Files:** `models.py`, `schemas.py`, Alembic migration, `utils/formatter.py`, `services/other_logics.py`, `services/calculation.py`, `services/data_control.py`
+
+### 3.5.1 — `models.py`
+
+Add `airing_type = Column(String, nullable=True)` to the `Cartoon` model (after `season_part` or in the Classification block).
+
+### 3.5.2 — Alembic migration
+
+Run `alembic revision --autogenerate -m "add airing_type to cartoons"`. Verify the generated migration adds a nullable `String` column to `cartoons`. Run `alembic upgrade head`.
+
+### 3.5.3 — `schemas.py`
+
+Add `airing_type: Optional[str] = None` to `CartoonBase`.
+
+### 3.5.4 — `utils/formatter.py`
+
+Update `parse_cartoon_from_sheet` to parse `airing_type` as `str`.
+
+### 3.5.5 — `services/other_logics.py`
+
+Update three cartoon-specific functions:
+
+**`derive_watch_order_cartoon`**: Change eligibility from `season_part is set` to `airing_type == "TV"` AND `season_part is set`.
+
+**`derive_season_1_cartoon`**: Change trigger condition — requires `airing_type == "TV"`, `season_part is None`, `franchise_id is set`, and the franchise has exactly 1 cartoon entry with `airing_type == "TV"`.
+
+**`has_missing_values_cartoon`**: Make airing_type-aware. `airing_type == "Movie"`: check `airing_status`, `release_date`, `imdb_rating`, `cover_image_file` (skip `ep_total` — not sourced from TMDB movie data). All other values (TV, null, Other): check `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
+
+**`autofill_cartoon_from_imdb`**: Replace TBD stub with full branching implementation per business-logic.md:
+
+- `airing_type == "Movie"`: fetch via `fetch_imdb_data` → map via `map_imdb_to_movie_data` → fill `release_date` (fill-only, read from `release_date_usa` in output dict), `imdb_rating` (always overwrite), `airing_status` (fill-only via date comparison), `cover_image_file` (fill-only). Do **not** write `director`, `length_min`, or `release_date_usa`.
+- `airing_type == "TV"`: mirrors `autofill_tv_show_from_imdb` — fetch show-level + season-level TMDB data → map via `map_imdb_to_cartoon_data` → fill `release_date`, `ep_total` (fill-only), `imdb_rating` (always overwrite), `airing_status` (fill-only), `cover_image_file` (fill-only).
+- Any other value (including `None`): return early, no IMDb fetch.
+
+### 3.5.6 — `services/calculation.py`
+
+No changes required — `cartoon_post_processing` calls `derive_season_1_cartoon` which now internally checks `airing_type`, so the calling code stays the same.
+
+### 3.5.7 — `services/data_control.py`
+
+**`execute_fill_cartoon`**: Add `airing_type in {"Movie", "TV"}` as an additional queue filter alongside `has_missing_values_cartoon()`. Entries with other airing types are excluded from the fill queue.
+
+**`execute_replace_cartoon`**: Add `airing_type in {"Movie", "TV"}` as an additional queue filter (in addition to `imdb_id or imdb_link` being set).
+
+**`apply_single_replace_cartoon`**: Before calling `autofill_cartoon_from_imdb`, check that `airing_type in {"Movie", "TV"}`; if not, skip autofill and only run `cartoon_post_processing`.
+
+**`execute_pull_specific` (Cartoons tab)**: Confirm the tab name passed to the Google Sheets API is `"Cartoons"` (not `"Cartoon"`). Update the row parser to include `airing_type` parsing via `parse_cartoon_from_sheet`. No forced default — leave `None` if blank.
+
 **Checkpoint — pause and ask for permission before proceeding to Step 4.**
 
 ---
@@ -266,16 +320,14 @@ Naming card for the Cartoon detail page. Shows: Cartoon Name EN, CN, Alt. Mirror
 
 Grid card for Library and Franchise Hub views. Shows:
 
-- Cover image (with My Rating badge top-left)
-- Airing Status badge
+- Cover image
+- My Rating badge (hidden if null)
 - Airing Type badge
-- Cartoon Name CN with fallback (primary title)
-- Cartoon Name EN (hidden if CN used fallback)
-- Season/Part label
-- Episode progress: `ep_fin / ep_total`
-- Official Source label (if set)
-- Release Date
-- IMDB Rating
+- Cartoon Name CN with fallback
+- Release Date (fallback)
+- IMDB Rating (hidden if null)
+- Ep Watched / Ep Total
+- - button (admin only)
 
 Mirror `MovieCard.jsx` / `AnimeCard.jsx` as reference.
 
@@ -284,11 +336,12 @@ Mirror `MovieCard.jsx` / `AnimeCard.jsx` as reference.
 Future release card for the FutureReleases page Cartoon tab. Shows:
 
 - Cover image
+- Franchise Expectation badge
+- Release Date (fallback)
+- Airing Type badge
 - Cartoon Name CN with fallback
-- Release Date
-- Airing Status badge
-- Watching Status label
-- Admin: inline watching-status selector, "Mark as Airing" button (PATCHes `airing_status`; entry removed from list immediately)
+- Admin: inline watching-status selector (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options)
+- Admin: "Mark as Airing" button (PATCHes `airing_status`; entry removed from list immediately)
 
 **Checkpoint — pause and ask for permission before proceeding to Step 5.**
 
@@ -323,7 +376,7 @@ Future release card for the FutureReleases page Cartoon tab. Shows:
 
 **Layout (right column):**
 
-- Tags: Airing Status, Airing Type
+- Tags: Airing Type, Airing Status
 - Main Title: Cartoon Name CN with fallback
 - Sub Title: Cartoon Name EN (hidden if CN used fallback)
 - From Franchise (navigates to `/franchise/cartoon/:id`)
@@ -389,7 +442,7 @@ Admin: inline quick-status toggle via `PATCH /api/cartoon/:system_id`
 **Cartoon Entry Section:**
 
 - Sort By: Release Date (default) / Title / My Rating / IMDb Rating
-- Filter: Airing Status / Watching Status
+- Filter: Airing Type / Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
 - Each entry: `CartoonCard.jsx`, grouped by Series
 
@@ -474,7 +527,7 @@ Add **Add New Cartoon Entry Tab**:
 **Classification & Production:**
 
 - Cartoon Official Source (system_options `"Official Source (Cartoon)"`)
-- Cartoon Airing Type dropdown (`"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`)
+- Cartoon Airing Type dropdown (`"TV"` default, `"Movie"`, `"Other"`, or null — per options.md Cartoon Airing Type)
 - Main/Spinoff dropdown (`"Main / Spinoff"` system option category)
 - Release Date (month + year or year-only)
 
@@ -513,8 +566,8 @@ Writes: `PATCH /api/cartoon/:id`
 
 Add **Delete Cartoon Entry Tab**:
 
-- Search bar → Search Suggestion for Deletion.
-- After selecting: cover thumbnail, Cartoon Name CN/EN, Airing Status, Watching Status, Franchise name, System ID, Delete button.
+- Search bar → **Search Suggestion for Deletion** (reusable): shows Cartoon Name CN (fallback) · Franchise Name CN (fallback) · Airing Type.
+- After selecting: **Cartoon Entry Info for Deletion** (reusable) — Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID — plus Delete button.
 - If only entry in series: offer to delete series or keep it.
 - If only entry in franchise: offer to delete franchise or keep it.
 
@@ -569,7 +622,7 @@ Add **Cartoon Future Release Tab**:
 
 - Add Cartoon tab to **Recent Completions** section:
   - Grouped by Official Source (Cartoon Network / Disney / Nickelodeon / Adult Swim / FOX / HBO / Others).
-  - Shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date.
+  - Shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date.
 
 ### 8.4 — End-to-end verification
 
@@ -589,6 +642,7 @@ Add **Cartoon Future Release Tab**:
 | 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Done        |
 | 2    | Backend Utils (map functions, parsers, check functions)                                                       | Done        |
 | 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | Done        |
+| 3.5  | Add `airing_type` column to Cartoon (model, migration, schema, parser, logics, data control)                  | Done        |
 | 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Not Started |
 | 5    | Frontend New Pages (Cartoon, CartoonNotes, LibraryCartoon, FranchiseCartoon)                                  | Not Started |
 | 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Not Started |

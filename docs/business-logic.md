@@ -456,11 +456,13 @@ Returns `True` if any required field is blank.
 
 ---
 
-### Check Missing Values for Cartoon — `has_missing_values_tv_cartoon(cartoon)`
+### Check Missing Values for Cartoon — `has_missing_values_cartoon(cartoon)`
 
-Returns `True` if any required field is blank.
+Returns `True` if any required field is blank. Branches on `airing_type` because `ep_total` cannot be sourced from TMDB movie data.
 
-## **Fields checked:** `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
+**`airing_type == "Movie"`:** `airing_status`, `release_date`, `imdb_rating`, `cover_image_file`.
+
+**`airing_type == "TV"` (or any other value including `None`):** `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
 
 ### Check Completed for TV Type — `check_is_tv_completed(entry)`
 
@@ -598,9 +600,9 @@ Assigns consecutive `watch_order` floats (starting at 1.0) to eligible TV show e
 
 ### Derive Watch Order Cartoon — `derive_watch_order_cartoon(db, franchise_id)`
 
-Assigns consecutive `watch_order` floats (starting at 1.0) to eligible Cartoon show entries within a franchise.
+Assigns consecutive `watch_order` floats (starting at 1.0) to eligible Cartoon entries within a franchise.
 
-**Eligibility:** `season_part` is set.
+**Eligibility:** `airing_type == "TV"` and `season_part` is set.
 
 **Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
 
@@ -687,7 +689,7 @@ Sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set,
 
 ### Derive S1 Cartoon — `derive_season_1_cartoon(cartoon, db)`
 
-Sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set, and the franchise has exactly 1 cartoon entry.
+Sets `season_part = “Season 1”` if `season_part` is None, `airing_type == “TV”`, `franchise_id` is set, and the franchise has exactly 1 cartoon entry with `airing_type == “TV”`.
 
 ---
 
@@ -769,7 +771,37 @@ Each entry represents **one season** of a show. The `imdb_id` field stores the s
 
 ### IMDb Autofill Cartoon — `autofill_cartoon_from_imdb(cartoon, db)`
 
-TBD. Follows same architecture as `autofill_tv_show_from_imdb`.
+Enriches a single Cartoon entry with TMDB + OMDb data. Does not commit — caller is responsible.
+
+The autofill path branches on `airing_type`:
+
+- **`"Movie"`**: Fetches TMDB movie data and OMDb data via `fetch_imdb_data`. Maps via `map_imdb_to_movie_data`. Applies `imdb_rating` and `cover_image_file` only — does **not** apply `director`, `length_min`, or `release_date_usa` (cartoon entries have no such columns).
+- **`"TV"`**: Fetches TMDB TV show-level and season-level data plus OMDb data. Maps via `map_imdb_to_cartoon_data`. Mirrors `autofill_tv_show_from_imdb`.
+- **Any other value (including `None`)**: Returns early — no IMDb data fetched.
+
+**Steps for `airing_type == "Movie"`:**
+
+1. Return early if `cartoon.imdb_id` is None.
+2. Call `fetch_imdb_data(cartoon.imdb_id)` → `{"tmdb_raw": ..., "omdb_raw": ...}`.
+3. Call `map_imdb_to_movie_data(tmdb_raw, omdb_raw)`.
+4. Fill-only `release_date`: mapped from `release_date_usa` in the output dict (cartoon entries have `release_date`, not `release_date_usa`).
+5. `imdb_rating`: always overwrite if fetched value is not None.
+6. `airing_status` (fill-only if currently None): read raw `tmdb_raw.get("release_date")` and compare to today — past date → `"Finished Airing"`, future date → `"Not Yet Aired"`. Skip if TMDB returned no date.
+7. Cover image (fill-only): if `cover_image_file` is None and `cover_image_url` is in the mapped data, download and upload to GCS as `{system_id}.jpg`, set `cover_image_file`.
+
+**Steps for `airing_type == "TV"`:**
+
+1. Return early if `cartoon.imdb_id` is None.
+2. Call `fetch_imdb_data(cartoon.imdb_id)` → `{"tmdb_raw": ..., "omdb_raw": ...}` (show-level).
+3. If `tmdb_raw` is not None:
+   - Extract `tmdb_id = tmdb_raw.get("id")`.
+   - Parse season number: `season_number = _parse_season_number(cartoon.season_part)`.
+   - Call `fetch_tmdb_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`.
+4. Call `map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)`.
+5. Fill each field **only if currently None**: `release_date`, `ep_total`.
+6. `imdb_rating`: always overwrite if fetched value is not None.
+7. `airing_status` (fill-only if currently None): derive via `_derive_tv_season_airing_status(season_air_date, episodes)`.
+8. Cover image (fill-only): if `cover_image_file` is None and `cover_image_url` is in the mapped data, download and upload to GCS as `{system_id}.jpg`, set `cover_image_file`.
 
 ---
 
@@ -847,6 +879,8 @@ Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com
 
 ### IMDb Conversion for Movie — `map_imdb_to_movie_data(tmdb_raw, omdb_raw)` in `utils/tmdb_utils.py`
 
+Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. For Cartoon entries, `director`, `length_min`, and `release_date_usa` from the output are not written to the database (cartoon entries have no such columns).
+
 Merges results from both APIs into one flat dict for the Movie model.
 
 1. If `tmdb_raw` is available: call `map_tmdb_to_movie_data(tmdb_raw)`.
@@ -856,6 +890,8 @@ Merges results from both APIs into one flat dict for the Movie model.
 ---
 
 ### TMDB Conversion for Movie — `map_tmdb_to_movie_data(raw)` in `utils/tmdb_utils.py`
+
+Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. When used for Cartoon entries, `length_min`, `release_date_usa`, and `director` are present in the output dict but are ignored by `autofill_cartoon_from_imdb` — cartoon entries have no such database columns.
 
 | Output Field       | TMDB Source                                                            |
 | ------------------ | ---------------------------------------------------------------------- |

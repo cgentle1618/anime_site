@@ -588,7 +588,11 @@ async def execute_fill_cartoon(
             apply_extract_imdb_id(cartoon)
         db.commit()
 
-        queue_to_process = [c for c in all_cartoons if has_missing_values_cartoon(c)]
+        queue_to_process = [
+            c
+            for c in all_cartoons
+            if c.airing_type in {"Movie", "TV"} and has_missing_values_cartoon(c)
+        ]
         total_in_queue = len(queue_to_process)
 
         if total_in_queue > 0:
@@ -1519,7 +1523,10 @@ async def execute_replace_cartoon(
     try:
         all_cartoons = (
             db.query(Cartoon)
-            .filter(or_(Cartoon.imdb_id.isnot(None), Cartoon.imdb_link.isnot(None)))
+            .filter(
+                Cartoon.airing_type.in_(["Movie", "TV"]),
+                or_(Cartoon.imdb_id.isnot(None), Cartoon.imdb_link.isnot(None)),
+            )
             .all()
         )
         total_in_queue = len(all_cartoons)

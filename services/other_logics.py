@@ -37,7 +37,8 @@ from utils.utils import (
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_FIELDS_TO_FILL,
+    CARTOON_TV_FIELDS_TO_FILL,
+    CARTOON_MOVIE_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
@@ -588,7 +589,12 @@ def has_missing_values_tv_show(tv_show: TVShows) -> bool:
 
 def has_missing_values_cartoon(cartoon: Cartoon) -> bool:
     """Returns True if any required Cartoon field is missing."""
-    for field in CARTOON_FIELDS_TO_FILL:
+    fields = (
+        CARTOON_MOVIE_FIELDS_TO_FILL
+        if cartoon.airing_type == "Movie"
+        else CARTOON_TV_FIELDS_TO_FILL
+    )
+    for field in fields:
         val = getattr(cartoon, field, None)
         if val is None or str(val).strip() == "":
             return True
@@ -1344,6 +1350,7 @@ def derive_watch_order_cartoon(db: Session, franchise_id) -> None:
         db.query(Cartoon)
         .filter(
             Cartoon.franchise_id == franchise_id,
+            Cartoon.airing_type == "TV",
             Cartoon.season_part.isnot(None),
         )
         .all()
@@ -1598,8 +1605,15 @@ def derive_season_1_cartoon(cartoon: Cartoon, db: Session) -> None:
         return
     if not cartoon.franchise_id:
         return
+    if cartoon.airing_type != "TV":
+        return
     count = (
-        db.query(Cartoon).filter(Cartoon.franchise_id == cartoon.franchise_id).count()
+        db.query(Cartoon)
+        .filter(
+            Cartoon.franchise_id == cartoon.franchise_id,
+            Cartoon.airing_type == "TV",
+        )
+        .count()
     )
     if count == 1:
         cartoon.season_part = "Season 1"
@@ -1838,10 +1852,14 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
 
 def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
     """
-    Fetches TMDB + OMDb season data for a single Cartoon entry and fills/overwrites fields.
+    Fetches TMDB + OMDb data for a single Cartoon entry and fills/overwrites fields.
+    Routes to movie path (airing_type == "Movie") or TV path (airing_type == "TV").
+    All other airing_type values skip autofill entirely.
     Does not commit — caller is responsible.
     """
     if cartoon.imdb_id is None:
+        return
+    if cartoon.airing_type not in {"Movie", "TV"}:
         return
 
     try:
@@ -1849,39 +1867,70 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
         tmdb_raw = result.get("tmdb_raw")
         omdb_raw = result.get("omdb_raw")
 
-        tmdb_season_raw = None
-        if tmdb_raw is not None:
-            tmdb_id = tmdb_raw.get("id")
-            if tmdb_id:
-                season_number = _parse_season_number(cartoon.season_part)
-                tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
+        if cartoon.airing_type == "Movie":
+            mapped = map_imdb_to_movie_data(tmdb_raw, omdb_raw)
 
-        mapped = map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+            if cartoon.release_date is None:
+                cartoon.release_date = mapped.get("release_date_usa")
 
-        if cartoon.release_date is None:
-            cartoon.release_date = mapped.get("release_date")
-        if cartoon.ep_total is None:
-            fetched_ep_total = mapped.get("ep_total")
-            if fetched_ep_total:
-                cartoon.ep_total = fetched_ep_total
+            fetched_rating = mapped.get("imdb_rating")
+            if fetched_rating is not None:
+                cartoon.imdb_rating = fetched_rating
 
-        fetched_rating = mapped.get("imdb_rating")
-        if fetched_rating is not None:
-            cartoon.imdb_rating = fetched_rating
+            if cartoon.airing_status is None and tmdb_raw is not None:
+                raw_date = tmdb_raw.get("release_date")
+                if raw_date:
+                    try:
+                        release_date = date.fromisoformat(raw_date)
+                        cartoon.airing_status = (
+                            "Finished Airing"
+                            if release_date <= date.today()
+                            else "Not Yet Aired"
+                        )
+                    except (ValueError, TypeError):
+                        pass
 
-        if cartoon.airing_status is None:
-            derived_status = _derive_tv_season_airing_status(
-                mapped.get("_season_air_date"), mapped.get("_episodes")
-            )
-            if derived_status is not None:
-                cartoon.airing_status = derived_status
+            if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+                filename = download_cover_image(
+                    mapped["cover_image_url"], str(cartoon.system_id)
+                )
+                if filename:
+                    cartoon.cover_image_file = filename
 
-        if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
-            filename = download_cover_image(
-                mapped["cover_image_url"], str(cartoon.system_id)
-            )
-            if filename:
-                cartoon.cover_image_file = filename
+        else:  # airing_type == "TV"
+            tmdb_season_raw = None
+            if tmdb_raw is not None:
+                tmdb_id = tmdb_raw.get("id")
+                if tmdb_id:
+                    season_number = _parse_season_number(cartoon.season_part)
+                    tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
+
+            mapped = map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+
+            if cartoon.release_date is None:
+                cartoon.release_date = mapped.get("release_date")
+            if cartoon.ep_total is None:
+                fetched_ep_total = mapped.get("ep_total")
+                if fetched_ep_total:
+                    cartoon.ep_total = fetched_ep_total
+
+            fetched_rating = mapped.get("imdb_rating")
+            if fetched_rating is not None:
+                cartoon.imdb_rating = fetched_rating
+
+            if cartoon.airing_status is None:
+                derived_status = _derive_tv_season_airing_status(
+                    mapped.get("_season_air_date"), mapped.get("_episodes")
+                )
+                if derived_status is not None:
+                    cartoon.airing_status = derived_status
+
+            if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+                filename = download_cover_image(
+                    mapped["cover_image_url"], str(cartoon.system_id)
+                )
+                if filename:
+                    cartoon.cover_image_file = filename
 
     except Exception as e:
         logger.error(
