@@ -18,6 +18,7 @@ from database import get_taipei_now
 from models import (
     Anime,
     AnimeMovies,
+    Cartoon,
     Movies,
     TVShows,
     Franchise,
@@ -36,6 +37,7 @@ from utils.utils import (
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
+    CARTOON_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
@@ -407,6 +409,89 @@ def resolve_tv_show_parent_hierarchy(
             final_series_id = None
             logger.warning(
                 f"Could not resolve Series by name '{sname}' for TV Show. Setting to null."
+            )
+
+    return final_franchise_id, final_series_id
+
+
+def resolve_cartoon_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
+    """
+    Ensures valid franchise_id and series_id UUIDs for a Cartoon entry.
+    Franchise: valid UUID pass-through; null/string → search by name; not found → auto-create with
+    franchise_type="Cartoon".
+    Series: non-string pass-through; non-empty string → search by name; not found → set null.
+    Returns (final_franchise_id, final_series_id).
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        final_franchise_id = franchise_id
+    else:
+        valid_names = set()
+        for lang_key in ["en", "cn", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        search_conditions = []
+        for name_str in valid_names:
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing = None
+        if search_conditions:
+            existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+        if existing:
+            final_franchise_id = existing.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise for Cartoon: {final_franchise_id}"
+            )
+        else:
+            new_fran = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type="Cartoon",
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_fran)
+            db.flush()
+            final_franchise_id = new_fran.system_id
+            logger.info(
+                f"Auto-created missing Franchise for Cartoon: {final_franchise_id}"
+            )
+
+    final_series_id = series_id
+    if series_id and isinstance(series_id, str) and series_id.strip():
+        sname = series_id.strip()
+        existing_series = (
+            db.query(Series)
+            .filter(
+                or_(
+                    Series.series_name_en.ilike(sname),
+                    Series.series_name_cn.ilike(sname),
+                    Series.series_name_alt.ilike(sname),
+                )
+            )
+            .first()
+        )
+        if existing_series:
+            final_series_id = existing_series.system_id
+            logger.info(
+                f"Auto-resolved existing Series for Cartoon: {final_series_id}"
+            )
+        else:
+            final_series_id = None
+            logger.warning(
+                f"Could not resolve Series by name '{sname}' for Cartoon. Setting to null."
             )
 
     return final_franchise_id, final_series_id

@@ -586,7 +586,7 @@ Add **Cartoon Future Release Tab**:
 
 | Step | Description                                                                                                   | Status      |
 | ---- | ------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Not Started |
+| 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Done        |
 | 2    | Backend Utils (map functions, parsers, check functions)                                                       | Not Started |
 | 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | Not Started |
 | 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Not Started |
