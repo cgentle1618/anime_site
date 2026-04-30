@@ -1086,21 +1086,20 @@ export default function Statistics() {
 
       {/* Block 3.5 — To Rewatch */}
       {(() => {
-        const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
         const REWATCH_TABS = [
           { key: "anime", label: "Anime", icon: "fa-tv", dev: false },
           {
             key: "anime-movie",
             label: "Anime Movie",
             icon: "fa-film",
-            dev: true,
+            dev: false,
           },
-          { key: "movie", label: "Movie", icon: "fa-ticket-alt", dev: true },
+          { key: "movie", label: "Movie", icon: "fa-ticket-alt", dev: false },
           {
             key: "tv-show",
             label: "TV Show",
             icon: "fa-broadcast-tower",
-            dev: true,
+            dev: false,
           },
           {
             key: "cartoon",
@@ -1114,10 +1113,10 @@ export default function Statistics() {
 
         const rewatchItems = franchises
           .filter((f) => f.to_rewatch)
-          .sort(
-            (a, b) =>
-              (EXPECTATION_WEIGHT[a.franchise_expectation] ?? 99) -
-              (EXPECTATION_WEIGHT[b.franchise_expectation] ?? 99),
+          .sort((a, b) =>
+            (a.franchise_name_en || "").localeCompare(
+              b.franchise_name_en || "",
+            ),
           );
 
         return (
@@ -1204,8 +1203,197 @@ export default function Statistics() {
                 </div>
               ))}
 
+            {/* Anime Movie tab */}
+            {rewatchTab === "anime-movie" &&
+              (() => {
+                const rewatchAM = allAnimeMovies
+                  .filter((am) => am.to_rewatch)
+                  .sort((a, b) =>
+                    (a.anime_movie_name_en || "").localeCompare(
+                      b.anime_movie_name_en || "",
+                    ),
+                  );
+                if (rewatchAM.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No anime movies marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on an anime movie entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchAM.map((am) => {
+                      const name =
+                        am.anime_movie_name_cn ||
+                        am.anime_movie_name_en ||
+                        am.anime_movie_name_roman ||
+                        "—";
+                      return (
+                        <Link
+                          key={am.system_id}
+                          to={`/anime-movie/${am.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(am.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {am.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {am.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* Movie tab */}
+            {rewatchTab === "movie" &&
+              (() => {
+                const rewatchMovies = allMovies
+                  .filter((m) => m.to_rewatch)
+                  .sort((a, b) =>
+                    (a.movie_name_en || "").localeCompare(
+                      b.movie_name_en || "",
+                    ),
+                  );
+                if (rewatchMovies.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No movies marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on a movie entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchMovies.map((movie) => {
+                      const name =
+                        movie.movie_name_cn ||
+                        movie.movie_name_en ||
+                        movie.movie_name_alt ||
+                        "—";
+                      return (
+                        <Link
+                          key={movie.system_id}
+                          to={`/movie/${movie.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(movie.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {movie.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {movie.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* TV Show tab */}
+            {rewatchTab === "tv-show" &&
+              (() => {
+                const rewatchTV = allTVShows
+                  .filter((tv) => tv.to_rewatch)
+                  .sort((a, b) =>
+                    (a.tv_name_en || "").localeCompare(b.tv_name_en || ""),
+                  );
+                if (rewatchTV.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No TV shows marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on a TV show entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchTV.map((tv) => {
+                      const name =
+                        tv.tv_name_cn || tv.tv_name_en || tv.tv_name_alt || "—";
+                      return (
+                        <Link
+                          key={tv.system_id}
+                          to={`/tv-show/${tv.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(tv.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {tv.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {tv.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {rewatchTab !== "anime" && (
+            {!["anime", "anime-movie", "movie", "tv-show"].includes(
+              rewatchTab,
+            ) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                 <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
                   <i className="fas fa-redo text-brand text-xl"></i>
