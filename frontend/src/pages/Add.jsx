@@ -120,6 +120,8 @@ const defaultMovie = () => ({
   imdb_id: "",
   imdb_link: "",
   source_other: [],
+  watch_next: false,
+  to_rewatch: false,
   cover_image_file: "",
   remark: "",
 });
@@ -865,6 +867,8 @@ export default function Add() {
                 .map((e) => [e.name.trim(), e.url.trim()]),
             )
           : null,
+      watch_next: mf.watch_next ?? null,
+      to_rewatch: mf.to_rewatch ?? false,
       cover_image_file: mf.cover_image_file || null,
       remark: mf.remark || null,
     };
@@ -2490,6 +2494,34 @@ export default function Add() {
                     </option>
                   ))}
                 </select>
+              </Field>
+            </div>
+            <div className="flex flex-wrap gap-6 mt-2">
+              <Field label="Watch Next">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!mf.watch_next}
+                    onChange={(e) => umf("watch_next", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Add to Watch Next list
+                  </span>
+                </label>
+              </Field>
+              <Field label="To Rewatch">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!mf.to_rewatch}
+                    onChange={(e) => umf("to_rewatch", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Mark for rewatch
+                  </span>
+                </label>
               </Field>
             </div>
 

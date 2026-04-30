@@ -374,6 +374,8 @@ export default function Modify() {
         name,
         url: url || "",
       })),
+      watch_next: m.watch_next ?? false,
+      to_rewatch: m.to_rewatch ?? false,
       cover_image_file: m.cover_image_file || "",
       remark: m.remark || "",
       notes: m.notes || {},
@@ -868,6 +870,8 @@ export default function Modify() {
                 .map((e) => [e.name.trim(), e.url.trim()]),
             )
           : null,
+      watch_next: mmf.watch_next ?? null,
+      to_rewatch: mmf.to_rewatch ?? false,
       cover_image_file: mmf.cover_image_file || null,
       remark: mmf.remark || null,
       notes: Object.keys(mmf.notes || {}).length > 0 ? mmf.notes : null,
@@ -3123,6 +3127,34 @@ export default function Modify() {
                         </option>
                       ))}
                     </select>
+                  </Field>
+                </div>
+                <div className="flex flex-wrap gap-6 mt-2">
+                  <Field label="Watch Next">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!mmf.watch_next}
+                        onChange={(e) => umm("watch_next", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Add to Watch Next list
+                      </span>
+                    </label>
+                  </Field>
+                  <Field label="To Rewatch">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!mmf.to_rewatch}
+                        onChange={(e) => umm("to_rewatch", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Mark for rewatch
+                      </span>
+                    </label>
                   </Field>
                 </div>
 

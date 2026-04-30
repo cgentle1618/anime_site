@@ -422,6 +422,60 @@ export default function Movie() {
                   ))}
                 </select>
               </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Watch Next
+                </label>
+                <label
+                  className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!movie.watch_next}
+                    disabled={!isAdmin}
+                    onChange={(e) =>
+                      isAdmin &&
+                      performPatch(
+                        { watch_next: e.target.checked },
+                        e.target.checked
+                          ? "Added to Watch Next"
+                          : "Removed from Watch Next",
+                      )
+                    }
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Watch Next
+                  </span>
+                </label>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  To Rewatch
+                </label>
+                <label
+                  className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!movie.to_rewatch}
+                    disabled={!isAdmin}
+                    onChange={(e) =>
+                      isAdmin &&
+                      performPatch(
+                        { to_rewatch: e.target.checked },
+                        e.target.checked
+                          ? "Marked for rewatch"
+                          : "Removed from rewatch",
+                      )
+                    }
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    To Rewatch
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 
