@@ -188,6 +188,8 @@ function movieToForm(movie, allFranchises) {
         url: url || "",
       }),
     ),
+    watch_next: movie.watch_next ?? false,
+    to_rewatch: movie.to_rewatch ?? false,
     cover_image_file: movie.cover_image_file || "",
     remark: movie.remark || "",
     notes: movie.notes || {},
@@ -849,8 +851,7 @@ export default function Modify() {
       director: mmf.director || null,
       prequel_id: mmf.prequel_id || null,
       sequel_id: mmf.sequel_id || null,
-      watch_order:
-        mmf.watch_order !== "" ? parseFloat(mmf.watch_order) : null,
+      watch_order: mmf.watch_order !== "" ? parseFloat(mmf.watch_order) : null,
       derive_related:
         mmf.derive_related === "true"
           ? true
@@ -2705,6 +2706,34 @@ export default function Modify() {
                     />
                   </Field>
                 </div>
+                <div className="flex flex-wrap gap-6 mt-2">
+                  <Field label="Watch Next">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!amf.watch_next}
+                        onChange={(e) => uam("watch_next", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Add to Watch Next list
+                      </span>
+                    </label>
+                  </Field>
+                  <Field label="To Rewatch">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!amf.to_rewatch}
+                        onChange={(e) => uam("to_rewatch", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Mark for rewatch
+                      </span>
+                    </label>
+                  </Field>
+                </div>
 
                 <SectionHeader
                   icon="fa-info-circle"
@@ -3151,9 +3180,7 @@ export default function Modify() {
                     <input
                       className={inputCls + " font-mono text-xs"}
                       value={mmf.sequel_id || ""}
-                      onChange={(e) =>
-                        umm("sequel_id", e.target.value || null)
-                      }
+                      onChange={(e) => umm("sequel_id", e.target.value || null)}
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                     />
                   </Field>
@@ -3542,9 +3569,7 @@ export default function Modify() {
                     <input
                       className={inputCls + " font-mono text-xs"}
                       value={tvmf.sequel_id || ""}
-                      onChange={(e) =>
-                        utv("sequel_id", e.target.value || null)
-                      }
+                      onChange={(e) => utv("sequel_id", e.target.value || null)}
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                     />
                   </Field>

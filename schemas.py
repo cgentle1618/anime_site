@@ -10,7 +10,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
-
 # ==========================================
 # AUTHENTICATION SCHEMAS
 # ==========================================
@@ -274,6 +273,8 @@ class AnimeMovieBase(BaseModel):
     source_netflix: Optional[bool] = False
     source_other: Optional[dict] = None
 
+    watch_next: Optional[bool] = None
+    to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
     notes: Optional[dict] = None
     cover_image_file: Optional[str] = None

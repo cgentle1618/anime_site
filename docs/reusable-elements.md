@@ -530,6 +530,8 @@ Anime Movie / Movie My Tracker Block
 
 - Watching Status (editable for admin only)
 - My Rating (editable for admin only)
+- Watch Next checkbox (editable for admin only)
+- To Rewatch checkbox (editable for admin only)
 
 TV Show / Cartoon My Tracker Block
 
@@ -538,6 +540,8 @@ TV Show / Cartoon My Tracker Block
   - directly modify ep watched (admin only)
 - Watching Status (editable for admin only)
 - My Rating (editable for admin only)
+- Watch Next checkbox (editable for admin only)
+- To Rewatch checkbox (editable for admin only)
 
 Manga My Tracker Block
 

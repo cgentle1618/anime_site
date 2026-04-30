@@ -20,7 +20,6 @@ from sqlalchemy.orm import relationship
 
 from database import Base, get_taipei_now
 
-
 # ==========================================
 # MIXINS & UTILITIES
 # ==========================================
@@ -340,6 +339,8 @@ class AnimeMovies(Base, NameFallbackMixin):
     source_netflix = Column(Boolean, default=False)
     source_other = Column(JSONB, default=None, nullable=True)
 
+    watch_next = Column(Boolean, nullable=True)
+    to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
     notes = Column(JSONB, nullable=True)
     cover_image_file = Column(String, nullable=True)

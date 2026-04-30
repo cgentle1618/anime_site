@@ -182,6 +182,8 @@ const defaultAnimeMovie = () => ({
   baha_link: "",
   source_netflix: "",
   source_other: [],
+  watch_next: false,
+  to_rewatch: false,
   cover_image_file: "",
   remark: "",
 });
@@ -2076,6 +2078,35 @@ export default function Add() {
               </Field>
             </div>
 
+            <div className="flex flex-wrap gap-6 mt-2">
+              <Field label="Watch Next">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!amf.watch_next}
+                    onChange={(e) => uam("watch_next", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Add to Watch Next list
+                  </span>
+                </label>
+              </Field>
+              <Field label="To Rewatch">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!amf.to_rewatch}
+                    onChange={(e) => uam("to_rewatch", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Mark for rewatch
+                  </span>
+                </label>
+              </Field>
+            </div>
+
             <SectionHeader icon="fa-info-circle" title="Release & Details" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Field label="Release Date JP" hint="YYYY-MM-DD">
@@ -2840,10 +2871,7 @@ export default function Add() {
               />
             </Field>
 
-            <SectionHeader
-              icon="fa-film"
-              title="Classification & Production"
-            />
+            <SectionHeader icon="fa-film" title="Classification & Production" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Field label="Region">
                 <select
