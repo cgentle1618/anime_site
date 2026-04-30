@@ -79,6 +79,15 @@ export default function Statistics() {
     ONA: 0,
     Others: 0,
   });
+  const [amCompletionPages, setAmCompletionPages] = useState({
+    ghibli: 0,
+    shinkai: 0,
+    original: 0,
+    adapted: 0,
+    others: 0,
+  });
+  const [movieCompletionPages, setMovieCompletionPages] = useState({});
+  const [tvCompletionPages, setTvCompletionPages] = useState({});
   const [watchNextTab, setWatchNextTab] = useState("anime");
   const [rewatchTab, setRewatchTab] = useState("anime");
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
@@ -1426,19 +1435,19 @@ export default function Statistics() {
                 key: "anime-movie",
                 label: "Anime Movie",
                 icon: "fa-film",
-                dev: true,
+                dev: false,
               },
               {
                 key: "movie",
                 label: "Movie",
                 icon: "fa-ticket-alt",
-                dev: true,
+                dev: false,
               },
               {
                 key: "tv-show",
                 label: "TV Show",
                 icon: "fa-broadcast-tower",
-                dev: true,
+                dev: false,
               },
               {
                 key: "cartoon",
@@ -1492,9 +1501,7 @@ export default function Statistics() {
               grouped[t].push(a);
             });
 
-            const hasAny = completed.length > 0;
-
-            if (!hasAny) {
+            if (completed.length === 0) {
               return (
                 <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                   <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
@@ -1633,8 +1640,477 @@ export default function Statistics() {
             );
           })()}
 
+        {/* Anime Movie tab */}
+        {completionsTab === "anime-movie" &&
+          (() => {
+            const AM_GROUPS = [
+              { key: "ghibli", label: "吉卜力" },
+              { key: "shinkai", label: "新海誠" },
+              { key: "original", label: "原創動畫電影" },
+              { key: "adapted", label: "改編動畫電影" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allAnimeMovies
+              .filter(
+                (am) => am.watching_status === "Completed" && am.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const amGrouped = {
+              ghibli: [],
+              shinkai: [],
+              original: [],
+              adapted: [],
+              others: [],
+            };
+            completed.forEach((am) => {
+              const f = franchiseMap[String(am.franchise_id)];
+              const fname = f?.franchise_name_cn || f?.franchise_name_en || "";
+              if (fname === "吉卜力") amGrouped.ghibli.push(am);
+              else if (fname === "新海誠") amGrouped.shinkai.push(am);
+              else if (fname === "原創動畫電影") amGrouped.original.push(am);
+              else if (fname === "改編動畫電影") amGrouped.adapted.push(am);
+              else amGrouped.others.push(am);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No anime movie completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {AM_GROUPS.map(({ key, label }) => {
+                  const items = amGrouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = amCompletionPages[key];
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setAmCompletionPages((prev) => ({ ...prev, [key]: p }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((am, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            am.anime_movie_name_cn ||
+                            am.anime_movie_name_en ||
+                            am.anime_movie_name_roman ||
+                            "—";
+                          const dateStr = new Date(
+                            am.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={am.system_id}
+                              to={`/anime-movie/${am.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(am.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {am.anime_movie_name_cn &&
+                                  am.anime_movie_name_en && (
+                                    <p className="text-xs text-gray-400 font-medium truncate">
+                                      {am.anime_movie_name_en}
+                                    </p>
+                                  )}
+                              </div>
+                              {am.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {am.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+        {/* Movie tab */}
+        {completionsTab === "movie" &&
+          (() => {
+            const MOVIE_GROUPS = [
+              { key: "disney", label: "Disney" },
+              { key: "marvel", label: "Marvel" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allMovies
+              .filter(
+                (m) => m.watching_status === "Completed" && m.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const grouped = { disney: [], marvel: [], others: [] };
+            completed.forEach((m) => {
+              const fEn =
+                franchiseMap[String(m.franchise_id)]?.franchise_name_en || "";
+              if (fEn.includes("Disney")) grouped.disney.push(m);
+              else if (fEn.includes("Marvel")) grouped.marvel.push(m);
+              else grouped.others.push(m);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No movie completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {MOVIE_GROUPS.map(({ key, label }) => {
+                  const items = grouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = movieCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setMovieCompletionPages((prev) => ({
+                      ...prev,
+                      [key]: p,
+                    }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((movie, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            movie.movie_name_cn ||
+                            movie.movie_name_en ||
+                            movie.movie_name_alt ||
+                            "—";
+                          const dateStr = new Date(
+                            movie.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={movie.system_id}
+                              to={`/movie/${movie.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(movie.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {movie.movie_name_cn && movie.movie_name_en && (
+                                  <p className="text-xs text-gray-400 font-medium truncate">
+                                    {movie.movie_name_en}
+                                  </p>
+                                )}
+                              </div>
+                              {movie.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {movie.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+        {/* TV Show tab */}
+        {completionsTab === "tv-show" &&
+          (() => {
+            const TV_GROUPS = [
+              { key: "disney", label: "Disney" },
+              { key: "marvel", label: "Marvel" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allTVShows
+              .filter(
+                (tv) => tv.watching_status === "Completed" && tv.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const grouped = { disney: [], marvel: [], others: [] };
+            completed.forEach((tv) => {
+              const fEn =
+                franchiseMap[String(tv.franchise_id)]?.franchise_name_en || "";
+              if (fEn.includes("Disney")) grouped.disney.push(tv);
+              else if (fEn.includes("Marvel")) grouped.marvel.push(tv);
+              else grouped.others.push(tv);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No TV show completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {TV_GROUPS.map(({ key, label }) => {
+                  const items = grouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = tvCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setTvCompletionPages((prev) => ({
+                      ...prev,
+                      [key]: p,
+                    }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((tv, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            tv.tv_name_cn ||
+                            tv.tv_name_en ||
+                            tv.tv_name_alt ||
+                            "—";
+                          const dateStr = new Date(
+                            tv.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={tv.system_id}
+                              to={`/tv-show/${tv.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(tv.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {tv.tv_name_cn && tv.tv_name_en && (
+                                  <p className="text-xs text-gray-400 font-medium truncate">
+                                    {tv.tv_name_en}
+                                  </p>
+                                )}
+                              </div>
+                              {tv.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {tv.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
         {/* Under-development tabs */}
-        {completionsTab !== "anime" && (
+        {!["anime", "anime-movie", "movie", "tv-show"].includes(
+          completionsTab,
+        ) && (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
             <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
               <i className="fas fa-history text-brand text-xl"></i>
