@@ -473,6 +473,8 @@ export default function TV() {
             epTotal={epTotal ?? "?"}
             watchingStatus={show.watching_status}
             myRating={show.my_rating}
+            watchNext={show.watch_next}
+            toRewatch={show.to_rewatch}
             isAdmin={isAdmin}
             onEpChange={(v) =>
               performPatch({ ep_fin: v }, "Episode progress saved")
@@ -482,6 +484,18 @@ export default function TV() {
             }
             onRatingChange={(v) =>
               performPatch({ my_rating: v }, "Rating saved")
+            }
+            onWatchNextChange={(v) =>
+              performPatch(
+                { watch_next: v },
+                v ? "Added to Watch Next" : "Removed from Watch Next",
+              )
+            }
+            onToRewatchChange={(v) =>
+              performPatch(
+                { to_rewatch: v },
+                v ? "Marked for rewatch" : "Removed from rewatch",
+              )
             }
             statusOptions={WATCHING_STATUSES}
             ratingOptions={MY_RATINGS}

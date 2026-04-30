@@ -152,6 +152,8 @@ const defaultTvShow = () => ({
   imdb_id: "",
   imdb_link: "",
   source_other: [],
+  watch_next: false,
+  to_rewatch: false,
   cover_image_file: "",
   remark: "",
 });
@@ -1034,6 +1036,8 @@ export default function Add() {
                 .map((e) => [e.name.trim(), e.url.trim()]),
             )
           : null,
+      watch_next: tvf.watch_next ?? null,
+      to_rewatch: tvf.to_rewatch ?? false,
       cover_image_file: tvf.cover_image_file || null,
       remark: tvf.remark || null,
     };
@@ -2902,6 +2906,34 @@ export default function Add() {
                 placeholder="9.2"
               />
             </Field>
+            <div className="flex flex-wrap gap-6 mt-2">
+              <Field label="Watch Next">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!tvf.watch_next}
+                    onChange={(e) => utf("watch_next", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Add to Watch Next list
+                  </span>
+                </label>
+              </Field>
+              <Field label="To Rewatch">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!tvf.to_rewatch}
+                    onChange={(e) => utf("to_rewatch", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Mark for rewatch
+                  </span>
+                </label>
+              </Field>
+            </div>
 
             <SectionHeader icon="fa-film" title="Classification & Production" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

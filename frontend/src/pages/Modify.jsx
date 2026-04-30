@@ -417,6 +417,8 @@ export default function Modify() {
             : "",
       imdb_id: t.imdb_id ?? "",
       imdb_link: t.imdb_link || "",
+      watch_next: t.watch_next ?? false,
+      to_rewatch: t.to_rewatch ?? false,
       source_other: Object.entries(t.source_other || {}).map(([name, url]) => ({
         name,
         url: url || "",
@@ -1010,6 +1012,8 @@ export default function Modify() {
                 .map((e) => [e.name.trim(), e.url.trim()]),
             )
           : null,
+      watch_next: tvmf.watch_next ?? null,
+      to_rewatch: tvmf.to_rewatch ?? false,
       remark: tvmf.remark || null,
       notes: Object.keys(tvmf.notes || {}).length > 0 ? tvmf.notes : null,
     };
@@ -3582,6 +3586,34 @@ export default function Modify() {
                       onChange={(e) => utv("imdb_rating", e.target.value)}
                       placeholder="9.2"
                     />
+                  </Field>
+                </div>
+                <div className="flex flex-wrap gap-6 mt-2">
+                  <Field label="Watch Next">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!tvmf.watch_next}
+                        onChange={(e) => utv("watch_next", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Add to Watch Next list
+                      </span>
+                    </label>
+                  </Field>
+                  <Field label="To Rewatch">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!tvmf.to_rewatch}
+                        onChange={(e) => utv("to_rewatch", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Mark for rewatch
+                      </span>
+                    </label>
                   </Field>
                 </div>
 
