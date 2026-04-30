@@ -101,6 +101,8 @@ Field: `reading_status` _(future)_ — Default: `Might Read`
 
 ## Airing Type
 
+### Anime Airing Type
+
 Field: `anime.airing_type` — Default: `null`
 
 | Value     | Default |
@@ -113,6 +115,19 @@ Field: `anime.airing_type` — Default: `null`
 | `OAD`     |         |
 | `Special` |         |
 | `Other`   |         |
+
+---
+
+### Cartoon Airing Type
+
+Field: `cartoon.airing_type` — Default: `TV`
+
+| Value   | Default |
+| ------- | ------- |
+| `null`  |         |
+| `TV`    | Yes     |
+| `Movie` |         |
+| `Other` |         |
 
 ---
 

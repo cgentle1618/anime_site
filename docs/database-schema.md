@@ -524,14 +524,16 @@ Western animated TV show entries.
 
 #### Classification & Status
 
-| Column            | Type   | Nullable | Default         | Notes                                                                       |
-| ----------------- | ------ | -------- | --------------- | --------------------------------------------------------------------------- |
-| `season_part`     | String | Yes      | —               | Which season and part, e.g. `"Season 1"`, `"Season 2 Part 2"`               |
-| `source_official` | String | Yes      | —               | Name of official streaming source; see system_options                       |
-| `airing_type`     | String | Yes      | —               | `"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`, null |
-| `airing_status`   | String | Yes      | —               | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null                    |
-| `watching_status` | String | No       | `"Might Watch"` | See options.md for all valid values                                         |
-| `is_main`         | String | Yes      | —               | Whether the entry is main story or spinoff; see system_options              |
+| Column        | Type   | Nullable | Default | Notes                                                         |
+| ------------- | ------ | -------- | ------- | ------------------------------------------------------------- |
+| `season_part` | String | Yes      | —       | Which season and part, e.g. `"Season 1"`, `"Season 2 Part 2"` |
+| `airing_type` | String | Yes      | —       | `"TV"`, `"Movie"`, `"Other"`, null                            |
+
+| `source_official` | String | Yes | — | Name of official streaming source; see system_options |
+| `airing_type` | String | Yes | — | `"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`, null |
+| `airing_status` | String | Yes | — | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null |
+| `watching_status` | String | No | `"Might Watch"` | See options.md for all valid values |
+| `is_main` | String | Yes | — | Whether the entry is main story or spinoff; see system_options |
 
 #### Episode Tracking
 

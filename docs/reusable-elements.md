@@ -5,7 +5,6 @@ Design-level components used across multiple pages. Items marked _(future)_ are 
 ## Table of Contents
 
 - [Universal Bar](#universal-bar)
-- [Reusable Entry (Table Row)](#reusable-entry-table-row)
 - [Search Suggestion Entry](#search-suggestion-entry)
 - [Search Suggestion for Deletion](#search-suggestion-for-deletion)
 - [Search Result Entry](#search-result-entry)
@@ -85,7 +84,7 @@ Name CN (fallback) · TV Show Region
 
 ### Cartoon Entry
 
-Name CN (fallback) · Cartoon Official Source
+Name CN (fallback) · Cartoon Airing Type
 
 ### Manga Entry _(future)_
 
@@ -127,7 +126,7 @@ Main Title: TV Show Name CN (fallback) · Sub Title: Franchise Name CN (fallback
 
 ### Cartoon
 
-Main Title: Cartoon Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Season Part
+Main Title: Cartoon Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Airing Type
 
 ---
 
@@ -175,7 +174,7 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN
 
 ### TV Show
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
 ### Cartoon
 
@@ -280,15 +279,15 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 **First Type** — used on Dashboard
 
-- Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
+- Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Type · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
 **Second Type** — used on Library, Franchise page, Search page
 
-- Poster · My Rating (hidden if null) · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Airing Type · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
 
 **Third Type** — used on Future Release page
 
-- Poster · Franchise Expectation · Release Date (fallback) · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
+- Poster · Franchise Expectation · Release Date (fallback) · Airing Type · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
 
 ---
 
@@ -504,10 +503,17 @@ Movie Related Entries Card, show the following for each entry:
 - Name CN with fallback
 - Release Year US with fallback
 
-TV Show / Cartoon Related Entries Card, show the following for each entry:
+TV Show Related Entries Card, show the following for each entry:
 
 - Poster
 - Name CN with fallback
+- Release Year
+
+Cartoon Related Entries Card, show the following for each entry:
+
+- Poster
+- Name CN with fallback
+- Airing Type
 - Release Year
 
 Manga Related Entries Card, show the following for each entry:
@@ -586,7 +592,7 @@ Cartoon Information Card
 
 - Official Source, 本傳 / 外傳 (is_main)
 - Season Part, Total Ep, Length per Ep (min)
-- Airing Status, Release Date (Month Year)
+- Airing Type, Airing Status, Release Date (Month Year)
 
 Manga Information Card
 
