@@ -1,419 +1,596 @@
-# TV Show Implementation Plan
+# Cartoon Implementation Plan
 
 ## Overview
 
-Full implementation of TV show entries — database model, backend CRUD + pipeline, frontend pages and components, and admin forms. Follows the same architecture as the Movie implementation. Uses TMDB + OMDb (IMDb) as the autofill source.
+Implement the `cartoons` media type end-to-end: database → backend services → API → frontend pages/components.
+
+Cartoon is architecturally close to TV Show. Key differences:
+
+- Name prefix `cartoon_` instead of `tv_`
+- Has `airing_type` field (`"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`)
+- Has `length_ep_min` field; no `region` field
+- Franchise type is `"Cartoon"` (not `"TV or Movie"`)
+- System options category `"Official Source (Cartoon)"` (not `"Official Source (TV)"`)
+- Has its own Franchise Hub page (`FranchiseCartoon.jsx`)
+- No `ep_previous` / cumulative episode tracking (no derive_ep_previous)
+- `imdb_rating` is absent from the database schema doc but required by business logic and UI — add it via migration
+
+Reference implementation: TV Show (`routers/tv_show.py`, `services/other_logics.py`, etc.)
 
 ---
 
-## Phase 1: Database & Backend Foundation
+## Step 1 — Backend Foundation
 
-### Step 1 — `models.py`: Add `TVShows` model
+**Files:** `models.py`, `schemas.py`, `routers/cartoon.py`, `main.py`, Alembic migration
 
-Add the `TVShows` SQLAlchemy model mirroring the `tv_shows` schema:
+### 1.1 — Verify / Add `Cartoon` SQLAlchemy model
 
-- Identity: `system_id`, `franchise_id` (FK SET NULL), `series_id` (FK SET NULL)
-- Names: `tv_name_en`, `tv_name_cn`, `tv_name_alt`
-- Classification: `region`, `season_part`, `source_official`, `airing_status`, `watching_status`, `is_main`
-- Episodes: `ep_total`, `ep_fin` (default 0)
-- Ratings: `my_rating`, `imdb_rating`, `release_date`
-- Relational: `derive_related`, `prequel_id`, `sequel_id`, `watch_order`
-- External: `imdb_id`, `imdb_link`
-- Sources: `source_other`, `source_other_link`
-- Misc: `watch_next`, `to_rewatch`, `remark`, `cover_image_file`, `completed_at`, `created_at`, `updated_at`
+- Check `models.py` for existing `Cartoon` model.
+- If missing, add it with all columns from `database-schema.md`:
+  - Identity: `system_id` (UUID PK), `franchise_id` (FK → franchise SET NULL), `series_id` (FK → series SET NULL)
+  - Names: `cartoon_name_en`, `cartoon_name_cn`, `cartoon_name_alt`
+  - Classification: `season_part`, `source_official`, `airing_type`, `airing_status`, `watching_status`, `is_main`
+  - Episode tracking: `ep_total`, `ep_fin` (default 0), `length_ep_min`
+  - Ratings & release: `my_rating`, `imdb_rating` _(add if not in schema — required by business logic)_, `release_date`
+  - Relational: `derive_related`, `prequel_id`, `sequel_id`, `watch_order`
+  - External links: `imdb_id`, `imdb_link`
+  - Sources: `source_other` (JSONB)
+  - Misc: `watch_next`, `to_rewatch` (default False), `remark`, `notes` (JSONB), `cover_image_file`, `completed_at`, `created_at`, `updated_at`
+- Add name constraint (at least one name field non-null).
+- Add `NameFallbackMixin` with fallback order: CN → EN → Alt.
 
-Use `NameFallbackMixin` (CN → EN → Alt). `release_date` and `is_main` are stored as strings.
+### 1.2 — Alembic migration
 
-- [x] Done
+- Run `alembic revision --autogenerate -m "add cartoons table with imdb_rating"`.
+- Verify migration creates/updates `cartoons` table correctly.
+- Run `alembic upgrade head`.
 
----
+### 1.3 — Pydantic schemas
 
-### Step 2 — Alembic: Migration for `tv_shows` table
+In `schemas.py`, add:
 
-Run `alembic revision --autogenerate -m "add tv_shows table"` after Step 1, then `alembic upgrade head`.
+- `CartoonBase` — all optional fields
+- `CartoonCreate(CartoonBase)` — requires at least one name field
+- `CartoonUpdate(CartoonBase)` — all optional for PATCH
+- `CartoonResponse(CartoonBase)` — adds `system_id`, `created_at`, `updated_at`
 
-- [x] Done
+### 1.4 — Router `routers/cartoon.py`
 
----
+Thin router delegating to services. Endpoints:
 
-### Step 3 — `schemas.py`: Add TV show schemas
+- `GET /api/cartoon/` — list all cartoons (optional query params: `franchise_id`, `series_id`, `airing_status`, `watching_status`)
+- `GET /api/cartoon/{cartoon_id}` — get single cartoon
+- `POST /api/cartoon/` — create cartoon (calls `resolve_cartoon_parent_hierarchy`, then `execute_replace_single_cartoon` after creation)
+- `PATCH /api/cartoon/{cartoon_id}` — update cartoon fields
+- `DELETE /api/cartoon/{cartoon_id}` — delete cartoon (logs to `deleted_record`)
+- `POST /api/cartoon/{cartoon_id}/autofill` — Autofill & Update button; calls `execute_replace_single_cartoon`
 
-Add:
+### 1.5 — Register router in `main.py`
 
-- `TVShowBase` — all shared fields
-- `TVShowCreate(TVShowBase)` — for POST
-- `TVShowUpdate(TVShowBase)` — for PUT
-- `TVShowResponse(TVShowBase)` — with `display_name` computed property (CN → EN → Alt fallback), `from_attributes = True`
+Add `from routers.cartoon import router as cartoon_router` and `app.include_router(cartoon_router)`.
 
-- [x] Done
-
----
-
-### Step 4 — `routers/tv_show.py`: New TV show CRUD router
-
-Prefix: `/api/tv-shows`
-
-Endpoints:
-
-- `GET /` — list all TV shows; optional query params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `region`, `search_query`; ordered by `created_at` desc
-- `GET /{tv_show_id}` — get single TV show by UUID; 404 if not found
-- `POST /` — create TV show entry; resolve parent hierarchy; auto-generate `system_id`, `created_at`, `updated_at`; run `execute_replace_single_tv_show` after creation; body: `TVShowCreate`; admin only
-- `PUT /{tv_show_id}` — full update; resolve hierarchy; refresh `updated_at`; run `execute_replace_single_tv_show`; admin only
-- `PATCH /{tv_show_id}` — partial update (watching status, ep_fin, rating); no pipeline rerun; auto-marks completed if `ep_fin == ep_total`; admin only
-- `DELETE /{tv_show_id}` — delete entry; remove cover image from GCS; log to `deleted_record`; admin only
-- `POST /{tv_show_id}/autofill` — manual trigger for `execute_replace_single_tv_show`; admin only
-
-Response model: `TVShowResponse`
-
-- [x] Done (execute_replace_single_tv_show stub added to data_control.py; full implementation in Phase 3)
+**Checkpoint — pause and ask for permission before proceeding to Step 2.**
 
 ---
 
-### Step 5 — `main.py`: Register TV show router
+## Step 2 — Backend Utils
 
-Include `routers/tv_show.py` router in `main.py`.
+**Files:** `utils/tmdb_utils.py`, `utils/omdb_utils.py`, `utils/imdb_utils.py`, `utils/formatter.py`, `utils/utils.py`
 
-- [x] Done
+### 2.1 — `utils/tmdb_utils.py`
 
----
+Add `map_tmdb_to_cartoon_data(raw)`:
 
-## Phase 2: Backend Utils & IMDb Services
+- Same structure as `map_tmdb_to_tv_show_data` but field names for cartoon:
+  - `release_date` ← `_convert_tmdb_date(first_air_date)`
+  - `cover_image_url` ← `poster_path` + `TMDB_IMAGE_BASE_URL`
 
-### Step 6 — `utils/tmdb_utils.py`: Add season-level helpers
+_(Note: `map_tmdb_to_tv_show_data` is already reused for season-level data in the autofill; a separate cartoon mapper is needed for show-level data to allow future divergence.)_
 
-Add:
+### 2.2 — `utils/omdb_utils.py`
 
-- `_parse_season_number(season_part: str | None) -> int` — regex `Season\s+(\d+)`, defaults to `1`
-- `map_tmdb_to_tv_show_data(raw: dict) -> dict` — maps TMDB season details response:
-  - `release_date` from `_convert_tmdb_date(air_date)`
-  - `ep_total` from `len(episodes[])`
-  - `cover_image_url` from `poster_path` with `TMDB_IMAGE_BASE_URL` prefix
-  - `_season_air_date` = raw `air_date` (private, for airing status derivation)
-  - `_episodes` = raw `episodes[]` (private, for airing status derivation)
+Add `map_omdb_to_cartoon_data(raw)`:
 
-- [x] Done
+- `imdb_rating` ← `imdbRating`; `"N/A"` → `None`
 
----
+### 2.3 — `utils/imdb_utils.py`
 
-### Step 7 — `utils/imdb_utils.py`: Add `map_imdb_to_tv_show_data`
+Add `map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)`:
 
-Add:
+- Mirrors `map_imdb_to_tv_show_data`:
+  1. If `tmdb_season_raw`: apply `map_tmdb_to_tv_show_data(tmdb_season_raw)` (reuse — returns release_date, ep_total, cover_image_url, \_season_air_date, \_episodes)
+  2. If `cover_image_url` still None and `tmdb_raw`: fall back to show-level poster via `_build_poster_url`
+  3. If `omdb_raw`: apply `map_omdb_to_cartoon_data(omdb_raw)` (adds `imdb_rating`)
 
-- `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw) -> dict` — merges all three sources:
-  1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_show_data`
-  2. If `cover_image_url` still None and `tmdb_raw` is not None: fall back to show-level `poster_path` via `_build_poster_url`
-  3. If `omdb_raw` is not None: apply `map_omdb_to_tv_show_data` (adds `imdb_rating`)
+### 2.4 — `utils/formatter.py`
 
-- [x] Done
+Add `parse_cartoon_from_sheet(row_dict)`:
 
----
+- Mirrors `parse_tv_show_from_sheet` but for cartoon columns.
+- Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID`.
+- `imdb_id` parsed as `str` (same as TV show).
+- `notes` field parsed via `json.loads`.
 
-### Step 8 — `utils/formatter.py`: Add `parse_tv_show_from_sheet`
+### 2.5 — `utils/utils.py`
 
-Add `parse_tv_show_from_sheet(row_dict)` — calls `parse_from_sheet` for every TV show field with correct types. Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID`. `imdb_id` parsed as `str`.
+Update / verify the following functions handle Cartoon objects:
 
-- [x] Done
+- `apply_validate_episode_math(entry)` — already generic if it reads `ep_total`/`ep_fin` by attribute name; verify and confirm.
+- `check_is_tv_completed(entry)` — already generic if it reads `watching_status`, `ep_total`, `ep_fin`; verify.
+- `mark_tv_completed(entry)` — already generic; verify it works for Cartoon.
+- `bulk_check_cover_image(db, entry_type=None)` — add `"cartoon"` to the list of handled entry types; query `Cartoon` table.
+- `bulk_check_unused_cover_images(db)` — add `Cartoon` system_ids to the "in-use" set.
+- `find_all_duplicates(db)` — add call to `find_duplicate_cartoon`; include in returned dict under key `"cartoon"`.
 
----
-
-### Step 9 — `services/tmdb.py`: Add `fetch_tmdb_tv_season_data`
-
-Add:
-
-- `fetch_tmdb_tv_season_data(tmdb_id: int, season_number: int) -> dict | None`
-  - Fetches `GET /3/tv/{tmdb_id}/season/{season_number}`
-  - Uses same `TMDbRateLimiter` and `@retry` config as `fetch_tmdb_data`
-  - Returns raw season JSON or `None`
-
-- [x] Done
+**Checkpoint — pause and ask for permission before proceeding to Step 3.**
 
 ---
 
-### Step 10 — `services/imdb.py`: Add `autofill_tv_show_from_imdb`
+## Step 3 — Backend Services
 
-Add `autofill_tv_show_from_imdb(tv_show, db)`:
+**Files:** `services/other_logics.py`, `services/calculation.py`, `services/data_control.py`, `routers/data_control.py`
 
-1. Return early if `tv_show.imdb_id` is None
-2. `fetch_imdb_data(tv_show.imdb_id)` → `{tmdb_raw, omdb_raw}`
-3. If `tmdb_raw` is not None: extract `tmdb_id`, parse season number via `_parse_season_number(tv_show.season_part)`, call `fetch_tmdb_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`
-4. `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` → flat dict
-5. Fill only if currently None: `release_date`, `ep_total`
-6. `imdb_rating`: always overwrite if fetched value is not None
-7. `airing_status` (fill-only): derive via `_derive_tv_season_airing_status(season_air_date, episodes)`
-8. Cover image (fill-only): if `cover_image_file` is None and `cover_image_url` in data, download, upload to GCS as `{system_id}.jpg`, set field
+### 3.1 — `services/other_logics.py`
 
-Does not commit — caller is responsible.
+Add cartoon-specific functions (mirror TV show equivalents):
 
-- [x] Done
+**Checking:**
 
----
+- `has_missing_values_cartoon(cartoon)` — returns `True` if any of `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` is blank.
 
-## Phase 3: Backend Services (Logic)
+**Duplicates:**
 
-### Step 11 — `services/other_logics.py`: TV show logic functions
+- `find_duplicate_cartoon(db)` — same `(franchise_id, series_id, season_part, is_main)` + name match logic as `find_duplicate_tv_show`.
 
-Add:
+**Sync:**
 
-- `has_missing_values_tv_show(tv_show) -> bool` — returns `True` if any of: `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` is blank/None
-- `resolve_tv_show_parent_hierarchy(db, franchise_id, series_id, names) -> (UUID, UUID | None)` — franchise: valid UUID pass-through; null/string → search by name (ilike on en/cn/alt); not found → auto-create with `franchise_type="TV or Movie"`. Series: non-string pass-through; non-empty string → search by name; not found → set null (no auto-create)
-- `derive_season_1_tv_show(tv_show, db)` — sets `season_part = "Season 1"` if None, `franchise_id` is set, and franchise has exactly 1 TV show entry
-- `find_duplicate_tv_show(db) -> list` — union-find on same `(franchise_id, series_id, season_part, is_main)` + at least one matching name
-- `extract_system_options_from_tv_show(db)` — scans all `TVShows` for `source_official`; auto-adds new values to `system_options`
+- `extract_system_options_from_cartoon(db)` — scans `source_official` values; upserts into `system_options` under `"Official Source (Cartoon)"` category.
 
-Note: `mark_tv_completed` already shared across Anime, TV show, Cartoon — confirm it works generically on any entry with `watching_status`, `airing_status`, `ep_fin`, `ep_total`.
+**Derive:**
 
-Update `find_all_duplicates` to include `tv_show` in its returned dict.
-Update `bulk_check_cover_image` and `bulk_check_unused_cover_images` to include TV shows.
-Update `apply_validate_episode_math` if needed to accept TV show entries (likely already works generically).
+- `derive_watch_order_cartoon(db, franchise_id)` — mirrors `derive_watch_order_tv_show`; eligibility: `season_part` is set.
+- `derive_prequel_sequel_cartoon(db, franchise_id)` — mirrors `derive_prequel_sequel_tv_show`; eligibility: `watch_order` not null and `derive_related != False`; does not apply to Special Franchises.
+- `derive_season_1_cartoon(cartoon, db)` — sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set, and the franchise has exactly 1 cartoon entry.
 
-- [x] Done
+**Autofill:**
 
----
+- `autofill_cartoon_from_imdb(cartoon, db)` — mirrors `autofill_tv_show_from_imdb`:
+  1. Return early if `cartoon.imdb_id` is None.
+  2. Call `fetch_imdb_data(cartoon.imdb_id)` → `{tmdb_raw, omdb_raw}`.
+  3. If `tmdb_raw`: extract `tmdb_id`; parse season number via `_parse_season_number(cartoon.season_part)`; call `fetch_tmdb_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`.
+  4. Call `map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)`.
+  5. Fill-only if currently None: `release_date`, `ep_total`.
+  6. Always overwrite `imdb_rating` if fetched value is not None.
+  7. Fill-only `airing_status` via `_derive_tv_season_airing_status(season_air_date, episodes)`.
+  8. Fill-only cover image.
 
-### Step 12 — `services/calculation.py`: TV show calculation functions
+**Parent hierarchy:**
 
-Add:
+- `resolve_cartoon_parent_hierarchy(db, franchise_id, series_id, names)` — mirrors `resolve_tv_show_parent_hierarchy` but auto-creates franchise with `franchise_type="Cartoon"`.
 
-- `tv_show_post_processing(tv_show, db)` — single-entry composite:
-  1. `apply_validate_episode_math(tv_show)`
-  2. If `check_is_tv_completed(tv_show)` and `tv_show.watching_status != "Completed"`: call `mark_tv_completed(tv_show)`
-  3. If `season_part` is None: try `apply_extract_season_from_title(tv_show)`, then `derive_season_1_tv_show(tv_show, db)`
-- `run_tv_show_post_processing(db)` — applies `tv_show_post_processing` to every `TVShows` entry
-- `derive_watch_order_tv_show(db, franchise_id)` — assigns consecutive `watch_order` floats to eligible TV show entries in franchise (eligible: `season_part` is set); fill-only; sort by season number then part number; series groups first, no-series entries last
-- `derive_prequel_sequel_tv_show(db, franchise_id)` — sets `prequel_id`/`sequel_id` sorted by `watch_order`; eligible: `watch_order` not null and `derive_related != False`; not for Special Franchises; fill-only
-- `derive_related_tv_show(db, franchise_id)` — per franchise_id: `derive_watch_order_tv_show`, then `derive_prequel_sequel_tv_show`; commits after all franchises processed
-- `run_derive_related_tv_show(db)` — applies `derive_related_tv_show` to every TV or Movie franchise
-- `run_sync_tv_show(db)` — calls `extract_system_options_from_tv_show(db)`
+### 3.2 — `services/calculation.py`
 
-Update `run_post_processing` to include `run_tv_show_post_processing`.
-Update `run_sync` to include `run_sync_tv_show`.
-Update `run_calculate_all` to include `run_derive_related_tv_show`.
+Add cartoon functions; update composite orchestrators:
 
-- [x] Done
+**Post-processing:**
 
----
+- `cartoon_post_processing(cartoon, db)`:
+  1. `apply_validate_episode_math(cartoon)`
+  2. If `check_is_tv_completed(cartoon)` and `watching_status != "Completed"`: `mark_tv_completed(cartoon)`
+  3. If `season_part` is None: try `apply_extract_season_from_title(cartoon)`, then `derive_season_1_cartoon(cartoon, db)`
+- `run_cartoon_post_processing(db)` — applies `cartoon_post_processing` to every Cartoon entry.
+- Update `run_post_processing(db)` to also call `run_cartoon_post_processing`.
 
-### Step 13 — `services/data_control.py`: TV show data control functions
+**Derive related:**
 
-Add:
+- `derive_related_cartoon(db, franchise_id)`:
+  1. `derive_watch_order_cartoon`
+  2. `derive_prequel_sequel_cartoon`
+- `run_derive_related_cartoon(db)` — runs `derive_related_cartoon` for every Cartoon franchise.
+- Update `run_derive_related(db)` to also call `run_derive_related_cartoon`.
 
-- `execute_fill_tv_show(db, request, action_specific, action_type, log_action)` _(SSE)_
-  1. `apply_extract_imdb_id` on all TV show entries
-  2. Queue: entries where `has_missing_values_tv_show()` is True
-  3. For each: call `autofill_tv_show_from_imdb(tv_show, db)`, check `request.is_disconnected()` → rollback + log "Aborted" if disconnected
-  4. After loop: `run_tv_show_post_processing`, `run_derive_related_tv_show`, `run_sync_tv_show`
-  5. Yields SSE: `{status, current_entry, processed, total}`
-- `apply_single_replace_tv_show(db, tv_show, bulk)` — core logic:
-  1. `apply_extract_imdb_id(tv_show)`
-  2. `autofill_tv_show_from_imdb(tv_show, db)`
-  3. `tv_show_post_processing(tv_show, db)`
-  4. If `bulk=False`: call `run_derive_related_tv_show(db)`; if `bulk=True`: caller handles
-- `execute_replace_single_tv_show(db, tv_show_id, action_type, log_action)` — router-level function: lookup entry, call `apply_single_replace_tv_show(bulk=False)`, run `run_sync_tv_show`, commit, log
-- `execute_replace_tv_show(db, request, action_specific, action_type, log_action)` _(SSE)_
-  1. Queue: TV shows with `imdb_id` or `imdb_link` set
-  2. For each: `apply_single_replace_tv_show(bulk=True)`
-  3. After loop: `run_derive_related_tv_show`, `run_sync_tv_show`
+**Sync:**
 
-Update existing functions:
+- `run_sync_cartoon(db)`:
+  1. `extract_system_options_from_cartoon`
+- Update `run_sync(db)` to also call `run_sync_cartoon` (already documented in business-logic.md).
 
-- `execute_fill_all` — add call to `execute_fill_tv_show` (with `log_action=False`) after Fill Movie
-- `execute_replace_all` — add call to `execute_replace_tv_show` (with `log_action=False`) after Replace Movie
-- `execute_backup` — add `TVShows` to the tab write order (after Movies, before Cartoons)
-- `execute_pull_all` — add `"TV Show"` tab pull in dependency order (after Movie)
-- `execute_pull_specific` — add `"TV Show"` case: parse via `parse_tv_show_from_sheet`, resolve hierarchy via `resolve_tv_show_parent_hierarchy`
+**Calculate all:**
 
-- [x] Done
+- Update `run_calculate_all(db)` — no changes needed if it calls `run_post_processing`, `run_derive_related`, `run_sync` (all now include cartoon).
 
----
+### 3.3 — `services/data_control.py`
 
-### Step 14 — `routers/data_control.py`: TV show data control endpoints
+**Backup:**
 
-Add endpoints:
+- Update `execute_backup` to include `Cartoon` model in the backup order (after TV Shows, before Manga).
 
-- `POST /fill/tv-show` — trigger `execute_fill_tv_show` (SSE); admin only
-- `POST /replace/tv-show` — trigger `execute_replace_tv_show` (SSE); admin only
+**Fill:**
 
-Update existing:
+- Add `execute_fill_cartoon(db, request, action_specific, action_type, log_action)` _(SSE)_:
+  1. `apply_extract_imdb_id` on all cartoons.
+  2. Queue: entries where `has_missing_values_cartoon()` returns True.
+  3. For each: `autofill_cartoon_from_imdb()`.
+  4. Disconnection check after each entry.
+  5. After loop: `run_cartoon_post_processing`, `run_derive_related_cartoon`, `run_sync_cartoon`.
+  6. Yield SSE: `{status, current_entry, processed, total}`.
+- Update `execute_fill_all` to also call `execute_fill_cartoon`.
 
-- `POST /pull/specific` — verify `"TV Show"` tab name is handled in `execute_pull_specific`
-- Pull All and Fill All and Replace All endpoints already call the updated orchestrators
+**Replace:**
 
-- [x] Done
+- Add `apply_single_replace_cartoon(db, cartoon, bulk)`:
+  1. `apply_extract_imdb_id`
+  2. `autofill_cartoon_from_imdb`
+  3. `cartoon_post_processing`
+  4. If `bulk=False`: call `run_derive_related_cartoon(db)` inline.
+- Add `execute_replace_single_cartoon(db, cartoon_id, action_type, log_action)` — router-level; calls `apply_single_replace_cartoon(bulk=False)`, then `run_sync_cartoon`.
+- Add `execute_replace_cartoon(db, request, action_specific, action_type, log_action)` _(SSE)_:
+  1. Queue: cartoons with `imdb_id` or `imdb_link` set.
+  2. For each: `apply_single_replace_cartoon(bulk=True)`.
+  3. After loop: `run_derive_related_cartoon`, `run_sync_cartoon`.
+- Update `execute_replace_all` to also call `execute_replace_cartoon`.
 
----
+**Pull:**
 
-## Phase 4: Frontend New Components & Pages
+- Update `execute_pull_specific` to handle `tab_name="Cartoon"`:
+  - Read rows, parse via `parse_cartoon_from_sheet`.
+  - Resolve FK via `resolve_cartoon_parent_hierarchy`.
+  - Sanitize `watching_status`, `airing_status`, `airing_type`.
+  - Smart PK logic (search by name if PK empty).
+  - Upsert.
+- Update `execute_pull_all` to include `"Cartoon"` tab in dependency order (after TV Show, before Manga).
 
-### Step 15 — `components/TVNamingCard.jsx`: TV show naming card
+### 3.4 — `routers/data_control.py`
 
-Naming/identity card for TV show detail page. Shows: `tv_name_cn`, `tv_name_en`, `tv_name_alt`, `region`, `season_part`, `source_official`, `is_main`. Follows same layout as `MovieNamingCard.jsx`.
+Add endpoints (pattern: same as TV show):
 
-- [x] Done
+- `POST /api/data-control/fill/cartoon` — streams `execute_fill_cartoon`
+- `POST /api/data-control/replace/cartoon` — streams `execute_replace_cartoon`
+- `POST /api/data-control/replace/cartoon/{cartoon_id}` — calls `execute_replace_single_cartoon`
+- `POST /api/data-control/pull/cartoon` — calls `execute_pull_specific("Cartoon")`
+- Update `POST /api/data-control/fill/all` and `POST /api/data-control/replace/all` (no new route needed — orchestrators updated).
 
----
-
-### Step 16 — `components/TVCard.jsx`: TV show entry card
-
-Entry card for use in TV Library, Reality Franchise Hub, Search. Shows: cover image, `display_name` (CN primary), `region`, `season_part`, `airing_status`, `watching_status`, `imdb_rating`, `ep_fin`/`ep_total`. Clicking navigates to `/tv-show/:system_id`. Follows same pattern as `MovieCard.jsx`.
-
-- [x] Done
+**Checkpoint — pause and ask for permission before proceeding to Step 4.**
 
 ---
 
-### Step 17 — `components/TVCardFuture.jsx`: TV show future release card
+## Step 4 — Frontend New Components
 
-Card for TV shows with `airing_status = "Not Yet Aired"` or `"Airing"` in FutureReleases. Shows: cover image, `display_name`, `region`, `release_date`, `airing_status`. Follows `MovieCardFuture.jsx` pattern.
+**Files:** `frontend/src/components/CartoonNamingCard.jsx`, `frontend/src/components/CartoonCard.jsx`, `frontend/src/components/CartoonCardFuture.jsx`
 
-- [x] Done
+### 4.1 — `CartoonNamingCard.jsx`
 
----
+Naming card for the Cartoon detail page. Shows: Cartoon Name EN, CN, Alt. Mirror `MovieNamingCard.jsx` (3-field variant without JP/Roman).
 
-### Step 18 — `TV.jsx`: TV show detail page
+### 4.2 — `CartoonCard.jsx` (Cartoon Entry Card 2)
 
-Route: `/tv-show/:system_id`
+Grid card for Library and Franchise Hub views. Shows:
 
-Loads: `GET /api/tv-shows/:id`, `GET /api/franchise/`, `GET /api/series/`
+- Cover image (with My Rating badge top-left)
+- Airing Status badge
+- Airing Type badge
+- Cartoon Name CN with fallback (primary title)
+- Cartoon Name EN (hidden if CN used fallback)
+- Season/Part label
+- Episode progress: `ep_fin / ep_total`
+- Official Source label (if set)
+- Release Date
+- IMDB Rating
 
-Displays:
+Mirror `MovieCard.jsx` / `AnimeCard.jsx` as reference.
+
+### 4.3 — `CartoonCardFuture.jsx` (Cartoon Entry Card 3)
+
+Future release card for the FutureReleases page Cartoon tab. Shows:
 
 - Cover image
-- `TVNamingCard` — names, region, season, is_main, source
-- `SourcesCard` — imdb_link, source_other/source_other_link
-- Ratings block — `imdb_rating`, `my_rating`
-- Status block — `airing_status`, `watching_status`, `release_date`
-- Episode block — `ep_fin` / `ep_total`
-- Prequel/Sequel links (to other TV show detail pages)
-- Franchise and Series breadcrumb links
-- Admin quick-edit button → `/modify?id=:uuid&type=tv-show`
+- Cartoon Name CN with fallback
+- Release Date
+- Airing Status badge
+- Watching Status label
+- Admin: inline watching-status selector, "Mark as Airing" button (PATCHes `airing_status`; entry removed from list immediately)
 
-- [x] Done
+**Checkpoint — pause and ask for permission before proceeding to Step 5.**
 
 ---
 
-### Step 19 — `LibraryTV.jsx`: TV show library page
+## Step 5 — Frontend New Pages
 
-Route: `/library/tv-show`
+**Files:** `frontend/src/pages/Cartoon.jsx`, `frontend/src/pages/CartoonNotes.jsx`, `frontend/src/pages/LibraryCartoon.jsx`, `frontend/src/pages/FranchiseCartoon.jsx`
 
-Loads: `GET /api/tv-shows/` with optional filters
+### 5.1 — `Cartoon.jsx` (Cartoon Detail Page — `/cartoon/:system_id`)
 
-Filters: Region, Airing Status, Watching Status
+**Data loaded:**
 
-Displays: Grid of `TVCard` components, ordered by `created_at` desc
+- `GET /api/cartoon/:system_id`
+- `GET /api/franchise/`
+- `GET /api/series/`
+- `GET /api/cartoon/` (for prequel/sequel linking)
 
-- [x] Done
+**Admin Controls Block:**
 
----
+- Edit button → `/modify?id=:system_id&type=cartoon`
+- Mark Completed button — PATCHes `watching_status: "Completed"` and `airing_status: "Finished Airing"`
+- Autofill & Update button → `POST /api/cartoon/:system_id/autofill`
 
-## Phase 5: Frontend Updates
+**Layout (left column):**
 
-### Step 20 — `App.jsx`: Add routes
+- Cartoon poster
+- **Sources Card** (reusable) — `source_other` (JSONB) only; `imdb_link` block when set
+- Watch Order
+- **Related Entries Card** (reusable) — Watch Order, Prequel, Sequel as mini cards
+- System Info Block (admin only): System ID
 
-Add:
+**Layout (right column):**
 
-- `/tv-show/:system_id` → `TV`
-- `/library/tv-show` → `LibraryTV`
-- `/franchise/reality/:system_id` (if not already present) → `FranchiseReality`
+- Tags: Airing Status, Airing Type
+- Main Title: Cartoon Name CN with fallback
+- Sub Title: Cartoon Name EN (hidden if CN used fallback)
+- From Franchise (navigates to `/franchise/cartoon/:id`)
+- From Series (uses **Series Information Pop Up Entry** reusable)
+- **Score Block** (reusable): IMDB Rating, Last Updated Time
 
-- [x] Done
+**My Tracker section:**
 
----
+- Ep Watched / Ep Total
+- +/- buttons and direct edit input (admin only)
+- Watching Status dropdown (admin editable) — `PATCH /api/cartoon/:id`
+- My Rating dropdown (admin editable)
 
-### Step 21 — `Nav.jsx`: Add TV show navigation
+**Detail sections:**
 
-- Reality dropdown: add "TV Show" link → `/library/tv-show`
-- Universal search bar: add TV show to the "All" scope search; show TV show results grouped as "TV Show"
+- `CartoonNamingCard`: CN, EN, Alt
+- **Information Card** (reusable): Season/Part, Airing Type, Airing Status, Length Per Ep, Official Source, Release Date, Total Ep
+- Remarks — shown when not null
+- `CartoonNotes` (always rendered at bottom)
 
-- [x] Done
+Writes: `PATCH /api/cartoon/:system_id`
 
----
+### 5.2 — `CartoonNotes.jsx`
 
-### Step 22 — `SourcesCard.jsx`: Add TV show support
+Structured notes editor (12 sections). Always rendered at the bottom of the Cartoon detail page and Modify Cartoon form. Saves via `PATCH /api/cartoon/:id` with `notes` field. Mirror `TVShowNotes.jsx` (same 12 sections unless otherwise specified).
 
-Ensure `SourcesCard` renders `imdb_link`, `source_other`, `source_other_link` for TV show entries (may already be generic; verify and extend if needed).
+### 5.3 — `LibraryCartoon.jsx` (Cartoon Library — `/library/cartoon`)
 
-- [x] Done (already generic, no changes needed)
+**Data loaded:**
 
----
+- `GET /api/cartoon/`
+- `GET /api/franchise/`
+- `GET /api/series/`
 
-### Step 23 — `Admin.jsx` (System Page): Add TV show section
+**Library bar:**
 
-Add TV show count / quick stats to the system admin overview page (alongside Movie and Anime Movie sections).
+- Filter search: by Franchise Title, Series Title, Cartoon Title, Release Year. Case/punctuation/space insensitive.
+- Sort by: Title (default) / My Rating / IMDb Rating / Release Date (new to old; TBD first)
+- Advanced filters (collapsible): Official Source, Airing Status, Airing Type, Watching Status
+- Grid/Table view toggle
 
-- [x] Done
+**Grid view:** each entry — `CartoonCard.jsx`
 
----
+**Table view columns:** Franchise Name CN (fallback), Cartoon Name CN, Cartoon Name EN, Airing Type, Season Part, Airing Status, Ep Finished / Ep Total, Official Source, My Rating, IMDb Rating, + button (admin only)
 
-### Step 24 — `Add.jsx`: Add TV Show tab
+Admin: inline quick-status toggle via `PATCH /api/cartoon/:system_id`
 
-New "Add TV Show" tab following the spec in `admin-forms.md`:
+### 5.4 — `FranchiseCartoon.jsx` (Cartoon Franchise Hub — `/franchise/cartoon/:system_id`)
 
-- Prefill from existing TV show entry (search box → fills: Franchise, Series, all TV Show Name fields, is_main, region)
-- Franchise: search TV or Movie franchises or type new name; required
-- Series: search or type new name; optional
-- Defaults: Airing Status = "Not Yet Aired", Watching Status = "Might Watch", is_main = "本傳"
-- On submit: Franchise Generation modal if no existing franchise; Series Generation modal if typed series; `POST /api/tv-shows/`
-- Franchise modal: uses TV show name fields; `franchise_type = "TV or Movie"`; Expectation default = Low
-- Series modal: uses TV show name fields
+**Data loaded:**
 
-- [x] Done
+- `GET /api/franchise/:system_id`
+- `GET /api/series/?franchise_id=:system_id`
+- `GET /api/cartoon/?franchise_id=:system_id`
 
----
+**Layout:**
 
-### Step 25 — `Modify.jsx`: Modify TV Show tab
+- Edit button (admin only) → Modify page
+- **Franchise Information Block** (reusable)
+- **Belonging Series Block** (reusable)
+- **Notes and Remarks Block** (reusable, admin editable)
 
-New "Modify TV Show" tab following `admin-forms.md`:
+**Cartoon Entry Section:**
 
-- Search to find existing TV show entry to edit
-- Franchise: search TV or Movie franchises; sibling ribbon shows other TV shows in that franchise
-- Series: search or type new name
-- On submit: Franchise Generation modal if needed; Series Generation modal if needed; `PUT /api/tv-shows/:id`
-- Deep-link: TV show detail page Quick Edit → `/modify?id=:uuid&type=tv-show`
+- Sort By: Release Date (default) / Title / My Rating / IMDb Rating
+- Filter: Airing Status / Watching Status
+- **Group by Series Button** (reusable)
+- Each entry: `CartoonCard.jsx`, grouped by Series
 
-- [x] Done
+Admin: `PATCH /api/franchise/:system_id`
 
----
-
-### Step 26 — `Delete.jsx`: Delete TV Show tab
-
-New "Delete TV Show" tab:
-
-- Search by TV show name (CN/EN/Alt)
-- Select shows cover thumbnail, TV Name CN/EN, Airing Status, Watching Status, Franchise Name, System ID, Delete button
-- Confirmation modal: if deleted TV show is the only entry in its franchise, offer to also delete orphaned Franchise Hub
-- Deletes: `DELETE /api/tv-shows/:id`
-
-- [x] Done
-
----
-
-### Step 27 — `Search.jsx`: Add TV show results
-
-Add TV show results section to Search page. Loads TV shows when search query matches TV show names. Displays `TVCard` components in "TV Show" group. Also update the Nav universal search bar to include TV shows in "All" scope.
-
-- [x] Done
-
----
-
-### Step 28 — `FutureReleases.jsx`: TV Show future release tab
-
-Add "TV Show" tab to FutureReleases page showing TV shows with `airing_status` in `["Not Yet Aired", "Airing"]`, ordered by `release_date`. Displays `TVCardFuture` components.
-
-- [x] Done
+**Checkpoint — pause and ask for permission before proceeding to Step 6.**
 
 ---
 
-## Phase 6: Reality Franchise Page
+## Step 6 — Frontend Updates (Routing & Navigation)
 
-### Step 29 — `FranchiseReality.jsx`: Show TV shows
+**Files:** `frontend/src/App.jsx`, `frontend/src/components/Nav.jsx`
 
-Update the Reality Franchise Hub to fetch and display TV shows belonging to the franchise via `GET /api/tv-shows/?franchise_id=:id`. Display using `TVCard` components, grouped by series.
+### 6.1 — `App.jsx`
 
-- [x] Done
+Add routes:
+
+- `/cartoon/:system_id` → `<Cartoon />`
+- `/library/cartoon` → `<LibraryCartoon />`
+- `/franchise/cartoon/:system_id` → `<FranchiseCartoon />`
+
+### 6.2 — `Nav.jsx`
+
+- Change Cartoon link in Reality dropdown from `/under-development` to `/library/cartoon` (or whichever route is canonical).
+- Update universal search scope to include Cartoon (data fetch from `GET /api/cartoon/`; results shown as Cartoon suggestions navigating to `/cartoon/:id`).
+
+**Checkpoint — pause and ask for permission before proceeding to Step 7.**
 
 ---
 
-## Notes
+## Step 7 — Frontend Updates (Shared Pages)
 
-- The spec note says IMDB-related features are not exhaustive in the spec — `autofill_tv_show_from_imdb` and all supporting helpers (`fetch_tmdb_tv_season_data`, `_parse_season_number`, `map_tmdb_to_tv_show_data`, `map_imdb_to_tv_show_data`, `_derive_tv_season_airing_status`) are planned based on `business-logic.md`.
-- Steps should be implemented and committed in phase order. Pause and confirm before starting each new phase.
-- After Phase 3 is complete, backend should be fully functional and testable via API before frontend work begins.
+**Files:** `frontend/src/pages/Index.jsx`, `frontend/src/pages/Admin.jsx`, `frontend/src/pages/Add.jsx`, `frontend/src/pages/Modify.jsx`, `frontend/src/pages/Delete.jsx`, `frontend/src/pages/Search.jsx`, `frontend/src/pages/FutureReleases.jsx`, `frontend/src/pages/FranchiseLibrary.jsx`, `frontend/src/pages/FranchiseReality.jsx`, `frontend/src/components/DashboardCard.jsx`, `frontend/src/components/SourcesCard.jsx`
+
+### 7.1 — `Index.jsx` (Dashboard)
+
+- Load `GET /api/cartoon/` alongside existing fetches.
+- Add Cartoon to the Watching division (Active Watching / Passive Watching / Paused sub-sections).
+- Each cartoon entry: **Cartoon Entry Card 1** (TBD — use `DashboardCard.jsx` if compatible, or inline card).
+- Admin: inline episode progress editing via `PATCH /api/cartoon/:system_id`.
+- Add Cartoon to the filter chips (Anime / Manga / Novel / TV Show / Cartoon).
+
+### 7.2 — `DashboardCard.jsx`
+
+- Verify whether the card is generic enough to display Cartoon Entry Card 1 for the dashboard watching division. If it assumes anime-specific fields, create a cartoon variant inline in `Index.jsx` or extend `DashboardCard` to accept a `mediaType` prop.
+
+### 7.3 — `SourcesCard.jsx`
+
+- Verify whether Sources Card already handles `source_other` JSONB + `imdb_link` for non-anime types. Cartoon detail page uses: `source_other` + `imdb_link`. No Bahamut / Netflix / MAL / AniList. Adjust if needed.
+
+### 7.4 — `Admin.jsx` (System Page)
+
+**Main Data Control Action Block:**
+
+- Fill section: add "Fill Cartoon" button → SSE stream `/api/data-control/fill/cartoon`
+- Replace section: add "Replace Cartoon" button → SSE stream `/api/data-control/replace/cartoon`
+- Pull from Sheets section: add "Pull Cartoon" button → `POST /api/data-control/pull/cartoon`
+- Update Fill All and Replace All SSE handlers to include cartoon in the progress display.
+
+### 7.5 — `Add.jsx`
+
+Add **Add New Cartoon Entry Tab**:
+
+**Titles & Naming:**
+
+- Franchise (ComboBox, filtered to `franchise_type = "Cartoon"` or new)
+- Series (ComboBox + auto-create modal, filtered by selected franchise)
+- Cartoon Name EN / CN / Alt
+- Season dropdown / Part dropdown
+
+**Status & Progress:**
+
+- Airing Status dropdown (default: Not Yet Aired)
+- Watching Status dropdown (default: Might Watch)
+- Total Episode, Episode Finished
+- Length Per Ep (min)
+- My Rating dropdown
+- Watch Next checkbox
+- To Rewatch checkbox
+- IMDB Rating
+
+**Classification & Production:**
+
+- Cartoon Official Source (system_options `"Official Source (Cartoon)"`)
+- Cartoon Airing Type dropdown (`"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`)
+- Main/Spinoff dropdown (`"Main / Spinoff"` system option category)
+- Release Date (month + year or year-only)
+
+**Relational & Timeline:**
+
+- Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
+
+**Source & Links:**
+
+- IMDB ID, IMDB Link, Other Sources (name → URL pairs)
+
+**Notes & Other:**
+
+- Cover Image File, Remark, Notes (`CartoonNotes`)
+
+**On submit:**
+
+- If no existing franchise → Franchise Generation modal (sets `franchise_type = "Cartoon"`).
+- If no existing series and field non-blank → Series Generation modal.
+- Create via `POST /api/cartoon/`.
+- Autofill triggered automatically by router (calls `execute_replace_single_cartoon` internally).
+
+### 7.6 — `Modify.jsx`
+
+Add **Modify Cartoon Entry Tab**:
+
+- Search bar (Franchise + Series + Cartoon name); results grouped by franchise/series.
+- Recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback.
+- After selecting: Other Entries in franchise block (grouped by series); System ID (immutable); Entry Name CN with fallback (immutable); then full edit form (mirrors Add Cartoon tab).
+- `CartoonNotes` always rendered at bottom.
+- Save Changes button.
+
+Writes: `PATCH /api/cartoon/:id`
+
+### 7.7 — `Delete.jsx`
+
+Add **Delete Cartoon Entry Tab**:
+
+- Search bar → Search Suggestion for Deletion.
+- After selecting: cover thumbnail, Cartoon Name CN/EN, Airing Status, Watching Status, Franchise name, System ID, Delete button.
+- If only entry in series: offer to delete series or keep it.
+- If only entry in franchise: offer to delete franchise or keep it.
+
+Deletes: `DELETE /api/cartoon/:id`
+
+Also load `GET /api/cartoon/` in the page's data fetch.
+
+### 7.8 — `Search.jsx`
+
+- Add `"cartoon"` scope to data loading: fetch `GET /api/cartoon/` when scope is `all` or `cartoon`.
+- Add **Cartoon Entry Section** to search results — each entry: `CartoonCard.jsx`.
+- Add `"cartoon"` to scope selector.
+
+### 7.9 — `FutureReleases.jsx`
+
+Add **Cartoon Future Release Tab**:
+
+- Load `GET /api/cartoon/?airing_status=Not+Yet+Aired` lazily on first tab open.
+- Filter: entries with `release_date` set.
+- Group by release year, sorted by release date (old to new); TBD last.
+- Each entry: `CartoonCardFuture.jsx`.
+
+### 7.10 — `FranchiseLibrary.jsx`
+
+- Ensure Cartoon franchise type (`"Cartoon"`) is included in the advanced filter options (already listed as an option in pages.md).
+- Franchise entries of type `"Cartoon"` should navigate to `/franchise/cartoon/:system_id` (not `/franchise/:system_id` which goes to FranchiseAcg). Update navigation logic based on `franchise_type`.
+
+### 7.11 — `FranchiseReality.jsx`
+
+- Confirm Cartoon franchises are NOT shown here. This page is for `franchise_type = "TV or Movie"` (movies + TV shows).
+- No changes needed if routing is already type-based.
+
+**Checkpoint — pause and ask for permission before proceeding to Step 8.**
+
+---
+
+## Step 8 — Statistics & Final Integration
+
+**Files:** `frontend/src/pages/Statistics.jsx` (partial), verification
+
+### 8.1 — `Statistics.jsx` — To Rewatch tab
+
+- Add Cartoon tab to **To Rewatch** section:
+  - Load `GET /api/cartoon/?to_rewatch=true` (or filter client-side).
+  - Sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating.
+
+### 8.2 — `Statistics.jsx` — Watch Next tab
+
+- Add Cartoon tab to **Watch Next** section (TBD per pages.md — mark as TBD, wire up placeholder).
+
+### 8.3 — `Statistics.jsx` — Recent Completions
+
+- Add Cartoon tab to **Recent Completions** section:
+  - Grouped by Official Source (Cartoon Network / Disney / Nickelodeon / Adult Swim / FOX / HBO / Others).
+  - Shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date.
+
+### 8.4 — End-to-end verification
+
+- Add a cartoon entry via Add page → verify autofill runs.
+- Verify cartoon appears in Library, dashboard watching division, and franchise hub.
+- Verify Pull/Backup round-trip (backup to sheet → pull back).
+- Verify Calculate All updates cartoon derive/sync.
+- Verify Search returns cartoons.
+- Verify Future Releases tab shows not-yet-aired cartoons.
+
+---
+
+## Progress Tracker
+
+| Step | Description                                                                                                   | Status      |
+| ---- | ------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Not Started |
+| 2    | Backend Utils (map functions, parsers, check functions)                                                       | Not Started |
+| 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | Not Started |
+| 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Not Started |
+| 5    | Frontend New Pages (Cartoon, CartoonNotes, LibraryCartoon, FranchiseCartoon)                                  | Not Started |
+| 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Not Started |
+| 7    | Frontend Updates — Shared Pages (Index, Admin, Add, Modify, Delete, Search, FutureReleases, FranchiseLibrary) | Not Started |
+| 8    | Statistics & Final Integration                                                                                | Not Started |
