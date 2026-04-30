@@ -645,6 +645,6 @@ Add **Cartoon Future Release Tab**:
 | 3.5  | Add `airing_type` column to Cartoon (model, migration, schema, parser, logics, data control)                  | Done        |
 | 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Done        |
 | 5    | Frontend New Pages (Cartoon, CartoonNotes, LibraryCartoon, FranchiseCartoon)                                  | Done        |
-| 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Not Started |
+| 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Done        |
 | 7    | Frontend Updates — Shared Pages (Index, Admin, Add, Modify, Delete, Search, FutureReleases, FranchiseLibrary) | Not Started |
 | 8    | Statistics & Final Integration                                                                                | Not Started |

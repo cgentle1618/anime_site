@@ -9,6 +9,7 @@ const SCOPES = [
   { key: "franchise", label: "Franchise" },
   { key: "series", label: "Series" },
   { key: "anime", label: "Anime" },
+  { key: "cartoon", label: "Cartoon" },
   { key: "seasonal", label: "Seasonal" },
 ];
 
@@ -16,6 +17,7 @@ const TYPE_BADGE = {
   franchise: { label: "FRAN", cls: "bg-brand/10 text-brand" },
   series: { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
   anime: { label: "ANIME", cls: "bg-gray-100 text-gray-500" },
+  cartoon: { label: "CARTOON", cls: "bg-orange-50 text-orange-600" },
   seasonal: { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
 };
 
@@ -82,6 +84,7 @@ export default function Nav() {
     franchises: [],
     anime: [],
     series: [],
+    cartoons: [],
     seasonal: [],
   });
 
@@ -96,20 +99,23 @@ export default function Nav() {
     searchDebounceRef.current = setTimeout(async () => {
       try {
         if (!dataCacheRef.current.loaded) {
-          const [franRes, animeRes, seriesRes, seasonalRes] = await Promise.all(
-            [
+          const [franRes, animeRes, seriesRes, cartoonRes, seasonalRes] =
+            await Promise.all([
               fetch("/api/franchise/", { credentials: "include" }),
               fetch("/api/anime/", { credentials: "include" }),
               fetch("/api/series/", { credentials: "include" }),
+              fetch("/api/cartoon/", { credentials: "include" }),
               fetch("/api/seasonal/", { credentials: "include" }),
-            ],
-          );
+            ]);
           dataCacheRef.current.franchises = franRes.ok
             ? await franRes.json()
             : [];
           dataCacheRef.current.anime = animeRes.ok ? await animeRes.json() : [];
           dataCacheRef.current.series = seriesRes.ok
             ? await seriesRes.json()
+            : [];
+          dataCacheRef.current.cartoons = cartoonRes.ok
+            ? await cartoonRes.json()
             : [];
           dataCacheRef.current.seasonal = seasonalRes.ok
             ? await seasonalRes.json()
@@ -164,6 +170,18 @@ export default function Nav() {
             .forEach((a) => results.push({ type: "anime", ...a }));
         }
 
+        if (scope === "all" || scope === "cartoon") {
+          const limit = scope === "all" ? 5 : 10;
+          dataCacheRef.current.cartoons
+            .filter((c) =>
+              [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some(
+                (n) => cleanString(n).includes(qClean),
+              ),
+            )
+            .slice(0, limit)
+            .forEach((c) => results.push({ type: "cartoon", ...c }));
+        }
+
         if (scope === "all" || scope === "seasonal") {
           const limit = scope === "all" ? 10 : 10;
           dataCacheRef.current.seasonal
@@ -186,6 +204,12 @@ export default function Nav() {
                 item.series_name_cn,
                 item.series_name_en,
                 item.series_name_alt,
+              ];
+            if (item.type === "cartoon")
+              return [
+                item.cartoon_name_cn,
+                item.cartoon_name_en,
+                item.cartoon_name_alt,
               ];
             if (item.type === "seasonal") return [item.seasonal];
             return [
@@ -250,6 +274,13 @@ export default function Nav() {
         item.series_name_alt ||
         "—"
       );
+    if (item.type === "cartoon")
+      return (
+        item.cartoon_name_cn ||
+        item.cartoon_name_en ||
+        item.cartoon_name_alt ||
+        "—"
+      );
     if (item.type === "seasonal") return item.seasonal || "—";
     return (
       item.anime_name_cn ||
@@ -266,6 +297,7 @@ export default function Nav() {
     if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
     else if (item.type === "series")
       navigate(`/franchise/${item.franchise_id}`);
+    else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
     else if (item.type === "seasonal")
       navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
     else navigate(`/anime/${item.system_id}`);
@@ -344,7 +376,9 @@ export default function Nav() {
                     <NavLink to="/library/movie" icon="fas fa-ticket-alt">
                       Movie
                     </NavLink>
-                    <DevLink icon="fas fa-laugh-squint">Cartoon</DevLink>
+                    <NavLink to="/library/cartoon" icon="fas fa-laugh-squint">
+                      Cartoon
+                    </NavLink>
                   </>
                 }
               />
@@ -664,11 +698,11 @@ export default function Nav() {
                   Movie Library
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/cartoon"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  Cartoon (Dev)
+                  Cartoon Library
                 </Link>
               </div>
             </details>
