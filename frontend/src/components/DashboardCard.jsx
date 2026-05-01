@@ -12,10 +12,22 @@ export default function DashboardCard({
   const { showToast } = useToast();
 
   const isTV = anime._ui_type === "TV Show";
+  const isCartoon = anime._ui_type === "Cartoon";
 
-  const title = isTV
-    ? (anime.tv_name_cn || anime.tv_name_en || anime.tv_name_alt || "Unknown Title")
-    : (anime.anime_name_cn || anime.anime_name_en || anime.anime_name_roman || "Unknown Title");
+  const title = isCartoon
+    ? anime.cartoon_name_cn ||
+      anime.cartoon_name_en ||
+      anime.cartoon_name_alt ||
+      "Unknown Title"
+    : isTV
+      ? anime.tv_name_cn ||
+        anime.tv_name_en ||
+        anime.tv_name_alt ||
+        "Unknown Title"
+      : anime.anime_name_cn ||
+        anime.anime_name_en ||
+        anime.anime_name_roman ||
+        "Unknown Title";
   const subTitle = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -23,15 +35,21 @@ export default function DashboardCard({
       "Independent"
     : "Independent Series";
 
-  const navigatePath = isTV ? `/tv-show/${anime.system_id}` : `/anime/${anime.system_id}`;
-  const editPath = isTV
-    ? `/modify?id=${anime.system_id}&type=tv-show`
-    : `/modify?id=${anime.system_id}`;
+  const navigatePath = isCartoon
+    ? `/cartoon/${anime.system_id}`
+    : isTV
+      ? `/tv-show/${anime.system_id}`
+      : `/anime/${anime.system_id}`;
+  const editPath = isCartoon
+    ? `/modify?id=${anime.system_id}&type=cartoon`
+    : isTV
+      ? `/modify?id=${anime.system_id}&type=tv-show`
+      : `/modify?id=${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isTV ? false : isBaha(anime);
+  const bahaFlag = isTV || isCartoon ? false : isBaha(anime);
 
-  const prevEps = isTV ? 0 : (anime.ep_previous || 0);
+  const prevEps = isTV || isCartoon ? 0 : anime.ep_previous || 0;
   const localFin = anime.ep_fin || 0;
   const localTotal =
     anime.ep_total !== null && anime.ep_total !== undefined
@@ -104,7 +122,7 @@ export default function DashboardCard({
             >
               {anime.airing_status || "Unknown"}
             </span>
-            {!isTV && (
+            {!isTV && !isCartoon && (
               <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm">
                 <i className="fas fa-tv mr-1"></i>
                 {anime.airing_type || "TV"}

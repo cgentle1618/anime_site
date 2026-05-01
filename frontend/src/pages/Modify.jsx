@@ -14,6 +14,7 @@ import AnimeNotes from "./AnimeNotes";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 import MovieNotes from "./MovieNotes";
 import TVShowNotes from "./TVShowNotes";
+import CartoonNotes from "./CartoonNotes";
 import {
   Field,
   SectionHeader,
@@ -207,6 +208,7 @@ export default function Modify() {
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
+  const [allCartoons, setAllCartoons] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -229,6 +231,7 @@ export default function Modify() {
   const [amf, setAmf] = useState({});
   const [mmf, setMmf] = useState({});
   const [tvmf, setTvmf] = useState({});
+  const [cmf, setCmf] = useState({});
   const [optValue, setOptValue] = useState("");
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
@@ -237,12 +240,13 @@ export default function Modify() {
   const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
   const umm = (k, v) => setMmf((p) => ({ ...p, [k]: v }));
   const utv = (k, v) => setTvmf((p) => ({ ...p, [k]: v }));
+  const uc = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes] = await Promise.all(
-          [
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes] =
+          await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/series/", { credentials: "include" }),
@@ -250,8 +254,8 @@ export default function Modify() {
             fetch("/api/anime-movie/", { credentials: "include" }),
             fetch("/api/movies/", { credentials: "include" }),
             fetch("/api/tv-shows/", { credentials: "include" }),
-          ],
-        );
+            fetch("/api/cartoon/", { credentials: "include" }),
+          ]);
         const [
           anime,
           franchises,
@@ -260,6 +264,7 @@ export default function Modify() {
           animeMovies,
           movies,
           tvShows,
+          cartoons,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -268,6 +273,7 @@ export default function Modify() {
           amRes.json(),
           mvRes.json(),
           tvRes.json(),
+          ctRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -276,10 +282,19 @@ export default function Modify() {
         setAllAnimeMovies(animeMovies);
         setAllMovies(movies);
         setAllTvShows(tvShows);
+        setAllCartoons(cartoons);
 
         const urlId = searchParams.get("id");
         const urlType = searchParams.get("type");
         if (urlId) {
+          if (urlType === "cartoon") {
+            const ct = cartoons.find((x) => x.system_id === urlId);
+            if (ct) {
+              openEditorWith(ct, "cartoon", franchises, series);
+              setActiveTab("cartoon");
+              return;
+            }
+          }
           if (urlType === "tv-show") {
             const tv = tvShows.find((x) => x.system_id === urlId);
             if (tv) {
@@ -428,6 +443,56 @@ export default function Modify() {
     };
   }
 
+  function cartoonToForm(c, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === c.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === c.series_id,
+    );
+    return {
+      cartoon_name_cn: c.cartoon_name_cn || "",
+      cartoon_name_en: c.cartoon_name_en || "",
+      cartoon_name_alt: c.cartoon_name_alt || "",
+      franchise_id: c.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: c.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      season_part: c.season_part || "",
+      airing_type: c.airing_type || "",
+      airing_status: c.airing_status || "",
+      watching_status: c.watching_status || "Might Watch",
+      is_main: c.is_main || "",
+      ep_total: c.ep_total ?? "",
+      ep_fin: c.ep_fin ?? "",
+      my_rating: c.my_rating || "",
+      imdb_rating: c.imdb_rating || "",
+      length_ep_min: c.length_ep_min ?? "",
+      source_official: c.source_official || "",
+      release_date: c.release_date || "",
+      prequel_id: c.prequel_id || null,
+      sequel_id: c.sequel_id || null,
+      watch_order: c.watch_order ?? "",
+      derive_related:
+        c.derive_related === true
+          ? "true"
+          : c.derive_related === false
+            ? "false"
+            : "",
+      imdb_id: c.imdb_id ?? "",
+      imdb_link: c.imdb_link || "",
+      source_other: Array.isArray(c.source_other)
+        ? c.source_other
+        : Object.entries(c.source_other || {}).map(([name, url]) => ({
+            name,
+            url: url || "",
+          })),
+      watch_next: c.watch_next ?? false,
+      to_rewatch: c.to_rewatch ?? false,
+      cover_image_file: c.cover_image_file || "",
+      remark: c.remark || "",
+      notes: c.notes || {},
+    };
+  }
+
   function openEditorWith(item, type, franchises, series) {
     setEditingItem(item);
     setEditingType(type);
@@ -439,6 +504,8 @@ export default function Modify() {
       setMmf(liveMovieToForm(item, franchises, series));
     else if (type === "tv-show")
       setTvmf(tvShowToForm(item, franchises, series));
+    else if (type === "cartoon")
+      setCmf(cartoonToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -465,6 +532,7 @@ export default function Modify() {
       else if (editingType === "anime-movie") await saveAnimeMovie();
       else if (editingType === "movie") await saveMovie();
       else if (editingType === "tv-show") await saveTvShow();
+      else if (editingType === "cartoon") await saveCartoon();
       else if (editingType === "options") await saveOption();
     } finally {
       setSubmitting(false);
@@ -476,6 +544,7 @@ export default function Modify() {
     if (!franchiseId && af.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "ACG",
           onConfirm: (exp, rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation: exp, remark: rem });
@@ -622,6 +691,7 @@ export default function Modify() {
     if (!franchiseId && sf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "ACG",
           onConfirm: (exp, rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation: exp, remark: rem });
@@ -699,6 +769,7 @@ export default function Modify() {
     if (!franchiseId && amf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "ACG",
           onConfirm: (exp, rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation: exp, remark: rem });
@@ -771,6 +842,7 @@ export default function Modify() {
     if (!franchiseId && mmf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "TV or Movie",
           onConfirm: (exp, rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation: exp, remark: rem });
@@ -907,6 +979,7 @@ export default function Modify() {
     if (!franchiseId && (tvmf.franchise_text || "").trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "TV or Movie",
           onConfirm: (exp, rem) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation: exp, remark: rem });
@@ -1041,6 +1114,152 @@ export default function Modify() {
     showToast("success", "TV show updated successfully.");
   }
 
+  async function saveCartoon() {
+    let franchiseId = cmf.franchise_id;
+    if (!franchiseId && (cmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Cartoon",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cmf.cartoon_name_en || null,
+          franchise_name_cn: cmf.cartoon_name_cn || null,
+          franchise_name_alt: cmf.cartoon_name_alt || null,
+          franchise_type: "Cartoon",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cmf.series_id;
+    if (!seriesId && (cmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cmf.cartoon_name_en || null,
+          series_name_cn: cmf.cartoon_name_cn || null,
+          series_name_alt: cmf.cartoon_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      cartoon_name_cn: cmf.cartoon_name_cn || null,
+      cartoon_name_en: cmf.cartoon_name_en || null,
+      cartoon_name_alt: cmf.cartoon_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      season_part: cmf.season_part || null,
+      airing_type: cmf.airing_type || null,
+      airing_status: cmf.airing_status || null,
+      watching_status: cmf.watching_status || "Might Watch",
+      is_main: cmf.is_main || null,
+      ep_total: cmf.ep_total !== "" ? parseInt(cmf.ep_total) : null,
+      ep_fin: cmf.ep_fin !== "" ? parseInt(cmf.ep_fin) : null,
+      my_rating: cmf.my_rating || null,
+      imdb_rating: cmf.imdb_rating || null,
+      length_ep_min:
+        cmf.length_ep_min !== "" ? parseInt(cmf.length_ep_min) : null,
+      source_official: cmf.source_official || null,
+      release_date: cmf.release_date || null,
+      prequel_id: cmf.prequel_id || null,
+      sequel_id: cmf.sequel_id || null,
+      watch_order: cmf.watch_order !== "" ? parseFloat(cmf.watch_order) : null,
+      derive_related:
+        cmf.derive_related === "true"
+          ? true
+          : cmf.derive_related === "false"
+            ? false
+            : null,
+      imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
+      imdb_link: cmf.imdb_link || null,
+      source_other:
+        (cmf.source_other || []).filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              (cmf.source_other || [])
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      watch_next: cmf.watch_next ?? null,
+      to_rewatch: cmf.to_rewatch ?? false,
+      cover_image_file: cmf.cover_image_file || null,
+      remark: cmf.remark || null,
+      notes: Object.keys(cmf.notes || {}).length > 0 ? cmf.notes : null,
+    };
+    const res = await fetch(`/api/cartoon/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    setAllCartoons((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+    setEditingItem(updated);
+    setCmf(cartoonToForm(updated, allFranchises, allSeries));
+    await fetch(`/api/data-control/replace/cartoon/${updated.system_id}`, {
+      method: "POST",
+      credentials: "include",
+    });
+    window.scrollTo(0, 0);
+    showToast("success", "Update and enrichment successful.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -1055,6 +1274,13 @@ export default function Modify() {
     if (type === "tv-show")
       return (
         item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "Unknown"
+      );
+    if (type === "cartoon")
+      return (
+        item.cartoon_name_cn ||
+        item.cartoon_name_en ||
+        item.cartoon_name_alt ||
+        "Unknown"
       );
     if (type === "options") return `${item.category}: ${item.option_value}`;
     return "Unknown";
@@ -1123,6 +1349,14 @@ export default function Modify() {
           ),
         )
         .slice(0, 10);
+    if (activeTab === "cartoon")
+      return allCartoons
+        .filter((c) =>
+          [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
@@ -1143,6 +1377,8 @@ export default function Modify() {
       return [...allAnimeMovies].sort(sort).slice(0, 12);
     if (activeTab === "movie") return [...allMovies].sort(sort).slice(0, 12);
     if (activeTab === "tv-show") return [...allTvShows].sort(sort).slice(0, 12);
+    if (activeTab === "cartoon")
+      return [...allCartoons].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -1234,6 +1470,17 @@ export default function Modify() {
       .filter(Boolean)
       .join(" "),
   }));
+  const seriesItemsForCartoon = (
+    cmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
 
   const tvRibbon =
     editingType === "tv-show" && tvmf.franchise_id
@@ -1249,6 +1496,7 @@ export default function Modify() {
     { key: "anime-movie", icon: "fa-film", label: "Modify Anime Movie" },
     { key: "movie", icon: "fa-ticket-alt", label: "Modify Movie" },
     { key: "tv-show", icon: "fa-video", label: "Modify TV Show" },
+    { key: "cartoon", icon: "fa-paint-brush", label: "Modify Cartoon" },
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
@@ -1593,6 +1841,71 @@ export default function Modify() {
                   className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
                 >
                   {t.tv_name_cn || t.tv_name_en || t.tv_name_alt || "Unknown"}
+                </button>
+              );
+              return (
+                <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Other entries in this franchise
+                  </p>
+                  {Object.entries(bySeries).map(([sid, entries]) => {
+                    const s = allSeries.find((x) => x.system_id === sid);
+                    return (
+                      <div key={sid}>
+                        <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                          {s ? getDisplayName(s, "series") : "Series"}
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {entries.map(renderChip)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {noSeries.length > 0 && (
+                    <div>
+                      {Object.keys(bySeries).length > 0 && (
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                          No Series
+                        </p>
+                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        {noSeries.map(renderChip)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+          {/* Cartoon ribbon — grouped by series */}
+          {editingType === "cartoon" &&
+            (() => {
+              const cartoonRibbon = cmf.franchise_id
+                ? allCartoons.filter(
+                    (c) =>
+                      c.franchise_id === cmf.franchise_id &&
+                      c.system_id !== editingItem?.system_id,
+                  )
+                : [];
+              if (!cartoonRibbon.length) return null;
+              const bySeries = {};
+              const noSeries = [];
+              for (const c of cartoonRibbon) {
+                if (c.series_id) {
+                  (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
+                } else noSeries.push(c);
+              }
+              const renderChip = (c) => (
+                <button
+                  key={c.system_id}
+                  type="button"
+                  onClick={() => openEditor(c, "cartoon")}
+                  className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+                >
+                  {c.cartoon_name_cn ||
+                    c.cartoon_name_en ||
+                    c.cartoon_name_alt ||
+                    "Unknown"}
                 </button>
               );
               return (
@@ -3767,6 +4080,433 @@ export default function Modify() {
               </>
             )}
 
+            {/* ── CARTOON EDITOR ── */}
+            {editingType === "cartoon" && (
+              <>
+                <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
+                <Field label="Franchise">
+                  <ComboBox
+                    items={allFranchises
+                      .filter(
+                        (f) =>
+                          f.franchise_type === "Cartoon" || !f.franchise_type,
+                      )
+                      .map((f) => ({
+                        id: f.system_id,
+                        label: getDisplayName(f, "franchise"),
+                        searchText: [
+                          f.franchise_name_cn,
+                          f.franchise_name_en,
+                          f.franchise_name_alt,
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
+                      }))}
+                    selectedId={cmf.franchise_id}
+                    inputText={cmf.franchise_text || ""}
+                    onSelect={(id, label) => {
+                      uc("franchise_id", id);
+                      uc("franchise_text", label);
+                      uc("series_id", null);
+                      uc("series_text", "");
+                    }}
+                    onType={(text) => {
+                      uc("franchise_text", text);
+                      uc("franchise_id", null);
+                      uc("series_id", null);
+                      uc("series_text", "");
+                    }}
+                    onClear={() => {
+                      uc("franchise_id", null);
+                      uc("franchise_text", "");
+                      uc("series_id", null);
+                      uc("series_text", "");
+                    }}
+                    placeholder="Search franchise..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Series">
+                  <ComboBox
+                    items={seriesItemsForCartoon}
+                    selectedId={cmf.series_id}
+                    inputText={cmf.series_text || ""}
+                    onSelect={(id, label) => {
+                      uc("series_id", id);
+                      uc("series_text", label);
+                    }}
+                    onType={(text) => {
+                      uc("series_text", text);
+                      uc("series_id", null);
+                    }}
+                    onClear={() => {
+                      uc("series_id", null);
+                      uc("series_text", "");
+                    }}
+                    placeholder="Search or type new series..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Cartoon Name CN">
+                  <input
+                    className={inputCls}
+                    value={cmf.cartoon_name_cn || ""}
+                    onChange={(e) => uc("cartoon_name_cn", e.target.value)}
+                  />
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Cartoon Name EN">
+                    <input
+                      className={inputCls}
+                      value={cmf.cartoon_name_en || ""}
+                      onChange={(e) => uc("cartoon_name_en", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Cartoon Name Alt">
+                    <input
+                      className={inputCls}
+                      value={cmf.cartoon_name_alt || ""}
+                      onChange={(e) => uc("cartoon_name_alt", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Season" hint="e.g. Season 1">
+                    <input
+                      className={inputCls}
+                      value={cmf.season_part || ""}
+                      onChange={(e) => uc("season_part", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader
+                  icon="fa-chart-bar"
+                  title="Status & Classification"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Airing Type">
+                    <select
+                      className={selectCls}
+                      value={cmf.airing_type || ""}
+                      onChange={(e) => uc("airing_type", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["TV", "Movie", "OVA", "Special"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Airing Status">
+                    <select
+                      className={selectCls}
+                      value={cmf.airing_status || ""}
+                      onChange={(e) => uc("airing_status", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["Not Yet Aired", "Airing", "Finished Airing"].map(
+                        (v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Watching Status">
+                    <select
+                      className={selectCls}
+                      value={cmf.watching_status || "Might Watch"}
+                      onChange={(e) => uc("watching_status", e.target.value)}
+                    >
+                      {[
+                        "Might Watch",
+                        "Plan to Watch",
+                        "Watch When Airs",
+                        "Active Watching",
+                        "Passive Watching",
+                        "Paused",
+                        "Completed",
+                        "Temp Dropped",
+                        "Dropped",
+                        "Won't Watch",
+                      ].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Is Main">
+                    <select
+                      className={selectCls}
+                      value={cmf.is_main || ""}
+                      onChange={(e) => uc("is_main", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="My Rating">
+                    <select
+                      className={selectCls}
+                      value={cmf.my_rating || ""}
+                      onChange={(e) => uc("my_rating", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Episodes Total">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      value={cmf.ep_total ?? ""}
+                      onChange={(e) => uc("ep_total", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Episodes Finished">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      value={cmf.ep_fin ?? ""}
+                      onChange={(e) => uc("ep_fin", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Ep Length (min)">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0"
+                      value={cmf.length_ep_min ?? ""}
+                      onChange={(e) => uc("length_ep_min", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Official Source">
+                    <input
+                      className={inputCls}
+                      value={cmf.source_official || ""}
+                      onChange={(e) => uc("source_official", e.target.value)}
+                      placeholder="e.g. Disney+"
+                    />
+                  </Field>
+                  <Field label="Release Date" hint="e.g. SEP 2024">
+                    <input
+                      className={inputCls}
+                      value={cmf.release_date || ""}
+                      onChange={(e) => uc("release_date", e.target.value)}
+                      placeholder="SEP 2024"
+                    />
+                  </Field>
+                  <Field label="IMDb Rating" hint="e.g. 9.2">
+                    <input
+                      className={inputCls}
+                      value={cmf.imdb_rating || ""}
+                      onChange={(e) => uc("imdb_rating", e.target.value)}
+                      placeholder="9.2"
+                    />
+                  </Field>
+                </div>
+                <div className="flex flex-wrap gap-6 mt-2">
+                  <Field label="Watch Next">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!cmf.watch_next}
+                        onChange={(e) => uc("watch_next", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Add to Watch Next list
+                      </span>
+                    </label>
+                  </Field>
+                  <Field label="To Rewatch">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!cmf.to_rewatch}
+                        onChange={(e) => uc("to_rewatch", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Mark for rewatch
+                      </span>
+                    </label>
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-link" title="Relational & Timeline" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Prequel ID" hint="UUID of prequel entry">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={cmf.prequel_id || ""}
+                      onChange={(e) => uc("prequel_id", e.target.value || null)}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Sequel ID" hint="UUID of sequel entry">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={cmf.sequel_id || ""}
+                      onChange={(e) => uc("sequel_id", e.target.value || null)}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="any"
+                      value={cmf.watch_order}
+                      onChange={(e) => uc("watch_order", e.target.value)}
+                      placeholder="e.g. 1, 1.5, 2"
+                    />
+                  </Field>
+                  <Field
+                    label="Derive Related"
+                    hint="Set to No to skip prequel/sequel derivation"
+                  >
+                    <select
+                      className={selectCls}
+                      value={cmf.derive_related}
+                      onChange={(e) => uc("derive_related", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-link" title="IMDb & Sources" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="IMDb ID">
+                    <input
+                      className={inputCls}
+                      type="text"
+                      value={cmf.imdb_id ?? ""}
+                      onChange={(e) => uc("imdb_id", e.target.value)}
+                      placeholder="tt1234567"
+                    />
+                  </Field>
+                  <Field label="IMDb Link">
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={cmf.imdb_link || ""}
+                      onChange={(e) => uc("imdb_link", e.target.value)}
+                    />
+                  </Field>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                      Other Sources
+                    </label>
+                    <div className="space-y-2">
+                      {(cmf.source_other || []).map((entry, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <input
+                            className={inputCls}
+                            placeholder="Source name (e.g. Netflix)"
+                            value={entry.name}
+                            onChange={(e) =>
+                              uc(
+                                "source_other",
+                                cmf.source_other.map((x, j) =>
+                                  j === i ? { ...x, name: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <input
+                            className={inputCls}
+                            type="url"
+                            placeholder="https://... (optional)"
+                            value={entry.url}
+                            onChange={(e) =>
+                              uc(
+                                "source_other",
+                                cmf.source_other.map((x, j) =>
+                                  j === i ? { ...x, url: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                            onClick={() =>
+                              uc(
+                                "source_other",
+                                cmf.source_other.filter((_, j) => j !== i),
+                              )
+                            }
+                          >
+                            <i className="fas fa-times" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-xs text-brand hover:underline mt-1"
+                        onClick={() =>
+                          uc("source_other", [
+                            ...(cmf.source_other || []),
+                            { name: "", url: "" },
+                          ])
+                        }
+                      >
+                        + Add Source
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <SectionHeader icon="fa-sticky-note" title="Notes" />
+                <Field label="Cover Image File" hint="e.g. 5114.jpg">
+                  <input
+                    className={inputCls}
+                    value={cmf.cover_image_file || ""}
+                    onChange={(e) => uc("cover_image_file", e.target.value)}
+                  />
+                </Field>
+                <Field label="Remark">
+                  <textarea
+                    className={inputCls}
+                    rows={3}
+                    value={cmf.remark || ""}
+                    onChange={(e) => uc("remark", e.target.value)}
+                  />
+                </Field>
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <CartoonNotes
+                  cartoon={{
+                    notes: cmf.notes,
+                    system_id: editingItem?.system_id,
+                  }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => uc("notes", updatedNotes)}
+                />
+              </>
+            )}
+
             {/* ── OPTIONS EDITOR ── */}
             {editingType === "options" && (
               <>
@@ -3811,6 +4551,7 @@ export default function Modify() {
         <FranchiseCreateModal
           onConfirm={franchiseCreateModal.onConfirm}
           onCancel={franchiseCreateModal.onCancel}
+          franchiseType={franchiseCreateModal.franchiseType}
         />
       )}
 

@@ -4,6 +4,7 @@ import AnimeCardFuture from "../components/AnimeCardFuture";
 import AnimeMovieCardFuture from "../components/AnimeMovieCardFuture";
 import MovieCardFuture from "../components/MovieCardFuture";
 import TVCardFuture from "../components/TVCardFuture";
+import CartoonCardFuture from "../components/CartoonCardFuture";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -102,6 +103,11 @@ export default function FutureReleases() {
   const [tvShowLoading, setTvShowLoading] = useState(false);
   const [tvShowLoaded, setTvShowLoaded] = useState(false);
   const [tvShowError, setTvShowError] = useState(null);
+
+  const [allCartoons, setAllCartoons] = useState([]);
+  const [cartoonLoading, setCartoonLoading] = useState(false);
+  const [cartoonLoaded, setCartoonLoaded] = useState(false);
+  const [cartoonError, setCartoonError] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -212,6 +218,26 @@ export default function FutureReleases() {
     }
   }, [mainTab, tvShowLoaded]);
 
+  useEffect(() => {
+    if (mainTab === "cartoon" && !cartoonLoaded) {
+      setCartoonLoading(true);
+      setCartoonError(null);
+      fetch("/api/cartoon/", { credentials: "include" })
+        .then((r) => {
+          if (!r.ok) throw new Error("API error");
+          return r.json();
+        })
+        .then((data) => {
+          setAllCartoons(
+            data.filter((c) => c.airing_status === "Not Yet Aired"),
+          );
+          setCartoonLoaded(true);
+        })
+        .catch((e) => setCartoonError(e.message))
+        .finally(() => setCartoonLoading(false));
+    }
+  }, [mainTab, cartoonLoaded]);
+
   const handleUpdated = useCallback((updated) => {
     setAllAnime((prev) => {
       const idx = prev.findIndex((a) => a.system_id === updated.system_id);
@@ -252,6 +278,15 @@ export default function FutureReleases() {
         return prev.filter((t) => t.system_id !== updated.system_id);
       }
       return prev.map((t) => (t.system_id === updated.system_id ? updated : t));
+    });
+  }, []);
+
+  const handleCartoonUpdated = useCallback((updated) => {
+    setAllCartoons((prev) => {
+      if (updated.airing_status !== "Not Yet Aired") {
+        return prev.filter((c) => c.system_id !== updated.system_id);
+      }
+      return prev.map((c) => (c.system_id === updated.system_id ? updated : c));
     });
   }, []);
 
@@ -297,6 +332,24 @@ export default function FutureReleases() {
     liveMovieGroups[year].push(movie);
   }
   const liveMovieYears = Object.keys(liveMovieGroups).sort((a, b) => {
+    if (a === "TBD") return 1;
+    if (b === "TBD") return -1;
+    return a.localeCompare(b);
+  });
+
+  function getCartoonReleaseYear(cartoon) {
+    const d = cartoon.release_date;
+    if (!d) return "TBD";
+    const year = String(d).substring(0, 4);
+    return /^\d{4}$/.test(year) ? year : "TBD";
+  }
+  const cartoonGroups = {};
+  for (const cartoon of allCartoons) {
+    const year = getCartoonReleaseYear(cartoon);
+    if (!cartoonGroups[year]) cartoonGroups[year] = [];
+    cartoonGroups[year].push(cartoon);
+  }
+  const cartoonYears = Object.keys(cartoonGroups).sort((a, b) => {
     if (a === "TBD") return 1;
     if (b === "TBD") return -1;
     return a.localeCompare(b);
@@ -355,6 +408,7 @@ export default function FutureReleases() {
           { key: "anime-movie", icon: "fa-film", label: "Anime Movies" },
           { key: "movie", icon: "fa-ticket-alt", label: "Movies" },
           { key: "tv-show", icon: "fa-video", label: "TV Shows" },
+          { key: "cartoon", icon: "fa-paint-brush", label: "Cartoons" },
         ].map((t) => (
           <button
             key={t.key}
@@ -545,6 +599,59 @@ export default function FutureReleases() {
                         movie={movie}
                         isAdmin={isAdmin}
                         onUpdated={handleLiveMovieUpdated}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── CARTOON TAB ── */}
+      {mainTab === "cartoon" && (
+        <>
+          {cartoonLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="text-center">
+                <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+                <p className="text-gray-500 font-medium">Loading cartoons...</p>
+              </div>
+            </div>
+          ) : cartoonError ? (
+            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
+              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+              <p className="font-bold">Failed to load cartoons</p>
+              <p className="text-sm mt-1">{cartoonError}</p>
+            </div>
+          ) : cartoonYears.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <i className="fas fa-calendar-times text-4xl text-gray-300 mb-4"></i>
+              <p className="text-gray-500 font-medium">
+                No upcoming cartoons found.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {cartoonYears.map((year) => (
+                <section key={year}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-base font-black text-gray-800">
+                      {year}
+                    </h2>
+                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {cartoonGroups[year].length}
+                    </span>
+                    <div className="flex-1 border-t border-gray-100"></div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {cartoonGroups[year].map((cartoon) => (
+                      <CartoonCardFuture
+                        key={cartoon.system_id}
+                        cartoon={cartoon}
+                        isAdmin={isAdmin}
+                        onUpdated={handleCartoonUpdated}
                       />
                     ))}
                   </div>

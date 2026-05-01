@@ -267,9 +267,9 @@ Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"An
 
 ## Composite Logics
 
-### Anime Post Processing — `anime_post_processing(anime, db)` / `run_anime_post_processing(db)`
+### Anime Post Processing — `anime_post_processing(anime, db)`
 
-Runs all single-entry checks and repairs for one anime. `run_anime_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one anime.
 
 **Steps (in order):**
 
@@ -281,25 +281,49 @@ Runs all single-entry checks and repairs for one anime. `run_anime_post_processi
 
 ---
 
-### Anime Movie Post Processing — `anime_movie_post_processing(anime_movie, db)` / `run_anime_movie_post_processing(db)`
+### Movie Post Processing — `movie_post_processing(anime_movie, db)`
 
-Runs all single-entry checks and repairs for one anime movie. `run_anime_movie_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one movie.
 
 **Steps (in order):**
 
 1. `apply_check_baha`
+2. If `check_is_movie_completed()` and `watching_status != "Completed"`: call `mark_movie_completed`.
 
 ---
 
-### TV Show Post Processing — `tv_show_post_processing(tv_show, db)` / `run_tv_show_post_processing(db)`
+### Anime Movie Post Processing — `anime_movie_post_processing(anime_movie, db)`
 
-Runs all single-entry checks and repairs for one TV show. `run_tv_show_post_processing` applies it to every entry in the DB.
+Runs all single-entry checks and repairs for one anime movie.
+
+**Steps (in order):**
+
+1. `apply_check_baha`
+2. If `check_is_movie_completed()` and `watching_status != "Completed"`: call `mark_movie_completed`.
+
+---
+
+### TV Show Post Processing — `tv_show_post_processing(tv_show, db)`
+
+Runs all single-entry checks and repairs for one TV show.
 
 **Steps (in order):**
 
 1. `apply_validate_episode_math`
 2. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
 3. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_tv_show`.
+
+---
+
+### Cartoon Post Processing — `cartoon_post_processing(cartoon, db)`
+
+Runs all single-entry checks and repairs for one Cartoon.
+
+**Steps (in order):**
+
+1. `apply_validate_episode_math`
+2. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
+3. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_cartoon`.
 
 ---
 
@@ -315,7 +339,7 @@ Master orchestrator. Calls all post-processing functions across every media type
 
 ---
 
-### Derive Related Anime — `derive_related_anime(db, franchise_id)` / `run_derive_related_anime(db)`
+### Derive Related Anime — `derive_related_anime(db, franchise_id)`
 
 Runs watch order, episode previous, and prequel/sequel derivation for every ACG franchise in the DB.
 
@@ -329,7 +353,7 @@ Commits after all franchises processed.
 
 ---
 
-### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)` / `run_derive_related_tv_show(db)`
+### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)`
 
 Runs watch order and prequel/sequel derivation for every TV or Movie franchise in the DB.
 
@@ -342,11 +366,25 @@ Commits after all franchises processed.
 
 ---
 
+### Derive Related Cartoon — `derive_related_cartoon(db, franchise_id)`
+
+Runs watch order and prequel/sequel derivation for every Cartoon franchise in the DB.
+
+**Per franchise_id:**
+
+1. `derive_watch_order_cartoon`
+2. `derive_prequel_sequel_cartoon`
+
+Commits after all franchises processed.
+
+---
+
 ### Sync — `run_sync(db)`
 
 1. `run_sync_anime(db)`
 2. `run_sync_anime_movie(db)`
 3. `run_sync_tv_show(db)`
+4. `run_sync_cartoon(db)`
 
 ---
 
@@ -370,14 +408,19 @@ Commits after all franchises processed.
 
 ---
 
+### Sync — `run_sync_cartoon(db)`
+
+1. `extract_system_options_from_cartoon`
+
+---
+
 ### Calculate All — `run_calculate_all(db)`
 
 1. `run_post_processing`
-2. `run_derive_related_anime`
-3. `run_derive_related_tv_show`
-4. `run_sync`
-5. `bulk_check_cover_image`
-6. Log to `DataControlLog` (Success or Failed).
+2. `run_derive_related`
+3. `run_sync`
+4. `bulk_check_cover_image`
+5. Log to `DataControlLog` (Success or Failed).
 
 ---
 
@@ -437,6 +480,14 @@ Returns `True` if any required field is blank.
 
 ---
 
+### Check Missing Values for Cartoon — `has_missing_values_cartoon(cartoon)`
+
+Returns `True` if any required field is blank. Branches on `airing_type` because `ep_total` cannot be sourced from TMDB movie data.
+
+**`airing_type == "Movie"`:** `airing_status`, `release_date`, `imdb_rating`, `cover_image_file`.
+
+**`airing_type == "TV"` (or any other value including `None`):** `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
+
 ### Check Completed for TV Type — `check_is_tv_completed(entry)`
 
 Applicable for anime, TV show, and cartoon entries. Returns `True` if:
@@ -489,16 +540,16 @@ Finds image files in storage not referenced by `cover_image_file` of any media t
 
 All use a **union-find** algorithm with transitive closure (A=B, B=C collapses to one cluster).
 
-| Function                     | Duplicate Key                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `find_duplicate_franchises`  | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
-| `find_duplicate_series`      | Same `franchise_id` + at least one matching name                                                             |
-| `find_duplicate_anime`       | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
-| `find_duplicate_anime_movie` | Same `franchise_id` + at least one matching name                                                             |
-| `find_duplicate_movie`       | Same `(franchise_id, series_id)` + at least one matching name                                                |
-| `find_duplicate_tv_show`     | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
-
-| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive) |
+| Function                        | Duplicate Key                                                                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `find_duplicate_franchises`     | Same `franchise_type` + at least one matching name (case-insensitive)                                        |
+| `find_duplicate_series`         | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_anime`          | Same `(franchise_id, series_id, airing_type, season_part, is_main, ep_special)` + at least one matching name |
+| `find_duplicate_anime_movie`    | Same `franchise_id` + at least one matching name                                                             |
+| `find_duplicate_movie`          | Same `(franchise_id, series_id)` + at least one matching name                                                |
+| `find_duplicate_tv_show`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
+| `find_duplicate_cartoon`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
+| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
 
 `find_all_duplicates` runs all six: returns `{franchise, series, anime, anime_movie, movie, tv_show, system_options}`.
 
@@ -571,6 +622,20 @@ Assigns consecutive `watch_order` floats (starting at 1.0) to eligible TV show e
 
 ---
 
+### Derive Watch Order Cartoon — `derive_watch_order_cartoon(db, franchise_id)`
+
+Assigns consecutive `watch_order` floats (starting at 1.0) to eligible Cartoon entries within a franchise.
+
+**Eligibility:** `airing_type == "TV"` and `season_part` is set.
+
+**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
+
+**Sort algorithm per series group:** Season number (from `season_part`), then part number.
+
+**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
+
+---
+
 ### Derive Watch Order Movie — `derive_watch_order_movie(db, franchise_id)`
 
 TBD.
@@ -589,6 +654,10 @@ Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after i
 
 ---
 
+### Derive Prequel Sequel Movie — `derive_prequel_sequel_movie(db, franchise_id)`
+
+## TBD.
+
 ### Derive Prequel Sequel TV Show — `derive_prequel_sequel_tv_show(db, franchise_id)`
 
 Sets `prequel_id` and `sequel_id` for TV show entries in a TV or Movie franchise, sorted by `watch_order`.
@@ -601,9 +670,15 @@ Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after i
 
 ---
 
-### Derive Prequel Sequel Movie — `derive_prequel_sequel_movie(db, franchise_id)`
+### Derive Prequel Sequel Cartoon — `derive_prequel_sequel_cartoon(db, franchise_id)`
 
-TBD.
+Sets `prequel_id` and `sequel_id` for Cartoon entries in a Cartoon franchise, sorted by `watch_order`.
+
+**Eligibility:** `watch_order` is not null AND `derive_related != False`. Does not apply to Special Franchises.
+
+**Only fills entries where the field is currently `None`** — never overwrites.
+
+Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
 
 ---
 
@@ -638,7 +713,7 @@ Sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set,
 
 ### Derive S1 Cartoon — `derive_season_1_cartoon(cartoon, db)`
 
-Sets `season_part = "Season 1"` if `season_part` is None, `franchise_id` is set, and the franchise has exactly 1 cartoon entry.
+Sets `season_part = “Season 1”` if `season_part` is None, `airing_type == “TV”`, `franchise_id` is set, and the franchise has exactly 1 cartoon entry with `airing_type == “TV”`.
 
 ---
 
@@ -720,7 +795,37 @@ Each entry represents **one season** of a show. The `imdb_id` field stores the s
 
 ### IMDb Autofill Cartoon — `autofill_cartoon_from_imdb(cartoon, db)`
 
-TBD. Follows same architecture as `autofill_tv_show_from_imdb`.
+Enriches a single Cartoon entry with TMDB + OMDb data. Does not commit — caller is responsible.
+
+The autofill path branches on `airing_type`:
+
+- **`"Movie"`**: Fetches TMDB movie data and OMDb data via `fetch_imdb_data`. Maps via `map_imdb_to_movie_data`. Applies `imdb_rating` and `cover_image_file` only — does **not** apply `director`, `length_min`, or `release_date_usa` (cartoon entries have no such columns).
+- **`"TV"`**: Fetches TMDB TV show-level and season-level data plus OMDb data. Maps via `map_imdb_to_cartoon_data`. Mirrors `autofill_tv_show_from_imdb`.
+- **Any other value (including `None`)**: Returns early — no IMDb data fetched.
+
+**Steps for `airing_type == "Movie"`:**
+
+1. Return early if `cartoon.imdb_id` is None.
+2. Call `fetch_imdb_data(cartoon.imdb_id)` → `{"tmdb_raw": ..., "omdb_raw": ...}`.
+3. Call `map_imdb_to_movie_data(tmdb_raw, omdb_raw)`.
+4. Fill-only `release_date`: mapped from `release_date_usa` in the output dict (cartoon entries have `release_date`, not `release_date_usa`).
+5. `imdb_rating`: always overwrite if fetched value is not None.
+6. `airing_status` (fill-only if currently None): read raw `tmdb_raw.get("release_date")` and compare to today — past date → `"Finished Airing"`, future date → `"Not Yet Aired"`. Skip if TMDB returned no date.
+7. Cover image (fill-only): if `cover_image_file` is None and `cover_image_url` is in the mapped data, download and upload to GCS as `{system_id}.jpg`, set `cover_image_file`.
+
+**Steps for `airing_type == "TV"`:**
+
+1. Return early if `cartoon.imdb_id` is None.
+2. Call `fetch_imdb_data(cartoon.imdb_id)` → `{"tmdb_raw": ..., "omdb_raw": ...}` (show-level).
+3. If `tmdb_raw` is not None:
+   - Extract `tmdb_id = tmdb_raw.get("id")`.
+   - Parse season number: `season_number = _parse_season_number(cartoon.season_part)`.
+   - Call `fetch_tmdb_tv_season_data(tmdb_id, season_number)` → `tmdb_season_raw`.
+4. Call `map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)`.
+5. Fill each field **only if currently None**: `release_date`, `ep_total`.
+6. `imdb_rating`: always overwrite if fetched value is not None.
+7. `airing_status` (fill-only if currently None): derive via `_derive_tv_season_airing_status(season_air_date, episodes)`.
+8. Cover image (fill-only): if `cover_image_file` is None and `cover_image_url` is in the mapped data, download and upload to GCS as `{system_id}.jpg`, set `cover_image_file`.
 
 ---
 
@@ -798,6 +903,8 @@ Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com
 
 ### IMDb Conversion for Movie — `map_imdb_to_movie_data(tmdb_raw, omdb_raw)` in `utils/tmdb_utils.py`
 
+Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. For Cartoon entries, `director`, `length_min`, and `release_date_usa` from the output are not written to the database (cartoon entries have no such columns).
+
 Merges results from both APIs into one flat dict for the Movie model.
 
 1. If `tmdb_raw` is available: call `map_tmdb_to_movie_data(tmdb_raw)`.
@@ -807,6 +914,8 @@ Merges results from both APIs into one flat dict for the Movie model.
 ---
 
 ### TMDB Conversion for Movie — `map_tmdb_to_movie_data(raw)` in `utils/tmdb_utils.py`
+
+Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. When used for Cartoon entries, `length_min`, `release_date_usa`, and `director` are present in the output dict but are ignored by `autofill_cartoon_from_imdb` — cartoon entries have no such database columns.
 
 | Output Field       | TMDB Source                                                            |
 | ------------------ | ---------------------------------------------------------------------- |
@@ -878,7 +987,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 1. If `tmdb_season_raw` is not None: apply `map_tmdb_to_tv_show_data(tmdb_season_raw)`.
 2. If `cover_image_url` is still None and `tmdb_raw` is not None: fall back to show-level `poster_path` via `_build_poster_url`.
-3. If `omdb_raw` is not None: apply `map_omdb_to_tv_show_data(omdb_raw)` (adds `imdb_rating`).
+3. If `omdb_raw` is not None: apply `map_omdb_to_tv_data(omdb_raw)` (adds `imdb_rating`).
 
 ---
 
@@ -893,7 +1002,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### OMDB Conversion for TV Show — `map_omdb_to_tv_show_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for TV Show — `map_omdb_to_tv_data(raw)` in `utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |
@@ -912,7 +1021,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### OMDB Conversion for Cartoon — `map_omdb_to_cartoon_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for Cartoon — `map_omdb_to_tv_data(raw)` in `utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |
@@ -979,6 +1088,12 @@ Computed in `AnimeResponse` (Pydantic schema), never stored in the DB:
 ### Mark Completed — `mark_tv_completed(entry)`
 
 Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`, `ep_fin = ep_total`.
+
+---
+
+### Mark Completed — `mark_movie_completed(entry)`
+
+Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`.
 
 ---
 

@@ -345,7 +345,7 @@ Full detail page for a single cartoon entry.
 
 **Layout (right column):**
 
-- Tags: Airing Status
+- Tags: Airing Type, Airing Status
 - Main Title: Cartoon Name CN (with fallback)
 - Sub Title: Cartoon Name EN (hidden if CN used fallback or is null)
 - From Franchise: Franchise Name CN with fallback (navigates to franchise page)
@@ -472,7 +472,7 @@ Hub for movie/TV show franchises.
 
 ### Franchise Hub — Cartoon
 
-**File:** `frontend/src/pages/FranchiseCartoon.jsx` (TBD)
+**File:** `frontend/src/pages/FranchiseCartoon.jsx`
 
 Hub for cartoon franchises.
 
@@ -486,7 +486,7 @@ Hub for cartoon franchises.
 **Cartoon Entry Section:**
 
 - Sort By: Release Date (default) / Title / My Rating / IMDB Rating
-- Filter: Airing Status / Watching Status (Watching Status Filter Options)
+- Filter: Airing Type, Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
 - Each entry: **Cartoon Entry Card 2** (reusable), grouped by Series
 
@@ -626,7 +626,7 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 - Filter search: by Franchise Title, Series Title, Cartoon Title, Release Year. Case/punctuation/space insensitive.
 - Sort by: Title (default) / My Rating / IMDB Rating / Release Date (new to old; TBD first)
-- Advanced filters (collapsible): Official Source, Airing Status, Watching Status (Watching Status Filter Options)
+- Advanced filters (collapsible): Official Source, Airing Type, Airing Status, Watching Status (Watching Status Filter Options)
 - Grid/Table view toggle
 
 **Grid view** — each entry: **Cartoon Entry Card 2**
@@ -748,6 +748,7 @@ Multi-section statistics dashboard.
    - Anime Movie tab: grouped by Franchise with the order of 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
    - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, Movie Name CN with fallback
    - TV Show: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
+   - Cartoon tab: Group by Cartoon Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Comedy Central, Other; shows poster, Cartoon Name CN with fallback
    - Cartoon / Manga / Novel tabs (TBD)
    - Note: Anime uses franchise entries; other media types use the media entry directly
 
@@ -764,7 +765,7 @@ Multi-section statistics dashboard.
    - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
-   - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+   - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
    - Manga / Novel tabs (TBD)
 
 ---

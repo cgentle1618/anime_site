@@ -101,6 +101,8 @@ Field: `reading_status` _(future)_ — Default: `Might Read`
 
 ## Airing Type
 
+### Anime Airing Type
+
 Field: `anime.airing_type` — Default: `null`
 
 | Value     | Default |
@@ -113,6 +115,19 @@ Field: `anime.airing_type` — Default: `null`
 | `OAD`     |         |
 | `Special` |         |
 | `Other`   |         |
+
+---
+
+### Cartoon Airing Type
+
+Field: `cartoon.airing_type` — Default: `TV`
+
+| Value   | Default |
+| ------- | ------- |
+| `null`  |         |
+| `TV`    | Yes     |
+| `Movie` |         |
+| `Other` |         |
 
 ---
 
@@ -349,6 +364,25 @@ Required metadata fields that should be populated for each entry type. Used by `
 | `cover_image_file` |       |
 
 ### TV Show
+
+| Field              | Notes |
+| ------------------ | ----- |
+| `airing_status`    |       |
+| `release_date`     |       |
+| `imdb_rating`      |       |
+| `ep_total`         |       |
+| `cover_image_file` |       |
+
+### Cartoon (Movie airing type)
+
+| Field              | Notes                                               |
+| ------------------ | --------------------------------------------------- |
+| `airing_status`    |                                                     |
+| `release_date`     | Mapped from `release_date_usa` in TMDB movie output |
+| `imdb_rating`      |                                                     |
+| `cover_image_file` |                                                     |
+
+### Cartoon (TV airing type)
 
 | Field              | Notes |
 | ------------------ | ----- |

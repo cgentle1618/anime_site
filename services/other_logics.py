@@ -18,6 +18,7 @@ from database import get_taipei_now
 from models import (
     Anime,
     AnimeMovies,
+    Cartoon,
     Movies,
     TVShows,
     Franchise,
@@ -36,6 +37,8 @@ from utils.utils import (
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
+    CARTOON_TV_FIELDS_TO_FILL,
+    CARTOON_MOVIE_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
@@ -48,10 +51,10 @@ from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_
 from utils.imdb_utils import (
     _parse_season_number,
     _derive_tv_season_airing_status,
+    map_imdb_to_cartoon_data,
     map_imdb_to_movie_data,
     map_imdb_to_tv_show_data,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -412,12 +415,93 @@ def resolve_tv_show_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
+def resolve_cartoon_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
+    """
+    Ensures valid franchise_id and series_id UUIDs for a Cartoon entry.
+    Franchise: valid UUID pass-through; null/string → search by name; not found → auto-create with
+    franchise_type="Cartoon".
+    Series: non-string pass-through; non-empty string → search by name; not found → set null.
+    Returns (final_franchise_id, final_series_id).
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        final_franchise_id = franchise_id
+    else:
+        valid_names = set()
+        for lang_key in ["en", "cn", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        search_conditions = []
+        for name_str in valid_names:
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing = None
+        if search_conditions:
+            existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+        if existing:
+            final_franchise_id = existing.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise for Cartoon: {final_franchise_id}"
+            )
+        else:
+            new_fran = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type="Cartoon",
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_fran)
+            db.flush()
+            final_franchise_id = new_fran.system_id
+            logger.info(
+                f"Auto-created missing Franchise for Cartoon: {final_franchise_id}"
+            )
+
+    final_series_id = series_id
+    if series_id and isinstance(series_id, str) and series_id.strip():
+        sname = series_id.strip()
+        existing_series = (
+            db.query(Series)
+            .filter(
+                or_(
+                    Series.series_name_en.ilike(sname),
+                    Series.series_name_cn.ilike(sname),
+                    Series.series_name_alt.ilike(sname),
+                )
+            )
+            .first()
+        )
+        if existing_series:
+            final_series_id = existing_series.system_id
+            logger.info(f"Auto-resolved existing Series for Cartoon: {final_series_id}")
+        else:
+            final_series_id = None
+            logger.warning(
+                f"Could not resolve Series by name '{sname}' for Cartoon. Setting to null."
+            )
+
+    return final_franchise_id, final_series_id
+
+
 # ==========================================
 # CHECKING LOGICS
 # ==========================================
 
 
-def apply_validate_episode_math(entry: Union[Anime, TVShows]) -> bool:
+def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     ep_total = getattr(entry, "ep_total", None)
     ep_fin = getattr(entry, "ep_fin", None)
     if ep_total is None and ep_fin is None:
@@ -503,7 +587,21 @@ def has_missing_values_tv_show(tv_show: TVShows) -> bool:
     return False
 
 
-def check_is_watching_completed(entry: Union[Anime, TVShows]) -> bool:
+def has_missing_values_cartoon(cartoon: Cartoon) -> bool:
+    """Returns True if any required Cartoon field is missing."""
+    fields = (
+        CARTOON_MOVIE_FIELDS_TO_FILL
+        if cartoon.airing_type == "Movie"
+        else CARTOON_TV_FIELDS_TO_FILL
+    )
+    for field in fields:
+        val = getattr(cartoon, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
+
+
+def check_is_tv_completed(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
     should be considered completed.
@@ -515,6 +613,18 @@ def check_is_watching_completed(entry: Union[Anime, TVShows]) -> bool:
     ep_total = getattr(entry, "ep_total", None)
     ep_fin = getattr(entry, "ep_fin", None)
     if ep_total is not None and ep_total > 0 and ep_fin == ep_total:
+        return True
+
+    return False
+
+
+def check_is_movie_completed(entry: Union[AnimeMovies, Movies]) -> bool:
+    """
+    Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
+    should be considered completed.
+    Returns True if watching_status is 'Completed' or ep_fin equals ep_total.
+    """
+    if entry.watching_status == "Completed":
         return True
 
     return False
@@ -986,6 +1096,82 @@ def find_duplicate_tv_show(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_cartoon(db: Session) -> list[list[dict]]:
+    """
+    Finds Cartoon entries that share the same (franchise_id, series_id, season_part, is_main)
+    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    cartoons = db.query(Cartoon).filter(Cartoon.franchise_id.isnot(None)).all()
+
+    def _key(c: Cartoon) -> tuple:
+        season = (c.season_part or "").strip().lower() or None
+        return (
+            str(c.franchise_id),
+            str(c.series_id) if c.series_id else None,
+            season,
+            c.is_main,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for c in cartoons:
+        by_key.setdefault(_key(c), []).append(c)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    cartoon_map = {str(c.system_id): c for c in cartoons}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for cid in cartoon_map:
+        clusters.setdefault(find(cid), []).append(cid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": cid,
+                        "franchise_id": str(cartoon_map[cid].franchise_id),
+                        "series_id": (
+                            str(cartoon_map[cid].series_id)
+                            if cartoon_map[cid].series_id
+                            else None
+                        ),
+                        "season_part": cartoon_map[cid].season_part,
+                        "is_main": cartoon_map[cid].is_main,
+                        "cartoon_name_en": cartoon_map[cid].cartoon_name_en,
+                        "cartoon_name_cn": cartoon_map[cid].cartoon_name_cn,
+                        "cartoon_name_alt": cartoon_map[cid].cartoon_name_alt,
+                    }
+                    for cid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -993,6 +1179,7 @@ def find_all_duplicates(db: Session) -> dict:
         "series": find_duplicate_series(db),
         "anime": find_duplicate_anime(db),
         "anime_movie": find_duplicate_anime_movie(db),
+        "cartoon": find_duplicate_cartoon(db),
         "movie": find_duplicate_movie(db),
         "tv_show": find_duplicate_tv_show(db),
         "system_options": find_duplicate_system_options(db),
@@ -1012,29 +1199,25 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     return False
 
 
-def apply_extract_imdb_id(movie) -> bool:
+def apply_extract_imdb_id(entry: Union[Movies, TVShows, Cartoon]) -> bool:
     """Extracts IMDb ID from imdb_link and writes it to imdb_id. Returns True if set."""
-    imdb_id = extract_imdb_id(movie.imdb_link)
+    imdb_id = extract_imdb_id(entry.imdb_link)
     if imdb_id:
-        movie.imdb_id = imdb_id
+        entry.imdb_id = imdb_id
         return True
     return False
 
 
-def apply_extract_season_from_title(entry: Anime) -> bool:
-    title = entry.anime_name_en or entry.anime_name_roman or ""
+def apply_extract_season_from_title(entry: Union[Anime, TVShows, Cartoon]) -> bool:
+    if isinstance(entry, Cartoon):
+        title = entry.cartoon_name_en or ""
+    elif isinstance(entry, TVShows):
+        title = entry.tv_name_en or ""
+    else:
+        title = entry.anime_name_en or entry.anime_name_roman or ""
     extracted = extract_season_from_title(title)
     if extracted:
         entry.season_part = extracted
-        return True
-    return False
-
-
-def apply_extract_season_from_title_tv_show(tv_show: TVShows) -> bool:
-    title = tv_show.tv_name_en or tv_show.tv_name_alt or ""
-    extracted = extract_season_from_title(title)
-    if extracted:
-        tv_show.season_part = extracted
         return True
     return False
 
@@ -1176,6 +1359,62 @@ def derive_watch_order_tv_show(db: Session, franchise_id) -> None:
             entry.watch_order = float(position)
 
 
+def derive_watch_order_cartoon(db: Session, franchise_id) -> None:
+    if not franchise_id:
+        return
+
+    eligible = (
+        db.query(Cartoon)
+        .filter(
+            Cartoon.franchise_id == franchise_id,
+            Cartoon.airing_type == "TV",
+            Cartoon.season_part.isnot(None),
+        )
+        .all()
+    )
+
+    if not eligible:
+        return
+
+    def get_sort_key(c: Cartoon):
+        s_part = str(c.season_part or "")
+        s_match = SEASON_PATTERN.search(s_part)
+        p_match = PART_PATTERN.search(s_part)
+        s_num = int(s_match.group(1)) if s_match else 1
+        p_num = int(p_match.group(1)) if p_match else 1
+        return (s_num, p_num)
+
+    series_groups: dict = {}
+    no_series: list = []
+
+    for cartoon in eligible:
+        if cartoon.series_id:
+            series_groups.setdefault(cartoon.series_id, []).append(cartoon)
+        else:
+            no_series.append(cartoon)
+
+    for entries in series_groups.values():
+        entries.sort(key=get_sort_key)
+    no_series.sort(key=get_sort_key)
+
+    ordered_series_ids = list(series_groups.keys())
+    if len(ordered_series_ids) > 1:
+        series_objs = (
+            db.query(Series).filter(Series.system_id.in_(ordered_series_ids)).all()
+        )
+        name_map = {s.system_id: (s.display_name or "") for s in series_objs}
+        ordered_series_ids.sort(key=lambda sid: name_map.get(sid, ""))
+
+    ordered_entries = []
+    for sid in ordered_series_ids:
+        ordered_entries.extend(series_groups[sid])
+    ordered_entries.extend(no_series)
+
+    for position, entry in enumerate(ordered_entries, start=1):
+        if entry.watch_order is None:
+            entry.watch_order = float(position)
+
+
 def derive_prequel_sequel_anime(db: Session, franchise_id: Any) -> None:
     """
     Derives prequel_id and sequel_id for eligible entries within an acg franchise.
@@ -1234,6 +1473,41 @@ def derive_prequel_sequel_tv_show(db: Session, franchise_id) -> None:
             TVShows.derive_related.isnot(False),
         )
         .order_by(TVShows.watch_order)
+        .all()
+    )
+
+    for i, entry in enumerate(entries):
+        prev_entry = entries[i - 1] if i > 0 else None
+        next_entry = entries[i + 1] if i < len(entries) - 1 else None
+
+        if entry.prequel_id is None and prev_entry is not None:
+            entry.prequel_id = prev_entry.system_id
+
+        if entry.sequel_id is None and next_entry is not None:
+            entry.sequel_id = next_entry.system_id
+
+
+_CARTOON_SPECIAL_FRANCHISE_NAMES: set[str] = set()
+
+
+def derive_prequel_sequel_cartoon(db: Session, franchise_id) -> None:
+    if not franchise_id:
+        return
+
+    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
+    if franchise:
+        franchise_names = franchise.get_all_names()
+        if franchise_names & _CARTOON_SPECIAL_FRANCHISE_NAMES:
+            return
+
+    entries = (
+        db.query(Cartoon)
+        .filter(
+            Cartoon.franchise_id == franchise_id,
+            Cartoon.watch_order.isnot(None),
+            Cartoon.derive_related.isnot(False),
+        )
+        .order_by(Cartoon.watch_order)
         .all()
     )
 
@@ -1341,6 +1615,25 @@ def derive_season_1_tv_show(tv_show: TVShows, db: Session) -> None:
     )
     if count == 1:
         tv_show.season_part = "Season 1"
+
+
+def derive_season_1_cartoon(cartoon: Cartoon, db: Session) -> None:
+    if cartoon.season_part is not None:
+        return
+    if not cartoon.franchise_id:
+        return
+    if cartoon.airing_type != "TV":
+        return
+    count = (
+        db.query(Cartoon)
+        .filter(
+            Cartoon.franchise_id == cartoon.franchise_id,
+            Cartoon.airing_type == "TV",
+        )
+        .count()
+    )
+    if count == 1:
+        cartoon.season_part = "Season 1"
 
 
 # ==========================================
@@ -1574,12 +1867,100 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
         )
 
 
+def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
+    """
+    Fetches TMDB + OMDb data for a single Cartoon entry and fills/overwrites fields.
+    Routes to movie path (airing_type == "Movie") or TV path (airing_type == "TV").
+    All other airing_type values skip autofill entirely.
+    Does not commit — caller is responsible.
+    """
+    if cartoon.imdb_id is None:
+        return
+    if cartoon.airing_type not in {"Movie", "TV"}:
+        return
+
+    try:
+        result = fetch_imdb_data(cartoon.imdb_id)
+        tmdb_raw = result.get("tmdb_raw")
+        omdb_raw = result.get("omdb_raw")
+
+        if cartoon.airing_type == "Movie":
+            mapped = map_imdb_to_movie_data(tmdb_raw, omdb_raw)
+
+            if cartoon.release_date is None:
+                cartoon.release_date = mapped.get("release_date_usa")
+
+            fetched_rating = mapped.get("imdb_rating")
+            if fetched_rating is not None:
+                cartoon.imdb_rating = fetched_rating
+
+            if cartoon.airing_status is None and tmdb_raw is not None:
+                raw_date = tmdb_raw.get("release_date")
+                if raw_date:
+                    try:
+                        release_date = date.fromisoformat(raw_date)
+                        cartoon.airing_status = (
+                            "Finished Airing"
+                            if release_date <= date.today()
+                            else "Not Yet Aired"
+                        )
+                    except (ValueError, TypeError):
+                        pass
+
+            if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+                filename = download_cover_image(
+                    mapped["cover_image_url"], str(cartoon.system_id)
+                )
+                if filename:
+                    cartoon.cover_image_file = filename
+
+        else:  # airing_type == "TV"
+            tmdb_season_raw = None
+            if tmdb_raw is not None:
+                tmdb_id = tmdb_raw.get("id")
+                if tmdb_id:
+                    season_number = _parse_season_number(cartoon.season_part)
+                    tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
+
+            mapped = map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+
+            if cartoon.release_date is None:
+                cartoon.release_date = mapped.get("release_date")
+            if cartoon.ep_total is None:
+                fetched_ep_total = mapped.get("ep_total")
+                if fetched_ep_total:
+                    cartoon.ep_total = fetched_ep_total
+
+            fetched_rating = mapped.get("imdb_rating")
+            if fetched_rating is not None:
+                cartoon.imdb_rating = fetched_rating
+
+            if cartoon.airing_status is None:
+                derived_status = _derive_tv_season_airing_status(
+                    mapped.get("_season_air_date"), mapped.get("_episodes")
+                )
+                if derived_status is not None:
+                    cartoon.airing_status = derived_status
+
+            if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+                filename = download_cover_image(
+                    mapped["cover_image_url"], str(cartoon.system_id)
+                )
+                if filename:
+                    cartoon.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"IMDb Autofill failed for Cartoon ID {cartoon.system_id} (IMDb {cartoon.imdb_id}): {e}"
+        )
+
+
 # ==========================================
 # OTHER ACTIONS
 # ==========================================
 
 
-def mark_tv_completed(entry: Union[Anime, TVShows]) -> None:
+def mark_tv_completed(entry: Union[Anime, Cartoon, TVShows]) -> None:
     """
     Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.
     """
@@ -1653,6 +2034,22 @@ def apply_single_replace_tv_show(
 
     if not bulk:
         derive_related_tv_show(db)
+
+
+def apply_single_replace_cartoon(
+    db: Session, cartoon: Cartoon, bulk: bool = False
+) -> None:
+    """
+    Core 'Replace' logic for a single Cartoon entry.
+    When bulk=False, also derives related entries for all cartoon franchises.
+    When bulk=True, caller handles derive_related after the loop.
+    """
+    apply_extract_imdb_id(cartoon)
+    autofill_cartoon_from_imdb(cartoon, db)
+    cartoon_post_processing(cartoon, db)
+
+    if not bulk:
+        derive_related_cartoon(db)
 
 
 # ==========================================
@@ -1867,6 +2264,48 @@ def extract_system_options_from_tv_show(db: Session) -> dict:
     }
 
 
+_CARTOON_OPTION_FIELD_MAP = {
+    "Cartoon Official Source": "source_official",
+}
+
+
+def extract_system_options_from_cartoon(db: Session) -> dict:
+    """
+    Scans all Cartoon entries for source_official values.
+    Any value not already in SystemOption is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    cartoons = db.query(Cartoon).all()
+    new_options = []
+
+    for category, field in _CARTOON_OPTION_FIELD_MAP.items():
+        for cartoon in cartoons:
+            raw = getattr(cartoon, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_cartoon: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(cartoons)} entries, created {len(new_options)} missing system options.",
+    }
+
+
 # ==========================================
 # COMPOSITE LOGICS
 # ==========================================
@@ -1876,7 +2315,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
     apply_check_baha(anime)
 
-    if check_is_watching_completed(anime) and anime.watching_status != "Completed":
+    if check_is_tv_completed(anime) and anime.watching_status != "Completed":
         mark_tv_completed(anime)
 
     if (
@@ -1893,17 +2332,33 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
     apply_check_baha(anime_movie)
+    if (
+        check_is_movie_completed(anime_movie)
+        and anime_movie.watching_status != "Completed"
+    ):
+        mark_movie_completed(anime_movie)
 
 
 def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
     apply_validate_episode_math(tv_show)
 
-    if check_is_watching_completed(tv_show) and tv_show.watching_status != "Completed":
+    if check_is_tv_completed(tv_show) and tv_show.watching_status != "Completed":
         mark_tv_completed(tv_show)
 
     if tv_show.season_part is None:
-        apply_extract_season_from_title_tv_show(tv_show)
+        apply_extract_season_from_title(tv_show)
         derive_season_1_tv_show(tv_show, db)
+
+
+def cartoon_post_processing(cartoon: Cartoon, db: Session) -> None:
+    apply_validate_episode_math(cartoon)
+
+    if check_is_tv_completed(cartoon) and cartoon.watching_status != "Completed":
+        mark_tv_completed(cartoon)
+
+    if cartoon.season_part is None:
+        apply_extract_season_from_title(cartoon)
+        derive_season_1_cartoon(cartoon, db)
 
 
 def derive_related_anime(db: Session) -> None:
@@ -1935,5 +2390,21 @@ def derive_related_tv_show(db: Session) -> None:
     for fid in franchise_ids:
         derive_watch_order_tv_show(db, fid)
         derive_prequel_sequel_tv_show(db, fid)
+    if franchise_ids:
+        db.commit()
+
+
+def derive_related_cartoon(db: Session) -> None:
+    """Derives watch order and prequel/sequel for all cartoon franchises."""
+    rows = (
+        db.query(Cartoon.franchise_id)
+        .filter(Cartoon.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        derive_watch_order_cartoon(db, fid)
+        derive_prequel_sequel_cartoon(db, fid)
     if franchise_ids:
         db.commit()

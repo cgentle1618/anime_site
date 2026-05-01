@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
 from models import (
+    Cartoon,
     Franchise,
     Series,
     Anime,
@@ -30,6 +31,7 @@ from utils.formatter import (
     parse_series_from_sheet,
     parse_anime_from_sheet,
     parse_anime_movie_from_sheet,
+    parse_cartoon_from_sheet,
     parse_movie_from_sheet,
     parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
@@ -41,30 +43,37 @@ from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from services.other_logics import (
     has_missing_values_anime,
     has_missing_values_anime_movie,
+    has_missing_values_cartoon,
     has_missing_values_movie,
     has_missing_values_tv_show,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
+    autofill_cartoon_from_imdb,
     autofill_movie_from_imdb,
     autofill_tv_show_from_imdb,
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
+    apply_single_replace_cartoon,
     apply_single_replace_movie,
     apply_single_replace_tv_show,
     apply_extract_mal_id_anime,
     apply_extract_imdb_id,
     anime_post_processing,
     anime_movie_post_processing,
+    cartoon_post_processing,
     tv_show_post_processing,
     derive_related_anime,
+    derive_related_cartoon,
     derive_related_tv_show,
     resolve_anime_movie_parent_hierarchy,
+    resolve_cartoon_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
 from services.calculation import (
     run_sync_anime,
     run_sync_anime_movie,
+    run_sync_cartoon,
     run_sync_tv_show,
 )
 
@@ -134,6 +143,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(t) for t in tv_show_entries
         ]
         bulk_overwrite_sheet("TV Shows", tv_show_matrix)
+
+        cartoon_entries = db.query(Cartoon).all()
+        cartoon_headers = [c.name for c in Cartoon.__table__.columns]
+        cartoon_matrix = [cartoon_headers] + [
+            format_model_for_sheet(c) for c in cartoon_entries
+        ]
+        bulk_overwrite_sheet("Cartoons", cartoon_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
@@ -551,6 +567,114 @@ async def execute_fill_tv_show(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
+async def execute_fill_cartoon(
+    db: Session,
+    request: Request,
+    action_specific: str = "Fill Cartoon",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE) for 'Fill Cartoon'. Supports graceful frontend abort."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_cartoons = db.query(Cartoon).all()
+        for cartoon in all_cartoons:
+            apply_extract_imdb_id(cartoon)
+        db.commit()
+
+        queue_to_process = [
+            c
+            for c in all_cartoons
+            if c.airing_type in {"Movie", "TV"} and has_missing_values_cartoon(c)
+        ]
+        total_in_queue = len(queue_to_process)
+
+        if total_in_queue > 0:
+            for index, cartoon in enumerate(queue_to_process, start=1):
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError()
+
+                name = cartoon.display_name or "Unknown Cartoon"
+                yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+                try:
+                    autofill_cartoon_from_imdb(cartoon, db)
+                    db.commit()
+                    processed_count += 1
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"IMDb Autofill failed for {name}: {e}")
+
+                await asyncio.sleep(0)
+        else:
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No entries need filling. Running post-processing...', 'processed': 0, 'total': 0})}\n\n"
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Running post-processing...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+
+        for cartoon in all_cartoons:
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+            try:
+                cartoon_post_processing(cartoon, db)
+            except Exception as e:
+                logger.warning(
+                    f"Post-processing failed for {cartoon.display_name}: {e}"
+                )
+
+        db.commit()
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        derive_related_cartoon(db)
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_cartoon(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete.', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=processed_count,
+        )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=processed_count,
+            error_message=str(e),
+        )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
 async def execute_fill_all(db: Session, request: Request, action_type: str = "Manual"):
     """
     Master orchestrator for 'Fill All'.
@@ -617,6 +741,23 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
             db,
             request,
             action_specific="Fill TV Show",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed += data.get("processed", 0)
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
+        # Fill Cartoon
+        async for message in execute_fill_cartoon(
+            db,
+            request,
+            action_specific="Fill Cartoon",
             action_type=action_type,
             log_action=False,
         ):
@@ -895,6 +1036,64 @@ async def execute_replace_single_tv_show(
     except Exception as e:
         db.rollback()
         logger.error(f"Single Replace TV Show Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e), "status_code": 500}
+
+
+async def execute_replace_single_cartoon(
+    db: Session,
+    cartoon_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """Fetches IMDb/TMDB data for a single Cartoon entry, runs autofill and post-processing."""
+    logger.info(f"Starting Single Replace Pipeline for Cartoon ID: {cartoon_id}")
+    action_specific = "Replace for single Cartoon entry"
+
+    try:
+        cartoon = db.query(Cartoon).filter(Cartoon.system_id == cartoon_id).first()
+        if not cartoon:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="Cartoon not found 404",
+                )
+            return {
+                "status": "error",
+                "message": "Cartoon entry not found",
+                "status_code": 404,
+            }
+
+        apply_single_replace_cartoon(db, cartoon, bulk=False)
+        db.commit()
+
+        run_sync_cartoon(db)
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated {cartoon.display_name}.",
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Single Replace Cartoon Error: {e}")
         if log_action:
             log_data_control(
                 db,
@@ -1306,6 +1505,110 @@ async def execute_replace_tv_show(
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
+async def execute_replace_cartoon(
+    db: Session,
+    request: Request,
+    action_specific: str = "Replace Cartoon",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE). Replace all cartoon entries with IMDb/TMDB data."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_cartoons = (
+            db.query(Cartoon)
+            .filter(
+                Cartoon.airing_type.in_(["Movie", "TV"]),
+                or_(Cartoon.imdb_id.isnot(None), Cartoon.imdb_link.isnot(None)),
+            )
+            .all()
+        )
+        total_in_queue = len(all_cartoons)
+
+        if total_in_queue == 0:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Success",
+                    rows_updated=0,
+                )
+            yield f"data: {json.dumps({'status': 'info', 'message': 'No cartoon entries found to replace', 'total': 0, 'processed': 0})}\n\n"
+            return
+
+        for index, cartoon in enumerate(all_cartoons, start=1):
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+
+            name = cartoon.display_name or "Unknown Cartoon"
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+            try:
+                apply_single_replace_cartoon(db, cartoon, bulk=True)
+                db.commit()
+                processed_count += 1
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to replace {name}: {e}")
+
+            await asyncio.sleep(0)
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        derive_related_cartoon(db)
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_cartoon(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Aborted",
+                rows_updated=processed_count,
+            )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=processed_count,
+                error_message=str(e),
+            )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
 async def execute_replace_all(
     db: Session,
     request: Request,
@@ -1391,6 +1694,23 @@ async def execute_replace_all(
         if await request.is_disconnected():
             raise asyncio.CancelledError()
 
+        # Replace Cartoon
+        async for message in execute_replace_cartoon(
+            db,
+            request,
+            action_specific="Replace Cartoon",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed_across_all += data.get("processed", 0)
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
         # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
 
@@ -1452,6 +1772,7 @@ def execute_pull_specific(
         "Series": Series,
         "Anime": Anime,
         "Anime Movies": AnimeMovies,
+        "Cartoons": Cartoon,
         "Movies": Movies,
         "TV Shows": TVShows,
         "System Options": SystemOption,
@@ -1463,6 +1784,7 @@ def execute_pull_specific(
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
         "Anime Movies": parse_anime_movie_from_sheet,
+        "Cartoons": parse_cartoon_from_sheet,
         "Movies": parse_movie_from_sheet,
         "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
@@ -1510,6 +1832,18 @@ def execute_pull_specific(
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_tv_show_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Cartoon uses resolve_cartoon_parent_hierarchy (auto-creates franchise with type "Cartoon", looks up series)
+        elif tab_name == "Cartoons" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("cartoon_name_en"),
+                "cn": clean_header_dict.get("cartoon_name_cn"),
+                "alt": clean_header_dict.get("cartoon_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_cartoon_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
@@ -1687,6 +2021,21 @@ def execute_pull_specific(
                         )
                         .first()
                     )
+            elif tab_name == "Cartoons":
+                name = clean_header_dict.get(
+                    "cartoon_name_en"
+                ) or clean_header_dict.get("cartoon_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(Cartoon)
+                        .filter(
+                            or_(
+                                Cartoon.cartoon_name_en == name,
+                                Cartoon.cartoon_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
 
             if existing_record:
                 pk_value = getattr(existing_record, pk_field)
@@ -1703,7 +2052,7 @@ def execute_pull_specific(
                 clean_header_dict["airing_status"] = ""
             if clean_header_dict.get("airing_type") is None:
                 clean_header_dict["airing_type"] = ""
-        elif tab_name in ("Movies", "Anime Movies", "TV Shows"):
+        elif tab_name in ("Movies", "Anime Movies", "TV Shows", "Cartoons"):
             if clean_header_dict.get("watching_status") is None:
                 clean_header_dict["watching_status"] = "Might Watch"
             if clean_header_dict.get("created_at") is None:
@@ -1800,6 +2149,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Anime Movies",
         "Movies",
         "TV Shows",
+        "Cartoons",
         "Seasonal",
     ]
 

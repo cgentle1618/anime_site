@@ -19,7 +19,6 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -138,7 +137,7 @@ def _fetch_movie_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]
 
 def _fetch_tv_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]:
     """
-    Fetches TV show details.
+    Fetches TV show or Cartoon details.
     """
     tmdb_rate_limiter.wait_if_needed()
     url = f"{TMDB_BASE_URL}/tv/{tmdb_id}"
@@ -177,7 +176,7 @@ def fetch_tmdb_tv_season_data(
     tmdb_id: int, season_number: int
 ) -> Optional[Dict[str, Any]]:
     """
-    Fetches season-level details from TMDB for a specific TV show season.
+    Fetches season-level details from TMDB for a specific TV show or Cartoon season.
     Returns raw season JSON or None.
     """
     api_key = _get_api_key()

@@ -348,6 +348,48 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_cartoon_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Cartoon sheet into typed data ready for the Database.
+    franchise_id and series_id may be a UUID or a raw string name — handled in data_control.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "cartoon_name_en": parse_from_sheet(raw.get("cartoon_name_en"), str),
+        "cartoon_name_cn": parse_from_sheet(raw.get("cartoon_name_cn"), str),
+        "cartoon_name_alt": parse_from_sheet(raw.get("cartoon_name_alt"), str),
+        "season_part": parse_from_sheet(raw.get("season_part"), str),
+        "source_official": parse_from_sheet(raw.get("source_official"), str),
+        "airing_type": parse_from_sheet(raw.get("airing_type"), str),
+        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
+        "is_main": parse_from_sheet(raw.get("is_main"), str),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
+        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
+        "length_ep_min": parse_from_sheet(raw.get("length_ep_min"), int),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
+        "release_date": parse_from_sheet(raw.get("release_date"), str),
+        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
+        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
+        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
+        "watch_order": parse_from_sheet(raw.get("watch_order"), float),
+        "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
+        "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
+        "source_other": _safe_json(raw.get("source_other")),
+        "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
+        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.

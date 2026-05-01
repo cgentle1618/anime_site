@@ -93,6 +93,8 @@ export default function Statistics() {
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [allTVShows, setAllTVShows] = useState([]);
+  const [allCartoons, setAllCartoons] = useState([]);
+  const [cartoonCompletionPages, setCartoonCompletionPages] = useState({});
   const [seasonals, setSeasonals] = useState([]);
   const [currentSeason, setCurrentSeason] = useState(null);
   const [seasonalPage, setSeasonalPage] = useState(0);
@@ -102,8 +104,8 @@ export default function Statistics() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes] = await Promise.all(
-          [
+        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes, cRes] =
+          await Promise.all([
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/anime-movie/", { credentials: "include" }),
@@ -111,8 +113,8 @@ export default function Statistics() {
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/seasonal/", { credentials: "include" }),
             fetch("/api/seasonal/current-season", { credentials: "include" }),
-          ],
-        );
+            fetch("/api/cartoon/", { credentials: "include" }),
+          ]);
         if (
           !fRes.ok ||
           !aRes.ok ||
@@ -120,10 +122,11 @@ export default function Statistics() {
           !mRes.ok ||
           !tvRes.ok ||
           !sRes.ok ||
-          !csRes.ok
+          !csRes.ok ||
+          !cRes.ok
         )
           throw new Error("Failed to load data.");
-        const [fData, aData, amData, mData, tvData, sData, csData] =
+        const [fData, aData, amData, mData, tvData, sData, csData, cData] =
           await Promise.all([
             fRes.json(),
             aRes.json(),
@@ -132,6 +135,7 @@ export default function Statistics() {
             tvRes.json(),
             sRes.json(),
             csRes.json(),
+            cRes.json(),
           ]);
         setCurrentSeason(csData.current_season);
         setFranchises(fData);
@@ -139,6 +143,7 @@ export default function Statistics() {
         setAllAnimeMovies(amData);
         setAllMovies(mData);
         setAllTVShows(tvData);
+        setAllCartoons(cData);
         const fMap = {};
         fData.forEach((f) => {
           fMap[String(f.system_id)] = f;
@@ -647,7 +652,7 @@ export default function Statistics() {
             key: "cartoon",
             label: "Cartoon",
             icon: "fa-laugh-squint",
-            dev: true,
+            dev: false,
           },
           { key: "manga", label: "Manga", icon: "fa-book", dev: true },
           { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
@@ -1075,8 +1080,117 @@ export default function Statistics() {
                 );
               })()}
 
+            {/* Cartoon tab */}
+            {watchNextTab === "cartoon" &&
+              (() => {
+                const CARTOON_SOURCE_GROUPS = [
+                  { key: "cartoon_network", label: "Cartoon Network" },
+                  { key: "disney", label: "Disney" },
+                  { key: "nickelodeon", label: "Nickelodeon" },
+                  { key: "adult_swim", label: "Adult Swim" },
+                  { key: "fox", label: "FOX" },
+                  { key: "hbo", label: "HBO" },
+                  { key: "comedy_central", label: "Comedy Central" },
+                  { key: "others", label: "其他" },
+                ];
+                const watchNextCartoons = allCartoons.filter(
+                  (c) => c.watch_next,
+                );
+                const cartoonGrouped = {
+                  cartoon_network: [],
+                  disney: [],
+                  nickelodeon: [],
+                  adult_swim: [],
+                  fox: [],
+                  hbo: [],
+                  comedy_central: [],
+                  others: [],
+                };
+                watchNextCartoons.forEach((c) => {
+                  const src = (c.source_official || "").toLowerCase();
+                  if (src.includes("cartoon network"))
+                    cartoonGrouped.cartoon_network.push(c);
+                  else if (src.includes("disney"))
+                    cartoonGrouped.disney.push(c);
+                  else if (src.includes("nickelodeon"))
+                    cartoonGrouped.nickelodeon.push(c);
+                  else if (src.includes("adult swim"))
+                    cartoonGrouped.adult_swim.push(c);
+                  else if (src.includes("fox")) cartoonGrouped.fox.push(c);
+                  else if (src.includes("hbo")) cartoonGrouped.hbo.push(c);
+                  else if (src.includes("comedy central"))
+                    cartoonGrouped.comedy_central.push(c);
+                  else cartoonGrouped.others.push(c);
+                });
+                if (watchNextCartoons.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-laugh-squint text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No cartoons in watch list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Watch Next" on a cartoon entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-8">
+                    {CARTOON_SOURCE_GROUPS.map(({ key, label }) => {
+                      const items = cartoonGrouped[key];
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={key}>
+                          <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                              {label}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {items.map((c) => {
+                              const name =
+                                c.cartoon_name_cn ||
+                                c.cartoon_name_en ||
+                                c.cartoon_name_alt ||
+                                "—";
+                              return (
+                                <Link
+                                  key={c.system_id}
+                                  to={`/cartoon/${c.system_id}`}
+                                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                  <div className="aspect-[3/4] bg-gray-100">
+                                    <img
+                                      src={getCoverUrl(c.cover_image_file)}
+                                      alt={name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = FALLBACK_SVG;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                                    <p className="text-white text-xs font-bold leading-tight truncate">
+                                      {name}
+                                    </p>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {!["anime", "anime-movie", "movie", "tv-show"].includes(
+            {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
               watchNextTab,
             ) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
@@ -1114,7 +1228,7 @@ export default function Statistics() {
             key: "cartoon",
             label: "Cartoon",
             icon: "fa-laugh-squint",
-            dev: true,
+            dev: false,
           },
           { key: "manga", label: "Manga", icon: "fa-book", dev: true },
           { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
@@ -1399,8 +1513,72 @@ export default function Statistics() {
                 );
               })()}
 
+            {/* Cartoon tab */}
+            {rewatchTab === "cartoon" &&
+              (() => {
+                const rewatchCartoons = allCartoons
+                  .filter((c) => c.to_rewatch)
+                  .sort((a, b) =>
+                    (a.cartoon_name_en || "").localeCompare(
+                      b.cartoon_name_en || "",
+                    ),
+                  );
+                if (rewatchCartoons.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No cartoons marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on a cartoon entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchCartoons.map((c) => {
+                      const name =
+                        c.cartoon_name_cn ||
+                        c.cartoon_name_en ||
+                        c.cartoon_name_alt ||
+                        "—";
+                      return (
+                        <Link
+                          key={c.system_id}
+                          to={`/cartoon/${c.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(c.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {c.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {c.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {!["anime", "anime-movie", "movie", "tv-show"].includes(
+            {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
               rewatchTab,
             ) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
@@ -1453,7 +1631,7 @@ export default function Statistics() {
                 key: "cartoon",
                 label: "Cartoon",
                 icon: "fa-laugh-squint",
-                dev: true,
+                dev: false,
               },
               { key: "manga", label: "Manga", icon: "fa-book", dev: true },
               { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
@@ -2107,8 +2285,183 @@ export default function Statistics() {
             );
           })()}
 
+        {/* Cartoon tab */}
+        {completionsTab === "cartoon" &&
+          (() => {
+            const CARTOON_GROUPS = [
+              { key: "cartoon_network", label: "Cartoon Network" },
+              { key: "disney", label: "Disney" },
+              { key: "nickelodeon", label: "Nickelodeon" },
+              { key: "adult_swim", label: "Adult Swim" },
+              { key: "fox", label: "FOX" },
+              { key: "hbo", label: "HBO" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allCartoons
+              .filter(
+                (c) => c.watching_status === "Completed" && c.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const grouped = {
+              cartoon_network: [],
+              disney: [],
+              nickelodeon: [],
+              adult_swim: [],
+              fox: [],
+              hbo: [],
+              others: [],
+            };
+            completed.forEach((c) => {
+              const src = (c.source_official || "").toLowerCase();
+              if (src.includes("cartoon network"))
+                grouped.cartoon_network.push(c);
+              else if (src.includes("disney")) grouped.disney.push(c);
+              else if (src.includes("nickelodeon")) grouped.nickelodeon.push(c);
+              else if (src.includes("adult swim")) grouped.adult_swim.push(c);
+              else if (src.includes("fox")) grouped.fox.push(c);
+              else if (src.includes("hbo")) grouped.hbo.push(c);
+              else grouped.others.push(c);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No cartoon completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {CARTOON_GROUPS.map(({ key, label }) => {
+                  const items = grouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = cartoonCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setCartoonCompletionPages((prev) => ({
+                      ...prev,
+                      [key]: p,
+                    }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((cartoon, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            cartoon.cartoon_name_cn ||
+                            cartoon.cartoon_name_en ||
+                            cartoon.cartoon_name_alt ||
+                            "—";
+                          const dateStr = new Date(
+                            cartoon.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={cartoon.system_id}
+                              to={`/cartoon/${cartoon.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(cartoon.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {cartoon.cartoon_name_cn &&
+                                  cartoon.cartoon_name_en && (
+                                    <p className="text-xs text-gray-400 font-medium truncate">
+                                      {cartoon.cartoon_name_en}
+                                    </p>
+                                  )}
+                              </div>
+                              {cartoon.airing_type && (
+                                <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                                  {cartoon.airing_type}
+                                </span>
+                              )}
+                              {cartoon.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {cartoon.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
         {/* Under-development tabs */}
-        {!["anime", "anime-movie", "movie", "tv-show"].includes(
+        {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
           completionsTab,
         ) && (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">

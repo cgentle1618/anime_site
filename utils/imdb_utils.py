@@ -3,8 +3,13 @@ import logging
 import re
 from typing import Any, Dict, Optional
 
-from utils.omdb_utils import map_omdb_to_movie_data, map_omdb_to_tv_show_data
+from utils.omdb_utils import (
+    map_omdb_to_tv_data,
+    map_omdb_to_movie_data,
+    map_omdb_to_tv_data,
+)
 from utils.tmdb_utils import (
+    map_tmdb_to_cartoon_data,
     map_tmdb_to_movie_data,
     map_tmdb_to_tv_show_data,
     _build_poster_url,
@@ -94,6 +99,37 @@ def map_imdb_to_tv_show_data(
             merged["cover_image_url"] = fallback_url
 
     if omdb_raw is not None:
-        merged.update(map_omdb_to_tv_show_data(omdb_raw))
+        merged.update(map_omdb_to_tv_data(omdb_raw))
+
+    return merged
+
+
+def map_imdb_to_cartoon_data(
+    tmdb_raw: Optional[Dict[str, Any]],
+    tmdb_season_raw: Optional[Dict[str, Any]],
+    omdb_raw: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    Merges show-level TMDB, season-level TMDB, and OMDb data for a Cartoon entry.
+    Season data takes precedence for cover/release/ep_total/length_ep_min; show-level
+    poster and episode_run_time are used as fallbacks when season provides no value.
+    """
+    merged: Dict[str, Any] = {}
+
+    if tmdb_season_raw is not None:
+        merged.update(map_tmdb_to_cartoon_data(tmdb_season_raw))
+
+    if merged.get("cover_image_url") is None and tmdb_raw is not None:
+        fallback_url = _build_poster_url(tmdb_raw.get("poster_path"))
+        if fallback_url:
+            merged["cover_image_url"] = fallback_url
+
+    if merged.get("length_ep_min") is None and tmdb_raw is not None:
+        run_times = tmdb_raw.get("episode_run_time") or []
+        if run_times:
+            merged["length_ep_min"] = run_times[0]
+
+    if omdb_raw is not None:
+        merged.update(map_omdb_to_tv_data(omdb_raw))
 
     return merged

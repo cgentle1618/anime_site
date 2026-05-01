@@ -192,6 +192,39 @@ const defaultAnimeMovie = () => ({
   remark: "",
 });
 
+const defaultCartoon = () => ({
+  cartoon_name_en: "",
+  cartoon_name_cn: "",
+  cartoon_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  season_part: "",
+  airing_type: "",
+  airing_status: "Not Yet Aired",
+  watching_status: "Might Watch",
+  is_main: "本傳",
+  ep_total: "",
+  ep_fin: "",
+  my_rating: "",
+  imdb_rating: "",
+  length_ep_min: "",
+  source_official: "",
+  release_date: "",
+  prequel_id: null,
+  sequel_id: null,
+  watch_order: "",
+  derive_related: "",
+  imdb_id: "",
+  imdb_link: "",
+  source_other: [],
+  watch_next: false,
+  to_rewatch: false,
+  cover_image_file: "",
+  remark: "",
+});
+
 export default function Add() {
   const { showToast } = useToast();
 
@@ -202,6 +235,7 @@ export default function Add() {
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
+  const [allCartoons, setAllCartoons] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -225,6 +259,7 @@ export default function Add() {
   const [amf, setAmf] = useState(defaultAnimeMovie());
   const [mf, setMf] = useState(defaultMovie());
   const [tvf, setTvf] = useState(defaultTvShow());
+  const [cf, setCf] = useState(defaultCartoon());
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
 
@@ -234,12 +269,13 @@ export default function Add() {
   const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
   const umf = (k, v) => setMf((p) => ({ ...p, [k]: v }));
   const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
+  const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes] = await Promise.all(
-          [
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes] =
+          await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/series/", { credentials: "include" }),
@@ -247,8 +283,8 @@ export default function Add() {
             fetch("/api/anime-movie/", { credentials: "include" }),
             fetch("/api/movies/", { credentials: "include" }),
             fetch("/api/tv-shows/", { credentials: "include" }),
-          ],
-        );
+            fetch("/api/cartoon/", { credentials: "include" }),
+          ]);
         const [
           anime,
           franchises,
@@ -257,6 +293,7 @@ export default function Add() {
           animeMovies,
           movies,
           tvShows,
+          cartoons,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -265,6 +302,7 @@ export default function Add() {
           amRes.json(),
           mvRes.json(),
           tvRes.json(),
+          cRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -273,6 +311,7 @@ export default function Add() {
         setAllAnimeMovies(animeMovies);
         setAllMovies(movies);
         setAllTvShows(tvShows);
+        setAllCartoons(cartoons);
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -342,6 +381,7 @@ export default function Add() {
       else if (activeTab === "anime-movie") await submitAnimeMovie();
       else if (activeTab === "movie") await submitMovie();
       else if (activeTab === "tv-show") await submitTvShow();
+      else if (activeTab === "cartoon") await submitCartoon();
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
@@ -398,6 +438,7 @@ export default function Add() {
     if (!franchiseId) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "ACG",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -666,6 +707,7 @@ export default function Add() {
     if (!franchiseId) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "ACG",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -766,6 +808,7 @@ export default function Add() {
     if (!franchiseId && mf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "TV or Movie",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -930,6 +973,7 @@ export default function Add() {
     if (!franchiseId && tvf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
+          franchiseType: "TV or Movie",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -1064,6 +1108,155 @@ export default function Add() {
     setAllTvShows((prev) => [...prev, created]);
   }
 
+  async function submitCartoon() {
+    if (!cf.cartoon_name_cn && !cf.cartoon_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+
+    let franchiseId = cf.franchise_id;
+    if (!franchiseId && cf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Cartoon",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cf.cartoon_name_en || null,
+          franchise_name_cn: cf.cartoon_name_cn || null,
+          franchise_name_alt: cf.cartoon_name_alt || null,
+          franchise_type: "Cartoon",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = cf.series_id;
+    if (!seriesId && cf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cf.cartoon_name_en || null,
+          series_name_cn: cf.cartoon_name_cn || null,
+          series_name_alt: cf.cartoon_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    const payload = {
+      cartoon_name_en: cf.cartoon_name_en || null,
+      cartoon_name_cn: cf.cartoon_name_cn || null,
+      cartoon_name_alt: cf.cartoon_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      season_part: cf.season_part || null,
+      airing_type: cf.airing_type || null,
+      airing_status: cf.airing_status || null,
+      watching_status: cf.watching_status || "Might Watch",
+      is_main: cf.is_main || null,
+      ep_total: cf.ep_total !== "" ? parseInt(cf.ep_total) : null,
+      ep_fin: cf.ep_fin !== "" ? parseInt(cf.ep_fin) : null,
+      my_rating: cf.my_rating || null,
+      imdb_rating: cf.imdb_rating || null,
+      length_ep_min:
+        cf.length_ep_min !== "" ? parseInt(cf.length_ep_min) : null,
+      source_official: cf.source_official || null,
+      release_date: cf.release_date || null,
+      prequel_id: cf.prequel_id || null,
+      sequel_id: cf.sequel_id || null,
+      watch_order: cf.watch_order !== "" ? parseFloat(cf.watch_order) : null,
+      derive_related:
+        cf.derive_related === "true"
+          ? true
+          : cf.derive_related === "false"
+            ? false
+            : null,
+      imdb_id: cf.imdb_id !== "" ? cf.imdb_id : null,
+      imdb_link: cf.imdb_link || null,
+      source_other:
+        cf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              cf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      watch_next: cf.watch_next ?? null,
+      to_rewatch: cf.to_rewatch ?? false,
+      cover_image_file: cf.cover_image_file || null,
+      remark: cf.remark || null,
+    };
+
+    const res = await fetch("/api/cartoon/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    window.scrollTo(0, 0);
+    showToast("success", "Cartoon appended successfully.");
+    setLastAdded(
+      created.cartoon_name_cn || created.cartoon_name_en || "New Cartoon",
+    );
+    setCf(defaultCartoon());
+    setAllCartoons((prev) => [...prev, created]);
+  }
+
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
     label: getDisplayName(f, "franchise"),
@@ -1112,6 +1305,18 @@ export default function Add() {
       .join(" "),
   }));
 
+  const seriesItemsForCartoon = (
+    cf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const optionCategories = [
     ...new Set(allOptions.map((o) => o.category)),
   ].sort();
@@ -1132,6 +1337,7 @@ export default function Add() {
     { key: "anime-movie", icon: "fa-film", label: "Add Anime Movie" },
     { key: "movie", icon: "fa-ticket-alt", label: "Add Movie" },
     { key: "tv-show", icon: "fa-video", label: "Add TV Show" },
+    { key: "cartoon", icon: "fa-paint-brush", label: "Add Cartoon" },
     { key: "franchise", icon: "fa-sitemap", label: "Add Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Add Series" },
     { key: "options", icon: "fa-cog", label: "Add System Option" },
@@ -3128,6 +3334,430 @@ export default function Add() {
           </div>
         )}
 
+        {/* ═══ CARTOON TAB ═══ */}
+        {activeTab === "cartoon" && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
+            <Field label="Franchise">
+              <ComboBox
+                items={allFranchises
+                  .filter(
+                    (f) => f.franchise_type === "Cartoon" || !f.franchise_type,
+                  )
+                  .map((f) => ({
+                    id: f.system_id,
+                    label: getDisplayName(f, "franchise"),
+                    searchText: [
+                      f.franchise_name_cn,
+                      f.franchise_name_en,
+                      f.franchise_name_alt,
+                    ]
+                      .filter(Boolean)
+                      .join(" "),
+                  }))}
+                selectedId={cf.franchise_id}
+                inputText={cf.franchise_text}
+                onSelect={(id, label) => {
+                  uc("franchise_id", id);
+                  uc("franchise_text", label);
+                  uc("series_id", null);
+                  uc("series_text", "");
+                }}
+                onType={(text) => {
+                  uc("franchise_text", text);
+                  uc("franchise_id", null);
+                  uc("series_id", null);
+                  uc("series_text", "");
+                }}
+                onClear={() => {
+                  uc("franchise_id", null);
+                  uc("franchise_text", "");
+                  uc("series_id", null);
+                  uc("series_text", "");
+                }}
+                placeholder="Search or type new franchise..."
+                allowNew
+              />
+            </Field>
+            <Field label="Series">
+              <ComboBox
+                items={seriesItemsForCartoon}
+                selectedId={cf.series_id}
+                inputText={cf.series_text}
+                onSelect={(id, label) => {
+                  uc("series_id", id);
+                  uc("series_text", label);
+                }}
+                onType={(text) => {
+                  uc("series_text", text);
+                  uc("series_id", null);
+                }}
+                onClear={() => {
+                  uc("series_id", null);
+                  uc("series_text", "");
+                }}
+                placeholder="Search or type new series..."
+                allowNew
+              />
+            </Field>
+            <Field label="Cartoon Name CN">
+              <input
+                className={inputCls}
+                value={cf.cartoon_name_cn}
+                onChange={(e) => uc("cartoon_name_cn", e.target.value)}
+                placeholder="Chinese title"
+              />
+            </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Cartoon Name EN">
+                <input
+                  className={inputCls}
+                  value={cf.cartoon_name_en}
+                  onChange={(e) => uc("cartoon_name_en", e.target.value)}
+                  placeholder="English title"
+                />
+              </Field>
+              <Field label="Cartoon Name Alt">
+                <input
+                  className={inputCls}
+                  value={cf.cartoon_name_alt}
+                  onChange={(e) => uc("cartoon_name_alt", e.target.value)}
+                  placeholder="Alternative title"
+                />
+              </Field>
+            </div>
+
+            <SectionHeader
+              icon="fa-chart-bar"
+              title="Status & Classification"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Airing Type">
+                <select
+                  className={selectCls}
+                  value={cf.airing_type}
+                  onChange={(e) => uc("airing_type", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["TV", "Movie", "OVA", "Special"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Airing Status">
+                <select
+                  className={selectCls}
+                  value={cf.airing_status}
+                  onChange={(e) => uc("airing_status", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Watching Status">
+                <select
+                  className={selectCls}
+                  value={cf.watching_status}
+                  onChange={(e) => uc("watching_status", e.target.value)}
+                >
+                  {[
+                    "Might Watch",
+                    "Plan to Watch",
+                    "Watch When Airs",
+                    "Active Watching",
+                    "Passive Watching",
+                    "Paused",
+                    "Completed",
+                    "Temp Dropped",
+                    "Dropped",
+                    "Won't Watch",
+                  ].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Is Main">
+                <select
+                  className={selectCls}
+                  value={cf.is_main}
+                  onChange={(e) => uc("is_main", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Total Episodes">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={cf.ep_total}
+                  onChange={(e) => uc("ep_total", e.target.value)}
+                  placeholder="10"
+                />
+              </Field>
+              <Field label="Episodes Finished">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={cf.ep_fin}
+                  onChange={(e) => uc("ep_fin", e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="My Rating">
+                <select
+                  className={selectCls}
+                  value={cf.my_rating}
+                  onChange={(e) => uc("my_rating", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="IMDb Rating" hint="e.g. 9.2">
+                <input
+                  className={inputCls}
+                  value={cf.imdb_rating}
+                  onChange={(e) => uc("imdb_rating", e.target.value)}
+                  placeholder="9.2"
+                />
+              </Field>
+              <Field label="Ep Length (min)" hint="Minutes per episode">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={cf.length_ep_min}
+                  onChange={(e) => uc("length_ep_min", e.target.value)}
+                  placeholder="22"
+                />
+              </Field>
+            </div>
+            <div className="flex flex-wrap gap-6 mt-2">
+              <Field label="Watch Next">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!cf.watch_next}
+                    onChange={(e) => uc("watch_next", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Add to Watch Next list
+                  </span>
+                </label>
+              </Field>
+              <Field label="To Rewatch">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!cf.to_rewatch}
+                    onChange={(e) => uc("to_rewatch", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Mark for rewatch
+                  </span>
+                </label>
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-film" title="Classification & Production" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Source Official">
+                <input
+                  className={inputCls}
+                  value={cf.source_official}
+                  onChange={(e) => uc("source_official", e.target.value)}
+                  placeholder="e.g. Disney+, Cartoon Network"
+                />
+              </Field>
+              <Field label="Season Part">
+                <input
+                  className={inputCls}
+                  value={cf.season_part}
+                  onChange={(e) => uc("season_part", e.target.value)}
+                  placeholder="e.g. Season 1"
+                />
+              </Field>
+            </div>
+            <Field label="Release Date" hint="e.g. FEB 2026">
+              <input
+                className={inputCls}
+                value={cf.release_date}
+                onChange={(e) => uc("release_date", e.target.value)}
+                placeholder="FEB 2026"
+              />
+            </Field>
+
+            <SectionHeader icon="fa-link" title="Relational & Timeline" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Prequel ID" hint="UUID of prequel entry">
+                <input
+                  className={inputCls + " font-mono text-xs"}
+                  value={cf.prequel_id || ""}
+                  onChange={(e) => uc("prequel_id", e.target.value || null)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                />
+              </Field>
+              <Field label="Sequel ID" hint="UUID of sequel entry">
+                <input
+                  className={inputCls + " font-mono text-xs"}
+                  value={cf.sequel_id || ""}
+                  onChange={(e) => uc("sequel_id", e.target.value || null)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                />
+              </Field>
+              <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
+                <input
+                  className={inputCls}
+                  type="number"
+                  step="any"
+                  value={cf.watch_order}
+                  onChange={(e) => uc("watch_order", e.target.value)}
+                  placeholder="e.g. 1, 1.5, 2"
+                />
+              </Field>
+              <Field
+                label="Derive Related"
+                hint="Set to No to skip prequel/sequel derivation"
+              >
+                <select
+                  className={selectCls}
+                  value={cf.derive_related}
+                  onChange={(e) => uc("derive_related", e.target.value)}
+                >
+                  <option value="">—</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-link" title="Source & Links" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="IMDb ID" hint="Full IMDb ID (e.g. tt1234567)">
+                <input
+                  className={inputCls}
+                  type="text"
+                  value={cf.imdb_id}
+                  onChange={(e) => uc("imdb_id", e.target.value)}
+                  placeholder="tt1234567"
+                />
+              </Field>
+              <Field label="IMDb Link">
+                <input
+                  className={inputCls}
+                  type="url"
+                  value={cf.imdb_link}
+                  onChange={(e) => uc("imdb_link", e.target.value)}
+                  placeholder="https://www.imdb.com/title/tt..."
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                  Other Sources
+                </label>
+                <div className="space-y-2">
+                  {cf.source_other.map((entry, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        className={inputCls}
+                        placeholder="Source name (e.g. Disney+)"
+                        value={entry.name}
+                        onChange={(e) =>
+                          uc(
+                            "source_other",
+                            cf.source_other.map((x, j) =>
+                              j === i ? { ...x, name: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                      <input
+                        className={inputCls}
+                        type="url"
+                        placeholder="https://... (optional)"
+                        value={entry.url}
+                        onChange={(e) =>
+                          uc(
+                            "source_other",
+                            cf.source_other.map((x, j) =>
+                              j === i ? { ...x, url: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                        onClick={() =>
+                          uc(
+                            "source_other",
+                            cf.source_other.filter((_, j) => j !== i),
+                          )
+                        }
+                      >
+                        <i className="fas fa-times" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs text-brand hover:underline mt-1"
+                    onClick={() =>
+                      uc("source_other", [
+                        ...cf.source_other,
+                        { name: "", url: "" },
+                      ])
+                    }
+                  >
+                    + Add Source
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
+            <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">
+              <input
+                className={inputCls}
+                value={cf.cover_image_file}
+                onChange={(e) => uc("cover_image_file", e.target.value)}
+                placeholder="5114.jpg"
+              />
+            </Field>
+            <Field label="Remark">
+              <textarea
+                className={inputCls}
+                rows={3}
+                value={cf.remark}
+                onChange={(e) => uc("remark", e.target.value)}
+                placeholder="Private notes..."
+              />
+            </Field>
+          </div>
+        )}
+
         {/* ═══ FRANCHISE TAB ═══ */}
         {activeTab === "franchise" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
@@ -3428,6 +4058,7 @@ export default function Add() {
         <FranchiseCreateModal
           onConfirm={franchiseCreateModal.onConfirm}
           onCancel={franchiseCreateModal.onCancel}
+          franchiseType={franchiseCreateModal.franchiseType}
         />
       )}
 

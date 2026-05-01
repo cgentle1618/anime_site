@@ -6,8 +6,8 @@ TMDB (The Movie Database) API into the formats required by our database models.
 
 import logging
 import re
+from collections import Counter
 from typing import Any, Dict, List, Optional
-
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,14 @@ def _extract_director(crew: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+def _extract_episode_runtime(episodes: List[Dict[str, Any]]) -> Optional[int]:
+    """Returns the most common non-null runtime (minutes) across episodes, or None."""
+    runtimes = [ep.get("runtime") for ep in episodes if ep.get("runtime")]
+    if not runtimes:
+        return None
+    return Counter(runtimes).most_common(1)[0][0]
+
+
 # ==========================================
 # MASTER ORCHESTRATORS
 # ==========================================
@@ -91,26 +99,32 @@ def map_tmdb_to_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_tmdb_to_tv_show_data(raw: Dict[str, Any]) -> Dict[str, Any]:
+def map_tmdb_to_tv_show_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Maps TMDB season details response to a flat dict.
     Private keys (_season_air_date, _episodes) are used only for airing status derivation.
     """
-    episodes = raw.get("episodes") or []
+    episodes = raw_data.get("episodes") or []
     return {
-        "release_date": _convert_tmdb_date(raw.get("air_date")),
+        "release_date": _convert_tmdb_date(raw_data.get("air_date")),
         "ep_total": len(episodes),
-        "cover_image_url": _build_poster_url(raw.get("poster_path")),
-        "_season_air_date": raw.get("air_date"),
+        "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
+        "_season_air_date": raw_data.get("air_date"),
         "_episodes": episodes,
     }
 
 
 def map_tmdb_to_cartoon_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Parses raw TMDB TV JSON into the flat dict expected by the Cartoons model.
+    Maps TMDB season details response to a flat dict for Cartoon.
+    Private keys (_season_air_date, _episodes) are used only for airing status derivation.
     """
+    episodes = raw_data.get("episodes") or []
     return {
-        "release_date": _convert_tmdb_date(raw_data.get("first_air_date")),
+        "release_date": _convert_tmdb_date(raw_data.get("air_date")),
+        "ep_total": len(episodes),
         "cover_image_url": _build_poster_url(raw_data.get("poster_path")),
+        "length_ep_min": _extract_episode_runtime(episodes),
+        "_season_air_date": raw_data.get("air_date"),
+        "_episodes": episodes,
     }

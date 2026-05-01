@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { inputCls, selectCls } from "./FormField";
 
-export default function FranchiseCreateModal({ onConfirm, onCancel }) {
+export default function FranchiseCreateModal({
+  onConfirm,
+  onCancel,
+  franchiseType = "ACG",
+}) {
   const [expectation, setExpectation] = useState("Low");
   const [remark, setRemark] = useState("");
   return (
@@ -14,8 +18,8 @@ export default function FranchiseCreateModal({ onConfirm, onCancel }) {
         <div className="px-6 py-5 space-y-4">
           <p className="text-sm text-gray-600">
             A new <span className="font-bold">Franchise</span> will be created
-            using the anime names you filled in, with type set to{" "}
-            <span className="font-bold">ACG</span>.
+            using the names you filled in, with type set to{" "}
+            <span className="font-bold">{franchiseType}</span>.
           </p>
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
