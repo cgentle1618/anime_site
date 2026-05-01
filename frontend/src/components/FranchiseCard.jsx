@@ -30,9 +30,14 @@ export default function FranchiseCard({ franchise, coverUrl }) {
     EXPECTATION_STYLES[franchise.franchise_expectation] ||
     "bg-gray-100 text-gray-500 border-gray-200";
 
+  const franchisePath =
+    franchise.franchise_type === "Cartoon"
+      ? `/franchise/cartoon/${franchise.system_id}`
+      : `/franchise/${franchise.system_id}`;
+
   return (
     <Link
-      to={`/franchise/${franchise.system_id}`}
+      to={franchisePath}
       className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col cursor-pointer hover:shadow-md transition-shadow group"
     >
       <div

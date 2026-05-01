@@ -175,7 +175,9 @@ export default function LibraryCartoon() {
       }
       return getCartoonSortKey(a)
         .toLowerCase()
-        .localeCompare(getCartoonSortKey(b).toLowerCase());
+        .localeCompare(getCartoonSortKey(b).toLowerCase(), undefined, {
+          numeric: true,
+        });
     });
 
     return result;

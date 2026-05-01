@@ -1,5 +1,21 @@
 # Cartoon Implementation Plan
 
+## Progress Tracker
+
+| Step | Description                                                                                                   | Status |
+| ---- | ------------------------------------------------------------------------------------------------------------- | ------ |
+| 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Done   |
+| 2    | Backend Utils (map functions, parsers, check functions)                                                       | Done   |
+| 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | Done   |
+| 3.5  | Add `airing_type` column to Cartoon (model, migration, schema, parser, logics, data control)                  | Done   |
+| 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Done   |
+| 5    | Frontend New Pages (Cartoon, CartoonNotes, LibraryCartoon, FranchiseCartoon)                                  | Done   |
+| 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Done   |
+| 7    | Frontend Updates — Shared Pages (Index, Admin, Add, Modify, Delete, Search, FutureReleases, FranchiseLibrary) | Done   |
+| 8    | Statistics & Final Integration                                                                                | Done   |
+
+---
+
 ## Overview
 
 Implement the `cartoons` media type end-to-end: database → backend services → API → frontend pages/components.
@@ -632,19 +648,3 @@ Add **Cartoon Future Release Tab**:
 - Verify Calculate All updates cartoon derive/sync.
 - Verify Search returns cartoons.
 - Verify Future Releases tab shows not-yet-aired cartoons.
-
----
-
-## Progress Tracker
-
-| Step | Description                                                                                                   | Status      |
-| ---- | ------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1    | Backend Foundation (model, schema, router, main.py, migration)                                                | Done        |
-| 2    | Backend Utils (map functions, parsers, check functions)                                                       | Done        |
-| 3    | Backend Services (autofill, post-processing, derive, sync, data control)                                      | Done        |
-| 3.5  | Add `airing_type` column to Cartoon (model, migration, schema, parser, logics, data control)                  | Done        |
-| 4    | Frontend New Components (CartoonNamingCard, CartoonCard, CartoonCardFuture)                                   | Done        |
-| 5    | Frontend New Pages (Cartoon, CartoonNotes, LibraryCartoon, FranchiseCartoon)                                  | Done        |
-| 6    | Frontend Updates — Routing & Navigation (App.jsx, Nav.jsx)                                                    | Done        |
-| 7    | Frontend Updates — Shared Pages (Index, Admin, Add, Modify, Delete, Search, FutureReleases, FranchiseLibrary) | Not Started |
-| 8    | Statistics & Final Integration                                                                                | Not Started |

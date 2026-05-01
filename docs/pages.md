@@ -472,7 +472,7 @@ Hub for movie/TV show franchises.
 
 ### Franchise Hub — Cartoon
 
-**File:** `frontend/src/pages/FranchiseCartoon.jsx` (TBD)
+**File:** `frontend/src/pages/FranchiseCartoon.jsx`
 
 Hub for cartoon franchises.
 
@@ -748,6 +748,7 @@ Multi-section statistics dashboard.
    - Anime Movie tab: grouped by Franchise with the order of 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
    - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, Movie Name CN with fallback
    - TV Show: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
+   - Cartoon tab: Group by Cartoon Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Comedy Central, Other; shows poster, Cartoon Name CN with fallback
    - Cartoon / Manga / Novel tabs (TBD)
    - Note: Anime uses franchise entries; other media types use the media entry directly
 

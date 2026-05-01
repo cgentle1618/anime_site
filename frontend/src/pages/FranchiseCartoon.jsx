@@ -22,7 +22,7 @@ function getWatchingGroup(status) {
 }
 
 function cartoonDisplayName(c) {
-  return c.cartoon_name_en || c.cartoon_name_cn || c.cartoon_name_alt || "";
+  return c.cartoon_name_en || c.cartoon_name_alt || c.cartoon_name_cn || "";
 }
 
 export default function FranchiseCartoon() {
@@ -166,7 +166,11 @@ export default function FranchiseCartoon() {
             : -1;
         if (wA !== wB) return wB - wA;
       }
-      return cartoonDisplayName(a).localeCompare(cartoonDisplayName(b));
+      return cartoonDisplayName(a).localeCompare(
+        cartoonDisplayName(b),
+        undefined,
+        { numeric: true },
+      );
     });
 
     return result;
@@ -306,12 +310,6 @@ export default function FranchiseCartoon() {
               {franchise.franchise_expectation && (
                 <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
                   {franchise.franchise_expectation} Expectation
-                </span>
-              )}
-              {cartoonList.length > 0 && (
-                <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
-                  {cartoonList.length}{" "}
-                  {cartoonList.length === 1 ? "Entry" : "Entries"}
                 </span>
               )}
             </div>
@@ -466,6 +464,22 @@ export default function FranchiseCartoon() {
 
           <div className="w-px h-5 bg-gray-200"></div>
 
+          {/* Airing Type filters */}
+          {airingTypeOptions.length > 0 && (
+            <>
+              {airingTypeOptions.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleFilter("airingType", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ))}
+              <div className="w-px h-5 bg-gray-200"></div>
+            </>
+          )}
+
           {/* Airing Status filters */}
           {[
             ["Finished", "Finished Airing"],
@@ -480,21 +494,6 @@ export default function FranchiseCartoon() {
               {label}
             </button>
           ))}
-
-          {airingTypeOptions.length > 0 && (
-            <>
-              <div className="w-px h-5 bg-gray-200"></div>
-              {airingTypeOptions.map((v) => (
-                <button
-                  key={v}
-                  onClick={() => toggleFilter("airingType", v)}
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-                >
-                  {v}
-                </button>
-              ))}
-            </>
-          )}
 
           <div className="w-px h-5 bg-gray-200"></div>
 

@@ -18,7 +18,11 @@ const KNOWN_TYPES = ["ACG", "Anime Movie", "TV or Movie", "Cartoon"];
 
 function getEntryYear(entry) {
   if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
-  const d = entry.release_date_jp || entry.release_date_tw || entry.release_date_usa || entry.release_date;
+  const d =
+    entry.release_date_jp ||
+    entry.release_date_tw ||
+    entry.release_date_usa ||
+    entry.release_date;
   if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
   return 0;
 }
@@ -56,25 +60,43 @@ export default function FranchiseLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes] = await Promise.all([
+        const [fRes, aRes, amRes, mRes, tvRes, cRes] = await Promise.all([
           fetch("/api/franchise/", { credentials: "include" }),
           fetch("/api/anime/", { credentials: "include" }),
           fetch("/api/anime-movie/", { credentials: "include" }),
           fetch("/api/movies/", { credentials: "include" }),
           fetch("/api/tv-shows/", { credentials: "include" }),
+          fetch("/api/cartoon/", { credentials: "include" }),
         ]);
-        if (!fRes.ok || !aRes.ok || !amRes.ok || !mRes.ok || !tvRes.ok)
+        if (
+          !fRes.ok ||
+          !aRes.ok ||
+          !amRes.ok ||
+          !mRes.ok ||
+          !tvRes.ok ||
+          !cRes.ok
+        )
           throw new Error("Failed to load data");
-        const [franchises, anime, animeMovies, movies, tvShows] = await Promise.all([
-          fRes.json(),
-          aRes.json(),
-          amRes.json(),
-          mRes.json(),
-          tvRes.json(),
-        ]);
-        const allEntries = [...anime, ...animeMovies, ...movies, ...tvShows];
+        const [franchises, anime, animeMovies, movies, tvShows, cartoons] =
+          await Promise.all([
+            fRes.json(),
+            aRes.json(),
+            amRes.json(),
+            mRes.json(),
+            tvRes.json(),
+            cRes.json(),
+          ]);
+        const allEntries = [
+          ...anime,
+          ...animeMovies,
+          ...movies,
+          ...tvShows,
+          ...cartoons,
+        ];
         setAllFranchises(franchises);
-        setAllEntriesDict(Object.fromEntries(allEntries.map((e) => [e.system_id, e])));
+        setAllEntriesDict(
+          Object.fromEntries(allEntries.map((e) => [e.system_id, e])),
+        );
         const byFranchise = {};
         for (const e of allEntries) {
           if (!e.franchise_id) continue;
