@@ -106,6 +106,8 @@ export default function Index() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const [animeData, setAnimeData] = useState([]);
+  const [tvData, setTvData] = useState([]);
+  const [cartoonData, setCartoonData] = useState([]);
   const [franchiseData, setFranchiseData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -113,14 +115,18 @@ export default function Index() {
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes] = await Promise.all([
+        const [aRes, fRes, tvRes, cRes] = await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
+          fetch("/api/tv-shows/", { credentials: "include" }),
+          fetch("/api/cartoon/", { credentials: "include" }),
         ]);
-        if (!aRes.ok || !fRes.ok)
+        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok)
           throw new Error("Failed to load tracking data");
         setAnimeData(await aRes.json());
         setFranchiseData(await fRes.json());
+        setTvData(await tvRes.json());
+        setCartoonData(await cRes.json());
       } catch (e) {
         setError(e.message);
       } finally {
@@ -130,36 +136,84 @@ export default function Index() {
     load();
   }, []);
 
-  async function handleEpChange(sysId, newVal, prevVal) {
-    setAnimeData((prev) =>
-      prev.map((a) =>
-        a.system_id === sysId
-          ? { ...a, ep_fin: newVal, cum_ep_fin: (a.ep_previous || 0) + newVal }
-          : a,
-      ),
-    );
-    try {
-      const res = await fetch(`/api/anime/${sysId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ep_fin: newVal }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to sync");
-      showToast("success", "Episodes updated!");
-    } catch {
+  async function handleEpChange(sysId, newVal, prevVal, uiType) {
+    if (uiType === "TV Show") {
+      setTvData((prev) =>
+        prev.map((t) => (t.system_id === sysId ? { ...t, ep_fin: newVal } : t)),
+      );
+      try {
+        const res = await fetch(`/api/tv-shows/${sysId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ep_fin: newVal }),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to sync");
+        showToast("success", "Episodes updated!");
+      } catch {
+        setTvData((prev) =>
+          prev.map((t) =>
+            t.system_id === sysId ? { ...t, ep_fin: prevVal } : t,
+          ),
+        );
+        showToast("error", "Network error. Progress reverted.");
+      }
+    } else if (uiType === "Cartoon") {
+      setCartoonData((prev) =>
+        prev.map((c) => (c.system_id === sysId ? { ...c, ep_fin: newVal } : c)),
+      );
+      try {
+        const res = await fetch(`/api/cartoon/${sysId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ep_fin: newVal }),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to sync");
+        showToast("success", "Episodes updated!");
+      } catch {
+        setCartoonData((prev) =>
+          prev.map((c) =>
+            c.system_id === sysId ? { ...c, ep_fin: prevVal } : c,
+          ),
+        );
+        showToast("error", "Network error. Progress reverted.");
+      }
+    } else {
       setAnimeData((prev) =>
         prev.map((a) =>
           a.system_id === sysId
             ? {
                 ...a,
-                ep_fin: prevVal,
-                cum_ep_fin: (a.ep_previous || 0) + prevVal,
+                ep_fin: newVal,
+                cum_ep_fin: (a.ep_previous || 0) + newVal,
               }
             : a,
         ),
       );
-      showToast("error", "Network error. Progress reverted.");
+      try {
+        const res = await fetch(`/api/anime/${sysId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ep_fin: newVal }),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to sync");
+        showToast("success", "Episodes updated!");
+      } catch {
+        setAnimeData((prev) =>
+          prev.map((a) =>
+            a.system_id === sysId
+              ? {
+                  ...a,
+                  ep_fin: prevVal,
+                  cum_ep_fin: (a.ep_previous || 0) + prevVal,
+                }
+              : a,
+          ),
+        );
+        showToast("error", "Network error. Progress reverted.");
+      }
     }
   }
 
@@ -186,18 +240,20 @@ export default function Index() {
     );
   }
 
-  const sorted = [...animeData].sort((a, b) => {
-    const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
-    const fB = franchiseData.find((f) => f.system_id === b.franchise_id);
-    const tA = fA ? fA.franchise_name_cn || fA.franchise_name_en || "" : "";
-    const tB = fB ? fB.franchise_name_cn || fB.franchise_name_en || "" : "";
-    if (tA !== tB) return tA.localeCompare(tB);
-    return (a.watch_order ?? 999) - (b.watch_order ?? 999);
-  });
+  const animeTagged = animeData.map((a) => ({ ...a, _ui_type: "Anime" }));
+  const tvTagged = tvData.map((t) => ({ ...t, _ui_type: "TV Show" }));
+  const cartoonTagged = cartoonData.map((c) => ({ ...c, _ui_type: "Cartoon" }));
 
-  sorted.forEach((a) => {
-    a._ui_type = "Anime";
-  });
+  const sorted = [...animeTagged, ...tvTagged, ...cartoonTagged].sort(
+    (a, b) => {
+      const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
+      const fB = franchiseData.find((f) => f.system_id === b.franchise_id);
+      const tA = fA ? fA.franchise_name_cn || fA.franchise_name_en || "" : "";
+      const tB = fB ? fB.franchise_name_cn || fB.franchise_name_en || "" : "";
+      if (tA !== tB) return tA.localeCompare(tB);
+      return (a.watch_order ?? 999) - (b.watch_order ?? 999);
+    },
+  );
 
   const active = sorted.filter((a) => a.watching_status === "Active Watching");
   const passive = sorted.filter(

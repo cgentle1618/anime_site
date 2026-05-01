@@ -104,7 +104,7 @@ export default function Movie() {
   async function handleAutofill() {
     setAutofilling(true);
     try {
-      const res = await fetch(`/api/movies/${system_id}/autofill`, {
+      const res = await fetch(`/api/data-control/replace/movie/${system_id}`, {
         method: "POST",
         credentials: "include",
       });
@@ -257,30 +257,10 @@ export default function Movie() {
           </div>
 
           {/* Sources */}
-          <SourcesCard sourceOther={movie.source_other} />
-
-          {/* IMDb Link */}
-          {movie.imdb_link && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
-                <i className="fas fa-film mr-1.5"></i>External
-              </h3>
-              <a
-                href={movie.imdb_link}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between w-full bg-yellow-50 hover:bg-yellow-400 text-yellow-800 hover:text-yellow-900 px-3 py-2 rounded border border-yellow-100 transition text-sm font-bold"
-              >
-                <span className="flex items-center">
-                  <span className="bg-yellow-400 text-yellow-900 text-[9px] px-1 py-0.5 rounded mr-2 font-black">
-                    IMDb
-                  </span>
-                  IMDb Page
-                </span>
-                <i className="fas fa-external-link-alt text-[10px]"></i>
-              </a>
-            </div>
-          )}
+          <SourcesCard
+            sourceOther={movie.source_other}
+            imdbLink={movie.imdb_link}
+          />
 
           {/* System Info — admin only */}
           {isAdmin && (
@@ -442,6 +422,60 @@ export default function Movie() {
                   ))}
                 </select>
               </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Watch Next
+                </label>
+                <label
+                  className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!movie.watch_next}
+                    disabled={!isAdmin}
+                    onChange={(e) =>
+                      isAdmin &&
+                      performPatch(
+                        { watch_next: e.target.checked },
+                        e.target.checked
+                          ? "Added to Watch Next"
+                          : "Removed from Watch Next",
+                      )
+                    }
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Watch Next
+                  </span>
+                </label>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  To Rewatch
+                </label>
+                <label
+                  className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!movie.to_rewatch}
+                    disabled={!isAdmin}
+                    onChange={(e) =>
+                      isAdmin &&
+                      performPatch(
+                        { to_rewatch: e.target.checked },
+                        e.target.checked
+                          ? "Marked for rewatch"
+                          : "Removed from rewatch",
+                      )
+                    }
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    To Rewatch
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -457,16 +491,14 @@ export default function Movie() {
               icon="fa-info-circle"
               fields={[
                 [
+                  { label: "本傳 / 外傳", value: movie.is_main },
                   { label: "Airing Status", value: movie.airing_status },
-                  { label: "Movie Type", value: movie.movie_type },
-                ],
-                [
                   { label: "Length", value: formatLength(movie.length_min) },
-                  { label: "Director", value: movie.director },
                 ],
+                { label: "Director", value: movie.director },
                 [
-                  { label: "Release Date USA", value: movie.release_date_usa },
                   { label: "Release Date TW", value: movie.release_date_tw },
+                  { label: "Release Date USA", value: movie.release_date_usa },
                 ],
               ]}
             />

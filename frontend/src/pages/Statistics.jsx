@@ -38,30 +38,39 @@ function getDisplayName(f) {
   );
 }
 
-function getCoverForSlot(franchise, franchiseAnimeMap) {
-  const animes = franchiseAnimeMap[String(franchise.system_id)] || [];
+function getEntryYear(entry) {
+  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
+  const d =
+    entry.release_date_jp ||
+    entry.release_date_tw ||
+    entry.release_date_usa ||
+    entry.release_date;
+  if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
+  return 0;
+}
+
+function getCoverForSlot(franchise, allEntriesByFranchise) {
+  const entries = allEntriesByFranchise[String(franchise.system_id)] || [];
   if (franchise.cover_anime_id) {
-    const chosen = animes.find((a) => a.system_id === franchise.cover_anime_id);
+    const chosen = entries.find(
+      (e) => e.system_id === franchise.cover_anime_id,
+    );
     if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
       return getCoverUrl(chosen.cover_image_file);
     }
   }
-  const withCover = animes.filter(
-    (a) => a.cover_image_file && a.cover_image_file !== "N/A",
+  const withCover = entries.filter(
+    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
   );
   if (withCover.length === 0) return FALLBACK_SVG;
-  withCover.sort((a, b) => {
-    const yr =
-      (parseInt(b.release_year, 10) || 0) - (parseInt(a.release_year, 10) || 0);
-    return yr !== 0 ? yr : (b.release_month || 0) - (a.release_month || 0);
-  });
+  withCover.sort((a, b) => getEntryYear(b) - getEntryYear(a));
   return getCoverUrl(withCover[0].cover_image_file);
 }
 
 export default function Statistics() {
   const [franchises, setFranchises] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
-  const [franchiseAnimeMap, setFranchiseAnimeMap] = useState({});
+  const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
   const [franchiseMap, setFranchiseMap] = useState({});
   const [completionsTab, setCompletionsTab] = useState("anime");
   const [groupPages, setGroupPages] = useState({
@@ -70,8 +79,22 @@ export default function Statistics() {
     ONA: 0,
     Others: 0,
   });
+  const [amCompletionPages, setAmCompletionPages] = useState({
+    ghibli: 0,
+    shinkai: 0,
+    original: 0,
+    adapted: 0,
+    others: 0,
+  });
+  const [movieCompletionPages, setMovieCompletionPages] = useState({});
+  const [tvCompletionPages, setTvCompletionPages] = useState({});
   const [watchNextTab, setWatchNextTab] = useState("anime");
   const [rewatchTab, setRewatchTab] = useState("anime");
+  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
+  const [allMovies, setAllMovies] = useState([]);
+  const [allTVShows, setAllTVShows] = useState([]);
+  const [allCartoons, setAllCartoons] = useState([]);
+  const [cartoonCompletionPages, setCartoonCompletionPages] = useState({});
   const [seasonals, setSeasonals] = useState([]);
   const [currentSeason, setCurrentSeason] = useState(null);
   const [seasonalPage, setSeasonalPage] = useState(0);
@@ -81,35 +104,59 @@ export default function Statistics() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, sRes, csRes] = await Promise.all([
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/seasonal/", { credentials: "include" }),
-          fetch("/api/seasonal/current-season", { credentials: "include" }),
-        ]);
-        if (!fRes.ok || !aRes.ok || !sRes.ok || !csRes.ok)
+        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes, cRes] =
+          await Promise.all([
+            fetch("/api/franchise/", { credentials: "include" }),
+            fetch("/api/anime/", { credentials: "include" }),
+            fetch("/api/anime-movie/", { credentials: "include" }),
+            fetch("/api/movies/", { credentials: "include" }),
+            fetch("/api/tv-shows/", { credentials: "include" }),
+            fetch("/api/seasonal/", { credentials: "include" }),
+            fetch("/api/seasonal/current-season", { credentials: "include" }),
+            fetch("/api/cartoon/", { credentials: "include" }),
+          ]);
+        if (
+          !fRes.ok ||
+          !aRes.ok ||
+          !amRes.ok ||
+          !mRes.ok ||
+          !tvRes.ok ||
+          !sRes.ok ||
+          !csRes.ok ||
+          !cRes.ok
+        )
           throw new Error("Failed to load data.");
-        const [fData, aData, sData, csData] = await Promise.all([
-          fRes.json(),
-          aRes.json(),
-          sRes.json(),
-          csRes.json(),
-        ]);
+        const [fData, aData, amData, mData, tvData, sData, csData, cData] =
+          await Promise.all([
+            fRes.json(),
+            aRes.json(),
+            amRes.json(),
+            mRes.json(),
+            tvRes.json(),
+            sRes.json(),
+            csRes.json(),
+            cRes.json(),
+          ]);
         setCurrentSeason(csData.current_season);
         setFranchises(fData);
         setAllAnime(aData);
+        setAllAnimeMovies(amData);
+        setAllMovies(mData);
+        setAllTVShows(tvData);
+        setAllCartoons(cData);
         const fMap = {};
         fData.forEach((f) => {
           fMap[String(f.system_id)] = f;
         });
         setFranchiseMap(fMap);
-        const map = {};
-        aData.forEach((a) => {
-          const id = String(a.franchise_id);
-          if (!map[id]) map[id] = [];
-          map[id].push(a);
+        const allEntries = [...aData, ...amData, ...mData, ...tvData];
+        const byFranchise = {};
+        allEntries.forEach((e) => {
+          const id = String(e.franchise_id);
+          if (!byFranchise[id]) byFranchise[id] = [];
+          byFranchise[id].push(e);
         });
-        setFranchiseAnimeMap(map);
+        setAllEntriesByFranchise(byFranchise);
         // Sort seasonals newest-first by year then season weight
         const SEASON_WEIGHT = { FAL: 4, SUM: 3, SPR: 2, WIN: 1 };
         const sorted = [...sData].sort((a, b) => {
@@ -236,7 +283,7 @@ export default function Statistics() {
           {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
             const f = slotMap[slot];
             if (f) {
-              const coverUrl = getCoverForSlot(f, franchiseAnimeMap);
+              const coverUrl = getCoverForSlot(f, allEntriesByFranchise);
               return (
                 <Link
                   key={slot}
@@ -592,20 +639,20 @@ export default function Statistics() {
             key: "anime-movie",
             label: "Anime Movie",
             icon: "fa-film",
-            dev: true,
+            dev: false,
           },
-          { key: "movie", label: "Movie", icon: "fa-ticket-alt", dev: true },
+          { key: "movie", label: "Movie", icon: "fa-ticket-alt", dev: false },
           {
             key: "tv-show",
             label: "TV Show",
             icon: "fa-broadcast-tower",
-            dev: true,
+            dev: false,
           },
           {
             key: "cartoon",
             label: "Cartoon",
             icon: "fa-laugh-squint",
-            dev: true,
+            dev: false,
           },
           { key: "manga", label: "Manga", icon: "fa-book", dev: true },
           { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
@@ -698,7 +745,7 @@ export default function Statistics() {
                           {items.map((f) => {
                             const coverUrl = getCoverForSlot(
                               f,
-                              franchiseAnimeMap,
+                              allEntriesByFranchise,
                             );
                             return (
                               <Link
@@ -739,8 +786,413 @@ export default function Statistics() {
                 </div>
               ))}
 
+            {/* Anime Movie tab */}
+            {watchNextTab === "anime-movie" &&
+              (() => {
+                const AM_GROUPS = [
+                  { key: "ghibli", label: "吉卜力" },
+                  { key: "shinkai", label: "新海誠" },
+                  { key: "original", label: "原創動畫電影" },
+                  { key: "adapted", label: "改編動畫電影" },
+                  { key: "others", label: "其他" },
+                ];
+                const watchNextAM = allAnimeMovies.filter(
+                  (am) => am.watch_next,
+                );
+                const amGrouped = {
+                  ghibli: [],
+                  shinkai: [],
+                  original: [],
+                  adapted: [],
+                  others: [],
+                };
+                watchNextAM.forEach((am) => {
+                  const f = franchiseMap[String(am.franchise_id)];
+                  const fname =
+                    f?.franchise_name_cn || f?.franchise_name_en || "";
+                  if (fname === "吉卜力") amGrouped.ghibli.push(am);
+                  else if (fname === "新海誠") amGrouped.shinkai.push(am);
+                  else if (fname === "原創動畫電影")
+                    amGrouped.original.push(am);
+                  else if (fname === "改編動畫電影") amGrouped.adapted.push(am);
+                  else amGrouped.others.push(am);
+                });
+                if (watchNextAM.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-film text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No anime movies in watch list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Watch Next" on an anime movie entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-8">
+                    {AM_GROUPS.map(({ key, label }) => {
+                      const items = amGrouped[key];
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={key}>
+                          <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                              {label}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {items.map((am) => {
+                              const name =
+                                am.anime_movie_name_cn ||
+                                am.anime_movie_name_en ||
+                                am.anime_movie_name_roman ||
+                                "—";
+                              return (
+                                <Link
+                                  key={am.system_id}
+                                  to={`/anime-movie/${am.system_id}`}
+                                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                  <div className="aspect-[3/4] bg-gray-100">
+                                    <img
+                                      src={getCoverUrl(am.cover_image_file)}
+                                      alt={name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = FALLBACK_SVG;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                                    <p className="text-white text-xs font-bold leading-tight truncate">
+                                      {name}
+                                    </p>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* Movie tab */}
+            {watchNextTab === "movie" &&
+              (() => {
+                const watchNextMovies = allMovies.filter((m) => m.watch_next);
+                const movieByFranchise = {};
+                watchNextMovies.forEach((m) => {
+                  const fid = String(m.franchise_id);
+                  if (!movieByFranchise[fid])
+                    movieByFranchise[fid] = {
+                      franchise: franchiseMap[fid],
+                      items: [],
+                    };
+                  movieByFranchise[fid].items.push(m);
+                });
+                const movieFranchiseGroups = Object.values(
+                  movieByFranchise,
+                ).sort((a, b) => {
+                  const aEn = a.franchise?.franchise_name_en || "";
+                  const bEn = b.franchise?.franchise_name_en || "";
+                  if (aEn.includes("Disney") && !bEn.includes("Disney"))
+                    return -1;
+                  if (!aEn.includes("Disney") && bEn.includes("Disney"))
+                    return 1;
+                  if (aEn.includes("Marvel") && !bEn.includes("Marvel"))
+                    return -1;
+                  if (!aEn.includes("Marvel") && bEn.includes("Marvel"))
+                    return 1;
+                  return aEn.localeCompare(bEn);
+                });
+                if (watchNextMovies.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-ticket-alt text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No movies in watch list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Watch Next" on a movie entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-8">
+                    {movieFranchiseGroups.map(({ franchise, items }) => {
+                      const label =
+                        franchise?.franchise_name_cn ||
+                        franchise?.franchise_name_en ||
+                        "—";
+                      return (
+                        <div key={franchise?.system_id || "unknown"}>
+                          <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                              {label}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {items.map((movie) => {
+                              const name =
+                                movie.movie_name_cn ||
+                                movie.movie_name_en ||
+                                movie.movie_name_alt ||
+                                "—";
+                              return (
+                                <Link
+                                  key={movie.system_id}
+                                  to={`/movie/${movie.system_id}`}
+                                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                  <div className="aspect-[3/4] bg-gray-100">
+                                    <img
+                                      src={getCoverUrl(movie.cover_image_file)}
+                                      alt={name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = FALLBACK_SVG;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                                    <p className="text-white text-xs font-bold leading-tight truncate">
+                                      {name}
+                                    </p>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* TV Show tab */}
+            {watchNextTab === "tv-show" &&
+              (() => {
+                const watchNextTV = allTVShows.filter((tv) => tv.watch_next);
+                const tvByFranchise = {};
+                watchNextTV.forEach((tv) => {
+                  const fid = String(tv.franchise_id);
+                  if (!tvByFranchise[fid])
+                    tvByFranchise[fid] = {
+                      franchise: franchiseMap[fid],
+                      items: [],
+                    };
+                  tvByFranchise[fid].items.push(tv);
+                });
+                const tvFranchiseGroups = Object.values(tvByFranchise).sort(
+                  (a, b) => {
+                    const aEn = a.franchise?.franchise_name_en || "";
+                    const bEn = b.franchise?.franchise_name_en || "";
+                    if (aEn.includes("Disney") && !bEn.includes("Disney"))
+                      return -1;
+                    if (!aEn.includes("Disney") && bEn.includes("Disney"))
+                      return 1;
+                    if (aEn.includes("Marvel") && !bEn.includes("Marvel"))
+                      return -1;
+                    if (!aEn.includes("Marvel") && bEn.includes("Marvel"))
+                      return 1;
+                    return aEn.localeCompare(bEn);
+                  },
+                );
+                if (watchNextTV.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-broadcast-tower text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No TV shows in watch list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Watch Next" on a TV show entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-8">
+                    {tvFranchiseGroups.map(({ franchise, items }) => {
+                      const label =
+                        franchise?.franchise_name_cn ||
+                        franchise?.franchise_name_en ||
+                        "—";
+                      return (
+                        <div key={franchise?.system_id || "unknown"}>
+                          <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                              {label}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {items.map((tv) => {
+                              const name =
+                                tv.tv_name_cn ||
+                                tv.tv_name_en ||
+                                tv.tv_name_alt ||
+                                "—";
+                              return (
+                                <Link
+                                  key={tv.system_id}
+                                  to={`/tv-show/${tv.system_id}`}
+                                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                  <div className="aspect-[3/4] bg-gray-100">
+                                    <img
+                                      src={getCoverUrl(tv.cover_image_file)}
+                                      alt={name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = FALLBACK_SVG;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                                    <p className="text-white text-xs font-bold leading-tight truncate">
+                                      {name}
+                                    </p>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* Cartoon tab */}
+            {watchNextTab === "cartoon" &&
+              (() => {
+                const CARTOON_SOURCE_GROUPS = [
+                  { key: "cartoon_network", label: "Cartoon Network" },
+                  { key: "disney", label: "Disney" },
+                  { key: "nickelodeon", label: "Nickelodeon" },
+                  { key: "adult_swim", label: "Adult Swim" },
+                  { key: "fox", label: "FOX" },
+                  { key: "hbo", label: "HBO" },
+                  { key: "comedy_central", label: "Comedy Central" },
+                  { key: "others", label: "其他" },
+                ];
+                const watchNextCartoons = allCartoons.filter(
+                  (c) => c.watch_next,
+                );
+                const cartoonGrouped = {
+                  cartoon_network: [],
+                  disney: [],
+                  nickelodeon: [],
+                  adult_swim: [],
+                  fox: [],
+                  hbo: [],
+                  comedy_central: [],
+                  others: [],
+                };
+                watchNextCartoons.forEach((c) => {
+                  const src = (c.source_official || "").toLowerCase();
+                  if (src.includes("cartoon network"))
+                    cartoonGrouped.cartoon_network.push(c);
+                  else if (src.includes("disney"))
+                    cartoonGrouped.disney.push(c);
+                  else if (src.includes("nickelodeon"))
+                    cartoonGrouped.nickelodeon.push(c);
+                  else if (src.includes("adult swim"))
+                    cartoonGrouped.adult_swim.push(c);
+                  else if (src.includes("fox")) cartoonGrouped.fox.push(c);
+                  else if (src.includes("hbo")) cartoonGrouped.hbo.push(c);
+                  else if (src.includes("comedy central"))
+                    cartoonGrouped.comedy_central.push(c);
+                  else cartoonGrouped.others.push(c);
+                });
+                if (watchNextCartoons.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-laugh-squint text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No cartoons in watch list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Watch Next" on a cartoon entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-8">
+                    {CARTOON_SOURCE_GROUPS.map(({ key, label }) => {
+                      const items = cartoonGrouped[key];
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={key}>
+                          <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                              {label}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {items.map((c) => {
+                              const name =
+                                c.cartoon_name_cn ||
+                                c.cartoon_name_en ||
+                                c.cartoon_name_alt ||
+                                "—";
+                              return (
+                                <Link
+                                  key={c.system_id}
+                                  to={`/cartoon/${c.system_id}`}
+                                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                  <div className="aspect-[3/4] bg-gray-100">
+                                    <img
+                                      src={getCoverUrl(c.cover_image_file)}
+                                      alt={name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = FALLBACK_SVG;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                                    <p className="text-white text-xs font-bold leading-tight truncate">
+                                      {name}
+                                    </p>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {watchNextTab !== "anime" && (
+            {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
+              watchNextTab,
+            ) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                 <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
                   <i className="fas fa-list-ol text-brand text-xl"></i>
@@ -757,27 +1209,26 @@ export default function Statistics() {
 
       {/* Block 3.5 — To Rewatch */}
       {(() => {
-        const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
         const REWATCH_TABS = [
           { key: "anime", label: "Anime", icon: "fa-tv", dev: false },
           {
             key: "anime-movie",
             label: "Anime Movie",
             icon: "fa-film",
-            dev: true,
+            dev: false,
           },
-          { key: "movie", label: "Movie", icon: "fa-ticket-alt", dev: true },
+          { key: "movie", label: "Movie", icon: "fa-ticket-alt", dev: false },
           {
             key: "tv-show",
             label: "TV Show",
             icon: "fa-broadcast-tower",
-            dev: true,
+            dev: false,
           },
           {
             key: "cartoon",
             label: "Cartoon",
             icon: "fa-laugh-squint",
-            dev: true,
+            dev: false,
           },
           { key: "manga", label: "Manga", icon: "fa-book", dev: true },
           { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
@@ -785,10 +1236,10 @@ export default function Statistics() {
 
         const rewatchItems = franchises
           .filter((f) => f.to_rewatch)
-          .sort(
-            (a, b) =>
-              (EXPECTATION_WEIGHT[a.franchise_expectation] ?? 99) -
-              (EXPECTATION_WEIGHT[b.franchise_expectation] ?? 99),
+          .sort((a, b) =>
+            (a.franchise_name_en || "").localeCompare(
+              b.franchise_name_en || "",
+            ),
           );
 
         return (
@@ -842,7 +1293,7 @@ export default function Statistics() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {rewatchItems.map((f) => {
-                    const coverUrl = getCoverForSlot(f, franchiseAnimeMap);
+                    const coverUrl = getCoverForSlot(f, allEntriesByFranchise);
                     return (
                       <Link
                         key={f.system_id}
@@ -875,8 +1326,261 @@ export default function Statistics() {
                 </div>
               ))}
 
+            {/* Anime Movie tab */}
+            {rewatchTab === "anime-movie" &&
+              (() => {
+                const rewatchAM = allAnimeMovies
+                  .filter((am) => am.to_rewatch)
+                  .sort((a, b) =>
+                    (a.anime_movie_name_en || "").localeCompare(
+                      b.anime_movie_name_en || "",
+                    ),
+                  );
+                if (rewatchAM.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No anime movies marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on an anime movie entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchAM.map((am) => {
+                      const name =
+                        am.anime_movie_name_cn ||
+                        am.anime_movie_name_en ||
+                        am.anime_movie_name_roman ||
+                        "—";
+                      return (
+                        <Link
+                          key={am.system_id}
+                          to={`/anime-movie/${am.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(am.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {am.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {am.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* Movie tab */}
+            {rewatchTab === "movie" &&
+              (() => {
+                const rewatchMovies = allMovies
+                  .filter((m) => m.to_rewatch)
+                  .sort((a, b) =>
+                    (a.movie_name_en || "").localeCompare(
+                      b.movie_name_en || "",
+                    ),
+                  );
+                if (rewatchMovies.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No movies marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on a movie entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchMovies.map((movie) => {
+                      const name =
+                        movie.movie_name_cn ||
+                        movie.movie_name_en ||
+                        movie.movie_name_alt ||
+                        "—";
+                      return (
+                        <Link
+                          key={movie.system_id}
+                          to={`/movie/${movie.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(movie.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {movie.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {movie.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* TV Show tab */}
+            {rewatchTab === "tv-show" &&
+              (() => {
+                const rewatchTV = allTVShows
+                  .filter((tv) => tv.to_rewatch)
+                  .sort((a, b) =>
+                    (a.tv_name_en || "").localeCompare(b.tv_name_en || ""),
+                  );
+                if (rewatchTV.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No TV shows marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on a TV show entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchTV.map((tv) => {
+                      const name =
+                        tv.tv_name_cn || tv.tv_name_en || tv.tv_name_alt || "—";
+                      return (
+                        <Link
+                          key={tv.system_id}
+                          to={`/tv-show/${tv.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(tv.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {tv.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {tv.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+            {/* Cartoon tab */}
+            {rewatchTab === "cartoon" &&
+              (() => {
+                const rewatchCartoons = allCartoons
+                  .filter((c) => c.to_rewatch)
+                  .sort((a, b) =>
+                    (a.cartoon_name_en || "").localeCompare(
+                      b.cartoon_name_en || "",
+                    ),
+                  );
+                if (rewatchCartoons.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No cartoons marked for rewatch.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Rewatch" on a cartoon entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rewatchCartoons.map((c) => {
+                      const name =
+                        c.cartoon_name_cn ||
+                        c.cartoon_name_en ||
+                        c.cartoon_name_alt ||
+                        "—";
+                      return (
+                        <Link
+                          key={c.system_id}
+                          to={`/cartoon/${c.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(c.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {c.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {c.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {rewatchTab !== "anime" && (
+            {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
+              rewatchTab,
+            ) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                 <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
                   <i className="fas fa-redo text-brand text-xl"></i>
@@ -909,25 +1613,25 @@ export default function Statistics() {
                 key: "anime-movie",
                 label: "Anime Movie",
                 icon: "fa-film",
-                dev: true,
+                dev: false,
               },
               {
                 key: "movie",
                 label: "Movie",
                 icon: "fa-ticket-alt",
-                dev: true,
+                dev: false,
               },
               {
                 key: "tv-show",
                 label: "TV Show",
                 icon: "fa-broadcast-tower",
-                dev: true,
+                dev: false,
               },
               {
                 key: "cartoon",
                 label: "Cartoon",
                 icon: "fa-laugh-squint",
-                dev: true,
+                dev: false,
               },
               { key: "manga", label: "Manga", icon: "fa-book", dev: true },
               { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
@@ -975,9 +1679,7 @@ export default function Statistics() {
               grouped[t].push(a);
             });
 
-            const hasAny = completed.length > 0;
-
-            if (!hasAny) {
+            if (completed.length === 0) {
               return (
                 <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                   <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
@@ -1116,8 +1818,652 @@ export default function Statistics() {
             );
           })()}
 
+        {/* Anime Movie tab */}
+        {completionsTab === "anime-movie" &&
+          (() => {
+            const AM_GROUPS = [
+              { key: "ghibli", label: "吉卜力" },
+              { key: "shinkai", label: "新海誠" },
+              { key: "original", label: "原創動畫電影" },
+              { key: "adapted", label: "改編動畫電影" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allAnimeMovies
+              .filter(
+                (am) => am.watching_status === "Completed" && am.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const amGrouped = {
+              ghibli: [],
+              shinkai: [],
+              original: [],
+              adapted: [],
+              others: [],
+            };
+            completed.forEach((am) => {
+              const f = franchiseMap[String(am.franchise_id)];
+              const fname = f?.franchise_name_cn || f?.franchise_name_en || "";
+              if (fname === "吉卜力") amGrouped.ghibli.push(am);
+              else if (fname === "新海誠") amGrouped.shinkai.push(am);
+              else if (fname === "原創動畫電影") amGrouped.original.push(am);
+              else if (fname === "改編動畫電影") amGrouped.adapted.push(am);
+              else amGrouped.others.push(am);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No anime movie completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {AM_GROUPS.map(({ key, label }) => {
+                  const items = amGrouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = amCompletionPages[key];
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setAmCompletionPages((prev) => ({ ...prev, [key]: p }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((am, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            am.anime_movie_name_cn ||
+                            am.anime_movie_name_en ||
+                            am.anime_movie_name_roman ||
+                            "—";
+                          const dateStr = new Date(
+                            am.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={am.system_id}
+                              to={`/anime-movie/${am.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(am.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {am.anime_movie_name_cn &&
+                                  am.anime_movie_name_en && (
+                                    <p className="text-xs text-gray-400 font-medium truncate">
+                                      {am.anime_movie_name_en}
+                                    </p>
+                                  )}
+                              </div>
+                              {am.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {am.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+        {/* Movie tab */}
+        {completionsTab === "movie" &&
+          (() => {
+            const MOVIE_GROUPS = [
+              { key: "disney", label: "Disney" },
+              { key: "marvel", label: "Marvel" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allMovies
+              .filter(
+                (m) => m.watching_status === "Completed" && m.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const grouped = { disney: [], marvel: [], others: [] };
+            completed.forEach((m) => {
+              const fEn =
+                franchiseMap[String(m.franchise_id)]?.franchise_name_en || "";
+              if (fEn.includes("Disney")) grouped.disney.push(m);
+              else if (fEn.includes("Marvel")) grouped.marvel.push(m);
+              else grouped.others.push(m);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No movie completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {MOVIE_GROUPS.map(({ key, label }) => {
+                  const items = grouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = movieCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setMovieCompletionPages((prev) => ({
+                      ...prev,
+                      [key]: p,
+                    }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((movie, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            movie.movie_name_cn ||
+                            movie.movie_name_en ||
+                            movie.movie_name_alt ||
+                            "—";
+                          const dateStr = new Date(
+                            movie.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={movie.system_id}
+                              to={`/movie/${movie.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(movie.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {movie.movie_name_cn && movie.movie_name_en && (
+                                  <p className="text-xs text-gray-400 font-medium truncate">
+                                    {movie.movie_name_en}
+                                  </p>
+                                )}
+                              </div>
+                              {movie.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {movie.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+        {/* TV Show tab */}
+        {completionsTab === "tv-show" &&
+          (() => {
+            const TV_GROUPS = [
+              { key: "disney", label: "Disney" },
+              { key: "marvel", label: "Marvel" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allTVShows
+              .filter(
+                (tv) => tv.watching_status === "Completed" && tv.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const grouped = { disney: [], marvel: [], others: [] };
+            completed.forEach((tv) => {
+              const fEn =
+                franchiseMap[String(tv.franchise_id)]?.franchise_name_en || "";
+              if (fEn.includes("Disney")) grouped.disney.push(tv);
+              else if (fEn.includes("Marvel")) grouped.marvel.push(tv);
+              else grouped.others.push(tv);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No TV show completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {TV_GROUPS.map(({ key, label }) => {
+                  const items = grouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = tvCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setTvCompletionPages((prev) => ({
+                      ...prev,
+                      [key]: p,
+                    }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((tv, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            tv.tv_name_cn ||
+                            tv.tv_name_en ||
+                            tv.tv_name_alt ||
+                            "—";
+                          const dateStr = new Date(
+                            tv.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={tv.system_id}
+                              to={`/tv-show/${tv.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(tv.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {tv.tv_name_cn && tv.tv_name_en && (
+                                  <p className="text-xs text-gray-400 font-medium truncate">
+                                    {tv.tv_name_en}
+                                  </p>
+                                )}
+                              </div>
+                              {tv.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {tv.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+        {/* Cartoon tab */}
+        {completionsTab === "cartoon" &&
+          (() => {
+            const CARTOON_GROUPS = [
+              { key: "cartoon_network", label: "Cartoon Network" },
+              { key: "disney", label: "Disney" },
+              { key: "nickelodeon", label: "Nickelodeon" },
+              { key: "adult_swim", label: "Adult Swim" },
+              { key: "fox", label: "FOX" },
+              { key: "hbo", label: "HBO" },
+              { key: "others", label: "其他" },
+            ];
+            const completed = allCartoons
+              .filter(
+                (c) => c.watching_status === "Completed" && c.completed_at,
+              )
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const grouped = {
+              cartoon_network: [],
+              disney: [],
+              nickelodeon: [],
+              adult_swim: [],
+              fox: [],
+              hbo: [],
+              others: [],
+            };
+            completed.forEach((c) => {
+              const src = (c.source_official || "").toLowerCase();
+              if (src.includes("cartoon network"))
+                grouped.cartoon_network.push(c);
+              else if (src.includes("disney")) grouped.disney.push(c);
+              else if (src.includes("nickelodeon")) grouped.nickelodeon.push(c);
+              else if (src.includes("adult swim")) grouped.adult_swim.push(c);
+              else if (src.includes("fox")) grouped.fox.push(c);
+              else if (src.includes("hbo")) grouped.hbo.push(c);
+              else grouped.others.push(c);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No cartoon completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {CARTOON_GROUPS.map(({ key, label }) => {
+                  const items = grouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = cartoonCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setCartoonCompletionPages((prev) => ({
+                      ...prev,
+                      [key]: p,
+                    }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((cartoon, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const name =
+                            cartoon.cartoon_name_cn ||
+                            cartoon.cartoon_name_en ||
+                            cartoon.cartoon_name_alt ||
+                            "—";
+                          const dateStr = new Date(
+                            cartoon.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={cartoon.system_id}
+                              to={`/cartoon/${cartoon.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(cartoon.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {cartoon.cartoon_name_cn &&
+                                  cartoon.cartoon_name_en && (
+                                    <p className="text-xs text-gray-400 font-medium truncate">
+                                      {cartoon.cartoon_name_en}
+                                    </p>
+                                  )}
+                              </div>
+                              {cartoon.airing_type && (
+                                <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                                  {cartoon.airing_type}
+                                </span>
+                              )}
+                              {cartoon.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {cartoon.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
         {/* Under-development tabs */}
-        {completionsTab !== "anime" && (
+        {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
+          completionsTab,
+        ) && (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
             <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
               <i className="fas fa-history text-brand text-xl"></i>

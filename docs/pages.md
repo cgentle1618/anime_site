@@ -175,11 +175,9 @@ Full detail page for a single anime entry.
 - **Information Card** (reusable): Season/Part, Airing Type, Airing Status, Release Season, Release Date, Total Ep (+ cumulative), Genre Main, Genre Sub
 - **Production Card** (reusable): Studio, Distributor TW, Director, Producer, Music/Composer
 - Characters & Cast Card (TBD)
-- Music Card (admin editable): OP, ED, Insert/OST dropdowns — rendered in `AnimeNotes`
+- Music Card (admin editable): OP, ED, Insert/OST dropdowns
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable) — rendered in `AnimeNotes`
-
-**Sub-component:** `AnimeNotes` (`frontend/src/pages/AnimeNotes.jsx`) — structured notes editor with 17 sections; saves via callback to parent which PATCHes `notes` field.
+- **`AnimeNotes`** (`frontend/src/pages/AnimeNotes.jsx`) — structured notes editor with 17 sections; always rendered at the bottom; saves via `PATCH /api/anime/:id` with `notes` field.
 
 Admin writes use `PATCH /api/anime/:system_id`.
 
@@ -224,7 +222,7 @@ Full detail page for a single anime movie entry.
 - **Production Card** (reusable)
 - Characters & Cast Card (TBD)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`AnimeMovieNotes`** (`frontend/src/pages/AnimeMovieNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/anime-movie/:id` with `notes` field.
 
 ---
 
@@ -272,7 +270,7 @@ Full detail page for a single movie entry.
 - **Movie Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): Airing Status, Movie Type, Length, Director, Release Date USA, Release Date TW
 - Remarks — shown when `remark` is not null (admin editable via blur)
-- **MovieNotes** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor always rendered at the bottom; sections: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes; saves via `PATCH /api/movies/:id` with `notes` field.
+- **`MovieNotes`** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom; saves via `PATCH /api/movies/:id` with `notes` field.
 
 Admin writes use `PATCH /api/movies/:system_id`.
 
@@ -321,7 +319,7 @@ Full detail page for a single TV show entry.
 - **Naming Card** (reusable)
 - **Information Card** (reusable)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/tv-shows/:id` with `notes` field.
 
 ---
 
@@ -347,7 +345,7 @@ Full detail page for a single cartoon entry.
 
 **Layout (right column):**
 
-- Tags: Airing Status
+- Tags: Airing Type, Airing Status
 - Main Title: Cartoon Name CN (with fallback)
 - Sub Title: Cartoon Name EN (hidden if CN used fallback or is null)
 - From Franchise: Franchise Name CN with fallback (navigates to franchise page)
@@ -360,7 +358,7 @@ Full detail page for a single cartoon entry.
 - **Naming Card** (reusable)
 - **Information Card** (reusable)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/cartoon/:id` with `notes` field.
 
 ---
 
@@ -398,7 +396,7 @@ Full detail page for a single manga entry.
 - **Information Card** (reusable)
 - **Production Card** (reusable)
 - Remarks — shown when not null
-- **Notes Card** (reusable, admin editable)
+- **`MangaNotes`** (`frontend/src/pages/MangaNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/manga/:id` with `notes` field.
 
 ---
 
@@ -474,7 +472,7 @@ Hub for movie/TV show franchises.
 
 ### Franchise Hub — Cartoon
 
-**File:** `frontend/src/pages/FranchiseCartoon.jsx` (TBD)
+**File:** `frontend/src/pages/FranchiseCartoon.jsx`
 
 Hub for cartoon franchises.
 
@@ -488,7 +486,7 @@ Hub for cartoon franchises.
 **Cartoon Entry Section:**
 
 - Sort By: Release Date (default) / Title / My Rating / IMDB Rating
-- Filter: Airing Status / Watching Status (Watching Status Filter Options)
+- Filter: Airing Type, Airing Status / Watching Status (Watching Status Filter Options)
 - **Group by Series Button** (reusable)
 - Each entry: **Cartoon Entry Card 2** (reusable), grouped by Series
 
@@ -628,7 +626,7 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 - Filter search: by Franchise Title, Series Title, Cartoon Title, Release Year. Case/punctuation/space insensitive.
 - Sort by: Title (default) / My Rating / IMDB Rating / Release Date (new to old; TBD first)
-- Advanced filters (collapsible): Official Source, Airing Status, Watching Status (Watching Status Filter Options)
+- Advanced filters (collapsible): Official Source, Airing Type, Airing Status, Watching Status (Watching Status Filter Options)
 - Grid/Table view toggle
 
 **Grid view** — each entry: **Cartoon Entry Card 2**
@@ -747,19 +745,28 @@ Multi-section statistics dashboard.
 
 4. **Watch Next** — tabbed franchise/entry grid:
    - Anime tab: grouped by 12ep / 24ep / 30ep+; shows poster, Franchise Name CN with fallback, Franchise Expectation (live)
-   - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
-   - Movie / TV Show / Cartoon / Manga / Novel tabs (TBD)
+   - Anime Movie tab: grouped by Franchise with the order of 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
+   - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, Movie Name CN with fallback
+   - TV Show: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
+   - Cartoon tab: Group by Cartoon Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Comedy Central, Other; shows poster, Cartoon Name CN with fallback
+   - Cartoon / Manga / Novel tabs (TBD)
    - Note: Anime uses franchise entries; other media types use the media entry directly
 
 5. **To Rewatch** — tabbed grid:
    - Anime tab: sorted by Franchise Name EN; shows poster, Franchise Name CN with fallback, Franchise Rating
    - Anime Movie tab: sorted by Anime Movie Name EN; shows poster, Anime Movie Name CN with fallback, My Rating
-   - Movie / TV Show / Cartoon / Manga / Novel tabs (TBD)
+   - Movie tab: sorted by Movie Name EN; shows poster, Movie Name CN with fallback, My Rating
+   - TV Show tab: sorted by TV Show Name EN; shows poster, TV Show Name CN with fallback, My Rating
+   - Cartoon tab: sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating
+   - Manga / Novel tabs (TBD)
 
 6. **Recent Completions** — paginated list (10 per page):
    - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date (live)
    - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
-   - Movie / TV Show / Cartoon / Manga / Novel tabs (TBD)
+   - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+   - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+   - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
+   - Manga / Novel tabs (TBD)
 
 ---
 
@@ -963,7 +970,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 #### Add New Anime Movie Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Anime Movie Name EN/CN/Roman/JP/Alt
-- **Status & Progress:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), My Rating, MAL Rating/Rank, AniList Rating
+- **Status & Progress:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), My Rating, Watch Next checkbox, To Rewatch checkbox, MAL Rating/Rank, AniList Rating
 - **Production:** Length (Min), Release Date JP (Month + Year), Release Date TW (Month + Year), Studio (multi-selectable), Director (multi-selectable)
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter
 - **Source Availability:** Baha dropdown, Baha Link, Netflix dropdown, Add Source button
@@ -985,7 +992,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New Movie Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox, filtered to `franchise_type = "TV or Movie"`), Series (ComboBox + auto-create modal, filtered by selected franchise), Movie Name EN (primary), Movie Name CN, Movie Name Alt
-- **Status & Classification:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), Movie Type (Reality / Animation), My Rating
+- **Status & Classification:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), Movie Type (Reality / Animation), My Rating, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
 - **Release & Production:** Release Date USA, Release Date TW, Length (Min), Director
 - **IMDb & Sources:** IMDb ID (numeric), IMDb Link, Other Sources (name → URL pairs)
 - **Cover & Notes:** Cover Image File, Remark
@@ -994,7 +1001,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New TV Show Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), TV Show Name EN/CN/Alt, Season dropdown, Part dropdown
-- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, IMDB Rating
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
 - **Classification & Production:** TV Show Region dropdown, TV Show Official Source, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
@@ -1003,7 +1010,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New Cartoon Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), Cartoon Name EN/CN/Alt, Season dropdown, Part dropdown
-- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
 - **Classification & Production:** Cartoon Official Source, Cartoon Airing Type dropdown, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
@@ -1036,8 +1043,7 @@ Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit butt
 - Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
 - Recently Modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
-- Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and Structured Notes section:
-  - 優點 / 缺點 / 優缺點 / 大眾評價 / 我的評價 / 神回/神片段 / 解析 / 分鏡/演出/巧思 / Foreshadowing / 對稱 / 特殊變動 / 改編 / Resources / Unread / Questions / 名言/梗/迷因
+- Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeNotes`** — structured notes editor with 17 sections.
 
 Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/replace/anime/:id`
 
@@ -1045,8 +1051,7 @@ Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/rep
 
 - Search bar; recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block, then full edit form
-- Form mirrors Add Anime Movie tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and Structured Notes section:
-  - 優點 / 缺點 / 優缺點 / 大眾評價 / 我的評價 / 解析 / 分鏡/演出/巧思 / Foreshadowing / 對稱 / 改編 / Resources / Unread / Questions / 名言/梗/迷因
+- Form mirrors Add Anime Movie tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeMovieNotes`** — structured notes editor with 15 sections.
 
 Writes: `PATCH /api/anime-movie/:id`
 
@@ -1077,7 +1082,7 @@ Writes: `PATCH /api/options/:id`
 - After selecting: Other Entries in franchise block (grouped by series) — show Movie Name CN with fallback; hidden for 獨立電影, 影集, Disney, Marvel franchises
 - Full edit form — same fields as Add Movie tab (includes Series ComboBox + auto-create modal)
 - Franchise ComboBox filtered to `franchise_type = "TV or Movie"`
-- Structured Notes section at the bottom (`MovieNotes`): Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- **`MovieNotes`** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatically)
@@ -1087,7 +1092,7 @@ Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatic
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback (hidden for 獨立電影/影集, Disney, Marvel franchises), Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 神回/神片段 / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/tv-show/:id`
@@ -1097,7 +1102,7 @@ Writes: `PATCH /api/tv-show/:id`
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- Structured Notes section: Remark / 優點 Advantages / 缺點 Disadvantages / 優缺點 / 大眾評價 Public Reviews / 我的評價 Personal Reviews / 神回/神片段 Highlights / 解析 Analysis / Resources / Unread / Questions / 名言/梗/迷因 Quotes & Memes
+- **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/cartoon/:id`

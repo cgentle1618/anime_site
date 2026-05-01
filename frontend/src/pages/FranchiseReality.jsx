@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/anime";
 import MovieCard from "../components/MovieCard";
+import TVCard from "../components/TVCard";
 import SeriesModal from "../components/SeriesModal";
 
 const WATCHING_STATUS_GROUPS = {
@@ -44,6 +45,7 @@ export default function FranchiseReality() {
   const [franchise, setFranchise] = useState(null);
   const [seriesList, setSeriesList] = useState([]);
   const [movieList, setMovieList] = useState([]);
+  const [tvShowList, setTvShowList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -65,7 +67,7 @@ export default function FranchiseReality() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, mRes] = await Promise.all([
+        const [fRes, sRes, mRes, tvRes] = await Promise.all([
           fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
           fetch(`/api/series/?franchise_id=${system_id}`, {
             credentials: "include",
@@ -73,16 +75,21 @@ export default function FranchiseReality() {
           fetch(`/api/movies/?franchise_id=${system_id}`, {
             credentials: "include",
           }),
+          fetch(`/api/tv-shows/?franchise_id=${system_id}`, {
+            credentials: "include",
+          }),
         ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, m] = await Promise.all([
+        const [f, s, m, tv] = await Promise.all([
           fRes.json(),
           sRes.json(),
           mRes.json(),
+          tvRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
         setMovieList(m);
+        setTvShowList(tv);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
         setRemark(f.remark || "");
@@ -98,6 +105,12 @@ export default function FranchiseReality() {
   const handleMovieUpdated = useCallback((updated) => {
     setMovieList((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
+  const handleTvShowUpdated = useCallback((updated) => {
+    setTvShowList((prev) =>
+      prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
     );
   }, []);
 
@@ -203,13 +216,49 @@ export default function FranchiseReality() {
     return result;
   }, [filteredAndSorted, seriesList]);
 
-  const completedCount = movieList.filter(
-    (m) => m.watching_status === "Completed",
-  ).length;
+  const tvShowSeriesGroups = useMemo(() => {
+    const seriesMap = Object.fromEntries(
+      seriesList.map((s) => [s.system_id, s]),
+    );
+    const grouped = {};
+    const standalone = [];
+
+    const sorted = [...tvShowList].sort((a, b) => {
+      const aSeason = (a.season_part || "").match(/Season\s+(\d+)/i);
+      const bSeason = (b.season_part || "").match(/Season\s+(\d+)/i);
+      return (
+        (aSeason ? parseInt(aSeason[1]) : 0) -
+        (bSeason ? parseInt(bSeason[1]) : 0)
+      );
+    });
+
+    sorted.forEach((t) => {
+      if (t.series_id && seriesMap[t.series_id]) {
+        if (!grouped[t.series_id]) grouped[t.series_id] = [];
+        grouped[t.series_id].push(t);
+      } else {
+        standalone.push(t);
+      }
+    });
+
+    const result = [];
+    seriesList.forEach((s) => {
+      if (grouped[s.system_id]?.length > 0) {
+        result.push({ type: "series", series: s, shows: grouped[s.system_id] });
+      }
+    });
+    if (standalone.length > 0) {
+      result.push({ type: "standalone", shows: standalone });
+    }
+    return result;
+  }, [tvShowList, seriesList]);
+
+  const totalEntries = movieList.length + tvShowList.length;
+  const completedCount =
+    movieList.filter((m) => m.watching_status === "Completed").length +
+    tvShowList.filter((t) => t.watching_status === "Completed").length;
   const completionPct =
-    movieList.length > 0
-      ? Math.round((completedCount / movieList.length) * 100)
-      : 0;
+    totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
   if (loading) {
     return (
@@ -308,9 +357,18 @@ export default function FranchiseReality() {
                   {franchise.franchise_expectation} Expectation
                 </span>
               )}
-              <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
-                {movieList.length} {movieList.length === 1 ? "Movie" : "Movies"}
-              </span>
+              {movieList.length > 0 && (
+                <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
+                  {movieList.length}{" "}
+                  {movieList.length === 1 ? "Movie" : "Movies"}
+                </span>
+              )}
+              {tvShowList.length > 0 && (
+                <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold border border-blue-200">
+                  {tvShowList.length}{" "}
+                  {tvShowList.length === 1 ? "TV Show" : "TV Shows"}
+                </span>
+              )}
             </div>
           </div>
 
@@ -331,7 +389,7 @@ export default function FranchiseReality() {
                 ></div>
               </div>
               <div className="text-xs text-gray-500 font-medium">
-                {completedCount} / {movieList.length} watched
+                {completedCount} / {totalEntries} watched
               </div>
             </div>
 
@@ -566,26 +624,72 @@ export default function FranchiseReality() {
         )}
       </div>
 
-      {/* TV Show Section — Under Development */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-tv text-gray-400"></i>
+      {/* TV Show Section */}
+      {tvShowList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+              <i className="fas fa-video text-blue-500"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                TV Shows
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Live-action series
+              </p>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {tvShowList.length} entries
+            </span>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-              TV Shows
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Live-action series
-            </p>
+
+          <div className="space-y-10">
+            {tvShowSeriesGroups.map((group) => {
+              const label =
+                group.type === "series"
+                  ? group.series.series_name_cn ||
+                    group.series.series_name_en ||
+                    group.series.series_name_alt ||
+                    "Unknown Series"
+                  : "Standalone";
+              return (
+                <section
+                  key={
+                    group.type === "series"
+                      ? group.series.system_id
+                      : "standalone"
+                  }
+                >
+                  {tvShowSeriesGroups.length > 1 && (
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <i
+                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-video"} text-brand/70`}
+                        ></i>
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {group.shows.length}
+                      </span>
+                      <div className="flex-1 border-t border-gray-100"></div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {group.shows.map((t) => (
+                      <TVCard
+                        key={t.system_id}
+                        show={t}
+                        onUpdated={handleTvShowUpdated}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-          <p className="text-sm font-bold text-gray-400">Under Development</p>
-        </div>
-      </div>
+      )}
 
       {/* Series Modal */}
       {showSeriesModal && selectedSeries && (

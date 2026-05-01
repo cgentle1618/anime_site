@@ -47,8 +47,8 @@ tests/                          ← backend tests
     test_jikan_utils.py         ← map_jikan_to_anime_data
     test_formatter.py           ← format_model_for_sheet, parse_*_from_sheet  (planned)
     test_security.py            ← hashing, JWT sign/verify/expiry
-    test_derivations.py         ← derive_watch_order, ep_previous, prequel/sequel
-    test_checking_rules.py      ← has_missing_values_anime, check_is_watching_completed
+    test_derivations.py         ← derive_watch_order_anime, ep_previous, prequel/sequel
+    test_checking_rules.py      ← has_missing_values_anime, check_is_tv_completed
   api/
     conftest.py                 ← sample DB rows (franchise, series, anime)
     test_auth.py
@@ -109,15 +109,15 @@ Tests for stateless functions with no DB or network dependencies.
 
 ### `tests/unit/test_derivations.py` → `services/other_logics.py`
 
-- `derive_watch_order`: sequential assignment; null `season_part` skipped; airing type priority (TV before OVA); series grouping
-- `derive_ep_previous`: Season 1 → `0`; Season 2 → `S1.ep_total`; different series isolated
-- `derive_prequel_sequel`: links built; `derive_related=False` skipped; nulls only filled, not overwritten
-- `derive_season_1`: single TV in franchise → `"Season 1"`; multi TV → no change; non-TV → no change
+- `derive_watch_order_anime`: sequential assignment; null `season_part` skipped; airing type priority (TV before OVA); series grouping
+- `derive_ep_previous_anime`: Season 1 → `0`; Season 2 → `S1.ep_total`; different series isolated
+- `derive_prequel_sequel_anime`: links built; `derive_related=False` skipped; nulls only filled, not overwritten
+- `derive_season_1_anime`: single TV in franchise → `"Season 1"`; multi TV → no change; non-TV → no change
 
 ### `tests/unit/test_checking_rules.py` → `services/other_logics.py` + `utils/utils.py`
 
 - `has_missing_values_anime`: blank tracked fields → `True`; all filled → `False`; `"Not Yet Aired"` exceptions; `ep_previous` exemptions
-- `check_is_watching_completed`: `ep_fin == ep_total > 0` → `True`; explicit `"Completed"` → `True`; partial → `False`
+- `check_is_tv_completed`: `ep_fin == ep_total > 0` → `True`; explicit `"Completed"` → `True`; partial → `False`
 
 ---
 

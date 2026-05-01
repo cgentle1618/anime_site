@@ -59,6 +59,7 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
     so the log and the actual deletion succeed or fail together atomically.
     """
     try:
+
         def _cn(item, prefix):
             """CN fallback: CN → EN → Alt → roman → JP"""
             if not item:
@@ -107,7 +108,11 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
             if _has_cn(entry, "series"):
                 name_en = _en(entry, "series")
             if getattr(entry, "franchise_id", None):
-                f = db.query(Franchise).filter(Franchise.system_id == entry.franchise_id).first()
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
                 franchise_cn = _cn(f, "franchise")
 
         elif entry_type == "Anime":
@@ -118,8 +123,54 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 s = db.query(Series).filter(Series.system_id == entry.series_id).first()
                 series_cn = _cn(s, "series")
             if getattr(entry, "franchise_id", None):
-                f = db.query(Franchise).filter(Franchise.system_id == entry.franchise_id).first()
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
                 franchise_cn = _cn(f, "franchise")
+
+        elif entry_type == "TV Show":
+            name_cn = (
+                getattr(entry, "tv_name_cn", None)
+                or getattr(entry, "tv_name_en", None)
+                or getattr(entry, "tv_name_alt", None)
+            )
+            name_en = getattr(entry, "tv_name_en", None) or getattr(
+                entry, "tv_name_alt", None
+            )
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+                franchise_type = getattr(f, "franchise_type", None)
+
+        elif entry_type == "Movie":
+            name_cn = (
+                getattr(entry, "movie_name_cn", None)
+                or getattr(entry, "movie_name_en", None)
+                or getattr(entry, "movie_name_alt", None)
+            )
+            name_en = getattr(entry, "movie_name_en", None) or getattr(
+                entry, "movie_name_alt", None
+            )
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+                franchise_type = getattr(f, "franchise_type", None)
 
         deleted_log = DeletedRecord(
             type=entry_type,

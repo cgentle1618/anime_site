@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime, AnimeMovies, Movies
+from models import Anime, AnimeMovies, Cartoon, Movies, TVShows
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
@@ -19,10 +19,16 @@ from services.other_logics import (
     create_missing_seasonal,
     extract_system_options_from_anime,
     extract_system_options_from_anime_movie,
+    extract_system_options_from_cartoon,
+    extract_system_options_from_tv_show,
     autofill_anime_from_mal,
     anime_post_processing,
     anime_movie_post_processing,
-    derive_related,
+    cartoon_post_processing,
+    tv_show_post_processing,
+    derive_related_anime,
+    derive_related_cartoon,
+    derive_related_tv_show,
 )
 
 # ==========================================
@@ -47,14 +53,28 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
         }
         | {
             row[0]
+            for row in db.query(Cartoon.cover_image_file)
+            .filter(Cartoon.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
             for row in db.query(Movies.cover_image_file)
             .filter(Movies.cover_image_file.isnot(None))
+            .all()
+        }
+        | {
+            row[0]
+            for row in db.query(TVShows.cover_image_file)
+            .filter(TVShows.cover_image_file.isnot(None))
             .all()
         }
     )
     entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
     entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Cartoon).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(TVShows).all()})
 
     should_use = []
     orphaned = []
@@ -109,6 +129,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        cartoons = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None)).all()
+        for c in cartoons:
+            if not cover_image_exists(str(c.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(c.system_id),
+                        "name": c.display_name or str(c.system_id),
+                        "entry_type": "cartoon",
+                    }
+                )
+
         movies = db.query(Movies).filter(Movies.cover_image_file.isnot(None)).all()
         for m in movies:
             if not cover_image_exists(str(m.system_id)):
@@ -120,7 +151,22 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-    total_checked = len(animes) + (0 if entry_type else len(anime_movies) + len(movies))
+        tv_shows = db.query(TVShows).filter(TVShows.cover_image_file.isnot(None)).all()
+        for t in tv_shows:
+            if not cover_image_exists(str(t.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(t.system_id),
+                        "name": t.display_name or str(t.system_id),
+                        "entry_type": "tv_show",
+                    }
+                )
+
+    total_checked = len(animes) + (
+        0
+        if entry_type
+        else len(anime_movies) + len(cartoons) + len(movies) + len(tv_shows)
+    )
     return {
         "status": "success",
         "total_checked": total_checked,
@@ -190,30 +236,37 @@ def bulk_download_missing_covers(
 # ==========================================
 
 
-def run_anime_post_processing(db: Session) -> dict:
+def run_post_processing(db: Session) -> dict:
     animes = db.query(Anime).all()
     for anime in animes:
         anime_post_processing(anime, db)
     db.commit()
-    return {
-        "status": "success",
-        "message": f"Post-processed {len(animes)} anime entries.",
-    }
 
-
-def run_anime_movie_post_processing(db: Session) -> dict:
     movies = db.query(AnimeMovies).all()
     for movie in movies:
         anime_movie_post_processing(movie, db)
     db.commit()
+
+    shows = db.query(TVShows).all()
+    for show in shows:
+        tv_show_post_processing(show, db)
+    db.commit()
+
+    cartoons = db.query(Cartoon).all()
+    for cartoon in cartoons:
+        cartoon_post_processing(cartoon, db)
+    db.commit()
+
     return {
         "status": "success",
-        "message": f"Post-processed {len(movies)} anime movie entries.",
+        "message": f"Post-processed {len(animes)} anime, {len(movies)} anime movies, {len(shows)} TV show entries, and {len(cartoons)} cartoon entries.",
     }
 
 
 def run_derive_related(db: Session) -> dict:
-    derive_related(db)
+    derive_related_anime(db)
+    derive_related_tv_show(db)
+    derive_related_cartoon(db)
     return {
         "status": "success",
         "message": "Derived watch order, ep_previous, and prequel/sequel for all franchises.",
@@ -223,9 +276,19 @@ def run_derive_related(db: Session) -> dict:
 def run_sync(db: Session) -> dict:
     run_sync_anime(db)
     run_sync_anime_movie(db)
+    run_sync_tv_show(db)
+    run_sync_cartoon(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
+    }
+
+
+def run_sync_cartoon(db: Session) -> dict:
+    extract_system_options_from_cartoon(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from cartoons.",
     }
 
 
@@ -247,13 +310,19 @@ def run_sync_anime_movie(db: Session) -> dict:
     }
 
 
+def run_sync_tv_show(db: Session) -> dict:
+    extract_system_options_from_tv_show(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from TV shows.",
+    }
+
+
 def run_calculate_all(db: Session) -> dict:
     try:
-        run_anime_post_processing(db)
-        run_anime_movie_post_processing(db)
+        run_post_processing(db)
         run_derive_related(db)
-        run_sync_anime(db)
-        run_sync_anime_movie(db)
+        run_sync(db)
         bulk_check_cover_image(db)
         log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
         return {"status": "success", "message": "Full calculation complete."}

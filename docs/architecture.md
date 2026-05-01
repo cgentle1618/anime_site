@@ -142,27 +142,27 @@ Key functions:
 **Episode math:**
 
 - `apply_validate_episode_math()` — sanitizes `ep_total`/`ep_fin`; ensures `ep_fin ≤ ep_total`
-- `derive_ep_previous(db, franchise_id)` — computes cumulative episode offset for sequential TV/ONA entries within a series
+- `derive_ep_previous_anime(db, franchise_id)` — computes cumulative episode offset for sequential TV/ONA entries within a series
 
 **Watch order & relations:**
 
-- `derive_watch_order(db, franchise_id)` — assigns `watch_order` to eligible entries; groups by series, orders within group by season/part then airing type (TV→ONA→Special→OVA→OAD); only fills `None` fields
-- `derive_prequel_sequel(db, franchise_id)` — links adjacent entries by `watch_order`; sets `prequel_id` / `sequel_id`; only fills `None` fields
+- `derive_watch_order_anime(db, franchise_id)` — assigns `watch_order` to eligible entries; groups by series, orders within group by season/part then airing type (TV→ONA→Special→OVA→OAD); only fills `None` fields
+- `derive_prequel_sequel_anime(db, franchise_id)` — links adjacent entries by `watch_order`; sets `prequel_id` / `sequel_id`; only fills `None` fields
 
-**Master derive:** `derive_related(db)` — calls `derive_watch_order`, `derive_prequel_sequel`, `derive_ep_previous` for every franchise.
+**Master derive:** `derive_related(db)` — calls `derive_watch_order_anime`, `derive_prequel_sequel_anime`, `derive_ep_previous_anime` for every franchise.
 
 **Jikan fill:** `autofill_anime_from_mal(anime, force_replace_ratings)` — fetch MAL data, fill missing fields, download cover image.
 
 **Season inference:**
 
 - `apply_calculate_seasonal_from_month()` — map `release_month` → `release_season`
-- `derive_season_1()` — if a franchise has exactly one TV entry with no `season_part`, set "Season 1"
+- `derive_season_1_anime()` — if a franchise has exactly one TV entry with no `season_part`, set "Season 1"
 
 **Source flags:** `apply_check_baha()` — sets `source_baha=True` if `baha_link` is present and `airing_status == "Airing"`.
 
 **Duplicate detection:** `find_duplicate_franchises/series/anime/system_options()` — union-find clustering by name similarity, grouped by type or parent ID.
 
-**Post-processing:** `anime_post_processing(anime, db)` — calls validate_episode_math, check_baha, derive_season_1.
+**Post-processing:** `anime_post_processing(anime, db)` — calls validate_episode_math, check_baha, derive_season_1_anime.
 
 **Hierarchy resolution:** `resolve_anime_parent_hierarchy()` — find or create parent Franchise (and optionally Series) by name during Pull.
 

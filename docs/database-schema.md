@@ -322,6 +322,7 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -402,6 +403,7 @@ Live-action and animated movie entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -453,11 +455,11 @@ Live-action and scripted TV show entries.
 
 #### Ratings & Release
 
-| Column         | Type   | Nullable | Notes                                                     |
-| -------------- | ------ | -------- | --------------------------------------------------------- |
-| `my_rating`    | String | Yes      | S / A+ / A / B / C / D / E / F                            |
-| `imdb_rating`  | String | Yes      | IMDB score stored as string (e.g. `"9.2"`, `"N/A"`)       |
-| `release_date` | String | Yes      | Release month + year or year, e.g. `"FEB 2026"`, `"2025"` |
+| Column         | Type   | Nullable | Notes                                                                                           |
+| -------------- | ------ | -------- | ----------------------------------------------------------------------------------------------- |
+| `my_rating`    | String | Yes      | S / A+ / A / B / C / D / E / F                                                                  |
+| `imdb_rating`  | String | Yes      | IMDB score stored as string (e.g. `"9.2"`, `"N/A"`); It is series rating not per-season rating. |
+| `release_date` | String | Yes      | Release month + year or year, e.g. `"FEB 2026"`, `"2025"`                                       |
 
 #### Relational & Ordering
 
@@ -477,10 +479,9 @@ Live-action and scripted TV show entries.
 
 #### Sources
 
-| Column              | Type   | Nullable | Notes                         |
-| ------------------- | ------ | -------- | ----------------------------- |
-| `source_other`      | String | Yes      | Name of other watching source |
-| `source_other_link` | String | Yes      | Link of other watching source |
+| Column         | Type  | Nullable | Notes                                |
+| -------------- | ----- | -------- | ------------------------------------ |
+| `source_other` | JSONB | Yes      | Key-value pairs of source name → URL |
 
 #### Misc
 
@@ -489,6 +490,7 @@ Live-action and scripted TV show entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -522,14 +524,16 @@ Western animated TV show entries.
 
 #### Classification & Status
 
-| Column            | Type   | Nullable | Default         | Notes                                                                       |
-| ----------------- | ------ | -------- | --------------- | --------------------------------------------------------------------------- |
-| `season_part`     | String | Yes      | —               | Which season and part, e.g. `"Season 1"`, `"Season 2 Part 2"`               |
-| `source_official` | String | Yes      | —               | Name of official streaming source; see system_options                       |
-| `airing_type`     | String | Yes      | —               | `"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`, null |
-| `airing_status`   | String | Yes      | —               | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null                    |
-| `watching_status` | String | No       | `"Might Watch"` | See options.md for all valid values                                         |
-| `is_main`         | String | Yes      | —               | Whether the entry is main story or spinoff; see system_options              |
+| Column        | Type   | Nullable | Default | Notes                                                         |
+| ------------- | ------ | -------- | ------- | ------------------------------------------------------------- |
+| `season_part` | String | Yes      | —       | Which season and part, e.g. `"Season 1"`, `"Season 2 Part 2"` |
+| `airing_type` | String | Yes      | —       | `"TV"`, `"Movie"`, `"Other"`, null                            |
+
+| `source_official` | String | Yes | — | Name of official streaming source; see system_options |
+| `airing_type` | String | Yes | — | `"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`, null |
+| `airing_status` | String | Yes | — | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null |
+| `watching_status` | String | No | `"Might Watch"` | See options.md for all valid values |
+| `is_main` | String | Yes | — | Whether the entry is main story or spinoff; see system_options |
 
 #### Episode Tracking
 
@@ -575,6 +579,7 @@ Western animated TV show entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -677,6 +682,7 @@ Manga, manhwa, and manhua entries.
 | `read_next_group`  | String   | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |

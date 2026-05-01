@@ -9,6 +9,10 @@ const SCOPES = [
   { key: "franchise", label: "Franchise" },
   { key: "series", label: "Series" },
   { key: "anime", label: "Anime" },
+  { key: "anime-movie", label: "Anime Movie" },
+  { key: "movie", label: "Movie" },
+  { key: "tv-show", label: "TV Show" },
+  { key: "cartoon", label: "Cartoon" },
   { key: "seasonal", label: "Seasonal" },
 ];
 
@@ -16,6 +20,10 @@ const TYPE_BADGE = {
   franchise: { label: "FRAN", cls: "bg-brand/10 text-brand" },
   series: { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
   anime: { label: "ANIME", cls: "bg-gray-100 text-gray-500" },
+  "anime-movie": { label: "A.MOVIE", cls: "bg-blue-50 text-blue-600" },
+  movie: { label: "MOVIE", cls: "bg-amber-50 text-amber-600" },
+  "tv-show": { label: "TV", cls: "bg-indigo-50 text-indigo-600" },
+  cartoon: { label: "CARTOON", cls: "bg-orange-50 text-orange-600" },
   seasonal: { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
 };
 
@@ -82,6 +90,10 @@ export default function Nav() {
     franchises: [],
     anime: [],
     series: [],
+    animeMovies: [],
+    movies: [],
+    tvShows: [],
+    cartoons: [],
     seasonal: [],
   });
 
@@ -96,14 +108,25 @@ export default function Nav() {
     searchDebounceRef.current = setTimeout(async () => {
       try {
         if (!dataCacheRef.current.loaded) {
-          const [franRes, animeRes, seriesRes, seasonalRes] = await Promise.all(
-            [
-              fetch("/api/franchise/", { credentials: "include" }),
-              fetch("/api/anime/", { credentials: "include" }),
-              fetch("/api/series/", { credentials: "include" }),
-              fetch("/api/seasonal/", { credentials: "include" }),
-            ],
-          );
+          const [
+            franRes,
+            animeRes,
+            seriesRes,
+            cartoonRes,
+            seasonalRes,
+            amRes,
+            mvRes,
+            tvRes,
+          ] = await Promise.all([
+            fetch("/api/franchise/", { credentials: "include" }),
+            fetch("/api/anime/", { credentials: "include" }),
+            fetch("/api/series/", { credentials: "include" }),
+            fetch("/api/cartoon/", { credentials: "include" }),
+            fetch("/api/seasonal/", { credentials: "include" }),
+            fetch("/api/anime-movie/", { credentials: "include" }),
+            fetch("/api/movies/", { credentials: "include" }),
+            fetch("/api/tv-shows/", { credentials: "include" }),
+          ]);
           dataCacheRef.current.franchises = franRes.ok
             ? await franRes.json()
             : [];
@@ -111,9 +134,15 @@ export default function Nav() {
           dataCacheRef.current.series = seriesRes.ok
             ? await seriesRes.json()
             : [];
+          dataCacheRef.current.cartoons = cartoonRes.ok
+            ? await cartoonRes.json()
+            : [];
           dataCacheRef.current.seasonal = seasonalRes.ok
             ? await seasonalRes.json()
             : [];
+          dataCacheRef.current.animeMovies = amRes.ok ? await amRes.json() : [];
+          dataCacheRef.current.movies = mvRes.ok ? await mvRes.json() : [];
+          dataCacheRef.current.tvShows = tvRes.ok ? await tvRes.json() : [];
           dataCacheRef.current.loaded = true;
         }
         const qClean = cleanString(searchQuery);
@@ -164,6 +193,58 @@ export default function Nav() {
             .forEach((a) => results.push({ type: "anime", ...a }));
         }
 
+        if (scope === "all" || scope === "anime-movie") {
+          const limit = scope === "all" ? 3 : 10;
+          dataCacheRef.current.animeMovies
+            .filter((m) =>
+              [
+                m.anime_movie_name_cn,
+                m.anime_movie_name_en,
+                m.anime_movie_name_roman,
+                m.anime_movie_name_jp,
+                m.anime_movie_name_alt,
+              ].some((n) => cleanString(n).includes(qClean)),
+            )
+            .slice(0, limit)
+            .forEach((m) => results.push({ type: "anime-movie", ...m }));
+        }
+
+        if (scope === "all" || scope === "movie") {
+          const limit = scope === "all" ? 3 : 10;
+          dataCacheRef.current.movies
+            .filter((m) =>
+              [m.movie_name_cn, m.movie_name_en, m.movie_name_alt].some((n) =>
+                cleanString(n).includes(qClean),
+              ),
+            )
+            .slice(0, limit)
+            .forEach((m) => results.push({ type: "movie", ...m }));
+        }
+
+        if (scope === "all" || scope === "tv-show") {
+          const limit = scope === "all" ? 3 : 10;
+          dataCacheRef.current.tvShows
+            .filter((t) =>
+              [t.tv_name_cn, t.tv_name_en, t.tv_name_alt].some((n) =>
+                cleanString(n).includes(qClean),
+              ),
+            )
+            .slice(0, limit)
+            .forEach((t) => results.push({ type: "tv-show", ...t }));
+        }
+
+        if (scope === "all" || scope === "cartoon") {
+          const limit = scope === "all" ? 5 : 10;
+          dataCacheRef.current.cartoons
+            .filter((c) =>
+              [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some(
+                (n) => cleanString(n).includes(qClean),
+              ),
+            )
+            .slice(0, limit)
+            .forEach((c) => results.push({ type: "cartoon", ...c }));
+        }
+
         if (scope === "all" || scope === "seasonal") {
           const limit = scope === "all" ? 10 : 10;
           dataCacheRef.current.seasonal
@@ -187,6 +268,26 @@ export default function Nav() {
                 item.series_name_en,
                 item.series_name_alt,
               ];
+            if (item.type === "cartoon")
+              return [
+                item.cartoon_name_cn,
+                item.cartoon_name_en,
+                item.cartoon_name_alt,
+              ];
+            if (item.type === "anime-movie")
+              return [
+                item.anime_movie_name_cn,
+                item.anime_movie_name_en,
+                item.anime_movie_name_roman,
+              ];
+            if (item.type === "movie")
+              return [
+                item.movie_name_cn,
+                item.movie_name_en,
+                item.movie_name_alt,
+              ];
+            if (item.type === "tv-show")
+              return [item.tv_name_cn, item.tv_name_en, item.tv_name_alt];
             if (item.type === "seasonal") return [item.seasonal];
             return [
               item.anime_name_cn,
@@ -250,6 +351,27 @@ export default function Nav() {
         item.series_name_alt ||
         "—"
       );
+    if (item.type === "cartoon")
+      return (
+        item.cartoon_name_cn ||
+        item.cartoon_name_en ||
+        item.cartoon_name_alt ||
+        "—"
+      );
+    if (item.type === "anime-movie")
+      return (
+        item.anime_movie_name_cn ||
+        item.anime_movie_name_en ||
+        item.anime_movie_name_roman ||
+        item.anime_movie_name_jp ||
+        "—"
+      );
+    if (item.type === "movie")
+      return (
+        item.movie_name_cn || item.movie_name_en || item.movie_name_alt || "—"
+      );
+    if (item.type === "tv-show")
+      return item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "—";
     if (item.type === "seasonal") return item.seasonal || "—";
     return (
       item.anime_name_cn ||
@@ -266,6 +388,11 @@ export default function Nav() {
     if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
     else if (item.type === "series")
       navigate(`/franchise/${item.franchise_id}`);
+    else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
+    else if (item.type === "anime-movie")
+      navigate(`/anime-movie/${item.system_id}`);
+    else if (item.type === "movie") navigate(`/movie/${item.system_id}`);
+    else if (item.type === "tv-show") navigate(`/tv-show/${item.system_id}`);
     else if (item.type === "seasonal")
       navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
     else navigate(`/anime/${item.system_id}`);
@@ -338,11 +465,15 @@ export default function Nav() {
                     <NavLink to="/library/franchise" icon="fas fa-layer-group">
                       Franchise
                     </NavLink>
-                    <DevLink icon="fas fa-video">TV Show</DevLink>
+                    <NavLink to="/library/tv-show" icon="fas fa-video">
+                      TV Show
+                    </NavLink>
                     <NavLink to="/library/movie" icon="fas fa-ticket-alt">
                       Movie
                     </NavLink>
-                    <DevLink icon="fas fa-laugh-squint">Cartoon</DevLink>
+                    <NavLink to="/library/cartoon" icon="fas fa-laugh-squint">
+                      Cartoon
+                    </NavLink>
                   </>
                 }
               />
@@ -648,11 +779,11 @@ export default function Nav() {
                   Franchise Library
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/tv-show"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  TV Show (Dev)
+                  TV Show Library
                 </Link>
                 <Link
                   to="/library/movie"
@@ -662,11 +793,11 @@ export default function Nav() {
                   Movie Library
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/cartoon"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  Cartoon (Dev)
+                  Cartoon Library
                 </Link>
               </div>
             </details>

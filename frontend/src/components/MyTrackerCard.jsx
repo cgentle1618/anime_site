@@ -6,10 +6,14 @@ export default function MyTrackerCard({
   cumTotal,
   watchingStatus,
   myRating,
+  watchNext,
+  toRewatch,
   isAdmin,
   onEpChange,
   onStatusChange,
   onRatingChange,
+  onWatchNextChange,
+  onToRewatchChange,
   statusOptions,
   ratingOptions,
   statusLabel = "Watching Status",
@@ -122,6 +126,48 @@ export default function MyTrackerCard({
             ))}
           </select>
         </div>
+        {onWatchNextChange !== undefined && (
+          <div className="space-y-1">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Watch Next
+            </label>
+            <label
+              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+            >
+              <input
+                type="checkbox"
+                checked={!!watchNext}
+                disabled={!isAdmin}
+                onChange={(e) => isAdmin && onWatchNextChange(e.target.checked)}
+                className="w-4 h-4 rounded accent-brand"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Watch Next
+              </span>
+            </label>
+          </div>
+        )}
+        {onToRewatchChange !== undefined && (
+          <div className="space-y-1">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              To Rewatch
+            </label>
+            <label
+              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+            >
+              <input
+                type="checkbox"
+                checked={!!toRewatch}
+                disabled={!isAdmin}
+                onChange={(e) => isAdmin && onToRewatchChange(e.target.checked)}
+                className="w-4 h-4 rounded accent-brand"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                To Rewatch
+              </span>
+            </label>
+          </div>
+        )}
       </div>
     </div>
   );

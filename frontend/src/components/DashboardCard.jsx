@@ -11,11 +11,23 @@ export default function DashboardCard({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const title =
-    anime.anime_name_cn ||
-    anime.anime_name_en ||
-    anime.anime_name_roman ||
-    "Unknown Title";
+  const isTV = anime._ui_type === "TV Show";
+  const isCartoon = anime._ui_type === "Cartoon";
+
+  const title = isCartoon
+    ? anime.cartoon_name_cn ||
+      anime.cartoon_name_en ||
+      anime.cartoon_name_alt ||
+      "Unknown Title"
+    : isTV
+      ? anime.tv_name_cn ||
+        anime.tv_name_en ||
+        anime.tv_name_alt ||
+        "Unknown Title"
+      : anime.anime_name_cn ||
+        anime.anime_name_en ||
+        anime.anime_name_roman ||
+        "Unknown Title";
   const subTitle = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -23,10 +35,21 @@ export default function DashboardCard({
       "Independent"
     : "Independent Series";
 
-  const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isBaha(anime);
+  const navigatePath = isCartoon
+    ? `/cartoon/${anime.system_id}`
+    : isTV
+      ? `/tv-show/${anime.system_id}`
+      : `/anime/${anime.system_id}`;
+  const editPath = isCartoon
+    ? `/modify?id=${anime.system_id}&type=cartoon`
+    : isTV
+      ? `/modify?id=${anime.system_id}&type=tv-show`
+      : `/modify?id=${anime.system_id}`;
 
-  const prevEps = anime.ep_previous || 0;
+  const imageUrl = getCoverUrl(anime.cover_image_file);
+  const bahaFlag = isTV || isCartoon ? false : isBaha(anime);
+
+  const prevEps = isTV || isCartoon ? 0 : anime.ep_previous || 0;
   const localFin = anime.ep_fin || 0;
   const localTotal =
     anime.ep_total !== null && anime.ep_total !== undefined
@@ -58,13 +81,13 @@ export default function DashboardCard({
       return;
     }
     if (target === localFin) return;
-    onEpChange(anime.system_id, target, localFin);
+    onEpChange(anime.system_id, target, localFin, anime._ui_type);
   }
 
   return (
     <div
       className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
-      onClick={() => navigate(`/anime/${anime.system_id}`)}
+      onClick={() => navigate(navigatePath)}
     >
       <div className="flex p-3">
         <div className="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
@@ -99,10 +122,12 @@ export default function DashboardCard({
             >
               {anime.airing_status || "Unknown"}
             </span>
-            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm">
-              <i className="fas fa-tv mr-1"></i>
-              {anime.airing_type || "TV"}
-            </span>
+            {!isTV && !isCartoon && (
+              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm">
+                <i className="fas fa-tv mr-1"></i>
+                {anime.airing_type || "TV"}
+              </span>
+            )}
             {bahaFlag && anime.baha_link && (
               <a
                 href={anime.baha_link}
@@ -128,7 +153,7 @@ export default function DashboardCard({
                 />
               </span>
             )}
-            {anime.source_netflix && (
+            {!isTV && anime.source_netflix && (
               <span
                 className="bg-red-50 border border-red-200 text-[#E50914] font-black px-1.5 py-0.5 rounded text-[10px] leading-none"
                 title="Available on Netflix"
@@ -142,7 +167,7 @@ export default function DashboardCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/modify?id=${anime.system_id}`);
+              navigate(editPath);
             }}
             className="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100"
             title="Quick Edit"

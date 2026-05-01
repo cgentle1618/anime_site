@@ -4,6 +4,8 @@ import { useAuth } from "../contexts/AuthContext";
 import AnimeCard from "../components/AnimeCard";
 import AnimeMovieCard from "../components/AnimeMovieCard";
 import MovieCard from "../components/MovieCard";
+import TVCard from "../components/TVCard";
+import CartoonCard from "../components/CartoonCard";
 import { cleanString } from "../utils/anime";
 
 function getFranchiseTitles(f) {
@@ -39,10 +41,14 @@ export default function Search() {
   const [matchedAnime, setMatchedAnime] = useState([]);
   const [matchedAnimeMovies, setMatchedAnimeMovies] = useState([]);
   const [matchedMovies, setMatchedMovies] = useState([]);
+  const [matchedTvShows, setMatchedTvShows] = useState([]);
+  const [matchedCartoons, setMatchedCartoons] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
+  const [allTvShows, setAllTvShows] = useState([]);
+  const [allCartoons, setAllCartoons] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   useEffect(() => {
@@ -61,6 +67,8 @@ export default function Search() {
         const needsAnime = scope === "all" || scope === "anime";
         const needsAnimeMovie = scope === "all" || scope === "anime-movie";
         const needsMovie = scope === "all" || scope === "movie";
+        const needsTvShow = scope === "all" || scope === "tv-show";
+        const needsCartoon = scope === "all" || scope === "cartoon";
         const needsSeries = scope === "all" || scope === "series";
         const needsSeasonal = scope === "all" || scope === "seasonal";
 
@@ -78,18 +86,24 @@ export default function Search() {
           needsAnimeMovie
             ? fetch("/api/anime-movie/", { credentials: "include" })
             : null,
-          needsMovie
-            ? fetch("/api/movies/", { credentials: "include" })
+          needsMovie ? fetch("/api/movies/", { credentials: "include" }) : null,
+          needsTvShow
+            ? fetch("/api/tv-shows/", { credentials: "include" })
+            : null,
+          needsCartoon
+            ? fetch("/api/cartoon/", { credentials: "include" })
             : null,
         ]);
-        const [fRes, aRes, sRes, seaRes, amRes, mvRes] = fetches;
+        const [fRes, aRes, sRes, seaRes, amRes, mvRes, tvRes, cRes] = fetches;
         if (
           (fRes && !fRes.ok) ||
           (aRes && !aRes.ok) ||
           (sRes && !sRes.ok) ||
           (seaRes && !seaRes.ok) ||
           (amRes && !amRes.ok) ||
-          (mvRes && !mvRes.ok)
+          (mvRes && !mvRes.ok) ||
+          (tvRes && !tvRes.ok) ||
+          (cRes && !cRes.ok)
         )
           throw new Error("Failed to fetch database");
 
@@ -99,9 +113,13 @@ export default function Search() {
         const allSeasonal = seaRes ? await seaRes.json() : [];
         const animeMovieResults = amRes ? await amRes.json() : [];
         const movieResults = mvRes ? await mvRes.json() : [];
+        const tvShowResults = tvRes ? await tvRes.json() : [];
+        const cartoonResults = cRes ? await cRes.json() : [];
         setAllAnime(all);
         setAllAnimeMovies(animeMovieResults);
         setAllMovies(movieResults);
+        setAllTvShows(tvShowResults);
+        setAllCartoons(cartoonResults);
 
         const qClean = cleanString(query);
 
@@ -203,6 +221,28 @@ export default function Search() {
             (a.movie_name_cn || "").localeCompare(b.movie_name_cn || ""),
           );
 
+        // TV Shows
+        const mtv = tvShowResults
+          .filter((t) =>
+            [t.tv_name_cn, t.tv_name_en, t.tv_name_alt].some((n) =>
+              cleanString(n).includes(qClean),
+            ),
+          )
+          .sort((a, b) =>
+            (a.tv_name_cn || "").localeCompare(b.tv_name_cn || ""),
+          );
+
+        // Cartoons
+        const mc = cartoonResults
+          .filter((c) =>
+            [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some(
+              (n) => cleanString(n).includes(qClean),
+            ),
+          )
+          .sort((a, b) =>
+            (a.cartoon_name_cn || "").localeCompare(b.cartoon_name_cn || ""),
+          );
+
         setMatchedSeasonal(msea);
         setMatchedFranchises(mf);
         setFilterPillFranchises(pillFranchises);
@@ -210,6 +250,8 @@ export default function Search() {
         setMatchedSeries(ms);
         setMatchedAnimeMovies(mam);
         setMatchedMovies(mmv);
+        setMatchedTvShows(mtv);
+        setMatchedCartoons(mc);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -246,12 +288,32 @@ export default function Search() {
     );
   }, []);
 
+  const handleTvShowUpdated = useCallback((updated) => {
+    setMatchedTvShows((prev) =>
+      prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
+    );
+    setAllTvShows((prev) =>
+      prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
+    );
+  }, []);
+
+  const handleCartoonUpdated = useCallback((updated) => {
+    setMatchedCartoons((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+    setAllCartoons((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+  }, []);
+
   const showSeasonal = scope === "all" || scope === "seasonal";
   const showFranchise = scope === "all" || scope === "franchise";
   const showSeries = scope === "all" || scope === "series";
   const showAnime = scope === "all" || scope === "anime";
   const showAnimeMovie = scope === "all" || scope === "anime-movie";
   const showMovie = scope === "all" || scope === "movie";
+  const showTvShow = scope === "all" || scope === "tv-show";
+  const showCartoon = scope === "all" || scope === "cartoon";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -288,6 +350,9 @@ export default function Search() {
     series: "Series",
     anime: "Anime",
     "anime-movie": "Anime Movie",
+    movie: "Movie",
+    "tv-show": "TV Show",
+    cartoon: "Cartoon",
     seasonal: "Seasonal",
   };
 
@@ -373,6 +438,20 @@ export default function Search() {
           {showMovie && matchedMovies.length > 0 && (
             <>
               <span className="font-bold">{matchedMovies.length}</span> movies
+              {showTvShow && matchedTvShows.length > 0 && " · "}
+            </>
+          )}
+          {showTvShow && matchedTvShows.length > 0 && (
+            <>
+              <span className="font-bold">{matchedTvShows.length}</span> TV
+              shows
+              {showCartoon && matchedCartoons.length > 0 && " · "}
+            </>
+          )}
+          {showCartoon && matchedCartoons.length > 0 && (
+            <>
+              <span className="font-bold">{matchedCartoons.length}</span>{" "}
+              cartoons
             </>
           )}
         </p>
@@ -630,6 +709,62 @@ export default function Search() {
         </div>
       )}
 
+      {/* TV Shows */}
+      {showTvShow && matchedTvShows.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-video text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                TV Shows
+              </h2>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {matchedTvShows.length} results
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {matchedTvShows.map((t) => (
+              <TVCard
+                key={t.system_id}
+                show={t}
+                onUpdated={handleTvShowUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cartoons */}
+      {showCartoon && matchedCartoons.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-paint-brush text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Cartoons
+              </h2>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {matchedCartoons.length} results
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {matchedCartoons.map((c) => (
+              <CartoonCard
+                key={c.system_id}
+                cartoon={c}
+                onUpdated={handleCartoonUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Under Development (all scope only) */}
       {scope === "all" &&
         [
@@ -638,12 +773,6 @@ export default function Search() {
             label: "Novel",
             icon: "fa-book-open",
             desc: "Light Novel · Web Novel",
-          },
-          { label: "TV Show", icon: "fa-video", desc: "Live Action Series" },
-          {
-            label: "Cartoon",
-            icon: "fa-laugh-squint",
-            desc: "Western Animation",
           },
         ].map(({ label, icon, desc }) => (
           <div key={label}>

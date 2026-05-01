@@ -8,7 +8,7 @@ import types
 import pytest
 from services.other_logics import (
     has_missing_values_anime,
-    check_is_watching_completed,
+    check_is_tv_completed,
     apply_check_baha,
 )
 
@@ -31,7 +31,7 @@ def make_anime(**kwargs):
         ep_previous=0,
         ep_special=None,
         season_part="Season 1",
-        # For check_is_watching_completed
+        # For check_is_tv_completed
         watching_status="Active Watching",
         ep_fin=0,
         # For apply_check_baha
@@ -115,36 +115,36 @@ class TestHasMissingValues:
 
 
 # ---------------------------------------------------------------------------
-# check_is_watching_completed
+# check_is_tv_completed
 # ---------------------------------------------------------------------------
 
 
 class TestCheckIsTvCompleted:
     def test_explicit_completed_status_returns_true(self):
         anime = make_anime(watching_status="Completed", ep_total=12, ep_fin=0)
-        assert check_is_watching_completed(anime) is True
+        assert check_is_tv_completed(anime) is True
 
     def test_ep_fin_equals_ep_total_returns_true(self):
         anime = make_anime(watching_status="Active Watching", ep_total=12, ep_fin=12)
-        assert check_is_watching_completed(anime) is True
+        assert check_is_tv_completed(anime) is True
 
     def test_partial_progress_returns_false(self):
         anime = make_anime(watching_status="Active Watching", ep_total=12, ep_fin=6)
-        assert check_is_watching_completed(anime) is False
+        assert check_is_tv_completed(anime) is False
 
     def test_ep_total_zero_returns_false(self):
         # ep_total must be > 0
         anime = make_anime(watching_status="Active Watching", ep_total=0, ep_fin=0)
-        assert check_is_watching_completed(anime) is False
+        assert check_is_tv_completed(anime) is False
 
     def test_ep_total_none_returns_false(self):
         anime = make_anime(watching_status="Active Watching", ep_total=None, ep_fin=0)
-        assert check_is_watching_completed(anime) is False
+        assert check_is_tv_completed(anime) is False
 
     def test_watching_status_takes_precedence_over_episode_count(self):
         # Explicitly "Completed" even if ep_fin < ep_total
         anime = make_anime(watching_status="Completed", ep_total=12, ep_fin=3)
-        assert check_is_watching_completed(anime) is True
+        assert check_is_tv_completed(anime) is True
 
 
 # ---------------------------------------------------------------------------

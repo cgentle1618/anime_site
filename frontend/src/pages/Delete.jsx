@@ -2,7 +2,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
 
-const TABS = ["anime", "anime-movie", "movie", "franchise", "series", "options"];
+const TABS = [
+  "anime",
+  "anime-movie",
+  "movie",
+  "tv-show",
+  "cartoon",
+  "franchise",
+  "series",
+  "options",
+];
 
 function getClean(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -26,7 +35,21 @@ function getDisplayTitle(item, type) {
       "Unknown"
     );
   if (type === "movie")
-    return item.movie_name_cn || item.movie_name_en || item.movie_name_alt || "Unknown";
+    return (
+      item.movie_name_cn ||
+      item.movie_name_en ||
+      item.movie_name_alt ||
+      "Unknown"
+    );
+  if (type === "tv-show")
+    return item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "Unknown";
+  if (type === "cartoon")
+    return (
+      item.cartoon_name_cn ||
+      item.cartoon_name_en ||
+      item.cartoon_name_alt ||
+      "Unknown"
+    );
   if (type === "franchise")
     return (
       item.franchise_name_cn ||
@@ -111,6 +134,8 @@ export default function Delete() {
     anime: [],
     "anime-movie": [],
     movie: [],
+    "tv-show": [],
+    cartoon: [],
     franchise: [],
     series: [],
     options: [],
@@ -121,6 +146,8 @@ export default function Delete() {
   const [selectedAnime, setSelectedAnime] = useState(null);
   const [selectedAnimeMovie, setSelectedAnimeMovie] = useState(null);
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [selectedTvShow, setSelectedTvShow] = useState(null);
+  const [selectedCartoon, setSelectedCartoon] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -133,26 +160,33 @@ export default function Delete() {
 
   const loadDb = useCallback(async () => {
     try {
-      const [aRes, fRes, sRes, oRes, amRes, mRes] = await Promise.all([
-        fetch("/api/anime/", { credentials: "include" }),
-        fetch("/api/franchise/", { credentials: "include" }),
-        fetch("/api/series/", { credentials: "include" }),
-        fetch("/api/options/", { credentials: "include" }),
-        fetch("/api/anime-movie/", { credentials: "include" }),
-        fetch("/api/movies/", { credentials: "include" }),
-      ]);
-      const [a, f, s, o, am, mv] = await Promise.all([
+      const [aRes, fRes, sRes, oRes, amRes, mRes, tvRes, ctRes] =
+        await Promise.all([
+          fetch("/api/anime/", { credentials: "include" }),
+          fetch("/api/franchise/", { credentials: "include" }),
+          fetch("/api/series/", { credentials: "include" }),
+          fetch("/api/options/", { credentials: "include" }),
+          fetch("/api/anime-movie/", { credentials: "include" }),
+          fetch("/api/movies/", { credentials: "include" }),
+          fetch("/api/tv-shows/", { credentials: "include" }),
+          fetch("/api/cartoon/", { credentials: "include" }),
+        ]);
+      const [a, f, s, o, am, mv, tv, ct] = await Promise.all([
         aRes.json(),
         fRes.json(),
         sRes.json(),
         oRes.json(),
         amRes.json(),
         mRes.json(),
+        tvRes.json(),
+        ctRes.json(),
       ]);
       setDb({
         anime: a,
         "anime-movie": am,
         movie: mv,
+        "tv-show": tv,
+        cartoon: ct,
         franchise: f,
         series: s,
         options: o,
@@ -297,6 +331,44 @@ export default function Delete() {
         return;
       }
 
+      if (type === "tv-show") {
+        const res = await fetch(`/api/tv-shows/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete TV show");
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedTvShow(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
+      if (type === "cartoon") {
+        const res = await fetch(`/api/cartoon/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete cartoon");
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedCartoon(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
       // Cascade deletions
       if (type === "franchise" && cascadeChecked) {
         for (const a of db.anime.filter(
@@ -413,6 +485,8 @@ export default function Delete() {
               setSelectedAnime(null);
               setSelectedAnimeMovie(null);
               setSelectedMovie(null);
+              setSelectedTvShow(null);
+              setSelectedCartoon(null);
               setSelectedFranchise(null);
               setSelectedSeries(null);
               setSelectedOption(null);
@@ -648,6 +722,162 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("movie", selectedMovie)}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TV SHOW TAB */}
+      {tab === "tv-show" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <SearchBox
+              placeholder="Search TV show to delete..."
+              items={db["tv-show"]}
+              type="tv-show"
+              onSelect={setSelectedTvShow}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-gray-800 text-sm">
+                    {getDisplayTitle(item, "tv-show")}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {getFranchiseTitle(item.franchise_id)} ·{" "}
+                    {item.season_part || item.airing_status || "Unknown"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedTvShow && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedTvShow.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">
+                    {getDisplayTitle(selectedTvShow, "tv-show")}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedTvShow.tv_name_en || "-"}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedTvShow.airing_status || "Unknown"}
+                    </span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedTvShow.watching_status || "Unset"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedTvShow.franchise_id)}
+                    {selectedTvShow.season_part &&
+                      ` · ${selectedTvShow.season_part}`}
+                  </p>
+                  <p className="text-xs font-mono text-gray-400">
+                    {selectedTvShow.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedTvShow(null)}
+                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("tv-show", selectedTvShow)}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CARTOON TAB */}
+      {tab === "cartoon" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <SearchBox
+              placeholder="Search cartoon to delete..."
+              items={db.cartoon}
+              type="cartoon"
+              onSelect={setSelectedCartoon}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-gray-800 text-sm">
+                    {getDisplayTitle(item, "cartoon")}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {getFranchiseTitle(item.franchise_id)} ·{" "}
+                    {item.season_part || item.airing_status || "Unknown"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedCartoon && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedCartoon.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">
+                    {getDisplayTitle(selectedCartoon, "cartoon")}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedCartoon.cartoon_name_en || "-"}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedCartoon.airing_status || "Unknown"}
+                    </span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedCartoon.watching_status || "Unset"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedCartoon.franchise_id)}
+                    {selectedCartoon.season_part &&
+                      ` · ${selectedCartoon.season_part}`}
+                  </p>
+                  <p className="text-xs font-mono text-gray-400">
+                    {selectedCartoon.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedCartoon(null)}
+                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("cartoon", selectedCartoon)}
                     className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
@@ -1069,6 +1299,87 @@ export default function Delete() {
                 ).length === 0 &&
                 db.movie.filter(
                   (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 1 &&
+                db.series.filter(
+                  (s) => s.franchise_id === modal.item.franchise_id,
+                ).length === 0 && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanFranchiseChecked}
+                      onChange={(e) =>
+                        setOrphanFranchiseChecked(e.target.checked)
+                      }
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Franchise
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Franchise Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan franchise warning (tv-show) */}
+              {modal.type === "tv-show" &&
+                modal.item.franchise_id &&
+                db.anime.filter(
+                  (a) => a.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.movie.filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["tv-show"].filter(
+                  (t) => t.franchise_id === modal.item.franchise_id,
+                ).length === 1 &&
+                db.series.filter(
+                  (s) => s.franchise_id === modal.item.franchise_id,
+                ).length === 0 && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanFranchiseChecked}
+                      onChange={(e) =>
+                        setOrphanFranchiseChecked(e.target.checked)
+                      }
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Franchise
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Franchise Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan franchise warning (cartoon) */}
+              {modal.type === "cartoon" &&
+                modal.item.franchise_id &&
+                db.anime.filter(
+                  (a) => a.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.movie.filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["tv-show"].filter(
+                  (t) => t.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.cartoon.filter(
+                  (c) => c.franchise_id === modal.item.franchise_id,
                 ).length === 1 &&
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
