@@ -599,6 +599,7 @@ Manga, manhwa, and manhua entries.
 | -------------- | ---- | -------- | --------- | ------------------------------------ |
 | `system_id`    | UUID | No       | `uuid4()` | Primary key                          |
 | `franchise_id` | UUID | Yes      | —         | FK -> `franchise.system_id` SET NULL |
+| `series_id`    | UUID | Yes      | —         | FK -> `series.system_id` SET NULL    |
 
 #### Names
 
