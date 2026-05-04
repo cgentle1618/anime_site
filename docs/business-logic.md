@@ -246,7 +246,7 @@ Pulls all tabs in strict dependency order: **System Options → Franchise → Se
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movie"`, `"Movie"`, `"System Options"`.
+Pulls and upserts one tab. Supported: `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel" (TBD)`, `"Seasonal"`, `"System Options"`.
 
 **Steps:**
 

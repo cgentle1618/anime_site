@@ -749,7 +749,8 @@ Multi-section statistics dashboard.
    - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, Movie Name CN with fallback
    - TV Show: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
    - Cartoon tab: Group by Cartoon Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Comedy Central, Other; shows poster, Cartoon Name CN with fallback
-   - Cartoon / Manga / Novel tabs (TBD)
+   - Manga tab: Group by Serialization Status with the order of 完結, 連載中, 腰斬, 停更, null; show poster and Manga Name CN with fallback
+   - Novel tab (TBD)
    - Note: Anime uses franchise entries; other media types use the media entry directly
 
 5. **To Rewatch** — tabbed grid:
@@ -758,6 +759,7 @@ Multi-section statistics dashboard.
    - Movie tab: sorted by Movie Name EN; shows poster, Movie Name CN with fallback, My Rating
    - TV Show tab: sorted by TV Show Name EN; shows poster, TV Show Name CN with fallback, My Rating
    - Cartoon tab: sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating
+   - Manga tab: sorted by Manga Name EN; shows poster, Manga Name CN with fallback, My Rating
    - Manga / Novel tabs (TBD)
 
 6. **Recent Completions** — paginated list (10 per page):
@@ -1005,7 +1007,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 - **Classification & Production:** TV Show Region dropdown, TV Show Official Source, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
-- **Notes & Other:** Cover Image File, Remark, Notes
+- **Notes & Other:** Cover Image File, Remark
 
 #### Add New Cartoon Entry Tab
 
@@ -1014,15 +1016,21 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 - **Classification & Production:** Cartoon Official Source, Cartoon Airing Type dropdown, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
-- **Notes & Other:** Cover Image File, Remark, Notes
+- **Notes & Other:** Cover Image File, Remark
 
-#### Add New Manga Entry Tab (TBD)
+#### Add New Manga Entry Tab
 
-- **Titles & Naming:** Franchise (ComboBox), Manga Name EN/CN/JP/Alt
-- **Classification:** Manga Region dropdown, Main/Spinoff dropdown
-- **Status & Progress:** Serialization Status dropdown, Reading Status dropdown, Volumes Total, Volumes Read, Pages Read for Current Volume, Ch Total, Ch Watched, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating
-- **Production:** 原作 (Author Plot dropdown), 作畫 (Author Draw dropdown), Release Year, Ending Year, Studio dropdown (multi-selectable), Serialization Platform, Distributor TW dropdown (multi-selectable)
-- **Source & Links & Other:** MAL ID, MAL Link, AniList Link, Other Source, Other Source Link, Remark
+Includes auto-fill from existing entry search bar (searches all languages including Alt).
+
+- **Titles & Naming:** Franchise (ComboBox + auto-create modal), Series (ComboBox + auto-create modal), Manga Name EN/CN/Roman/JP/Alt
+- **Status & Progress:** Serialization Status, Reading Status (default: Might Read), My Rating, Total Volume, Volume Finished, Pages Read for Current Volume
+  , Total Chapter, Chapter Finished, MAL Rating/Rank, AniList Rating
+- **Classification:** Manga Region, Main/Spinoff (default: 本傳)
+- **Production:** 原作 (Author Plot dropdown), 作畫 (Author Draw dropdown), Release Year, Ending Year, Studio, Serialization Platform, Distributor TW (all multi-selectable)
+- **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Watch Order, Derive Related dropdown
+- **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter, Add Source button (other sources as `{name: link}`)
+- **Notes & Other:** Cover Image File, Remark
+- Duplicate detection modal; Jikan enrichment after submit via `POST /api/data-control/replace/anime/:id`
 
 #### Add New Novel Entry Tab (TBD)
 
@@ -1107,12 +1115,12 @@ Writes: `PATCH /api/tv-show/:id`
 
 Writes: `PATCH /api/cartoon/:id`
 
-#### Modify Manga Entry Tab (TBD)
+#### Modify Manga Entry Tab
 
-- Search bar (searches Franchise Name, Series Name, Manga Name); results grouped by franchise then series, sorted by Franchise Name then Manga Name (fallback: EN, Roman, CN, JP, Alt); shown as Search Suggestion First Type; recently added entries shown with title fallback CN, EN, Alt, Roman, JP
-- After selecting: Other entries in franchise block (scrollable), System ID (immutable), then full edit form
-- Form sections: Titles & Naming (Franchise Name, Manga Name EN/CN/JP/Alt), Classification, Status & Progress, Production, Source & Links & Other (MAL ID, MAL Link, AniList Link, Other Source, Other Source Link, Remark)
-- Update Button
+- Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
+- Recently Modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
+- After selecting: Other Entries in franchise block (grouped by series), then full edit form
+- Form mirrors Add Manga tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`MangaNotes`** — structured notes editor with 15 sections.
 
 Writes: `PATCH /api/manga/:id`
 
@@ -1193,11 +1201,10 @@ Deletes: `DELETE /api/cartoon/:id`
 
 #### Delete Manga Entry Tab (TBD)
 
-- Search bar (searches Franchise Name, Series Name, Manga Name); results grouped by franchise then series, sorted by Franchise Name then Manga Name; shown as Search Suggestion First Type
-- After selecting: Entry Info for Deletion + Delete button
-- If only entry in series: offer to delete series or keep it (show how many entries for each media type)
-- If only entry in franchise: offer to delete franchise or keep it (show how many entries for each media type)
-- Note: different media types may belong to the same series/franchise
+- Search bar → **Search Suggestion for Deletion** (reusable)
+- After selecting: **Manga Entry Info for Deletion** (reusable) + Delete button
+- If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
+- If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
 
 Deletes: `DELETE /api/manga/:id`
 

@@ -86,9 +86,9 @@ Name CN (fallback) · TV Show Region
 
 Name CN (fallback) · Cartoon Airing Type
 
-### Manga Entry _(future)_
+### Manga Entry
 
-Name CN (fallback) · Manga Region
+Name CN (fallback) · Release Year
 
 ### Novel Entry _(future)_ / Studio Entry _(future)_ / Seiyuu Entry _(future)_
 
@@ -180,9 +180,9 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN
 
 Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
 
-### Manga _(future)_
+### Manga
 
-Name CN (fallback) · Name EN (fallback) · Name JP (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Manga Region · Reading Status
+Name CN (fallback) · Name EN (fallback) · Name JP (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Manga Region · Reading Status · Remark field in notes column · System ID
 
 ---
 
@@ -291,15 +291,15 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ---
 
-### Manga Entry Card _(future)_
+### Manga Entry Card
 
 **First Type** — used on Dashboard
 
-- Poster · Manga Name CN · Franchise Name CN (fallback) · My Rating (hidden if null) · Manga Region · Serialization Status · Progress % bar · Ch Watched / Ch Total OR Volumes Read + Pages / Volumes Total (only one shown; Ch default) · +/- controls _(admin)_ · direct edit _(admin)_ · Edit button _(admin)_
+- Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Manga Region · Serialization Status · Progress % bar · Ch Watched / Ch Total · Volumes Read + Pages Read/ Volumes Total · +/- episode controls _(admin)_ · direct vol edit _(admin)_ · direct pages edit _(admin)_· direct ch edit _(admin)_· Edit button → Modify page _(admin)_
 
-**Second Type** — used on Franchise page, Library, Search page
+**Second Type** — used on Franchise pages, Library grid, Search page
 
-- Poster · My Rating · MAL Rating · Name CN (fallback) · Manga Region · Release Year–End Year (fallback TBD / open-ended) · Ch Watched / Ch Total OR Volumes Read + Pages / Volumes Total · + button _(admin)_
+- Poster · My Rating (hidden if null) · Manga Region · Name CN (fallback) · MAL Rating (hidden if null)· Release Year & End Year · Ch Watched / Ch Total · Volumes Read + Pages Read/ Volumes Total · + button _(admin)_
 
 > Note: Ch/Volume display toggle — only one shows at a time; Ch Watched / Ch Total is default.
 
@@ -520,6 +520,7 @@ Manga Related Entries Card, show the following for each entry:
 
 - Poster
 - Name CN with fallback
+- Release Year
 
 ### My Tracker Block
 
