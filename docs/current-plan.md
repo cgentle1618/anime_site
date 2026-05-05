@@ -97,7 +97,7 @@ Files: `services/other_logics.py`, `services/calculation.py`, `services/data_con
 
 Files: `components/MangaCard.jsx`, `pages/Manga.jsx`, `pages/MangaNotes.jsx`, `pages/LibraryManga.jsx`
 
-- [ ] **4.1** Create `components/MangaCard.jsx` — **Manga Entry Card 2** (see `reusable-elements.md`):
+- [x] **4.1** Create `components/MangaCard.jsx` — **Manga Entry Card 2** (see `reusable-elements.md`):
   - Poster (aspect 3:4)
   - My Rating badge top-left (hidden if null)
   - Manga Region badge top-right (hidden if null)
@@ -109,7 +109,7 @@ Files: `components/MangaCard.jsx`, `pages/Manga.jsx`, `pages/MangaNotes.jsx`, `p
   - Status badge (guest) showing reading_status
   - Clicking card navigates to `/manga/:system_id`
 
-- [ ] **4.2** Create `pages/Manga.jsx` — full detail page for single manga entry:
+- [x] **4.2** Create `pages/Manga.jsx` — full detail page for single manga entry:
   - Data: `GET /api/manga/:id`, `GET /api/franchise/`, `GET /api/series/`, `GET /api/manga/` (for prequel/sequel)
   - Admin Controls: Edit button → `/modify?id=:id&type=manga`, Mark Completed button (PATCH `reading_status: "Completed"`), Autofill & Update → `POST /api/data-control/replace/manga/:id`
   - Left column: poster, **Manga Sources Card** (serialization platform, Twitter, MAL, AniList, other), related entries card (prequel/sequel), System Info block (admin)
@@ -118,9 +118,9 @@ Files: `components/MangaCard.jsx`, `pages/Manga.jsx`, `pages/MangaNotes.jsx`, `p
   - Detail cards: **Naming Card** (CN, EN, JP, Roman, Alt), **Information Card** (region, is_main, serialization status, release year, end year, vol_total, ch_total, anime studio, serialization platform, distributor TW), Remarks (shown when not null, admin editable on blur), `MangaNotes`
   - Admin writes: `PATCH /api/manga/:id`
 
-- [ ] **4.3** Create `pages/MangaNotes.jsx` — structured notes editor with 15 sections (mirror `CartoonNotes.jsx` pattern); saves via `PATCH /api/manga/:id` with `notes` field.
+- [x] **4.3** Create `pages/MangaNotes.jsx` — structured notes editor with 15 sections (mirror `CartoonNotes.jsx` pattern); saves via `PATCH /api/manga/:id` with `notes` field.
 
-- [ ] **4.4** Create `pages/LibraryManga.jsx` — manga library page:
+- [x] **4.4** Create `pages/LibraryManga.jsx` — manga library page:
   - Data: `GET /api/manga/`, `GET /api/franchise/`, `GET /api/series/`
   - Library bar: filter search (Franchise, Series, Manga Title, Release Year); sort by Title / My Rating / MAL Rating / Release Date / Ending Date; advanced filters: Serialization Status, Reading Status, Region; grid/table toggle
   - Grid: each entry is **MangaCard**
