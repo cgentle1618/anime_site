@@ -6,30 +6,34 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 
 ## Route Map
 
-| Path                      | Component           | Access     |
-| ------------------------- | ------------------- | ---------- |
-| `/`                       | `Index`             | Public     |
-| `/login`                  | `Login`             | Public     |
-| `/search`                 | `Search`            | Public     |
-| `/library/anime`          | `LibraryAnime`      | Public     |
-| `/library/anime-movie`    | `LibraryAnimeMovie` | Public     |
-| `/library/franchise`      | `FranchiseLibrary`  | Public     |
-| `/library/movie`          | `LibraryMovie`      | Public     |
-| `/future-releases`        | `FutureReleases`    | Public     |
-| `/anime/:system_id`       | `Anime`             | Public     |
-| `/anime-movie/:system_id` | `AnimeMovie`        | Public     |
-| `/movie/:system_id`       | `Movie`             | Public     |
-| `/franchise/:system_id`   | `FranchiseAcg`      | Public     |
-| `/seasonal`               | `SeasonalOverall`   | Public     |
-| `/seasonal/:seasonal_id`  | `SeasonalDetail`    | Public     |
-| `/statistics`             | `Statistics`        | Public     |
-| `/under-development`      | `UnderDevelopment`  | Public     |
-| `/system`                 | `Admin`             | Admin only |
-| `/data-history`           | `DataHistory`       | Admin only |
-| `/review-queue`           | `ReviewQueue`       | Admin only |
-| `/add`                    | `Add`               | Admin only |
-| `/modify`                 | `Modify`            | Admin only |
-| `/delete`                 | `Delete`            | Admin only |
+| Path                      | Component                                                                           | Access     |
+| ------------------------- | ----------------------------------------------------------------------------------- | ---------- |
+| `/`                       | `Index`                                                                             | Public     |
+| `/login`                  | `Login`                                                                             | Public     |
+| `/search`                 | `Search`                                                                            | Public     |
+| `/library/anime`          | `LibraryAnime`                                                                      | Public     |
+| `/library/anime-movie`    | `LibraryAnimeMovie`                                                                 | Public     |
+| `/library/franchise`      | `FranchiseLibrary`                                                                  | Public     |
+| `/library/movie`          | `LibraryMovie`                                                                      | Public     |
+| `/future-releases`        | `FutureReleases`                                                                    | Public     |
+| `/anime/:system_id`       | `Anime`                                                                             | Public     |
+| `/anime-movie/:system_id` | `AnimeMovie`                                                                        | Public     |
+| `/movie/:system_id`       | `Movie`                                                                             | Public     |
+| `/franchise/:system_id`   | `Franchise` (dispatcher → `FranchiseAcg` / `FranchiseReality` / `FranchiseCartoon`) | Public     |
+| `/tv-show/:system_id`     | `TV`                                                                                | Public     |
+| `/library/tv-show`        | `LibraryTV`                                                                         | Public     |
+| `/cartoon/:system_id`     | `Cartoon`                                                                           | Public     |
+| `/library/cartoon`        | `LibraryCartoon`                                                                    | Public     |
+| `/seasonal`               | `SeasonalOverall`                                                                   | Public     |
+| `/seasonal/:seasonal_id`  | `SeasonalDetail`                                                                    | Public     |
+| `/statistics`             | `Statistics`                                                                        | Public     |
+| `/under-development`      | `UnderDevelopment`                                                                  | Public     |
+| `/system`                 | `Admin`                                                                             | Admin only |
+| `/data-history`           | `DataHistory`                                                                       | Admin only |
+| `/review-queue`           | `ReviewQueue`                                                                       | Admin only |
+| `/add`                    | `Add`                                                                               | Admin only |
+| `/modify`                 | `Modify`                                                                            | Admin only |
+| `/delete`                 | `Delete`                                                                            | Admin only |
 
 Admin routes are wrapped by `ProtectedRoute`, which redirects unauthenticated users to `/login?next=<path>`.
 
@@ -276,89 +280,115 @@ Admin writes use `PATCH /api/movies/:system_id`.
 
 ---
 
-### TV Show Detail
+### TV Show Detail (`/tv-show/:system_id`)
 
-**File:** `frontend/src/pages/TVShow.jsx` (TBD)
+**File:** `frontend/src/pages/TV.jsx`
 
 Full detail page for a single TV show entry.
 
+**Data loaded:**
+
+- `GET /api/tv-shows/:system_id`
+- `GET /api/franchise/`
+- `GET /api/series/`
+- `GET /api/tv-shows/:prequel_id` and `GET /api/tv-shows/:sequel_id` (when set)
+
 **Admin Controls Block** (admin only):
 
-- Edit button → `/modify?id=:system_id`
-- Mark Completed button
-- Autofill & Update button → executes Replace for single TV show entry
+- Quick Edit button → `/modify?id=:system_id&type=tv-show`
+- Mark Completed button — PATCHes `watching_status: "Completed"`, `airing_status: "Finished Airing"`, `ep_fin: ep_total`
+- Autofill & Update button → `POST /api/data-control/replace/tv-show/:system_id`
 
 **Layout (left column):**
 
-- TV Show poster
-- **Sources Card** (reusable)
-- Watch Order
-- **Related Entries Card** (reusable)
+- TV Show poster (with My Rating badge top-left)
+- **Sources Card** (reusable) — Official Source, IMDb Link, Other Sources
+- Watch Order (shown when not null)
+- **Related Entries Card** (inline) — Prequel / Sequel mini cards (poster + name CN fallback + season_part)
 - System Info Block (admin only): System ID
 
 **Layout (right column):**
 
-- Tags: Airing Status
-- Main Title: TV Show Name CN (with fallback)
-- Sub Title: TV Show Name EN (hidden if CN used fallback or is null)
-- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- Tags: Airing Status, Season Part, Region
+- Main Title: TV Show Name CN (fallback: EN → Alt)
+- Sub Title: TV Show Name EN (hidden if same as main title)
+- From Franchise: Franchise Name CN with fallback (navigates to `/franchise/:id`)
 - From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
-- **Score Block** (reusable): includes Last Updated Time
+- IMDb Score block (shows `imdb_rating` and Last Updated time)
 
-**My Tracker section:**
+**My Tracker section** — uses **My Tracker Block** (reusable):
 
 - Ep Watched / Ep Total
-  - +/- buttons for episode progress (admin only)
-  - Direct edit input for Ep Watched (admin only)
+  - +/- buttons and direct edit for Ep Watched (admin only)
 - Watching Status dropdown (admin editable)
 - My Rating dropdown (admin editable)
+- Watch Next checkbox (admin editable)
+- To Rewatch checkbox (admin editable)
 
-**Detail sections:**
+**Detail cards:**
 
-- **My Tracker Block** (reusable)
-- **Naming Card** (reusable)
-- **Information Card** (reusable)
-- Remarks — shown when not null
+- **TV Show Naming Card** (reusable): CN, EN, Alt
+- **Information Card** (reusable): 本傳/外傳, Season Part, Total Ep, Official Source, Airing Status, Release Date
+- Remarks — shown when not null (admin editable on blur)
 - **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/tv-shows/:id` with `notes` field.
+
+Admin writes use `PATCH /api/tv-shows/:system_id`.
 
 ---
 
-### Cartoon Detail
+### Cartoon Detail (`/cartoon/:system_id`)
 
-**File:** `frontend/src/pages/Cartoon.jsx` (TBD)
+**File:** `frontend/src/pages/Cartoon.jsx`
 
 Full detail page for a single cartoon entry.
 
+**Data loaded:**
+
+- `GET /api/cartoon/:system_id`
+- `GET /api/franchise/`
+- `GET /api/series/`
+- `GET /api/cartoon/:prequel_id` and `GET /api/cartoon/:sequel_id` (when set)
+
 **Admin Controls Block** (admin only):
 
-- Edit button → `/modify?id=:system_id`
-- Mark Completed button
-- Autofill & Update button → executes Replace for single cartoon entry
+- Quick Edit button → `/modify?id=:system_id&type=cartoon`
+- Mark Completed button — PATCHes `watching_status: "Completed"`, `airing_status: "Finished Airing"`, `ep_fin: ep_total`
+- Autofill & Update button → `POST /api/data-control/replace/cartoon/:system_id`
 
 **Layout (left column):**
 
-- Cartoon poster
-- **Sources Card** (reusable)
-- Watch Order
-- **Related Entries Card** (reusable)
+- Cartoon poster (with My Rating badge top-left)
+- **Sources Card** (reusable) — Official Source, IMDb Link, Other Sources
+- Watch Order (shown when not null)
+- **Related Entries Card** (inline) — Prequel / Sequel mini cards (poster + name CN fallback + season_part)
 - System Info Block (admin only): System ID
 
 **Layout (right column):**
 
 - Tags: Airing Type, Airing Status
-- Main Title: Cartoon Name CN (with fallback)
-- Sub Title: Cartoon Name EN (hidden if CN used fallback or is null)
-- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- Main Title: Cartoon Name CN (fallback: EN → Alt)
+- Sub Title: Cartoon Name EN (hidden if same as main title)
+- From Franchise: Franchise Name CN with fallback (navigates to `/franchise/:id`)
 - From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
-- **Score Block** (reusable): includes Last Updated Time
+- IMDb Score block (shows `imdb_rating` and Last Updated time)
 
-**Detail sections:**
+**My Tracker section** — uses **My Tracker Block** (reusable):
 
-- **My Tracker Block** (reusable)
-- **Naming Card** (reusable)
-- **Information Card** (reusable)
-- Remarks — shown when not null
+- Ep Watched / Ep Total
+  - +/- buttons and direct edit for Ep Watched (admin only)
+- Watching Status dropdown (admin editable)
+- My Rating dropdown (admin editable)
+- Watch Next checkbox (admin editable)
+- To Rewatch checkbox (admin editable)
+
+**Detail cards:**
+
+- **Cartoon Naming Card** (reusable): CN, EN, Alt
+- **Information Card** (reusable): 本傳/外傳, Season Part, Airing Type, Airing Status, Length Per Ep (min), Official Source, Release Date, Total Ep
+- Remarks — shown when not null (admin editable on blur)
 - **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/cartoon/:id` with `notes` field.
+
+Admin writes use `PATCH /api/cartoon/:system_id`.
 
 ---
 
@@ -397,6 +427,22 @@ Full detail page for a single manga entry.
 - **Production Card** (reusable)
 - Remarks — shown when not null
 - **`MangaNotes`** (`frontend/src/pages/MangaNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/manga/:id` with `notes` field.
+
+---
+
+### Franchise Routing
+
+**File:** `frontend/src/pages/Franchise.jsx`
+
+`Franchise.jsx` is a dispatcher that fetches the franchise type and renders the appropriate hub:
+
+| `franchise_type`                    | Component rendered |
+| ----------------------------------- | ------------------ |
+| `"TV or Movie"`                     | `FranchiseReality` |
+| `"Cartoon"`                         | `FranchiseCartoon` |
+| All others (ACG, Anime Movie, etc.) | `FranchiseAcg`     |
+
+All franchise types share the same URL pattern `/franchise/:system_id`.
 
 ---
 
@@ -443,30 +489,39 @@ Admin edit: `PATCH /api/franchise/:system_id` for rating, expectation, remarks.
 
 ### Franchise Hub — Reality
 
-**File:** `frontend/src/pages/FranchiseReality.jsx` (TBD)
+**File:** `frontend/src/pages/FranchiseReality.jsx`
 
-Hub for movie/TV show franchises.
+Dispatched from `/franchise/:system_id` when `franchise_type = "TV or Movie"`.
+
+**Data loaded:**
+
+- `GET /api/franchise/:system_id`
+- `GET /api/series/?franchise_id=:system_id`
+- `GET /api/movies/?franchise_id=:system_id`
+- `GET /api/tv-shows/?franchise_id=:system_id`
 
 **Layout:**
 
-- Edit button (admin only) → Modify page
-- **Franchise Information Block** (reusable)
-- **Belonging Series Block** (reusable)
-- **Notes and Remarks Block** (reusable, admin editable)
+- Admin toolbar: Quick Edit button → `/modify?id=:system_id`
+- Hero block: Franchise Type, Franchise Name CN (fallback: EN → Alt), sub-titles (EN, Alt — hidden if same as main), completion % bar (completed / total across movies + TV shows), entry counts, My Franchise Rating (admin editable), My Franchise Expectations (admin editable)
+- **Belonging Series Block**: Series Name CN (fallback), clickable (opens SeriesModal)
+- **Notes & Overview Block**: remark textarea (admin editable on blur)
 
 **Movie Entry Section:**
 
-- Sort By: Release Date (default, uses `release_date_us` with `release_date_tw` fallback) / Title / My Rating / IMDB Rating
-- Filter: Airing Status / Watching Status (Watching Status Filter Options)
-- **Group by Series Button** (reusable)
-- Each entry: **Movie Entry Card 1** (reusable), grouped by Series
+- Sort By: Release Date (default, uses `release_date_usa` with `release_date_tw` fallback) / Title / My Rating / IMDb Rating
+- Filter: Airing Status / Watching Status (grouped: Planned / Watching / Completed / Dropped / Might Watch)
+- **Group by Series** toggle
+- Each entry: **Movie Entry Card 1** (`MovieCard.jsx`), grouped by Series when enabled
 
-**TV Show Entry Section:**
+**TV Show Entry Section** (shown only when TV show entries exist):
 
-- Sort By: Release Date (default) / Title / My Rating / IMDB Rating
-- Filter: Airing Status / Watching Status (Watching Status Filter Options)
-- **Group by Series Button** (reusable)
-- Each entry: **TV Show Entry Card 2** (reusable), grouped by Series
+- Sort By: Release Date (default) / Title / My Rating / IMDb Rating
+- Filter: Airing Status / Watching Status (grouped)
+- **Group by Series** toggle
+- Each entry: **TV Show Entry Card 2** (`TVCard.jsx`), grouped by Series when enabled
+
+Admin writes use `PATCH /api/franchise/:system_id`.
 
 ---
 
@@ -474,21 +529,29 @@ Hub for movie/TV show franchises.
 
 **File:** `frontend/src/pages/FranchiseCartoon.jsx`
 
-Hub for cartoon franchises.
+Dispatched from `/franchise/:system_id` when `franchise_type = "Cartoon"`.
+
+**Data loaded:**
+
+- `GET /api/franchise/:system_id`
+- `GET /api/series/?franchise_id=:system_id`
+- `GET /api/cartoon/?franchise_id=:system_id`
 
 **Layout:**
 
-- Edit button (admin only) → Modify page
-- **Franchise Information Block** (reusable)
-- **Belonging Series Block** (reusable)
-- **Notes and Remarks Block** (reusable, admin editable)
+- Admin toolbar: Quick Edit button → `/modify?id=:system_id`
+- Hero block: Franchise Type, Franchise Name CN (fallback: EN → Alt), sub-titles (EN, Alt), completion % bar, My Franchise Rating (admin editable), My Franchise Expectations (admin editable)
+- **Belonging Series Block**: Series Name CN (fallback), clickable (opens SeriesModal)
+- **Notes & Overview Block**: remark textarea (admin editable on blur)
 
 **Cartoon Entry Section:**
 
-- Sort By: Release Date (default) / Title / My Rating / IMDB Rating
-- Filter: Airing Type, Airing Status / Watching Status (Watching Status Filter Options)
-- **Group by Series Button** (reusable)
-- Each entry: **Cartoon Entry Card 2** (reusable), grouped by Series
+- Sort By: Release Date (default, old to new) / Title / My Rating / IMDb Rating
+- Filter: Airing Type (dynamic, from actual entries) / Airing Status / Watching Status (grouped)
+- **Group by Series** toggle
+- Each entry: **Cartoon Entry Card 2** (`CartoonCard.jsx`), grouped by Series when enabled
+
+Admin writes use `PATCH /api/franchise/:system_id`.
 
 ---
 
@@ -589,32 +652,33 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 ---
 
-### TV Show Library
+### TV Show Library (`/library/tv-show`)
 
-**File:** `frontend/src/pages/LibraryTVShow.jsx` (TBD)
+**File:** `frontend/src/pages/LibraryTV.jsx`
 
 **Data loaded:**
 
-- `GET /api/tv-show/`
+- `GET /api/tv-shows/`
 - `GET /api/franchise/`
-- `GET /api/series/`
 
 **Library bar (always visible):**
 
-- Filter search: by Franchise Title, Series Title, TV Show Entry Title, Release Date. Case/punctuation/space insensitive.
-- Sort by: Title (default) / My Rating / IMDB Rating / Release Date (new to old; TBD first)
-- Advanced filters (collapsible): TV Show Region, Airing Status, Watching Status (Watching Status Filter Options)
+- Filter search: by TV Show Name (CN/EN/Alt), Franchise Name, Season Part, Region. Case/punctuation/space insensitive.
+- Sort by: Title (default) / My Rating / IMDb Rating / Release Date (new to old)
+- Advanced filters (collapsible): Airing Status, Region (dynamic from entries), Watching Status (grouped: Watching / Planned / Completed / Dropped / Might Watch)
 - Grid/Table view toggle
 
-**Grid view** — each entry: **TV Show Entry Card 2**
+**Grid view** — each entry: **TV Show Entry Card 2** (`TVCard.jsx`)
 
-**Table view** — columns: Franchise Name CN (fallback), TV Show Name CN, TV Show Name EN, Airing Type, Season Part, Airing Status, Ep Finished / Ep Total, Region, My Rating, IMDB Rating, + button (admin only)
+**Table view** — columns: Franchise Name CN (fallback), Title CN (with EN sub-line), Season Part, Airing Status, Ep Fin/Total, My Rating, IMDb Rating, Watch (status badge for guests; toggle button for admin)
+
+Admin: inline status toggle via `PATCH /api/tv-shows/:system_id`.
 
 ---
 
-### Cartoon Library
+### Cartoon Library (`/library/cartoon`)
 
-**File:** `frontend/src/pages/LibraryCartoon.jsx` (TBD)
+**File:** `frontend/src/pages/LibraryCartoon.jsx`
 
 **Data loaded:**
 
@@ -624,14 +688,16 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 **Library bar (always visible):**
 
-- Filter search: by Franchise Title, Series Title, Cartoon Title, Release Year. Case/punctuation/space insensitive.
-- Sort by: Title (default) / My Rating / IMDB Rating / Release Date (new to old; TBD first)
-- Advanced filters (collapsible): Official Source, Airing Type, Airing Status, Watching Status (Watching Status Filter Options)
+- Filter search: by Franchise Title, Series Title, Cartoon Name (CN/EN/Alt), Release Year (parsed from `release_date`). Case/punctuation/space insensitive.
+- Sort by: Title (default) / My Rating / IMDb Rating / Release Date (new to old)
+- Advanced filters (collapsible): Airing Status, Airing Type (dynamic), Official Source (dynamic), Watching Status (grouped: Watching / Planned / Completed / Dropped / Might Watch)
 - Grid/Table view toggle
 
-**Grid view** — each entry: **Cartoon Entry Card 2**
+**Grid view** — each entry: **Cartoon Entry Card 2** (`CartoonCard.jsx`)
 
-**Table view** — columns: Franchise Name CN (fallback), Cartoon Name CN, Cartoon Name EN, Airing Type, Season Part, Airing Status, Ep Finished / Ep Total, Official Source, My Rating, IMDB Rating, + button (admin only)
+**Table view** — columns: Franchise Name CN (fallback), Cartoon Name CN, Cartoon Name EN, Airing Type, Season Part, Airing Status, Ep Fin/Total, Official Source, My Rating, IMDb Rating, Watch (status badge for guests; toggle button for admin)
+
+Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ---
 
@@ -1235,9 +1301,7 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 
 **Library pages:** Novel Library, Seiyuu Library (table-only)
 
-**Entry detail pages:** TV Show, Cartoon, Manga, Novel, Studio (pages are specified but not yet implemented)
-
-**Franchise pages:** Reality Franchise, Cartoon Franchise (pages are specified but not yet implemented)
+**Entry detail pages:** Manga, Novel, Studio (pages are specified but not yet implemented)
 
 **Dashboard:** Manga, Novel, TV Show, Cartoon watching/reading sections; filter UI
 
@@ -1247,10 +1311,10 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 
 **Statistics:** Watch Next / To Rewatch / Recent Completions for Movie, TV Show, Cartoon, Manga, Novel tabs
 
-**Add/Modify/Delete:** TV Show, Cartoon, Manga, Novel tabs
+**Add/Modify/Delete:** Manga, Novel tabs
 
 **Admin:** Data History page split from System page; Review page
 
-**Entry cards:** TV Show Entry Card 1/2/3, Cartoon Entry Card 1/2/3, Manga Entry Card 1/2, Novel Entry Card 1, Franchise Entry Card (all TBD)
+**Entry cards:** TV Show Entry Card 1, Cartoon Entry Card 1, Manga Entry Card 1/2, Novel Entry Card 1 (all TBD)
 
-**Reusable blocks:** All blocks listed in `reusable-elements.md` marked TBD (Franchise Information Block, Belonging Series Block, Notes and Remarks Block, Related Entries Card, Series Information Pop Up Entry, Score Block for Movie, My Tracker Block for Movie, Rating Distribution Block, Search Result entries, deletion info blocks, etc.)
+**Reusable blocks:** All blocks listed in `reusable-elements.md` marked TBD (Related Entries Card, Score Block for Movie, Rating Distribution Block, Search Result entries, deletion info blocks, etc.)
