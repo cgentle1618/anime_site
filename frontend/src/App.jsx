@@ -31,7 +31,6 @@ import TV from "./pages/TV";
 import LibraryTV from "./pages/LibraryTV";
 import Cartoon from "./pages/Cartoon";
 import LibraryCartoon from "./pages/LibraryCartoon";
-import FranchiseCartoon from "./pages/FranchiseCartoon";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,10 +76,6 @@ export default function App() {
                 <Route path="/library/tv-show" element={<LibraryTV />} />
                 <Route path="/cartoon/:system_id" element={<Cartoon />} />
                 <Route path="/library/cartoon" element={<LibraryCartoon />} />
-                <Route
-                  path="/franchise/cartoon/:system_id"
-                  element={<FranchiseCartoon />}
-                />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
