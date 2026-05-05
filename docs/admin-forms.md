@@ -91,6 +91,10 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ### Add Movie Entry Tab
 
+**Prefill from existing entry**
+
+- A search box allows typing to find an existing movie entry. Selecting one prefills: Franchise, Series, all Movie Name fields (EN/CN/Alt), Main / Spinoff, Movie Type, Director.
+
 **Franchise field**
 
 - Supports searching existing franchises filtered to `franchise_type = "TV or Movie"` or typing a new name.

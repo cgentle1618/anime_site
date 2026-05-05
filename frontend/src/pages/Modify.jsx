@@ -369,6 +369,7 @@ export default function Modify() {
       airing_status: m.airing_status || "",
       watching_status: m.watching_status || "Might Watch",
       my_rating: m.my_rating || "",
+      is_main: m.is_main || "",
       movie_type: m.movie_type || "",
       length_min: m.length_min ?? "",
       release_date_usa: m.release_date_usa || "",
@@ -917,6 +918,7 @@ export default function Modify() {
       movie_name_alt: mmf.movie_name_alt || null,
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
+      is_main: mmf.is_main || null,
       airing_status: mmf.airing_status || null,
       watching_status: mmf.watching_status || "Might Watch",
       my_rating: mmf.my_rating || null,
@@ -3427,6 +3429,22 @@ export default function Modify() {
                       <option value="">—</option>
                       <option value="Reality">Reality</option>
                       <option value="Animation">Animation</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Main / Spinoff">
+                    <select
+                      className={selectCls}
+                      value={mmf.is_main || ""}
+                      onChange={(e) => umm("is_main", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                 </div>
