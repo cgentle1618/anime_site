@@ -381,8 +381,17 @@ export default function Add() {
       franchise_text: f ? getDisplayName(f, "franchise") : "",
       series_id: cartoon.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
+      airing_type: cartoon.airing_type || "",
       is_main: cartoon.is_main || "",
       source_official: cartoon.source_official || "",
+      season_part: cartoon.season_part || "",
+      derive_related:
+        cartoon.derive_related === true
+          ? "true"
+          : cartoon.derive_related === false
+            ? "false"
+            : "",
+      imdb_link: cartoon.imdb_link || "",
     }));
     setCartoonFillQuery("");
     setCartoonFillOpen(false);

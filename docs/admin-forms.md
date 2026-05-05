@@ -173,7 +173,7 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 **Prefill from existing entry**
 
-- A search box allows typing to find an existing cartoon entry. Selecting one prefills: Franchise, Series, all Cartoon Name fields, Main / Spinoff, Source Official.
+- A search box allows typing to find an existing cartoon entry. Selecting one prefills: Franchise, Series, all Cartoon Name fields (CN/EN/Alt), Airing Type, Main / Spinoff, Source Official, Season Part, Derive Related, IMDb Link.
 
 **Franchise field**
 
