@@ -36,6 +36,20 @@ function movieDisplayName(m) {
   return m.movie_name_en || m.movie_name_cn || m.movie_name_alt || "";
 }
 
+function tvReleaseDateScore(show) {
+  const raw = show.release_date || "";
+  if (!raw) return 0;
+  const parts = String(raw).trim().split(/[-\s]/);
+  const year = parseInt(parts[0]) || 0;
+  const month = parseInt(parts[1]) || 0;
+  const day = parseInt(parts[2]) || 0;
+  return year * 10000 + month * 100 + day;
+}
+
+function tvDisplayName(t) {
+  return t.tv_name_en || t.tv_name_cn || t.tv_name_alt || "";
+}
+
 export default function FranchiseReality() {
   const { system_id } = useParams();
   const { isAdmin } = useAuth();
@@ -52,6 +66,13 @@ export default function FranchiseReality() {
   const [sort, setSort] = useState("release_date");
   const [groupBySeries, setGroupBySeries] = useState(true);
   const [filters, setFilters] = useState({
+    airingStatus: new Set(),
+    watchingStatus: new Set(),
+  });
+
+  const [tvSort, setTvSort] = useState("release_date");
+  const [tvGroupBySeries, setTvGroupBySeries] = useState(true);
+  const [tvFilters, setTvFilters] = useState({
     airingStatus: new Set(),
     watchingStatus: new Set(),
   });
@@ -143,6 +164,15 @@ export default function FranchiseReality() {
     });
   }
 
+  function toggleTvFilter(group, value) {
+    setTvFilters((prev) => {
+      const next = { ...prev, [group]: new Set(prev[group]) };
+      if (next[group].has(value)) next[group].delete(value);
+      else next[group].add(value);
+      return next;
+    });
+  }
+
   const filteredAndSorted = useMemo(() => {
     let result = movieList.filter((m) => {
       if (
@@ -216,6 +246,47 @@ export default function FranchiseReality() {
     return result;
   }, [filteredAndSorted, seriesList]);
 
+  const filteredAndSortedTvShows = useMemo(() => {
+    let result = tvShowList.filter((t) => {
+      if (
+        tvFilters.airingStatus.size > 0 &&
+        !tvFilters.airingStatus.has(t.airing_status)
+      )
+        return false;
+      if (tvFilters.watchingStatus.size > 0) {
+        const group = getWatchingGroup(t.watching_status || "Might Watch");
+        if (!tvFilters.watchingStatus.has(group)) return false;
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (tvSort === "release_date") {
+        const diff = tvReleaseDateScore(a) - tvReleaseDateScore(b);
+        if (diff !== 0) return diff;
+      }
+      if (tvSort === "my_rating") {
+        const diff =
+          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+        if (diff !== 0) return diff;
+      }
+      if (tvSort === "imdb_rating") {
+        const wA =
+          a.imdb_rating && a.imdb_rating !== "N/A"
+            ? parseFloat(a.imdb_rating)
+            : -1;
+        const wB =
+          b.imdb_rating && b.imdb_rating !== "N/A"
+            ? parseFloat(b.imdb_rating)
+            : -1;
+        if (wA !== wB) return wB - wA;
+      }
+      return tvDisplayName(a).localeCompare(tvDisplayName(b));
+    });
+
+    return result;
+  }, [tvShowList, tvFilters, tvSort]);
+
   const tvShowSeriesGroups = useMemo(() => {
     const seriesMap = Object.fromEntries(
       seriesList.map((s) => [s.system_id, s]),
@@ -223,16 +294,7 @@ export default function FranchiseReality() {
     const grouped = {};
     const standalone = [];
 
-    const sorted = [...tvShowList].sort((a, b) => {
-      const aSeason = (a.season_part || "").match(/Season\s+(\d+)/i);
-      const bSeason = (b.season_part || "").match(/Season\s+(\d+)/i);
-      return (
-        (aSeason ? parseInt(aSeason[1]) : 0) -
-        (bSeason ? parseInt(bSeason[1]) : 0)
-      );
-    });
-
-    sorted.forEach((t) => {
+    filteredAndSortedTvShows.forEach((t) => {
       if (t.series_id && seriesMap[t.series_id]) {
         if (!grouped[t.series_id]) grouped[t.series_id] = [];
         grouped[t.series_id].push(t);
@@ -251,7 +313,7 @@ export default function FranchiseReality() {
       result.push({ type: "standalone", shows: standalone });
     }
     return result;
-  }, [tvShowList, seriesList]);
+  }, [filteredAndSortedTvShows, seriesList]);
 
   const totalEntries = movieList.length + tvShowList.length;
   const completedCount =
@@ -640,54 +702,129 @@ export default function FranchiseReality() {
               </p>
             </div>
             <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {tvShowList.length} entries
+              {filteredAndSortedTvShows.length} entries
             </span>
           </div>
 
-          <div className="space-y-10">
-            {tvShowSeriesGroups.map((group) => {
-              const label =
-                group.type === "series"
-                  ? group.series.series_name_cn ||
-                    group.series.series_name_en ||
-                    group.series.series_name_alt ||
-                    "Unknown Series"
-                  : "Standalone";
-              return (
-                <section
-                  key={
-                    group.type === "series"
-                      ? group.series.system_id
-                      : "standalone"
-                  }
+          {/* Sort + Filter controls */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={tvSort}
+              onChange={(e) => setTvSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+            >
+              <option value="release_date">Sort: Release Date</option>
+              <option value="title">Sort: Title</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="imdb_rating">Sort: IMDb Rating</option>
+            </select>
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Airing Status filters */}
+            {[
+              ["Airing", "Airing"],
+              ["Finished", "Finished Airing"],
+              ["Not Aired", "Not Yet Aired"],
+            ].map(([label, val]) => (
+              <button
+                key={val}
+                onClick={() => toggleTvFilter("airingStatus", val)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {label}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Watching Status filters */}
+            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleTvFilter("watchingStatus", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
                 >
-                  {tvShowSeriesGroups.length > 1 && (
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                        <i
-                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-video"} text-brand/70`}
-                        ></i>
-                        {label}
-                      </h3>
-                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                        {group.shows.length}
-                      </span>
-                      <div className="flex-1 border-t border-gray-100"></div>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {group.shows.map((t) => (
-                      <TVCard
-                        key={t.system_id}
-                        show={t}
-                        onUpdated={handleTvShowUpdated}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+                  {v}
+                </button>
+              ),
+            )}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <button
+              onClick={() => setTvGroupBySeries((v) => !v)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <i className="fas fa-layer-group mr-1"></i>Group by Series
+            </button>
           </div>
+
+          {/* TV Show grid */}
+          {filteredAndSortedTvShows.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <i className="fas fa-ghost text-3xl mb-3"></i>
+              <p className="font-medium">
+                No entries match the current filters.
+              </p>
+            </div>
+          ) : tvGroupBySeries ? (
+            <div className="space-y-10">
+              {tvShowSeriesGroups.map((group) => {
+                const label =
+                  group.type === "series"
+                    ? group.series.series_name_cn ||
+                      group.series.series_name_en ||
+                      group.series.series_name_alt ||
+                      "Unknown Series"
+                    : "Standalone";
+                return (
+                  <section
+                    key={
+                      group.type === "series"
+                        ? group.series.system_id
+                        : "standalone"
+                    }
+                  >
+                    {tvShowSeriesGroups.length > 1 && (
+                      <div className="flex items-center gap-3 mb-4">
+                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                          <i
+                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-video"} text-brand/70`}
+                          ></i>
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {group.shows.length}
+                        </span>
+                        <div className="flex-1 border-t border-gray-100"></div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {group.shows.map((t) => (
+                        <TVCard
+                          key={t.system_id}
+                          show={t}
+                          onUpdated={handleTvShowUpdated}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {filteredAndSortedTvShows.map((t) => (
+                <TVCard
+                  key={t.system_id}
+                  show={t}
+                  onUpdated={handleTvShowUpdated}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
