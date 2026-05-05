@@ -1,6 +1,6 @@
 import BarChart from "./BarChart";
 
-const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F", "Unrated"];
+const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const MY_RATING_COLORS = {
   S: "bg-purple-500",
   "A+": "bg-amber-400",
@@ -10,7 +10,6 @@ const MY_RATING_COLORS = {
   D: "bg-rose-400",
   E: "bg-red-600",
   F: "bg-gray-500",
-  Unrated: "bg-gray-300",
 };
 
 const MAL_BUCKETS = [
@@ -29,10 +28,7 @@ export default function RatingDistributionBlock({ animeData }) {
   const malTotal = animeData.filter((a) => a.mal_rating != null).length;
 
   const myRatingData = MY_RATING_ORDER.map((r) => {
-    const count =
-      r === "Unrated"
-        ? animeData.filter((a) => !a.my_rating).length
-        : animeData.filter((a) => a.my_rating === r).length;
+    const count = animeData.filter((a) => a.my_rating === r).length;
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
     return { key: r, count, pct, color: MY_RATING_COLORS[r] };
   });
