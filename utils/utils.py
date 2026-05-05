@@ -12,6 +12,7 @@ from typing import Any, Optional, Tuple
 # PRE-COMPILED REGEX PATTERNS
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
+MAL_MANGA_ID_PATTERN = re.compile(r"myanimelist\.net/manga/(\d+)")
 IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
@@ -92,6 +93,15 @@ CARTOON_MOVIE_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+MANGA_FIELDS_TO_FILL = [
+    "serialization_status",
+    "release_year",
+    "end_year",
+    "mal_rating",
+    "mal_rank",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================
@@ -123,6 +133,52 @@ def validate_episode_math(ep_total: Any, ep_fin: Any) -> Tuple[Optional[int], in
     return safe_total, safe_fin
 
 
+def validate_vol_math(vol_total: Any, vol_fin: Any) -> Tuple[Optional[int], int]:
+    """Sanitizes volume inputs and clamps vol_fin <= vol_total."""
+    try:
+        safe_total = int(float(vol_total)) if vol_total not in (None, "") else None
+    except (ValueError, TypeError):
+        safe_total = None
+
+    try:
+        safe_fin = int(float(vol_fin)) if vol_fin not in (None, "") else 0
+    except (ValueError, TypeError):
+        safe_fin = 0
+
+    if safe_total is not None and safe_total < 0:
+        safe_total = 0
+    if safe_fin < 0:
+        safe_fin = 0
+
+    if safe_total is not None and safe_fin > safe_total:
+        safe_fin = safe_total
+
+    return safe_total, safe_fin
+
+
+def validate_ch_math(ch_total: Any, ch_fin: Any) -> Tuple[Optional[int], int]:
+    """Sanitizes chapter inputs and clamps ch_fin <= ch_total."""
+    try:
+        safe_total = int(float(ch_total)) if ch_total not in (None, "") else None
+    except (ValueError, TypeError):
+        safe_total = None
+
+    try:
+        safe_fin = int(float(ch_fin)) if ch_fin not in (None, "") else 0
+    except (ValueError, TypeError):
+        safe_fin = 0
+
+    if safe_total is not None and safe_total < 0:
+        safe_total = 0
+    if safe_fin < 0:
+        safe_fin = 0
+
+    if safe_total is not None and safe_fin > safe_total:
+        safe_fin = safe_total
+
+    return safe_total, safe_fin
+
+
 # ==========================================
 # Data Extraction & Transformation
 # ==========================================
@@ -138,6 +194,19 @@ def extract_imdb_id(url: str) -> Optional[str]:
     match = IMDB_ID_PATTERN.search(url)
     if match:
         return f"tt{match.group(1)}"
+    return None
+
+
+def extract_mal_id_manga_novel(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a standard MyAnimeList manga URL.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+    match = MAL_MANGA_ID_PATTERN.search(url)
+    if match:
+        return int(match.group(1))
     return None
 
 
