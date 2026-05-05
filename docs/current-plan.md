@@ -87,9 +87,9 @@ Files: `services/other_logics.py`, `services/calculation.py`, `services/data_con
 
 ### 3d — data_control router
 
-- [ ] **3d.1** Add `POST /api/data-control/replace/manga/{manga_id}` endpoint calling `execute_replace_single_manga`.
-- [ ] **3d.2** Add SSE endpoints for `Fill Manga` (`/fill/manga`) and `Replace Manga` (`/replace/manga`).
-- [ ] **3d.3** Update `Pull Specific` endpoint to accept `"manga"` as a valid `tab_name`.
+- [x] **3d.1** Add `POST /api/data-control/replace/manga/{manga_id}` endpoint calling `execute_replace_single_manga`.
+- [x] **3d.2** Add SSE endpoints for `Fill Manga` (`/fill/manga`) and `Replace Manga` (`/replace/manga`).
+- [x] **3d.3** Update `Pull Specific` endpoint to accept `"manga"` as a valid `tab_name`.
 
 ---
 
