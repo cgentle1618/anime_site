@@ -336,7 +336,9 @@ export default function Anime() {
             sourceNetflix={anime.source_netflix}
             sourceOther={anime.source_other}
             malLink={anime.mal_link}
+            anilistLink={anime.anilist_link}
             officialLink={anime.official_link}
+            twitterLink={anime.twitter_link}
           />
 
           {/* Watch Order */}
