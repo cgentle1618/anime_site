@@ -169,10 +169,88 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ---
 
-### Planned Tabs (Under Development)
+### Add Cartoon Entry Tab
 
-- Add Cartoon Entry
-- Add Manga Entry
+**Prefill from existing entry**
+
+- A search box allows typing to find an existing cartoon entry. Selecting one prefills: Franchise, Series, all Cartoon Name fields, Main / Spinoff, Source Official.
+
+**Franchise field**
+
+- Supports searching existing Cartoon franchises or typing a new name.
+- A franchise must be chosen or typed before the form can be submitted.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+- Series is optional.
+
+**Form defaults**
+| Field | Default |
+|---|---|
+| Airing Type | TV |
+| Airing Status | Not Yet Aired |
+| Watching Status | Might Watch |
+| Main / Spinoff | 本傳 |
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Auto-generate `system_id`, `created_at`, `updated_at`.
+4. Call `execute_replace_single_cartoon` (Replace pipeline for this entry).
+
+**Franchise Generation modal**
+
+- User selects Franchise Expectation (default: Low) and optionally adds a remark.
+- Franchise is created using all cartoon name fields filled in the form (the text typed in the Franchise field is ignored for name generation).
+- `franchise_type` is set to `Cartoon`.
+
+**Series Generation modal**
+
+- Series is created using all cartoon name fields filled in the form (the text typed in the Series field is ignored for name generation).
+
+---
+
+### Add Manga Entry Tab
+
+**Prefill from existing entry**
+
+- A search box allows typing to find an existing manga entry. Selecting one prefills: Franchise, Series, all Manga Name fields, Region, Main / Spinoff.
+
+**Franchise field**
+
+- Supports searching existing ACG franchises or typing a new name.
+- A franchise must be chosen or typed before the form can be submitted.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+- Series is optional.
+
+**Form defaults**
+| Field | Default |
+|---|---|
+| Serialization Status | _(null)_ |
+| Reading Status | Might Read |
+| Main / Spinoff | 本傳 |
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Auto-generate `system_id`, `created_at`, `updated_at`.
+4. Call `execute_replace_single_manga` (Replace pipeline for this entry).
+
+**Franchise Generation modal**
+
+- User selects Franchise Expectation (default: Low) and optionally adds a remark.
+- Franchise is created using all manga name fields filled in the form (the text typed in the Franchise field is ignored for name generation).
+- `franchise_type` is set to `ACG`.
+
+**Series Generation modal**
+
+- Series is created using all manga name fields filled in the form (the text typed in the Series field is ignored for name generation).
 
 ---
 
@@ -282,10 +360,51 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ---
 
-### Planned Forms (Under Development)
+### Modify Cartoon Entry Form
 
-- Modify Cartoon Entry
-- Modify Manga Entry
+**Franchise field**
+
+- Supports searching existing Cartoon franchises or typing a new name.
+- When an existing franchise is selected, a sibling ribbon shows all other cartoon entries in that franchise, grouped by series.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Update all fields and refresh `updated_at`.
+4. Call `execute_replace_single_cartoon` (Replace pipeline for this entry).
+
+**Franchise Generation modal** — same logic as Add (names from cartoon name fields, type = Cartoon, expectation default Low).
+
+**Series Generation modal** — same logic as Add (names from cartoon name fields).
+
+---
+
+### Modify Manga Entry Form
+
+**Franchise field**
+
+- Supports searching existing ACG franchises or typing a new name.
+- When an existing franchise is selected, a sibling ribbon shows all other manga entries in that franchise, grouped by series.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Update all fields and refresh `updated_at`.
+4. Call `execute_replace_single_manga` (Replace pipeline for this entry).
+
+**Franchise Generation modal** — same logic as Add (names from manga name fields, type = ACG, expectation default Low).
+
+**Series Generation modal** — same logic as Add (names from manga name fields).
 
 ---
 
