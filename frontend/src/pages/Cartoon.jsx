@@ -410,7 +410,7 @@ export default function Cartoon() {
                 <span>
                   <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
                   <Link
-                    to={`/franchise/cartoon/${franchise.system_id}`}
+                    to={`/franchise/${franchise.system_id}`}
                     className="text-brand hover:underline font-medium"
                   >
                     {franchiseName}

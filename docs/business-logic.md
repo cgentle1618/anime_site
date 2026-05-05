@@ -49,7 +49,7 @@ Tab names match model table names. Column order in the sheet is guaranteed to ma
 
 #### Fill All — `execute_fill_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Fill Anime (with `log_action=False`), then Fill Anime Movie (with `log_action=False`), then Fill Movie (with `log_action=False`), then Fill TV Show (with `log_action=False`), parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
+Master orchestrator. Calls Fill Anime (with `log_action=False`), then Fill Anime Movie (with `log_action=False`), then Fill Movie (with `log_action=False`), then Fill TV Show (with `log_action=False`), then Fill Cartoon (with `log_action=False`), then Fill Manga (with `log_action=False`), then Fill Novel (TBD), parses SSE output to accumulate a grand total, runs Backup on completion, then logs a single master entry to `DataControlLog`.
 
 **Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
@@ -120,11 +120,28 @@ Fills missing metadata for all TV show entries that need it.
 
 ---
 
+#### Fill Manga — `execute_fill_manga(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Fills missing metadata for all manga entries that need it.
+
+**Steps:**
+
+1. Run `apply_extract_mal_id_manga_novel` on all manga entries to populate `mal_id` from `mal_link`.
+2. Build queue: entries where `has_missing_values_manga()` returns `True`.
+3. For each queued entry: call `autofill_manga_from_mal()`.
+4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
+5. After loop: `run_manga_post_processing`, `run_derive_related_manga`, `run_sync_manga`.
+6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Shows entry being processed by manga entry name (with fallback).
+
+---
+
 ### Replace
 
 #### Replace All — `execute_replace_all(db, request, action_type="Manual")` _(SSE)_
 
-Master orchestrator. Calls Replace Anime (with `log_action=False`), then Replace Anime Movie (with `log_action=False`), then Replace Movie (with `log_action=False`), then Replace TV Show (with `log_action=False`), parses SSE output, runs Backup, logs single master entry.
+Master orchestrator. Calls Replace Anime (with `log_action=False`), then Replace Anime Movie (with `log_action=False`), then Replace Movie (with `log_action=False`), then Replace TV Show (with `log_action=False`), then Replace Cartoon (with `log_action=False`), then Replace Manga (with `log_action=False`), then Replace Novel (TBD), parses SSE output, runs Backup, logs single master entry.
 
 **Note:** More actions are TBD. Shows number of entries in queue, current progress, and the entry being processed by title (with fallback).
 
@@ -185,6 +202,21 @@ Replaces metadata for all TV show entries that have an `imdb_id` or `imdb_link`.
 
 ---
 
+#### Replace Manga — `execute_replace_manga(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Replaces metadata for all manga entries that have a `mal_id` or `mal_link`.
+
+**Steps:**
+
+1. Query all manga with `mal_id` or `mal_link` set. Return early if queue is empty.
+2. For each entry: call `apply_single_replace_manga(bulk=True)`.
+3. After loop: call `run_derive_related_manga(db)`.
+4. Call `run_sync_manga(db)`.
+
+**Note:** Shows entry being processed by manga name (with fallback).
+
+---
+
 #### Replace for Single Anime Entry — `execute_replace_single_anime(db, anime_id, action_type, log_action)` / `apply_single_replace_anime(db, anime, bulk, force_replace_ratings)`
 
 `execute_replace_single_anime` is the router-level function (handles lookup, sync, logging). Used in the anime endpoint for the Autofill & Update button. Calls `apply_single_replace_anime(bulk=False)`, then runs Sync.
@@ -238,11 +270,25 @@ Replaces metadata for all TV show entries that have an `imdb_id` or `imdb_link`.
 
 ---
 
+#### Replace for Single Manga Entry — `execute_replace_single_manga(db, manga_id, action_type, log_action)` / `apply_single_replace_manga(db, manga, bulk)`
+
+`execute_replace_single_manga` is the router-level function (handles lookup, sync, logging). Used in the manga endpoint for the Autofill & Update button. Calls `apply_single_replace_manga(bulk=False)`, then runs `run_sync_manga`.
+`apply_single_replace_manga` is the core logic helper (used in both single and bulk paths); it is not called by routers directly.
+
+**`apply_single_replace_manga` steps:**
+
+1. `apply_extract_mal_id_manga_novel`
+2. `autofill_manga_from_mal`
+3. `manga_post_processing`
+4. If `bulk=False`: call `run_derive_related_manga(db)` inline. If `bulk=True`: caller handles `run_derive_related_manga` after the loop.
+
+---
+
 ### Pull from Sheets
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all tabs in strict dependency order: **System Options → Franchise → Series → Anime → Anime Movie → Movie**. This order is required to satisfy foreign key constraints.
+Pulls all tabs in strict dependency order: **System Options → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga**. This order is required to satisfy foreign key constraints.
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
@@ -327,6 +373,18 @@ Runs all single-entry checks and repairs for one Cartoon.
 
 ---
 
+### Manga Post Processing — `manga_post_processing(manga, db)`
+
+Runs all single-entry checks and repairs for one manga entry.
+
+**Steps (in order):**
+
+1. `apply_validate_vol_math`
+2. `apply_validate_ch_math`
+3. If `check_is_reading_completed()` and `reading_status != "Completed"`: call `mark_reading_completed`.
+
+---
+
 ### Post Processing — `run_post_processing(db)`
 
 Master orchestrator. Calls all post-processing functions across every media type.
@@ -336,6 +394,7 @@ Master orchestrator. Calls all post-processing functions across every media type
 1. `run_anime_post_processing`
 2. `run_anime_movie_post_processing`
 3. `run_tv_show_post_processing`
+4. `run_manga_post_processing`
 
 ---
 
@@ -379,12 +438,38 @@ Commits after all franchises processed.
 
 ---
 
+### Derive Related Manga — `derive_related_manga(db, franchise_id=None)`
+
+Runs prequel/sequel derivation for every ACG franchise in the DB.
+
+**Per franchise_id:**
+
+1. `derive_prequel_sequel_manga`
+
+Commits after all franchises processed.
+
+---
+
+### Run Derive Related — `run_derive_related(db)`
+
+Master orchestrator. Calls all derive-related functions across every eligible media type.
+
+**Steps:**
+
+1. `run_derive_related_anime`
+2. `run_derive_related_tv_show`
+3. `run_derive_related_cartoon`
+4. `run_derive_related_manga`
+
+---
+
 ### Sync — `run_sync(db)`
 
 1. `run_sync_anime(db)`
 2. `run_sync_anime_movie(db)`
 3. `run_sync_tv_show(db)`
 4. `run_sync_cartoon(db)`
+5. `run_sync_manga(db)`
 
 ---
 
@@ -414,6 +499,12 @@ Commits after all franchises processed.
 
 ---
 
+### Sync — `run_sync_manga(db)`
+
+1. `extract_system_options_from_manga`
+
+---
+
 ### Calculate All — `run_calculate_all(db)`
 
 1. `run_post_processing`
@@ -425,6 +516,28 @@ Commits after all franchises processed.
 ---
 
 ## Checking Logics
+
+### Validate Volumes Count — `apply_validate_vol_math(manga)` / `validate_vol_math(vol_total, vol_fin)`
+
+Applies to Manga and Novel entries.
+
+**Rules:**
+
+- `vol_total` and `vol_fin`: treat `None`, `""` as `None`. Clamp to >= 0.
+- If `vol_fin > vol_total` (and total is known): clamp `vol_fin = vol_total`.
+
+---
+
+### Validate Chapters Count — `apply_validate_ch_math(manga)` / `validate_ch_math(ch_total, ch_fin)`
+
+Applies to Manga and Novel entries.
+
+**Rules:**
+
+- `ch_total` and `ch_fin`: treat `None`, `""` as `None`. Clamp to >= 0.
+- If `ch_fin > ch_total` (and total is known): clamp `ch_fin = ch_total`.
+
+---
 
 ### Validate Episode Count — `apply_validate_episode_math(anime)` / `validate_episode_math(ep_total, ep_fin)`
 
@@ -488,6 +601,16 @@ Returns `True` if any required field is blank. Branches on `airing_type` because
 
 **`airing_type == "TV"` (or any other value including `None`):** `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file`.
 
+---
+
+### Check Missing Values for Manga — `has_missing_values_manga(manga)`
+
+Returns `True` if any required field for the manga entry is blank. Checks all fields designated as required for manga entries.
+
+**Special case:** If `serialization_status` is not `"完結"`, `vol_total` and `ch_total` are not counted as missing.
+
+---
+
 ### Check Completed for TV Type — `check_is_tv_completed(entry)`
 
 Applicable for anime, TV show, and cartoon entries. Returns `True` if:
@@ -502,6 +625,16 @@ Applicable for anime, TV show, and cartoon entries. Returns `True` if:
 Applicable for anime movie and movie entries. Returns `True` if:
 
 - `watching_status == "Completed"`.
+
+---
+
+### Check Completed for Reading Type — `check_is_reading_completed(entry)`
+
+Applicable for manga and novel entries. Returns `True` if any one of these conditions holds:
+
+- `reading_status` is `"完結"` or `"腰斬"`, OR
+- `ch_fin == ch_total` and `ch_total` is not null or 0, OR
+- `vol_fin == vol_total` and `vol_total` is not null or 0.
 
 ---
 
@@ -549,17 +682,24 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 | `find_duplicate_movie`          | Same `(franchise_id, series_id)` + at least one matching name                                                |
 | `find_duplicate_tv_show`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
 | `find_duplicate_cartoon`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
+| `find_duplicate_manga`          | Same `(franchise_id, series_id, is_main)` + at least one matching manga name                                 |
 | `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
 
-`find_all_duplicates` runs all six: returns `{franchise, series, anime, anime_movie, movie, tv_show, system_options}`.
+`find_all_duplicates` runs all of them: returns `{franchise, series, anime, anime_movie, movie, tv_show, cartoon, manga, system_options}`.
 
 ---
 
 ## Fill Missing Entry Data
 
-### Extract MAL ID — `apply_extract_mal_id_anime(anime)` / `extract_mal_id_anime(url)`
+### Extract MAL ID for Anime — `apply_extract_mal_id_anime(anime)` / `extract_mal_id_anime(url)`
 
 Extracts numeric MAL ID from a MAL URL using regex `myanimelist\.net/anime/(\d+)`. Writes to `anime.mal_id`. Returns `True` if extracted.
+
+---
+
+### Extract MAL ID for Manga/Novel — `apply_extract_mal_id_manga_novel(entry)` / `extract_mal_id_manga_novel(url)`
+
+Extracts the MAL ID from a MAL URL for manga or novel entries. Writes to `entry.mal_id`. Returns `True` if extracted.
 
 ---
 
@@ -682,6 +822,18 @@ Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after i
 
 ---
 
+### Derive Prequel Sequel Manga — `derive_prequel_sequel_manga(db, franchise_id)`
+
+Sets `prequel_id` and `sequel_id` for manga entries in an ACG franchise, sorted by `watch_order`.
+
+**Eligibility:** `watch_order` is not null AND `derive_related != False`.
+
+**Only fills entries where the field is currently `None`** — never overwrites.
+
+Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
+
+---
+
 ### Derive `ep_previous` — `derive_ep_previous_anime(db, franchise_id, series_id=_SERIES_UNSET)`
 
 Sets cumulative `ep_previous` for eligible TV/ONA entries within the same franchise+series group.
@@ -751,6 +903,22 @@ Enriches a single Anime Movie entry with Jikan API data. Does not commit — cal
 3. Map response via `map_jikan_to_anime_data()`.
 4. Fill each field **only if currently None**: `airing_status`, `release_year_jp`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
+6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
+
+---
+
+### MAL Autofill Manga — `autofill_manga_from_mal(manga, force_replace_ratings=True)`
+
+Enriches a single Manga entry with Jikan API data. Does not commit — caller is responsible.
+
+**Steps:**
+
+1. Resolve `mal_id` from `manga.mal_id`. Return if no ID.
+2. Call `fetch_jikan_manga_data(mal_id)`.
+3. Map response via `map_jikan_to_manga_data()`.
+4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total`, `ch_total`.
+   - Exception: `vol_total` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
+5. Ratings (`mal_rating`, `mal_rank`): always overwrite (replace, not fill-only).
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
 
 ---
@@ -838,6 +1006,31 @@ Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
 **Rate limiting:** Global `JikanRateLimiter` singleton — sliding window, default 30 requests / 60 seconds. Blocks before each request until under the limit.
 
 **Retry:** 5 attempts, exponential backoff 2-10s. Retries on `RequestException` or `RateLimitExceeded` (HTTP 429). Returns `None` on 404 or >= 500.
+
+---
+
+### MAL Fetch Manga — `fetch_jikan_manga_data(mal_id)` in `services/jikan.py`
+
+Fetches `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. If `mal_id` is null, returns `None`.
+
+Uses the same `JikanRateLimiter` and retry configuration as `fetch_jikan_anime_data`.
+
+---
+
+### MAL Conversion for Manga — `map_jikan_to_manga_data(raw_data)` in `utils/jikan_utils.py`
+
+Transforms raw Jikan manga `data` dict to a flat standardized dict.
+
+| Output Field           | Jikan Source / Mapping                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `serialization_status` | `status` — `"Finished"` → `"完結"`, `"Publishing"` → `"連載中"`, `"On Hiatus"` → `"停更"`, `"Discontinued"` → `"腰斬"`, `"Not yet published"` → `null` |
+| `release_year`         | `published.from` (ISO date parsed — year only)                                                                                                         |
+| `end_year`             | `published.to` (ISO date parsed — year only)                                                                                                           |
+| `mal_rating`           | `score`                                                                                                                                                |
+| `mal_rank`             | `rank` (as string)                                                                                                                                     |
+| `vol_total`            | `volumes`                                                                                                                                              |
+| `ch_total`             | `chapters`                                                                                                                                             |
+| `cover_image_url`      | `images.webp.large_image_url` → `images.jpg.large_image_url` → `images.jpg.image_url`                                                                  |
 
 ---
 
@@ -1072,6 +1265,12 @@ Scans all TV Show entries for values in: `source_official`. Any value not alread
 
 ---
 
+### Extract System Options from Manga — `extract_system_options_from_manga(db)`
+
+Scans all Manga entries and creates any missing system options entries for relevant category fields.
+
+---
+
 ## Other Logics
 
 ### Calculate Cumulative Episode _(computed field, not a function)_
@@ -1094,6 +1293,18 @@ Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished 
 ### Mark Completed — `mark_movie_completed(entry)`
 
 Sets automatically: `watching_status = "Completed"`, `airing_status = "Finished Airing"`.
+
+---
+
+### Mark Reading Completed — `mark_reading_completed(entry)`
+
+Applicable for manga (and novel) entries. Sets automatically:
+
+- `serialization_status = "完結"` — unless it was already `"腰斬"`, in which case it is left unchanged.
+- `reading_status = "Completed"`.
+- `ch_fin = ch_total` — only if `ch_total` is not null or 0.
+- `vol_fin = vol_total` — only if `vol_total` is not null or 0.
+- `vol_fin_page = 0`.
 
 ---
 

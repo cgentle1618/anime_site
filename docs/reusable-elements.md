@@ -30,16 +30,19 @@ Present on every page. Contains:
 | Dropdown             | Items                                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ACG                  | Anime Library, Anime Movie Library, Manga Library _(future)_, Novel Library _(future)_, Seiyuu Library _(future)_                                      |
-| Reality              | Franchise Library, Movie Library (`/library/movie`), TV Show Library _(future)_, Cartoon Library _(future)_                                            |
+| Reality ¹            | Franchise Library, TV Show Library (`/library/tv-show`), Movie Library (`/library/movie`)                                                              |
+| Cartoon              | Cartoon Library (`/library/cartoon`)                                                                                                                   |
 | More                 | Statistics, Future Release, Seasonal                                                                                                                   |
 | Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
+
+¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to `FranchiseCartoon.jsx` — they are not Reality Franchise entries.
 
 **Other controls:**
 
 - Website logo — navigates to Dashboard
 - Search bar — see [Search Suggestion Entry](#search-suggestion-entry) for result format
-  - Scope selector (implemented): All (default), Franchise, Series, Anime, Seasonal
-  - Scope selector _(future)_: Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio, Seiyuu
+  - Scope selector: All (default), Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal
+  - Scope selector _(future)_: Manga, Novel, Studio, Seiyuu
   - Results grouped by kind when searching All; ordered: Seasonal → Franchise → Anime → Anime Movie → Manga → Novel → Movie → TV Show → Cartoon
   - If an entry exactly matches the input (ignoring case, punctuation, and spaces), it is shown at the top regardless of grouping/ordering
   - At most 10 suggestions shown; at most 3 franchise and 3 series suggestions
@@ -72,19 +75,19 @@ Name CN (fallback) · Airing Type
 
 ### Anime Movie Entry
 
-Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
+Name CN (fallback)
 
 ### Movie Entry
 
-Name CN (fallback) · Movie Type
+Name CN (fallback)
 
 ### TV Show Entry
 
-Name CN (fallback) · TV Show Region
+Name CN (fallback)
 
 ### Cartoon Entry
 
-Name CN (fallback) · Cartoon Airing Type
+Name CN (fallback)
 
 ### Manga Entry
 
@@ -261,33 +264,62 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### TV Show Entry Card
 
-**First Type** — used on Dashboard
+**First Type** — used on Dashboard _(TBD)_
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
-**Second Type** — used on Library, Franchise page, Search page
+**Second Type** — `frontend/src/components/TVCard.jsx` — used on TV Show Library, Reality Franchise, Search page
 
-- Poster · My Rating (hidden if null) · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+- Poster (aspect 3:4)
+- My Rating badge top-left (hidden if null)
+- IMDb Rating badge top-right (hidden if null or "N/A")
+- Region badge bottom-right (hidden if null)
+- Name CN (fallback: EN → Alt)
+- Season Part + Airing Status (inline, hidden if null)
+- Ep Fin / Ep Total
+- - button _(admin only)_ — cycles watching status via `PATCH /api/tv-shows/:id`
+- Status badge _(guest)_ showing watching_status
+- Clicking card navigates to `/tv-show/:system_id`
 
-**Third Type** — used on Future Release page
+**Third Type** — `frontend/src/components/TVCardFuture.jsx` — used on Future Release page (TV Show tab)
 
-- Poster · Franchise Expectation · Release Date (fallback) · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
+- Poster (aspect 3:4)
+- Name CN (fallback: EN → Alt)
+- Region + Release Date (inline; Release Date shown as "TBD" if null)
+- Airing Status
+- Mark as Airing button _(admin only, shown when `airing_status = "Not Yet Aired"`)_ — sets `airing_status` to "Airing" via `PATCH /api/tv-shows/:id`; removes entry from list on success
+- Clicking card navigates to `/tv-show/:system_id`
 
 ---
 
 ### Cartoon Entry Card
 
-**First Type** — used on Dashboard
+**First Type** — used on Dashboard _(TBD)_
 
 - Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Type · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
-**Second Type** — used on Library, Franchise page, Search page
+**Second Type** — `frontend/src/components/CartoonCard.jsx` — used on Cartoon Library, Cartoon Franchise, Search page
 
-- Poster · My Rating (hidden if null) · Airing Type · Name CN (fallback) · Release Date (fallback) · IMDB Rating (hidden if null) · Ep Watched / Ep Total · + button _(admin)_
+- Poster (aspect 3:4)
+- My Rating badge top-left (hidden if null)
+- Airing Type badge top-right (hidden if null)
+- Name CN (fallback: EN → Alt)
+- Release Date (fallback: "TBD") + IMDb Rating (hidden if null or "N/A") inline
+- Ep Fin / Ep Total
+- - button _(admin only)_ — cycles watching status via `PATCH /api/cartoon/:id`
+- Status badge _(guest)_ showing watching_status
+- Clicking card navigates to `/cartoon/:system_id`
 
-**Third Type** — used on Future Release page
+**Third Type** — `frontend/src/components/CartoonCardFuture.jsx` — used on Future Release page (Cartoon tab)
 
-- Poster · Franchise Expectation · Release Date (fallback) · Airing Type · Name CN (fallback) · Watching Status Dropdown (options: Might Watch, Plan to Watch, Watch When Airs; always shows current status if outside those options) · Mark as Airing button _(admin)_
+- Poster (aspect 3:4)
+- Franchise Expectation badge top-left (hidden if null)
+- Airing Type badge top-right (hidden if null)
+- Name CN (fallback: EN → Alt)
+- Release Date (fallback: "TBD")
+- Watching Status Dropdown _(admin only)_ — options: Might Watch, Plan to Watch, Watch When Airs; current status shown as disabled option if outside those three — `PATCH /api/cartoon/:id`
+- Mark as Airing button _(admin only)_ — sets `airing_status` to "Airing" via `PATCH /api/cartoon/:id`; removes entry from list on success
+- Clicking card navigates to `/cartoon/:system_id`
 
 ---
 
@@ -403,7 +435,7 @@ Toggle switch to group entries by series or show them ungrouped.
 ## Rating Distribution Block
 
 - My Rating Distribution Bar Plot
-  - Categories: S, A+, A, B, C, D, E, F, Unrated
+  - Categories: S, A+, A, B, C, D, E, F (unrated entries not shown)
 - MAL Rating Distribution Bar Plot
   - Categories: 9+, 8.7+, 8.5+, 8.2+, 7.7+, 7+, 4+, <4
 - For each plot, show the amount and percentage per category.

@@ -30,10 +30,7 @@ export default function FranchiseCard({ franchise, coverUrl }) {
     EXPECTATION_STYLES[franchise.franchise_expectation] ||
     "bg-gray-100 text-gray-500 border-gray-200";
 
-  const franchisePath =
-    franchise.franchise_type === "Cartoon"
-      ? `/franchise/cartoon/${franchise.system_id}`
-      : `/franchise/${franchise.system_id}`;
+  const franchisePath = `/franchise/${franchise.system_id}`;
 
   return (
     <Link

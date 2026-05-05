@@ -369,6 +369,7 @@ export default function Modify() {
       airing_status: m.airing_status || "",
       watching_status: m.watching_status || "Might Watch",
       my_rating: m.my_rating || "",
+      is_main: m.is_main || "",
       movie_type: m.movie_type || "",
       length_min: m.length_min ?? "",
       release_date_usa: m.release_date_usa || "",
@@ -917,6 +918,7 @@ export default function Modify() {
       movie_name_alt: mmf.movie_name_alt || null,
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
+      is_main: mmf.is_main || null,
       airing_status: mmf.airing_status || null,
       watching_status: mmf.watching_status || "Might Watch",
       my_rating: mmf.my_rating || null,
@@ -1715,6 +1717,20 @@ export default function Modify() {
                   (bySeries[a.series_id] = bySeries[a.series_id] || []).push(a);
                 } else noSeries.push(a);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.anime_name_en ||
+                  x.anime_name_cn ||
+                  x.anime_name_roman ||
+                  ""
+                ).localeCompare(
+                  y.anime_name_en ||
+                    y.anime_name_cn ||
+                    y.anime_name_roman ||
+                    "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (a) => (
                 <button
                   key={a.system_id}
@@ -1775,6 +1791,17 @@ export default function Modify() {
                   (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
                 } else noSeries.push(m);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.movie_name_en ||
+                  x.movie_name_cn ||
+                  x.movie_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.movie_name_en || y.movie_name_cn || y.movie_name_alt || "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (m) => (
                 <button
                   key={m.system_id}
@@ -1833,6 +1860,17 @@ export default function Modify() {
                   (bySeries[t.series_id] = bySeries[t.series_id] || []).push(t);
                 } else noSeries.push(t);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.tv_name_en ||
+                  x.tv_name_cn ||
+                  x.tv_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.tv_name_en || y.tv_name_cn || y.tv_name_alt || "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (t) => (
                 <button
                   key={t.system_id}
@@ -1895,6 +1933,20 @@ export default function Modify() {
                   (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
                 } else noSeries.push(c);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.cartoon_name_en ||
+                  x.cartoon_name_cn ||
+                  x.cartoon_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.cartoon_name_en ||
+                    y.cartoon_name_cn ||
+                    y.cartoon_name_alt ||
+                    "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (c) => (
                 <button
                   key={c.system_id}
@@ -3427,6 +3479,22 @@ export default function Modify() {
                       <option value="">—</option>
                       <option value="Reality">Reality</option>
                       <option value="Animation">Animation</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Main / Spinoff">
+                    <select
+                      className={selectCls}
+                      value={mmf.is_main || ""}
+                      onChange={(e) => umm("is_main", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                 </div>

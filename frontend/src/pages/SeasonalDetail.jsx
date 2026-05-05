@@ -263,6 +263,9 @@ export default function SeasonalDetail() {
               <span className="bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-sm font-bold border border-violet-200">
                 {plannedCount} Planned
               </span>
+              <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
+                {seasonal?.entry_watching ?? 0} Watching
+              </span>
               <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold border border-blue-200">
                 {completedCount} Completed
               </span>

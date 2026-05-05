@@ -109,6 +109,7 @@ const defaultMovie = () => ({
   watching_status: "Might Watch",
   my_rating: "",
   movie_type: "",
+  is_main: "本傳",
   length_min: "",
   release_date_usa: "",
   release_date_tw: "",
@@ -201,7 +202,7 @@ const defaultCartoon = () => ({
   series_id: null,
   series_text: "",
   season_part: "",
-  airing_type: "",
+  airing_type: "TV",
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
   is_main: "本傳",
@@ -246,6 +247,21 @@ export default function Add() {
   const [fillQuery, setFillQuery] = useState("");
   const [fillOpen, setFillOpen] = useState(false);
   const fillRef = useRef(null);
+
+  // Cartoon auto-fill search
+  const [cartoonFillQuery, setCartoonFillQuery] = useState("");
+  const [cartoonFillOpen, setCartoonFillOpen] = useState(false);
+  const cartoonFillRef = useRef(null);
+
+  // Movie auto-fill search
+  const [movieFillQuery, setMovieFillQuery] = useState("");
+  const [movieFillOpen, setMovieFillOpen] = useState(false);
+  const movieFillRef = useRef(null);
+
+  // TV Show auto-fill search
+  const [tvFillQuery, setTvFillQuery] = useState("");
+  const [tvFillOpen, setTvFillOpen] = useState(false);
+  const tvFillRef = useRef(null);
 
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
@@ -330,6 +346,33 @@ export default function Add() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    function handleClick(e) {
+      if (cartoonFillRef.current && !cartoonFillRef.current.contains(e.target))
+        setCartoonFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (movieFillRef.current && !movieFillRef.current.contains(e.target))
+        setMovieFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (tvFillRef.current && !tvFillRef.current.contains(e.target))
+        setTvFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Auto-fill results
   const fillResults = fillQuery
     ? allAnime
@@ -344,6 +387,106 @@ export default function Add() {
         )
         .slice(0, 10)
     : [];
+
+  const cartoonFillResults = cartoonFillQuery
+    ? allCartoons
+        .filter((c) =>
+          [c.cartoon_name_en, c.cartoon_name_cn, c.cartoon_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(cartoonFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const movieFillResults = movieFillQuery
+    ? allMovies
+        .filter((m) =>
+          [m.movie_name_en, m.movie_name_cn, m.movie_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(movieFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const tvFillResults = tvFillQuery
+    ? allTvShows
+        .filter((t) =>
+          [t.tv_name_en, t.tv_name_cn, t.tv_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(tvFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  function applyCartoonAutofill(cartoon) {
+    const f = allFranchises.find((x) => x.system_id === cartoon.franchise_id);
+    const s = allSeries.find((x) => x.system_id === cartoon.series_id);
+    setCf((p) => ({
+      ...p,
+      cartoon_name_en: cartoon.cartoon_name_en || "",
+      cartoon_name_cn: cartoon.cartoon_name_cn || "",
+      cartoon_name_alt: cartoon.cartoon_name_alt || "",
+      franchise_id: cartoon.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: cartoon.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      airing_type: cartoon.airing_type || "",
+      is_main: cartoon.is_main || "",
+      source_official: cartoon.source_official || "",
+      season_part: cartoon.season_part || "",
+      derive_related:
+        cartoon.derive_related === true
+          ? "true"
+          : cartoon.derive_related === false
+            ? "false"
+            : "",
+      imdb_link: cartoon.imdb_link || "",
+    }));
+    setCartoonFillQuery("");
+    setCartoonFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyMovieAutofill(movie) {
+    const f = allFranchises.find((x) => x.system_id === movie.franchise_id);
+    const s = allSeries.find((x) => x.system_id === movie.series_id);
+    setMf((p) => ({
+      ...p,
+      movie_name_en: movie.movie_name_en || "",
+      movie_name_cn: movie.movie_name_cn || "",
+      movie_name_alt: movie.movie_name_alt || "",
+      franchise_id: movie.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: movie.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      is_main: movie.is_main || "",
+      movie_type: movie.movie_type || "",
+      director: movie.director || "",
+    }));
+    setMovieFillQuery("");
+    setMovieFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyTvShowAutofill(tvShow) {
+    const f = allFranchises.find((x) => x.system_id === tvShow.franchise_id);
+    const s = allSeries.find((x) => x.system_id === tvShow.series_id);
+    setTvf((p) => ({
+      ...p,
+      tv_name_en: tvShow.tv_name_en || "",
+      tv_name_cn: tvShow.tv_name_cn || "",
+      tv_name_alt: tvShow.tv_name_alt || "",
+      franchise_id: tvShow.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: tvShow.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      is_main: tvShow.is_main || "",
+      region: tvShow.region || "",
+    }));
+    setTvFillQuery("");
+    setTvFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
 
   function applyAutofill(anime) {
     const f = allFranchises.find((x) => x.system_id === anime.franchise_id);
@@ -885,6 +1028,7 @@ export default function Add() {
       movie_name_alt: mf.movie_name_alt || null,
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
+      is_main: mf.is_main || null,
       airing_status: mf.airing_status || null,
       watching_status: mf.watching_status || "Might Watch",
       my_rating: mf.my_rating || null,
@@ -1111,6 +1255,10 @@ export default function Add() {
   async function submitCartoon() {
     if (!cf.cartoon_name_cn && !cf.cartoon_name_en) {
       showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!cf.franchise_id && !cf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
       return;
     }
 
@@ -2544,6 +2692,69 @@ export default function Add() {
         {/* ═══ MOVIE TAB ═══ */}
         {activeTab === "movie" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={movieFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={movieFillQuery}
+                  onChange={(e) => {
+                    setMovieFillQuery(e.target.value);
+                    setMovieFillOpen(true);
+                  }}
+                  onFocus={() => setMovieFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {movieFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMovieFillQuery("");
+                      setMovieFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {movieFillOpen && movieFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {movieFillResults.map((m) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === m.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={m.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyMovieAutofill(m)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {m.movie_type && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {m.movie_type}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {m.movie_name_cn || m.movie_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-ticket-alt" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
@@ -2687,6 +2898,22 @@ export default function Add() {
                   <option value="">—</option>
                   <option value="Reality">Reality</option>
                   <option value="Animation">Animation</option>
+                </select>
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Main / Spinoff">
+                <select
+                  className={selectCls}
+                  value={mf.is_main}
+                  onChange={(e) => umf("is_main", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
                 </select>
               </Field>
             </div>
@@ -2921,6 +3148,69 @@ export default function Add() {
         {/* ═══ TV SHOW TAB ═══ */}
         {activeTab === "tv-show" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={tvFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={tvFillQuery}
+                  onChange={(e) => {
+                    setTvFillQuery(e.target.value);
+                    setTvFillOpen(true);
+                  }}
+                  onFocus={() => setTvFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {tvFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTvFillQuery("");
+                      setTvFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {tvFillOpen && tvFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {tvFillResults.map((t) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === t.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={t.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyTvShowAutofill(t)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {t.region && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {t.region}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {t.tv_name_cn || t.tv_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-video" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
@@ -3337,6 +3627,69 @@ export default function Add() {
         {/* ═══ CARTOON TAB ═══ */}
         {activeTab === "cartoon" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={cartoonFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={cartoonFillQuery}
+                  onChange={(e) => {
+                    setCartoonFillQuery(e.target.value);
+                    setCartoonFillOpen(true);
+                  }}
+                  onFocus={() => setCartoonFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {cartoonFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCartoonFillQuery("");
+                      setCartoonFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {cartoonFillOpen && cartoonFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {cartoonFillResults.map((c) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === c.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={c.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyCartoonAutofill(c)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {c.airing_type && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {c.airing_type}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {c.cartoon_name_cn || c.cartoon_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
