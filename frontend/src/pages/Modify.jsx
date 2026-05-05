@@ -1717,6 +1717,20 @@ export default function Modify() {
                   (bySeries[a.series_id] = bySeries[a.series_id] || []).push(a);
                 } else noSeries.push(a);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.anime_name_en ||
+                  x.anime_name_cn ||
+                  x.anime_name_roman ||
+                  ""
+                ).localeCompare(
+                  y.anime_name_en ||
+                    y.anime_name_cn ||
+                    y.anime_name_roman ||
+                    "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (a) => (
                 <button
                   key={a.system_id}
@@ -1777,6 +1791,17 @@ export default function Modify() {
                   (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
                 } else noSeries.push(m);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.movie_name_en ||
+                  x.movie_name_cn ||
+                  x.movie_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.movie_name_en || y.movie_name_cn || y.movie_name_alt || "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (m) => (
                 <button
                   key={m.system_id}
@@ -1835,6 +1860,17 @@ export default function Modify() {
                   (bySeries[t.series_id] = bySeries[t.series_id] || []).push(t);
                 } else noSeries.push(t);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.tv_name_en ||
+                  x.tv_name_cn ||
+                  x.tv_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.tv_name_en || y.tv_name_cn || y.tv_name_alt || "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (t) => (
                 <button
                   key={t.system_id}
@@ -1897,6 +1933,20 @@ export default function Modify() {
                   (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
                 } else noSeries.push(c);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.cartoon_name_en ||
+                  x.cartoon_name_cn ||
+                  x.cartoon_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.cartoon_name_en ||
+                    y.cartoon_name_cn ||
+                    y.cartoon_name_alt ||
+                    "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (c) => (
                 <button
                   key={c.system_id}
