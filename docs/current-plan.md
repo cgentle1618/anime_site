@@ -69,19 +69,21 @@ Files: `services/other_logics.py`, `services/calculation.py`, `services/data_con
 
 ### 3c — data_control.py additions/updates
 
-- [ ] **3c.1** `apply_single_replace_manga(db, manga, bulk)` — core replace logic:
+- [x] **3c.1** `apply_single_replace_manga(db, manga, bulk)` — core replace logic:
   1. `apply_extract_mal_id_manga_novel`
   2. `autofill_manga_from_mal`
   3. `manga_post_processing`
   4. If `bulk=False`: call `run_derive_related_manga(db)` inline.
-- [ ] **3c.2** `execute_replace_single_manga(db, manga_id, action_type, log_action)` — router-level function: lookup, call `apply_single_replace_manga(bulk=False)`, run `run_sync_manga`, commit, log.
-- [ ] **3c.3** `execute_replace_manga(db, request, action_specific, action_type, log_action)` (SSE) — bulk replace all manga with `mal_id` or `mal_link`. After loop: `run_derive_related_manga`, `run_sync_manga`.
-- [ ] **3c.4** `execute_fill_manga(db, request, action_specific, action_type, log_action)` (SSE) — fill all manga where `has_missing_values_manga()` is True. After loop: `run_manga_post_processing`, `run_derive_related_manga`, `run_sync_manga`.
-- [ ] **3c.5** Update `execute_fill_all` — add `execute_fill_manga` call (with `log_action=False`) after Fill Cartoon.
-- [ ] **3c.6** Update `execute_replace_all` — add `execute_replace_manga` call (with `log_action=False`) after Replace Cartoon.
-- [ ] **3c.7** Update `execute_backup` — include `Manga` model in backup tab order (after Cartoons).
-- [ ] **3c.8** Update `execute_pull_specific` — add `"Manga"` tab handler using `parse_manga_from_sheet`, `resolve_manga_parent_hierarchy`.
-- [ ] **3c.9** Update `execute_pull_all` — add `"Manga"` to pull sequence (after Cartoons).
+  - Note that this function is implemented in other_logics.py
+
+- [x] **3c.2** `execute_replace_single_manga(db, manga_id, action_type, log_action)` — router-level function: lookup, call `apply_single_replace_manga(bulk=False)`, run `run_sync_manga`, commit, log.
+- [x] **3c.3** `execute_replace_manga(db, request, action_specific, action_type, log_action)` (SSE) — bulk replace all manga with `mal_id` or `mal_link`. After loop: `run_derive_related_manga`, `run_sync_manga`.
+- [x] **3c.4** `execute_fill_manga(db, request, action_specific, action_type, log_action)` (SSE) — fill all manga where `has_missing_values_manga()` is True. After loop: `run_manga_post_processing`, `run_derive_related_manga`, `run_sync_manga`.
+- [x] **3c.5** Update `execute_fill_all` — add `execute_fill_manga` call (with `log_action=False`) after Fill Cartoon.
+- [x] **3c.6** Update `execute_replace_all` — add `execute_replace_manga` call (with `log_action=False`) after Replace Cartoon.
+- [x] **3c.7** Update `execute_backup` — include `Manga` model in backup tab order (after Cartoons).
+- [x] **3c.8** Update `execute_pull_specific` — add `"Manga"` tab handler using `parse_manga_from_sheet`, `resolve_manga_parent_hierarchy`.
+- [x] **3c.9** Update `execute_pull_all` — add `"Manga"` to pull sequence (after Cartoons).
 
 ### 3d — data_control router
 

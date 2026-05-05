@@ -2387,6 +2387,20 @@ def apply_single_replace_cartoon(
         derive_related_cartoon(db)
 
 
+def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single Manga entry.
+    When bulk=False (single-entry update), also derives related entries.
+    When bulk=True (batch replace), caller handles derive_related after the loop.
+    """
+    apply_extract_mal_id_manga_novel(manga)
+    autofill_manga_from_mal(manga, force_replace_ratings=True)
+    manga_post_processing(manga, db)
+
+    if not bulk:
+        derive_related_manga(db)
+
+
 # ==========================================
 # SYNC
 # ==========================================
