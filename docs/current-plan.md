@@ -50,17 +50,22 @@ Files: `services/other_logics.py`, `services/calculation.py`, `services/data_con
 
 ### 3b — calculation.py additions
 
-- [ ] **3b.1** `validate_vol_math(vol_total, vol_fin)` / `apply_validate_vol_math(manga)` — clamp `vol_fin <= vol_total`. Verify exists; add if missing.
-- [ ] **3b.2** `validate_ch_math(ch_total, ch_fin)` / `apply_validate_ch_math(manga)` — clamp `ch_fin <= ch_total`. Verify exists; add if missing.
-- [ ] **3b.3** `check_is_reading_completed(entry)` — True if `reading_status` is `"完結"` or `"腰斬"`, or `ch_fin == ch_total` (non-null, non-zero), or `vol_fin == vol_total` (non-null, non-zero). Verify exists; add if missing.
-- [ ] **3b.4** `mark_reading_completed(entry)` — sets `reading_status = "Completed"`, `serialization_status = "完結"` (unless already `"腰斬"`), `ch_fin = ch_total` (if available), `vol_fin = vol_total` (if available), `vol_fin_page = 0`.
-- [ ] **3b.5** `has_missing_values_manga(manga)` — returns True if any of `serialization_status`, `release_year`, `end_year`, `mal_rating`, `mal_rank`, `cover_image_file` is missing. Special case: skip `vol_total`/`ch_total` check if `serialization_status != "完結"`.
-- [ ] **3b.6** `manga_post_processing(manga, db)` — runs `apply_validate_vol_math`, `apply_validate_ch_math`; if `check_is_reading_completed()` and `reading_status != "Completed"`: call `mark_reading_completed`.
-- [ ] **3b.7** `run_manga_post_processing(db)` — runs `manga_post_processing` on all manga entries.
-- [ ] **3b.8** `derive_prequel_sequel_manga(db, franchise_id)` — sets `prequel_id`/`sequel_id` for eligible manga entries sorted by `watch_order`. Fill-only (never overwrites). Verify exists; add if missing.
-- [ ] **3b.9** `derive_related_manga(db, franchise_id=None)` — runs `derive_prequel_sequel_manga` per franchise. Verify exists; add if missing.
-- [ ] **3b.10** `run_derive_related_manga(db)` — calls `derive_related_manga` for all ACG franchises. Verify exists; add if missing.
-- [ ] **3b.11** `run_sync_manga(db)` — calls `extract_system_options_from_manga`. Verify exists; add if missing.
+- [x] **3b.1** `validate_vol_math(vol_total, vol_fin)` / `apply_validate_vol_math(manga)` — clamp `vol_fin <= vol_total`. Verify exists; add if missing.
+- [x] **3b.2** `validate_ch_math(ch_total, ch_fin)` / `apply_validate_ch_math(manga)` — clamp `ch_fin <= ch_total`. Verify exists; add if missing.
+- [x] **3b.3** `check_is_reading_completed(entry)` — True if `reading_status` is `"完結"` or `"腰斬"`, or `ch_fin == ch_total` (non-null, non-zero), or `vol_fin == vol_total` (non-null, non-zero). Verify exists; add if missing.
+- [x] **3b.4** `mark_reading_completed(entry)` — sets `reading_status = "Completed"`, `serialization_status = "完結"` (unless already `"腰斬"`), `ch_fin = ch_total` (if available), `vol_fin = vol_total` (if available), `vol_fin_page = 0`.
+- [x] **3b.5** `has_missing_values_manga(manga)` — returns True if any of `serialization_status`, `release_year`, `end_year`, `mal_rating`, `mal_rank`, `cover_image_file` is missing. Special case: skip `vol_total`/`ch_total` check if `serialization_status != "完結"`.
+- [x] **3b.6** `manga_post_processing(manga, db)` — runs `apply_validate_vol_math`, `apply_validate_ch_math`; if `check_is_reading_completed()` and `reading_status != "Completed"`: call `mark_reading_completed`.
+- [x] **3b.7** `run_manga_post_processing(db)` — runs `manga_post_processing` on all manga entries.
+- [x] **3b.8** `derive_prequel_sequel_manga(db, franchise_id)` — sets `prequel_id`/`sequel_id` for eligible manga entries sorted by `watch_order`. Fill-only (never overwrites). Verify exists; add if missing.
+- [x] **3b.9** `derive_related_manga(db, franchise_id=None)` — runs `derive_prequel_sequel_manga` per franchise. Verify exists; add if missing.
+- [x] **3b.10** `run_derive_related_manga(db)` — calls `derive_related_manga` for all ACG franchises. Verify exists; add if missing.
+- [x] **3b.11** `run_sync_manga(db)` — calls `extract_system_options_from_manga`. Verify exists; add if missing.
+- [x] **3b.12** Update `run_sync` — add `run_sync_manga` call.
+- [x] **3b.13** Update `bulk_check_unused_cover_images` / `bulk_check_cover_image` — include `Manga` model.
+- [x] **3b.14** Update `find_all_duplicates` — include `find_duplicate_manga`.
+- [x] **3b.15** Update `run_post_processing` — add `manga_post_processing` call.
+- [x] **3b.16** Update `run_derive_related` — add `erive_related_manga` call.
 
 ### 3c — data_control.py additions/updates
 
@@ -77,11 +82,6 @@ Files: `services/other_logics.py`, `services/calculation.py`, `services/data_con
 - [ ] **3c.7** Update `execute_backup` — include `Manga` model in backup tab order (after Cartoons).
 - [ ] **3c.8** Update `execute_pull_specific` — add `"Manga"` tab handler using `parse_manga_from_sheet`, `resolve_manga_parent_hierarchy`.
 - [ ] **3c.9** Update `execute_pull_all` — add `"Manga"` to pull sequence (after Cartoons).
-- [ ] **3c.10** Update `run_post_processing` — add `run_manga_post_processing` call.
-- [ ] **3c.11** Update `run_derive_related` — add `run_derive_related_manga` call.
-- [ ] **3c.12** Update `run_sync` — add `run_sync_manga` call.
-- [ ] **3c.13** Update `bulk_check_unused_cover_images` / `bulk_check_cover_image` — include `Manga` model.
-- [ ] **3c.14** Update `find_all_duplicates` — include `find_duplicate_manga`.
 
 ### 3d — data_control router
 
