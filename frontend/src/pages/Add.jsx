@@ -201,7 +201,7 @@ const defaultCartoon = () => ({
   series_id: null,
   series_text: "",
   season_part: "",
-  airing_type: "",
+  airing_type: "TV",
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
   is_main: "本傳",
@@ -246,6 +246,11 @@ export default function Add() {
   const [fillQuery, setFillQuery] = useState("");
   const [fillOpen, setFillOpen] = useState(false);
   const fillRef = useRef(null);
+
+  // Cartoon auto-fill search
+  const [cartoonFillQuery, setCartoonFillQuery] = useState("");
+  const [cartoonFillOpen, setCartoonFillOpen] = useState(false);
+  const cartoonFillRef = useRef(null);
 
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
@@ -330,6 +335,15 @@ export default function Add() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    function handleClick(e) {
+      if (cartoonFillRef.current && !cartoonFillRef.current.contains(e.target))
+        setCartoonFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Auto-fill results
   const fillResults = fillQuery
     ? allAnime
@@ -344,6 +358,36 @@ export default function Add() {
         )
         .slice(0, 10)
     : [];
+
+  const cartoonFillResults = cartoonFillQuery
+    ? allCartoons
+        .filter((c) =>
+          [c.cartoon_name_en, c.cartoon_name_cn, c.cartoon_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(cartoonFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  function applyCartoonAutofill(cartoon) {
+    const f = allFranchises.find((x) => x.system_id === cartoon.franchise_id);
+    const s = allSeries.find((x) => x.system_id === cartoon.series_id);
+    setCf((p) => ({
+      ...p,
+      cartoon_name_en: cartoon.cartoon_name_en || "",
+      cartoon_name_cn: cartoon.cartoon_name_cn || "",
+      cartoon_name_alt: cartoon.cartoon_name_alt || "",
+      franchise_id: cartoon.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: cartoon.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      is_main: cartoon.is_main || "",
+      source_official: cartoon.source_official || "",
+    }));
+    setCartoonFillQuery("");
+    setCartoonFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
 
   function applyAutofill(anime) {
     const f = allFranchises.find((x) => x.system_id === anime.franchise_id);
@@ -1111,6 +1155,10 @@ export default function Add() {
   async function submitCartoon() {
     if (!cf.cartoon_name_cn && !cf.cartoon_name_en) {
       showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!cf.franchise_id && !cf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
       return;
     }
 
@@ -3337,6 +3385,69 @@ export default function Add() {
         {/* ═══ CARTOON TAB ═══ */}
         {activeTab === "cartoon" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={cartoonFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={cartoonFillQuery}
+                  onChange={(e) => {
+                    setCartoonFillQuery(e.target.value);
+                    setCartoonFillOpen(true);
+                  }}
+                  onFocus={() => setCartoonFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {cartoonFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCartoonFillQuery("");
+                      setCartoonFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {cartoonFillOpen && cartoonFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {cartoonFillResults.map((c) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === c.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={c.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyCartoonAutofill(c)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {c.airing_type && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {c.airing_type}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {c.cartoon_name_cn || c.cartoon_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
