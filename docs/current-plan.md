@@ -12,17 +12,17 @@ Progress notation: `[ ]` = pending · `[x]` = done · `[-]` = in progress
 
 Files: `models.py`, Alembic migration, `schemas.py`, `routers/manga.py`, `main.py`
 
-- [ ] **1.1** Verify `Manga` model exists in `models.py`; add if missing. Fields per `database-schema.md`: `system_id`, `franchise_id`, `series_id`, all name fields, `region`, `is_main`, `serialization_status`, `reading_status`, `vol_total`, `vol_fin`, `vol_fin_page`, `ch_total`, `ch_fin`, `my_rating`, `mal_rating`, `mal_rank`, `anilist_rating`, `author_plot`, `author_draw`, `release_year`, `end_year`, `anime_studio`, `serialization_platform`, `distributor_tw`, `derive_related`, `prequel_id`, `sequel_id`, `watch_order`, `mal_id`, `mal_link`, `anilist_link`, `source_other`, `read_next`, `to_reread`, `remark`, `notes`, `cover_image_file`, `completed_at`, `created_at`, `updated_at`.
-- [ ] **1.2** Run Alembic autogenerate + `alembic upgrade head` if the `manga` table does not yet exist.
-- [ ] **1.3** Add `MangaCreate`, `MangaUpdate`, `MangaResponse` schemas to `schemas.py` (mirror Cartoon pattern; `MangaResponse` includes `display_name` computed field).
-- [ ] **1.4** Create `routers/manga.py` with endpoints:
+- [x] **1.1** Verify `Manga` model exists in `models.py`; add if missing. Fields per `database-schema.md`: `system_id`, `franchise_id`, `series_id`, all name fields, `region`, `is_main`, `serialization_status`, `reading_status`, `vol_total`, `vol_fin`, `vol_fin_page`, `ch_total`, `ch_fin`, `my_rating`, `mal_rating`, `mal_rank`, `anilist_rating`, `author_plot`, `author_draw`, `release_year`, `end_year`, `anime_studio`, `serialization_platform`, `distributor_tw`, `derive_related`, `prequel_id`, `sequel_id`, `watch_order`, `mal_id`, `mal_link`, `anilist_link`, `source_other`, `read_next`, `to_reread`, `remark`, `notes`, `cover_image_file`, `completed_at`, `created_at`, `updated_at`.
+- [x] **1.2** Run Alembic autogenerate + `alembic upgrade head` if the `manga` table does not yet exist.
+- [x] **1.3** Add `MangaCreate`, `MangaUpdate`, `MangaResponse` schemas to `schemas.py` (mirror Cartoon pattern; `MangaResponse` includes `display_name` computed field).
+- [x] **1.4** Create `routers/manga.py` with endpoints:
   - `GET /api/manga/` — list with optional filters: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`
   - `GET /api/manga/{manga_id}` — single entry
   - `POST /api/manga/` — create, then call `execute_replace_single_manga(... action_type="Auto", log_action=False)`
   - `PUT /api/manga/{manga_id}` — full update + replace pipeline
   - `PATCH /api/manga/{manga_id}` — partial patch (includes `completed_at` auto-set when `reading_status = "Completed"`)
   - `DELETE /api/manga/{manga_id}` — delete cover image + log to `deleted_record` + delete entry
-- [ ] **1.5** Register `manga` router in `main.py`.
+- [x] **1.5** Register `manga` router in `main.py`.
 
 ---
 
@@ -30,9 +30,9 @@ Files: `models.py`, Alembic migration, `schemas.py`, `routers/manga.py`, `main.p
 
 Files: `utils/jikan_utils.py`, `utils/formatter.py`, `services/jikan.py`
 
-- [ ] **2.1** Verify `fetch_jikan_manga_data(mal_id)` exists in `services/jikan.py`; add if missing. Calls `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. Uses same `JikanRateLimiter` and retry logic as `fetch_jikan_anime_data`.
-- [ ] **2.2** Verify `map_jikan_to_manga_data(raw_data)` exists in `utils/jikan_utils.py`; add if missing. Maps: `serialization_status`, `release_year`, `end_year`, `mal_rating`, `mal_rank`, `vol_total`, `ch_total`, `cover_image_url` (per `business-logic.md`).
-- [ ] **2.3** Verify `parse_manga_from_sheet(row_dict)` exists in `utils/formatter.py`; add if missing. Parses all manga sheet columns with correct types (per `parse_cartoon_from_sheet` pattern).
+- [x] **2.1** Verify `fetch_jikan_manga_data(mal_id)` exists in `services/jikan.py`; add if missing. Calls `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. Uses same `JikanRateLimiter` and retry logic as `fetch_jikan_anime_data`.
+- [x] **2.2** Verify `map_jikan_to_manga_data(raw_data)` exists in `utils/jikan_utils.py`; add if missing. Maps: `serialization_status`, `release_year`, `end_year`, `mal_rating`, `mal_rank`, `vol_total`, `ch_total`, `cover_image_url` (per `business-logic.md`).
+- [x] **2.3** Verify `parse_manga_from_sheet(row_dict)` exists in `utils/formatter.py`; add if missing. Parses all manga sheet columns with correct types (per `parse_cartoon_from_sheet` pattern).
 
 ---
 
@@ -42,11 +42,11 @@ Files: `services/other_logics.py`, `services/calculation.py`, `services/data_con
 
 ### 3a — other_logics.py additions
 
-- [ ] **3a.1** `resolve_manga_parent_hierarchy(db, franchise_id, series_id, names)` — resolves/creates franchise (type=`"ACG"`) and resolves series. Mirror `resolve_cartoon_parent_hierarchy`.
-- [ ] **3a.2** `extract_mal_id_manga_novel(url)` / `apply_extract_mal_id_manga_novel(entry)` — extract numeric MAL ID from MAL manga URL. Verify exists; add if missing.
-- [ ] **3a.3** `autofill_manga_from_mal(manga, force_replace_ratings=True)` — enriches one Manga entry via Jikan. Fill-only fields: `serialization_status`, `release_year`, `end_year`; fill `vol_total`/`ch_total` only if `serialization_status == "完結"`; always replace ratings. Fetch cover image if `cover_image_file` is None.
-- [ ] **3a.4** `find_duplicate_manga(db)` — duplicates keyed on `(franchise_id, series_id, is_main)` + at least one matching name. Include in `find_all_duplicates`.
-- [ ] **3a.5** `extract_system_options_from_manga(db)` — scans all Manga entries for values in `author_plot`, `author_draw`, `distributor_tw`, `anime_studio`. Adds any missing values to `system_options` under appropriate categories. Verify exists; add if missing.
+- [x] **3a.1** `resolve_manga_parent_hierarchy(db, franchise_id, series_id, names)` — resolves/creates franchise (type=`"ACG"`) and resolves series. Mirror `resolve_cartoon_parent_hierarchy`.
+- [x] **3a.2** `extract_mal_id_manga_novel(url)` / `apply_extract_mal_id_manga_novel(entry)` — extract numeric MAL ID from MAL manga URL. Verify exists; add if missing.
+- [x] **3a.3** `autofill_manga_from_mal(manga, force_replace_ratings=True)` — enriches one Manga entry via Jikan. Fill-only fields: `serialization_status`, `release_year`, `end_year`; fill `vol_total`/`ch_total` only if `serialization_status == "完結"`; always replace ratings. Fetch cover image if `cover_image_file` is None.
+- [x] **3a.4** `find_duplicate_manga(db)` — duplicates keyed on `(franchise_id, series_id, is_main)` + at least one matching name. Include in `find_all_duplicates`.
+- [x] **3a.5** `extract_system_options_from_manga(db)` — scans all Manga entries for values in `author_plot`, `author_draw`, `distributor_tw`, `anime_studio`. Adds any missing values to `system_options` under appropriate categories. Verify exists; add if missing.
 
 ### 3b — calculation.py additions
 
