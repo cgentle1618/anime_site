@@ -56,10 +56,10 @@ Shell rendered for every route. Contains:
 - **Logo** — navigates to dashboard (`/`)
 - **Page navigation dropdowns:**
   - ACG → Anime, Anime Movie, Manga (dev), Novel (dev), Seiyuu (dev)
-  - Reality → Franchise, Movie (`/library/movie`), TV Show (dev), Cartoon (dev)
+  - Reality _(nav group label only — not a franchise type)_ → Franchise Library, TV Show Library, Movie Library, Cartoon Library _(Cartoon Library is here for navigation convenience; Cartoon franchises are franchise_type="Cartoon", not "TV or Movie")_
   - More → Statistics, Future Release, Seasonal
   - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry
-- **Universal search bar** — debounced, client-side filtering; caches full DB on first query; supports scope selector (All / Seasonal / Franchise / Anime — others show under-development stub). Results grouped by kind and shown as suggestion entries. The full-page Search (`/search`) also includes Movie results.
+- **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
 - **Login / Logout button**
 
@@ -796,6 +796,10 @@ Multi-section statistics dashboard.
 
 - `GET /api/franchise/`
 - `GET /api/anime/`
+- `GET /api/anime-movie/`
+- `GET /api/movies/`
+- `GET /api/tv-shows/`
+- `GET /api/cartoon/`
 - `GET /api/seasonal/`
 - `GET /api/seasonal/current-season`
 
@@ -895,15 +899,17 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 
 **Data loaded (conditional on scope):**
 
-| Scope         | Fetches                                                |
-| ------------- | ------------------------------------------------------ |
-| `all`         | franchise, anime, anime-movie, movie, series, seasonal |
-| `franchise`   | franchise only                                         |
-| `anime`       | franchise + anime                                      |
-| `anime-movie` | anime-movie only                                       |
-| `movie`       | movies only                                            |
-| `series`      | series only                                            |
-| `seasonal`    | seasonal only                                          |
+| Scope         | Fetches                                                                  |
+| ------------- | ------------------------------------------------------------------------ |
+| `all`         | franchise, anime, anime-movie, movie, tv-show, cartoon, series, seasonal |
+| `franchise`   | franchise only                                                           |
+| `anime`       | franchise + anime                                                        |
+| `anime-movie` | anime-movie only                                                         |
+| `movie`       | movies only                                                              |
+| `tv-show`     | tv-shows only                                                            |
+| `cartoon`     | cartoon only                                                             |
+| `series`      | series only                                                              |
+| `seasonal`    | seasonal only                                                            |
 
 **Layout:**
 
@@ -915,8 +921,8 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 - **Anime Entry Section** — split by Airing Type: TV/ONA / Movie / Other; each entry: **Anime Entry Card 2**
 - **Anime Movie Entry Section** — each entry: **Anime Movie Entry Card 1** (`AnimeMovieCard.jsx`)
 - **Movie Entry Section** — each entry: **Movie Entry Card** (`MovieCard.jsx`)
-- **TV Show Entry Section** (TBD)
-- **Cartoon Entry Section** (TBD)
+- **TV Show Entry Section** — each entry: **TV Show Entry Card 2** (`TVCard.jsx`)
+- **Cartoon Entry Section** — each entry: **Cartoon Entry Card 2** (`CartoonCard.jsx`)
 
 ---
 
@@ -970,7 +976,7 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 ### Data History (`/data-history`)
 
-**File:** `frontend/src/pages/DataHistory.jsx` (TBD — currently embedded in Admin page)
+**File:** `frontend/src/pages/DataHistory.jsx`
 
 **Refresh Button**
 
@@ -988,7 +994,7 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 **Recently Added Media Entry Section:**
 
-- Added Time, Entry Type (Anime, Anime Movie, more TBD), Entry Name CN with fallback, Airing Type, Season/Part
+- Added Time, Entry Type (Anime, Series), Entry Name CN with fallback, Airing Type (Anime only), Season/Part (Anime only)
 
 **Deletion History Section** (from `GET /api/system/deleted`):
 
@@ -1002,9 +1008,9 @@ All sourced from `GET /api/anime/`, `GET /api/franchise/`, `GET /api/series/`, `
 
 ---
 
-### Review (`/review`)
+### Review Queue (`/review-queue`)
 
-**File:** `frontend/src/pages/Review.jsx` (TBD)
+**File:** `frontend/src/pages/ReviewQueue.jsx`
 
 Admin review queue for entries requiring attention.
 
@@ -1024,7 +1030,7 @@ Admin review queue for entries requiring attention.
 
 Multi-tab form for creating new records. Shows most recently added entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`
 
 #### Add New Anime Entry Tab (default)
 
@@ -1113,7 +1119,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 
 Search-then-edit pattern. Shows most recently modified entry at top. Supports `?id=:uuid` deep-link.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`
 
 Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit button.
 
@@ -1205,7 +1211,7 @@ Writes: `PATCH /api/manga/:id`
 
 Search-then-delete pattern. Shows most recently deleted entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`
 
 #### Delete Anime Entry Tab (default)
 

@@ -30,16 +30,19 @@ Present on every page. Contains:
 | Dropdown             | Items                                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ACG                  | Anime Library, Anime Movie Library, Manga Library _(future)_, Novel Library _(future)_, Seiyuu Library _(future)_                                      |
-| Reality              | Franchise Library, Movie Library (`/library/movie`), TV Show Library (`/library/tv-show`), Cartoon Library (`/library/cartoon`)                        |
+| Reality ¹            | Franchise Library, TV Show Library (`/library/tv-show`), Movie Library (`/library/movie`)                                                              |
+| Cartoon              | Cartoon Library (`/library/cartoon`)                                                                                                                   |
 | More                 | Statistics, Future Release, Seasonal                                                                                                                   |
 | Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
+
+¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to `FranchiseCartoon.jsx` — they are not Reality Franchise entries. Cartoon Library appears in this nav group for navigation convenience only.
 
 **Other controls:**
 
 - Website logo — navigates to Dashboard
 - Search bar — see [Search Suggestion Entry](#search-suggestion-entry) for result format
-  - Scope selector (implemented): All (default), Franchise, Series, Anime, Seasonal
-  - Scope selector _(future)_: Anime Movie, Manga, Novel, Movie, TV Show, Cartoon, Studio, Seiyuu
+  - Scope selector: All (default), Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal
+  - Scope selector _(future)_: Manga, Novel, Studio, Seiyuu
   - Results grouped by kind when searching All; ordered: Seasonal → Franchise → Anime → Anime Movie → Manga → Novel → Movie → TV Show → Cartoon
   - If an entry exactly matches the input (ignoring case, punctuation, and spaces), it is shown at the top regardless of grouping/ordering
   - At most 10 suggestions shown; at most 3 franchise and 3 series suggestions
@@ -72,19 +75,19 @@ Name CN (fallback) · Airing Type
 
 ### Anime Movie Entry
 
-Name CN (fallback) · Release Date (fallback: release_date_jp → release_date_tw)
+Name CN (fallback)
 
 ### Movie Entry
 
-Name CN (fallback) · Movie Type
+Name CN (fallback)
 
 ### TV Show Entry
 
-Name CN (fallback) · TV Show Region
+Name CN (fallback)
 
 ### Cartoon Entry
 
-Name CN (fallback) · Cartoon Airing Type
+Name CN (fallback)
 
 ### Manga Entry
 
@@ -432,7 +435,7 @@ Toggle switch to group entries by series or show them ungrouped.
 ## Rating Distribution Block
 
 - My Rating Distribution Bar Plot
-  - Categories: S, A+, A, B, C, D, E, F, Unrated
+  - Categories: S, A+, A, B, C, D, E, F (unrated entries not shown)
 - MAL Rating Distribution Bar Plot
   - Categories: 9+, 8.7+, 8.5+, 8.2+, 7.7+, 7+, 4+, <4
 - For each plot, show the amount and percentage per category.
