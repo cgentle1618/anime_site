@@ -56,7 +56,8 @@ Shell rendered for every route. Contains:
 - **Logo** — navigates to dashboard (`/`)
 - **Page navigation dropdowns:**
   - ACG → Anime, Anime Movie, Manga (dev), Novel (dev), Seiyuu (dev)
-  - Reality _(nav group label only — not a franchise type)_ → Franchise Library, TV Show Library, Movie Library, Cartoon Library _(Cartoon Library is here for navigation convenience; Cartoon franchises are franchise_type="Cartoon", not "TV or Movie")_
+  - Reality _(franchise_type="TV or Movie" only)_ → Franchise Library, TV Show Library, Movie Library
+  - Cartoon → Cartoon Library
   - More → Statistics, Future Release, Seasonal
   - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry
 - **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.

@@ -35,7 +35,7 @@ Present on every page. Contains:
 | More                 | Statistics, Future Release, Seasonal                                                                                                                   |
 | Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
 
-¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to `FranchiseCartoon.jsx` — they are not Reality Franchise entries. Cartoon Library appears in this nav group for navigation convenience only.
+¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to `FranchiseCartoon.jsx` — they are not Reality Franchise entries.
 
 **Other controls:**
 
