@@ -226,6 +226,50 @@ const defaultCartoon = () => ({
   remark: "",
 });
 
+const defaultManga = () => ({
+  manga_name_cn: "",
+  manga_name_en: "",
+  manga_name_roman: "",
+  manga_name_jp: "",
+  manga_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  region: "",
+  serialization_status: "",
+  reading_status: "Might Read",
+  is_main: "本傳",
+  vol_total: "",
+  vol_fin: "",
+  vol_fin_page: "",
+  ch_total: "",
+  ch_fin: "",
+  my_rating: "",
+  mal_rating: "",
+  mal_rank: "",
+  anilist_rating: "",
+  author_plot: "",
+  author_draw: "",
+  release_year: "",
+  end_year: "",
+  anime_studio: "",
+  serialization_platform: "",
+  distributor_tw: "",
+  derive_related: "",
+  prequel_id: null,
+  sequel_id: null,
+  watch_order: "",
+  mal_id: "",
+  mal_link: "",
+  anilist_link: "",
+  source_other: [],
+  read_next: false,
+  to_reread: false,
+  cover_image_file: "",
+  remark: "",
+});
+
 export default function Add() {
   const { showToast } = useToast();
 
@@ -237,6 +281,7 @@ export default function Add() {
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
+  const [allMangas, setAllMangas] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -263,6 +308,11 @@ export default function Add() {
   const [tvFillOpen, setTvFillOpen] = useState(false);
   const tvFillRef = useRef(null);
 
+  // Manga auto-fill search
+  const [mangaFillQuery, setMangaFillQuery] = useState("");
+  const [mangaFillOpen, setMangaFillOpen] = useState(false);
+  const mangaFillRef = useRef(null);
+
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
   const [createModal, setCreateModal] = useState(null); // {entityType, text, onConfirm, onCancel}
@@ -276,6 +326,7 @@ export default function Add() {
   const [mf, setMf] = useState(defaultMovie());
   const [tvf, setTvf] = useState(defaultTvShow());
   const [cf, setCf] = useState(defaultCartoon());
+  const [mgf, setMgf] = useState(defaultManga());
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
 
@@ -286,11 +337,12 @@ export default function Add() {
   const umf = (k, v) => setMf((p) => ({ ...p, [k]: v }));
   const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
   const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
+  const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes] =
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes, mgRes] =
           await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
@@ -300,6 +352,7 @@ export default function Add() {
             fetch("/api/movies/", { credentials: "include" }),
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
+            fetch("/api/manga/", { credentials: "include" }),
           ]);
         const [
           anime,
@@ -310,6 +363,7 @@ export default function Add() {
           movies,
           tvShows,
           cartoons,
+          mangas,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -319,6 +373,7 @@ export default function Add() {
           mvRes.json(),
           tvRes.json(),
           cRes.json(),
+          mgRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -328,6 +383,7 @@ export default function Add() {
         setAllMovies(movies);
         setAllTvShows(tvShows);
         setAllCartoons(cartoons);
+        setAllMangas(mangas);
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -373,6 +429,15 @@ export default function Add() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    function handleClick(e) {
+      if (mangaFillRef.current && !mangaFillRef.current.contains(e.target))
+        setMangaFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Auto-fill results
   const fillResults = fillQuery
     ? allAnime
@@ -393,6 +458,22 @@ export default function Add() {
         .filter((c) =>
           [c.cartoon_name_en, c.cartoon_name_cn, c.cartoon_name_alt].some(
             (n) => n && cleanString(n).includes(cleanString(cartoonFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const mangaFillResults = mangaFillQuery
+    ? allMangas
+        .filter((m) =>
+          [
+            m.manga_name_cn,
+            m.manga_name_en,
+            m.manga_name_roman,
+            m.manga_name_jp,
+            m.manga_name_alt,
+          ].some(
+            (n) => n && cleanString(n).includes(cleanString(mangaFillQuery)),
           ),
         )
         .slice(0, 10)
@@ -444,6 +525,28 @@ export default function Add() {
     }));
     setCartoonFillQuery("");
     setCartoonFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyMangaAutofill(manga) {
+    const f = allFranchises.find((x) => x.system_id === manga.franchise_id);
+    const s = allSeries.find((x) => x.system_id === manga.series_id);
+    setMgf((p) => ({
+      ...p,
+      manga_name_cn: manga.manga_name_cn || "",
+      manga_name_en: manga.manga_name_en || "",
+      manga_name_roman: manga.manga_name_roman || "",
+      manga_name_jp: manga.manga_name_jp || "",
+      manga_name_alt: manga.manga_name_alt || "",
+      franchise_id: manga.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: manga.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: manga.region || "",
+      is_main: manga.is_main || "",
+    }));
+    setMangaFillQuery("");
+    setMangaFillOpen(false);
     showToast("success", "Auto-filled fields from existing entry.");
   }
 
@@ -525,6 +628,7 @@ export default function Add() {
       else if (activeTab === "movie") await submitMovie();
       else if (activeTab === "tv-show") await submitTvShow();
       else if (activeTab === "cartoon") await submitCartoon();
+      else if (activeTab === "manga") await submitManga();
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
@@ -1465,6 +1569,18 @@ export default function Add() {
       .join(" "),
   }));
 
+  const seriesItemsForManga = (
+    mgf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === mgf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const optionCategories = [
     ...new Set(allOptions.map((o) => o.category)),
   ].sort();
@@ -1486,6 +1602,7 @@ export default function Add() {
     { key: "movie", icon: "fa-ticket-alt", label: "Add Movie" },
     { key: "tv-show", icon: "fa-video", label: "Add TV Show" },
     { key: "cartoon", icon: "fa-paint-brush", label: "Add Cartoon" },
+    { key: "manga", icon: "fa-book", label: "Add Manga Entry" },
     { key: "franchise", icon: "fa-sitemap", label: "Add Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Add Series" },
     { key: "options", icon: "fa-cog", label: "Add System Option" },
