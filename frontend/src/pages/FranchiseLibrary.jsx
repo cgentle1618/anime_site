@@ -60,38 +60,51 @@ export default function FranchiseLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, cRes] = await Promise.all([
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/anime-movie/", { credentials: "include" }),
-          fetch("/api/movies/", { credentials: "include" }),
-          fetch("/api/tv-shows/", { credentials: "include" }),
-          fetch("/api/cartoon/", { credentials: "include" }),
-        ]);
+        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes] = await Promise.all(
+          [
+            fetch("/api/franchise/", { credentials: "include" }),
+            fetch("/api/anime/", { credentials: "include" }),
+            fetch("/api/anime-movie/", { credentials: "include" }),
+            fetch("/api/movies/", { credentials: "include" }),
+            fetch("/api/tv-shows/", { credentials: "include" }),
+            fetch("/api/cartoon/", { credentials: "include" }),
+            fetch("/api/manga/", { credentials: "include" }),
+          ],
+        );
         if (
           !fRes.ok ||
           !aRes.ok ||
           !amRes.ok ||
           !mRes.ok ||
           !tvRes.ok ||
-          !cRes.ok
+          !cRes.ok ||
+          !mgRes.ok
         )
           throw new Error("Failed to load data");
-        const [franchises, anime, animeMovies, movies, tvShows, cartoons] =
-          await Promise.all([
-            fRes.json(),
-            aRes.json(),
-            amRes.json(),
-            mRes.json(),
-            tvRes.json(),
-            cRes.json(),
-          ]);
+        const [
+          franchises,
+          anime,
+          animeMovies,
+          movies,
+          tvShows,
+          cartoons,
+          mangas,
+        ] = await Promise.all([
+          fRes.json(),
+          aRes.json(),
+          amRes.json(),
+          mRes.json(),
+          tvRes.json(),
+          cRes.json(),
+          mgRes.json(),
+        ]);
         const allEntries = [
           ...anime,
           ...animeMovies,
           ...movies,
           ...tvShows,
           ...cartoons,
+          ...mangas,
         ];
         setAllFranchises(franchises);
         setAllEntriesDict(

@@ -13,6 +13,7 @@ const SCOPES = [
   { key: "movie", label: "Movie" },
   { key: "tv-show", label: "TV Show" },
   { key: "cartoon", label: "Cartoon" },
+  { key: "manga", label: "Manga" },
   { key: "seasonal", label: "Seasonal" },
 ];
 
@@ -24,6 +25,7 @@ const TYPE_BADGE = {
   movie: { label: "MOVIE", cls: "bg-amber-50 text-amber-600" },
   "tv-show": { label: "TV", cls: "bg-indigo-50 text-indigo-600" },
   cartoon: { label: "CARTOON", cls: "bg-orange-50 text-orange-600" },
+  manga: { label: "MANGA", cls: "bg-rose-50 text-rose-600" },
   seasonal: { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
 };
 
@@ -94,6 +96,7 @@ export default function Nav() {
     movies: [],
     tvShows: [],
     cartoons: [],
+    mangas: [],
     seasonal: [],
   });
 
@@ -117,6 +120,7 @@ export default function Nav() {
             amRes,
             mvRes,
             tvRes,
+            mgRes,
           ] = await Promise.all([
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
@@ -126,6 +130,7 @@ export default function Nav() {
             fetch("/api/anime-movie/", { credentials: "include" }),
             fetch("/api/movies/", { credentials: "include" }),
             fetch("/api/tv-shows/", { credentials: "include" }),
+            fetch("/api/manga/", { credentials: "include" }),
           ]);
           dataCacheRef.current.franchises = franRes.ok
             ? await franRes.json()
@@ -143,6 +148,7 @@ export default function Nav() {
           dataCacheRef.current.animeMovies = amRes.ok ? await amRes.json() : [];
           dataCacheRef.current.movies = mvRes.ok ? await mvRes.json() : [];
           dataCacheRef.current.tvShows = tvRes.ok ? await tvRes.json() : [];
+          dataCacheRef.current.mangas = mgRes.ok ? await mgRes.json() : [];
           dataCacheRef.current.loaded = true;
         }
         const qClean = cleanString(searchQuery);
@@ -245,6 +251,22 @@ export default function Nav() {
             .forEach((c) => results.push({ type: "cartoon", ...c }));
         }
 
+        if (scope === "all" || scope === "manga") {
+          const limit = scope === "all" ? 5 : 10;
+          dataCacheRef.current.mangas
+            .filter((m) =>
+              [
+                m.manga_name_cn,
+                m.manga_name_en,
+                m.manga_name_roman,
+                m.manga_name_jp,
+                m.manga_name_alt,
+              ].some((n) => cleanString(n).includes(qClean)),
+            )
+            .slice(0, limit)
+            .forEach((m) => results.push({ type: "manga", ...m }));
+        }
+
         if (scope === "all" || scope === "seasonal") {
           const limit = scope === "all" ? 10 : 10;
           dataCacheRef.current.seasonal
@@ -273,6 +295,12 @@ export default function Nav() {
                 item.cartoon_name_cn,
                 item.cartoon_name_en,
                 item.cartoon_name_alt,
+              ];
+            if (item.type === "manga")
+              return [
+                item.manga_name_cn,
+                item.manga_name_en,
+                item.manga_name_roman,
               ];
             if (item.type === "anime-movie")
               return [
@@ -358,6 +386,14 @@ export default function Nav() {
         item.cartoon_name_alt ||
         "—"
       );
+    if (item.type === "manga")
+      return (
+        item.manga_name_cn ||
+        item.manga_name_en ||
+        item.manga_name_roman ||
+        item.manga_name_jp ||
+        "—"
+      );
     if (item.type === "anime-movie")
       return (
         item.anime_movie_name_cn ||
@@ -389,6 +425,7 @@ export default function Nav() {
     else if (item.type === "series")
       navigate(`/franchise/${item.franchise_id}`);
     else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
+    else if (item.type === "manga") navigate(`/manga/${item.system_id}`);
     else if (item.type === "anime-movie")
       navigate(`/anime-movie/${item.system_id}`);
     else if (item.type === "movie") navigate(`/movie/${item.system_id}`);
@@ -450,7 +487,7 @@ export default function Nav() {
                     <NavLink to="/library/anime-movie" icon="fas fa-film">
                       Anime Movie
                     </NavLink>
-                    <DevLink icon="fas fa-book">Manga</DevLink>
+                    <NavLink to="/library/manga" icon="fas fa-book">Manga Library</NavLink>
                     <DevLink icon="fas fa-book-open">Novel</DevLink>
                     <DevLink icon="fas fa-microphone">Seiyuu</DevLink>
                   </>
@@ -736,11 +773,11 @@ export default function Nav() {
                   Anime Movie Library
                 </Link>
                 <Link
-                  to="/under-development"
+                  to="/library/manga"
                   onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-gray-400 hover:text-gray-600"
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
-                  Manga (Dev)
+                  Manga Library
                 </Link>
                 <Link
                   to="/under-development"

@@ -6,6 +6,7 @@ import AnimeMovieCard from "../components/AnimeMovieCard";
 import MovieCard from "../components/MovieCard";
 import TVCard from "../components/TVCard";
 import CartoonCard from "../components/CartoonCard";
+import MangaCard from "../components/MangaCard";
 import { cleanString } from "../utils/anime";
 
 function getFranchiseTitles(f) {
@@ -43,12 +44,14 @@ export default function Search() {
   const [matchedMovies, setMatchedMovies] = useState([]);
   const [matchedTvShows, setMatchedTvShows] = useState([]);
   const [matchedCartoons, setMatchedCartoons] = useState([]);
+  const [matchedMangas, setMatchedMangas] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
+  const [allMangas, setAllMangas] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export default function Search() {
         const needsMovie = scope === "all" || scope === "movie";
         const needsTvShow = scope === "all" || scope === "tv-show";
         const needsCartoon = scope === "all" || scope === "cartoon";
+        const needsManga = scope === "all" || scope === "manga";
         const needsSeries = scope === "all" || scope === "series";
         const needsSeasonal = scope === "all" || scope === "seasonal";
 
@@ -93,8 +97,10 @@ export default function Search() {
           needsCartoon
             ? fetch("/api/cartoon/", { credentials: "include" })
             : null,
+          needsManga ? fetch("/api/manga/", { credentials: "include" }) : null,
         ]);
-        const [fRes, aRes, sRes, seaRes, amRes, mvRes, tvRes, cRes] = fetches;
+        const [fRes, aRes, sRes, seaRes, amRes, mvRes, tvRes, cRes, mgRes] =
+          fetches;
         if (
           (fRes && !fRes.ok) ||
           (aRes && !aRes.ok) ||
@@ -103,7 +109,8 @@ export default function Search() {
           (amRes && !amRes.ok) ||
           (mvRes && !mvRes.ok) ||
           (tvRes && !tvRes.ok) ||
-          (cRes && !cRes.ok)
+          (cRes && !cRes.ok) ||
+          (mgRes && !mgRes.ok)
         )
           throw new Error("Failed to fetch database");
 
@@ -115,11 +122,13 @@ export default function Search() {
         const movieResults = mvRes ? await mvRes.json() : [];
         const tvShowResults = tvRes ? await tvRes.json() : [];
         const cartoonResults = cRes ? await cRes.json() : [];
+        const mangaResults = mgRes ? await mgRes.json() : [];
         setAllAnime(all);
         setAllAnimeMovies(animeMovieResults);
         setAllMovies(movieResults);
         setAllTvShows(tvShowResults);
         setAllCartoons(cartoonResults);
+        setAllMangas(mangaResults);
 
         const qClean = cleanString(query);
 
@@ -243,6 +252,21 @@ export default function Search() {
             (a.cartoon_name_cn || "").localeCompare(b.cartoon_name_cn || ""),
           );
 
+        // Manga
+        const mm = mangaResults
+          .filter((m) =>
+            [
+              m.manga_name_cn,
+              m.manga_name_en,
+              m.manga_name_roman,
+              m.manga_name_jp,
+              m.manga_name_alt,
+            ].some((n) => cleanString(n).includes(qClean)),
+          )
+          .sort((a, b) =>
+            (a.manga_name_cn || "").localeCompare(b.manga_name_cn || ""),
+          );
+
         setMatchedSeasonal(msea);
         setMatchedFranchises(mf);
         setFilterPillFranchises(pillFranchises);
@@ -252,6 +276,7 @@ export default function Search() {
         setMatchedMovies(mmv);
         setMatchedTvShows(mtv);
         setMatchedCartoons(mc);
+        setMatchedMangas(mm);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -306,6 +331,15 @@ export default function Search() {
     );
   }, []);
 
+  const handleMangaUpdated = useCallback((updated) => {
+    setMatchedMangas((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    setAllMangas((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
   const showSeasonal = scope === "all" || scope === "seasonal";
   const showFranchise = scope === "all" || scope === "franchise";
   const showSeries = scope === "all" || scope === "series";
@@ -314,6 +348,7 @@ export default function Search() {
   const showMovie = scope === "all" || scope === "movie";
   const showTvShow = scope === "all" || scope === "tv-show";
   const showCartoon = scope === "all" || scope === "cartoon";
+  const showManga = scope === "all" || scope === "manga";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -353,6 +388,7 @@ export default function Search() {
     movie: "Movie",
     "tv-show": "TV Show",
     cartoon: "Cartoon",
+    manga: "Manga",
     seasonal: "Seasonal",
   };
 
@@ -452,6 +488,12 @@ export default function Search() {
             <>
               <span className="font-bold">{matchedCartoons.length}</span>{" "}
               cartoons
+              {showManga && matchedMangas.length > 0 && " · "}
+            </>
+          )}
+          {showManga && matchedMangas.length > 0 && (
+            <>
+              <span className="font-bold">{matchedMangas.length}</span> manga
             </>
           )}
         </p>
@@ -765,10 +807,38 @@ export default function Search() {
         </div>
       )}
 
+      {/* Manga */}
+      {showManga && matchedMangas.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-book text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Manga
+              </h2>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {matchedMangas.length} results
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {matchedMangas.map((m) => (
+              <MangaCard
+                key={m.system_id}
+                manga={m}
+                isAdmin={isAdmin}
+                onUpdated={handleMangaUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Under Development (all scope only) */}
       {scope === "all" &&
         [
-          { label: "Manga", icon: "fa-book", desc: "Manga · Manhwa · Manhua" },
           {
             label: "Novel",
             icon: "fa-book-open",
