@@ -162,49 +162,49 @@ Files: `pages/Add.jsx`, `pages/Modify.jsx`, `pages/Delete.jsx`
 
 Files: `App.jsx`, `Nav.jsx`, `Index.jsx`, `DashboardCard.jsx`, `SourcesCard.jsx`, `Admin.jsx`, `Search.jsx`, `FranchiseAcg.jsx`, `Statistics.jsx`, `FranchiseLibrary.jsx`
 
-- [ ] **6.1** `App.jsx` — add routes:
+- [x] **6.1** `App.jsx` — add routes:
   - `/manga/:system_id` → `Manga`
   - `/library/manga` → `LibraryManga`
 
-- [ ] **6.2** `Nav.jsx` — add "Manga Library" link to ACG dropdown (points to `/library/manga`; no longer a `(dev)` placeholder once implemented).
+- [x] **6.2** `Nav.jsx` — add "Manga Library" link to ACG dropdown (points to `/library/manga`; no longer a `(dev)` placeholder once implemented).
 
-- [ ] **6.3** `Index.jsx` — activate Reading division for Manga:
+- [x] **6.3** `Index.jsx` — activate Reading division for Manga:
   - Fetch `GET /api/manga/`
   - Filter to `reading_status` in (Active Reading, Passive Reading, Paused)
   - Render using **Manga Entry Card 1** (DashboardCard pattern, or placeholder if Card 1 is still TBD); grouped by Active/Passive/Paused
 
-- [ ] **6.4** `DashboardCard.jsx` — add manga `_ui_type` handling (render manga progress fields: Ch Fin/Total, Vol Fin+Pages/Vol Total, Reading Status).
+- [x] **6.4** `DashboardCard.jsx` — add manga `_ui_type` handling (render manga progress fields: Ch Fin/Total, Vol Fin+Pages/Vol Total, Reading Status).
 
-- [ ] **6.5** `SourcesCard.jsx` — add manga variant:
+- [x] **6.5** `SourcesCard.jsx` — add manga variant:
   - Serialization Platform (text label)
   - Official Twitter Link button
   - MAL Link button
   - AniList Link button
   - Other Source buttons
 
-- [ ] **6.6** `Admin.jsx` — add manga to data control panels:
+- [x] **6.6** `Admin.jsx` — add manga to data control panels:
   - Fill section: "Fill Manga" button → SSE `/api/data-control/fill/manga`
   - Replace section: "Replace Manga" button → SSE `/api/data-control/replace/manga`
   - Pull section: "Pull Manga" option
 
-- [ ] **6.7** `Search.jsx` — add manga:
+- [x] **6.7** `Search.jsx` — add manga:
   - Add `manga` scope to data loading map (fetches `GET /api/manga/`, `GET /api/franchise/`, `GET /api/series/`)
   - Add Manga Entry Section to results layout; each entry uses **MangaCard**
   - Add `manga` to universal search scope selector
 
-- [ ] **6.8** `FranchiseAcg.jsx` — add Manga Entry Section:
+- [x] **6.8** `FranchiseAcg.jsx` — add Manga Entry Section:
   - Data: `GET /api/manga/?franchise_id=:id`
   - Sort By: Title (default) / My Rating / MAL Rating / Release Date / Ending Date
   - Filter: Serialization Status / Reading Status / Region
   - Group by Series toggle
   - Each entry: **MangaCard**
 
-- [ ] **6.9** `Statistics.jsx` — add manga:
+- [x] **6.9** `Statistics.jsx` — add manga:
   - **Watch Next tab**: add Manga tab (group by Serialization Status: 完結 / 連載中 / 腰斬 / 停更 / null; show poster + Manga Name CN fallback)
   - **To Rewatch tab**: add Manga tab (sorted by Manga Name EN; show poster + Manga Name CN fallback + My Rating)
   - **Recent Completions tab**: add Manga tab (TBD per pages.md — mark as TBD placeholder for now)
 
-- [ ] **6.10** `FranchiseLibrary.jsx` — update cover image derivation to also consider manga entries (alongside anime, anime_movie, movies, tv_shows, cartoon). Load `GET /api/manga/`.
+- [x] **6.10** `FranchiseLibrary.jsx` — update cover image derivation to also consider manga entries (alongside anime, anime_movie, movies, tv_shows, cartoon). Load `GET /api/manga/`.
 
 ---
 

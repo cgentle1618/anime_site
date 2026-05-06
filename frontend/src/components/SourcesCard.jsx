@@ -9,11 +9,13 @@ export default function SourcesCard({
   twitterLink,
   imdbLink,
   officialSource,
+  serializationPlatform,
 }) {
   const hasAny =
     showBaha ||
     sourceNetflix ||
     officialSource ||
+    serializationPlatform ||
     imdbLink ||
     (sourceOther && Object.keys(sourceOther).length > 0) ||
     malLink ||
@@ -64,6 +66,12 @@ export default function SourcesCard({
           <div className="flex items-center w-full bg-gray-50 text-gray-700 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
             <i className="fas fa-tv mr-2 text-gray-400"></i>
             {officialSource}
+          </div>
+        )}
+        {serializationPlatform && (
+          <div className="flex items-center w-full bg-gray-50 text-gray-700 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
+            <i className="fas fa-book mr-2 text-gray-400"></i>
+            {serializationPlatform}
           </div>
         )}
         {imdbLink && (

@@ -102,12 +102,59 @@ function Section({
   );
 }
 
+function ReadingSection({
+  title,
+  icon,
+  count,
+  items,
+  franchiseData,
+  isAdmin,
+  onChChange,
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+          <i className={`fas ${icon} text-brand/70`}></i>
+          {title}
+        </h2>
+        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+          {count}
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
+          <p className="text-gray-400 font-medium italic">
+            <i className="fas fa-ghost mr-2"></i>Nothing in this category right
+            now.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {items.map((manga) => (
+            <DashboardCard
+              key={manga.system_id}
+              anime={manga}
+              franchise={franchiseData.find(
+                (f) => f.system_id === manga.franchise_id,
+              )}
+              isAdmin={isAdmin}
+              onEpChange={onChChange}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Index() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const [animeData, setAnimeData] = useState([]);
   const [tvData, setTvData] = useState([]);
   const [cartoonData, setCartoonData] = useState([]);
+  const [mangaData, setMangaData] = useState([]);
   const [franchiseData, setFranchiseData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -115,18 +162,20 @@ export default function Index() {
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, tvRes, cRes] = await Promise.all([
+        const [aRes, fRes, tvRes, cRes, mgRes] = await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
           fetch("/api/tv-shows/", { credentials: "include" }),
           fetch("/api/cartoon/", { credentials: "include" }),
+          fetch("/api/manga/", { credentials: "include" }),
         ]);
-        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok)
+        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok || !mgRes.ok)
           throw new Error("Failed to load tracking data");
         setAnimeData(await aRes.json());
         setFranchiseData(await fRes.json());
         setTvData(await tvRes.json());
         setCartoonData(await cRes.json());
+        setMangaData(await mgRes.json());
       } catch (e) {
         setError(e.message);
       } finally {
@@ -240,9 +289,33 @@ export default function Index() {
     );
   }
 
+  async function handleChChange(sysId, newVal, prevVal) {
+    setMangaData((prev) =>
+      prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
+    );
+    try {
+      const res = await fetch(`/api/manga/${sysId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ch_fin: newVal }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to sync");
+      showToast("success", "Chapters updated!");
+    } catch {
+      setMangaData((prev) =>
+        prev.map((m) =>
+          m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
+        ),
+      );
+      showToast("error", "Network error. Progress reverted.");
+    }
+  }
+
   const animeTagged = animeData.map((a) => ({ ...a, _ui_type: "Anime" }));
   const tvTagged = tvData.map((t) => ({ ...t, _ui_type: "TV Show" }));
   const cartoonTagged = cartoonData.map((c) => ({ ...c, _ui_type: "Cartoon" }));
+  const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
 
   const sorted = [...animeTagged, ...tvTagged, ...cartoonTagged].sort(
     (a, b) => {
@@ -260,6 +333,24 @@ export default function Index() {
     (a) => a.watching_status === "Passive Watching",
   );
   const paused = sorted.filter((a) => a.watching_status === "Paused");
+
+  const mangaSorted = mangaTagged.sort((a, b) => {
+    const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
+    const fB = franchiseData.find((f) => f.system_id === b.franchise_id);
+    const tA = fA ? fA.franchise_name_cn || fA.franchise_name_en || "" : "";
+    const tB = fB ? fB.franchise_name_cn || fB.franchise_name_en || "" : "";
+    if (tA !== tB) return tA.localeCompare(tB);
+    return (a.watch_order ?? 999) - (b.watch_order ?? 999);
+  });
+  const activeReading = mangaSorted.filter(
+    (m) => m.reading_status === "Active Reading",
+  );
+  const passiveReading = mangaSorted.filter(
+    (m) => m.reading_status === "Passive Reading",
+  );
+  const pausedReading = mangaSorted.filter(
+    (m) => m.reading_status === "Paused",
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16">
@@ -312,27 +403,55 @@ export default function Index() {
         </div>
       </div>
 
-      {/* Reading Division (Under Development) */}
+      {/* Reading Division */}
       <div>
-        <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-book-open text-gray-400 text-lg"></i>
+        <div className="flex items-center gap-3 mb-10 pb-3 border-b-2 border-gray-200">
+          <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+            <i className="fas fa-book-open text-brand text-lg"></i>
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-400 tracking-tight leading-none">
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
               Reading
             </h1>
             <p className="text-xs text-gray-400 font-medium mt-0.5">
               Manga · Novel · Comics
             </p>
           </div>
+          <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+            {activeReading.length +
+              passiveReading.length +
+              pausedReading.length}{" "}
+            Active
+          </span>
         </div>
-        <div className="flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-tools text-3xl text-gray-300 mb-3"></i>
-          <p className="text-sm font-bold text-gray-500">Under Development</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Reading tracking is currently being engineered.
-          </p>
+        <div className="space-y-12">
+          <ReadingSection
+            title="Active Reading"
+            icon="fa-book-reader"
+            count={activeReading.length}
+            items={activeReading}
+            franchiseData={franchiseData}
+            isAdmin={isAdmin}
+            onChChange={handleChChange}
+          />
+          <ReadingSection
+            title="Passive Reading"
+            icon="fa-glasses"
+            count={passiveReading.length}
+            items={passiveReading}
+            franchiseData={franchiseData}
+            isAdmin={isAdmin}
+            onChChange={handleChChange}
+          />
+          <ReadingSection
+            title="Paused"
+            icon="fa-pause-circle"
+            count={pausedReading.length}
+            items={pausedReading}
+            franchiseData={franchiseData}
+            isAdmin={isAdmin}
+            onChChange={handleChChange}
+          />
         </div>
       </div>
     </div>

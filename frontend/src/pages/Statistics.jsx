@@ -94,6 +94,7 @@ export default function Statistics() {
   const [allMovies, setAllMovies] = useState([]);
   const [allTVShows, setAllTVShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
+  const [allManga, setAllManga] = useState([]);
   const [cartoonCompletionPages, setCartoonCompletionPages] = useState({});
   const [seasonals, setSeasonals] = useState([]);
   const [currentSeason, setCurrentSeason] = useState(null);
@@ -104,7 +105,7 @@ export default function Statistics() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes, cRes] =
+        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes, cRes, mgRes] =
           await Promise.all([
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
@@ -114,6 +115,7 @@ export default function Statistics() {
             fetch("/api/seasonal/", { credentials: "include" }),
             fetch("/api/seasonal/current-season", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
+            fetch("/api/manga/", { credentials: "include" }),
           ]);
         if (
           !fRes.ok ||
@@ -123,20 +125,31 @@ export default function Statistics() {
           !tvRes.ok ||
           !sRes.ok ||
           !csRes.ok ||
-          !cRes.ok
+          !cRes.ok ||
+          !mgRes.ok
         )
           throw new Error("Failed to load data.");
-        const [fData, aData, amData, mData, tvData, sData, csData, cData] =
-          await Promise.all([
-            fRes.json(),
-            aRes.json(),
-            amRes.json(),
-            mRes.json(),
-            tvRes.json(),
-            sRes.json(),
-            csRes.json(),
-            cRes.json(),
-          ]);
+        const [
+          fData,
+          aData,
+          amData,
+          mData,
+          tvData,
+          sData,
+          csData,
+          cData,
+          mgData,
+        ] = await Promise.all([
+          fRes.json(),
+          aRes.json(),
+          amRes.json(),
+          mRes.json(),
+          tvRes.json(),
+          sRes.json(),
+          csRes.json(),
+          cRes.json(),
+          mgRes.json(),
+        ]);
         setCurrentSeason(csData.current_season);
         setFranchises(fData);
         setAllAnime(aData);
@@ -144,12 +157,19 @@ export default function Statistics() {
         setAllMovies(mData);
         setAllTVShows(tvData);
         setAllCartoons(cData);
+        setAllManga(mgData);
         const fMap = {};
         fData.forEach((f) => {
           fMap[String(f.system_id)] = f;
         });
         setFranchiseMap(fMap);
-        const allEntries = [...aData, ...amData, ...mData, ...tvData];
+        const allEntries = [
+          ...aData,
+          ...amData,
+          ...mData,
+          ...tvData,
+          ...mgData,
+        ];
         const byFranchise = {};
         allEntries.forEach((e) => {
           const id = String(e.franchise_id);
@@ -654,7 +674,7 @@ export default function Statistics() {
             icon: "fa-laugh-squint",
             dev: false,
           },
-          { key: "manga", label: "Manga", icon: "fa-book", dev: true },
+          { key: "manga", label: "Manga", icon: "fa-book", dev: false },
           { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
         ];
 
@@ -1189,10 +1209,106 @@ export default function Statistics() {
                 );
               })()}
 
+            {/* Manga tab */}
+            {watchNextTab === "manga" &&
+              (() => {
+                const SERIALIZATION_GROUPS = [
+                  { key: "完結", label: "完結" },
+                  { key: "連載中", label: "連載中" },
+                  { key: "腰斬", label: "腰斬" },
+                  { key: "停更", label: "停更" },
+                  { key: "", label: "其他" },
+                ];
+                const readNextManga = allManga.filter((m) => m.read_next);
+                const mangaGrouped = {
+                  完結: [],
+                  連載中: [],
+                  腰斬: [],
+                  停更: [],
+                  "": [],
+                };
+                readNextManga.forEach((m) => {
+                  const key = m.serialization_status || "";
+                  if (mangaGrouped[key] !== undefined)
+                    mangaGrouped[key].push(m);
+                  else mangaGrouped[""].push(m);
+                });
+                if (readNextManga.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-book text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No manga in read list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Read Next" on a manga entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-8">
+                    {SERIALIZATION_GROUPS.map(({ key, label }) => {
+                      const items = mangaGrouped[key];
+                      if (!items || items.length === 0) return null;
+                      return (
+                        <div key={key || "other"}>
+                          <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                              {label}
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                              {items.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {items.map((m) => {
+                              const name =
+                                m.manga_name_cn ||
+                                m.manga_name_en ||
+                                m.manga_name_roman ||
+                                "—";
+                              return (
+                                <Link
+                                  key={m.system_id}
+                                  to={`/manga/${m.system_id}`}
+                                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                  <div className="aspect-[3/4] bg-gray-100">
+                                    <img
+                                      src={getCoverUrl(m.cover_image_file)}
+                                      alt={name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = FALLBACK_SVG;
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                                    <p className="text-white text-xs font-bold leading-tight truncate">
+                                      {name}
+                                    </p>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
-              watchNextTab,
-            ) && (
+            {![
+              "anime",
+              "anime-movie",
+              "movie",
+              "tv-show",
+              "cartoon",
+              "manga",
+            ].includes(watchNextTab) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                 <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
                   <i className="fas fa-list-ol text-brand text-xl"></i>
@@ -1230,7 +1346,7 @@ export default function Statistics() {
             icon: "fa-laugh-squint",
             dev: false,
           },
-          { key: "manga", label: "Manga", icon: "fa-book", dev: true },
+          { key: "manga", label: "Manga", icon: "fa-book", dev: false },
           { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
         ];
 
@@ -1577,10 +1693,79 @@ export default function Statistics() {
                 );
               })()}
 
+            {/* Manga tab */}
+            {rewatchTab === "manga" &&
+              (() => {
+                const rereadManga = allManga
+                  .filter((m) => m.to_reread)
+                  .sort((a, b) =>
+                    (a.manga_name_en || "").localeCompare(
+                      b.manga_name_en || "",
+                    ),
+                  );
+                if (rereadManga.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No manga marked for re-read.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Re-read" on a manga entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rereadManga.map((m) => {
+                      const name =
+                        m.manga_name_cn ||
+                        m.manga_name_en ||
+                        m.manga_name_roman ||
+                        "—";
+                      return (
+                        <Link
+                          key={m.system_id}
+                          to={`/manga/${m.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(m.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {m.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {m.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
-            {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
-              rewatchTab,
-            ) && (
+            {![
+              "anime",
+              "anime-movie",
+              "movie",
+              "tv-show",
+              "cartoon",
+              "manga",
+            ].includes(rewatchTab) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                 <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
                   <i className="fas fa-redo text-brand text-xl"></i>
@@ -1633,7 +1818,7 @@ export default function Statistics() {
                 icon: "fa-laugh-squint",
                 dev: false,
               },
-              { key: "manga", label: "Manga", icon: "fa-book", dev: true },
+              { key: "manga", label: "Manga", icon: "fa-book", dev: false },
               { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
             ].map((tab) => (
               <button
@@ -2460,10 +2645,28 @@ export default function Statistics() {
             );
           })()}
 
+        {/* Manga completions tab — TBD */}
+        {completionsTab === "manga" && (
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+            <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
+              <i className="fas fa-book text-brand text-xl"></i>
+            </div>
+            <p className="text-gray-700 font-bold">Manga Completions</p>
+            <p className="text-gray-400 text-sm font-medium mt-1">
+              Coming soon.
+            </p>
+          </div>
+        )}
+
         {/* Under-development tabs */}
-        {!["anime", "anime-movie", "movie", "tv-show", "cartoon"].includes(
-          completionsTab,
-        ) && (
+        {![
+          "anime",
+          "anime-movie",
+          "movie",
+          "tv-show",
+          "cartoon",
+          "manga",
+        ].includes(completionsTab) && (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
             <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
               <i className="fas fa-history text-brand text-xl"></i>
