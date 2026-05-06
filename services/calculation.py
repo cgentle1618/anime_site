@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime, AnimeMovies, Cartoon, Movies, TVShows
+from models import Anime, AnimeMovies, Cartoon, Manga, Movies, TVShows
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
@@ -21,14 +21,17 @@ from services.other_logics import (
     extract_system_options_from_anime_movie,
     extract_system_options_from_cartoon,
     extract_system_options_from_tv_show,
+    extract_system_options_from_manga,
     autofill_anime_from_mal,
     anime_post_processing,
     anime_movie_post_processing,
     cartoon_post_processing,
     tv_show_post_processing,
+    manga_post_processing,
     derive_related_anime,
     derive_related_cartoon,
     derive_related_tv_show,
+    derive_related_manga,
 )
 
 # ==========================================
@@ -69,12 +72,19 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
             .filter(TVShows.cover_image_file.isnot(None))
             .all()
         }
+        | {
+            row[0]
+            for row in db.query(Manga.cover_image_file)
+            .filter(Manga.cover_image_file.isnot(None))
+            .all()
+        }
     )
     entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
     entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Cartoon).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
     entry_map.update({str(e.system_id): e for e in db.query(TVShows).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Manga).all()})
 
     should_use = []
     orphaned = []
@@ -162,10 +172,25 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        mangas = db.query(Manga).filter(Manga.cover_image_file.isnot(None)).all()
+        for mg in mangas:
+            if not cover_image_exists(str(mg.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(mg.system_id),
+                        "name": mg.display_name or str(mg.system_id),
+                        "entry_type": "manga",
+                    }
+                )
+
     total_checked = len(animes) + (
         0
         if entry_type
-        else len(anime_movies) + len(cartoons) + len(movies) + len(tv_shows)
+        else len(anime_movies)
+        + len(cartoons)
+        + len(movies)
+        + len(tv_shows)
+        + len(mangas)
     )
     return {
         "status": "success",
@@ -257,6 +282,11 @@ def run_post_processing(db: Session) -> dict:
         cartoon_post_processing(cartoon, db)
     db.commit()
 
+    manga = db.query(Manga).all()
+    for manga_entry in manga:
+        manga_post_processing(manga_entry, db)
+    db.commit()
+
     return {
         "status": "success",
         "message": f"Post-processed {len(animes)} anime, {len(movies)} anime movies, {len(shows)} TV show entries, and {len(cartoons)} cartoon entries.",
@@ -267,6 +297,7 @@ def run_derive_related(db: Session) -> dict:
     derive_related_anime(db)
     derive_related_tv_show(db)
     derive_related_cartoon(db)
+    derive_related_manga(db)
     return {
         "status": "success",
         "message": "Derived watch order, ep_previous, and prequel/sequel for all franchises.",
@@ -278,6 +309,7 @@ def run_sync(db: Session) -> dict:
     run_sync_anime_movie(db)
     run_sync_tv_show(db)
     run_sync_cartoon(db)
+    run_sync_manga(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
@@ -315,6 +347,14 @@ def run_sync_tv_show(db: Session) -> dict:
     return {
         "status": "success",
         "message": "System options extracted from TV shows.",
+    }
+
+
+def run_sync_manga(db: Session) -> dict:
+    extract_system_options_from_manga(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from manga.",
     }
 
 
