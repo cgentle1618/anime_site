@@ -1509,6 +1509,172 @@ export default function Add() {
     setAllCartoons((prev) => [...prev, created]);
   }
 
+  async function submitManga() {
+    if (!mgf.manga_name_cn && !mgf.manga_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!mgf.franchise_id && !mgf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    let franchiseId = mgf.franchise_id;
+    if (!franchiseId && mgf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: mgf.manga_name_en || null,
+          franchise_name_cn: mgf.manga_name_cn || null,
+          franchise_name_roman: mgf.manga_name_roman || null,
+          franchise_name_jp: mgf.manga_name_jp || null,
+          franchise_name_alt: mgf.manga_name_alt || null,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = mgf.series_id;
+    if (!seriesId && mgf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: mgf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: mgf.manga_name_en || null,
+          series_name_cn: mgf.manga_name_cn || null,
+          series_name_alt: mgf.manga_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    const payload = {
+      manga_name_cn: mgf.manga_name_cn || null,
+      manga_name_en: mgf.manga_name_en || null,
+      manga_name_roman: mgf.manga_name_roman || null,
+      manga_name_jp: mgf.manga_name_jp || null,
+      manga_name_alt: mgf.manga_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: mgf.region || null,
+      serialization_status: mgf.serialization_status || null,
+      reading_status: mgf.reading_status || "Might Read",
+      is_main: mgf.is_main || null,
+      vol_total: mgf.vol_total !== "" ? parseInt(mgf.vol_total) : null,
+      vol_fin: mgf.vol_fin !== "" ? parseInt(mgf.vol_fin) : null,
+      vol_fin_page: mgf.vol_fin_page !== "" ? parseInt(mgf.vol_fin_page) : null,
+      ch_total: mgf.ch_total !== "" ? parseInt(mgf.ch_total) : null,
+      ch_fin: mgf.ch_fin !== "" ? parseInt(mgf.ch_fin) : null,
+      my_rating: mgf.my_rating || null,
+      mal_rating: mgf.mal_rating !== "" ? parseFloat(mgf.mal_rating) : null,
+      mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
+      anilist_rating:
+        mgf.anilist_rating !== "" ? parseFloat(mgf.anilist_rating) : null,
+      author_plot: mgf.author_plot || null,
+      author_draw: mgf.author_draw || null,
+      release_year:
+        mgf.release_year !== "" ? parseInt(mgf.release_year) : null,
+      end_year: mgf.end_year !== "" ? parseInt(mgf.end_year) : null,
+      anime_studio: mgf.anime_studio || null,
+      serialization_platform: mgf.serialization_platform || null,
+      distributor_tw: mgf.distributor_tw || null,
+      derive_related:
+        mgf.derive_related === "true"
+          ? true
+          : mgf.derive_related === "false"
+            ? false
+            : null,
+      prequel_id: mgf.prequel_id || null,
+      sequel_id: mgf.sequel_id || null,
+      watch_order:
+        mgf.watch_order !== "" ? parseFloat(mgf.watch_order) : null,
+      mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
+      mal_link: mgf.mal_link || null,
+      anilist_link: mgf.anilist_link || null,
+      source_other:
+        mgf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              mgf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: mgf.read_next ?? false,
+      to_reread: mgf.to_reread ?? false,
+      cover_image_file: mgf.cover_image_file || null,
+      remark: mgf.remark || null,
+    };
+
+    const res = await fetch("/api/manga/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    window.scrollTo(0, 0);
+    showToast("success", "Manga appended successfully.");
+    setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
+    setMgf(defaultManga());
+    setAllMangas((prev) => [...prev, created]);
+  }
+
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
     label: getDisplayName(f, "franchise"),
