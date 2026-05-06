@@ -133,7 +133,7 @@ Files: `components/MangaCard.jsx`, `pages/Manga.jsx`, `pages/MangaNotes.jsx`, `p
 
 Files: `pages/Add.jsx`, `pages/Modify.jsx`, `pages/Delete.jsx`
 
-- [ ] **5.1** Add **Add Manga Entry Tab** to `Add.jsx`:
+- [x] **5.1** Add **Add Manga Entry Tab** to `Add.jsx`:
   - Prefill from existing entry search (prefills: Franchise, Series, all Manga Name fields, Region, Main/Spinoff)
   - Franchise: ACG franchises; required; Franchise Generation modal (type=ACG, names from manga name fields)
   - Series: optional; Series Generation modal (names from manga name fields)
@@ -141,7 +141,7 @@ Files: `pages/Add.jsx`, `pages/Modify.jsx`, `pages/Delete.jsx`
   - Fields per `admin-forms.md` Add Manga tab spec
   - On submit: Franchise Generation modal → Series Generation modal → `POST /api/manga/` → triggers `execute_replace_single_manga` auto
 
-- [ ] **5.2** Add **Modify Manga Entry Tab** to `Modify.jsx`:
+- [x] **5.2** Add **Modify Manga Entry Tab** to `Modify.jsx`:
   - Search bar (Franchise + Series + Entry names); search suggestion style
   - Recently Modified entries: Entry Name CN fallback, Franchise Name CN fallback
   - After selecting: sibling ribbon (other manga in franchise, grouped by series), then full edit form (mirrors Add fields)
@@ -149,7 +149,7 @@ Files: `pages/Add.jsx`, `pages/Modify.jsx`, `pages/Delete.jsx`
   - On submit: Franchise + Series Generation modals → `PATCH /api/manga/:id` → `POST /api/data-control/replace/manga/:id`
   - Deep-link: `?id=:uuid&type=manga`
 
-- [ ] **5.3** Add **Delete Manga Entry Tab** to `Delete.jsx`:
+- [x] **5.3** Add **Delete Manga Entry Tab** to `Delete.jsx`:
   - Data: load `GET /api/manga/` (alongside existing loads)
   - Search bar → Search Suggestion for Deletion (Name CN fallback · Franchise Name CN fallback · Region)
   - After selecting: Entry Info for Deletion (Name CN/EN/JP/Alt, Franchise, Series, Region, Reading Status, Remark-in-notes, System ID) + Delete button
