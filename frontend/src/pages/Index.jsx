@@ -426,12 +426,25 @@ export default function Index() {
   const paused = sorted.filter((a) => a.watching_status === "Paused");
 
   const mangaSorted = mangaTagged.sort((a, b) => {
-    const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
-    const fB = franchiseData.find((f) => f.system_id === b.franchise_id);
-    const tA = fA ? fA.franchise_name_cn || fA.franchise_name_en || "" : "";
-    const tB = fB ? fB.franchise_name_cn || fB.franchise_name_en || "" : "";
-    if (tA !== tB) return tA.localeCompare(tB);
-    return (a.watch_order ?? 999) - (b.watch_order ?? 999);
+    const ratingDiff =
+      (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
+      (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
+    if (ratingDiff !== 0) return ratingDiff;
+    const nameA =
+      a.manga_name_en ||
+      a.manga_name_roman ||
+      a.manga_name_jp ||
+      a.manga_name_cn ||
+      a.manga_name_alt ||
+      "";
+    const nameB =
+      b.manga_name_en ||
+      b.manga_name_roman ||
+      b.manga_name_jp ||
+      b.manga_name_cn ||
+      b.manga_name_alt ||
+      "";
+    return nameA.localeCompare(nameB);
   });
   const activeReading = mangaSorted.filter(
     (m) => m.reading_status === "Active Reading",
