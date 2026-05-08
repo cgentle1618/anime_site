@@ -21,6 +21,17 @@ function getMovieTitle(m) {
   );
 }
 
+function getMovieSortKey(m) {
+  return (
+    m.anime_movie_name_en ||
+    m.anime_movie_name_roman ||
+    m.anime_movie_name_alt ||
+    m.anime_movie_name_cn ||
+    m.anime_movie_name_jp ||
+    ""
+  );
+}
+
 function getReleaseYearJp(releaseDate) {
   if (!releaseDate) return null;
   const parts = String(releaseDate).trim().split(/[-\s]/);
@@ -151,8 +162,8 @@ export default function LibraryAnimeMovie() {
         const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
         if (wA !== wB) return wB - wA;
       }
-      const tA = getMovieTitle(a).toLowerCase();
-      const tB = getMovieTitle(b).toLowerCase();
+      const tA = getMovieSortKey(a).toLowerCase();
+      const tB = getMovieSortKey(b).toLowerCase();
       return tA.localeCompare(tB);
     });
 

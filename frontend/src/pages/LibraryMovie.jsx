@@ -13,6 +13,10 @@ function getMovieTitle(m) {
   return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "";
 }
 
+function getMovieSortKey(m) {
+  return m.movie_name_en || m.movie_name_alt || m.movie_name_cn || "";
+}
+
 function getReleaseSortScore(m) {
   const raw = m.release_date_usa || "";
   if (!raw) return 0;
@@ -141,8 +145,8 @@ export default function LibraryMovie() {
             : -1;
         if (wA !== wB) return wB - wA;
       }
-      const tA = getMovieTitle(a).toLowerCase();
-      const tB = getMovieTitle(b).toLowerCase();
+      const tA = getMovieSortKey(a).toLowerCase();
+      const tB = getMovieSortKey(b).toLowerCase();
       return tA.localeCompare(tB);
     });
 
