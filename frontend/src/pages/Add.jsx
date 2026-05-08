@@ -4740,19 +4740,19 @@ export default function Add() {
             <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Author (Plot)">
-                <input
-                  className={inputCls}
+                <MultiSelect
+                  options={getOptions(allOptions, "Manga Author")}
                   value={mgf.author_plot}
-                  onChange={(e) => umg("author_plot", e.target.value)}
-                  placeholder="Plot author"
+                  onChange={(v) => umg("author_plot", v)}
+                  placeholder="Select plot author..."
                 />
               </Field>
               <Field label="Author (Art)">
-                <input
-                  className={inputCls}
+                <MultiSelect
+                  options={getOptions(allOptions, "Manga Author")}
                   value={mgf.author_draw}
-                  onChange={(e) => umg("author_draw", e.target.value)}
-                  placeholder="Art author"
+                  onChange={(v) => umg("author_draw", v)}
+                  placeholder="Select art author..."
                 />
               </Field>
             </div>
@@ -4778,11 +4778,11 @@ export default function Add() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Field label="Anime Studio">
-                <input
-                  className={inputCls}
+                <MultiSelect
+                  options={getOptions(allOptions, "Studio")}
                   value={mgf.anime_studio}
-                  onChange={(e) => umg("anime_studio", e.target.value)}
-                  placeholder="Studio name"
+                  onChange={(v) => umg("anime_studio", v)}
+                  placeholder="Select studio..."
                 />
               </Field>
               <Field label="Serialization Platform">
