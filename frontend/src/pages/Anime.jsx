@@ -214,11 +214,11 @@ export default function Anime() {
   const releaseSeasonYear =
     anime.release_season && anime.release_year
       ? `${anime.release_season} ${anime.release_year}`
-      : anime.release_season || anime.release_year || null;
+      : anime.release_season || null;
   const releaseMonthYear =
     anime.release_month && anime.release_year
       ? `${anime.release_month} ${anime.release_year}`
-      : anime.release_month || null;
+      : anime.release_month || anime.release_year || null;
 
   const selectDisabledCls = !isAdmin
     ? "bg-gray-50 text-gray-500 cursor-not-allowed"
