@@ -434,12 +434,20 @@ export default function Manga() {
               <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
             </button>
             <button
-              onClick={() =>
-                performPatch(
-                  { reading_status: "Completed" },
-                  "Marked as Completed!",
-                )
-              }
+              onClick={async () => {
+                if (!isAdmin) return;
+                try {
+                  const res = await fetch(`/api/manga/${system_id}/complete`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  if (!res.ok) throw new Error("Request failed");
+                  showToast("success", "Marked as Completed!");
+                  await load();
+                } catch {
+                  showToast("error", "Update failed");
+                }
+              }}
               className="bg-white hover:bg-green-50 border border-gray-200 text-gray-700 hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
               <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
