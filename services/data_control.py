@@ -804,6 +804,7 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
     action_specific = "Fill All"
     logger.info(f"Starting {action_specific} Pipeline...")
     total_processed = 0
+    sub_errors = []
 
     try:
         # Fill Anime
@@ -818,6 +819,8 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill Anime failed"))
             yield message
 
         if await request.is_disconnected():
@@ -835,6 +838,8 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill Anime Movie failed"))
             yield message
 
         if await request.is_disconnected():
@@ -852,6 +857,8 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill Movie failed"))
             yield message
 
         if await request.is_disconnected():
@@ -869,6 +876,8 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill TV Show failed"))
             yield message
 
         if await request.is_disconnected():
@@ -886,6 +895,8 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill Cartoon failed"))
             yield message
 
         if await request.is_disconnected():
@@ -903,10 +914,26 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill Manga failed"))
             yield message
 
         if await request.is_disconnected():
             raise asyncio.CancelledError()
+
+        if sub_errors:
+            error_summary = "; ".join(sub_errors)
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=total_processed,
+                error_message=error_summary,
+            )
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Fill All completed with errors: {error_summary}', 'total': 1, 'processed': total_processed})}\n\n"
+            return
 
         # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets...', 'processed': 1, 'total': 1})}\n\n"
@@ -1919,6 +1946,7 @@ async def execute_replace_all(
     action_specific = "Replace All"
     logger.info(f"Starting {action_specific} Pipeline...")
     total_processed_across_all = 0
+    sub_errors = []
 
     try:
         # 1. Replace Anime (Pass log_action=False to suppress individual logs)
@@ -1934,6 +1962,8 @@ async def execute_replace_all(
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace Anime failed"))
 
             yield message
 
@@ -1952,6 +1982,8 @@ async def execute_replace_all(
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace Anime Movie failed"))
             yield message
 
         if await request.is_disconnected():
@@ -1969,6 +2001,8 @@ async def execute_replace_all(
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace Movie failed"))
             yield message
 
         if await request.is_disconnected():
@@ -1986,6 +2020,8 @@ async def execute_replace_all(
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace TV Show failed"))
             yield message
 
         if await request.is_disconnected():
@@ -2003,6 +2039,8 @@ async def execute_replace_all(
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace Cartoon failed"))
             yield message
 
         if await request.is_disconnected():
@@ -2020,10 +2058,26 @@ async def execute_replace_all(
                 data = json.loads(message[6:])
                 if data.get("status") == "success":
                     total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace Manga failed"))
             yield message
 
         if await request.is_disconnected():
             raise asyncio.CancelledError()
+
+        if sub_errors:
+            error_summary = "; ".join(sub_errors)
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=total_processed_across_all,
+                error_message=error_summary,
+            )
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Replace All completed with errors: {error_summary}', 'total': 1, 'processed': total_processed_across_all})}\n\n"
+            return
 
         # Backup
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Synchronizing to Google Sheets (Backup)...', 'processed': 1, 'total': 1})}\n\n"
