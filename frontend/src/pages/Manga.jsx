@@ -243,7 +243,7 @@ function MangaTrackerBlock({
             >
               <input
                 type="checkbox"
-                checked={!!manga.watch_next}
+                checked={!!manga.read_next}
                 disabled={!isAdmin}
                 onChange={(e) =>
                   isAdmin &&
@@ -271,7 +271,7 @@ function MangaTrackerBlock({
             >
               <input
                 type="checkbox"
-                checked={!!manga.to_rewatch}
+                checked={!!manga.to_reread}
                 disabled={!isAdmin}
                 onChange={(e) =>
                   isAdmin &&
@@ -749,8 +749,8 @@ export default function Manga() {
             onRatingChange={(v) =>
               performPatch({ my_rating: v || null }, "Rating saved")
             }
-            onWatchNextChange={(v, msg) => performPatch({ watch_next: v }, msg)}
-            onToRewatchChange={(v, msg) => performPatch({ to_rewatch: v }, msg)}
+            onWatchNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
+            onToRewatchChange={(v, msg) => performPatch({ to_reread: v }, msg)}
           />
 
           {/* Detail Cards */}
