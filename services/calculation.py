@@ -23,6 +23,11 @@ from services.other_logics import (
     extract_system_options_from_tv_show,
     extract_system_options_from_manga,
     autofill_anime_from_mal,
+    autofill_anime_movie_from_mal,
+    autofill_manga_from_mal,
+    autofill_movie_from_imdb,
+    autofill_tv_show_from_imdb,
+    autofill_cartoon_from_imdb,
     anime_post_processing,
     anime_movie_post_processing,
     cartoon_post_processing,
@@ -206,12 +211,19 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
 
 def bulk_set_cover_image_fields(db: Session) -> dict:
-    animes = db.query(Anime).filter(Anime.cover_image_file.is_(None)).all()
     updated = 0
-    for anime in animes:
-        sid = str(anime.system_id)
+    all_entries = (
+        db.query(Anime).filter(Anime.cover_image_file.is_(None)).all()
+        + db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.is_(None)).all()
+        + db.query(Movies).filter(Movies.cover_image_file.is_(None)).all()
+        + db.query(TVShows).filter(TVShows.cover_image_file.is_(None)).all()
+        + db.query(Cartoon).filter(Cartoon.cover_image_file.is_(None)).all()
+        + db.query(Manga).filter(Manga.cover_image_file.is_(None)).all()
+    )
+    for entry in all_entries:
+        sid = str(entry.system_id)
         if cover_image_exists(sid):
-            anime.cover_image_file = f"{sid}.jpg"
+            entry.cover_image_file = f"{sid}.jpg"
             updated += 1
     if updated:
         db.commit()
@@ -232,15 +244,18 @@ def bulk_delete_orphaned_cover_images(db: Session) -> dict:
 def bulk_download_missing_covers(
     db: Session, system_ids: Optional[list[str]] = None
 ) -> dict:
-    query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
-    if system_ids is not None:
-        query = query.filter(Anime.system_id.in_(system_ids))
-    animes = query.all()
-
-    to_fix = [a for a in animes if not cover_image_exists(str(a.system_id))]
     downloaded = 0
     skipped = 0
-    for anime in to_fix:
+    total = 0
+
+    def _collect(query, model):
+        if system_ids is not None:
+            query = query.filter(model.system_id.in_(system_ids))
+        return [e for e in query.all() if not cover_image_exists(str(e.system_id))]
+
+    anime_query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
+    for anime in _collect(anime_query, Anime):
+        total += 1
         if anime.airing_type in ALLOWED_AIRING_TYPES:
             anime.cover_image_file = None
             autofill_anime_from_mal(anime, force_replace_ratings=False)
@@ -248,9 +263,50 @@ def bulk_download_missing_covers(
                 downloaded += 1
         else:
             skipped += 1
-    if to_fix:
+
+    am_query = db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None))
+    for am in _collect(am_query, AnimeMovies):
+        total += 1
+        am.cover_image_file = None
+        autofill_anime_movie_from_mal(am, force_replace_ratings=False)
+        if am.cover_image_file:
+            downloaded += 1
+
+    movie_query = db.query(Movies).filter(Movies.cover_image_file.isnot(None))
+    for movie in _collect(movie_query, Movies):
+        total += 1
+        movie.cover_image_file = None
+        autofill_movie_from_imdb(movie, db)
+        if movie.cover_image_file:
+            downloaded += 1
+
+    tv_query = db.query(TVShows).filter(TVShows.cover_image_file.isnot(None))
+    for tv in _collect(tv_query, TVShows):
+        total += 1
+        tv.cover_image_file = None
+        autofill_tv_show_from_imdb(tv, db)
+        if tv.cover_image_file:
+            downloaded += 1
+
+    cartoon_query = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None))
+    for cartoon in _collect(cartoon_query, Cartoon):
+        total += 1
+        cartoon.cover_image_file = None
+        autofill_cartoon_from_imdb(cartoon, db)
+        if cartoon.cover_image_file:
+            downloaded += 1
+
+    manga_query = db.query(Manga).filter(Manga.cover_image_file.isnot(None))
+    for manga in _collect(manga_query, Manga):
+        total += 1
+        manga.cover_image_file = None
+        autofill_manga_from_mal(manga, force_replace_ratings=False)
+        if manga.cover_image_file:
+            downloaded += 1
+
+    if total:
         db.commit()
-    parts = [f"Downloaded {downloaded} of {len(to_fix)} missing cover images."]
+    parts = [f"Downloaded {downloaded} of {total} missing cover images."]
     if skipped:
         parts.append(f"{skipped} skipped (no Jikan source for this type).")
     return {"status": "success", "message": " ".join(parts)}
