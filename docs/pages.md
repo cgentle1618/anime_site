@@ -707,7 +707,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ### Manga Library
 
-**File:** `frontend/src/pages/LibraryManga.jsx` (TBD)
+**File:** `frontend/src/pages/LibraryManga.jsx`
 
 **Data loaded:**
 
@@ -723,7 +723,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 **Grid view** — each entry: **Manga Entry Card 2**
 
-**Table view** — columns: Franchise Name CN (fallback), Manga Name CN, Manga Name EN (fallback: Roman), Serialization Status, Ch Finished / Ch Total, Vol Finished / Vol Total, My Rating, MAL Rating, Anime Studio, Bahamut icon, + button (admin only)
+**Table view** — columns: Franchise Name CN (fallback), Manga Name CN, Manga Name EN (fallback: Roman), Serialization Status, Ch Finished / Ch Total, Vol Finished / Vol Total, My Rating, MAL Rating, Bahamut icon, + button (admin only), Read Next (admin only), To Reread (admin only)
 
 ---
 

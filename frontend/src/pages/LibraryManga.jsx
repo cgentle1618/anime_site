@@ -105,9 +105,7 @@ export default function LibraryManga() {
   const serializationStatusOptions = useMemo(
     () =>
       [
-        ...new Set(
-          allManga.map((m) => m.serialization_status).filter(Boolean),
-        ),
+        ...new Set(allManga.map((m) => m.serialization_status).filter(Boolean)),
       ].sort(),
     [allManga],
   );
@@ -180,14 +178,7 @@ export default function LibraryManga() {
     });
 
     return result;
-  }, [
-    allManga,
-    franchiseDict,
-    seriesDict,
-    searchQuery,
-    currentSort,
-    filters,
-  ]);
+  }, [allManga, franchiseDict, seriesDict, searchQuery, currentSort, filters]);
 
   function toggleFilter(group, value) {
     setFilters((prev) => {
@@ -385,11 +376,7 @@ export default function LibraryManga() {
       ) : currentView === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filteredAndSorted.map((m) => (
-            <MangaCard
-              key={m.system_id}
-              manga={m}
-              onUpdated={handleUpdated}
-            />
+            <MangaCard key={m.system_id} manga={m} onUpdated={handleUpdated} />
           ))}
         </div>
       ) : (
@@ -422,10 +409,13 @@ export default function LibraryManga() {
                   MAL
                 </th>
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
-                  Studio
-                </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center">
                   Read
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
+                  Read Next
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center hidden xl:table-cell">
+                  To Reread
                 </th>
               </tr>
             </thead>
@@ -439,8 +429,7 @@ export default function LibraryManga() {
                     "Unknown"
                   : null;
                 const mainTitle = getMangaTitle(m);
-                const titleEN =
-                  m.manga_name_en || m.manga_name_roman || "-";
+                const titleEN = m.manga_name_en || m.manga_name_roman || "-";
                 const btnConfig = getReadingButtonConfig(m.reading_status);
                 const chFin = m.ch_fin ?? 0;
                 const chTotal = m.ch_total ?? "?";
@@ -510,11 +499,8 @@ export default function LibraryManga() {
                         "-"
                       )}
                     </td>
-                    <td className="px-4 py-2 text-xs text-center text-gray-500 truncate max-w-[8rem] border-r border-gray-100 hidden xl:table-cell">
-                      {m.anime_studio || "-"}
-                    </td>
                     <td
-                      className="px-4 py-2 text-center"
+                      className="px-4 py-2 text-center border-r border-gray-100 hidden xl:table-cell"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {isAdmin ? (
@@ -532,6 +518,64 @@ export default function LibraryManga() {
                       ) : (
                         "-"
                       )}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-center border-r border-gray-100 hidden xl:table-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!m.read_next}
+                        disabled={!isAdmin}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const res = await fetch(`/api/manga/${m.system_id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ read_next: val }),
+                            credentials: "include",
+                          });
+                          if (res.ok) {
+                            const updated = await res.json();
+                            handleUpdated(updated);
+                            showToast(
+                              "success",
+                              val
+                                ? "Added to Read Next"
+                                : "Removed from Read Next",
+                            );
+                          }
+                        }}
+                        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+                      />
+                    </td>
+                    <td
+                      className="px-4 py-2 text-center hidden xl:table-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!m.to_reread}
+                        disabled={!isAdmin}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const res = await fetch(`/api/manga/${m.system_id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ to_reread: val }),
+                            credentials: "include",
+                          });
+                          if (res.ok) {
+                            const updated = await res.json();
+                            handleUpdated(updated);
+                            showToast(
+                              "success",
+                              val ? "Marked for reread" : "Removed from reread",
+                            );
+                          }
+                        }}
+                        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+                      />
                     </td>
                   </tr>
                 );
