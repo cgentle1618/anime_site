@@ -5,6 +5,7 @@ Jikan (MyAnimeList) API into the formats required by our Anime database model.
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -140,9 +141,18 @@ def map_jikan_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
 
-    aired_from = raw_data.get("aired", {}).get("from")
+    # aired.prop.from.month is unreliable: Jikan defaults it to 1 (January) when
+    # MAL only knows the year. The aired.string field is honest — "2026 to ?" means
+    # year-only, while "Jan 2026 to ?" means the month is actually known.
+    aired = raw_data.get("aired") or {}
+    aired_string = aired.get("string") or ""
+    prop_from = (aired.get("prop") or {}).get("from") or {}
+    prop_year = prop_from.get("year")
+    prop_month = prop_from.get("month")
+    release_year = str(prop_year) if prop_year else None
+    month_is_known = prop_month and not re.match(r"^\d{4}", aired_string)
+    release_month = MONTH_MAP.get(prop_month) if month_is_known else None
     release_season = _convert_season(raw_data.get("season"))
-    release_year, release_month, release_date = _extract_date_parts(aired_from)
 
     raw_rank = raw_data.get("rank")
     mal_rank = str(raw_rank) if raw_rank is not None else None
