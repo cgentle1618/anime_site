@@ -384,8 +384,14 @@ export default function LibraryAnimeMovie() {
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
                   Baha
                 </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center">
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
                   Watch
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
+                  Watch Next
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center hidden xl:table-cell">
+                  To Rewatch
                 </th>
               </tr>
             </thead>
@@ -509,7 +515,7 @@ export default function LibraryAnimeMovie() {
                       )}
                     </td>
                     <td
-                      className="px-4 py-2 text-center"
+                      className="px-4 py-2 text-center border-r border-gray-100"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {isAdmin ? (
@@ -527,6 +533,72 @@ export default function LibraryAnimeMovie() {
                       ) : (
                         "-"
                       )}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-center border-r border-gray-100 hidden xl:table-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!m.watch_next}
+                        disabled={!isAdmin}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const res = await fetch(
+                            `/api/anime-movie/${m.system_id}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ watch_next: val }),
+                              credentials: "include",
+                            },
+                          );
+                          if (res.ok) {
+                            const updated = await res.json();
+                            handleUpdated(updated);
+                            showToast(
+                              "success",
+                              val
+                                ? "Added to Watch Next"
+                                : "Removed from Watch Next",
+                            );
+                          }
+                        }}
+                        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+                      />
+                    </td>
+                    <td
+                      className="px-4 py-2 text-center hidden xl:table-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!m.to_rewatch}
+                        disabled={!isAdmin}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const res = await fetch(
+                            `/api/anime-movie/${m.system_id}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ to_rewatch: val }),
+                              credentials: "include",
+                            },
+                          );
+                          if (res.ok) {
+                            const updated = await res.json();
+                            handleUpdated(updated);
+                            showToast(
+                              "success",
+                              val
+                                ? "Marked for rewatch"
+                                : "Removed from rewatch",
+                            );
+                          }
+                        }}
+                        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+                      />
                     </td>
                   </tr>
                 );

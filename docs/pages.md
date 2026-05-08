@@ -600,7 +600,7 @@ Admin: inline quick-status toggle via `PATCH /api/anime/:system_id`.
 
 **Grid view** — each entry: **Anime Movie Entry Card 1**
 
-**Table view** — columns: Franchise Name (fallback), Anime Movie Name CN, Anime Movie Name EN (fallback: Roman), Airing Status, My Rating, MAL Rating, Studio, Director, Bahamut icon, + button (admin only)
+**Table view** — columns: Franchise Name (fallback), Anime Movie Name CN, Anime Movie Name EN (fallback: Roman), Airing Status, My Rating, MAL Rating, Studio, Director, Bahamut icon, + button (admin only), Watch Next (admin only), To Rewatch (admin only)
 
 ---
 
@@ -650,7 +650,7 @@ Each entry: **Franchise Entry Card** — navigates to `/franchise/:system_id`.
 
 **Grid view** — each entry: **Movie Entry Card** (`MovieCard.jsx`)
 
-**Table view** — columns: Franchise Name (fallback), Movie Name CN, Movie Name EN (sub-line), Airing Status, My Rating, IMDb Rating, Director, Release Date USA, Watch status (status badge for guests; toggle button for admin)
+**Table view** — columns: Franchise Name (fallback), Movie Name CN, Movie Name EN (sub-line), Airing Status, My Rating, IMDb Rating, Director, Release Date USA, Watch status (status badge for guests; toggle button for admin), Watch Next (admin only), To Rewatch (admin only)
 
 Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
@@ -674,7 +674,7 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 **Grid view** — each entry: **TV Show Entry Card 2** (`TVCard.jsx`)
 
-**Table view** — columns: Franchise Name CN (fallback), Title CN (with EN sub-line), Season Part, Airing Status, Ep Fin/Total, My Rating, IMDb Rating, Watch (status badge for guests; toggle button for admin)
+**Table view** — columns: Franchise Name CN (fallback), Title CN (with EN sub-line), Season Part, Airing Status, Ep Fin/Total, My Rating, IMDb Rating, Watch (status badge for guests; toggle button for admin), Watch Next (admin only), To Rewatch (admin only)
 
 Admin: inline status toggle via `PATCH /api/tv-shows/:system_id`.
 
