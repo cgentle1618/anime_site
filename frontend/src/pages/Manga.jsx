@@ -233,10 +233,10 @@ function MangaTrackerBlock({
               ))}
             </select>
           </div>
-          {/* Watch Next */}
+          {/* Read Next */}
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Watch Next
+              Read Next
             </label>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
@@ -250,14 +250,14 @@ function MangaTrackerBlock({
                   onWatchNextChange(
                     e.target.checked,
                     e.target.checked
-                      ? "Added to Watch Next"
-                      : "Removed from Watch Next",
+                      ? "Added to Read Next"
+                      : "Removed from Read Next",
                   )
                 }
                 className="w-4 h-4 rounded accent-brand"
               />
               <span className="text-sm font-medium text-gray-700">
-                Watch Next
+                Read Next
               </span>
             </label>
           </div>
