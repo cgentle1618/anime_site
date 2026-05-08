@@ -257,16 +257,20 @@ export default function Anime() {
               <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
             </button>
             <button
-              onClick={() =>
-                performUpdate(
-                  {
-                    watching_status: "Completed",
-                    airing_status: "Finished Airing",
-                    ep_fin: anime.ep_total ? parseInt(anime.ep_total) : epFin,
-                  },
-                  "Marked as Completed!",
-                )
-              }
+              onClick={async () => {
+                if (!isAdmin) return;
+                try {
+                  const res = await fetch(`/api/anime/${system_id}/complete`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  if (!res.ok) throw new Error("Request failed");
+                  showToast("success", "Marked as Completed!");
+                  await load();
+                } catch {
+                  showToast("error", "Update failed");
+                }
+              }}
               className="bg-white hover:bg-green-50 border border-gray-200 text-gray-700 hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
               <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
