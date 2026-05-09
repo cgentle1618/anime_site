@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from models import Franchise, Series, DataControlLog, DeletedRecord
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -171,6 +170,48 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 )
                 franchise_cn = _cn(f, "franchise")
                 franchise_type = getattr(f, "franchise_type", None)
+
+        elif entry_type == "Anime Movie":
+            name_cn = _cn(entry, "anime_movie")
+            if _has_cn(entry, "anime_movie"):
+                name_en = _en(entry, "anime_movie")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+
+        elif entry_type == "Cartoon":
+            name_cn = _cn(entry, "cartoon")
+            if _has_cn(entry, "cartoon"):
+                name_en = _en(entry, "cartoon")
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+
+        elif entry_type == "Manga":
+            name_cn = _cn(entry, "manga")
+            if _has_cn(entry, "manga"):
+                name_en = _en(entry, "manga")
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
 
         deleted_log = DeletedRecord(
             type=entry_type,

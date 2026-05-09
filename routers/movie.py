@@ -18,7 +18,7 @@ import models
 import schemas
 
 from services.image_manager import delete_cover_image
-from services.other_logics import resolve_movie_parent_hierarchy
+from services.other_logics import resolve_movie_parent_hierarchy, mark_movie_completed
 from services.data_control import execute_replace_single_movie
 from utils.data_control_utils import log_deleted_record
 
@@ -178,6 +178,36 @@ async def patch_movie(
         entry.completed_at = get_taipei_now()
 
     entry.updated_at = get_taipei_now()
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.post(
+    "/{system_id}/complete",
+    response_model=schemas.MovieResponse,
+    summary="Mark Movie Entry as Completed",
+)
+def complete_movie_entry(
+    system_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Sets all completion fields for a movie entry."""
+    entry = (
+        db.query(models.Movies)
+        .filter(models.Movies.system_id == system_id)
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Movie entry not found.")
+
+    mark_movie_completed(entry)
+
+    if entry.completed_at is None:
+        entry.completed_at = get_taipei_now()
+    entry.updated_at = get_taipei_now()
+
     db.commit()
     db.refresh(entry)
     return entry

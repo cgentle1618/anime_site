@@ -238,10 +238,10 @@ export default function DashboardCard({
             >
               <i className="fas fa-minus text-[10px]"></i>
             </button>
-            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap overflow-hidden">
+            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-gray-900 w-14 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={localFin}
                 onChange={(e) =>
                   handleEpChange(parseInt(e.target.value, 10) || 0)
@@ -249,7 +249,7 @@ export default function DashboardCard({
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-6 text-center">
+              <span className="text-gray-500 text-[13px] w-14 text-center">
                 {localTotal}
               </span>
               {isManga && (
@@ -276,9 +276,9 @@ export default function DashboardCard({
         ) : (
           <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-              <span className="text-gray-900 w-6 text-center">{localFin}</span>
+              <span className="text-gray-900 w-14 text-center">{localFin}</span>
               <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-6 text-center">
+              <span className="text-gray-500 text-[13px] w-14 text-center">
                 {localTotal}
               </span>
               {isManga && (

@@ -640,186 +640,190 @@ export default function FranchiseAcg() {
         />
       </div>
 
-      {/* Anime Section */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-          <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-            <i className="fas fa-tv text-brand"></i>
+      {/* Anime Section — shown only when entries exist */}
+      {animeList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-tv text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Anime
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                TV · ONA · Movie · OVA · Special
+              </p>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {filteredAndSorted.length} entries
+            </span>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-              Anime
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              TV · ONA · Movie · OVA · Special
-            </p>
-          </div>
-          <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-            {filteredAndSorted.length} entries
-          </span>
-        </div>
 
-        {/* Filters + Sort */}
-        <div className="flex flex-wrap gap-2 mb-6 items-center">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-          >
-            <option value="watch_order">Sort: Watch Order</option>
-            <option value="title">Sort: Title</option>
-            <option value="release_date">Sort: Release Date</option>
-            <option value="my_rating">Sort: My Rating</option>
-            <option value="mal_rating">Sort: MAL Rating</option>
-          </select>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          {/* Airing Type filters */}
-          {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
-            <button
-              key={v}
-              onClick={() => toggleFilter("airingType", v)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+          {/* Filters + Sort */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
             >
-              {v}
-            </button>
-          ))}
+              <option value="watch_order">Sort: Watch Order</option>
+              <option value="title">Sort: Title</option>
+              <option value="release_date">Sort: Release Date</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="mal_rating">Sort: MAL Rating</option>
+            </select>
 
-          <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-gray-200"></div>
 
-          {/* Airing Status filters */}
-          {[
-            ["Airing", "Airing"],
-            ["Finished", "Finished Airing"],
-            ["Not Aired", "Not Yet Aired"],
-          ].map(([label, val]) => (
-            <button
-              key={val}
-              onClick={() => toggleFilter("airingStatus", val)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-            >
-              {label}
-            </button>
-          ))}
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          {/* Watching Status filters */}
-          {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-            (v) => (
+            {/* Airing Type filters */}
+            {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
               <button
                 key={v}
-                onClick={() => toggleFilter("watchingStatus", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                onClick={() => toggleFilter("airingType", v)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
               >
                 {v}
               </button>
-            ),
-          )}
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.bahaOnly}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, bahaOnly: e.target.checked }))
-              }
-              className="rounded"
-            />
-            Baha Only
-          </label>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          <button
-            onClick={() => setGroupBySeries((v) => !v)}
-            className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-          >
-            <i className="fas fa-layer-group mr-1"></i>Group by Series
-          </button>
-        </div>
-
-        {/* Anime grid */}
-        {filteredAndSorted.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <i className="fas fa-ghost text-3xl mb-3"></i>
-            <p className="font-medium">No entries match the current filters.</p>
-          </div>
-        ) : groupBySeries ? (
-          <div className="space-y-10">
-            {seriesGroups.map((group) => {
-              const label =
-                group.type === "series"
-                  ? getDisplayName(group.series, "series") || "Unknown Series"
-                  : "Standalone";
-              return (
-                <section
-                  key={
-                    group.type === "series"
-                      ? group.series.system_id
-                      : "standalone"
-                  }
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                      <i
-                        className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
-                      ></i>
-                      {label}
-                    </h3>
-                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {group.anime.length}
-                    </span>
-                    <div className="flex-1 border-t border-gray-100"></div>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {group.anime.map((a) => (
-                      <div key={a.system_id} className="flex flex-col gap-1">
-                        {sort === "watch_order" && a.watch_order != null && (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                              #{a.watch_order}
-                            </span>
-                            {a.is_main_entry && (
-                              <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                                main
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {filteredAndSorted.map((a) => (
-              <div key={a.system_id} className="flex flex-col gap-1">
-                {sort === "watch_order" && a.watch_order != null && (
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                      #{a.watch_order}
-                    </span>
-                    {a.is_main_entry && (
-                      <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                        main
-                      </span>
-                    )}
-                  </div>
-                )}
-                <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
-              </div>
             ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Airing Status filters */}
+            {[
+              ["Airing", "Airing"],
+              ["Finished", "Finished Airing"],
+              ["Not Aired", "Not Yet Aired"],
+            ].map(([label, val]) => (
+              <button
+                key={val}
+                onClick={() => toggleFilter("airingStatus", val)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {label}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Watching Status filters */}
+            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleFilter("watchingStatus", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.bahaOnly}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, bahaOnly: e.target.checked }))
+                }
+                className="rounded"
+              />
+              Baha Only
+            </label>
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <button
+              onClick={() => setGroupBySeries((v) => !v)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <i className="fas fa-layer-group mr-1"></i>Group by Series
+            </button>
           </div>
-        )}
-      </div>
+
+          {/* Anime grid */}
+          {filteredAndSorted.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <i className="fas fa-ghost text-3xl mb-3"></i>
+              <p className="font-medium">
+                No entries match the current filters.
+              </p>
+            </div>
+          ) : groupBySeries ? (
+            <div className="space-y-10">
+              {seriesGroups.map((group) => {
+                const label =
+                  group.type === "series"
+                    ? getDisplayName(group.series, "series") || "Unknown Series"
+                    : "Standalone";
+                return (
+                  <section
+                    key={
+                      group.type === "series"
+                        ? group.series.system_id
+                        : "standalone"
+                    }
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <i
+                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
+                        ></i>
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {group.anime.length}
+                      </span>
+                      <div className="flex-1 border-t border-gray-100"></div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {group.anime.map((a) => (
+                        <div key={a.system_id} className="flex flex-col gap-1">
+                          {sort === "watch_order" && a.watch_order != null && (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
+                                #{a.watch_order}
+                              </span>
+                              {a.is_main_entry && (
+                                <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
+                                  main
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {filteredAndSorted.map((a) => (
+                <div key={a.system_id} className="flex flex-col gap-1">
+                  {sort === "watch_order" && a.watch_order != null && (
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
+                        #{a.watch_order}
+                      </span>
+                      {a.is_main_entry && (
+                        <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
+                          main
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Anime Movie Section — shown only when entries exist */}
       {movieList.length > 0 && (
@@ -1015,27 +1019,6 @@ export default function FranchiseAcg() {
           )}
         </div>
       )}
-
-      {/* Novel — Under Development */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-book-open text-gray-400"></i>
-          </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-              Novel
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Light Novel · Web Novel
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-          <p className="text-sm font-bold text-gray-400">Under Development</p>
-        </div>
-      </div>
 
       {/* Series Modal */}
       {showSeriesModal && selectedSeries && (

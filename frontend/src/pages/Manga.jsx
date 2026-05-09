@@ -24,10 +24,13 @@ const READING_STATUSES = [
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 function serializationStatusColor(status) {
-  if (status === "連載中") return "bg-green-100 text-green-700 border border-green-200";
-  if (status === "完結") return "bg-blue-100 text-blue-700 border border-blue-200";
+  if (status === "連載中")
+    return "bg-green-100 text-green-700 border border-green-200";
+  if (status === "完結")
+    return "bg-blue-100 text-blue-700 border border-blue-200";
   if (status === "腰斬") return "bg-red-100 text-red-700 border border-red-200";
-  if (status === "停更") return "bg-yellow-100 text-yellow-700 border border-yellow-200";
+  if (status === "停更")
+    return "bg-yellow-100 text-yellow-700 border border-yellow-200";
   return "bg-gray-100 text-gray-600 border border-gray-200";
 }
 
@@ -39,6 +42,8 @@ function MangaTrackerBlock({
   onPageChange,
   onStatusChange,
   onRatingChange,
+  onWatchNextChange,
+  onToRewatchChange,
 }) {
   const selectDisabledCls = !isAdmin
     ? "bg-gray-50 text-gray-500 cursor-not-allowed"
@@ -106,7 +111,9 @@ function MangaTrackerBlock({
               <span className="text-gray-500 text-sm leading-none">
                 {chTotal ?? "?"}
               </span>
-              <span className="text-[9px] text-gray-400 font-sans ml-1.5">CH</span>
+              <span className="text-[9px] text-gray-400 font-sans ml-1.5">
+                CH
+              </span>
             </div>
             <button
               onClick={() => stepCh(1)}
@@ -149,7 +156,9 @@ function MangaTrackerBlock({
                 <span className="text-gray-500 text-sm leading-none">
                   {volTotal ?? "?"}
                 </span>
-                <span className="text-[9px] text-gray-400 font-sans ml-1.5">VOL</span>
+                <span className="text-[9px] text-gray-400 font-sans ml-1.5">
+                  VOL
+                </span>
               </div>
               <button
                 onClick={() => stepVol(1)}
@@ -179,7 +188,8 @@ function MangaTrackerBlock({
           </div>
           {(volFin > 0 || volFinPage > 0) && (
             <div className="text-xs text-gray-500 mt-1.5 font-medium">
-              Vol. {volFin}{volFinPage > 0 ? ` Page ${volFinPage}` : ""}{" "}
+              Vol. {volFin}
+              {volFinPage > 0 ? ` Page ${volFinPage}` : ""}{" "}
               {volTotal != null ? `/ Vol. ${volTotal}` : ""}
             </div>
           )}
@@ -222,6 +232,62 @@ function MangaTrackerBlock({
                 </option>
               ))}
             </select>
+          </div>
+          {/* Read Next */}
+          <div className="space-y-1">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Read Next
+            </label>
+            <label
+              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+            >
+              <input
+                type="checkbox"
+                checked={!!manga.read_next}
+                disabled={!isAdmin}
+                onChange={(e) =>
+                  isAdmin &&
+                  onWatchNextChange(
+                    e.target.checked,
+                    e.target.checked
+                      ? "Added to Read Next"
+                      : "Removed from Read Next",
+                  )
+                }
+                className="w-4 h-4 rounded accent-brand"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Read Next
+              </span>
+            </label>
+          </div>
+          {/* To Reread */}
+          <div className="space-y-1">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              To Reread
+            </label>
+            <label
+              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+            >
+              <input
+                type="checkbox"
+                checked={!!manga.to_reread}
+                disabled={!isAdmin}
+                onChange={(e) =>
+                  isAdmin &&
+                  onToRewatchChange(
+                    e.target.checked,
+                    e.target.checked
+                      ? "Marked for rewatch"
+                      : "Removed from rewatch",
+                  )
+                }
+                className="w-4 h-4 rounded accent-brand"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                To Reread
+              </span>
+            </label>
           </div>
         </div>
       </div>
@@ -379,9 +445,17 @@ export default function Manga() {
 
   const relatedEntries = [];
   if (prequel)
-    relatedEntries.push({ entry: prequel, tag: "Prequel", color: "text-orange-500" });
+    relatedEntries.push({
+      entry: prequel,
+      tag: "Prequel",
+      color: "text-orange-500",
+    });
   if (sequel)
-    relatedEntries.push({ entry: sequel, tag: "Sequel", color: "text-green-500" });
+    relatedEntries.push({
+      entry: sequel,
+      tag: "Sequel",
+      color: "text-green-500",
+    });
 
   // Extract twitter from source_other so SourcesCard renders it as a dedicated button
   const rawSourceOther = manga.source_other || {};
@@ -434,12 +508,20 @@ export default function Manga() {
               <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
             </button>
             <button
-              onClick={() =>
-                performPatch(
-                  { reading_status: "Completed" },
-                  "Marked as Completed!",
-                )
-              }
+              onClick={async () => {
+                if (!isAdmin) return;
+                try {
+                  const res = await fetch(`/api/manga/${system_id}/complete`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  if (!res.ok) throw new Error("Request failed");
+                  showToast("success", "Marked as Completed!");
+                  await load();
+                } catch {
+                  showToast("error", "Update failed");
+                }
+              }}
               className="bg-white hover:bg-green-50 border border-gray-200 text-gray-700 hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
               <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
@@ -652,11 +734,23 @@ export default function Manga() {
           <MangaTrackerBlock
             manga={manga}
             isAdmin={isAdmin}
-            onChChange={(v) => performPatch({ ch_fin: v }, "Chapter progress saved")}
-            onVolChange={(v) => performPatch({ vol_fin: v }, "Volume progress saved")}
-            onPageChange={(v) => performPatch({ vol_fin_page: v }, "Page saved")}
-            onStatusChange={(v) => performPatch({ reading_status: v }, "Status updated")}
-            onRatingChange={(v) => performPatch({ my_rating: v || null }, "Rating saved")}
+            onChChange={(v) =>
+              performPatch({ ch_fin: v }, "Chapter progress saved")
+            }
+            onVolChange={(v) =>
+              performPatch({ vol_fin: v }, "Volume progress saved")
+            }
+            onPageChange={(v) =>
+              performPatch({ vol_fin_page: v }, "Page saved")
+            }
+            onStatusChange={(v) =>
+              performPatch({ reading_status: v }, "Status updated")
+            }
+            onRatingChange={(v) =>
+              performPatch({ my_rating: v || null }, "Rating saved")
+            }
+            onWatchNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
+            onToRewatchChange={(v, msg) => performPatch({ to_reread: v }, msg)}
           />
 
           {/* Detail Cards */}
@@ -687,12 +781,30 @@ export default function Manga() {
                   },
                 ],
                 [
-                  { label: "Release Year", value: manga.release_year != null ? String(manga.release_year) : null },
-                  { label: "End Year", value: manga.end_year != null ? String(manga.end_year) : null },
+                  {
+                    label: "Release Year",
+                    value:
+                      manga.release_year != null
+                        ? String(manga.release_year)
+                        : null,
+                  },
+                  {
+                    label: "End Year",
+                    value:
+                      manga.end_year != null ? String(manga.end_year) : null,
+                  },
                 ],
                 [
-                  { label: "Volume Total", value: manga.vol_total != null ? String(manga.vol_total) : null },
-                  { label: "Chapter Total", value: manga.ch_total != null ? String(manga.ch_total) : null },
+                  {
+                    label: "Volume Total",
+                    value:
+                      manga.vol_total != null ? String(manga.vol_total) : null,
+                  },
+                  {
+                    label: "Chapter Total",
+                    value:
+                      manga.ch_total != null ? String(manga.ch_total) : null,
+                  },
                 ],
                 [
                   { label: "Anime Studio", value: manga.anime_studio },
@@ -736,7 +848,10 @@ export default function Manga() {
                   disabled={!isAdmin}
                   onBlur={(e) =>
                     isAdmin &&
-                    performPatch({ remark: e.target.value || null }, "Remark saved")
+                    performPatch(
+                      { remark: e.target.value || null },
+                      "Remark saved",
+                    )
                   }
                   rows={4}
                   placeholder="Add remarks..."

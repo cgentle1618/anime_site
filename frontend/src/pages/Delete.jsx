@@ -1022,19 +1022,48 @@ export default function Delete() {
               type="franchise"
               onSelect={setSelectedFranchise}
               renderItem={(item) => {
-                const cA = db.anime.filter(
-                  (a) => a.franchise_id === item.system_id,
-                ).length;
-                const cS = db.series.filter(
-                  (s) => s.franchise_id === item.system_id,
-                ).length;
+                const fid = item.system_id;
+                const counts = [
+                  {
+                    label: "series",
+                    n: db.series.filter((s) => s.franchise_id === fid).length,
+                  },
+                  {
+                    label: "anime",
+                    n: db.anime.filter((a) => a.franchise_id === fid).length,
+                  },
+                  {
+                    label: "anime movie",
+                    n: db["anime-movie"].filter((m) => m.franchise_id === fid)
+                      .length,
+                  },
+                  {
+                    label: "movie",
+                    n: db.movie.filter((m) => m.franchise_id === fid).length,
+                  },
+                  {
+                    label: "TV show",
+                    n: db["tv-show"].filter((t) => t.franchise_id === fid)
+                      .length,
+                  },
+                  {
+                    label: "cartoon",
+                    n: db.cartoon.filter((c) => c.franchise_id === fid).length,
+                  },
+                  {
+                    label: "manga",
+                    n: db.manga.filter((m) => m.franchise_id === fid).length,
+                  },
+                ].filter((x) => x.n > 0);
                 return (
                   <div>
                     <div className="font-bold text-gray-800 text-sm">
                       {getDisplayTitle(item, "franchise")}
                     </div>
                     <div className="text-[11px] text-gray-500">
-                      {cS} series · {cA} anime
+                      {counts.length > 0
+                        ? counts.map((x) => `${x.n} ${x.label}`).join(" · ")
+                        : "No entries"}
                     </div>
                   </div>
                 );
@@ -1110,21 +1139,32 @@ export default function Delete() {
               items={db.series}
               type="series"
               onSelect={setSelectedSeries}
-              renderItem={(item) => (
-                <div>
-                  <div className="font-bold text-gray-800 text-sm">
-                    {getDisplayTitle(item, "series")}
+              renderItem={(item) => {
+                const sid = item.system_id;
+                const counts = [
+                  {
+                    label: "anime",
+                    n: db.anime.filter((a) => a.series_id === sid).length,
+                  },
+                  {
+                    label: "manga",
+                    n: db.manga.filter((m) => m.series_id === sid).length,
+                  },
+                ].filter((x) => x.n > 0);
+                return (
+                  <div>
+                    <div className="font-bold text-gray-800 text-sm">
+                      {getDisplayTitle(item, "series")}
+                    </div>
+                    <div className="text-[11px] text-gray-500">
+                      {getFranchiseTitle(item.franchise_id)}
+                      {counts.length > 0 &&
+                        " · " +
+                          counts.map((x) => `${x.n} ${x.label}`).join(" · ")}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-gray-500">
-                    {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {
-                      db.anime.filter((a) => a.series_id === item.system_id)
-                        .length
-                    }{" "}
-                    anime
-                  </div>
-                </div>
-              )}
+                );
+              }}
             />
           </div>
 
@@ -1531,12 +1571,11 @@ export default function Delete() {
               {/* Orphan series warning (manga) */}
               {modal.type === "manga" &&
                 modal.item.series_id &&
-                (db.anime.filter(
-                  (a) => a.series_id === modal.item.series_id,
-                ).length +
-                  db.manga.filter(
-                    (m) => m.series_id === modal.item.series_id,
-                  ).length) === 1 && (
+                db.anime.filter((a) => a.series_id === modal.item.series_id)
+                  .length +
+                  db.manga.filter((m) => m.series_id === modal.item.series_id)
+                    .length ===
+                  1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"

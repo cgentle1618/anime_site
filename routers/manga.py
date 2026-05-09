@@ -17,7 +17,7 @@ import models
 import schemas
 
 from services.image_manager import delete_cover_image
-from services.other_logics import resolve_manga_parent_hierarchy
+from services.other_logics import resolve_manga_parent_hierarchy, mark_reading_completed
 from services.data_control import execute_replace_single_manga
 from utils.data_control_utils import log_deleted_record
 
@@ -191,6 +191,32 @@ async def patch_manga(
         entry.completed_at = get_taipei_now()
 
     entry.updated_at = get_taipei_now()
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.post(
+    "/{manga_id}/complete",
+    response_model=schemas.MangaResponse,
+    summary="Mark Manga Entry as Completed",
+)
+def complete_manga_entry(
+    manga_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Sets all completion fields for a manga entry (status, ch_fin, vol_fin, vol_fin_page, serialization_status)."""
+    entry = db.query(models.Manga).filter(models.Manga.system_id == manga_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Manga entry not found.")
+
+    mark_reading_completed(entry)
+
+    if entry.completed_at is None:
+        entry.completed_at = get_taipei_now()
+    entry.updated_at = get_taipei_now()
+
     db.commit()
     db.refresh(entry)
     return entry

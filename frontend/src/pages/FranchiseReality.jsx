@@ -552,139 +552,143 @@ export default function FranchiseReality() {
       </div>
 
       {/* Movie Section */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-          <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-            <i className="fas fa-film text-brand"></i>
+      {movieList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-film text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Movies
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Live-action &amp; animated films
+              </p>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {filteredAndSorted.length} entries
+            </span>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-              Movies
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Live-action &amp; animated films
-            </p>
-          </div>
-          <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-            {filteredAndSorted.length} entries
-          </span>
-        </div>
 
-        {/* Sort + Filter controls */}
-        <div className="flex flex-wrap gap-2 mb-6 items-center">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-          >
-            <option value="release_date">Sort: Release Date</option>
-            <option value="title">Sort: Title</option>
-            <option value="my_rating">Sort: My Rating</option>
-            <option value="imdb_rating">Sort: IMDb Rating</option>
-          </select>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          {/* Airing Status filters */}
-          {[
-            ["Finished", "Finished Airing"],
-            ["Not Aired", "Not Yet Aired"],
-          ].map(([label, val]) => (
-            <button
-              key={val}
-              onClick={() => toggleFilter("airingStatus", val)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+          {/* Sort + Filter controls */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
             >
-              {label}
-            </button>
-          ))}
+              <option value="release_date">Sort: Release Date</option>
+              <option value="title">Sort: Title</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="imdb_rating">Sort: IMDb Rating</option>
+            </select>
 
-          <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-gray-200"></div>
 
-          {/* Watching Status filters */}
-          {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-            (v) => (
+            {/* Airing Status filters */}
+            {[
+              ["Finished", "Finished Airing"],
+              ["Not Aired", "Not Yet Aired"],
+            ].map(([label, val]) => (
               <button
-                key={v}
-                onClick={() => toggleFilter("watchingStatus", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                key={val}
+                onClick={() => toggleFilter("airingStatus", val)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
               >
-                {v}
+                {label}
               </button>
-            ),
-          )}
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          <button
-            onClick={() => setGroupBySeries((v) => !v)}
-            className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-          >
-            <i className="fas fa-layer-group mr-1"></i>Group by Series
-          </button>
-        </div>
-
-        {/* Movie grid */}
-        {filteredAndSorted.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <i className="fas fa-ghost text-3xl mb-3"></i>
-            <p className="font-medium">No entries match the current filters.</p>
-          </div>
-        ) : groupBySeries ? (
-          <div className="space-y-10">
-            {seriesGroups.map((group) => {
-              const label =
-                group.type === "series"
-                  ? group.series.series_name_cn ||
-                    group.series.series_name_en ||
-                    group.series.series_name_alt ||
-                    "Unknown Series"
-                  : "Standalone";
-              return (
-                <section
-                  key={
-                    group.type === "series"
-                      ? group.series.system_id
-                      : "standalone"
-                  }
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                      <i
-                        className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
-                      ></i>
-                      {label}
-                    </h3>
-                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {group.movies.length}
-                    </span>
-                    <div className="flex-1 border-t border-gray-100"></div>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {group.movies.map((m) => (
-                      <MovieCard
-                        key={m.system_id}
-                        movie={m}
-                        onUpdated={handleMovieUpdated}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {filteredAndSorted.map((m) => (
-              <MovieCard
-                key={m.system_id}
-                movie={m}
-                onUpdated={handleMovieUpdated}
-              />
             ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Watching Status filters */}
+            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleFilter("watchingStatus", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <button
+              onClick={() => setGroupBySeries((v) => !v)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <i className="fas fa-layer-group mr-1"></i>Group by Series
+            </button>
           </div>
-        )}
-      </div>
+
+          {/* Movie grid */}
+          {filteredAndSorted.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <i className="fas fa-ghost text-3xl mb-3"></i>
+              <p className="font-medium">
+                No entries match the current filters.
+              </p>
+            </div>
+          ) : groupBySeries ? (
+            <div className="space-y-10">
+              {seriesGroups.map((group) => {
+                const label =
+                  group.type === "series"
+                    ? group.series.series_name_cn ||
+                      group.series.series_name_en ||
+                      group.series.series_name_alt ||
+                      "Unknown Series"
+                    : "Standalone";
+                return (
+                  <section
+                    key={
+                      group.type === "series"
+                        ? group.series.system_id
+                        : "standalone"
+                    }
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <i
+                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
+                        ></i>
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {group.movies.length}
+                      </span>
+                      <div className="flex-1 border-t border-gray-100"></div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {group.movies.map((m) => (
+                        <MovieCard
+                          key={m.system_id}
+                          movie={m}
+                          onUpdated={handleMovieUpdated}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {filteredAndSorted.map((m) => (
+                <MovieCard
+                  key={m.system_id}
+                  movie={m}
+                  onUpdated={handleMovieUpdated}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TV Show Section */}
       {tvShowList.length > 0 && (

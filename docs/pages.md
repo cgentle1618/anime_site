@@ -600,7 +600,7 @@ Admin: inline quick-status toggle via `PATCH /api/anime/:system_id`.
 
 **Grid view** — each entry: **Anime Movie Entry Card 1**
 
-**Table view** — columns: Franchise Name (fallback), Anime Movie Name CN, Anime Movie Name EN (fallback: Roman), Airing Status, My Rating, MAL Rating, Studio, Director, Bahamut icon, + button (admin only)
+**Table view** — columns: Franchise Name (fallback), Anime Movie Name CN, Anime Movie Name EN (fallback: Roman), Airing Status, My Rating, MAL Rating, Studio, Director, Bahamut icon, + button (admin only), Watch Next (admin only), To Rewatch (admin only)
 
 ---
 
@@ -650,7 +650,7 @@ Each entry: **Franchise Entry Card** — navigates to `/franchise/:system_id`.
 
 **Grid view** — each entry: **Movie Entry Card** (`MovieCard.jsx`)
 
-**Table view** — columns: Franchise Name (fallback), Movie Name CN, Movie Name EN (sub-line), Airing Status, My Rating, IMDb Rating, Director, Release Date USA, Watch status (status badge for guests; toggle button for admin)
+**Table view** — columns: Franchise Name (fallback), Movie Name CN, Movie Name EN (sub-line), Airing Status, My Rating, IMDb Rating, Director, Release Date USA, Watch status (status badge for guests; toggle button for admin), Watch Next (admin only), To Rewatch (admin only)
 
 Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
@@ -674,7 +674,7 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 **Grid view** — each entry: **TV Show Entry Card 2** (`TVCard.jsx`)
 
-**Table view** — columns: Franchise Name CN (fallback), Title CN (with EN sub-line), Season Part, Airing Status, Ep Fin/Total, My Rating, IMDb Rating, Watch (status badge for guests; toggle button for admin)
+**Table view** — columns: Franchise Name CN (fallback), Title CN (with EN sub-line), Season Part, Airing Status, Ep Fin/Total, My Rating, IMDb Rating, Watch (status badge for guests; toggle button for admin), Watch Next (admin only), To Rewatch (admin only)
 
 Admin: inline status toggle via `PATCH /api/tv-shows/:system_id`.
 
@@ -707,7 +707,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ### Manga Library
 
-**File:** `frontend/src/pages/LibraryManga.jsx` (TBD)
+**File:** `frontend/src/pages/LibraryManga.jsx`
 
 **Data loaded:**
 
@@ -723,7 +723,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 **Grid view** — each entry: **Manga Entry Card 2**
 
-**Table view** — columns: Franchise Name CN (fallback), Manga Name CN, Manga Name EN (fallback: Roman), Serialization Status, Ch Finished / Ch Total, Vol Finished / Vol Total, My Rating, MAL Rating, Anime Studio, Bahamut icon, + button (admin only)
+**Table view** — columns: Franchise Name CN (fallback), Manga Name CN, Manga Name EN (fallback: Roman), Serialization Status, Ch Finished / Ch Total, Vol Finished / Vol Total, My Rating, MAL Rating, Bahamut icon, + button (admin only), Read Next (admin only), To Reread (admin only)
 
 ---
 
@@ -837,12 +837,13 @@ Multi-section statistics dashboard.
    - Manga / Novel tabs (TBD)
 
 6. **Recent Completions** — paginated list (10 per page):
-   - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date (live)
+   - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
    - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
-   - Manga / Novel tabs (TBD)
+   - Manga tab: grouped by Manga Region (日漫, 韓漫, 國漫, 台漫, Others); shows Manga Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
+   - Novel tab (TBD)
 
 ---
 
@@ -963,7 +964,14 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 - Calculate All → `POST /api/data-control/calculate/all`
 - Find Duplicates → `GET /api/data-control/check/duplicates`
-- With Remarks → shows anime entries that have remarks
+- With Remarks → `GET /api/data-control/check/remarks` → opens modal with tabs: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga. Each tab lists entries where `remark IS NOT NULL AND remark != ''`, ordered by `updated_at` desc. Columns per tab:
+  - Anime: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Anime Movie: Name CN, Name EN, Watching (`watching_status`), Remark
+  - Movie: Name CN, Name EN, Release Date (`release_date_usa`), Watching (`watching_status`), Remark
+  - TV Show: Name CN, Name EN, Season (`season_part`), Watching (`watching_status`), Remark
+  - Cartoon: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Manga: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
+  - Rows are clickable and navigate to the entry detail page
 - Check & Download Covers (multi-step): `GET /api/data-control/calculate/check-cover-image` → `POST .../download-missing-covers` → `POST .../set-cover-image-fields` → `DELETE .../delete-orphaned-covers`
 
 **Recent Data Control Log:**
@@ -1002,7 +1010,8 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 - Deleted Time, Entry Type (which table), Name CN with fallback (for system option: option_value), Name EN (null if CN used fallback or is system option), Additional Info:
   - Franchise entry: franchise type
   - Series entry: franchise name CN with fallback
-  - Anime entry: franchise name CN + series name CN with fallback
+  - Media entry (except anime movie): franchise name CN with fallback + series name CN with fallback
+  - Anime Movie entry: franchise name CN with fallback
   - System option entry: category
 
 All sourced from `GET /api/anime/`, `GET /api/franchise/`, `GET /api/series/`, `GET /api/system/deleted`.
@@ -1015,13 +1024,20 @@ All sourced from `GET /api/anime/`, `GET /api/franchise/`, `GET /api/series/`, `
 
 Admin review queue for entries requiring attention.
 
-**Anime with Remarks Section:**
+**Entries With Remarks Section:**
 
-- Find Remarks button → result table
+- Find Remarks button → `GET /api/data-control/check/remarks` → tabbed result table: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga. Columns per tab:
+  - Anime: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Anime Movie: Name CN, Name EN, Watching (`watching_status`), Remark
+  - Movie: Name CN, Name EN, Release Date (`release_date_usa`), Watching (`watching_status`), Remark
+  - TV Show: Name CN, Name EN, Season (`season_part`), Watching (`watching_status`), Remark
+  - Cartoon: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Manga: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
+  - Rows are clickable and navigate to the entry detail page
 
 **Potential Duplicates Section:**
 
-- Find Duplicates button → result table with tabs: Franchise / Series / Anime / System Options
+- Find Duplicates button → result table with tabs: Franchise / Series / Anime / Anime Movie / Movie / TV Show / Cartoon / Manga / System Options
 
 ---
 

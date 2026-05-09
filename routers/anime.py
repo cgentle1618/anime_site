@@ -24,6 +24,7 @@ from services.other_logics import (
     derive_ep_previous_anime,
     apply_single_replace_anime,
     resolve_anime_parent_hierarchy,
+    mark_tv_completed,
 )
 
 from utils.data_control_utils import log_deleted_record
@@ -222,6 +223,34 @@ def patch_anime_entry(
     db.commit()
     db.refresh(db_anime)
 
+    return db_anime
+
+
+@router.post(
+    "/{system_id}/complete",
+    response_model=schemas.AnimeResponse,
+    summary="Mark Anime Entry as Completed",
+)
+def complete_anime_entry(
+    system_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Sets all completion fields for an anime entry using the standard mark_tv_completed logic."""
+    db_anime = (
+        db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
+    )
+    if not db_anime:
+        raise HTTPException(status_code=404, detail="Anime entry not found.")
+
+    mark_tv_completed(db_anime)
+
+    if db_anime.completed_at is None:
+        db_anime.completed_at = get_taipei_now()
+    db_anime.updated_at = get_taipei_now()
+
+    db.commit()
+    db.refresh(db_anime)
     return db_anime
 
 

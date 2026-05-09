@@ -689,6 +689,12 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 
 ---
 
+### Find Remarks `find_all_remarks(db)`
+
+Find all media type entries with remark data column not being null.
+
+---
+
 ## Fill Missing Entry Data
 
 ### Extract MAL ID for Anime — `apply_extract_mal_id_anime(anime)` / `extract_mal_id_anime(url)`
