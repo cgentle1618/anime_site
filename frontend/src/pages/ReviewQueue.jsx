@@ -2,18 +2,321 @@ import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 
 function RemarksSection({ results, loading, onRefresh }) {
+  const [tab, setTab] = useState("anime");
+
+  const tabs = results
+    ? [
+        { key: "anime", label: "Anime", entries: results.anime },
+        {
+          key: "anime_movie",
+          label: "Anime Movie",
+          entries: results.anime_movie,
+        },
+        { key: "movie", label: "Movie", entries: results.movie },
+        { key: "tv_show", label: "TV Show", entries: results.tv_show },
+        { key: "cartoon", label: "Cartoon", entries: results.cartoon },
+        { key: "manga", label: "Manga", entries: results.manga },
+      ]
+    : [];
+
+  const totalEntries = tabs.reduce((s, t) => s + t.entries.length, 0);
+  const activeTab = tabs.find((t) => t.key === tab);
+
+  const colClass = "px-5 py-3 whitespace-nowrap";
+  const cellClass = "px-5 py-3 whitespace-nowrap text-xs text-gray-500";
+
+  function renderTable() {
+    if (!activeTab || activeTab.entries.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-400">
+          <i className="fas fa-check-circle text-2xl text-emerald-400 block mb-2"></i>
+          <p className="font-bold text-sm">No remarks in this category</p>
+        </div>
+      );
+    }
+
+    const entries = activeTab.entries;
+
+    if (tab === "anime") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Type</th>
+              <th className={colClass}>Watching</th>
+              <th className="px-5 py-3">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/anime/${e.system_id}`)}
+              >
+                <td
+                  className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                  title={e.anime_name_cn}
+                >
+                  {e.anime_name_cn || "—"}
+                </td>
+                <td
+                  className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                  title={e.anime_name_en}
+                >
+                  {e.anime_name_en || "—"}
+                </td>
+                <td className={cellClass}>
+                  <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {e.airing_type || "—"}
+                  </span>
+                </td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "anime_movie") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Watching</th>
+              <th className="px-5 py-3">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() =>
+                  (window.location.href = `/anime-movie/${e.system_id}`)
+                }
+              >
+                <td
+                  className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                  title={e.anime_movie_name_cn}
+                >
+                  {e.anime_movie_name_cn || "—"}
+                </td>
+                <td
+                  className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                  title={e.anime_movie_name_en}
+                >
+                  {e.anime_movie_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "movie") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Release Date</th>
+              <th className={colClass}>Watching</th>
+              <th className="px-5 py-3">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/movie/${e.system_id}`)}
+              >
+                <td
+                  className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                  title={e.movie_name_cn}
+                >
+                  {e.movie_name_cn || "—"}
+                </td>
+                <td
+                  className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                  title={e.movie_name_en}
+                >
+                  {e.movie_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.release_date_usa || "—"}</td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "tv_show") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Season</th>
+              <th className={colClass}>Watching</th>
+              <th className="px-5 py-3">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/tv/${e.system_id}`)}
+              >
+                <td
+                  className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                  title={e.tv_name_cn}
+                >
+                  {e.tv_name_cn || "—"}
+                </td>
+                <td
+                  className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                  title={e.tv_name_en}
+                >
+                  {e.tv_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.season_part || "—"}</td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "cartoon") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Type</th>
+              <th className={colClass}>Watching</th>
+              <th className="px-5 py-3">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() =>
+                  (window.location.href = `/cartoon/${e.system_id}`)
+                }
+              >
+                <td
+                  className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                  title={e.cartoon_name_cn}
+                >
+                  {e.cartoon_name_cn || "—"}
+                </td>
+                <td
+                  className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                  title={e.cartoon_name_en}
+                >
+                  {e.cartoon_name_en || "—"}
+                </td>
+                <td className={cellClass}>
+                  <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {e.airing_type || "—"}
+                  </span>
+                </td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    // manga
+    return (
+      <table className="w-full text-sm text-left">
+        <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+          <tr>
+            <th className={colClass}>Name (CN)</th>
+            <th className={colClass}>Name (EN)</th>
+            <th className={colClass}>Is Main</th>
+            <th className={colClass}>Reading</th>
+            <th className="px-5 py-3">Remark</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {entries.map((e, i) => (
+            <tr
+              key={i}
+              className="hover:bg-amber-50/40 transition cursor-pointer"
+              onClick={() => (window.location.href = `/manga/${e.system_id}`)}
+            >
+              <td
+                className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                title={e.manga_name_cn}
+              >
+                {e.manga_name_cn || "—"}
+              </td>
+              <td
+                className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                title={e.manga_name_en}
+              >
+                {e.manga_name_en || "—"}
+              </td>
+              <td className={cellClass}>{e.is_main || "—"}</td>
+              <td className={cellClass}>{e.reading_status || "—"}</td>
+              <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                {e.remark}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2">
         <div>
           <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-            Anime With Remarks
+            Entries With Remarks
           </h2>
           {results !== null && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {results.length === 0
-                ? "No anime entries have a remark."
-                : `${results.length} entr${results.length !== 1 ? "ies" : "y"} with a remark.`}
+              {totalEntries === 0
+                ? "No entries have a remark."
+                : `${totalEntries} entr${totalEntries !== 1 ? "ies" : "y"} with a remark.`}
             </p>
           )}
         </div>
@@ -38,7 +341,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             <p className="font-bold">Click "Find Remarks" to load</p>
           </div>
         </div>
-      ) : results.length === 0 ? (
+      ) : totalEntries === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center justify-center py-16 text-gray-400">
           <div className="text-center">
             <i className="fas fa-check-circle text-3xl block mb-3 text-emerald-400"></i>
@@ -47,53 +350,28 @@ function RemarksSection({ results, loading, onRefresh }) {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
-                <tr>
-                  <th className="px-5 py-3 whitespace-nowrap">Name (CN)</th>
-                  <th className="px-5 py-3 whitespace-nowrap">Name (EN)</th>
-                  <th className="px-5 py-3 whitespace-nowrap">Type</th>
-                  <th className="px-5 py-3 whitespace-nowrap">Watching</th>
-                  <th className="px-5 py-3">Remark</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {results.map((a, i) => (
-                  <tr
-                    key={i}
-                    className="hover:bg-amber-50/40 transition cursor-pointer"
-                    onClick={() =>
-                      (window.location.href = `/anime/${a.system_id}`)
-                    }
-                  >
-                    <td
-                      className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
-                      title={a.anime_name_cn}
-                    >
-                      {a.anime_name_cn || "—"}
-                    </td>
-                    <td
-                      className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
-                      title={a.anime_name_en}
-                    >
-                      {a.anime_name_en || "—"}
-                    </td>
-                    <td className="px-5 py-3 whitespace-nowrap">
-                      <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
-                        {a.airing_type || "—"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {a.watching_status || "—"}
-                    </td>
-                    <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
-                      {a.remark}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex border-b border-gray-200 bg-gray-50 px-4 pt-3 gap-1">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 text-xs font-black rounded-t-lg transition border-b-2 -mb-px ${
+                  tab === t.key
+                    ? "border-amber-500 text-amber-700 bg-white"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {t.label}
+                {t.entries.length > 0 && (
+                  <span className="ml-1.5 bg-amber-100 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                    {t.entries.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            {renderTable()}
           </div>
         </div>
       )}

@@ -35,7 +35,7 @@ from services.data_control import (
     execute_replace_single_movie,
     execute_replace_single_tv_show,
 )
-from services.other_logics import find_all_duplicates
+from services.other_logics import find_all_duplicates, find_all_remarks
 from services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,
@@ -625,25 +625,7 @@ def check_duplicates(db: Session = Depends(get_db)):
 @router.get("/check/remarks")
 def check_remarks(db: Session = Depends(get_db)):
     try:
-        entries = (
-            db.query(Anime)
-            .filter(Anime.remark.isnot(None), Anime.remark != "")
-            .order_by(Anime.updated_at.desc())
-            .all()
-        )
-        return JSONResponse(
-            content=[
-                {
-                    "system_id": str(e.system_id),
-                    "anime_name_cn": e.anime_name_cn,
-                    "anime_name_en": e.anime_name_en,
-                    "airing_type": e.airing_type,
-                    "watching_status": e.watching_status,
-                    "remark": e.remark,
-                }
-                for e in entries
-            ]
-        )
+        return JSONResponse(content=find_all_remarks(db))
     except Exception as e:
         logger.error(f"Error in check remarks: {e}")
         raise HTTPException(status_code=500, detail=str(e))

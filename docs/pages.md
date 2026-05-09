@@ -964,7 +964,14 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 - Calculate All → `POST /api/data-control/calculate/all`
 - Find Duplicates → `GET /api/data-control/check/duplicates`
-- With Remarks → shows anime entries that have remarks
+- With Remarks → `GET /api/data-control/check/remarks` → opens modal with tabs: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga. Each tab lists entries where `remark IS NOT NULL AND remark != ''`, ordered by `updated_at` desc. Columns per tab:
+  - Anime: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Anime Movie: Name CN, Name EN, Watching (`watching_status`), Remark
+  - Movie: Name CN, Name EN, Release Date (`release_date_usa`), Watching (`watching_status`), Remark
+  - TV Show: Name CN, Name EN, Season (`season_part`), Watching (`watching_status`), Remark
+  - Cartoon: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Manga: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
+  - Rows are clickable and navigate to the entry detail page
 - Check & Download Covers (multi-step): `GET /api/data-control/calculate/check-cover-image` → `POST .../download-missing-covers` → `POST .../set-cover-image-fields` → `DELETE .../delete-orphaned-covers`
 
 **Recent Data Control Log:**
@@ -1017,9 +1024,16 @@ All sourced from `GET /api/anime/`, `GET /api/franchise/`, `GET /api/series/`, `
 
 Admin review queue for entries requiring attention.
 
-**Anime with Remarks Section:**
+**Entries With Remarks Section:**
 
-- Find Remarks button → result table
+- Find Remarks button → `GET /api/data-control/check/remarks` → tabbed result table: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga. Columns per tab:
+  - Anime: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Anime Movie: Name CN, Name EN, Watching (`watching_status`), Remark
+  - Movie: Name CN, Name EN, Release Date (`release_date_usa`), Watching (`watching_status`), Remark
+  - TV Show: Name CN, Name EN, Season (`season_part`), Watching (`watching_status`), Remark
+  - Cartoon: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
+  - Manga: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
+  - Rows are clickable and navigate to the entry detail page
 
 **Potential Duplicates Section:**
 

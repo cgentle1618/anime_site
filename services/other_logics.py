@@ -792,6 +792,86 @@ def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
         entry.source_baha = True
 
 
+def find_all_remarks(db: Session) -> dict:
+    """Returns all entries with a non-empty remark, grouped by media type."""
+
+    def _query(model):
+        return (
+            db.query(model)
+            .filter(model.remark.isnot(None), model.remark != "")
+            .order_by(model.updated_at.desc())
+            .all()
+        )
+
+    return {
+        "anime": [
+            {
+                "system_id": str(e.system_id),
+                "anime_name_cn": e.anime_name_cn,
+                "anime_name_en": e.anime_name_en,
+                "airing_type": e.airing_type,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(Anime)
+        ],
+        "anime_movie": [
+            {
+                "system_id": str(e.system_id),
+                "anime_movie_name_cn": e.anime_movie_name_cn,
+                "anime_movie_name_en": e.anime_movie_name_en,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(AnimeMovies)
+        ],
+        "movie": [
+            {
+                "system_id": str(e.system_id),
+                "movie_name_cn": e.movie_name_cn,
+                "movie_name_en": e.movie_name_en,
+                "release_date_usa": e.release_date_usa,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(Movies)
+        ],
+        "tv_show": [
+            {
+                "system_id": str(e.system_id),
+                "tv_name_cn": e.tv_name_cn,
+                "tv_name_en": e.tv_name_en,
+                "season_part": e.season_part,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(TVShows)
+        ],
+        "cartoon": [
+            {
+                "system_id": str(e.system_id),
+                "cartoon_name_cn": e.cartoon_name_cn,
+                "cartoon_name_en": e.cartoon_name_en,
+                "airing_type": e.airing_type,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(Cartoon)
+        ],
+        "manga": [
+            {
+                "system_id": str(e.system_id),
+                "manga_name_cn": e.manga_name_cn,
+                "manga_name_en": e.manga_name_en,
+                "is_main": e.is_main,
+                "reading_status": e.reading_status,
+                "remark": e.remark,
+            }
+            for e in _query(Manga)
+        ],
+    }
+
+
 # ==========================================
 # DUPLICATE CHECKS
 # ==========================================
