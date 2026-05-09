@@ -18,7 +18,7 @@ import models
 import schemas
 
 from services.image_manager import delete_cover_image
-from services.other_logics import resolve_tv_show_parent_hierarchy
+from services.other_logics import resolve_tv_show_parent_hierarchy, mark_tv_completed
 from services.data_control import execute_replace_single_tv_show
 from utils.data_control_utils import log_deleted_record
 
@@ -196,6 +196,36 @@ async def patch_tv_show(
         entry.completed_at = get_taipei_now()
 
     entry.updated_at = get_taipei_now()
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.post(
+    "/{system_id}/complete",
+    response_model=schemas.TVShowResponse,
+    summary="Mark TV Show Entry as Completed",
+)
+def complete_tv_show_entry(
+    system_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Sets all completion fields for a TV show entry."""
+    entry = (
+        db.query(models.TVShows)
+        .filter(models.TVShows.system_id == system_id)
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="TV show entry not found.")
+
+    mark_tv_completed(entry)
+
+    if entry.completed_at is None:
+        entry.completed_at = get_taipei_now()
+    entry.updated_at = get_taipei_now()
+
     db.commit()
     db.refresh(entry)
     return entry

@@ -109,6 +109,7 @@ const defaultMovie = () => ({
   watching_status: "Might Watch",
   my_rating: "",
   movie_type: "",
+  is_main: "本傳",
   length_min: "",
   release_date_usa: "",
   release_date_tw: "",
@@ -201,7 +202,7 @@ const defaultCartoon = () => ({
   series_id: null,
   series_text: "",
   season_part: "",
-  airing_type: "",
+  airing_type: "TV",
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
   is_main: "本傳",
@@ -225,6 +226,50 @@ const defaultCartoon = () => ({
   remark: "",
 });
 
+const defaultManga = () => ({
+  manga_name_cn: "",
+  manga_name_en: "",
+  manga_name_roman: "",
+  manga_name_jp: "",
+  manga_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  region: "",
+  serialization_status: "",
+  reading_status: "Might Read",
+  is_main: "本傳",
+  vol_total: "",
+  vol_fin: "",
+  vol_fin_page: "",
+  ch_total: "",
+  ch_fin: "",
+  my_rating: "",
+  mal_rating: "",
+  mal_rank: "",
+  anilist_rating: "",
+  author_plot: "",
+  author_draw: "",
+  release_year: "",
+  end_year: "",
+  anime_studio: "",
+  serialization_platform: "",
+  distributor_tw: "",
+  derive_related: "",
+  prequel_id: null,
+  sequel_id: null,
+  watch_order: "",
+  mal_id: "",
+  mal_link: "",
+  anilist_link: "",
+  source_other: [],
+  read_next: false,
+  to_reread: false,
+  cover_image_file: "",
+  remark: "",
+});
+
 export default function Add() {
   const { showToast } = useToast();
 
@@ -236,6 +281,7 @@ export default function Add() {
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
+  const [allMangas, setAllMangas] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -246,6 +292,26 @@ export default function Add() {
   const [fillQuery, setFillQuery] = useState("");
   const [fillOpen, setFillOpen] = useState(false);
   const fillRef = useRef(null);
+
+  // Cartoon auto-fill search
+  const [cartoonFillQuery, setCartoonFillQuery] = useState("");
+  const [cartoonFillOpen, setCartoonFillOpen] = useState(false);
+  const cartoonFillRef = useRef(null);
+
+  // Movie auto-fill search
+  const [movieFillQuery, setMovieFillQuery] = useState("");
+  const [movieFillOpen, setMovieFillOpen] = useState(false);
+  const movieFillRef = useRef(null);
+
+  // TV Show auto-fill search
+  const [tvFillQuery, setTvFillQuery] = useState("");
+  const [tvFillOpen, setTvFillOpen] = useState(false);
+  const tvFillRef = useRef(null);
+
+  // Manga auto-fill search
+  const [mangaFillQuery, setMangaFillQuery] = useState("");
+  const [mangaFillOpen, setMangaFillOpen] = useState(false);
+  const mangaFillRef = useRef(null);
 
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
@@ -260,6 +326,7 @@ export default function Add() {
   const [mf, setMf] = useState(defaultMovie());
   const [tvf, setTvf] = useState(defaultTvShow());
   const [cf, setCf] = useState(defaultCartoon());
+  const [mgf, setMgf] = useState(defaultManga());
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
 
@@ -270,11 +337,12 @@ export default function Add() {
   const umf = (k, v) => setMf((p) => ({ ...p, [k]: v }));
   const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
   const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
+  const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes] =
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes, mgRes] =
           await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
@@ -284,6 +352,7 @@ export default function Add() {
             fetch("/api/movies/", { credentials: "include" }),
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
+            fetch("/api/manga/", { credentials: "include" }),
           ]);
         const [
           anime,
@@ -294,6 +363,7 @@ export default function Add() {
           movies,
           tvShows,
           cartoons,
+          mangas,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -303,6 +373,7 @@ export default function Add() {
           mvRes.json(),
           tvRes.json(),
           cRes.json(),
+          mgRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -312,6 +383,7 @@ export default function Add() {
         setAllMovies(movies);
         setAllTvShows(tvShows);
         setAllCartoons(cartoons);
+        setAllMangas(mangas);
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -325,6 +397,42 @@ export default function Add() {
     function handleClick(e) {
       if (fillRef.current && !fillRef.current.contains(e.target))
         setFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (cartoonFillRef.current && !cartoonFillRef.current.contains(e.target))
+        setCartoonFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (movieFillRef.current && !movieFillRef.current.contains(e.target))
+        setMovieFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (tvFillRef.current && !tvFillRef.current.contains(e.target))
+        setTvFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (mangaFillRef.current && !mangaFillRef.current.contains(e.target))
+        setMangaFillOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -344,6 +452,144 @@ export default function Add() {
         )
         .slice(0, 10)
     : [];
+
+  const cartoonFillResults = cartoonFillQuery
+    ? allCartoons
+        .filter((c) =>
+          [c.cartoon_name_en, c.cartoon_name_cn, c.cartoon_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(cartoonFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const mangaFillResults = mangaFillQuery
+    ? allMangas
+        .filter((m) =>
+          [
+            m.manga_name_cn,
+            m.manga_name_en,
+            m.manga_name_roman,
+            m.manga_name_jp,
+            m.manga_name_alt,
+          ].some(
+            (n) => n && cleanString(n).includes(cleanString(mangaFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const movieFillResults = movieFillQuery
+    ? allMovies
+        .filter((m) =>
+          [m.movie_name_en, m.movie_name_cn, m.movie_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(movieFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const tvFillResults = tvFillQuery
+    ? allTvShows
+        .filter((t) =>
+          [t.tv_name_en, t.tv_name_cn, t.tv_name_alt].some(
+            (n) => n && cleanString(n).includes(cleanString(tvFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  function applyCartoonAutofill(cartoon) {
+    const f = allFranchises.find((x) => x.system_id === cartoon.franchise_id);
+    const s = allSeries.find((x) => x.system_id === cartoon.series_id);
+    setCf((p) => ({
+      ...p,
+      cartoon_name_en: cartoon.cartoon_name_en || "",
+      cartoon_name_cn: cartoon.cartoon_name_cn || "",
+      cartoon_name_alt: cartoon.cartoon_name_alt || "",
+      franchise_id: cartoon.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: cartoon.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      airing_type: cartoon.airing_type || "",
+      is_main: cartoon.is_main || "",
+      source_official: cartoon.source_official || "",
+      season_part: cartoon.season_part || "",
+      derive_related:
+        cartoon.derive_related === true
+          ? "true"
+          : cartoon.derive_related === false
+            ? "false"
+            : "",
+      imdb_link: cartoon.imdb_link || "",
+    }));
+    setCartoonFillQuery("");
+    setCartoonFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyMangaAutofill(manga) {
+    const f = allFranchises.find((x) => x.system_id === manga.franchise_id);
+    const s = allSeries.find((x) => x.system_id === manga.series_id);
+    setMgf((p) => ({
+      ...p,
+      manga_name_cn: manga.manga_name_cn || "",
+      manga_name_en: manga.manga_name_en || "",
+      manga_name_roman: manga.manga_name_roman || "",
+      manga_name_jp: manga.manga_name_jp || "",
+      manga_name_alt: manga.manga_name_alt || "",
+      franchise_id: manga.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: manga.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: manga.region || "",
+      is_main: manga.is_main || "",
+    }));
+    setMangaFillQuery("");
+    setMangaFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyMovieAutofill(movie) {
+    const f = allFranchises.find((x) => x.system_id === movie.franchise_id);
+    const s = allSeries.find((x) => x.system_id === movie.series_id);
+    setMf((p) => ({
+      ...p,
+      movie_name_en: movie.movie_name_en || "",
+      movie_name_cn: movie.movie_name_cn || "",
+      movie_name_alt: movie.movie_name_alt || "",
+      franchise_id: movie.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: movie.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      is_main: movie.is_main || "",
+      movie_type: movie.movie_type || "",
+      director: movie.director || "",
+    }));
+    setMovieFillQuery("");
+    setMovieFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyTvShowAutofill(tvShow) {
+    const f = allFranchises.find((x) => x.system_id === tvShow.franchise_id);
+    const s = allSeries.find((x) => x.system_id === tvShow.series_id);
+    setTvf((p) => ({
+      ...p,
+      tv_name_en: tvShow.tv_name_en || "",
+      tv_name_cn: tvShow.tv_name_cn || "",
+      tv_name_alt: tvShow.tv_name_alt || "",
+      franchise_id: tvShow.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: tvShow.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      is_main: tvShow.is_main || "",
+      region: tvShow.region || "",
+    }));
+    setTvFillQuery("");
+    setTvFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
 
   function applyAutofill(anime) {
     const f = allFranchises.find((x) => x.system_id === anime.franchise_id);
@@ -382,6 +628,7 @@ export default function Add() {
       else if (activeTab === "movie") await submitMovie();
       else if (activeTab === "tv-show") await submitTvShow();
       else if (activeTab === "cartoon") await submitCartoon();
+      else if (activeTab === "manga") await submitManga();
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
@@ -885,6 +1132,7 @@ export default function Add() {
       movie_name_alt: mf.movie_name_alt || null,
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
+      is_main: mf.is_main || null,
       airing_status: mf.airing_status || null,
       watching_status: mf.watching_status || "Might Watch",
       my_rating: mf.my_rating || null,
@@ -1113,6 +1361,10 @@ export default function Add() {
       showToast("error", "Please provide at least a CN or EN title.");
       return;
     }
+    if (!cf.franchise_id && !cf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
 
     let franchiseId = cf.franchise_id;
     if (!franchiseId && cf.franchise_text.trim()) {
@@ -1257,6 +1509,170 @@ export default function Add() {
     setAllCartoons((prev) => [...prev, created]);
   }
 
+  async function submitManga() {
+    if (!mgf.manga_name_cn && !mgf.manga_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!mgf.franchise_id && !mgf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    let franchiseId = mgf.franchise_id;
+    if (!franchiseId && mgf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: mgf.manga_name_en || null,
+          franchise_name_cn: mgf.manga_name_cn || null,
+          franchise_name_roman: mgf.manga_name_roman || null,
+          franchise_name_jp: mgf.manga_name_jp || null,
+          franchise_name_alt: mgf.manga_name_alt || null,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = mgf.series_id;
+    if (!seriesId && mgf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: mgf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: mgf.manga_name_en || null,
+          series_name_cn: mgf.manga_name_cn || null,
+          series_name_alt: mgf.manga_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    const payload = {
+      manga_name_cn: mgf.manga_name_cn || null,
+      manga_name_en: mgf.manga_name_en || null,
+      manga_name_roman: mgf.manga_name_roman || null,
+      manga_name_jp: mgf.manga_name_jp || null,
+      manga_name_alt: mgf.manga_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: mgf.region || null,
+      serialization_status: mgf.serialization_status || null,
+      reading_status: mgf.reading_status || "Might Read",
+      is_main: mgf.is_main || null,
+      vol_total: mgf.vol_total !== "" ? parseInt(mgf.vol_total) : null,
+      vol_fin: mgf.vol_fin !== "" ? parseInt(mgf.vol_fin) : 0,
+      vol_fin_page: mgf.vol_fin_page !== "" ? parseInt(mgf.vol_fin_page) : 0,
+      ch_total: mgf.ch_total !== "" ? parseInt(mgf.ch_total) : null,
+      ch_fin: mgf.ch_fin !== "" ? parseInt(mgf.ch_fin) : 0,
+      my_rating: mgf.my_rating || null,
+      mal_rating: mgf.mal_rating !== "" ? parseFloat(mgf.mal_rating) : null,
+      mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
+      anilist_rating:
+        mgf.anilist_rating !== "" ? parseFloat(mgf.anilist_rating) : null,
+      author_plot: mgf.author_plot || null,
+      author_draw: mgf.author_draw || null,
+      release_year: mgf.release_year !== "" ? parseInt(mgf.release_year) : null,
+      end_year: mgf.end_year !== "" ? parseInt(mgf.end_year) : null,
+      anime_studio: mgf.anime_studio || null,
+      serialization_platform: mgf.serialization_platform || null,
+      distributor_tw: mgf.distributor_tw || null,
+      derive_related:
+        mgf.derive_related === "true"
+          ? true
+          : mgf.derive_related === "false"
+            ? false
+            : null,
+      prequel_id: mgf.prequel_id || null,
+      sequel_id: mgf.sequel_id || null,
+      watch_order: mgf.watch_order !== "" ? parseFloat(mgf.watch_order) : null,
+      mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
+      mal_link: mgf.mal_link || null,
+      anilist_link: mgf.anilist_link || null,
+      source_other:
+        mgf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              mgf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: mgf.read_next ?? false,
+      to_reread: mgf.to_reread ?? false,
+      cover_image_file: mgf.cover_image_file || null,
+      remark: mgf.remark || null,
+    };
+
+    const res = await fetch("/api/manga/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    window.scrollTo(0, 0);
+    showToast("success", "Manga appended successfully.");
+    setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
+    setMgf(defaultManga());
+    setAllMangas((prev) => [...prev, created]);
+  }
+
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
     label: getDisplayName(f, "franchise"),
@@ -1317,6 +1733,18 @@ export default function Add() {
       .join(" "),
   }));
 
+  const seriesItemsForManga = (
+    mgf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === mgf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const optionCategories = [
     ...new Set(allOptions.map((o) => o.category)),
   ].sort();
@@ -1338,6 +1766,7 @@ export default function Add() {
     { key: "movie", icon: "fa-ticket-alt", label: "Add Movie" },
     { key: "tv-show", icon: "fa-video", label: "Add TV Show" },
     { key: "cartoon", icon: "fa-paint-brush", label: "Add Cartoon" },
+    { key: "manga", icon: "fa-book", label: "Add Manga Entry" },
     { key: "franchise", icon: "fa-sitemap", label: "Add Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Add Series" },
     { key: "options", icon: "fa-cog", label: "Add System Option" },
@@ -2544,6 +2973,69 @@ export default function Add() {
         {/* ═══ MOVIE TAB ═══ */}
         {activeTab === "movie" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={movieFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={movieFillQuery}
+                  onChange={(e) => {
+                    setMovieFillQuery(e.target.value);
+                    setMovieFillOpen(true);
+                  }}
+                  onFocus={() => setMovieFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {movieFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMovieFillQuery("");
+                      setMovieFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {movieFillOpen && movieFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {movieFillResults.map((m) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === m.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={m.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyMovieAutofill(m)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {m.movie_type && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {m.movie_type}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {m.movie_name_cn || m.movie_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-ticket-alt" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
@@ -2687,6 +3179,22 @@ export default function Add() {
                   <option value="">—</option>
                   <option value="Reality">Reality</option>
                   <option value="Animation">Animation</option>
+                </select>
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Main / Spinoff">
+                <select
+                  className={selectCls}
+                  value={mf.is_main}
+                  onChange={(e) => umf("is_main", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
                 </select>
               </Field>
             </div>
@@ -2921,6 +3429,69 @@ export default function Add() {
         {/* ═══ TV SHOW TAB ═══ */}
         {activeTab === "tv-show" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={tvFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={tvFillQuery}
+                  onChange={(e) => {
+                    setTvFillQuery(e.target.value);
+                    setTvFillOpen(true);
+                  }}
+                  onFocus={() => setTvFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {tvFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTvFillQuery("");
+                      setTvFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {tvFillOpen && tvFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {tvFillResults.map((t) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === t.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={t.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyTvShowAutofill(t)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {t.region && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {t.region}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {t.tv_name_cn || t.tv_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-video" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
@@ -3337,6 +3908,69 @@ export default function Add() {
         {/* ═══ CARTOON TAB ═══ */}
         {activeTab === "cartoon" && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={cartoonFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={cartoonFillQuery}
+                  onChange={(e) => {
+                    setCartoonFillQuery(e.target.value);
+                    setCartoonFillOpen(true);
+                  }}
+                  onFocus={() => setCartoonFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {cartoonFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCartoonFillQuery("");
+                      setCartoonFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {cartoonFillOpen && cartoonFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {cartoonFillResults.map((c) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === c.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={c.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyCartoonAutofill(c)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {c.airing_type && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {c.airing_type}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {c.cartoon_name_cn || c.cartoon_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
             <Field label="Franchise">
               <ComboBox
@@ -3752,6 +4386,607 @@ export default function Add() {
                 rows={3}
                 value={cf.remark}
                 onChange={(e) => uc("remark", e.target.value)}
+                placeholder="Private notes..."
+              />
+            </Field>
+          </div>
+        )}
+
+        {/* ═══ MANGA TAB ═══ */}
+        {activeTab === "manga" && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+            {/* Auto-fill search */}
+            <div ref={mangaFillRef} className="relative mb-4">
+              <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+                <i className="fas fa-magic text-brand text-sm"></i>
+                <input
+                  type="text"
+                  value={mangaFillQuery}
+                  onChange={(e) => {
+                    setMangaFillQuery(e.target.value);
+                    setMangaFillOpen(true);
+                  }}
+                  onFocus={() => setMangaFillOpen(true)}
+                  placeholder="Auto-fill from existing entry — type a name to search..."
+                  className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+                  autoComplete="off"
+                />
+                {mangaFillQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMangaFillQuery("");
+                      setMangaFillOpen(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
+              </div>
+              {mangaFillOpen && mangaFillResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {mangaFillResults.map((m) => {
+                    const f = allFranchises.find(
+                      (x) => x.system_id === m.franchise_id,
+                    );
+                    return (
+                      <button
+                        key={m.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyMangaAutofill(m)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          {m.region && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                              {m.region}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-gray-800">
+                            {m.manga_name_cn || m.manga_name_en}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {f ? getDisplayName(f, "franchise") : "Standalone"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <SectionHeader icon="fa-book" title="Titles & Naming" />
+            <Field label="Franchise">
+              <ComboBox
+                items={allFranchises
+                  .filter(
+                    (f) => f.franchise_type === "ACG" || !f.franchise_type,
+                  )
+                  .map((f) => ({
+                    id: f.system_id,
+                    label: getDisplayName(f, "franchise"),
+                    searchText: [
+                      f.franchise_name_cn,
+                      f.franchise_name_en,
+                      f.franchise_name_jp,
+                      f.franchise_name_roman,
+                      f.franchise_name_alt,
+                    ]
+                      .filter(Boolean)
+                      .join(" "),
+                  }))}
+                selectedId={mgf.franchise_id}
+                inputText={mgf.franchise_text}
+                onSelect={(id, label) => {
+                  umg("franchise_id", id);
+                  umg("franchise_text", label);
+                  umg("series_id", null);
+                  umg("series_text", "");
+                }}
+                onType={(text) => {
+                  umg("franchise_text", text);
+                  umg("franchise_id", null);
+                  umg("series_id", null);
+                  umg("series_text", "");
+                }}
+                onClear={() => {
+                  umg("franchise_id", null);
+                  umg("franchise_text", "");
+                  umg("series_id", null);
+                  umg("series_text", "");
+                }}
+                placeholder="Search or type new franchise..."
+                allowNew
+              />
+            </Field>
+            <Field label="Series">
+              <ComboBox
+                items={seriesItemsForManga}
+                selectedId={mgf.series_id}
+                inputText={mgf.series_text}
+                onSelect={(id, label) => {
+                  umg("series_id", id);
+                  umg("series_text", label);
+                }}
+                onType={(text) => {
+                  umg("series_text", text);
+                  umg("series_id", null);
+                }}
+                onClear={() => {
+                  umg("series_id", null);
+                  umg("series_text", "");
+                }}
+                placeholder="Search or type new series..."
+                allowNew
+              />
+            </Field>
+            <Field label="Manga Name CN">
+              <input
+                className={inputCls}
+                value={mgf.manga_name_cn}
+                onChange={(e) => umg("manga_name_cn", e.target.value)}
+                placeholder="Chinese title"
+              />
+            </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Manga Name EN">
+                <input
+                  className={inputCls}
+                  value={mgf.manga_name_en}
+                  onChange={(e) => umg("manga_name_en", e.target.value)}
+                  placeholder="English title"
+                />
+              </Field>
+              <Field label="Manga Name Alt">
+                <input
+                  className={inputCls}
+                  value={mgf.manga_name_alt}
+                  onChange={(e) => umg("manga_name_alt", e.target.value)}
+                  placeholder="Alternative title"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Manga Name Roman">
+                <input
+                  className={inputCls}
+                  value={mgf.manga_name_roman}
+                  onChange={(e) => umg("manga_name_roman", e.target.value)}
+                  placeholder="Romanized title"
+                />
+              </Field>
+              <Field label="Manga Name JP">
+                <input
+                  className={inputCls}
+                  value={mgf.manga_name_jp}
+                  onChange={(e) => umg("manga_name_jp", e.target.value)}
+                  placeholder="Japanese title"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Region">
+                <select
+                  className={selectCls}
+                  value={mgf.region}
+                  onChange={(e) => umg("region", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Is Main">
+                <select
+                  className={selectCls}
+                  value={mgf.is_main}
+                  onChange={(e) => umg("is_main", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-chart-bar" title="Status" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Serialization Status">
+                <select
+                  className={selectCls}
+                  value={mgf.serialization_status}
+                  onChange={(e) => umg("serialization_status", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["連載中", "停更", "腰斬", "完結"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Reading Status">
+                <select
+                  className={selectCls}
+                  value={mgf.reading_status}
+                  onChange={(e) => umg("reading_status", e.target.value)}
+                >
+                  {[
+                    "Might Read",
+                    "Plan to Read",
+                    "Active Reading",
+                    "Passive Reading",
+                    "Paused",
+                    "Completed",
+                    "Temp Dropped",
+                    "Dropped",
+                    "Won't Read",
+                  ].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="My Rating">
+                <select
+                  className={selectCls}
+                  value={mgf.my_rating}
+                  onChange={(e) => umg("my_rating", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-list-ol" title="Progress" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Ch Total">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.ch_total}
+                  onChange={(e) => umg("ch_total", e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="Ch Finished">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.ch_fin}
+                  onChange={(e) => umg("ch_fin", e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Vol Total">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.vol_total}
+                  onChange={(e) => umg("vol_total", e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="Vol Finished">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.vol_fin}
+                  onChange={(e) => umg("vol_fin", e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="Vol Fin Page">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.vol_fin_page}
+                  onChange={(e) => umg("vol_fin_page", e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-star" title="Scores" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="MAL Rating" hint="e.g. 8.5">
+                <input
+                  className={inputCls}
+                  type="number"
+                  step="0.01"
+                  value={mgf.mal_rating}
+                  onChange={(e) => umg("mal_rating", e.target.value)}
+                  placeholder="8.5"
+                />
+              </Field>
+              <Field label="MAL Rank">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.mal_rank}
+                  onChange={(e) => umg("mal_rank", e.target.value)}
+                  placeholder="100"
+                />
+              </Field>
+              <Field label="AniList Rating" hint="e.g. 85">
+                <input
+                  className={inputCls}
+                  type="number"
+                  step="0.01"
+                  value={mgf.anilist_rating}
+                  onChange={(e) => umg("anilist_rating", e.target.value)}
+                  placeholder="85"
+                />
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Author (Plot)">
+                <MultiSelect
+                  options={getOptions(allOptions, "Manga Author")}
+                  value={mgf.author_plot}
+                  onChange={(v) => umg("author_plot", v)}
+                  placeholder="Select plot author..."
+                />
+              </Field>
+              <Field label="Author (Art)">
+                <MultiSelect
+                  options={getOptions(allOptions, "Manga Author")}
+                  value={mgf.author_draw}
+                  onChange={(v) => umg("author_draw", v)}
+                  placeholder="Select art author..."
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Release Year">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.release_year}
+                  onChange={(e) => umg("release_year", e.target.value)}
+                  placeholder="2020"
+                />
+              </Field>
+              <Field label="End Year">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.end_year}
+                  onChange={(e) => umg("end_year", e.target.value)}
+                  placeholder="2024"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Anime Studio">
+                <MultiSelect
+                  options={getOptions(allOptions, "Studio")}
+                  value={mgf.anime_studio}
+                  onChange={(v) => umg("anime_studio", v)}
+                  placeholder="Select studio..."
+                />
+              </Field>
+              <Field label="Serialization Platform">
+                <input
+                  className={inputCls}
+                  value={mgf.serialization_platform}
+                  onChange={(e) =>
+                    umg("serialization_platform", e.target.value)
+                  }
+                  placeholder="e.g. 週刊少年ジャンプ"
+                />
+              </Field>
+              <Field label="Distributor TW">
+                <input
+                  className={inputCls}
+                  value={mgf.distributor_tw}
+                  onChange={(e) => umg("distributor_tw", e.target.value)}
+                  placeholder="TW distributor"
+                />
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-link" title="Relational & Timeline" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Prequel ID" hint="UUID of prequel entry">
+                <input
+                  className={inputCls + " font-mono text-xs"}
+                  value={mgf.prequel_id || ""}
+                  onChange={(e) => umg("prequel_id", e.target.value || null)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                />
+              </Field>
+              <Field label="Sequel ID" hint="UUID of sequel entry">
+                <input
+                  className={inputCls + " font-mono text-xs"}
+                  value={mgf.sequel_id || ""}
+                  onChange={(e) => umg("sequel_id", e.target.value || null)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                />
+              </Field>
+              <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
+                <input
+                  className={inputCls}
+                  type="number"
+                  step="any"
+                  value={mgf.watch_order}
+                  onChange={(e) => umg("watch_order", e.target.value)}
+                  placeholder="e.g. 1, 1.5, 2"
+                />
+              </Field>
+              <Field
+                label="Derive Related"
+                hint="Set to No to skip prequel/sequel derivation"
+              >
+                <select
+                  className={selectCls}
+                  value={mgf.derive_related}
+                  onChange={(e) => umg("derive_related", e.target.value)}
+                >
+                  <option value="">—</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="MAL ID">
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={mgf.mal_id}
+                  onChange={(e) => umg("mal_id", e.target.value)}
+                  placeholder="12345"
+                />
+              </Field>
+              <Field label="MAL Link">
+                <input
+                  className={inputCls}
+                  type="url"
+                  value={mgf.mal_link}
+                  onChange={(e) => umg("mal_link", e.target.value)}
+                  placeholder="https://myanimelist.net/manga/..."
+                />
+              </Field>
+              <Field label="AniList Link">
+                <input
+                  className={inputCls}
+                  type="url"
+                  value={mgf.anilist_link}
+                  onChange={(e) => umg("anilist_link", e.target.value)}
+                  placeholder="https://anilist.co/manga/..."
+                />
+              </Field>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                Other Sources
+              </label>
+              <div className="space-y-2">
+                {mgf.source_other.map((entry, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <input
+                      className={inputCls}
+                      placeholder="Source name"
+                      value={entry.name}
+                      onChange={(e) =>
+                        umg(
+                          "source_other",
+                          mgf.source_other.map((x, j) =>
+                            j === i ? { ...x, name: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    />
+                    <input
+                      className={inputCls}
+                      type="url"
+                      placeholder="https://... (optional)"
+                      value={entry.url}
+                      onChange={(e) =>
+                        umg(
+                          "source_other",
+                          mgf.source_other.map((x, j) =>
+                            j === i ? { ...x, url: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                      onClick={() =>
+                        umg(
+                          "source_other",
+                          mgf.source_other.filter((_, j) => j !== i),
+                        )
+                      }
+                    >
+                      <i className="fas fa-times" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="text-xs text-brand hover:underline mt-1"
+                  onClick={() =>
+                    umg("source_other", [
+                      ...mgf.source_other,
+                      { name: "", url: "" },
+                    ])
+                  }
+                >
+                  + Add Source
+                </button>
+              </div>
+            </div>
+
+            <SectionHeader icon="fa-flag" title="Flags" />
+            <div className="flex flex-wrap gap-6 mt-2">
+              <Field label="Read Next">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!mgf.read_next}
+                    onChange={(e) => umg("read_next", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Add to Read Next list
+                  </span>
+                </label>
+              </Field>
+              <Field label="To Reread">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!mgf.to_reread}
+                    onChange={(e) => umg("to_reread", e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Mark for reread
+                  </span>
+                </label>
+              </Field>
+            </div>
+
+            <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
+            <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">
+              <input
+                className={inputCls}
+                value={mgf.cover_image_file}
+                onChange={(e) => umg("cover_image_file", e.target.value)}
+                placeholder="5114.jpg"
+              />
+            </Field>
+            <Field label="Remark">
+              <textarea
+                className={inputCls}
+                rows={3}
+                value={mgf.remark}
+                onChange={(e) => umg("remark", e.target.value)}
                 placeholder="Private notes..."
               />
             </Field>

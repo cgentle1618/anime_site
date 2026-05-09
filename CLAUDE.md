@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal anime/media collection. Data is organized in a three-tier relational hierarchy: `Franchise → Series → Single Media Entry`. The app has two access levels: Guest (read-only) and Admin (full management).
+**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal media collection. Data is organized in a three-tier relational hierarchy: `Franchise → Series → Single Media Entry`. Media entry types include Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, and Novel (not implemented yet). The app has two access levels: Guest (read-only) and Admin (full management).
 
 ## Documentation Map
 
@@ -71,6 +71,7 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 
 - Anime Movie is not the same as Anime with airing_type as "movie". Anime Movie has its own database table anime_movie. Anime with airing_type as "movie" belongs to the database table anime. When mentioning Anime Movie, it is more likely to be referring to the entries in anime_movie database table.
 - Remark column is different from remark field in notes column. The prior is of data type Text. The later is an user-defined sub-field of JSONB notes column.
+- Reality franchise is referring to franchise with type as "TV or Movie".
 
 ## Rule
 

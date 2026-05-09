@@ -1,62 +1,52 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeMovieCard from "../components/AnimeMovieCard";
-import {
-  isBaha,
-  getStatusButtonConfig,
-  getRatingWeight,
-  cleanString,
-} from "../utils/anime";
+import MangaCard, { getReadingButtonConfig } from "../components/MangaCard";
+import { getRatingWeight, cleanString } from "../utils/anime";
 import { useToast } from "../hooks/useToast";
 
-function getMovieTitle(m) {
+function getMangaTitle(m) {
   return (
-    m.anime_movie_name_cn ||
-    m.anime_movie_name_en ||
-    m.anime_movie_name_roman ||
-    m.anime_movie_name_jp ||
-    m.anime_movie_name_alt ||
+    m.manga_name_cn ||
+    m.manga_name_en ||
+    m.manga_name_roman ||
+    m.manga_name_jp ||
+    m.manga_name_alt ||
     ""
   );
 }
 
-function getMovieSortKey(m) {
+function getMangaSortKey(m) {
   return (
-    m.anime_movie_name_en ||
-    m.anime_movie_name_roman ||
-    m.anime_movie_name_alt ||
-    m.anime_movie_name_cn ||
-    m.anime_movie_name_jp ||
+    m.manga_name_en ||
+    m.manga_name_roman ||
+    m.manga_name_cn ||
+    m.manga_name_jp ||
+    m.manga_name_alt ||
     ""
   );
 }
 
-function getReleaseYearJp(releaseDate) {
-  if (!releaseDate) return null;
-  const parts = String(releaseDate).trim().split(/[-\s]/);
-  return parts[0] && /^\d{4}$/.test(parts[0])
-    ? parts[0]
-    : parts[parts.length - 1];
-}
+const READING_STATUS_GROUP = {
+  "Plan to Read": "Planned",
+  "Active Reading": "Reading",
+  "Passive Reading": "Reading",
+  Paused: "Reading",
+  Completed: "Completed",
+  "Temp Dropped": "Dropped",
+  Dropped: "Dropped",
+  "Won't Read": "Dropped",
+  "Might Read": "Might Read",
+};
 
-function getReleaseSortScore(m) {
-  const raw = m.release_date_jp || m.release_date_tw || "";
-  if (!raw) return 0;
-  const parts = String(raw).trim().split(/[-\s]/);
-  const year = parseInt(parts[0]) || 0;
-  const month = parseInt(parts[1]) || 0;
-  const day = parseInt(parts[2]) || 0;
-  return year * 10000 + month * 100 + day;
-}
-
-export default function LibraryAnimeMovie() {
+export default function LibraryManga() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const [allMovies, setAllMovies] = useState([]);
+  const [allManga, setAllManga] = useState([]);
   const [franchiseDict, setFranchiseDict] = useState({});
+  const [seriesDict, setSeriesDict] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -65,26 +55,32 @@ export default function LibraryAnimeMovie() {
   const [currentView, setCurrentView] = useState("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    airingStatus: new Set(),
-    watchingStatus: new Set(),
-    bahaOnly: false,
+    serializationStatus: new Set(),
+    readingStatus: new Set(),
+    region: new Set(),
   });
 
   useEffect(() => {
     async function fetch_() {
       try {
-        const [mRes, fRes] = await Promise.all([
-          fetch("/api/anime-movie/", { credentials: "include" }),
+        const [mRes, fRes, sRes] = await Promise.all([
+          fetch("/api/manga/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
+          fetch("/api/series/", { credentials: "include" }),
         ]);
-        if (!mRes.ok || !fRes.ok) throw new Error("Failed to fetch database");
-        const [movies, franchises] = await Promise.all([
+        if (!mRes.ok || !fRes.ok || !sRes.ok)
+          throw new Error("Failed to fetch database");
+        const [manga, franchises, seriesList] = await Promise.all([
           mRes.json(),
           fRes.json(),
+          sRes.json(),
         ]);
-        setAllMovies(movies);
+        setAllManga(manga);
         setFranchiseDict(
           Object.fromEntries(franchises.map((f) => [f.system_id, f])),
+        );
+        setSeriesDict(
+          Object.fromEntries(seriesList.map((s) => [s.system_id, s])),
         );
       } catch (e) {
         setError(e.message);
@@ -96,30 +92,44 @@ export default function LibraryAnimeMovie() {
   }, []);
 
   const handleUpdated = useCallback((updated) => {
-    setAllMovies((prev) =>
+    setAllManga((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
   }, []);
 
+  const regionOptions = useMemo(
+    () => [...new Set(allManga.map((m) => m.region).filter(Boolean))].sort(),
+    [allManga],
+  );
+
+  const serializationStatusOptions = useMemo(
+    () =>
+      [
+        ...new Set(allManga.map((m) => m.serialization_status).filter(Boolean)),
+      ].sort(),
+    [allManga],
+  );
+
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
 
-    let result = allMovies.filter((m) => {
+    let result = allManga.filter((m) => {
       if (qClean) {
         const f = franchiseDict[m.franchise_id];
-        const yearJp = getReleaseYearJp(m.release_date_jp);
+        const s = seriesDict[m.series_id];
         const fields = [
-          m.anime_movie_name_cn,
-          m.anime_movie_name_en,
-          m.anime_movie_name_roman,
-          m.anime_movie_name_jp,
-          m.anime_movie_name_alt,
+          m.manga_name_cn,
+          m.manga_name_en,
+          m.manga_name_roman,
+          m.manga_name_jp,
+          m.manga_name_alt,
           f?.franchise_name_cn,
           f?.franchise_name_en,
           f?.franchise_name_roman,
-          f?.franchise_name_jp,
-          f?.franchise_name_alt,
-          yearJp,
+          s?.series_name_cn,
+          s?.series_name_en,
+          s?.series_name_alt,
+          m.release_year != null ? String(m.release_year) : null,
         ];
         if (
           !fields.some(
@@ -129,30 +139,28 @@ export default function LibraryAnimeMovie() {
           return false;
       }
       if (
-        filters.airingStatus.size > 0 &&
-        !filters.airingStatus.has(m.airing_status)
+        filters.serializationStatus.size > 0 &&
+        !filters.serializationStatus.has(m.serialization_status)
       )
         return false;
-      if (filters.bahaOnly && !isBaha(m)) return false;
-      if (filters.watchingStatus.size > 0) {
-        const ws = m.watching_status || "Might Watch";
-        let group = "Might Watch";
-        if (["Plan to Watch", "Watch When Airs"].includes(ws))
-          group = "Planned";
-        else if (["Active Watching", "Passive Watching", "Paused"].includes(ws))
-          group = "Watching";
-        else if (ws === "Completed") group = "Completed";
-        else if (["Temp Dropped", "Dropped", "Won't Watch"].includes(ws))
-          group = "Dropped";
-        if (!filters.watchingStatus.has(group)) return false;
+      if (filters.region.size > 0 && !filters.region.has(m.region))
+        return false;
+      if (filters.readingStatus.size > 0) {
+        const group = READING_STATUS_GROUP[m.reading_status] || "Might Read";
+        if (!filters.readingStatus.has(group)) return false;
       }
       return true;
     });
 
     result.sort((a, b) => {
-      if (currentSort === "release_date") {
-        const diff = getReleaseSortScore(b) - getReleaseSortScore(a);
-        if (diff !== 0) return diff;
+      if (currentSort === "release_year") {
+        const dA = a.release_year ?? 0;
+        const dB = b.release_year ?? 0;
+        if (dA !== dB) return dB - dA;
+      } else if (currentSort === "end_year") {
+        const dA = a.end_year ?? 0;
+        const dB = b.end_year ?? 0;
+        if (dA !== dB) return dB - dA;
       } else if (currentSort === "my_rating") {
         const diff =
           getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
@@ -162,13 +170,15 @@ export default function LibraryAnimeMovie() {
         const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
         if (wA !== wB) return wB - wA;
       }
-      const tA = getMovieSortKey(a).toLowerCase();
-      const tB = getMovieSortKey(b).toLowerCase();
-      return tA.localeCompare(tB);
+      return getMangaSortKey(a)
+        .toLowerCase()
+        .localeCompare(getMangaSortKey(b).toLowerCase(), undefined, {
+          numeric: true,
+        });
     });
 
     return result;
-  }, [allMovies, franchiseDict, searchQuery, currentSort, filters]);
+  }, [allManga, franchiseDict, seriesDict, searchQuery, currentSort, filters]);
 
   function toggleFilter(group, value) {
     setFilters((prev) => {
@@ -181,16 +191,16 @@ export default function LibraryAnimeMovie() {
 
   function clearFilters() {
     setFilters({
-      airingStatus: new Set(),
-      watchingStatus: new Set(),
-      bahaOnly: false,
+      serializationStatus: new Set(),
+      readingStatus: new Set(),
+      region: new Set(),
     });
   }
 
   const activeFilterCount =
-    filters.airingStatus.size +
-    filters.watchingStatus.size +
-    (filters.bahaOnly ? 1 : 0);
+    filters.serializationStatus.size +
+    filters.readingStatus.size +
+    filters.region.size;
 
   if (loading) {
     return (
@@ -235,7 +245,7 @@ export default function LibraryAnimeMovie() {
           <i className="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none"></i>
           <input
             type="text"
-            placeholder="Search anime movies, franchise, release year..."
+            placeholder="Search manga, franchise, series, year..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white"
@@ -255,7 +265,8 @@ export default function LibraryAnimeMovie() {
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
         >
           <option value="title">Sort: Title</option>
-          <option value="release_date">Sort: Release Date</option>
+          <option value="release_year">Sort: Release Year</option>
+          <option value="end_year">Sort: Ending Year</option>
           <option value="my_rating">Sort: My Rating</option>
           <option value="mal_rating">Sort: MAL Rating</option>
         </select>
@@ -305,45 +316,52 @@ export default function LibraryAnimeMovie() {
               </button>
             )}
           </div>
+          {serializationStatusOptions.length > 0 && (
+            <div>
+              <div className="text-xs font-bold text-gray-400 mb-1.5">
+                Serialization Status
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {serializationStatusOptions.map((v) => (
+                  <FilterTag
+                    key={v}
+                    group="serializationStatus"
+                    value={v}
+                    label={v}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <div className="text-xs font-bold text-gray-400 mb-1.5">
-              Airing Status
+              Reading Status
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {["Airing", "Finished Airing", "Not Yet Aired"].map((v) => (
-                <FilterTag key={v} group="airingStatus" value={v} label={v} />
-              ))}
+              {["Reading", "Planned", "Completed", "Dropped", "Might Read"].map(
+                (v) => (
+                  <FilterTag
+                    key={v}
+                    group="readingStatus"
+                    value={v}
+                    label={v}
+                  />
+                ),
+              )}
             </div>
           </div>
-          <div>
-            <div className="text-xs font-bold text-gray-400 mb-1.5">
-              Watch Status
+          {regionOptions.length > 0 && (
+            <div>
+              <div className="text-xs font-bold text-gray-400 mb-1.5">
+                Region
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {regionOptions.map((v) => (
+                  <FilterTag key={v} group="region" value={v} label={v} />
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                "Watching",
-                "Planned",
-                "Completed",
-                "Dropped",
-                "Might Watch",
-              ].map((v) => (
-                <FilterTag key={v} group="watchingStatus" value={v} label={v} />
-              ))}
-            </div>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.bahaOnly}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, bahaOnly: e.target.checked }))
-              }
-              className="rounded"
-            />
-            <span className="text-xs font-bold text-gray-600">
-              Bahamut source only
-            </span>
-          </label>
+          )}
         </div>
       )}
 
@@ -352,18 +370,13 @@ export default function LibraryAnimeMovie() {
         <div className="text-center py-20">
           <i className="fas fa-ghost text-4xl text-gray-300 mb-4"></i>
           <p className="text-gray-500 font-medium">
-            No anime movies match the current filters.
+            No manga match the current filters.
           </p>
         </div>
       ) : currentView === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filteredAndSorted.map((m) => (
-            <AnimeMovieCard
-              key={m.system_id}
-              movie={m}
-              franchises={Object.values(franchiseDict)}
-              onUpdated={handleUpdated}
-            />
+            <MangaCard key={m.system_id} manga={m} onUpdated={handleUpdated} />
           ))}
         </div>
       ) : (
@@ -371,14 +384,23 @@ export default function LibraryAnimeMovie() {
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider border-r border-gray-100">
                   Franchise
                 </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
-                  Title
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider border-r border-gray-100">
+                  Title CN
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider border-r border-gray-100 hidden md:table-cell">
+                  Title EN
                 </th>
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden md:table-cell">
                   Status
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden lg:table-cell">
+                  CH
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden lg:table-cell">
+                  VOL
                 </th>
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden lg:table-cell">
                   My
@@ -387,22 +409,13 @@ export default function LibraryAnimeMovie() {
                   MAL
                 </th>
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
-                  Studio
+                  Read
                 </th>
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
-                  Director
-                </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
-                  Baha
-                </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
-                  Watch
-                </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
-                  Watch Next
+                  Read Next
                 </th>
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center hidden xl:table-cell">
-                  To Rewatch
+                  To Reread
                 </th>
               </tr>
             </thead>
@@ -415,26 +428,22 @@ export default function LibraryAnimeMovie() {
                     f.franchise_name_roman ||
                     "Unknown"
                   : null;
-                const mainTitle = getMovieTitle(m);
-                const subTitle =
-                  m.anime_movie_name_en || m.anime_movie_name_roman || "";
-                const bahaFlag = isBaha(m);
-                const btnConfig = getStatusButtonConfig(m.watching_status);
-
-                let airStatusColor = "text-gray-500 bg-gray-100";
-                if (m.airing_status === "Airing")
-                  airStatusColor = "text-green-700 bg-green-100";
-                else if (m.airing_status === "Finished Airing")
-                  airStatusColor = "text-blue-700 bg-blue-100";
-                else if (m.airing_status === "Not Yet Aired")
-                  airStatusColor = "text-orange-700 bg-orange-100";
+                const mainTitle = getMangaTitle(m);
+                const titleEN = m.manga_name_en || m.manga_name_roman || "-";
+                const btnConfig = getReadingButtonConfig(m.reading_status);
+                const chFin = m.ch_fin ?? 0;
+                const chTotal = m.ch_total ?? "?";
+                const volFin = m.vol_fin ?? 0;
+                const volTotal = m.vol_total ?? "?";
 
                 async function handleStatusToggle(e) {
                   e.stopPropagation();
-                  const res = await fetch(`/api/anime-movie/${m.system_id}`, {
+                  const res = await fetch(`/api/manga/${m.system_id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ watching_status: btnConfig.target }),
+                    body: JSON.stringify({
+                      reading_status: btnConfig.target,
+                    }),
                     credentials: "include",
                   });
                   if (res.ok) {
@@ -447,7 +456,7 @@ export default function LibraryAnimeMovie() {
                 return (
                   <tr
                     key={m.system_id}
-                    onClick={() => navigate(`/anime-movie/${m.system_id}`)}
+                    onClick={() => navigate(`/manga/${m.system_id}`)}
                     className="hover:bg-indigo-50/50 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-2 text-xs text-gray-600 font-medium truncate max-w-[12rem] border-r border-gray-100">
@@ -459,18 +468,18 @@ export default function LibraryAnimeMovie() {
                       <div className="text-xs font-bold text-gray-900 leading-tight line-clamp-1">
                         {mainTitle}
                       </div>
-                      {subTitle && subTitle !== mainTitle && (
-                        <div className="text-[9px] text-gray-400 line-clamp-1">
-                          {subTitle}
-                        </div>
-                      )}
                     </td>
-                    <td className="px-4 py-2 text-center border-r border-gray-100 hidden md:table-cell">
-                      <span
-                        className={`px-2 inline-flex text-[9px] leading-4 font-bold rounded-full ${airStatusColor}`}
-                      >
-                        {m.airing_status || "-"}
-                      </span>
+                    <td className="px-4 py-2 text-xs text-gray-500 truncate max-w-[10rem] border-r border-gray-100 hidden md:table-cell">
+                      {titleEN}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-center text-gray-500 border-r border-gray-100 hidden md:table-cell">
+                      {m.serialization_status || "-"}
+                    </td>
+                    <td className="px-4 py-2 text-center text-xs font-mono font-bold text-gray-700 border-r border-gray-100 hidden lg:table-cell">
+                      {chFin} / {chTotal}
+                    </td>
+                    <td className="px-4 py-2 text-center text-xs font-mono font-bold text-gray-700 border-r border-gray-100 hidden lg:table-cell">
+                      {volFin} / {volTotal}
                     </td>
                     <td className="px-4 py-2 text-center border-r border-gray-100 hidden lg:table-cell">
                       {m.my_rating ? (
@@ -482,7 +491,7 @@ export default function LibraryAnimeMovie() {
                       )}
                     </td>
                     <td className="px-4 py-2 text-xs text-center border-r border-gray-100 hidden lg:table-cell">
-                      {m.mal_rating ? (
+                      {m.mal_rating != null ? (
                         <span className="font-bold text-blue-600">
                           {m.mal_rating}
                         </span>
@@ -490,56 +499,21 @@ export default function LibraryAnimeMovie() {
                         "-"
                       )}
                     </td>
-                    <td className="px-4 py-2 text-xs text-center text-gray-500 border-r border-gray-100 hidden xl:table-cell truncate max-w-[8rem]">
-                      {m.studio || "-"}
-                    </td>
-                    <td className="px-4 py-2 text-xs text-center text-gray-500 border-r border-gray-100 hidden xl:table-cell truncate max-w-[8rem]">
-                      {m.director || "-"}
-                    </td>
                     <td
-                      className="px-4 py-2 text-center border-r border-gray-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {bahaFlag ? (
-                        m.baha_link ? (
-                          <a
-                            href={m.baha_link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-block hover:scale-110 transition-transform"
-                          >
-                            <img
-                              src="https://i2.bahamut.com.tw/anime/logo.svg"
-                              className="h-4 opacity-90"
-                              alt="Baha"
-                            />
-                          </a>
-                        ) : (
-                          <img
-                            src="https://i2.bahamut.com.tw/anime/logo.svg"
-                            className="h-4 inline-block opacity-50 grayscale"
-                            alt="Baha"
-                          />
-                        )
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td
-                      className="px-4 py-2 text-center border-r border-gray-100"
+                      className="px-4 py-2 text-center border-r border-gray-100 hidden xl:table-cell"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {isAdmin ? (
                         <button
                           onClick={handleStatusToggle}
                           className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors mx-auto font-bold text-[13px] leading-none ${btnConfig.cls}`}
-                          title={`${m.watching_status || "Might Watch"} → ${btnConfig.target}`}
+                          title={`${m.reading_status || "Might Read"} → ${btnConfig.target}`}
                         >
                           {btnConfig.symbol}
                         </button>
-                      ) : m.watching_status ? (
+                      ) : m.reading_status ? (
                         <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 mx-auto max-w-full truncate">
-                          {m.watching_status}
+                          {m.reading_status}
                         </div>
                       ) : (
                         "-"
@@ -551,27 +525,24 @@ export default function LibraryAnimeMovie() {
                     >
                       <input
                         type="checkbox"
-                        checked={!!m.watch_next}
+                        checked={!!m.read_next}
                         disabled={!isAdmin}
                         onChange={async (e) => {
                           const val = e.target.checked;
-                          const res = await fetch(
-                            `/api/anime-movie/${m.system_id}`,
-                            {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ watch_next: val }),
-                              credentials: "include",
-                            },
-                          );
+                          const res = await fetch(`/api/manga/${m.system_id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ read_next: val }),
+                            credentials: "include",
+                          });
                           if (res.ok) {
                             const updated = await res.json();
                             handleUpdated(updated);
                             showToast(
                               "success",
                               val
-                                ? "Added to Watch Next"
-                                : "Removed from Watch Next",
+                                ? "Added to Read Next"
+                                : "Removed from Read Next",
                             );
                           }
                         }}
@@ -584,27 +555,22 @@ export default function LibraryAnimeMovie() {
                     >
                       <input
                         type="checkbox"
-                        checked={!!m.to_rewatch}
+                        checked={!!m.to_reread}
                         disabled={!isAdmin}
                         onChange={async (e) => {
                           const val = e.target.checked;
-                          const res = await fetch(
-                            `/api/anime-movie/${m.system_id}`,
-                            {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ to_rewatch: val }),
-                              credentials: "include",
-                            },
-                          );
+                          const res = await fetch(`/api/manga/${m.system_id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ to_reread: val }),
+                            credentials: "include",
+                          });
                           if (res.ok) {
                             const updated = await res.json();
                             handleUpdated(updated);
                             showToast(
                               "success",
-                              val
-                                ? "Marked for rewatch"
-                                : "Removed from rewatch",
+                              val ? "Marked for reread" : "Removed from reread",
                             );
                           }
                         }}

@@ -97,12 +97,19 @@ function DeletedTable({ records, onRefresh }) {
         <span className="text-gray-500 text-xs">Type: {d.franchise_type}</span>
       );
     }
-    if (d.type === "Anime") {
+    if (["Anime", "TV Show", "Movie", "Cartoon", "Manga"].includes(d.type)) {
       return (
         <div className="text-xs text-gray-500 space-y-0.5">
           {d.franchise_cn && <div>Franchise: {d.franchise_cn}</div>}
           {d.series_cn && <div>Series: {d.series_cn}</div>}
         </div>
+      );
+    }
+    if (d.type === "Anime Movie" && d.franchise_cn) {
+      return (
+        <span className="text-gray-500 text-xs">
+          Franchise: {d.franchise_cn}
+        </span>
       );
     }
     if (d.type === "Series" && d.franchise_cn) {

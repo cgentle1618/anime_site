@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import FranchiseAcg from "./FranchiseAcg";
 import FranchiseReality from "./FranchiseReality";
-
-const REALITY_TYPES = new Set(["TV or Movie"]);
+import FranchiseCartoon from "./FranchiseCartoon";
 
 export default function Franchise() {
   const { system_id } = useParams();
@@ -27,6 +26,7 @@ export default function Franchise() {
     );
   }
 
-  if (REALITY_TYPES.has(franchiseType)) return <FranchiseReality />;
+  if (franchiseType === "TV or Movie") return <FranchiseReality />;
+  if (franchiseType === "Cartoon") return <FranchiseCartoon />;
   return <FranchiseAcg />;
 }

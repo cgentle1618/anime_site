@@ -19,6 +19,7 @@ from models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Manga,
     Movies,
     TVShows,
     Franchise,
@@ -27,7 +28,7 @@ from models import (
     SystemOption,
 )
 
-from services.jikan import fetch_jikan_anime_data
+from services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_data
 from services.imdb import fetch_imdb_data
 from services.tmdb import fetch_tmdb_tv_season_data
 from services.image_manager import download_cover_image
@@ -39,15 +40,23 @@ from utils.utils import (
     ANIME_MOVIE_FIELDS_TO_FILL,
     CARTOON_TV_FIELDS_TO_FILL,
     CARTOON_MOVIE_FIELDS_TO_FILL,
+    MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
+    extract_mal_id_manga_novel,
     extract_imdb_id,
     extract_season_from_title,
     calculate_seasonal_from_month,
     validate_episode_math,
+    validate_vol_math,
+    validate_ch_math,
 )
-from utils.jikan_utils import map_jikan_to_anime_data, map_jikan_to_anime_movie_data
+from utils.jikan_utils import (
+    map_jikan_to_anime_data,
+    map_jikan_to_anime_movie_data,
+    map_jikan_to_manga_data,
+)
 from utils.imdb_utils import (
     _parse_season_number,
     _derive_tv_season_airing_status,
@@ -496,6 +505,91 @@ def resolve_cartoon_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
+def resolve_manga_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
+    """
+    Ensures valid franchise_id and series_id UUIDs for a Manga entry.
+    Franchise: valid UUID pass-through; null/string → search by name across all name fields;
+    not found → auto-create with franchise_type="ACG".
+    Series: non-string pass-through; non-empty string → search by name; not found → set null.
+    Returns (final_franchise_id, final_series_id).
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        final_franchise_id = franchise_id
+    else:
+        valid_names = set()
+        for lang_key in ["en", "cn", "roman", "jp", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        search_conditions = []
+        for name_str in valid_names:
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_roman.ilike(name_str),
+                    Franchise.franchise_name_jp.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing = None
+        if search_conditions:
+            existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+        if existing:
+            final_franchise_id = existing.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise for Manga: {final_franchise_id}"
+            )
+        else:
+            new_fran = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type="ACG",
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_roman=names.get("roman"),
+                franchise_name_jp=names.get("jp"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_fran)
+            db.flush()
+            final_franchise_id = new_fran.system_id
+            logger.info(
+                f"Auto-created missing Franchise for Manga: {final_franchise_id}"
+            )
+
+    final_series_id = series_id
+    if series_id and isinstance(series_id, str) and series_id.strip():
+        sname = series_id.strip()
+        existing_series = (
+            db.query(Series)
+            .filter(
+                or_(
+                    Series.series_name_en.ilike(sname),
+                    Series.series_name_cn.ilike(sname),
+                    Series.series_name_alt.ilike(sname),
+                )
+            )
+            .first()
+        )
+        if existing_series:
+            final_series_id = existing_series.system_id
+            logger.info(f"Auto-resolved existing Series for Manga: {final_series_id}")
+        else:
+            final_series_id = None
+            logger.warning(
+                f"Could not resolve Series by name '{sname}' for Manga. Setting to null."
+            )
+
+    return final_franchise_id, final_series_id
+
+
 # ==========================================
 # CHECKING LOGICS
 # ==========================================
@@ -512,6 +606,26 @@ def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon]) -> bool:
         entry.ep_fin = safe_fin
         return True
     return False
+
+
+def apply_validate_vol_math(manga: Manga) -> bool:
+    """Clamps vol_fin <= vol_total. Returns True if any value changed."""
+    safe_total, safe_fin = validate_vol_math(manga.vol_total, manga.vol_fin)
+    changed = manga.vol_total != safe_total or manga.vol_fin != safe_fin
+    if changed:
+        manga.vol_total = safe_total
+        manga.vol_fin = safe_fin
+    return changed
+
+
+def apply_validate_ch_math(manga: Manga) -> bool:
+    """Clamps ch_fin <= ch_total. Returns True if any value changed."""
+    safe_total, safe_fin = validate_ch_math(manga.ch_total, manga.ch_fin)
+    changed = manga.ch_total != safe_total or manga.ch_fin != safe_fin
+    if changed:
+        manga.ch_total = safe_total
+        manga.ch_fin = safe_fin
+    return changed
 
 
 def has_missing_values_anime(anime: Anime) -> bool:
@@ -601,6 +715,23 @@ def has_missing_values_cartoon(cartoon: Cartoon) -> bool:
     return False
 
 
+def has_missing_values_manga(manga: Manga) -> bool:
+    """
+    Returns True if any required fill field is blank.
+    Special case: vol_total and ch_total are only required when serialization_status == "完結".
+    """
+    for field in MANGA_FIELDS_TO_FILL:
+        val = getattr(manga, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+
+    if manga.serialization_status == "完結":
+        if manga.vol_total is None and manga.ch_total is None:
+            return True
+
+    return False
+
+
 def check_is_tv_completed(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
@@ -630,6 +761,27 @@ def check_is_movie_completed(entry: Union[AnimeMovies, Movies]) -> bool:
     return False
 
 
+def check_is_reading_completed(entry: Manga) -> bool:
+    """
+    Returns True if a manga entry should be considered completed.
+    Conditions (any one is sufficient):
+    - serialization_status is "完結" or "腰斬"
+    - ch_fin == ch_total and ch_total is not None and not 0
+    - vol_fin == vol_total and vol_total is not None and not 0
+    """
+    if entry.serialization_status in ("完結", "腰斬"):
+        return True
+    ch_total = getattr(entry, "ch_total", None)
+    ch_fin = getattr(entry, "ch_fin", None)
+    if ch_total is not None and ch_total > 0 and ch_fin == ch_total:
+        return True
+    vol_total = getattr(entry, "vol_total", None)
+    vol_fin = getattr(entry, "vol_fin", None)
+    if vol_total is not None and vol_total > 0 and vol_fin == vol_total:
+        return True
+    return False
+
+
 def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
     """Sets source_baha=True if baha_link is present and airing_status is 'Airing'."""
     if (
@@ -638,6 +790,86 @@ def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
         and entry.source_baha is None
     ):
         entry.source_baha = True
+
+
+def find_all_remarks(db: Session) -> dict:
+    """Returns all entries with a non-empty remark, grouped by media type."""
+
+    def _query(model):
+        return (
+            db.query(model)
+            .filter(model.remark.isnot(None), model.remark != "")
+            .order_by(model.updated_at.desc())
+            .all()
+        )
+
+    return {
+        "anime": [
+            {
+                "system_id": str(e.system_id),
+                "anime_name_cn": e.anime_name_cn,
+                "anime_name_en": e.anime_name_en,
+                "airing_type": e.airing_type,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(Anime)
+        ],
+        "anime_movie": [
+            {
+                "system_id": str(e.system_id),
+                "anime_movie_name_cn": e.anime_movie_name_cn,
+                "anime_movie_name_en": e.anime_movie_name_en,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(AnimeMovies)
+        ],
+        "movie": [
+            {
+                "system_id": str(e.system_id),
+                "movie_name_cn": e.movie_name_cn,
+                "movie_name_en": e.movie_name_en,
+                "release_date_usa": e.release_date_usa,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(Movies)
+        ],
+        "tv_show": [
+            {
+                "system_id": str(e.system_id),
+                "tv_name_cn": e.tv_name_cn,
+                "tv_name_en": e.tv_name_en,
+                "season_part": e.season_part,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(TVShows)
+        ],
+        "cartoon": [
+            {
+                "system_id": str(e.system_id),
+                "cartoon_name_cn": e.cartoon_name_cn,
+                "cartoon_name_en": e.cartoon_name_en,
+                "airing_type": e.airing_type,
+                "watching_status": e.watching_status,
+                "remark": e.remark,
+            }
+            for e in _query(Cartoon)
+        ],
+        "manga": [
+            {
+                "system_id": str(e.system_id),
+                "manga_name_cn": e.manga_name_cn,
+                "manga_name_en": e.manga_name_en,
+                "is_main": e.is_main,
+                "reading_status": e.reading_status,
+                "remark": e.remark,
+            }
+            for e in _query(Manga)
+        ],
+    }
 
 
 # ==========================================
@@ -1172,6 +1404,81 @@ def find_duplicate_cartoon(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_manga(db: Session) -> list[list[dict]]:
+    """
+    Finds Manga entries that share the same (franchise_id, series_id, is_main)
+    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    mangas = db.query(Manga).filter(Manga.franchise_id.isnot(None)).all()
+
+    def _key(m: Manga) -> tuple:
+        return (
+            str(m.franchise_id),
+            str(m.series_id) if m.series_id else None,
+            m.is_main,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for m in mangas:
+        by_key.setdefault(_key(m), []).append(m)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    manga_map = {str(m.system_id): m for m in mangas}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for mid in manga_map:
+        clusters.setdefault(find(mid), []).append(mid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": mid,
+                        "franchise_id": str(manga_map[mid].franchise_id),
+                        "series_id": (
+                            str(manga_map[mid].series_id)
+                            if manga_map[mid].series_id
+                            else None
+                        ),
+                        "is_main": manga_map[mid].is_main,
+                        "manga_name_cn": manga_map[mid].manga_name_cn,
+                        "manga_name_en": manga_map[mid].manga_name_en,
+                        "manga_name_roman": manga_map[mid].manga_name_roman,
+                        "manga_name_jp": manga_map[mid].manga_name_jp,
+                        "manga_name_alt": manga_map[mid].manga_name_alt,
+                    }
+                    for mid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -1182,6 +1489,7 @@ def find_all_duplicates(db: Session) -> dict:
         "cartoon": find_duplicate_cartoon(db),
         "movie": find_duplicate_movie(db),
         "tv_show": find_duplicate_tv_show(db),
+        "manga": find_duplicate_manga(db),
         "system_options": find_duplicate_system_options(db),
     }
 
@@ -1195,6 +1503,15 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     mal_id = extract_mal_id_anime(anime.mal_link)
     if mal_id:
         anime.mal_id = mal_id
+        return True
+    return False
+
+
+def apply_extract_mal_id_manga_novel(entry: Manga) -> bool:
+    """Extracts MAL manga ID from mal_link and writes it to mal_id. Returns True if set."""
+    mal_id = extract_mal_id_manga_novel(entry.mal_link)
+    if mal_id:
+        entry.mal_id = mal_id
         return True
     return False
 
@@ -1522,6 +1839,42 @@ def derive_prequel_sequel_cartoon(db: Session, franchise_id) -> None:
             entry.sequel_id = next_entry.system_id
 
 
+_MANGA_SPECIAL_FRANCHISE_NAMES: set[str] = set()
+
+
+def derive_prequel_sequel_manga(db: Session, franchise_id: Any) -> None:
+    """Sets prequel_id and sequel_id for eligible manga entries in a franchise, fill-only."""
+    if not franchise_id:
+        return
+
+    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
+    if franchise:
+        franchise_names = franchise.get_all_names()
+        if franchise_names & _MANGA_SPECIAL_FRANCHISE_NAMES:
+            return
+
+    entries = (
+        db.query(Manga)
+        .filter(
+            Manga.franchise_id == franchise_id,
+            Manga.watch_order.isnot(None),
+            Manga.derive_related.isnot(False),
+        )
+        .order_by(Manga.watch_order)
+        .all()
+    )
+
+    for i, entry in enumerate(entries):
+        prev_entry = entries[i - 1] if i > 0 else None
+        next_entry = entries[i + 1] if i < len(entries) - 1 else None
+
+        if entry.prequel_id is None and prev_entry is not None:
+            entry.prequel_id = prev_entry.system_id
+
+        if entry.sequel_id is None and next_entry is not None:
+            entry.sequel_id = next_entry.system_id
+
+
 _SERIES_UNSET = object()
 
 
@@ -1753,6 +2106,56 @@ def autofill_anime_movie_from_mal(
         )
 
 
+def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) -> None:
+    """
+    Enriches a single Manga entry with Jikan API data. Does not commit — caller is responsible.
+    Fill-only: serialization_status, release_year, end_year.
+    vol_total and ch_total are filled only when serialization_status == "完結".
+    Ratings always replaced when force_replace_ratings=True.
+    """
+    mal_id = manga.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_jikan_manga_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_jikan_to_manga_data(raw_data)
+
+        if manga.serialization_status is None:
+            manga.serialization_status = j_data.get("serialization_status")
+        if manga.release_year is None:
+            manga.release_year = j_data.get("release_year")
+        if manga.end_year is None:
+            manga.end_year = j_data.get("end_year")
+
+        if manga.serialization_status == "完結":
+            if manga.vol_total is None:
+                manga.vol_total = j_data.get("vol_total")
+            if manga.ch_total is None:
+                manga.ch_total = j_data.get("ch_total")
+
+        if force_replace_ratings or manga.mal_rating is None:
+            manga.mal_rating = j_data.get("mal_rating") or manga.mal_rating
+        if force_replace_ratings or manga.mal_rank is None:
+            raw_rank = j_data.get("mal_rank")
+            manga.mal_rank = str(raw_rank) if raw_rank else manga.mal_rank
+
+        if not manga.cover_image_file and j_data.get("cover_image_url"):
+            filename = download_cover_image(
+                j_data.get("cover_image_url"), str(manga.system_id)
+            )
+            if filename:
+                manga.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"MAL Autofill failed for Manga ID {manga.system_id} (MAL {mal_id}): {e}"
+        )
+
+
 def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
     """
     Fetches TMDB + OMDb data for a single Movies entry and fills/overwrites fields.
@@ -1977,6 +2380,18 @@ def mark_movie_completed(entry: Union[AnimeMovies, Movies]) -> None:
     entry.airing_status = "Finished Airing"
 
 
+def mark_reading_completed(entry: Manga) -> None:
+    """Sets a manga entry to represent a fully finished reading state."""
+    if entry.serialization_status != "腰斬":
+        entry.serialization_status = "完結"
+    entry.reading_status = "Completed"
+    if entry.ch_total:
+        entry.ch_fin = entry.ch_total
+    if entry.vol_total:
+        entry.vol_fin = entry.vol_total
+    entry.vol_fin_page = 0
+
+
 # ==========================================
 # REPLACE for Single Entry
 # ==========================================
@@ -2050,6 +2465,20 @@ def apply_single_replace_cartoon(
 
     if not bulk:
         derive_related_cartoon(db)
+
+
+def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single Manga entry.
+    When bulk=False (single-entry update), also derives related entries.
+    When bulk=True (batch replace), caller handles derive_related after the loop.
+    """
+    apply_extract_mal_id_manga_novel(manga)
+    autofill_manga_from_mal(manga, force_replace_ratings=True)
+    manga_post_processing(manga, db)
+
+    if not bulk:
+        derive_related_manga(db)
 
 
 # ==========================================
@@ -2306,6 +2735,62 @@ def extract_system_options_from_cartoon(db: Session) -> dict:
     }
 
 
+_MANGA_OPTION_FIELD_MAP = {
+    "Manga Author": "author_plot",
+    "Distributor TW": "distributor_tw",
+    "Studio": "anime_studio",
+}
+
+
+def extract_system_options_from_manga(db: Session) -> dict:
+    """
+    Scans all Manga entries for values in author_plot, author_draw, distributor_tw, anime_studio.
+    Any value not already in SystemOption is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    mangas = db.query(Manga).all()
+    new_options = []
+
+    for category, field in _MANGA_OPTION_FIELD_MAP.items():
+        for manga in mangas:
+            raw = getattr(manga, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    # author_draw uses the same "Manga Author" category
+    for manga in mangas:
+        raw = getattr(manga, "author_draw", None)
+        if not raw:
+            continue
+        for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+            if val not in existing.get("Manga Author", set()):
+                new_options.append(
+                    SystemOption(category="Manga Author", option_value=val)
+                )
+                existing.setdefault("Manga Author", set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_manga: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(mangas)} entries, created {len(new_options)} missing system options.",
+    }
+
+
 # ==========================================
 # COMPOSITE LOGICS
 # ==========================================
@@ -2361,6 +2846,15 @@ def cartoon_post_processing(cartoon: Cartoon, db: Session) -> None:
         derive_season_1_cartoon(cartoon, db)
 
 
+def manga_post_processing(manga: Manga, db: Session) -> None:
+    """Runs all single-entry checks and repairs for one manga entry."""
+    apply_validate_vol_math(manga)
+    apply_validate_ch_math(manga)
+
+    if check_is_reading_completed(manga) and manga.reading_status != "Completed":
+        mark_reading_completed(manga)
+
+
 def derive_related_anime(db: Session) -> None:
     """Derives watch order, ep_previous, and prequel/sequel for all acg franchises."""
     rows = (
@@ -2406,5 +2900,20 @@ def derive_related_cartoon(db: Session) -> None:
     for fid in franchise_ids:
         derive_watch_order_cartoon(db, fid)
         derive_prequel_sequel_cartoon(db, fid)
+    if franchise_ids:
+        db.commit()
+
+
+def derive_related_manga(db: Session) -> None:
+    """Derives prequel/sequel for all ACG franchises that have manga entries."""
+    rows = (
+        db.query(Manga.franchise_id)
+        .filter(Manga.franchise_id.isnot(None))
+        .distinct()
+        .all()
+    )
+    franchise_ids = [r[0] for r in rows]
+    for fid in franchise_ids:
+        derive_prequel_sequel_manga(db, fid)
     if franchise_ids:
         db.commit()

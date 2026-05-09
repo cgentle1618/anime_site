@@ -13,21 +13,29 @@ export default function DashboardCard({
 
   const isTV = anime._ui_type === "TV Show";
   const isCartoon = anime._ui_type === "Cartoon";
+  const isManga = anime._ui_type === "Manga";
 
-  const title = isCartoon
-    ? anime.cartoon_name_cn ||
-      anime.cartoon_name_en ||
-      anime.cartoon_name_alt ||
+  const title = isManga
+    ? anime.manga_name_cn ||
+      anime.manga_name_en ||
+      anime.manga_name_roman ||
+      anime.manga_name_jp ||
+      anime.manga_name_alt ||
       "Unknown Title"
-    : isTV
-      ? anime.tv_name_cn ||
-        anime.tv_name_en ||
-        anime.tv_name_alt ||
+    : isCartoon
+      ? anime.cartoon_name_cn ||
+        anime.cartoon_name_en ||
+        anime.cartoon_name_alt ||
         "Unknown Title"
-      : anime.anime_name_cn ||
-        anime.anime_name_en ||
-        anime.anime_name_roman ||
-        "Unknown Title";
+      : isTV
+        ? anime.tv_name_cn ||
+          anime.tv_name_en ||
+          anime.tv_name_alt ||
+          "Unknown Title"
+        : anime.anime_name_cn ||
+          anime.anime_name_en ||
+          anime.anime_name_roman ||
+          "Unknown Title";
   const subTitle = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -35,24 +43,31 @@ export default function DashboardCard({
       "Independent"
     : "Independent Series";
 
-  const navigatePath = isCartoon
-    ? `/cartoon/${anime.system_id}`
-    : isTV
-      ? `/tv-show/${anime.system_id}`
-      : `/anime/${anime.system_id}`;
-  const editPath = isCartoon
-    ? `/modify?id=${anime.system_id}&type=cartoon`
-    : isTV
-      ? `/modify?id=${anime.system_id}&type=tv-show`
-      : `/modify?id=${anime.system_id}`;
+  const navigatePath = isManga
+    ? `/manga/${anime.system_id}`
+    : isCartoon
+      ? `/cartoon/${anime.system_id}`
+      : isTV
+        ? `/tv-show/${anime.system_id}`
+        : `/anime/${anime.system_id}`;
+  const editPath = isManga
+    ? `/modify?id=${anime.system_id}&type=manga`
+    : isCartoon
+      ? `/modify?id=${anime.system_id}&type=cartoon`
+      : isTV
+        ? `/modify?id=${anime.system_id}&type=tv-show`
+        : `/modify?id=${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isTV || isCartoon ? false : isBaha(anime);
+  const bahaFlag = isTV || isCartoon || isManga ? false : isBaha(anime);
 
-  const prevEps = isTV || isCartoon ? 0 : anime.ep_previous || 0;
-  const localFin = anime.ep_fin || 0;
-  const localTotal =
-    anime.ep_total !== null && anime.ep_total !== undefined
+  const prevEps = isTV || isCartoon || isManga ? 0 : anime.ep_previous || 0;
+  const localFin = isManga ? anime.ch_fin || 0 : anime.ep_fin || 0;
+  const localTotal = isManga
+    ? anime.ch_total != null
+      ? parseInt(anime.ch_total, 10) || "?"
+      : "?"
+    : anime.ep_total !== null && anime.ep_total !== undefined
       ? parseInt(anime.ep_total, 10) || "?"
       : "?";
   const cumFin = anime.cum_ep_fin ?? localFin;
@@ -65,8 +80,19 @@ export default function DashboardCard({
     progressPercent = "Ongoing";
   }
 
+  const statusText = isManga
+    ? anime.reading_status || "Might Read"
+    : anime.airing_status || "Unknown";
+
   let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
-  if (anime.airing_status === "Airing")
+  if (isManga) {
+    if (anime.reading_status === "Active Reading")
+      statusColor = "bg-green-100 text-green-700 border-green-200";
+    else if (anime.reading_status === "Passive Reading")
+      statusColor = "bg-teal-100 text-teal-700 border-teal-200";
+    else if (anime.reading_status === "Paused")
+      statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
+  } else if (anime.airing_status === "Airing")
     statusColor = "bg-green-100 text-green-700 border-green-200";
   else if (anime.airing_status === "Finished Airing")
     statusColor = "bg-blue-100 text-blue-700 border-blue-200";
@@ -120,9 +146,9 @@ export default function DashboardCard({
             <span
               className={`${statusColor} px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[90px] text-center`}
             >
-              {anime.airing_status || "Unknown"}
+              {statusText}
             </span>
-            {!isTV && !isCartoon && (
+            {!isTV && !isCartoon && !isManga && (
               <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm">
                 <i className="fas fa-tv mr-1"></i>
                 {anime.airing_type || "TV"}
@@ -212,10 +238,10 @@ export default function DashboardCard({
             >
               <i className="fas fa-minus text-[10px]"></i>
             </button>
-            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap overflow-hidden">
+            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-gray-900 w-14 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={localFin}
                 onChange={(e) =>
                   handleEpChange(parseInt(e.target.value, 10) || 0)
@@ -223,10 +249,15 @@ export default function DashboardCard({
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-6 text-center">
+              <span className="text-gray-500 text-[13px] w-14 text-center">
                 {localTotal}
               </span>
-              {prevEps > 0 && (
+              {isManga && (
+                <span className="text-gray-400 ml-1 text-[10px] font-sans">
+                  CH
+                </span>
+              )}
+              {!isManga && prevEps > 0 && (
                 <span
                   className="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter"
                   title="Cumulative Total"
@@ -245,12 +276,17 @@ export default function DashboardCard({
         ) : (
           <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-              <span className="text-gray-900 w-6 text-center">{localFin}</span>
+              <span className="text-gray-900 w-14 text-center">{localFin}</span>
               <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-6 text-center">
+              <span className="text-gray-500 text-[13px] w-14 text-center">
                 {localTotal}
               </span>
-              {prevEps > 0 && (
+              {isManga && (
+                <span className="text-gray-400 ml-1 text-[10px] font-sans">
+                  CH
+                </span>
+              )}
+              {!isManga && prevEps > 0 && (
                 <span className="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter">
                   ({cumFin}/{cumTotal})
                 </span>

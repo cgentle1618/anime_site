@@ -136,6 +136,7 @@ function SeasonalBlock({
   const completedCount = seasonal?.entry_completed ?? 0;
   const watchingCount = seasonal?.entry_watching ?? 0;
   const plannedCount = seasonal?.entry_planned ?? 0;
+  const droppedCount = seasonal?.entry_dropped ?? 0;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
@@ -186,6 +187,11 @@ function SeasonalBlock({
               <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold border border-blue-200">
                 {completedCount} Completed
               </span>
+              {droppedCount > 0 && (
+                <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold border border-red-200">
+                  {droppedCount} Dropped
+                </span>
+              )}
             </div>
 
             {totalEntries > 0 && (
@@ -484,6 +490,11 @@ export default function SeasonalOverall() {
               label: "Current Season",
               icon: "fa-calendar-day",
             },
+            {
+              key: "next",
+              label: "Next Season",
+              icon: "fa-calendar-week",
+            },
             { key: "all", label: "All Seasons", icon: "fa-calendar-alt" },
           ].map((tab) => (
             <button
@@ -530,8 +541,13 @@ export default function SeasonalOverall() {
               )}
             </div>
           )}
+        </div>
+      )}
 
-          {nextSeason && (
+      {/* ── Next Season Tab ── */}
+      {activeTab === "next" && (
+        <div className="space-y-16">
+          {nextSeason ? (
             <SeasonalBlock
               blockTitle="Next Season"
               seasonalId={nextSeason}
@@ -543,6 +559,13 @@ export default function SeasonalOverall() {
               onRatingChange={handleRatingChange}
               sections={NEXT_SECTIONS}
             />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 border-dashed">
+              <i className="fas fa-calendar-times text-3xl text-gray-300 mb-3"></i>
+              <p className="text-gray-500 font-medium">
+                Could not determine next season.
+              </p>
+            </div>
           )}
         </div>
       )}

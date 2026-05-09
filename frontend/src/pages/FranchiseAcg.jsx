@@ -10,6 +10,7 @@ import {
 } from "../utils/anime";
 import AnimeCard from "../components/AnimeCard";
 import AnimeMovieCard from "../components/AnimeMovieCard";
+import MangaCard from "../components/MangaCard";
 import { InfoRow } from "../components/InfoCard";
 import SeriesModal from "../components/SeriesModal";
 
@@ -23,9 +24,17 @@ export default function FranchiseAcg() {
   const [seriesList, setSeriesList] = useState([]);
   const [animeList, setAnimeList] = useState([]);
   const [movieList, setMovieList] = useState([]);
+  const [mangaList, setMangaList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [movieSort, setMovieSort] = useState("release_date");
+  const [mangaSort, setMangaSort] = useState("title");
+  const [mangaGroupBySeries, setMangaGroupBySeries] = useState(false);
+  const [mangaFilters, setMangaFilters] = useState({
+    serializationStatus: new Set(),
+    readingStatus: new Set(),
+    region: new Set(),
+  });
 
   const [sort, setSort] = useState("release_date");
   const [groupBySeries, setGroupBySeries] = useState(true);
@@ -49,7 +58,7 @@ export default function FranchiseAcg() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes, mRes] = await Promise.all([
+        const [fRes, sRes, aRes, mRes, mgRes] = await Promise.all([
           fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
           fetch(`/api/series/?franchise_id=${system_id}`, {
             credentials: "include",
@@ -60,18 +69,23 @@ export default function FranchiseAcg() {
           fetch(`/api/anime-movie/?franchise_id=${system_id}`, {
             credentials: "include",
           }),
+          fetch(`/api/manga/?franchise_id=${system_id}`, {
+            credentials: "include",
+          }),
         ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, m] = await Promise.all([
+        const [f, s, a, m, mg] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
           mRes.json(),
+          mgRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
         setAnimeList(a);
         setMovieList(m);
+        setMangaList(mg);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
         setWatchNextGroup(f.watch_next_group || "");
@@ -94,6 +108,12 @@ export default function FranchiseAcg() {
 
   const handleMovieUpdated = useCallback((updated) => {
     setMovieList((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+  }, []);
+
+  const handleMangaUpdated = useCallback((updated) => {
+    setMangaList((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
   }, []);
@@ -152,6 +172,15 @@ export default function FranchiseAcg() {
 
   function toggleFilter(group, value) {
     setFilters((prev) => {
+      const next = { ...prev, [group]: new Set(prev[group]) };
+      if (next[group].has(value)) next[group].delete(value);
+      else next[group].add(value);
+      return next;
+    });
+  }
+
+  function toggleMangaFilter(group, value) {
+    setMangaFilters((prev) => {
       const next = { ...prev, [group]: new Set(prev[group]) };
       if (next[group].has(value)) next[group].delete(value);
       else next[group].add(value);
@@ -251,6 +280,80 @@ export default function FranchiseAcg() {
     }
     return result;
   }, [filteredAndSorted, seriesList]);
+
+  const filteredAndSortedManga = useMemo(() => {
+    let result = mangaList.filter((m) => {
+      if (
+        mangaFilters.serializationStatus.size > 0 &&
+        !mangaFilters.serializationStatus.has(m.serialization_status || "")
+      )
+        return false;
+      if (
+        mangaFilters.region.size > 0 &&
+        !mangaFilters.region.has(m.region || "")
+      )
+        return false;
+      if (mangaFilters.readingStatus.size > 0) {
+        const rs = m.reading_status || "Might Read";
+        let group = "Might Read";
+        if (rs === "Plan to Read") group = "Planned";
+        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
+          group = "Reading";
+        else if (rs === "Completed") group = "Completed";
+        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
+          group = "Dropped";
+        if (!mangaFilters.readingStatus.has(group)) return false;
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (mangaSort === "my_rating")
+        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+      if (mangaSort === "mal_rating") {
+        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
+        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
+        if (wA !== wB) return wB - wA;
+      }
+      if (mangaSort === "release_year")
+        return (
+          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0)
+        );
+      if (mangaSort === "end_year")
+        return (parseInt(a.end_year) || 0) - (parseInt(b.end_year) || 0);
+      return (a.manga_name_cn || a.manga_name_en || "").localeCompare(
+        b.manga_name_cn || b.manga_name_en || "",
+      );
+    });
+
+    return result;
+  }, [mangaList, mangaFilters, mangaSort]);
+
+  const mangaSeriesGroups = useMemo(() => {
+    const seriesMap = Object.fromEntries(
+      seriesList.map((s) => [s.system_id, s]),
+    );
+    const grouped = {};
+    const standalone = [];
+
+    filteredAndSortedManga.forEach((m) => {
+      if (m.series_id && seriesMap[m.series_id]) {
+        if (!grouped[m.series_id]) grouped[m.series_id] = [];
+        grouped[m.series_id].push(m);
+      } else {
+        standalone.push(m);
+      }
+    });
+
+    const result = [];
+    seriesList.forEach((s) => {
+      if (grouped[s.system_id]?.length > 0)
+        result.push({ type: "series", series: s, manga: grouped[s.system_id] });
+    });
+    if (standalone.length > 0)
+      result.push({ type: "standalone", manga: standalone });
+    return result;
+  }, [filteredAndSortedManga, seriesList]);
 
   const completedCount = animeList.filter(
     (a) => a.watching_status === "Completed",
@@ -537,186 +640,190 @@ export default function FranchiseAcg() {
         />
       </div>
 
-      {/* Anime Section */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-          <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-            <i className="fas fa-tv text-brand"></i>
+      {/* Anime Section — shown only when entries exist */}
+      {animeList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-tv text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Anime
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                TV · ONA · Movie · OVA · Special
+              </p>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {filteredAndSorted.length} entries
+            </span>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-              Anime
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              TV · ONA · Movie · OVA · Special
-            </p>
-          </div>
-          <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-            {filteredAndSorted.length} entries
-          </span>
-        </div>
 
-        {/* Filters + Sort */}
-        <div className="flex flex-wrap gap-2 mb-6 items-center">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-          >
-            <option value="watch_order">Sort: Watch Order</option>
-            <option value="title">Sort: Title</option>
-            <option value="release_date">Sort: Release Date</option>
-            <option value="my_rating">Sort: My Rating</option>
-            <option value="mal_rating">Sort: MAL Rating</option>
-          </select>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          {/* Airing Type filters */}
-          {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
-            <button
-              key={v}
-              onClick={() => toggleFilter("airingType", v)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+          {/* Filters + Sort */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
             >
-              {v}
-            </button>
-          ))}
+              <option value="watch_order">Sort: Watch Order</option>
+              <option value="title">Sort: Title</option>
+              <option value="release_date">Sort: Release Date</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="mal_rating">Sort: MAL Rating</option>
+            </select>
 
-          <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-gray-200"></div>
 
-          {/* Airing Status filters */}
-          {[
-            ["Airing", "Airing"],
-            ["Finished", "Finished Airing"],
-            ["Not Aired", "Not Yet Aired"],
-          ].map(([label, val]) => (
-            <button
-              key={val}
-              onClick={() => toggleFilter("airingStatus", val)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-            >
-              {label}
-            </button>
-          ))}
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          {/* Watching Status filters */}
-          {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-            (v) => (
+            {/* Airing Type filters */}
+            {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
               <button
                 key={v}
-                onClick={() => toggleFilter("watchingStatus", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                onClick={() => toggleFilter("airingType", v)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
               >
                 {v}
               </button>
-            ),
-          )}
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.bahaOnly}
-              onChange={(e) =>
-                setFilters((p) => ({ ...p, bahaOnly: e.target.checked }))
-              }
-              className="rounded"
-            />
-            Baha Only
-          </label>
-
-          <div className="w-px h-5 bg-gray-200"></div>
-
-          <button
-            onClick={() => setGroupBySeries((v) => !v)}
-            className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
-          >
-            <i className="fas fa-layer-group mr-1"></i>Group by Series
-          </button>
-        </div>
-
-        {/* Anime grid */}
-        {filteredAndSorted.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <i className="fas fa-ghost text-3xl mb-3"></i>
-            <p className="font-medium">No entries match the current filters.</p>
-          </div>
-        ) : groupBySeries ? (
-          <div className="space-y-10">
-            {seriesGroups.map((group) => {
-              const label =
-                group.type === "series"
-                  ? getDisplayName(group.series, "series") || "Unknown Series"
-                  : "Standalone";
-              return (
-                <section
-                  key={
-                    group.type === "series"
-                      ? group.series.system_id
-                      : "standalone"
-                  }
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                      <i
-                        className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
-                      ></i>
-                      {label}
-                    </h3>
-                    <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {group.anime.length}
-                    </span>
-                    <div className="flex-1 border-t border-gray-100"></div>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {group.anime.map((a) => (
-                      <div key={a.system_id} className="flex flex-col gap-1">
-                        {sort === "watch_order" && a.watch_order != null && (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                              #{a.watch_order}
-                            </span>
-                            {a.is_main_entry && (
-                              <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                                main
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {filteredAndSorted.map((a) => (
-              <div key={a.system_id} className="flex flex-col gap-1">
-                {sort === "watch_order" && a.watch_order != null && (
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                      #{a.watch_order}
-                    </span>
-                    {a.is_main_entry && (
-                      <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                        main
-                      </span>
-                    )}
-                  </div>
-                )}
-                <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
-              </div>
             ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Airing Status filters */}
+            {[
+              ["Airing", "Airing"],
+              ["Finished", "Finished Airing"],
+              ["Not Aired", "Not Yet Aired"],
+            ].map(([label, val]) => (
+              <button
+                key={val}
+                onClick={() => toggleFilter("airingStatus", val)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {label}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Watching Status filters */}
+            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleFilter("watchingStatus", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${filters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.bahaOnly}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, bahaOnly: e.target.checked }))
+                }
+                className="rounded"
+              />
+              Baha Only
+            </label>
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <button
+              onClick={() => setGroupBySeries((v) => !v)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${groupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <i className="fas fa-layer-group mr-1"></i>Group by Series
+            </button>
           </div>
-        )}
-      </div>
+
+          {/* Anime grid */}
+          {filteredAndSorted.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <i className="fas fa-ghost text-3xl mb-3"></i>
+              <p className="font-medium">
+                No entries match the current filters.
+              </p>
+            </div>
+          ) : groupBySeries ? (
+            <div className="space-y-10">
+              {seriesGroups.map((group) => {
+                const label =
+                  group.type === "series"
+                    ? getDisplayName(group.series, "series") || "Unknown Series"
+                    : "Standalone";
+                return (
+                  <section
+                    key={
+                      group.type === "series"
+                        ? group.series.system_id
+                        : "standalone"
+                    }
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <i
+                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
+                        ></i>
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {group.anime.length}
+                      </span>
+                      <div className="flex-1 border-t border-gray-100"></div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {group.anime.map((a) => (
+                        <div key={a.system_id} className="flex flex-col gap-1">
+                          {sort === "watch_order" && a.watch_order != null && (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
+                                #{a.watch_order}
+                              </span>
+                              {a.is_main_entry && (
+                                <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
+                                  main
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {filteredAndSorted.map((a) => (
+                <div key={a.system_id} className="flex flex-col gap-1">
+                  {sort === "watch_order" && a.watch_order != null && (
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
+                        #{a.watch_order}
+                      </span>
+                      {a.is_main_entry && (
+                        <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
+                          main
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Anime Movie Section — shown only when entries exist */}
       {movieList.length > 0 && (
@@ -764,47 +871,154 @@ export default function FranchiseAcg() {
         </div>
       )}
 
-      {/* Manga — Under Development */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-book text-gray-400"></i>
+      {/* Manga Section */}
+      {mangaList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-book text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Manga
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Manga · Manhwa · Manhua
+              </p>
+            </div>
+            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              {filteredAndSortedManga.length} entries
+            </span>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-              Manga
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Manga · Manhwa · Manhua
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-          <p className="text-sm font-bold text-gray-400">Under Development</p>
-        </div>
-      </div>
 
-      {/* Novel — Under Development */}
-      <div>
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-            <i className="fas fa-book-open text-gray-400"></i>
+          {/* Sort + Filters */}
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={mangaSort}
+              onChange={(e) => setMangaSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+            >
+              <option value="title">Sort: Title</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="mal_rating">Sort: MAL Rating</option>
+              <option value="release_year">Sort: Release Year</option>
+              <option value="end_year">Sort: End Year</option>
+            </select>
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Serialization Status */}
+            {["連載中", "完結", "腰斬", "停更"].map((v) => (
+              <button
+                key={v}
+                onClick={() => toggleMangaFilter("serializationStatus", v)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {v}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Reading Status group */}
+            {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleMangaFilter("readingStatus", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {/* Region */}
+            {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
+              <button
+                key={v}
+                onClick={() => toggleMangaFilter("region", v)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {v}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <button
+              onClick={() => setMangaGroupBySeries((v) => !v)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <i className="fas fa-layer-group mr-1"></i>Group by Series
+            </button>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-              Novel
-            </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
-              Light Novel · Web Novel
-            </p>
-          </div>
+
+          {/* Manga grid */}
+          {filteredAndSortedManga.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <i className="fas fa-ghost text-3xl mb-3"></i>
+              <p className="font-medium">
+                No entries match the current filters.
+              </p>
+            </div>
+          ) : mangaGroupBySeries ? (
+            <div className="space-y-10">
+              {mangaSeriesGroups.map((group) => {
+                const label =
+                  group.type === "series"
+                    ? getDisplayName(group.series, "series") || "Unknown Series"
+                    : "Standalone";
+                return (
+                  <section
+                    key={
+                      group.type === "series"
+                        ? group.series.system_id
+                        : "standalone"
+                    }
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <i
+                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book"} text-brand/70`}
+                        ></i>
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {group.manga.length}
+                      </span>
+                      <div className="flex-1 border-t border-gray-100"></div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {group.manga.map((m) => (
+                        <MangaCard
+                          key={m.system_id}
+                          manga={m}
+                          isAdmin={isAdmin}
+                          onUpdated={handleMangaUpdated}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {filteredAndSortedManga.map((m) => (
+                <MangaCard
+                  key={m.system_id}
+                  manga={m}
+                  isAdmin={isAdmin}
+                  onUpdated={handleMangaUpdated}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-          <p className="text-sm font-bold text-gray-400">Under Development</p>
-        </div>
-      </div>
+      )}
 
       {/* Series Modal */}
       {showSeriesModal && selectedSeries && (

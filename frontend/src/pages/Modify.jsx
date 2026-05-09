@@ -15,6 +15,7 @@ import AnimeMovieNotes from "./AnimeMovieNotes";
 import MovieNotes from "./MovieNotes";
 import TVShowNotes from "./TVShowNotes";
 import CartoonNotes from "./CartoonNotes";
+import MangaNotes from "./MangaNotes";
 import {
   Field,
   SectionHeader,
@@ -209,6 +210,7 @@ export default function Modify() {
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
+  const [allMangas, setAllMangas] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -232,6 +234,7 @@ export default function Modify() {
   const [mmf, setMmf] = useState({});
   const [tvmf, setTvmf] = useState({});
   const [cmf, setCmf] = useState({});
+  const [cmgf, setCmgf] = useState({});
   const [optValue, setOptValue] = useState("");
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
@@ -241,11 +244,12 @@ export default function Modify() {
   const umm = (k, v) => setMmf((p) => ({ ...p, [k]: v }));
   const utv = (k, v) => setTvmf((p) => ({ ...p, [k]: v }));
   const uc = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
+  const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes] =
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes, mgRes] =
           await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
@@ -255,6 +259,7 @@ export default function Modify() {
             fetch("/api/movies/", { credentials: "include" }),
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
+            fetch("/api/manga/", { credentials: "include" }),
           ]);
         const [
           anime,
@@ -265,6 +270,7 @@ export default function Modify() {
           movies,
           tvShows,
           cartoons,
+          mangas,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -274,6 +280,7 @@ export default function Modify() {
           mvRes.json(),
           tvRes.json(),
           ctRes.json(),
+          mgRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -283,6 +290,7 @@ export default function Modify() {
         setAllMovies(movies);
         setAllTvShows(tvShows);
         setAllCartoons(cartoons);
+        setAllMangas(mangas);
 
         const urlId = searchParams.get("id");
         const urlType = searchParams.get("type");
@@ -292,6 +300,14 @@ export default function Modify() {
             if (ct) {
               openEditorWith(ct, "cartoon", franchises, series);
               setActiveTab("cartoon");
+              return;
+            }
+          }
+          if (urlType === "manga") {
+            const mg = mangas.find((x) => x.system_id === urlId);
+            if (mg) {
+              openEditorWith(mg, "manga", franchises, series);
+              setActiveTab("manga");
               return;
             }
           }
@@ -369,6 +385,7 @@ export default function Modify() {
       airing_status: m.airing_status || "",
       watching_status: m.watching_status || "Might Watch",
       my_rating: m.my_rating || "",
+      is_main: m.is_main || "",
       movie_type: m.movie_type || "",
       length_min: m.length_min ?? "",
       release_date_usa: m.release_date_usa || "",
@@ -493,6 +510,67 @@ export default function Modify() {
     };
   }
 
+  function mangaToForm(m, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === m.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === m.series_id,
+    );
+    return {
+      manga_name_cn: m.manga_name_cn || "",
+      manga_name_en: m.manga_name_en || "",
+      manga_name_roman: m.manga_name_roman || "",
+      manga_name_jp: m.manga_name_jp || "",
+      manga_name_alt: m.manga_name_alt || "",
+      franchise_id: m.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: m.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: m.region || "",
+      serialization_status: m.serialization_status || "",
+      reading_status: m.reading_status || "Might Read",
+      is_main: m.is_main || "",
+      vol_total: m.vol_total ?? "",
+      vol_fin: m.vol_fin ?? "",
+      vol_fin_page: m.vol_fin_page ?? "",
+      ch_total: m.ch_total ?? "",
+      ch_fin: m.ch_fin ?? "",
+      my_rating: m.my_rating || "",
+      mal_rating: m.mal_rating ?? "",
+      mal_rank: m.mal_rank ?? "",
+      anilist_rating: m.anilist_rating ?? "",
+      author_plot: m.author_plot || "",
+      author_draw: m.author_draw || "",
+      release_year: m.release_year ?? "",
+      end_year: m.end_year ?? "",
+      anime_studio: m.anime_studio || "",
+      serialization_platform: m.serialization_platform || "",
+      distributor_tw: m.distributor_tw || "",
+      derive_related:
+        m.derive_related === true
+          ? "true"
+          : m.derive_related === false
+            ? "false"
+            : "",
+      prequel_id: m.prequel_id || null,
+      sequel_id: m.sequel_id || null,
+      watch_order: m.watch_order ?? "",
+      mal_id: m.mal_id ?? "",
+      mal_link: m.mal_link || "",
+      anilist_link: m.anilist_link || "",
+      source_other: Array.isArray(m.source_other)
+        ? m.source_other
+        : Object.entries(m.source_other || {}).map(([name, url]) => ({
+            name,
+            url: url || "",
+          })),
+      read_next: m.read_next ?? false,
+      to_reread: m.to_reread ?? false,
+      cover_image_file: m.cover_image_file || "",
+      remark: m.remark || "",
+      notes: m.notes || {},
+    };
+  }
+
   function openEditorWith(item, type, franchises, series) {
     setEditingItem(item);
     setEditingType(type);
@@ -506,6 +584,7 @@ export default function Modify() {
       setTvmf(tvShowToForm(item, franchises, series));
     else if (type === "cartoon")
       setCmf(cartoonToForm(item, franchises, series));
+    else if (type === "manga") setCmgf(mangaToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -533,6 +612,7 @@ export default function Modify() {
       else if (editingType === "movie") await saveMovie();
       else if (editingType === "tv-show") await saveTvShow();
       else if (editingType === "cartoon") await saveCartoon();
+      else if (editingType === "manga") await saveManga();
       else if (editingType === "options") await saveOption();
     } finally {
       setSubmitting(false);
@@ -917,6 +997,7 @@ export default function Modify() {
       movie_name_alt: mmf.movie_name_alt || null,
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
+      is_main: mmf.is_main || null,
       airing_status: mmf.airing_status || null,
       watching_status: mmf.watching_status || "Might Watch",
       my_rating: mmf.my_rating || null,
@@ -1260,6 +1341,168 @@ export default function Modify() {
     showToast("success", "Update and enrichment successful.");
   }
 
+  async function saveManga() {
+    let franchiseId = cmgf.franchise_id;
+    if (!franchiseId && (cmgf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cmgf.manga_name_en || null,
+          franchise_name_cn: cmgf.manga_name_cn || null,
+          franchise_name_roman: cmgf.manga_name_roman || null,
+          franchise_name_jp: cmgf.manga_name_jp || null,
+          franchise_name_alt: cmgf.manga_name_alt || null,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cmgf.series_id;
+    if (!seriesId && (cmgf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cmgf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cmgf.manga_name_en || null,
+          series_name_cn: cmgf.manga_name_cn || null,
+          series_name_alt: cmgf.manga_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      manga_name_cn: cmgf.manga_name_cn || null,
+      manga_name_en: cmgf.manga_name_en || null,
+      manga_name_roman: cmgf.manga_name_roman || null,
+      manga_name_jp: cmgf.manga_name_jp || null,
+      manga_name_alt: cmgf.manga_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: cmgf.region || null,
+      serialization_status: cmgf.serialization_status || null,
+      reading_status: cmgf.reading_status || "Might Read",
+      is_main: cmgf.is_main || null,
+      vol_total: cmgf.vol_total !== "" ? parseInt(cmgf.vol_total) : null,
+      vol_fin: cmgf.vol_fin !== "" ? parseInt(cmgf.vol_fin) : null,
+      vol_fin_page:
+        cmgf.vol_fin_page !== "" ? parseInt(cmgf.vol_fin_page) : null,
+      ch_total: cmgf.ch_total !== "" ? parseInt(cmgf.ch_total) : null,
+      ch_fin: cmgf.ch_fin !== "" ? parseInt(cmgf.ch_fin) : null,
+      my_rating: cmgf.my_rating || null,
+      mal_rating: cmgf.mal_rating !== "" ? parseFloat(cmgf.mal_rating) : null,
+      mal_rank: cmgf.mal_rank !== "" ? parseInt(cmgf.mal_rank) : null,
+      anilist_rating:
+        cmgf.anilist_rating !== "" ? parseFloat(cmgf.anilist_rating) : null,
+      author_plot: cmgf.author_plot || null,
+      author_draw: cmgf.author_draw || null,
+      release_year:
+        cmgf.release_year !== "" ? parseInt(cmgf.release_year) : null,
+      end_year: cmgf.end_year !== "" ? parseInt(cmgf.end_year) : null,
+      anime_studio: cmgf.anime_studio || null,
+      serialization_platform: cmgf.serialization_platform || null,
+      distributor_tw: cmgf.distributor_tw || null,
+      derive_related:
+        cmgf.derive_related === "true"
+          ? true
+          : cmgf.derive_related === "false"
+            ? false
+            : null,
+      prequel_id: cmgf.prequel_id || null,
+      sequel_id: cmgf.sequel_id || null,
+      watch_order:
+        cmgf.watch_order !== "" ? parseFloat(cmgf.watch_order) : null,
+      mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
+      mal_link: cmgf.mal_link || null,
+      anilist_link: cmgf.anilist_link || null,
+      source_other:
+        (cmgf.source_other || []).filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              (cmgf.source_other || [])
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: cmgf.read_next ?? false,
+      to_reread: cmgf.to_reread ?? false,
+      cover_image_file: cmgf.cover_image_file || null,
+      remark: cmgf.remark || null,
+      notes: Object.keys(cmgf.notes || {}).length > 0 ? cmgf.notes : null,
+    };
+    const res = await fetch(`/api/manga/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    setAllMangas((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    setEditingItem(updated);
+    setCmgf(mangaToForm(updated, allFranchises, allSeries));
+    await fetch(`/api/data-control/replace/manga/${updated.system_id}`, {
+      method: "POST",
+      credentials: "include",
+    });
+    window.scrollTo(0, 0);
+    showToast("success", "Update and enrichment successful.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -1280,6 +1523,15 @@ export default function Modify() {
         item.cartoon_name_cn ||
         item.cartoon_name_en ||
         item.cartoon_name_alt ||
+        "Unknown"
+      );
+    if (type === "manga")
+      return (
+        item.manga_name_cn ||
+        item.manga_name_en ||
+        item.manga_name_roman ||
+        item.manga_name_jp ||
+        item.manga_name_alt ||
         "Unknown"
       );
     if (type === "options") return `${item.category}: ${item.option_value}`;
@@ -1357,6 +1609,18 @@ export default function Modify() {
           ),
         )
         .slice(0, 10);
+    if (activeTab === "manga")
+      return allMangas
+        .filter((m) =>
+          [
+            m.manga_name_cn,
+            m.manga_name_en,
+            m.manga_name_roman,
+            m.manga_name_jp,
+            m.manga_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
@@ -1379,6 +1643,7 @@ export default function Modify() {
     if (activeTab === "tv-show") return [...allTvShows].sort(sort).slice(0, 12);
     if (activeTab === "cartoon")
       return [...allCartoons].sort(sort).slice(0, 12);
+    if (activeTab === "manga") return [...allMangas].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -1481,6 +1746,17 @@ export default function Modify() {
       .filter(Boolean)
       .join(" "),
   }));
+  const seriesItemsForManga = (
+    cmgf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cmgf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
 
   const tvRibbon =
     editingType === "tv-show" && tvmf.franchise_id
@@ -1497,6 +1773,7 @@ export default function Modify() {
     { key: "movie", icon: "fa-ticket-alt", label: "Modify Movie" },
     { key: "tv-show", icon: "fa-video", label: "Modify TV Show" },
     { key: "cartoon", icon: "fa-paint-brush", label: "Modify Cartoon" },
+    { key: "manga", icon: "fa-book", label: "Modify Manga" },
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
@@ -1715,6 +1992,20 @@ export default function Modify() {
                   (bySeries[a.series_id] = bySeries[a.series_id] || []).push(a);
                 } else noSeries.push(a);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.anime_name_en ||
+                  x.anime_name_cn ||
+                  x.anime_name_roman ||
+                  ""
+                ).localeCompare(
+                  y.anime_name_en ||
+                    y.anime_name_cn ||
+                    y.anime_name_roman ||
+                    "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (a) => (
                 <button
                   key={a.system_id}
@@ -1775,6 +2066,17 @@ export default function Modify() {
                   (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
                 } else noSeries.push(m);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.movie_name_en ||
+                  x.movie_name_cn ||
+                  x.movie_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.movie_name_en || y.movie_name_cn || y.movie_name_alt || "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (m) => (
                 <button
                   key={m.system_id}
@@ -1833,6 +2135,17 @@ export default function Modify() {
                   (bySeries[t.series_id] = bySeries[t.series_id] || []).push(t);
                 } else noSeries.push(t);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.tv_name_en ||
+                  x.tv_name_cn ||
+                  x.tv_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.tv_name_en || y.tv_name_cn || y.tv_name_alt || "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (t) => (
                 <button
                   key={t.system_id}
@@ -1895,6 +2208,20 @@ export default function Modify() {
                   (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
                 } else noSeries.push(c);
               }
+              const sortByEn = (x, y) =>
+                (
+                  x.cartoon_name_en ||
+                  x.cartoon_name_cn ||
+                  x.cartoon_name_alt ||
+                  ""
+                ).localeCompare(
+                  y.cartoon_name_en ||
+                    y.cartoon_name_cn ||
+                    y.cartoon_name_alt ||
+                    "",
+                );
+              Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+              noSeries.sort(sortByEn);
               const renderChip = (c) => (
                 <button
                   key={c.system_id}
@@ -3430,6 +3757,22 @@ export default function Modify() {
                     </select>
                   </Field>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Main / Spinoff">
+                    <select
+                      className={selectCls}
+                      value={mmf.is_main || ""}
+                      onChange={(e) => umm("is_main", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="My Rating">
                     <select
@@ -4503,6 +4846,614 @@ export default function Modify() {
                   }}
                   isAdmin={true}
                   onSave={(updatedNotes) => uc("notes", updatedNotes)}
+                />
+              </>
+            )}
+
+            {/* ── MANGA RIBBON ── */}
+            {editingType === "manga" &&
+              (() => {
+                const mangaRibbon = cmgf.franchise_id
+                  ? allMangas.filter(
+                      (m) =>
+                        m.franchise_id === cmgf.franchise_id &&
+                        m.system_id !== editingItem?.system_id,
+                    )
+                  : [];
+                if (!mangaRibbon.length) return null;
+                const bySeries = {};
+                const noSeries = [];
+                for (const m of mangaRibbon) {
+                  if (m.series_id) {
+                    (bySeries[m.series_id] = bySeries[m.series_id] || []).push(
+                      m,
+                    );
+                  } else noSeries.push(m);
+                }
+                const sortByName = (x, y) =>
+                  (
+                    x.manga_name_cn ||
+                    x.manga_name_en ||
+                    x.manga_name_alt ||
+                    ""
+                  ).localeCompare(
+                    y.manga_name_cn ||
+                      y.manga_name_en ||
+                      y.manga_name_alt ||
+                      "",
+                  );
+                Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
+                noSeries.sort(sortByName);
+                const renderChip = (m) => (
+                  <button
+                    key={m.system_id}
+                    type="button"
+                    onClick={() => openEditor(m, "manga")}
+                    className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+                  >
+                    {m.manga_name_cn ||
+                      m.manga_name_en ||
+                      m.manga_name_alt ||
+                      "Unknown"}
+                  </button>
+                );
+                return (
+                  <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      Other entries in this franchise
+                    </p>
+                    {Object.entries(bySeries).map(([sid, entries]) => {
+                      const s = allSeries.find((x) => x.system_id === sid);
+                      return (
+                        <div key={sid}>
+                          <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                            {s ? getDisplayName(s, "series") : "Series"}
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            {entries.map(renderChip)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {noSeries.length > 0 && (
+                      <div>
+                        {Object.keys(bySeries).length > 0 && (
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                            No Series
+                          </p>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          {noSeries.map(renderChip)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+            {/* ── MANGA EDITOR ── */}
+            {editingType === "manga" && (
+              <>
+                <SectionHeader icon="fa-book" title="Titles & Naming" />
+                <Field label="Franchise">
+                  <ComboBox
+                    items={allFranchises
+                      .filter(
+                        (f) => f.franchise_type === "ACG" || !f.franchise_type,
+                      )
+                      .map((f) => ({
+                        id: f.system_id,
+                        label: getDisplayName(f, "franchise"),
+                        searchText: [
+                          f.franchise_name_cn,
+                          f.franchise_name_en,
+                          f.franchise_name_jp,
+                          f.franchise_name_roman,
+                          f.franchise_name_alt,
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
+                      }))}
+                    selectedId={cmgf.franchise_id}
+                    inputText={cmgf.franchise_text || ""}
+                    onSelect={(id, label) => {
+                      umg("franchise_id", id);
+                      umg("franchise_text", label);
+                      umg("series_id", null);
+                      umg("series_text", "");
+                    }}
+                    onType={(text) => {
+                      umg("franchise_text", text);
+                      umg("franchise_id", null);
+                      umg("series_id", null);
+                      umg("series_text", "");
+                    }}
+                    onClear={() => {
+                      umg("franchise_id", null);
+                      umg("franchise_text", "");
+                      umg("series_id", null);
+                      umg("series_text", "");
+                    }}
+                    placeholder="Search franchise..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Series">
+                  <ComboBox
+                    items={seriesItemsForManga}
+                    selectedId={cmgf.series_id}
+                    inputText={cmgf.series_text || ""}
+                    onSelect={(id, label) => {
+                      umg("series_id", id);
+                      umg("series_text", label);
+                    }}
+                    onType={(text) => {
+                      umg("series_text", text);
+                      umg("series_id", null);
+                    }}
+                    onClear={() => {
+                      umg("series_id", null);
+                      umg("series_text", "");
+                    }}
+                    placeholder="Search series..."
+                    allowNew
+                  />
+                </Field>
+                <Field label="Manga Name CN">
+                  <input
+                    className={inputCls}
+                    value={cmgf.manga_name_cn || ""}
+                    onChange={(e) => umg("manga_name_cn", e.target.value)}
+                  />
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Manga Name EN">
+                    <input
+                      className={inputCls}
+                      value={cmgf.manga_name_en || ""}
+                      onChange={(e) => umg("manga_name_en", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Manga Name Alt">
+                    <input
+                      className={inputCls}
+                      value={cmgf.manga_name_alt || ""}
+                      onChange={(e) => umg("manga_name_alt", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Manga Name Roman">
+                    <input
+                      className={inputCls}
+                      value={cmgf.manga_name_roman || ""}
+                      onChange={(e) => umg("manga_name_roman", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Manga Name JP">
+                    <input
+                      className={inputCls}
+                      value={cmgf.manga_name_jp || ""}
+                      onChange={(e) => umg("manga_name_jp", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Region">
+                    <select
+                      className={selectCls}
+                      value={cmgf.region || ""}
+                      onChange={(e) => umg("region", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Is Main">
+                    <select
+                      className={selectCls}
+                      value={cmgf.is_main || ""}
+                      onChange={(e) => umg("is_main", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-chart-bar" title="Status" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Serialization Status">
+                    <select
+                      className={selectCls}
+                      value={cmgf.serialization_status || ""}
+                      onChange={(e) =>
+                        umg("serialization_status", e.target.value)
+                      }
+                    >
+                      <option value="">—</option>
+                      {["連載中", "停更", "腰斬", "完結"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Reading Status">
+                    <select
+                      className={selectCls}
+                      value={cmgf.reading_status || "Might Read"}
+                      onChange={(e) => umg("reading_status", e.target.value)}
+                    >
+                      {[
+                        "Might Read",
+                        "Plan to Read",
+                        "Active Reading",
+                        "Passive Reading",
+                        "Paused",
+                        "Completed",
+                        "Temp Dropped",
+                        "Dropped",
+                        "Won't Read",
+                      ].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="My Rating">
+                    <select
+                      className={selectCls}
+                      value={cmgf.my_rating || ""}
+                      onChange={(e) => umg("my_rating", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-list-ol" title="Progress" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Ch Total">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.ch_total ?? ""}
+                      onChange={(e) => umg("ch_total", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Ch Finished">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.ch_fin ?? ""}
+                      onChange={(e) => umg("ch_fin", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Vol Total">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.vol_total ?? ""}
+                      onChange={(e) => umg("vol_total", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Vol Finished">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.vol_fin ?? ""}
+                      onChange={(e) => umg("vol_fin", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Vol Fin Page">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.vol_fin_page ?? ""}
+                      onChange={(e) => umg("vol_fin_page", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-star" title="Scores" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="MAL Rating">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="0.01"
+                      value={cmgf.mal_rating ?? ""}
+                      onChange={(e) => umg("mal_rating", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="MAL Rank">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.mal_rank ?? ""}
+                      onChange={(e) => umg("mal_rank", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="AniList Rating">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="0.01"
+                      value={cmgf.anilist_rating ?? ""}
+                      onChange={(e) => umg("anilist_rating", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Author (Plot)">
+                    <input
+                      className={inputCls}
+                      value={cmgf.author_plot || ""}
+                      onChange={(e) => umg("author_plot", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Author (Art)">
+                    <input
+                      className={inputCls}
+                      value={cmgf.author_draw || ""}
+                      onChange={(e) => umg("author_draw", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Release Year">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.release_year ?? ""}
+                      onChange={(e) => umg("release_year", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="End Year">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.end_year ?? ""}
+                      onChange={(e) => umg("end_year", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Anime Studio">
+                    <input
+                      className={inputCls}
+                      value={cmgf.anime_studio || ""}
+                      onChange={(e) => umg("anime_studio", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Serialization Platform">
+                    <input
+                      className={inputCls}
+                      value={cmgf.serialization_platform || ""}
+                      onChange={(e) =>
+                        umg("serialization_platform", e.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field label="Distributor TW">
+                    <input
+                      className={inputCls}
+                      value={cmgf.distributor_tw || ""}
+                      onChange={(e) => umg("distributor_tw", e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-link" title="Relational & Timeline" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Prequel ID">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={cmgf.prequel_id || ""}
+                      onChange={(e) =>
+                        umg("prequel_id", e.target.value || null)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Sequel ID">
+                    <input
+                      className={inputCls + " font-mono text-xs"}
+                      value={cmgf.sequel_id || ""}
+                      onChange={(e) => umg("sequel_id", e.target.value || null)}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    />
+                  </Field>
+                  <Field label="Watch Order">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="any"
+                      value={cmgf.watch_order ?? ""}
+                      onChange={(e) => umg("watch_order", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Derive Related">
+                    <select
+                      className={selectCls}
+                      value={cmgf.derive_related || ""}
+                      onChange={(e) => umg("derive_related", e.target.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </Field>
+                </div>
+
+                <SectionHeader
+                  icon="fa-external-link-alt"
+                  title="Source & Links"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="MAL ID">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={cmgf.mal_id ?? ""}
+                      onChange={(e) => umg("mal_id", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="MAL Link">
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={cmgf.mal_link || ""}
+                      onChange={(e) => umg("mal_link", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="AniList Link">
+                    <input
+                      className={inputCls}
+                      type="url"
+                      value={cmgf.anilist_link || ""}
+                      onChange={(e) => umg("anilist_link", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    Other Sources
+                  </label>
+                  <div className="space-y-2">
+                    {(cmgf.source_other || []).map((entry, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <input
+                          className={inputCls}
+                          placeholder="Source name"
+                          value={entry.name}
+                          onChange={(e) =>
+                            umg(
+                              "source_other",
+                              (cmgf.source_other || []).map((x, j) =>
+                                j === i ? { ...x, name: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        />
+                        <input
+                          className={inputCls}
+                          type="url"
+                          placeholder="https://... (optional)"
+                          value={entry.url}
+                          onChange={(e) =>
+                            umg(
+                              "source_other",
+                              (cmgf.source_other || []).map((x, j) =>
+                                j === i ? { ...x, url: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                          onClick={() =>
+                            umg(
+                              "source_other",
+                              (cmgf.source_other || []).filter(
+                                (_, j) => j !== i,
+                              ),
+                            )
+                          }
+                        >
+                          <i className="fas fa-times" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="text-xs text-brand hover:underline mt-1"
+                      onClick={() =>
+                        umg("source_other", [
+                          ...(cmgf.source_other || []),
+                          { name: "", url: "" },
+                        ])
+                      }
+                    >
+                      + Add Source
+                    </button>
+                  </div>
+                </div>
+
+                <SectionHeader icon="fa-flag" title="Flags" />
+                <div className="flex flex-wrap gap-6 mt-2">
+                  <Field label="Read Next">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!cmgf.read_next}
+                        onChange={(e) => umg("read_next", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Add to Read Next list
+                      </span>
+                    </label>
+                  </Field>
+                  <Field label="To Reread">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!cmgf.to_reread}
+                        onChange={(e) => umg("to_reread", e.target.checked)}
+                        className="w-4 h-4 rounded accent-brand"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Mark for reread
+                      </span>
+                    </label>
+                  </Field>
+                </div>
+
+                <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
+                <Field label="Cover Image File">
+                  <input
+                    className={inputCls}
+                    value={cmgf.cover_image_file || ""}
+                    onChange={(e) => umg("cover_image_file", e.target.value)}
+                  />
+                </Field>
+                <Field label="Remark">
+                  <textarea
+                    className={inputCls}
+                    rows={3}
+                    value={cmgf.remark || ""}
+                    onChange={(e) => umg("remark", e.target.value)}
+                  />
+                </Field>
+                <SectionHeader icon="fa-book-open" title="Structured Notes" />
+                <MangaNotes
+                  manga={{
+                    notes: cmgf.notes,
+                    system_id: editingItem?.system_id,
+                  }}
+                  isAdmin={true}
+                  onSave={(updatedNotes) => umg("notes", updatedNotes)}
                 />
               </>
             )}

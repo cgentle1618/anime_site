@@ -599,6 +599,7 @@ Manga, manhwa, and manhua entries.
 | -------------- | ---- | -------- | --------- | ------------------------------------ |
 | `system_id`    | UUID | No       | `uuid4()` | Primary key                          |
 | `franchise_id` | UUID | Yes      | —         | FK -> `franchise.system_id` SET NULL |
+| `series_id`    | UUID | Yes      | —         | FK -> `series.system_id` SET NULL    |
 
 #### Names
 
@@ -618,7 +619,7 @@ Manga, manhwa, and manhua entries.
 | ---------------------- | ------ | -------- | -------------- | -------------------------------------------------------------- |
 | `region`               | String | Yes      | —              | `"日漫"`, `"韓漫"`, `"國漫"`, `"台漫"`, `"其他"`, null         |
 | `is_main`              | String | Yes      | —              | Whether the entry is main story or spinoff; see system_options |
-| `serialization_status` | String | Yes      | —              | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null       |
+| `serialization_status` | String | Yes      | —              | `"連載中"`, `"停更"`, `"腰斬"`, `"完結"`, null                 |
 | `reading_status`       | String | No       | `"Might Read"` | See options.md for all valid values                            |
 
 #### Progress Tracking
@@ -679,7 +680,7 @@ Manga, manhwa, and manhua entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `read_next_group`  | String   | Yes      | —                                           |
+| `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `notes`            | JSONB    | Yes      | Structured notes (key-value)                |

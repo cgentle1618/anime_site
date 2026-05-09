@@ -5,6 +5,7 @@ Jikan (MyAnimeList) API into the formats required by our Anime database model.
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -140,9 +141,18 @@ def map_jikan_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
 
-    aired_from = raw_data.get("aired", {}).get("from")
+    # aired.prop.from.month is unreliable: Jikan defaults it to 1 (January) when
+    # MAL only knows the year. The aired.string field is honest — "2026 to ?" means
+    # year-only, while "Jan 2026 to ?" means the month is actually known.
+    aired = raw_data.get("aired") or {}
+    aired_string = aired.get("string") or ""
+    prop_from = (aired.get("prop") or {}).get("from") or {}
+    prop_year = prop_from.get("year")
+    prop_month = prop_from.get("month")
+    release_year = str(prop_year) if prop_year else None
+    month_is_known = prop_month and not re.match(r"^\d{4}", aired_string)
+    release_month = MONTH_MAP.get(prop_month) if month_is_known else None
     release_season = _convert_season(raw_data.get("season"))
-    release_year, release_month, release_date = _extract_date_parts(aired_from)
 
     raw_rank = raw_data.get("rank")
     mal_rank = str(raw_rank) if raw_rank is not None else None
@@ -206,5 +216,56 @@ def map_jikan_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "ep_total": raw_data.get("episodes"),
         "official_link": official_link,
         "twitter_link": twitter_link,
+        "cover_image_url": cover_image_url,
+    }
+
+
+def map_jikan_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Transforms raw Jikan manga data dict into a flat dict for the Manga model."""
+    _STATUS_MAP = {
+        "Finished": "完結",
+        "Publishing": "連載中",
+        "On Hiatus": "停更",
+        "Discontinued": "腰斬",
+    }
+
+    status_raw = raw_data.get("status")
+    serialization_status = _STATUS_MAP.get(status_raw) if status_raw else None
+
+    published = raw_data.get("published", {}) or {}
+    from_date = published.get("from")
+    to_date = published.get("to")
+
+    release_year = None
+    end_year = None
+    if from_date:
+        try:
+            release_year = str(from_date[:4])
+        except Exception:
+            pass
+    if to_date:
+        try:
+            end_year = str(to_date[:4])
+        except Exception:
+            pass
+
+    raw_rank = raw_data.get("rank")
+    mal_rank = str(raw_rank) if raw_rank is not None else None
+
+    images = raw_data.get("images", {})
+    cover_image_url = (
+        images.get("webp", {}).get("large_image_url")
+        or images.get("jpg", {}).get("large_image_url")
+        or images.get("jpg", {}).get("image_url")
+    )
+
+    return {
+        "serialization_status": serialization_status,
+        "release_year": release_year,
+        "end_year": end_year,
+        "mal_rating": raw_data.get("score"),
+        "mal_rank": mal_rank,
+        "vol_total": raw_data.get("volumes"),
+        "ch_total": raw_data.get("chapters"),
         "cover_image_url": cover_image_url,
     }

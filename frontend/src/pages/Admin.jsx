@@ -481,6 +481,303 @@ function CoverImageModal({
 }
 
 function RemarksModal({ results, onClose }) {
+  const [tab, setTab] = useState("anime");
+
+  const tabs = [
+    { key: "anime", label: "Anime", entries: results.anime },
+    { key: "anime_movie", label: "Anime Movie", entries: results.anime_movie },
+    { key: "movie", label: "Movie", entries: results.movie },
+    { key: "tv_show", label: "TV Show", entries: results.tv_show },
+    { key: "cartoon", label: "Cartoon", entries: results.cartoon },
+    { key: "manga", label: "Manga", entries: results.manga },
+  ];
+
+  const totalEntries = tabs.reduce((s, t) => s + t.entries.length, 0);
+  const activeTab = tabs.find((t) => t.key === tab);
+
+  function renderTable() {
+    const entries = activeTab.entries;
+
+    if (entries.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-400">
+          <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
+          <p className="font-bold">No remarks found</p>
+        </div>
+      );
+    }
+
+    const colClass = "pb-2 pr-4 whitespace-nowrap";
+    const cellClass = "py-2.5 pr-4 whitespace-nowrap text-xs text-gray-500";
+
+    if (tab === "anime") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Type</th>
+              <th className={colClass}>Watching</th>
+              <th className="pb-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/anime/${e.system_id}`)}
+              >
+                <td
+                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  title={e.anime_name_cn}
+                >
+                  {e.anime_name_cn || "—"}
+                </td>
+                <td
+                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  title={e.anime_name_en}
+                >
+                  {e.anime_name_en || "—"}
+                </td>
+                <td className={cellClass}>
+                  <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {e.airing_type || "—"}
+                  </span>
+                </td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "anime_movie") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Watching</th>
+              <th className="pb-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() =>
+                  (window.location.href = `/anime-movie/${e.system_id}`)
+                }
+              >
+                <td
+                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  title={e.anime_movie_name_cn}
+                >
+                  {e.anime_movie_name_cn || "—"}
+                </td>
+                <td
+                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  title={e.anime_movie_name_en}
+                >
+                  {e.anime_movie_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "movie") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Release Date</th>
+              <th className={colClass}>Watching</th>
+              <th className="pb-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/movie/${e.system_id}`)}
+              >
+                <td
+                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  title={e.movie_name_cn}
+                >
+                  {e.movie_name_cn || "—"}
+                </td>
+                <td
+                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  title={e.movie_name_en}
+                >
+                  {e.movie_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.release_date_usa || "—"}</td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "tv_show") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Season</th>
+              <th className={colClass}>Watching</th>
+              <th className="pb-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/tv/${e.system_id}`)}
+              >
+                <td
+                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  title={e.tv_name_cn}
+                >
+                  {e.tv_name_cn || "—"}
+                </td>
+                <td
+                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  title={e.tv_name_en}
+                >
+                  {e.tv_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.season_part || "—"}</td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "cartoon") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Type</th>
+              <th className={colClass}>Watching</th>
+              <th className="pb-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() =>
+                  (window.location.href = `/cartoon/${e.system_id}`)
+                }
+              >
+                <td
+                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  title={e.cartoon_name_cn}
+                >
+                  {e.cartoon_name_cn || "—"}
+                </td>
+                <td
+                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  title={e.cartoon_name_en}
+                >
+                  {e.cartoon_name_en || "—"}
+                </td>
+                <td className={cellClass}>
+                  <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {e.airing_type || "—"}
+                  </span>
+                </td>
+                <td className={cellClass}>{e.watching_status || "—"}</td>
+                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    // manga
+    return (
+      <table className="w-full text-sm text-left">
+        <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <tr>
+            <th className={colClass}>Name (CN)</th>
+            <th className={colClass}>Name (EN)</th>
+            <th className={colClass}>Is Main</th>
+            <th className={colClass}>Reading</th>
+            <th className="pb-2">Remark</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {entries.map((e, i) => (
+            <tr
+              key={i}
+              className="hover:bg-amber-50/40 transition cursor-pointer"
+              onClick={() => (window.location.href = `/manga/${e.system_id}`)}
+            >
+              <td
+                className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                title={e.manga_name_cn}
+              >
+                {e.manga_name_cn || "—"}
+              </td>
+              <td
+                className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                title={e.manga_name_en}
+              >
+                {e.manga_name_en || "—"}
+              </td>
+              <td className={cellClass}>{e.is_main || "—"}</td>
+              <td className={cellClass}>{e.reading_status || "—"}</td>
+              <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                {e.remark}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -490,12 +787,12 @@ function RemarksModal({ results, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-lg font-black text-gray-900">
-              Anime With Remarks
+              Entries With Remarks
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {results.length === 0
-                ? "No anime entries have a remark."
-                : `${results.length} entr${results.length !== 1 ? "ies" : "y"} with a remark.`}
+              {totalEntries === 0
+                ? "No entries have a remark."
+                : `${totalEntries} entr${totalEntries !== 1 ? "ies" : "y"} with a remark.`}
             </p>
           </div>
           <button
@@ -505,61 +802,29 @@ function RemarksModal({ results, onClose }) {
             <i className="fas fa-times"></i>
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-4">
-          {results.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
-              <p className="font-bold">No remarks found</p>
-            </div>
-          ) : (
-            <table className="w-full text-sm text-left">
-              <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
-                <tr>
-                  <th className="pb-2 pr-4 whitespace-nowrap">Name (CN)</th>
-                  <th className="pb-2 pr-4 whitespace-nowrap">Name (EN)</th>
-                  <th className="pb-2 pr-4 whitespace-nowrap">Type</th>
-                  <th className="pb-2 pr-4 whitespace-nowrap">Watching</th>
-                  <th className="pb-2">Remark</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {results.map((a, i) => (
-                  <tr
-                    key={i}
-                    className="hover:bg-amber-50/40 transition cursor-pointer"
-                    onClick={() =>
-                      (window.location.href = `/anime/${a.system_id}`)
-                    }
-                  >
-                    <td
-                      className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
-                      title={a.anime_name_cn}
-                    >
-                      {a.anime_name_cn || "—"}
-                    </td>
-                    <td
-                      className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
-                      title={a.anime_name_en}
-                    >
-                      {a.anime_name_en || "—"}
-                    </td>
-                    <td className="py-2.5 pr-4 whitespace-nowrap">
-                      <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
-                        {a.airing_type || "—"}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4 whitespace-nowrap text-xs text-gray-500">
-                      {a.watching_status || "—"}
-                    </td>
-                    <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
-                      {a.remark}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+
+        <div className="flex border-b border-gray-200 px-6">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition ${
+                tab === t.key
+                  ? "border-brand text-brand"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t.label}
+              {t.entries.length > 0 && (
+                <span className="ml-1.5 bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full text-[10px]">
+                  {t.entries.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
+
+        <div className="overflow-y-auto flex-1 px-6 py-4">{renderTable()}</div>
       </div>
     </div>
   );
@@ -572,6 +837,11 @@ function DuplicatesModal({ results, onClose }) {
     { key: "franchise", label: "Franchise", groups: results.franchise },
     { key: "series", label: "Series", groups: results.series },
     { key: "anime", label: "Anime", groups: results.anime },
+    { key: "anime_movie", label: "Anime Movie", groups: results.anime_movie },
+    { key: "movie", label: "Movie", groups: results.movie },
+    { key: "tv_show", label: "TV Show", groups: results.tv_show },
+    { key: "cartoon", label: "Cartoon", groups: results.cartoon },
+    { key: "manga", label: "Manga", groups: results.manga },
     {
       key: "system_options",
       label: "Sys. Options",
@@ -710,6 +980,264 @@ function DuplicatesModal({ results, onClose }) {
                     {a.anime_name_cn || "—"}
                   </td>
                   <td className="py-1">{a.anime_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "anime_movie") {
+      const a0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {a0.franchise_id?.slice(0, 8)}…
+            </span>
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((m, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {m.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {m.anime_movie_name_cn || "—"}
+                  </td>
+                  <td className="py-1">{m.anime_movie_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "movie") {
+      const m0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {m0.franchise_id?.slice(0, 8)}…
+            </span>
+            {m0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {m0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((m, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {m.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {m.movie_name_cn || "—"}
+                  </td>
+                  <td className="py-1 pr-3">{m.movie_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">
+                    {m.movie_name_alt || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "tv_show") {
+      const t0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {t0.franchise_id?.slice(0, 8)}…
+            </span>
+            {t0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {t0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {t0.season_part && (
+              <span className="text-[10px] text-gray-600">
+                {t0.season_part}
+              </span>
+            )}
+            {t0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {t0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((t, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {t.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">{t.tv_name_cn || "—"}</td>
+                  <td className="py-1 pr-3">{t.tv_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">{t.tv_name_alt || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "cartoon") {
+      const c0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {c0.franchise_id?.slice(0, 8)}…
+            </span>
+            {c0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {c0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {c0.season_part && (
+              <span className="text-[10px] text-gray-600">
+                {c0.season_part}
+              </span>
+            )}
+            {c0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {c0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((c, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {c.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {c.cartoon_name_cn || "—"}
+                  </td>
+                  <td className="py-1 pr-3">{c.cartoon_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">
+                    {c.cartoon_name_alt || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "manga") {
+      const mg0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {mg0.franchise_id?.slice(0, 8)}…
+            </span>
+            {mg0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {mg0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {mg0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {mg0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((mg, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {mg.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {mg.manga_name_cn || "—"}
+                  </td>
+                  <td className="py-1">{mg.manga_name_en || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -1258,6 +1786,7 @@ export default function Admin() {
                 { label: "Movie", url: "/api/data-control/fill/movie" },
                 { label: "TV Show", url: "/api/data-control/fill/tv-show" },
                 { label: "Cartoon", url: "/api/data-control/fill/cartoon" },
+                { label: "Manga", url: "/api/data-control/fill/manga" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}
@@ -1284,6 +1813,7 @@ export default function Admin() {
                 { label: "Movie", url: "/api/data-control/replace/movie" },
                 { label: "TV Show", url: "/api/data-control/replace/tv-show" },
                 { label: "Cartoon", url: "/api/data-control/replace/cartoon" },
+                { label: "Manga", url: "/api/data-control/replace/manga" },
               ]}
               streamRunning={streamRunning === "replace"}
               onStart={(url) => startStream(url, "replace")}
@@ -1324,6 +1854,7 @@ export default function Admin() {
                   <option value="Movies">Movies</option>
                   <option value="TV Shows">TV Show</option>
                   <option value="Cartoons">Cartoon</option>
+                  <option value="Manga">Manga</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
                   <option value="System Options">Options</option>

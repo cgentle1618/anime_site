@@ -213,6 +213,7 @@ export default function SeasonalDetail() {
   const totalEntries = animeData.length;
   const completedCount = seasonal?.entry_completed ?? 0;
   const plannedCount = seasonal?.entry_planned ?? 0;
+  const droppedCount = seasonal?.entry_dropped ?? 0;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
@@ -263,9 +264,17 @@ export default function SeasonalDetail() {
               <span className="bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-sm font-bold border border-violet-200">
                 {plannedCount} Planned
               </span>
+              <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
+                {seasonal?.entry_watching ?? 0} Watching
+              </span>
               <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold border border-blue-200">
                 {completedCount} Completed
               </span>
+              {droppedCount > 0 && (
+                <span className="bg-red-50 text-red-700 px-3 py-1 rounded-full text-sm font-bold border border-red-200">
+                  {droppedCount} Dropped
+                </span>
+              )}
             </div>
 
             {/* Completion bar */}

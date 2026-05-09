@@ -13,6 +13,10 @@ function getMovieTitle(m) {
   return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "";
 }
 
+function getMovieSortKey(m) {
+  return m.movie_name_en || m.movie_name_alt || m.movie_name_cn || "";
+}
+
 function getReleaseSortScore(m) {
   const raw = m.release_date_usa || "";
   if (!raw) return 0;
@@ -141,8 +145,8 @@ export default function LibraryMovie() {
             : -1;
         if (wA !== wB) return wB - wA;
       }
-      const tA = getMovieTitle(a).toLowerCase();
-      const tB = getMovieTitle(b).toLowerCase();
+      const tA = getMovieSortKey(a).toLowerCase();
+      const tB = getMovieSortKey(b).toLowerCase();
       return tA.localeCompare(tB);
     });
 
@@ -363,8 +367,14 @@ export default function LibraryMovie() {
                 <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
                   Release
                 </th>
-                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center">
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100">
                   Watch
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center border-r border-gray-100 hidden xl:table-cell">
+                  Watch Next
+                </th>
+                <th className="px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center hidden xl:table-cell">
+                  To Rewatch
                 </th>
               </tr>
             </thead>
@@ -459,7 +469,7 @@ export default function LibraryMovie() {
                       {m.release_date_usa || "-"}
                     </td>
                     <td
-                      className="px-4 py-2 text-center"
+                      className="px-4 py-2 text-center border-r border-gray-100"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {isAdmin ? (
@@ -477,6 +487,72 @@ export default function LibraryMovie() {
                       ) : (
                         "-"
                       )}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-center border-r border-gray-100 hidden xl:table-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!m.watch_next}
+                        disabled={!isAdmin}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const res = await fetch(
+                            `/api/movies/${m.system_id}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ watch_next: val }),
+                              credentials: "include",
+                            },
+                          );
+                          if (res.ok) {
+                            const updated = await res.json();
+                            handleUpdated(updated);
+                            showToast(
+                              "success",
+                              val
+                                ? "Added to Watch Next"
+                                : "Removed from Watch Next",
+                            );
+                          }
+                        }}
+                        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+                      />
+                    </td>
+                    <td
+                      className="px-4 py-2 text-center hidden xl:table-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!m.to_rewatch}
+                        disabled={!isAdmin}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const res = await fetch(
+                            `/api/movies/${m.system_id}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ to_rewatch: val }),
+                              credentials: "include",
+                            },
+                          );
+                          if (res.ok) {
+                            const updated = await res.json();
+                            handleUpdated(updated);
+                            showToast(
+                              "success",
+                              val
+                                ? "Marked for rewatch"
+                                : "Removed from rewatch",
+                            );
+                          }
+                        }}
+                        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+                      />
                     </td>
                   </tr>
                 );
