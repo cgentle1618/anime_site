@@ -110,6 +110,15 @@ function DuplicatesSection({ results, loading, onRefresh }) {
         { key: "series", label: "Series", groups: results.series },
         { key: "anime", label: "Anime", groups: results.anime },
         {
+          key: "anime_movie",
+          label: "Anime Movie",
+          groups: results.anime_movie,
+        },
+        { key: "movie", label: "Movie", groups: results.movie },
+        { key: "tv_show", label: "TV Show", groups: results.tv_show },
+        { key: "cartoon", label: "Cartoon", groups: results.cartoon },
+        { key: "manga", label: "Manga", groups: results.manga },
+        {
           key: "system_options",
           label: "Sys. Options",
           groups: results.system_options,
@@ -248,6 +257,264 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                     {a.anime_name_cn || "—"}
                   </td>
                   <td className="py-1">{a.anime_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "anime_movie") {
+      const a0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {a0.franchise_id?.slice(0, 8)}…
+            </span>
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((m, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {m.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {m.anime_movie_name_cn || "—"}
+                  </td>
+                  <td className="py-1">{m.anime_movie_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "movie") {
+      const m0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {m0.franchise_id?.slice(0, 8)}…
+            </span>
+            {m0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {m0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((m, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {m.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {m.movie_name_cn || "—"}
+                  </td>
+                  <td className="py-1 pr-3">{m.movie_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">
+                    {m.movie_name_alt || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "tv_show") {
+      const t0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {t0.franchise_id?.slice(0, 8)}…
+            </span>
+            {t0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {t0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {t0.season_part && (
+              <span className="text-[10px] text-gray-600">
+                {t0.season_part}
+              </span>
+            )}
+            {t0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {t0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((t, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {t.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">{t.tv_name_cn || "—"}</td>
+                  <td className="py-1 pr-3">{t.tv_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">{t.tv_name_alt || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "cartoon") {
+      const c0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {c0.franchise_id?.slice(0, 8)}…
+            </span>
+            {c0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {c0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {c0.season_part && (
+              <span className="text-[10px] text-gray-600">
+                {c0.season_part}
+              </span>
+            )}
+            {c0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {c0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1 pr-3">EN Name</th>
+                <th className="text-left pb-1">Alt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((c, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {c.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {c.cartoon_name_cn || "—"}
+                  </td>
+                  <td className="py-1 pr-3">{c.cartoon_name_en || "—"}</td>
+                  <td className="py-1 text-gray-400">
+                    {c.cartoon_name_alt || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "manga") {
+      const mg0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {mg0.franchise_id?.slice(0, 8)}…
+            </span>
+            {mg0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {mg0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {mg0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {mg0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((mg, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {mg.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {mg.manga_name_cn || "—"}
+                  </td>
+                  <td className="py-1">{mg.manga_name_en || "—"}</td>
                 </tr>
               ))}
             </tbody>
