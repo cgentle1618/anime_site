@@ -1023,7 +1023,7 @@ Admin review queue for entries requiring attention.
 
 **Potential Duplicates Section:**
 
-- Find Duplicates button → result table with tabs: Franchise / Series / Anime / System Options
+- Find Duplicates button → result table with tabs: Franchise / Series / Anime / Anime Movie / Movie / TV Show / Cartoon / Manga / System Options
 
 ---
 
