@@ -1003,7 +1003,8 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 - Deleted Time, Entry Type (which table), Name CN with fallback (for system option: option_value), Name EN (null if CN used fallback or is system option), Additional Info:
   - Franchise entry: franchise type
   - Series entry: franchise name CN with fallback
-  - Anime entry: franchise name CN + series name CN with fallback
+  - Media entry (except anime movie): franchise name CN with fallback + series name CN with fallback
+  - Anime Movie entry: franchise name CN with fallback
   - System option entry: category
 
 All sourced from `GET /api/anime/`, `GET /api/franchise/`, `GET /api/series/`, `GET /api/system/deleted`.
