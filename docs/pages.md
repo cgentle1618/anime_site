@@ -837,12 +837,13 @@ Multi-section statistics dashboard.
    - Manga / Novel tabs (TBD)
 
 6. **Recent Completions** — paginated list (10 per page):
-   - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date (live)
+   - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
    - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
-   - Manga / Novel tabs (TBD)
+   - Manga tab: grouped by Manga Region (日漫, 韓漫, 國漫, 台漫, Others); shows Manga Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
+   - Novel tab (TBD)
 
 ---
 
