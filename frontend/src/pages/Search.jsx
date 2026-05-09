@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AnimeCard from "../components/AnimeCard";
@@ -53,6 +53,17 @@ export default function Search() {
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
+
+  const stickyBarRef = useRef(null);
+  const [stickyBarHeight, setStickyBarHeight] = useState(0);
+
+  useEffect(() => {
+    const el = stickyBarRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setStickyBarHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     setSelectedFranchise("all");
@@ -427,10 +438,15 @@ export default function Search() {
     );
   }
 
+  const sectionHeaderTop = `${64 + stickyBarHeight}px`;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Header */}
-      <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Sticky header: title + count summary */}
+      <div
+        ref={stickyBarRef}
+        className="sticky top-16 z-30 bg-gray-50 pb-4 mb-8 border-b border-gray-200"
+      >
         <h1 className="text-xl font-black text-gray-900">
           Search Results for "<span className="text-brand">{query}</span>"
         </h1>
@@ -499,374 +515,394 @@ export default function Search() {
         </p>
       </div>
 
-      {/* Seasonal entries */}
-      {showSeasonal && matchedSeasonal.length > 0 && (
-        <div>
-          <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <i className="fas fa-calendar-alt text-brand/70"></i> Seasonal
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {matchedSeasonal.map((s) => (
-              <button
-                key={s.seasonal}
-                onClick={() =>
-                  navigate(`/seasonal/${encodeURIComponent(s.seasonal)}`)
-                }
-                className="px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:bg-brand hover:text-white hover:border-brand transition-colors shadow-sm"
-              >
-                {s.seasonal}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Franchise filter pills */}
-      {showFranchisePills && (
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setSelectedFranchise("all")}
-            className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === "all" ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-          >
-            All Results
-          </button>
-          {filterPillFranchises.map((f) => {
-            const titles = getFranchiseTitles(f);
-            return (
-              <button
-                key={f.system_id}
-                onClick={() => setSelectedFranchise(f.system_id)}
-                title={titles.main}
-                className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === f.system_id ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-              >
-                {titles.main}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Franchise cards */}
-      {showFranchise && displayFranchises.length > 0 && (
-        <div>
-          <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <i className="fas fa-sitemap text-brand/70"></i> Franchises
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {displayFranchises.map((f) => {
-              const t = getFranchiseTitles(f);
-              return (
-                <div
-                  key={f.system_id}
-                  onClick={() => navigate(`/franchise/${f.system_id}`)}
-                  className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="text-[9px] font-bold text-brand uppercase tracking-widest mb-1.5">
-                      <i className="fas fa-sitemap mr-1"></i>
-                      {f.franchise_type + " Franchise" || "Franchise"}
-                    </div>
-                    <h3
-                      className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
-                      title={t.main}
-                    >
-                      {t.main}
-                    </h3>
-                    {t.sub && (
-                      <h4
-                        className="text-xs font-medium text-gray-500 truncate"
-                        title={t.sub}
-                      >
-                        {t.sub}
-                      </h4>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Series cards */}
-      {showSeries && displaySeries.length > 0 && (
-        <div>
-          <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <i className="fas fa-layer-group text-brand/70"></i> Series
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {displaySeries.map((s) => {
-              const t = getSeriesTitles(s);
-              return (
-                <div
-                  key={s.system_id}
+      <div className="space-y-8">
+        {/* Seasonal entries */}
+        {showSeasonal && matchedSeasonal.length > 0 && (
+          <div>
+            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <i className="fas fa-calendar-alt text-brand/70"></i> Seasonal
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {matchedSeasonal.map((s) => (
+                <button
+                  key={s.seasonal}
                   onClick={() =>
-                    s.franchise_id && navigate(`/franchise/${s.franchise_id}`)
+                    navigate(`/seasonal/${encodeURIComponent(s.seasonal)}`)
                   }
-                  className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+                  className="px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:bg-brand hover:text-white hover:border-brand transition-colors shadow-sm"
                 >
-                  <div>
-                    <div className="text-[9px] font-bold text-brand/70 uppercase tracking-widest mb-1.5">
-                      <i className="fas fa-layer-group mr-1"></i>Series
-                    </div>
-                    <h3
-                      className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
-                      title={t.main}
-                    >
-                      {t.main}
-                    </h3>
-                    {t.sub && (
-                      <h4
-                        className="text-xs font-medium text-gray-500 truncate"
-                        title={t.sub}
-                      >
-                        {t.sub}
-                      </h4>
-                    )}
-                  </div>
-                </div>
+                  {s.seasonal}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Franchise filter pills */}
+        {showFranchisePills && (
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setSelectedFranchise("all")}
+              className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === "all" ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              All Results
+            </button>
+            {filterPillFranchises.map((f) => {
+              const titles = getFranchiseTitles(f);
+              return (
+                <button
+                  key={f.system_id}
+                  onClick={() => setSelectedFranchise(f.system_id)}
+                  title={titles.main}
+                  className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === f.system_id ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {titles.main}
+                </button>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Anime */}
-      {showAnime && (
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-tv text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Anime
-              </h2>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {displayAnime.length} results
-            </span>
-          </div>
-
-          {displayAnime.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <i className="fas fa-ghost text-3xl mb-3"></i>
-              <p className="font-medium">
-                No anime found
-                {scope === "anime"
-                  ? ` for "${query}"`
-                  : " matching the current filter"}
-                .
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {[
-                { label: "TV / ONA", icon: "fa-tv", items: tvOna },
-                { label: "Movies", icon: "fa-film", items: movies },
-                { label: "Other", icon: "fa-shapes", items: others },
-              ].map(({ label, icon, items }) =>
-                items.length > 0 ? (
-                  <div key={label}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
-                        <i className={`fas ${icon} text-brand/70`}></i>
-                        {label}
+        {/* Franchise cards */}
+        {showFranchise && displayFranchises.length > 0 && (
+          <div>
+            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <i className="fas fa-sitemap text-brand/70"></i> Franchises
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {displayFranchises.map((f) => {
+                const t = getFranchiseTitles(f);
+                return (
+                  <div
+                    key={f.system_id}
+                    onClick={() => navigate(`/franchise/${f.system_id}`)}
+                    className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="text-[9px] font-bold text-brand uppercase tracking-widest mb-1.5">
+                        <i className="fas fa-sitemap mr-1"></i>
+                        {f.franchise_type + " Franchise" || "Franchise"}
+                      </div>
+                      <h3
+                        className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
+                        title={t.main}
+                      >
+                        {t.main}
                       </h3>
-                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                        {items.length}
-                      </span>
-                      <div className="flex-1 border-t border-gray-100"></div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                      {items.map((a) => (
-                        <AnimeCard
-                          key={a.system_id}
-                          anime={a}
-                          onUpdated={handleAnimeUpdated}
-                        />
-                      ))}
+                      {t.sub && (
+                        <h4
+                          className="text-xs font-medium text-gray-500 truncate"
+                          title={t.sub}
+                        >
+                          {t.sub}
+                        </h4>
+                      )}
                     </div>
                   </div>
-                ) : null,
-              )}
+                );
+              })}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Anime Movies */}
-      {showAnimeMovie && matchedAnimeMovies.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-film text-brand"></i>
+        {/* Series cards */}
+        {showSeries && displaySeries.length > 0 && (
+          <div>
+            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <i className="fas fa-layer-group text-brand/70"></i> Series
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {displaySeries.map((s) => {
+                const t = getSeriesTitles(s);
+                return (
+                  <div
+                    key={s.system_id}
+                    onClick={() =>
+                      s.franchise_id && navigate(`/franchise/${s.franchise_id}`)
+                    }
+                    className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="text-[9px] font-bold text-brand/70 uppercase tracking-widest mb-1.5">
+                        <i className="fas fa-layer-group mr-1"></i>Series
+                      </div>
+                      <h3
+                        className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
+                        title={t.main}
+                      >
+                        {t.main}
+                      </h3>
+                      {t.sub && (
+                        <h4
+                          className="text-xs font-medium text-gray-500 truncate"
+                          title={t.sub}
+                        >
+                          {t.sub}
+                        </h4>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Anime Movies
-              </h2>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {matchedAnimeMovies.length} results
-            </span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {matchedAnimeMovies.map((m) => (
-              <AnimeMovieCard
-                key={m.system_id}
-                movie={m}
-                onUpdated={handleMovieUpdated}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Movies */}
-      {showMovie && matchedMovies.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-ticket-alt text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Movies
-              </h2>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {matchedMovies.length} results
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {matchedMovies.map((m) => (
-              <MovieCard
-                key={m.system_id}
-                movie={m}
-                onUpdated={handleLiveMovieUpdated}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TV Shows */}
-      {showTvShow && matchedTvShows.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-video text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                TV Shows
-              </h2>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {matchedTvShows.length} results
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {matchedTvShows.map((t) => (
-              <TVCard
-                key={t.system_id}
-                show={t}
-                onUpdated={handleTvShowUpdated}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Cartoons */}
-      {showCartoon && matchedCartoons.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-paint-brush text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Cartoons
-              </h2>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {matchedCartoons.length} results
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {matchedCartoons.map((c) => (
-              <CartoonCard
-                key={c.system_id}
-                cartoon={c}
-                onUpdated={handleCartoonUpdated}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Manga */}
-      {showManga && matchedMangas.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-book text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Manga
-              </h2>
-            </div>
-            <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-              {matchedMangas.length} results
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {matchedMangas.map((m) => (
-              <MangaCard
-                key={m.system_id}
-                manga={m}
-                isAdmin={isAdmin}
-                onUpdated={handleMangaUpdated}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Under Development (all scope only) */}
-      {scope === "all" &&
-        [
-          {
-            label: "Novel",
-            icon: "fa-book-open",
-            desc: "Light Novel · Web Novel",
-          },
-        ].map(({ label, icon, desc }) => (
-          <div key={label}>
-            <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-              <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                <i className={`fas ${icon} text-gray-400`}></i>
+        {/* Anime */}
+        {showAnime && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-tv text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-                  {label}
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Anime
                 </h2>
-                <p className="text-xs text-gray-400 font-medium mt-0.5">
-                  {desc}
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {displayAnime.length} results
+              </span>
+            </div>
+
+            {displayAnime.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <i className="fas fa-ghost text-3xl mb-3"></i>
+                <p className="font-medium">
+                  No anime found
+                  {scope === "anime"
+                    ? ` for "${query}"`
+                    : " matching the current filter"}
+                  .
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {[
+                  { label: "TV / ONA", icon: "fa-tv", items: tvOna },
+                  { label: "Movies", icon: "fa-film", items: movies },
+                  { label: "Other", icon: "fa-shapes", items: others },
+                ].map(({ label, icon, items }) =>
+                  items.length > 0 ? (
+                    <div key={label}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <i className={`fas ${icon} text-brand/70`}></i>
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {items.length}
+                        </span>
+                        <div className="flex-1 border-t border-gray-100"></div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                        {items.map((a) => (
+                          <AnimeCard
+                            key={a.system_id}
+                            anime={a}
+                            onUpdated={handleAnimeUpdated}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null,
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Anime Movies */}
+        {showAnimeMovie && matchedAnimeMovies.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-film text-brand"></i>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Anime Movies
+                </h2>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedAnimeMovies.length} results
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedAnimeMovies.map((m) => (
+                <AnimeMovieCard
+                  key={m.system_id}
+                  movie={m}
+                  onUpdated={handleMovieUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Movies */}
+        {showMovie && matchedMovies.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-ticket-alt text-brand"></i>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Movies
+                </h2>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedMovies.length} results
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedMovies.map((m) => (
+                <MovieCard
+                  key={m.system_id}
+                  movie={m}
+                  onUpdated={handleLiveMovieUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TV Shows */}
+        {showTvShow && matchedTvShows.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-video text-brand"></i>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  TV Shows
+                </h2>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedTvShows.length} results
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedTvShows.map((t) => (
+                <TVCard
+                  key={t.system_id}
+                  show={t}
+                  onUpdated={handleTvShowUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cartoons */}
+        {showCartoon && matchedCartoons.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-paint-brush text-brand"></i>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Cartoons
+                </h2>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedCartoons.length} results
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedCartoons.map((c) => (
+                <CartoonCard
+                  key={c.system_id}
+                  cartoon={c}
+                  onUpdated={handleCartoonUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Manga */}
+        {showManga && matchedMangas.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-book text-brand"></i>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Manga
+                </h2>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedMangas.length} results
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedMangas.map((m) => (
+                <MangaCard
+                  key={m.system_id}
+                  manga={m}
+                  isAdmin={isAdmin}
+                  onUpdated={handleMangaUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Under Development (all scope only) */}
+        {scope === "all" &&
+          [
+            {
+              label: "Novel",
+              icon: "fa-book-open",
+              desc: "Light Novel · Web Novel",
+            },
+          ].map(({ label, icon, desc }) => (
+            <div key={label}>
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
+                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                  <i className={`fas ${icon} text-gray-400`}></i>
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
+                    {label}
+                  </h2>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">
+                    {desc}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+                <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
+                <p className="text-sm font-bold text-gray-400">
+                  Under Development
                 </p>
               </div>
             </div>
-            <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-              <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-              <p className="text-sm font-bold text-gray-400">
-                Under Development
-              </p>
-            </div>
-          </div>
-        ))}
+          ))}
+      </div>
     </div>
   );
 }
