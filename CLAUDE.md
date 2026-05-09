@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal anime/media collection. Data is organized in a three-tier relational hierarchy: `Franchise → Series → Single Media Entry`. The app has two access levels: Guest (read-only) and Admin (full management).
+**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal media collection. Data is organized in a three-tier relational hierarchy: `Franchise → Series → Single Media Entry`. Media entry types include Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, and Novel (not implemented yet). The app has two access levels: Guest (read-only) and Admin (full management).
 
 ## Documentation Map
 
