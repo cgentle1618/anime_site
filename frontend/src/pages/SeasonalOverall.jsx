@@ -484,6 +484,11 @@ export default function SeasonalOverall() {
               label: "Current Season",
               icon: "fa-calendar-day",
             },
+            {
+              key: "next",
+              label: "Next Season",
+              icon: "fa-calendar-week",
+            },
             { key: "all", label: "All Seasons", icon: "fa-calendar-alt" },
           ].map((tab) => (
             <button
@@ -530,8 +535,13 @@ export default function SeasonalOverall() {
               )}
             </div>
           )}
+        </div>
+      )}
 
-          {nextSeason && (
+      {/* ── Next Season Tab ── */}
+      {activeTab === "next" && (
+        <div className="space-y-16">
+          {nextSeason ? (
             <SeasonalBlock
               blockTitle="Next Season"
               seasonalId={nextSeason}
@@ -543,6 +553,13 @@ export default function SeasonalOverall() {
               onRatingChange={handleRatingChange}
               sections={NEXT_SECTIONS}
             />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 border-dashed">
+              <i className="fas fa-calendar-times text-3xl text-gray-300 mb-3"></i>
+              <p className="text-gray-500 font-medium">
+                Could not determine next season.
+              </p>
+            </div>
           )}
         </div>
       )}
