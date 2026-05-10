@@ -354,3 +354,11 @@ export function buildAnimePayload(
     notes,
   };
 }
+
+export function parseTypes(franchiseType) {
+  if (!franchiseType) return [];
+  return franchiseType
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}

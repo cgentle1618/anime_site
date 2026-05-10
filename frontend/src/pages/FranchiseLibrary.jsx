@@ -5,6 +5,7 @@ import {
   getSortName,
   getRatingWeight,
   cleanString,
+  parseTypes,
 } from "../utils/anime";
 import FranchiseCard from "../components/FranchiseCard";
 
@@ -157,10 +158,12 @@ export default function FranchiseLibrary() {
       }
 
       if (filters.franchiseType.size > 0) {
-        const ft = f.franchise_type;
-        const isOther = !ft || !KNOWN_TYPES.includes(ft);
-        const bucket = isOther ? "Other" : ft;
-        if (!filters.franchiseType.has(bucket)) return false;
+        const tokens = parseTypes(f.franchise_type);
+        const matchesKnown = tokens.some((t) => filters.franchiseType.has(t));
+        const isOther =
+          tokens.length === 0 || tokens.every((t) => !KNOWN_TYPES.includes(t));
+        if (!matchesKnown && !(isOther && filters.franchiseType.has("Other")))
+          return false;
       }
 
       return true;

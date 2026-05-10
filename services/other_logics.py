@@ -888,9 +888,10 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
 
     by_type: dict[str, list] = {}
     for f in franchises:
-        ft = (f.franchise_type or "").strip()
-        if ft:
-            by_type.setdefault(ft, []).append(f)
+        ft_raw = (f.franchise_type or "").strip()
+        tokens = [t.strip() for t in ft_raw.split(",") if t.strip()]
+        for token in tokens if tokens else ([ft_raw] if ft_raw else []):
+            by_type.setdefault(token, []).append(f)
 
     parent: dict[str, str] = {}
 
