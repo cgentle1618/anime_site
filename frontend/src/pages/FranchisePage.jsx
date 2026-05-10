@@ -271,7 +271,8 @@ export default function FranchisePage() {
     [types],
   );
   const hasACGFull = useMemo(() => types.includes("ACG"), [types]);
-  const hasTvMovie = useMemo(() => types.includes("TV or Movie"), [types]);
+  const hasMovie = useMemo(() => types.includes("Movie"), [types]);
+  const hasTV = useMemo(() => types.includes("TV"), [types]);
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
 
   const tabs = useMemo(() => {
@@ -280,15 +281,16 @@ export default function FranchisePage() {
       hasACG && animeList.length && "Anime",
       hasACG && animeMovieList.length && "Anime Movies",
       hasACGFull && mangaList.length && "Manga",
-      hasTvMovie && movieList.length && "Movies",
-      hasTvMovie && tvShowList.length && "TV Shows",
+      hasMovie && movieList.length && "Movies",
+      hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
     ].filter(Boolean);
   }, [
     franchise,
     hasACG,
     hasACGFull,
-    hasTvMovie,
+    hasMovie,
+    hasTV,
     hasCartoon,
     animeList,
     animeMovieList,

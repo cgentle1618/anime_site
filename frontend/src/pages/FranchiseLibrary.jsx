@@ -15,7 +15,7 @@ function getExpectationWeight(exp) {
   return EXPECTATION_WEIGHT[exp] ?? 4;
 }
 
-const KNOWN_TYPES = ["ACG", "Anime Movie", "TV or Movie", "Cartoon"];
+const KNOWN_TYPES = ["ACG", "Anime Movie", "TV", "Movie", "Cartoon"];
 
 function getEntryYear(entry) {
   if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
@@ -314,7 +314,8 @@ export default function FranchiseLibrary() {
               <div className="flex flex-wrap gap-1.5">
                 <FilterTag value="ACG" label="ACG" />
                 <FilterTag value="Anime Movie" label="Anime Movie" />
-                <FilterTag value="TV or Movie" label="TV or Movie" />
+                <FilterTag value="TV" label="TV" />
+                <FilterTag value="Movie" label="Movie" />
                 <FilterTag value="Cartoon" label="Cartoon" />
                 <FilterTag value="Other" label="Other" />
               </div>

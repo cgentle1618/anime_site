@@ -1056,7 +1056,7 @@ export default function Add() {
     if (!franchiseId && mf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "TV or Movie",
+          franchiseType: "Movie",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -1075,7 +1075,7 @@ export default function Add() {
           franchise_name_en: mf.movie_name_en || null,
           franchise_name_cn: mf.movie_name_cn || null,
           franchise_name_alt: mf.movie_name_alt || null,
-          franchise_type: "TV or Movie",
+          franchise_type: "Movie",
           franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
@@ -1222,7 +1222,7 @@ export default function Add() {
     if (!franchiseId && tvf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "TV or Movie",
+          franchiseType: "TV",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -1241,7 +1241,7 @@ export default function Add() {
           franchise_name_en: tvf.tv_name_en || null,
           franchise_name_cn: tvf.tv_name_cn || null,
           franchise_name_alt: tvf.tv_name_alt || null,
-          franchise_type: "TV or Movie",
+          franchise_type: "TV",
           franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
@@ -3043,7 +3043,7 @@ export default function Add() {
                 items={allFranchises
                   .filter(
                     (f) =>
-                      parseTypes(f.franchise_type).includes("TV or Movie") ||
+                      parseTypes(f.franchise_type).includes("Movie") ||
                       !f.franchise_type,
                   )
                   .map((f) => ({
@@ -3500,7 +3500,7 @@ export default function Add() {
                 items={allFranchises
                   .filter(
                     (f) =>
-                      parseTypes(f.franchise_type).includes("TV or Movie") ||
+                      parseTypes(f.franchise_type).includes("TV") ||
                       !f.franchise_type,
                   )
                   .map((f) => ({
@@ -5051,7 +5051,8 @@ export default function Add() {
                   {[
                     "ACG",
                     "Anime Movie",
-                    "TV or Movie",
+                    "TV",
+                    "Movie",
                     "Cartoon",
                     "Manga",
                   ].map((v) => {
