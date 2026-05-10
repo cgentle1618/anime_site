@@ -3017,7 +3017,7 @@ export default function Modify() {
                         "TV",
                         "Movie",
                         "Cartoon",
-                        "Manga",
+                        "Novel",
                       ].map((v) => {
                         const types = parseTypes(ff.franchise_type);
                         const checked = types.includes(v);
