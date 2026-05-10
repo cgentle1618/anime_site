@@ -1,264 +1,149 @@
-# Plan: Multiple Franchise Types + Unified Franchise Page
+● User approved Claude's plan
+⎿  Plan saved to: ~\.claude\plans\are-we-able-to-hashed-marble.md · /plan to edit
+Plan: Split Add.jsx and Modify.jsx Into Per-Tab Components
 
-## Context
+     Context
 
-Currently `franchise_type` is a single string per franchise (e.g., "ACG", "Cartoon"). The goal is to support comma-separated multiple types (e.g., "ACG, Cartoon") for franchises that span multiple media categories. Alongside this, the three separate franchise detail pages (FranchiseAcg, FranchiseReality, FranchiseCartoon) are replaced by one unified `FranchisePage.jsx` with a tabbed UI that renders content sections conditionally based on the parsed types.
+     Add.jsx (~5,339 lines) and Modify.jsx (~5,543 lines) are monolithic React components that each handle 9 entity types (anime, anime-movie, movie, tv-show, cartoon, manga, franchise, series, options) in a
+     single file. Each file has become difficult to navigate and edit. The goal is to split each into smaller, focused files without changing behavior.
 
-No database migration is required — `franchise_type` is already a plain `String` column.
+     ---
+     Approach: Extract Per-Tab Form Components (JSX Only)
 
----
+     The cleanest, lowest-risk split is to extract the JSX form fields for each tab into a dedicated component file. The parent file retains all state management, data loading, submit/save logic, and modal
+     coordination. Each tab component is a "dumb" render-only component that receives props.
 
-## Progress
+     Why not move submit logic into tab components?
+     Submit functions in both files trigger shared modals (franchiseCreateModal, createModal) and update shared data arrays (setAllFranchises, setAllAnime, etc.) that are needed by multiple tabs. Keeping that
+     coordination in the parent avoids complex cross-component callbacks.
 
-All 6 steps completed. All files modified/created. Ready for testing and commit.
+     ---
+     New File Structure
 
----
+     Add page
 
-## Step 1 — Backend: `find_duplicate_franchises()` in `services/other_logics.py:889-893`
+     frontend/src/pages/add-tabs/
+       AnimeAddTab.jsx
+       AnimeMovieAddTab.jsx
+       MovieAddTab.jsx
+       TvShowAddTab.jsx
+       CartoonAddTab.jsx
+       MangaAddTab.jsx
+       FranchiseAddTab.jsx
+       SeriesAddTab.jsx
+       OptionsAddTab.jsx
 
-Expand comma-separated types when building the `by_type` grouping buckets. A franchise typed `"ACG, Cartoon"` will appear in both the `"ACG"` and `"Cartoon"` buckets so it is compared against franchises of either type.
+     Modify page
 
-**Replace lines 889–893:**
+     frontend/src/pages/modify-tabs/
+       AnimeModifyTab.jsx
+       AnimeMovieModifyTab.jsx
+       MovieModifyTab.jsx
+       TvShowModifyTab.jsx
+       CartoonModifyTab.jsx
+       MangaModifyTab.jsx
+       FranchiseModifyTab.jsx
+       SeriesModifyTab.jsx
+       OptionsModifyTab.jsx
 
-```python
-# CURRENT
-by_type: dict[str, list] = {}
-for f in franchises:
-    ft = (f.franchise_type or "").strip()
-    if ft:
-        by_type.setdefault(ft, []).append(f)
+     ---
+     What Each Tab Component Receives as Props
 
-# NEW
-by_type: dict[str, list] = {}
-for f in franchises:
-    ft_raw = (f.franchise_type or "").strip()
-    tokens = [t.strip() for t in ft_raw.split(",") if t.strip()]
-    for token in tokens if tokens else ([ft_raw] if ft_raw else []):
-        by_type.setdefault(token, []).append(f)
-```
+     Each tab component is a pure render component. It receives:
 
----
+     ┌────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+     │         Prop category          │                                                   Examples                                                   │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Form state                     │ af (anime form object), amf, mf, etc.                                                                        │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Update function                │ ua (shorthand updater for that tab's form)                                                                   │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Shared data                    │ allFranchises, allSeries, allAnime, allOptions                                                               │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Auto-fill data (Add only)      │ fillResults, applyAutofill, fillQuery, setFillQuery, fillOpen, setFillOpen, fillRef                          │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Ribbon data (Modify only)      │ animeRibbon, movieRibbon, etc.                                                                               │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Callback: open franchise modal │ openFranchiseCreateModal(franchiseType, onConfirm, onCancel) → not needed since submit logic stays in parent │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ ComboBox items                 │ franchiseItems, seriesItems (pre-built in parent, passed down)                                               │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Shared classes                 │ inputCls, selectCls                                                                                          │
+     ├────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+     │ Shared components              │ imported directly in tab file (ComboBox, Field, SectionHeader, etc.)                                         │
+     └────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-## Step 2 — Frontend Utility: `parseTypes()` in `frontend/src/utils/anime.js`
+     ▎ Note: franchiseItems and seriesItems* are already computed in the parent and can be passed as props.
 
-Add one export at the end of the file. All downstream consumers use this instead of raw string comparison.
+     ---
+     What Stays in the Parent Files
 
-```js
-export function parseTypes(franchiseType) {
-  if (!franchiseType) return [];
-  return franchiseType
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-```
+     - All useState declarations (form state, data arrays, modal state, activeTab)
+     - All useEffect hooks (data loading, click-outside handlers)
+     - All submit functions (submitAnime, submitMovie, etc.) — these call modals and update shared state
+     - All save functions (Modify only)
+     - Auto-fill application functions (applyAutofill, applyCartoonAutofill, etc.)
+     - ComboBox item arrays (franchiseItems, seriesItemsForAnime, etc.)
+     - Search/discovery logic (Modify only)
+     - Modal rendering (FranchiseCreateModal, CreateNewEntityModal)
+     - Tab bar render
+     - Header/footer render
+     - handleSubmit / handleSave dispatchers
 
----
+     ---
+     Resulting File Sizes (Estimated)
 
-## Step 3 — `FranchiseLibrary.jsx`: Multi-type filter matching
+     ┌─────────────────────┬──────────────┬────────────────┐
+     │        File         │    Before    │     After      │
+     ├─────────────────────┼──────────────┼────────────────┤
+     │ Add.jsx             │ ~5,339 lines │ ~1,200 lines   │
+     ├─────────────────────┼──────────────┼────────────────┤
+     │ Each *AddTab.jsx    │ —            │ ~300–700 lines │
+     ├─────────────────────┼──────────────┼────────────────┤
+     │ Modify.jsx          │ ~5,543 lines │ ~1,400 lines   │
+     ├─────────────────────┼──────────────┼────────────────┤
+     │ Each *ModifyTab.jsx │ —            │ ~300–700 lines │
+     └─────────────────────┴──────────────┴────────────────┘
 
-**File:** `frontend/src/pages/FranchiseLibrary.jsx`
+     ---
+     Critical Files
 
-Import `parseTypes`. Update the type filter block (lines ~159–163) so a franchise with "ACG, Cartoon" matches both the "ACG" and "Cartoon" filter buttons:
+     ┌──────────────────────────────────────┬───────────────────────────────────────────────────────────┐
+     │                 File                 │                          Change                           │
+     ├──────────────────────────────────────┼───────────────────────────────────────────────────────────┤
+     │ frontend/src/pages/Add.jsx           │ Remove tab JSX sections; import and render tab components │
+     ├──────────────────────────────────────┼───────────────────────────────────────────────────────────┤
+     │ frontend/src/pages/Modify.jsx        │ Remove tab JSX sections; import and render tab components │
+     ├──────────────────────────────────────┼───────────────────────────────────────────────────────────┤
+     │ frontend/src/pages/add-tabs/*.jsx    │ New — tab form JSX components                             │
+     ├──────────────────────────────────────┼───────────────────────────────────────────────────────────┤
+     │ frontend/src/pages/modify-tabs/*.jsx │ New — tab form JSX components                             │
+     └──────────────────────────────────────┴───────────────────────────────────────────────────────────┘
 
-```js
-// CURRENT
-if (filters.franchiseType.size > 0) {
-  const ft = f.franchise_type;
-  const isOther = !ft || !KNOWN_TYPES.includes(ft);
-  const bucket = isOther ? "Other" : ft;
-  if (!filters.franchiseType.has(bucket)) return false;
-}
+     ---
+     Implementation Order
 
-// NEW
-if (filters.franchiseType.size > 0) {
-  const tokens = parseTypes(f.franchise_type);
-  const matchesKnown = tokens.some((t) => filters.franchiseType.has(t));
-  const isOther =
-    tokens.length === 0 || tokens.every((t) => !KNOWN_TYPES.includes(t));
-  if (!matchesKnown && !(isOther && filters.franchiseType.has("Other")))
-    return false;
-}
-```
+     Extract one tab at a time to keep diffs reviewable. Recommended order:
 
----
+     1. FranchiseAddTab and FranchiseModifyTab — simplest tabs (~80 lines of JSX each), no auto-fill, no ribbon
+     2. SeriesAddTab / SeriesModifyTab — also simple
+     3. OptionsAddTab / OptionsModifyTab — isolated, no franchise/series logic
+     4. MangaAddTab / MangaModifyTab
+     5. CartoonAddTab / CartoonModifyTab
+     6. TvShowAddTab / TvShowModifyTab
+     7. MovieAddTab / MovieModifyTab
+     8. AnimeMovieAddTab / AnimeMovieModifyTab
+     9. AnimeAddTab / AnimeModifyTab — largest and most complex
 
-## Step 4 — Admin Forms: Checkbox group + ComboBox filter fix
+     Each step: extract JSX into new file → import and drop into parent → verify tab renders and saves correctly.
 
-**Files:** `frontend/src/pages/Add.jsx`, `frontend/src/pages/Modify.jsx`
+     ---
+     Verification
 
-Import `parseTypes` in both files.
-
-### 4a. Franchise type input → checkbox group
-
-Locate the `<Field label="Franchise Type">` block in the franchise form section of each file. Replace the single `<select>` with checkboxes:
-
-```jsx
-<Field label="Franchise Type">
-  <div className="flex flex-wrap gap-2">
-    {["ACG", "Anime Movie", "TV or Movie", "Cartoon"].map((v) => {
-      const types = parseTypes(ff.franchise_type);
-      const checked = types.includes(v);
-      return (
-        <label
-          key={v}
-          className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
-        >
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={() => {
-              const next = checked
-                ? types.filter((t) => t !== v)
-                : [...types, v];
-              uf("franchise_type", next.join(", "));
-            }}
-            className="rounded accent-brand"
-          />
-          {v}
-        </label>
-      );
-    })}
-  </div>
-</Field>
-```
-
-### 4b. ComboBox franchise filters in item forms → `includes()` check
-
-8 substitutions total (4 in each file). Replace exact-match predicates:
-
-```js
-// CURRENT patterns (one per item type)
-f.franchise_type === "TV or Movie" || !f.franchise_type;
-f.franchise_type === "Cartoon" || !f.franchise_type;
-f.franchise_type === "ACG" || !f.franchise_type;
-
-// NEW
-parseTypes(f.franchise_type).includes("TV or Movie") || !f.franchise_type;
-parseTypes(f.franchise_type).includes("Cartoon") || !f.franchise_type;
-parseTypes(f.franchise_type).includes("ACG") || !f.franchise_type;
-```
-
-Locations:
-
-- `Add.jsx`: ~lines 3045, 3501 (TV or Movie), ~3979 (Cartoon), ~4466 (ACG)
-- `Modify.jsx`: ~lines 3620, 4021 (TV or Movie), ~4435 (Cartoon), ~4942 (ACG)
-
----
-
-## Step 5 — New `FranchisePage.jsx`: Unified Tabbed Detail Page
-
-**Create:** `frontend/src/pages/FranchisePage.jsx`
-
-### Data fetching
-
-Fetch all 8 endpoints in parallel on mount (franchise, series, anime, anime-movie, movies, tv-shows, cartoon, manga). All fetches use `franchise_id={system_id}`.
-
-### Tab derivation (after data loads)
-
-```js
-const types = parseTypes(franchise.franchise_type);
-const hasACG = types.includes("ACG") || types.includes("Anime");
-const hasACGFull = types.includes("ACG"); // Manga tab only for ACG
-const hasTvMovie = types.includes("TV or Movie");
-const hasCartoon = types.includes("Cartoon");
-
-// Only show tabs that have entries
-const tabs = [
-  hasACG && animeList.length && "Anime",
-  hasACG && animeMovieList.length && "Anime Movies",
-  hasACGFull && mangaList.length && "Manga",
-  hasTvMovie && movieList.length && "Movies",
-  hasTvMovie && tvList.length && "TV Shows",
-  hasCartoon && cartoonList.length && "Cartoons",
-].filter(Boolean);
-```
-
-Default active tab: `tabs[0] ?? null` (state).
-
-### Structure
-
-1. **Hero section** — breadcrumb, admin toolbar, title/badges (same as existing pages). Show Watch Next Group and To Rewatch only when `hasACG`.
-2. **Notes / Remarks card** — unchanged from existing pages.
-3. **Series card** — unchanged.
-4. **Tab bar** — render only if `tabs.length > 1`. Each tab shows label + count badge.
-5. **Tab content** — conditional rendering per active tab. Content and state (sort, filters, groupBySeries) copied verbatim from respective existing pages, namespaced to avoid collisions.
-
-### Tab bar component
-
-```jsx
-{
-  tabs.length > 1 && (
-    <div className="flex gap-1 border-b border-gray-200 mb-6">
-      {tabs.map((tab) => (
-        <button
-          key={tab}
-          onClick={() => setActiveTab(tab)}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === tab
-              ? "border-brand text-brand"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          {tab}
-          <span className="ml-1.5 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">
-            {getTabCount(tab)}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-```
-
-### State per tab
-
-Mirror existing pages' state declarations with unique prefixes to avoid collision (e.g., `cartoonSort`, `tvFilters`, `mangaGroupBySeries`). Each tab's `useMemo` computations (filteredAndSorted, seriesGroups) are namespaced similarly.
-
----
-
-## Step 6 — Simplify `Franchise.jsx` Dispatcher
-
-**File:** `frontend/src/pages/Franchise.jsx`
-
-Replace entire file content:
-
-```jsx
-import FranchisePage from "./FranchisePage";
-export default function Franchise() {
-  return <FranchisePage />;
-}
-```
-
-The three old pages (`FranchiseAcg.jsx`, `FranchiseReality.jsx`, `FranchiseCartoon.jsx`) are left in place and can be deleted in a follow-up cleanup commit.
-
----
-
-## Files Changed
-
-| File                                      | Change                                                        |
-| ----------------------------------------- | ------------------------------------------------------------- |
-| `services/other_logics.py`                | Expand comma-separated types in `find_duplicate_franchises()` |
-| `frontend/src/utils/anime.js`             | Add `parseTypes()` export                                     |
-| `frontend/src/pages/FranchiseLibrary.jsx` | Multi-type filter matching                                    |
-| `frontend/src/pages/Add.jsx`              | Checkbox group; 4 ComboBox filters use `includes()`           |
-| `frontend/src/pages/Modify.jsx`           | Same as Add.jsx                                               |
-| `frontend/src/pages/FranchisePage.jsx`    | **New** unified tabbed franchise detail page                  |
-| `frontend/src/pages/Franchise.jsx`        | Simplified dispatcher pointing to FranchisePage               |
-
-No DB migrations, no new API endpoints, no new backend routes.
-
----
-
-## Verification
-
-1. **Backend** — Call `find_duplicate_franchises()` with a franchise typed `"ACG, Cartoon"`. Confirm it is compared against both ACG and Cartoon siblings.
-2. **Admin forms** — Check "ACG" + "Cartoon" → API payload has `franchise_type: "ACG, Cartoon"`. Load same franchise back → both checkboxes checked.
-3. **ComboBox filters** — Adding a Movie shows franchises that include "TV or Movie" as one of their types (not only exact match).
-4. **FranchiseLibrary** — A franchise typed `"ACG, Cartoon"` appears under both the "ACG" filter and the "Cartoon" filter.
-5. **FranchisePage** — Navigate to:
-   - `"ACG"` franchise → Anime / Anime Movies / Manga tabs (only tabs with entries)
-   - `"TV or Movie"` franchise → Movies / TV Shows tabs
-   - `"Cartoon"` franchise → Cartoons tab
-   - `"ACG, Cartoon"` franchise → All relevant tabs from both types
-6. **Regression** — All existing single-type franchises render correctly in the new page.
+     For each extracted tab:
+     1. Open the Add or Modify page in the browser and navigate to that tab.
+     2. Verify the form renders with correct fields and default values.
+     3. Submit a valid entry and confirm success toast + data updates.
+     4. For Modify: search for an existing entry, open it, edit a field, save — confirm the update.
+     5. Test franchise/series auto-creation modals (enter a new franchise name in any item form and submit).
+     6. Regression: confirm other tabs still work after each extraction step.
