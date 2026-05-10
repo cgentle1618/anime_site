@@ -3043,7 +3043,8 @@ export default function Add() {
                 items={allFranchises
                   .filter(
                     (f) =>
-                      parseTypes(f.franchise_type).includes("TV or Movie") || !f.franchise_type,
+                      parseTypes(f.franchise_type).includes("TV or Movie") ||
+                      !f.franchise_type,
                   )
                   .map((f) => ({
                     id: f.system_id,
@@ -3499,7 +3500,8 @@ export default function Add() {
                 items={allFranchises
                   .filter(
                     (f) =>
-                      parseTypes(f.franchise_type).includes("TV or Movie") || !f.franchise_type,
+                      parseTypes(f.franchise_type).includes("TV or Movie") ||
+                      !f.franchise_type,
                   )
                   .map((f) => ({
                     id: f.system_id,
