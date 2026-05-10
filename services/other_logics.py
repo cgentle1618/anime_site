@@ -302,7 +302,7 @@ def resolve_movie_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="TV or Movie",
+                franchise_type="Movie",
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_alt=names.get("alt"),
@@ -349,7 +349,7 @@ def resolve_tv_show_parent_hierarchy(
     """
     Ensures valid franchise_id and series_id UUIDs for a TVShows entry.
     Franchise: valid UUID pass-through; null/string → search by name; not found → auto-create with
-    franchise_type="TV or Movie".
+    franchise_type="TV".
     Series: non-string pass-through; non-empty string → search by name; not found → set null (no auto-create).
     Returns (final_franchise_id, final_series_id).
     """
@@ -384,7 +384,7 @@ def resolve_tv_show_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="TV or Movie",
+                franchise_type="TV",
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_alt=names.get("alt"),
@@ -888,9 +888,10 @@ def find_duplicate_franchises(db: Session) -> list[list[dict]]:
 
     by_type: dict[str, list] = {}
     for f in franchises:
-        ft = (f.franchise_type or "").strip()
-        if ft:
-            by_type.setdefault(ft, []).append(f)
+        ft_raw = (f.franchise_type or "").strip()
+        tokens = [t.strip() for t in ft_raw.split(",") if t.strip()]
+        for token in tokens if tokens else ([ft_raw] if ft_raw else []):
+            by_type.setdefault(token, []).append(f)
 
     parent: dict[str, str] = {}
 

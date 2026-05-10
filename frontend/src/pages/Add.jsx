@@ -6,6 +6,7 @@ import {
   getOptions,
   buildAnimePayload,
   buildAnimeMoviePayload,
+  parseTypes,
 } from "../utils/anime";
 import ComboBox from "../components/ComboBox";
 import MultiSelect from "../components/MultiSelect";
@@ -1055,7 +1056,7 @@ export default function Add() {
     if (!franchiseId && mf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "TV or Movie",
+          franchiseType: "Movie",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -1074,7 +1075,7 @@ export default function Add() {
           franchise_name_en: mf.movie_name_en || null,
           franchise_name_cn: mf.movie_name_cn || null,
           franchise_name_alt: mf.movie_name_alt || null,
-          franchise_type: "TV or Movie",
+          franchise_type: "Movie",
           franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
@@ -1221,7 +1222,7 @@ export default function Add() {
     if (!franchiseId && tvf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
         setFranchiseCreateModal({
-          franchiseType: "TV or Movie",
+          franchiseType: "TV",
           onConfirm: (expectation, remark) => {
             setFranchiseCreateModal(null);
             resolve({ confirmed: true, expectation, remark });
@@ -1240,7 +1241,7 @@ export default function Add() {
           franchise_name_en: tvf.tv_name_en || null,
           franchise_name_cn: tvf.tv_name_cn || null,
           franchise_name_alt: tvf.tv_name_alt || null,
-          franchise_type: "TV or Movie",
+          franchise_type: "TV",
           franchise_expectation: result.expectation,
           remark: result.remark || null,
         }),
@@ -3042,7 +3043,8 @@ export default function Add() {
                 items={allFranchises
                   .filter(
                     (f) =>
-                      f.franchise_type === "TV or Movie" || !f.franchise_type,
+                      parseTypes(f.franchise_type).includes("Movie") ||
+                      !f.franchise_type,
                   )
                   .map((f) => ({
                     id: f.system_id,
@@ -3498,7 +3500,8 @@ export default function Add() {
                 items={allFranchises
                   .filter(
                     (f) =>
-                      f.franchise_type === "TV or Movie" || !f.franchise_type,
+                      parseTypes(f.franchise_type).includes("TV") ||
+                      !f.franchise_type,
                   )
                   .map((f) => ({
                     id: f.system_id,
@@ -3976,7 +3979,9 @@ export default function Add() {
               <ComboBox
                 items={allFranchises
                   .filter(
-                    (f) => f.franchise_type === "Cartoon" || !f.franchise_type,
+                    (f) =>
+                      parseTypes(f.franchise_type).includes("Cartoon") ||
+                      !f.franchise_type,
                   )
                   .map((f) => ({
                     id: f.system_id,
@@ -4463,7 +4468,10 @@ export default function Add() {
               <ComboBox
                 items={allFranchises
                   .filter(
-                    (f) => f.franchise_type === "ACG" || !f.franchise_type,
+                    (f) =>
+                      parseTypes(f.franchise_type).includes("ACG") ||
+                      parseTypes(f.franchise_type).includes("Manga") ||
+                      !f.franchise_type,
                   )
                   .map((f) => ({
                     id: f.system_id,
@@ -5039,18 +5047,38 @@ export default function Add() {
             <SectionHeader icon="fa-info-circle" title="Other Information" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Franchise Type">
-                <select
-                  className={selectCls}
-                  value={ff.franchise_type}
-                  onChange={(e) => uf("franchise_type", e.target.value)}
-                >
-                  <option value="">—</option>
-                  {["ACG", "Anime Movie", "TV or Movie", "Cartoon"].map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    "ACG",
+                    "Anime Movie",
+                    "TV",
+                    "Movie",
+                    "Cartoon",
+                    "Manga",
+                  ].map((v) => {
+                    const types = parseTypes(ff.franchise_type);
+                    const checked = types.includes(v);
+                    return (
+                      <label
+                        key={v}
+                        className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? types.filter((t) => t !== v)
+                              : [...types, v];
+                            uf("franchise_type", next.join(", "));
+                          }}
+                          className="rounded accent-brand"
+                        />
+                        {v}
+                      </label>
+                    );
+                  })}
+                </div>
               </Field>
               <Field label="My Rating">
                 <select

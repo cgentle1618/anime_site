@@ -616,12 +616,12 @@ This ensures every production deployment is traceable to a specific commit, repr
 - [x] GCP Cloud Run deployment
 - [x] GitHub Actions CI/CD pipeline (auto-deploy on push to `main`)
 - [x] Frontend migration using (React+Vite)
-- [ ] Intermediate Anime Tracker & Database Implementation
-- [ ] Add Anime Movie entries to Tracker & Database
-- [ ] Add Movie entries to Tracker & Database
-- [ ] Add TV Show entries to Tracker & Database
-- [ ] Add Cartoon entries to Tracker & Database
-- [ ] Add Manga entries to Tracker & Database
+- [x] Intermediate Anime Tracker & Database Implementation
+- [x] Add Anime Movie entries to Tracker & Database
+- [x] Add Movie entries to Tracker & Database
+- [x] Add TV Show entries to Tracker & Database
+- [x] Add Cartoon entries to Tracker & Database
+- [x] Add Manga entries to Tracker & Database
 - [ ] Add Novel entries to Tracker & Database
 - [ ] Advanced Anime Tracker & Database Implementation
 - [ ] more TBD
