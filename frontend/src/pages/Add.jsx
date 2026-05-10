@@ -4470,6 +4470,7 @@ export default function Add() {
                   .filter(
                     (f) =>
                       parseTypes(f.franchise_type).includes("ACG") ||
+                      parseTypes(f.franchise_type).includes("Manga") ||
                       !f.franchise_type,
                   )
                   .map((f) => ({
@@ -5047,7 +5048,13 @@ export default function Add() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Franchise Type">
                 <div className="flex flex-wrap gap-3">
-                  {["ACG", "Anime Movie", "TV or Movie", "Cartoon"].map((v) => {
+                  {[
+                    "ACG",
+                    "Anime Movie",
+                    "TV or Movie",
+                    "Cartoon",
+                    "Manga",
+                  ].map((v) => {
                     const types = parseTypes(ff.franchise_type);
                     const checked = types.includes(v);
                     return (
