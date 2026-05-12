@@ -16,6 +16,7 @@ import MovieCard from "../components/MovieCard";
 import TVCard from "../components/TVCard";
 import CartoonCard from "../components/CartoonCard";
 import SeriesModal from "../components/SeriesModal";
+// NovelCard import will be added when Novel tab content is implemented (Task 21)
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -135,6 +136,7 @@ export default function FranchisePage() {
   const [tvShowList, setTvShowList] = useState([]);
   const [cartoonList, setCartoonList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
+  const [novelList, setNovelList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -174,6 +176,15 @@ export default function FranchisePage() {
     region: new Set(),
   });
 
+  // ── Novel tab state ───────────────────────────────────────────────────────
+  const [novelSort, setNovelSort] = useState("title");
+  const [novelGroupBySeries, setNovelGroupBySeries] = useState(false);
+  const [novelFilters, setNovelFilters] = useState({
+    serializationStatus: new Set(),
+    readingStatus: new Set(),
+    region: new Set(),
+  });
+
   // ── Movies tab state ──────────────────────────────────────────────────────
   const [movSort, setMovSort] = useState("release_date");
   const [movGroupBySeries, setMovGroupBySeries] = useState(true);
@@ -203,7 +214,7 @@ export default function FranchisePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes] =
+        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
           await Promise.all([
             fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
             fetch(`/api/series/?franchise_id=${system_id}`, {
@@ -227,9 +238,12 @@ export default function FranchisePage() {
             fetch(`/api/manga/?franchise_id=${system_id}`, {
               credentials: "include",
             }),
+            fetch(`/api/novel/?franchise_id=${system_id}`, {
+              credentials: "include",
+            }),
           ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, am, m, tv, c, mg] = await Promise.all([
+        const [f, s, a, am, m, tv, c, mg, nv] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
@@ -238,6 +252,7 @@ export default function FranchisePage() {
           tvRes.json(),
           cRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
@@ -247,6 +262,7 @@ export default function FranchisePage() {
         setTvShowList(tv);
         setCartoonList(c);
         setMangaList(mg);
+        setNovelList(nv);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
         setWatchNextGroup(f.watch_next_group || "");
@@ -271,6 +287,10 @@ export default function FranchisePage() {
     [types],
   );
   const hasACGFull = useMemo(() => types.includes("ACG"), [types]);
+  const hasNovel = useMemo(
+    () => types.includes("Novel") || types.includes("ACG"),
+    [types],
+  );
   const hasAnimeMovie = useMemo(() => types.includes("Anime Movie"), [types]);
   const hasMovie = useMemo(() => types.includes("Movie"), [types]);
   const hasTV = useMemo(() => types.includes("TV"), [types]);
@@ -282,6 +302,7 @@ export default function FranchisePage() {
       hasACG && animeList.length && "Anime",
       (hasACG || hasAnimeMovie) && animeMovieList.length && "Anime Movies",
       hasACGFull && mangaList.length && "Manga",
+      hasNovel && novelList.length && "Novel",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -290,6 +311,7 @@ export default function FranchisePage() {
     franchise,
     hasACG,
     hasACGFull,
+    hasNovel,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -297,6 +319,7 @@ export default function FranchisePage() {
     animeList,
     animeMovieList,
     mangaList,
+    novelList,
     movieList,
     tvShowList,
     cartoonList,
@@ -339,6 +362,11 @@ export default function FranchisePage() {
   const handleMangaUpdated = useCallback(
     (u) =>
       setMangaList((p) => p.map((m) => (m.system_id === u.system_id ? u : m))),
+    [],
+  );
+  const handleNovelUpdated = useCallback(
+    (u) =>
+      setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
     [],
   );
 
