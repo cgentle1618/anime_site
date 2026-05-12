@@ -212,6 +212,7 @@ export default function Index() {
   const [tvData, setTvData] = useState([]);
   const [cartoonData, setCartoonData] = useState([]);
   const [mangaData, setMangaData] = useState([]);
+  const [novelData, setNovelData] = useState([]);
   const [franchiseData, setFranchiseData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -220,20 +221,22 @@ export default function Index() {
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, tvRes, cRes, mgRes] = await Promise.all([
+        const [aRes, fRes, tvRes, cRes, mgRes, nvRes] = await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
           fetch("/api/tv-shows/", { credentials: "include" }),
           fetch("/api/cartoon/", { credentials: "include" }),
           fetch("/api/manga/", { credentials: "include" }),
+          fetch("/api/novel/", { credentials: "include" }),
         ]);
-        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok || !mgRes.ok)
+        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok || !mgRes.ok || !nvRes.ok)
           throw new Error("Failed to load tracking data");
         setAnimeData(await aRes.json());
         setFranchiseData(await fRes.json());
         setTvData(await tvRes.json());
         setCartoonData(await cRes.json());
         setMangaData(await mgRes.json());
+        setNovelData(await nvRes.json());
       } catch (e) {
         setError(e.message);
       } finally {
@@ -380,12 +383,20 @@ export default function Index() {
     );
   }
 
-  async function handleChChange(sysId, newVal, prevVal) {
-    setMangaData((prev) =>
-      prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
-    );
+  async function handleChChange(sysId, newVal, prevVal, uiType) {
+    const isNovel = uiType === "Novel";
+    if (isNovel) {
+      setNovelData((prev) =>
+        prev.map((n) => (n.system_id === sysId ? { ...n, ch_fin: newVal } : n)),
+      );
+    } else {
+      setMangaData((prev) =>
+        prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
+      );
+    }
     try {
-      const res = await fetch(`/api/manga/${sysId}`, {
+      const endpoint = isNovel ? `/api/novel/${sysId}` : `/api/manga/${sysId}`;
+      const res = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ch_fin: newVal }),
@@ -394,11 +405,19 @@ export default function Index() {
       if (!res.ok) throw new Error("Failed to sync");
       showToast("success", "Chapters updated!");
     } catch {
-      setMangaData((prev) =>
-        prev.map((m) =>
-          m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
-        ),
-      );
+      if (isNovel) {
+        setNovelData((prev) =>
+          prev.map((n) =>
+            n.system_id === sysId ? { ...n, ch_fin: prevVal } : n,
+          ),
+        );
+      } else {
+        setMangaData((prev) =>
+          prev.map((m) =>
+            m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
+          ),
+        );
+      }
       showToast("error", "Network error. Progress reverted.");
     }
   }
@@ -407,6 +426,7 @@ export default function Index() {
   const tvTagged = tvData.map((t) => ({ ...t, _ui_type: "TV Show" }));
   const cartoonTagged = cartoonData.map((c) => ({ ...c, _ui_type: "Cartoon" }));
   const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
+  const novelTagged = novelData.map((n) => ({ ...n, _ui_type: "Novel" }));
 
   const sorted = [...animeTagged, ...tvTagged, ...cartoonTagged].sort(
     (a, b) => {
@@ -425,34 +445,28 @@ export default function Index() {
   );
   const paused = sorted.filter((a) => a.watching_status === "Paused");
 
-  const mangaSorted = mangaTagged.sort((a, b) => {
+  const readingSorted = [...mangaTagged, ...novelTagged].sort((a, b) => {
     const ratingDiff =
       (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
       (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
     if (ratingDiff !== 0) return ratingDiff;
     const nameA =
-      a.manga_name_en ||
-      a.manga_name_roman ||
-      a.manga_name_jp ||
-      a.manga_name_cn ||
-      a.manga_name_alt ||
-      "";
+      (a._ui_type === "Novel"
+        ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
+        : a.manga_name_en || a.manga_name_roman || a.manga_name_jp || a.manga_name_cn || a.manga_name_alt) || "";
     const nameB =
-      b.manga_name_en ||
-      b.manga_name_roman ||
-      b.manga_name_jp ||
-      b.manga_name_cn ||
-      b.manga_name_alt ||
-      "";
+      (b._ui_type === "Novel"
+        ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
+        : b.manga_name_en || b.manga_name_roman || b.manga_name_jp || b.manga_name_cn || b.manga_name_alt) || "";
     return nameA.localeCompare(nameB);
   });
-  const activeReading = mangaSorted.filter(
+  const activeReading = readingSorted.filter(
     (m) => m.reading_status === "Active Reading",
   );
-  const passiveReading = mangaSorted.filter(
+  const passiveReading = readingSorted.filter(
     (m) => m.reading_status === "Passive Reading",
   );
-  const pausedReading = mangaSorted.filter(
+  const pausedReading = readingSorted.filter(
     (m) => m.reading_status === "Paused",
   );
 

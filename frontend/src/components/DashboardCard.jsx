@@ -14,28 +14,37 @@ export default function DashboardCard({
   const isTV = anime._ui_type === "TV Show";
   const isCartoon = anime._ui_type === "Cartoon";
   const isManga = anime._ui_type === "Manga";
+  const isNovel = anime._ui_type === "Novel";
+  const isReading = isManga || isNovel;
 
-  const title = isManga
-    ? anime.manga_name_cn ||
-      anime.manga_name_en ||
-      anime.manga_name_roman ||
-      anime.manga_name_jp ||
-      anime.manga_name_alt ||
+  const title = isNovel
+    ? anime.novel_name_cn ||
+      anime.novel_name_en ||
+      anime.novel_name_roman ||
+      anime.novel_name_jp ||
+      anime.novel_name_alt ||
       "Unknown Title"
-    : isCartoon
-      ? anime.cartoon_name_cn ||
-        anime.cartoon_name_en ||
-        anime.cartoon_name_alt ||
+    : isManga
+      ? anime.manga_name_cn ||
+        anime.manga_name_en ||
+        anime.manga_name_roman ||
+        anime.manga_name_jp ||
+        anime.manga_name_alt ||
         "Unknown Title"
-      : isTV
-        ? anime.tv_name_cn ||
-          anime.tv_name_en ||
-          anime.tv_name_alt ||
+      : isCartoon
+        ? anime.cartoon_name_cn ||
+          anime.cartoon_name_en ||
+          anime.cartoon_name_alt ||
           "Unknown Title"
-        : anime.anime_name_cn ||
-          anime.anime_name_en ||
-          anime.anime_name_roman ||
-          "Unknown Title";
+        : isTV
+          ? anime.tv_name_cn ||
+            anime.tv_name_en ||
+            anime.tv_name_alt ||
+            "Unknown Title"
+          : anime.anime_name_cn ||
+            anime.anime_name_en ||
+            anime.anime_name_roman ||
+            "Unknown Title";
   const subTitle = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -43,27 +52,31 @@ export default function DashboardCard({
       "Independent"
     : "Independent Series";
 
-  const navigatePath = isManga
-    ? `/manga/${anime.system_id}`
-    : isCartoon
-      ? `/cartoon/${anime.system_id}`
-      : isTV
-        ? `/tv-show/${anime.system_id}`
-        : `/anime/${anime.system_id}`;
-  const editPath = isManga
-    ? `/modify?id=${anime.system_id}&type=manga`
-    : isCartoon
-      ? `/modify?id=${anime.system_id}&type=cartoon`
-      : isTV
-        ? `/modify?id=${anime.system_id}&type=tv-show`
-        : `/modify?id=${anime.system_id}`;
+  const navigatePath = isNovel
+    ? `/novel/${anime.system_id}`
+    : isManga
+      ? `/manga/${anime.system_id}`
+      : isCartoon
+        ? `/cartoon/${anime.system_id}`
+        : isTV
+          ? `/tv-show/${anime.system_id}`
+          : `/anime/${anime.system_id}`;
+  const editPath = isNovel
+    ? `/modify?id=${anime.system_id}&type=novel`
+    : isManga
+      ? `/modify?id=${anime.system_id}&type=manga`
+      : isCartoon
+        ? `/modify?id=${anime.system_id}&type=cartoon`
+        : isTV
+          ? `/modify?id=${anime.system_id}&type=tv-show`
+          : `/modify?id=${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isTV || isCartoon || isManga ? false : isBaha(anime);
+  const bahaFlag = isTV || isCartoon || isReading ? false : isBaha(anime);
 
-  const prevEps = isTV || isCartoon || isManga ? 0 : anime.ep_previous || 0;
-  const localFin = isManga ? anime.ch_fin || 0 : anime.ep_fin || 0;
-  const localTotal = isManga
+  const prevEps = isTV || isCartoon || isReading ? 0 : anime.ep_previous || 0;
+  const localFin = isReading ? anime.ch_fin || 0 : anime.ep_fin || 0;
+  const localTotal = isReading
     ? anime.ch_total != null
       ? parseInt(anime.ch_total, 10) || "?"
       : "?"
@@ -80,12 +93,12 @@ export default function DashboardCard({
     progressPercent = "Ongoing";
   }
 
-  const statusText = isManga
+  const statusText = isReading
     ? anime.reading_status || "Might Read"
     : anime.airing_status || "Unknown";
 
   let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
-  if (isManga) {
+  if (isReading) {
     if (anime.reading_status === "Active Reading")
       statusColor = "bg-green-100 text-green-700 border-green-200";
     else if (anime.reading_status === "Passive Reading")
@@ -148,7 +161,7 @@ export default function DashboardCard({
             >
               {statusText}
             </span>
-            {!isTV && !isCartoon && !isManga && (
+            {!isTV && !isCartoon && !isReading && (
               <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200 shadow-sm">
                 <i className="fas fa-tv mr-1"></i>
                 {anime.airing_type || "TV"}
@@ -252,12 +265,12 @@ export default function DashboardCard({
               <span className="text-gray-500 text-[13px] w-14 text-center">
                 {localTotal}
               </span>
-              {isManga && (
+              {isReading && (
                 <span className="text-gray-400 ml-1 text-[10px] font-sans">
                   CH
                 </span>
               )}
-              {!isManga && prevEps > 0 && (
+              {!isReading && prevEps > 0 && (
                 <span
                   className="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter"
                   title="Cumulative Total"
@@ -281,12 +294,12 @@ export default function DashboardCard({
               <span className="text-gray-500 text-[13px] w-14 text-center">
                 {localTotal}
               </span>
-              {isManga && (
+              {isReading && (
                 <span className="text-gray-400 ml-1 text-[10px] font-sans">
                   CH
                 </span>
               )}
-              {!isManga && prevEps > 0 && (
+              {!isReading && prevEps > 0 && (
                 <span className="text-gray-400 ml-1 text-[11px] font-normal tracking-tighter">
                   ({cumFin}/{cumTotal})
                 </span>

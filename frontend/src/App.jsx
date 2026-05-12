@@ -33,6 +33,8 @@ import Cartoon from "./pages/Cartoon";
 import LibraryCartoon from "./pages/LibraryCartoon";
 import Manga from "./pages/Manga";
 import LibraryManga from "./pages/LibraryManga";
+import Novel from "./pages/Novel";
+import LibraryNovel from "./pages/LibraryNovel";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +82,8 @@ export default function App() {
                 <Route path="/library/cartoon" element={<LibraryCartoon />} />
                 <Route path="/manga/:system_id" element={<Manga />} />
                 <Route path="/library/manga" element={<LibraryManga />} />
+                <Route path="/novel/:system_id" element={<Novel />} />
+                <Route path="/library/novel" element={<LibraryNovel />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route

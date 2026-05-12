@@ -37,6 +37,15 @@ function getTitle(item, type) {
       item.series_name_alt ||
       "Unknown"
     );
+  if (type === "novel")
+    return (
+      item.novel_name_cn ||
+      item.novel_name_en ||
+      item.novel_name_roman ||
+      item.novel_name_jp ||
+      item.novel_name_alt ||
+      "Unknown"
+    );
   return "Unknown";
 }
 
@@ -97,7 +106,7 @@ function DeletedTable({ records, onRefresh }) {
         <span className="text-gray-500 text-xs">Type: {d.franchise_type}</span>
       );
     }
-    if (["Anime", "TV Show", "Movie", "Cartoon", "Manga"].includes(d.type)) {
+    if (["Anime", "TV Show", "Movie", "Cartoon", "Manga", "Novel"].includes(d.type)) {
       return (
         <div className="text-xs text-gray-500 space-y-0.5">
           {d.franchise_cn && <div>Franchise: {d.franchise_cn}</div>}
@@ -248,6 +257,7 @@ export default function DataHistory() {
     anime: [],
     franchises: [],
     series: [],
+    novels: [],
   });
 
   const loadDeleted = useCallback(async () => {
@@ -263,15 +273,17 @@ export default function DataHistory() {
 
   const loadHistory = useCallback(async () => {
     try {
-      const [aRes, fRes, sRes] = await Promise.all([
+      const [aRes, fRes, sRes, nvRes] = await Promise.all([
         fetch("/api/anime/", { credentials: "include" }),
         fetch("/api/franchise/", { credentials: "include" }),
         fetch("/api/series/", { credentials: "include" }),
+        fetch("/api/novel/", { credentials: "include" }),
       ]);
       const anime = aRes.ok ? await aRes.json() : [];
       const franchises = fRes.ok ? await fRes.json() : [];
       const series = sRes.ok ? await sRes.json() : [];
-      setHistoryData({ anime, franchises, series });
+      const novels = nvRes.ok ? await nvRes.json() : [];
+      setHistoryData({ anime, franchises, series, novels });
     } catch {
       /* ignore */
     }
@@ -309,6 +321,12 @@ export default function DataHistory() {
       __type: "Anime",
       __name: getTitle(a, "anime"),
       __link: `/anime/${a.system_id}`,
+    })),
+    ...(historyData.novels || []).map((n) => ({
+      ...n,
+      __type: "Novel",
+      __name: getTitle(n, "novel"),
+      __link: `/novel/${n.system_id}`,
     })),
   ]
     .filter((i) => i.created_at)
@@ -530,7 +548,9 @@ export default function DataHistory() {
                     const badgeCls =
                       item.__type === "Anime"
                         ? "bg-blue-50 text-blue-600 border-blue-200"
-                        : "bg-indigo-50 text-indigo-600 border-indigo-200";
+                        : item.__type === "Novel"
+                          ? "bg-teal-50 text-teal-600 border-teal-200"
+                          : "bg-indigo-50 text-indigo-600 border-indigo-200";
                     return (
                       <tr
                         key={i}
