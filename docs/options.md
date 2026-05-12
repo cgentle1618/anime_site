@@ -154,6 +154,7 @@ Field: `franchise.franchise_type` — Default: `null`
 | `Anime Movie` |         |
 | `TV or Movie` |         |
 | `Cartoon`     |         |
+| `Novel`       |         |
 
 ---
 
