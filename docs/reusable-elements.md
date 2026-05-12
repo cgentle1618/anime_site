@@ -5,7 +5,7 @@ Design-level components used across multiple pages. Items marked _(future)_ are 
 ## Table of Contents
 
 - [Universal Bar](#universal-bar)
-- [Search Suggestion Entry](#search-suggestion-entry)
+- [Search Suggestion](#search-suggestion)
 - [Search Suggestion for Deletion](#search-suggestion-for-deletion)
 - [Search Result Entry](#search-result-entry)
 - [Entry Info for Deletion](#entry-info-for-deletion)
@@ -57,7 +57,7 @@ Present on every page. Contains:
 
 ---
 
-## Search Suggestion Entry
+## Search Suggestion
 
 Compact entries shown in the universal search bar dropdown.
 
@@ -75,23 +75,23 @@ Name CN (fallback) · Airing Type
 
 ### Anime Movie Entry
 
-Name CN (fallback)
+Name CN (fallback) · Release Date with fallback (release_date_jp, release_date_tw)
 
 ### Movie Entry
 
-Name CN (fallback)
+Name CN (fallback) · Movie Type
 
 ### TV Show Entry
 
-Name CN (fallback)
+Name CN (fallback) · TV Show Region
 
 ### Cartoon Entry
 
-Name CN (fallback)
+Name CN (fallback) · Airing Type
 
 ### Manga Entry
 
-Name CN (fallback) · Release Year
+Name CN (fallback) · Manga Region
 
 ### Novel Entry _(future)_ / Studio Entry _(future)_ / Seiyuu Entry _(future)_
 
@@ -130,6 +130,10 @@ Main Title: TV Show Name CN (fallback) · Sub Title: Franchise Name CN (fallback
 ### Cartoon
 
 Main Title: Cartoon Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Airing Type
+
+### Manga
+
+Main Title: Manga Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Release Year
 
 ---
 
@@ -207,7 +211,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Anime Entry Card
 
-**First Type** — used on Dashboard, Seasonal pages
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard, Seasonal pages
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Airing Type · Bahamut / Netflix / Other source icons · Progress % bar · Ep Watched / Ep Total (cumulative) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
@@ -264,7 +268,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### TV Show Entry Card
 
-**First Type** — used on Dashboard _(TBD)_
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
@@ -294,7 +298,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Cartoon Entry Card
 
-**First Type** — used on Dashboard _(TBD)_
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Type · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
@@ -325,7 +329,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Manga Entry Card
 
-**First Type** — used on Dashboard
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Manga Region · Serialization Status · Progress % bar · Ch Watched / Ch Total · Volumes Read + Pages Read/ Volumes Total · +/- episode controls _(admin)_ · direct vol edit _(admin)_ · direct pages edit _(admin)_· direct ch edit _(admin)_· Edit button → Modify page _(admin)_
 
@@ -339,7 +343,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Novel Entry Card _(future)_
 
-**First Type** — used on Dashboard
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · Novel Name CN · Franchise Name CN (fallback) · My Rating (hidden if null) · Serialization Status · Progress % bar · Ch / Volume progress with edit controls _(admin)_ · Edit button _(admin)_
 
@@ -470,7 +474,7 @@ Movie / TV Show / Cartoon Naming Card
 
 ### Score Block (includes Last Updated Time)
 
-Anime / Anime Movie / Manga Score Block
+Anime / Anime Movie / Manga / Novel Score Block
 
 - MyAnimeList Score, MyAnimeList Rank, AniList Score
 - Last Updated Time

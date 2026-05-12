@@ -55,7 +55,7 @@ Shell rendered for every route. Contains:
 
 - **Logo** — navigates to dashboard (`/`)
 - **Page navigation dropdowns:**
-  - ACG → Anime, Anime Movie, Manga (dev), Novel (dev), Seiyuu (dev)
+  - ACG → Anime, Anime Movie, Manga, Novel (dev), Seiyuu (dev)
   - Reality _(franchise_type="TV or Movie" only)_ → Franchise Library, TV Show Library, Movie Library
   - Cartoon → Cartoon Library
   - More → Statistics, Future Release, Seasonal
@@ -70,17 +70,26 @@ Shell rendered for every route. Contains:
 
 Card variants are defined in `reusable-elements.md`. Quick reference:
 
-| Canonical Name         | Code File                      | Used By                                                                        |
-| ---------------------- | ------------------------------ | ------------------------------------------------------------------------------ |
-| Anime Entry Card 1     | `DashboardCard.jsx`            | Dashboard, Seasonal Overall, Seasonal Detail                                   |
-| Anime Entry Card 2     | `AnimeCard.jsx`                | Anime Library, Franchise Hub (Anime tab), Search                               |
-| Anime Entry Card 3     | Inline in `FutureReleases.jsx` | Future Releases (Anime tab)                                                    |
-| Anime Movie Entry Card | `AnimeMovieCard.jsx`           | Franchise Hub (Anime Movies tab), Anime Movie Library, Search, Future Releases |
-| Movie Entry Card       | `MovieCard.jsx`                | Franchise Hub (Movies tab), Movie Library, Search, Future Releases (Movie tab) |
-| TV Show Entry Card 2   | `TVCard.jsx`                   | Franchise Hub (TV Shows tab), TV Show Library, Search                          |
-| Cartoon Entry Card 2   | `CartoonCard.jsx`              | Franchise Hub (Cartoons tab), Cartoon Library, Search                          |
-| Manga Entry Card 2     | TBD                            | Manga Library, Search                                                          |
-| Franchise Entry Card   | TBD                            | Franchise Library                                                              |
+| Canonical Name           | Code File                  | Used By                                                       |
+| ------------------------ | -------------------------- | ------------------------------------------------------------- |
+| Anime Entry Card 1       | `DashboardCard.jsx`        | Dashboard, Seasonal Overall, Seasonal Detail                  |
+| Anime Entry Card 2       | `AnimeCard.jsx`            | Anime Library, Franchise Hub (Anime tab), Search              |
+| Anime Entry Card 3       | `AnimeCardFuture.jsx`      | Future Releases (Anime tab)                                   |
+| Anime Movie Entry Card 1 | `AnimeMovieCard.jsx`       | Franchise Hub (Anime Movies tab), Anime Movie Library, Search |
+| Anime Movie Entry Card 2 | `AnimeMovieCardFuture.jsx` | Future Releases (Anime Movie tab)                             |
+| Movie Entry Card 1       | `MovieCard.jsx`            | Franchise Hub (Movies tab), Movie Library, Search             |
+| Movie Entry Card 2       | `MovieCardFuture.jsx`      | Future Releases (Movie tab)                                   |
+| TV Show Entry Card 1     | `DashboardCard.jsx`        | Dashboard                                                     |
+| TV Show Entry Card 2     | `TVCard.jsx`               | Franchise Hub (TV Shows tab), TV Show Library, Search         |
+| TV Show Entry Card 3     | `TVCardFuture.jsx`         | Future Releases (TV Show tab)                                 |
+| Cartoon Entry Card 1     | `DashboardCard.jsx`        | Dashboard                                                     |
+| Cartoon Entry Card 2     | `CartoonCard.jsx`          | Franchise Hub (Cartoons tab), Cartoon Library, Search         |
+| Cartoon Entry Card 3     | `CartoonCardFuture.jsx`    | Future Releases (Cartoons tab)                                |
+| Manga Entry Card 1       | `DashboardCard.jsx`        | Dashboard                                                     |
+| Manga Entry Card 2       | `MangaCard.jsx`            | Franchise Hub (Manga tab), Manga Library, Search              |
+| Manga Entry Card 3       | `MangaCardFuture.jsx`      | Future Releases (Manga tab)                                   |
+
+| Franchise Entry Card | | Franchise Library |
 
 Full card specs are in `reusable-elements.md`.
 
@@ -110,7 +119,7 @@ Current progress page. Shows all actively tracked media.
 
 **Reading division** (Manga · Novel) — rendered with an under-development placeholder. No data loaded for this division yet.
 
-- Manga entries: **Manga Entry Card 1** (TBD)
+- Manga entries: **Manga Entry Card 1**
 - Novel entries: **Novel Entry Card 1** (TBD)
 
 ---
@@ -810,7 +819,7 @@ Multi-section statistics dashboard.
    - TV Show tab: sorted by TV Show Name EN; shows poster, TV Show Name CN with fallback, My Rating
    - Cartoon tab: sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating
    - Manga tab: sorted by Manga Name EN; shows poster, Manga Name CN with fallback, My Rating
-   - Manga / Novel tabs (TBD)
+   - Novel tab (TBD)
 
 6. **Recent Completions** — paginated list (10 per page):
    - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
@@ -1269,7 +1278,7 @@ Deletes: `DELETE /api/tv-show/:id`
 
 Deletes: `DELETE /api/cartoon/:id`
 
-#### Delete Manga Entry Tab (TBD)
+#### Delete Manga Entry Tab
 
 - Search bar → **Search Suggestion for Deletion** (reusable)
 - After selecting: **Manga Entry Info for Deletion** (reusable) + Delete button
@@ -1305,20 +1314,20 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 
 **Library pages:** Novel Library, Seiyuu Library (table-only)
 
-**Entry detail pages:** Manga, Novel, Studio (pages are specified but not yet implemented)
+**Entry detail pages:** Novel, Studio (pages are specified but not yet implemented)
 
-**Dashboard:** Manga, Novel, TV Show, Cartoon watching/reading sections; filter UI
+**Dashboard:** Novel, TV Show, Cartoon watching/reading sections; filter UI
 
-**Search:** Manga, Novel result sections; TV Show, Cartoon sections; Studio/Seiyuu sections (possible)
+**Search:** Novel result sections; TV Show, Cartoon sections; Studio/Seiyuu sections (possible)
 
 **Future Releases:** Overall tab (not planned)
 
-**Statistics:** Watch Next / To Rewatch / Recent Completions for Movie, TV Show, Cartoon, Manga, Novel tabs
+**Statistics:** Watch Next / To Rewatch / Recent Completions for Movie, TV Show, Cartoon, Novel tabs
 
-**Add/Modify/Delete:** Manga, Novel tabs
+**Add/Modify/Delete:** Novel tabs
 
 **Admin:** Data History page split from System page; Review page
 
-**Entry cards:** TV Show Entry Card 1, Cartoon Entry Card 1, Manga Entry Card 1/2, Novel Entry Card 1 (all TBD)
+**Entry cards:** Novel Entry Card 1/2
 
 **Reusable blocks:** All blocks listed in `reusable-elements.md` marked TBD (Related Entries Card, Score Block for Movie, Rating Distribution Block, Search Result entries, deletion info blocks, etc.)
