@@ -764,12 +764,14 @@ Light novel and book entries.
 
 #### Relational & Ordering
 
-| Column          | Type    | Nullable | Notes                                                        |
-| --------------- | ------- | -------- | ------------------------------------------------------------ |
-| `prequel_id`    | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint           |
-| `sequel_id`     | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint            |
-| `is_main_entry` | Boolean | Yes      | Whether this is the main entry among its alternative entries |
-| `read_order`    | Float   | Yes      | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`) |
+| Column        | Type   | Nullable | Notes                                                                    |
+| ------------- | ------ | -------- | ------------------------------------------------------------------------ |
+| `prequel_id`  | UUID   | Yes      | `system_id` of the prequel entry; no FK constraint                       |
+| `sequel_id`   | UUID   | Yes      | `system_id` of the sequel entry; no FK constraint                        |
+| `alternative` | String | Yes      | Comma-separated `system_id`s of alternative entries, e.g. `[id1], [id2]` |
+
+| `is_main_entry` | Boolean | Yes | Whether this is the main entry among its alternative entries |
+| `read_order` | Float | Yes | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
 

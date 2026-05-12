@@ -1209,7 +1209,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Classification:** Novel Region dropdown, Novel Type dropdown, Main/Spinoff dropdown (default: 本傳)
 - **Status & Progress:** Serialization Status dropdown, Reading Status dropdown (default: Might Read), Volumes Total Original, Volumes Total TW, Volumes Read, Arc Total, Arc Read, Ch Total, Ch Read, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating, Read Next checkbox, To Reread checkbox
 - **Production:** Author searchable dropdown (multi-selectable), Illustrator searchable dropdown (multi-selectable), Release Year, Ending Year, Publisher TW dropdown
-- **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Read Order
+- **Relational & Timeline:** Prequel ID, Sequel ID, Alternative IDs, Is Main Entry checkbox, Read Order
 - **Source & Links:** MAL ID, MAL Link, AniList Link, Add Source button (other sources as `{name: link}`)
 - **Notes & Other:** Cover Image File, Remark
 
@@ -1297,7 +1297,7 @@ Writes: `PATCH /api/cartoon/:id`
 #### Modify Manga Entry Tab
 
 - Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
-- Recently Modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
+- Recently Modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
 - Form mirrors Add Manga tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`MangaNotes`** — structured notes editor with 15 sections.
 
@@ -1306,17 +1306,9 @@ Writes: `PATCH /api/manga/:id`
 #### Modify Novel Entry Tab
 
 - Search bar (searches all languages including Alt); recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
+- Recently Modified entries: Novel Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block (grouped by series) — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
-- Form sections mirror Add Novel tab, plus:
-  - **Titles & Naming:** Franchise, Series, Novel Name EN/CN/Roman/JP/Alt
-  - **Classification:** Novel Region dropdown, Novel Type dropdown, Main/Spinoff dropdown
-  - **Status & Progress:** Serialization Status dropdown, Reading Status dropdown, Volumes Total Original, Volumes Total TW, Volumes Read, Arc Total, Arc Read, Ch Total, Ch Read, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating, Read Next checkbox, To Reread checkbox
-  - **Production:** Author searchable dropdown (multi-selectable), Illustrator searchable dropdown (multi-selectable), Release Year, Ending Year, Publisher TW dropdown
-  - **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Read Order
-  - **Source & Links:** MAL ID, MAL Link, AniList Link, Add Source button (other sources as `{name: link}`)
-  - **Other:** Cover Image File, Remark
-  - **Structured Notes:** Remark, 優點 Advantages, 缺點 Disadvantages, 優缺點, 大眾評價 Public Reviews, 我的評價 Personal Reviews, 神片段 Highlights, 解析 Analysis, 巧思, Foreshadowing, 對稱 Symmetry, 改編 Adaptation, Resources, Unread, Questions, 名言/梗/迷因 Quotes & Memes
-- Save Changes Button
+- Form mirrors Add Manga tab, plus System ID (immutable), Entry Name CN with fallback (immutable), **`NovelNotes`** — structured notes editor with 15 sections, and Save Changes Button
 
 Writes: `PATCH /api/novel/:id`
 
