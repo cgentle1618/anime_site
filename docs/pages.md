@@ -24,6 +24,8 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/library/tv-show`        | `LibraryTV`                                        | Public     |
 | `/cartoon/:system_id`     | `Cartoon`                                          | Public     |
 | `/library/cartoon`        | `LibraryCartoon`                                   | Public     |
+| `/novel/:system_id`       | `Novel`                                            | Public     |
+| `/library/novel`          | `LibraryNovel`                                     | Public     |
 | `/seasonal`               | `SeasonalOverall`                                  | Public     |
 | `/seasonal/:seasonal_id`  | `SeasonalDetail`                                   | Public     |
 | `/statistics`             | `Statistics`                                       | Public     |
@@ -88,6 +90,8 @@ Card variants are defined in `reusable-elements.md`. Quick reference:
 | Manga Entry Card 1       | `DashboardCard.jsx`        | Dashboard                                                     |
 | Manga Entry Card 2       | `MangaCard.jsx`            | Franchise Hub (Manga tab), Manga Library, Search              |
 | Manga Entry Card 3       | `MangaCardFuture.jsx`      | Future Releases (Manga tab)                                   |
+| Novel Entry Card 1       | `DashboardCard.jsx`        | Dashboard                                                     |
+| Novel Entry Card 2       | `NovelCard.jsx`            | Franchise Hub (Novel tab), Novel Library, Search              |
 
 | Franchise Entry Card | | Franchise Library |
 
@@ -120,7 +124,7 @@ Current progress page. Shows all actively tracked media.
 **Reading division** (Manga · Novel) — rendered with an under-development placeholder. No data loaded for this division yet.
 
 - Manga entries: **Manga Entry Card 1**
-- Novel entries: **Novel Entry Card 1** (TBD)
+- Novel entries: **Novel Entry Card 1**
 
 ---
 
@@ -439,6 +443,54 @@ Full detail page for a single manga entry.
 
 ---
 
+### Novel Detail (`/novel/:system_id`)
+
+**File:** `frontend/src/pages/Novel.jsx`
+
+Full detail page for a single novel entry.
+
+**Data loaded:**
+
+- `GET /api/novel/:system_id`
+- `GET /api/franchise/`
+- `GET /api/series/`
+
+**Admin Controls Block** (admin only):
+
+- Edit button → `/modify?id=:system_id`
+- Mark Completed button
+- Autofill & Update button → executes Replace for single novel entry
+
+**Layout (left column):**
+
+- Novel poster
+- **Sources Card** (reusable)
+- Read Order
+- **Related Entries Card** (reusable)
+- System Info Block (admin only): System ID
+
+**Layout (right column):**
+
+- Tags: Novel Region, Novel Type, Serialization Status
+- Main Title: Novel Name CN (with fallback)
+- Sub Title: Novel Name EN (hidden if CN used fallback or is null)
+- From Franchise: Franchise Name CN with fallback (navigates to franchise page)
+- From Series: Series Name CN with fallback — uses **Series Information Pop Up Entry** (reusable)
+- **Score Block** (reusable): includes Last Updated Time
+
+**Detail sections:**
+
+- **My Tracker Block** (reusable)
+- **Naming Card** (reusable)
+- **Information Card** (reusable)
+- **Production Card** (reusable)
+- Remarks — shown when `remark` is not null
+- **Notes Card** (reusable) — editable for admin only
+
+Admin writes use `PATCH /api/novel/:system_id`.
+
+---
+
 ### Franchise Hub (`/franchise/:system_id`)
 
 **Files:** `frontend/src/pages/Franchise.jsx` (thin wrapper) → `frontend/src/pages/FranchisePage.jsx` (unified hub)
@@ -450,7 +502,7 @@ Full detail page for a single manga entry.
 | Flag         | True when `franchise_type` includes… | Controls                    |
 | ------------ | ------------------------------------ | --------------------------- |
 | `hasACG`     | `"ACG"` or `"Anime"`                 | Anime tab, Anime Movies tab |
-| `hasACGFull` | `"ACG"`                              | Manga tab                   |
+| `hasACGFull` | `"ACG"`                              | Manga tab, Novel tab        |
 | `hasTvMovie` | `"TV or Movie"`                      | Movies tab, TV Shows tab    |
 | `hasCartoon` | `"Cartoon"`                          | Cartoons tab                |
 
@@ -464,6 +516,7 @@ Full detail page for a single manga entry.
 - `GET /api/tv-shows/?franchise_id=:system_id`
 - `GET /api/cartoon/?franchise_id=:system_id`
 - `GET /api/manga/?franchise_id=:system_id`
+- `GET /api/novel/?franchise_id=:system_id`
 
 **Layout:**
 
@@ -488,6 +541,7 @@ Full detail page for a single manga entry.
 | Anime        | `hasACG`     | `animeList`      |
 | Anime Movies | `hasACG`     | `animeMovieList` |
 | Manga        | `hasACGFull` | `mangaList`      |
+| Novel        | `hasACGFull` | `novelList`      |
 | Movies       | `hasTvMovie` | `movieList`      |
 | TV Shows     | `hasTvMovie` | `tvShowList`     |
 | Cartoons     | `hasCartoon` | `cartoonList`    |
@@ -514,6 +568,13 @@ Default active tab: first tab in the above order that has entries. When `tabs.le
 - Filters: Serialization Status (連載中 / 完結 / 腰斬 / 停更), Reading Status (Planned / Reading / Completed / Dropped / Might Read), Region (日漫 / 韓漫 / 國漫 / 台漫 / 其他)
 - Group by Series toggle (default off)
 - Cards: **Manga Entry Card 2** (`MangaCard.jsx`)
+
+**Novel tab:**
+
+- Sort: Release Year (default) / Title / My Rating / MAL Rating
+- Filters: Reading Status (use Reading Status Filter Options), Region (Novel Region)
+- Group by Series toggle (default on)
+- Cards: **Novel Entry Card 2** (`NovelCard.jsx`)
 
 **Movies tab:**
 
@@ -712,6 +773,29 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ---
 
+### Novel Library (`/library/novel`)
+
+**File:** `frontend/src/pages/LibraryNovel.jsx`
+
+**Data loaded:**
+
+- `GET /api/novel/`
+- `GET /api/franchise/`
+- `GET /api/series/`
+
+**Library bar (always visible):**
+
+- Filter search: by Franchise Title, Series Title, Novel Title, Release Year. Case/punctuation/space insensitive.
+- Advanced filters (collapsible): Serialization Status, Reading Status (Reading Status Filter Options), Region, Type
+- Sort by: Title (default) / My Rating / MAL Rating / Release Year (new to old; TBD first) / Ending Year (new to old; TBD first)
+- Grid/Table view toggle
+
+**Grid view** — each entry: **Novel Entry Card 2**
+
+**Table view** — columns: Franchise Name CN (fallback), Novel Name CN, Novel Name EN (fallback: Roman), Novel Type, Serialization Status, Vol Finished / Vol Total TW; Vol Total Original, Arc Finished / Arc Total, Ch Finished / Ch Total, My Rating, MAL Rating, + button (admin only, Reading Type), Read Next (admin only), To Reread (admin only)
+
+---
+
 ### Seasonal Overall (`/seasonal`)
 
 **File:** `frontend/src/pages/SeasonalOverall.jsx`
@@ -809,7 +893,7 @@ Multi-section statistics dashboard.
    - TV Show: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
    - Cartoon tab: Group by Cartoon Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Comedy Central, Other; shows poster, Cartoon Name CN with fallback
    - Manga tab: Group by Serialization Status with the order of 完結, 連載中, 腰斬, 停更, null; show poster and Manga Name CN with fallback
-   - Novel tab (TBD)
+   - Novel tab: Group by Serialization Status with the order of 完結, 連載中, 連載中 (不穩定) & 連載中 (有生之年), 其他; shows poster and Novel Name CN with fallback
    - Note: Anime uses franchise entries; other media types use the media entry directly
 
 5. **To Rewatch** — tabbed grid:
@@ -819,7 +903,7 @@ Multi-section statistics dashboard.
    - TV Show tab: sorted by TV Show Name EN; shows poster, TV Show Name CN with fallback, My Rating
    - Cartoon tab: sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating
    - Manga tab: sorted by Manga Name EN; shows poster, Manga Name CN with fallback, My Rating
-   - Novel tab (TBD)
+   - Novel tab: sorted by Novel Name EN; shows poster, Novel Name CN with fallback, My Rating
 
 6. **Recent Completions** — paginated list (10 per page):
    - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
@@ -828,7 +912,7 @@ Multi-section statistics dashboard.
    - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
    - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
    - Manga tab: grouped by Manga Region (日漫, 韓漫, 國漫, 台漫, Others); shows Manga Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
-   - Novel tab (TBD)
+   - Novel tab: grouped by Novel Type (Light Novel / Novel / Web / Others); shows Novel Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
 
 ---
 
@@ -886,17 +970,18 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 
 **Data loaded (conditional on scope):**
 
-| Scope         | Fetches                                                                  |
-| ------------- | ------------------------------------------------------------------------ |
-| `all`         | franchise, anime, anime-movie, movie, tv-show, cartoon, series, seasonal |
-| `franchise`   | franchise only                                                           |
-| `anime`       | franchise + anime                                                        |
-| `anime-movie` | anime-movie only                                                         |
-| `movie`       | movies only                                                              |
-| `tv-show`     | tv-shows only                                                            |
-| `cartoon`     | cartoon only                                                             |
-| `series`      | series only                                                              |
-| `seasonal`    | seasonal only                                                            |
+| Scope         | Fetches                                                                         |
+| ------------- | ------------------------------------------------------------------------------- |
+| `all`         | franchise, anime, anime-movie, movie, tv-show, cartoon, novel, series, seasonal |
+| `franchise`   | franchise only                                                                  |
+| `anime`       | franchise + anime                                                               |
+| `anime-movie` | anime-movie only                                                                |
+| `movie`       | movies only                                                                     |
+| `tv-show`     | tv-shows only                                                                   |
+| `cartoon`     | cartoon only                                                                    |
+| `novel`       | novel only                                                                      |
+| `series`      | series only                                                                     |
+| `seasonal`    | seasonal only                                                                   |
 
 **Layout:**
 
@@ -910,6 +995,7 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 - **Movie Entry Section** — each entry: **Movie Entry Card** (`MovieCard.jsx`)
 - **TV Show Entry Section** — each entry: **TV Show Entry Card 2** (`TVCard.jsx`)
 - **Cartoon Entry Section** — each entry: **Cartoon Entry Card 2** (`CartoonCard.jsx`)
+- **Novel Entry Section** — each entry: **Novel Entry Card 2** (`NovelCard.jsx`)
 
 ---
 
@@ -949,13 +1035,14 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 - Calculate All → `POST /api/data-control/calculate/all`
 - Find Duplicates → `GET /api/data-control/check/duplicates`
-- With Remarks → `GET /api/data-control/check/remarks` → opens modal with tabs: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga. Each tab lists entries where `remark IS NOT NULL AND remark != ''`, ordered by `updated_at` desc. Columns per tab:
+- With Remarks → `GET /api/data-control/check/remarks` → opens modal with tabs: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga / Novel. Each tab lists entries where `remark IS NOT NULL AND remark != ''`, ordered by `updated_at` desc. Columns per tab:
   - Anime: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
   - Anime Movie: Name CN, Name EN, Watching (`watching_status`), Remark
   - Movie: Name CN, Name EN, Release Date (`release_date_usa`), Watching (`watching_status`), Remark
   - TV Show: Name CN, Name EN, Season (`season_part`), Watching (`watching_status`), Remark
   - Cartoon: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
   - Manga: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
+  - Novel: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
   - Rows are clickable and navigate to the entry detail page
 - Check & Download Covers (multi-step): `GET /api/data-control/calculate/check-cover-image` → `POST .../download-missing-covers` → `POST .../set-cover-image-fields` → `DELETE .../delete-orphaned-covers`
 
@@ -1011,18 +1098,19 @@ Admin review queue for entries requiring attention.
 
 **Entries With Remarks Section:**
 
-- Find Remarks button → `GET /api/data-control/check/remarks` → tabbed result table: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga. Columns per tab:
+- Find Remarks button → `GET /api/data-control/check/remarks` → tabbed result table: Anime / Anime Movie / Movie / TV Show / Cartoon / Manga / Novel. Columns per tab:
   - Anime: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
   - Anime Movie: Name CN, Name EN, Watching (`watching_status`), Remark
   - Movie: Name CN, Name EN, Release Date (`release_date_usa`), Watching (`watching_status`), Remark
   - TV Show: Name CN, Name EN, Season (`season_part`), Watching (`watching_status`), Remark
   - Cartoon: Name CN, Name EN, Type (`airing_type`), Watching (`watching_status`), Remark
   - Manga: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
+  - Novel: Name CN, Name EN, Is Main (`is_main`), Reading (`reading_status`), Remark
   - Rows are clickable and navigate to the entry detail page
 
 **Potential Duplicates Section:**
 
-- Find Duplicates button → result table with tabs: Franchise / Series / Anime / Anime Movie / Movie / TV Show / Cartoon / Manga / System Options
+- Find Duplicates button → result table with tabs: Franchise / Series / Anime / Anime Movie / Movie / TV Show / Cartoon / Manga / Novel / System Options
 
 ---
 
@@ -1032,7 +1120,7 @@ Admin review queue for entries requiring attention.
 
 Multi-tab form for creating new records. Shows most recently added entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`
 
 #### Add New Anime Entry Tab (default)
 
@@ -1111,7 +1199,17 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Notes & Other:** Cover Image File, Remark
 - Duplicate detection modal; Jikan enrichment after submit via `POST /api/data-control/replace/anime/:id`
 
-#### Add New Novel Entry Tab (TBD)
+#### Add New Novel Entry Tab
+
+Includes auto-fill from existing entry search bar (searches all languages including Alt).
+
+- **Titles & Naming:** Franchise (ComboBox + auto-create modal), Series (ComboBox + auto-create modal), Novel Name EN/CN/Roman/JP/Alt
+- **Classification:** Novel Region dropdown, Novel Type dropdown, Main/Spinoff dropdown (default: 本傳)
+- **Status & Progress:** Serialization Status dropdown, Reading Status dropdown (default: Might Read), Volumes Total Original, Volumes Total TW, Volumes Read, Arc Total, Arc Read, Ch Total, Ch Read, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating, Read Next checkbox, To Reread checkbox
+- **Production:** Author searchable dropdown (multi-selectable), Illustrator searchable dropdown (multi-selectable), Release Year, Ending Year, Publisher TW dropdown
+- **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Read Order
+- **Source & Links:** MAL ID, MAL Link, AniList Link, Add Source button (other sources as `{name: link}`)
+- **Notes & Other:** Cover Image File, Remark
 
 ---
 
@@ -1121,7 +1219,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 
 Search-then-edit pattern. Shows most recently modified entry at top. Supports `?id=:uuid` deep-link.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`
 
 Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit button.
 
@@ -1203,7 +1301,22 @@ Writes: `PATCH /api/cartoon/:id`
 
 Writes: `PATCH /api/manga/:id`
 
-#### Modify Novel Entry Tab (TBD)
+#### Modify Novel Entry Tab
+
+- Search bar (searches all languages including Alt); recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
+- After selecting: System ID (immutable), Other Entries in franchise block (grouped by series) — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
+- Form sections mirror Add Novel tab, plus:
+  - **Titles & Naming:** Franchise, Series, Novel Name EN/CN/Roman/JP/Alt
+  - **Classification:** Novel Region dropdown, Novel Type dropdown, Main/Spinoff dropdown
+  - **Status & Progress:** Serialization Status dropdown, Reading Status dropdown, Volumes Total Original, Volumes Total TW, Volumes Read, Arc Total, Arc Read, Ch Total, Ch Read, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating, Read Next checkbox, To Reread checkbox
+  - **Production:** Author searchable dropdown (multi-selectable), Illustrator searchable dropdown (multi-selectable), Release Year, Ending Year, Publisher TW dropdown
+  - **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Read Order
+  - **Source & Links:** MAL ID, MAL Link, AniList Link, Add Source button (other sources as `{name: link}`)
+  - **Other:** Cover Image File, Remark
+  - **Structured Notes:** Remark, 優點 Advantages, 缺點 Disadvantages, 優缺點, 大眾評價 Public Reviews, 我的評價 Personal Reviews, 神片段 Highlights, 解析 Analysis, 巧思, Foreshadowing, 對稱 Symmetry, 改編 Adaptation, Resources, Unread, Questions, 名言/梗/迷因 Quotes & Memes
+- Save Changes Button
+
+Writes: `PATCH /api/novel/:id`
 
 ---
 
@@ -1213,7 +1326,7 @@ Writes: `PATCH /api/manga/:id`
 
 Search-then-delete pattern. Shows most recently deleted entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`
 
 #### Delete Anime Entry Tab (default)
 
@@ -1287,7 +1400,14 @@ Deletes: `DELETE /api/cartoon/:id`
 
 Deletes: `DELETE /api/manga/:id`
 
-#### Delete Novel Entry Tab (TBD)
+#### Delete Novel Entry Tab
+
+- Search bar (searches all novel name fields including Alt) → **Search Suggestion for Deletion** (reusable)
+- After selecting: **Novel Entry Info for Deletion** (reusable) + Delete button
+- If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
+- If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
+
+Deletes: `DELETE /api/novel/:id`
 
 ---
 
@@ -1312,22 +1432,18 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 
 ## TBD / Under Development
 
-**Library pages:** Novel Library, Seiyuu Library (table-only)
+**Library pages:** Seiyuu Library (table-only)
 
-**Entry detail pages:** Novel, Studio (pages are specified but not yet implemented)
+**Entry detail pages:** Studio (pages are specified but not yet implemented)
 
-**Dashboard:** Novel, TV Show, Cartoon watching/reading sections; filter UI
+**Dashboard:** Reading section (Manga · Novel) rendered with under-development placeholder; filter UI
 
-**Search:** Novel result sections; TV Show, Cartoon sections; Studio/Seiyuu sections (possible)
+**Search:** TV Show, Cartoon sections; Studio/Seiyuu sections (possible)
 
 **Future Releases:** Overall tab (not planned)
 
-**Statistics:** Watch Next / To Rewatch / Recent Completions for Movie, TV Show, Cartoon, Novel tabs
+**Admin:** Data History page split from System page
 
-**Add/Modify/Delete:** Novel tabs
+**Entry cards:** Novel Entry Card 1/2 (specified but not yet implemented)
 
-**Admin:** Data History page split from System page; Review page
-
-**Entry cards:** Novel Entry Card 1/2
-
-**Reusable blocks:** All blocks listed in `reusable-elements.md` marked TBD (Related Entries Card, Score Block for Movie, Rating Distribution Block, Search Result entries, deletion info blocks, etc.)
+**Reusable blocks:** Novel-specific blocks listed in `reusable-elements.md` (specified but not yet implemented); Rating Distribution Block, Search Result entries for Novel, deletion info blocks for Novel

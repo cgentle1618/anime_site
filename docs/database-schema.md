@@ -693,7 +693,105 @@ Manga, manhwa, and manhua entries.
 
 ### `novel`
 
-Light novel and book entries. **(TBD — schema not yet defined.)**
+Light novel and book entries.
+
+**Notes:** `mal_rank` and `anilist_rating` are strings. `is_main` is a string.
+
+#### Identity & Hierarchy
+
+| Column         | Type | Nullable | Default   | Notes                                |
+| -------------- | ---- | -------- | --------- | ------------------------------------ |
+| `system_id`    | UUID | No       | `uuid4()` | Primary key                          |
+| `franchise_id` | UUID | Yes      | —         | FK -> `franchise.system_id` SET NULL |
+| `series_id`    | UUID | Yes      | —         | FK -> `series.system_id` SET NULL    |
+
+#### Names
+
+| Column               | Type   | Nullable | Notes                                                |
+| -------------------- | ------ | -------- | ---------------------------------------------------- |
+| `novel_name_en`      | String | Yes      |                                                      |
+| `novel_name_cn`      | String | Yes      |                                                      |
+| `novel_name_roman`   | String | Yes      |                                                      |
+| `novel_name_jp`      | String | Yes      |                                                      |
+| `novel_name_alt`     | String | Yes      |                                                      |
+| `novel_name_each_cn` | JSONB  | Yes      | Sets of Chinese book names that belong to each entry |
+| `novel_name_each_en` | JSONB  | Yes      | Sets of English book names that belong to each entry |
+
+**Constraints:** At least one name field must be non-null.
+
+#### Classification & Status
+
+| Column                 | Type   | Nullable | Default        | Notes                                                                                                    |
+| ---------------------- | ------ | -------- | -------------- | -------------------------------------------------------------------------------------------------------- |
+| `region`               | String | Yes      | —              | `"JP"`, `"CN"`, `"TW"`, `"KR"`, `"Western"`, null                                                        |
+| `type`                 | String | Yes      | —              | `"Light Novel"`, `"Novel"`, `"Web"`, `"Other"`, null                                                     |
+| `version`              | String | Yes      | —              | Version of the novel entry, e.g. `"陸版"`                                                                |
+| `is_main`              | String | Yes      | —              | Whether the entry is main story or spinoff; see system_options                                           |
+| `serialization_status` | String | Yes      | —              | `"完結"`, `"連載中"`, `"連載中 (不穩定)"`, `"連載中 (有生之年)"`, `"停更"`, `"可能更多"`, `"未出"`, null |
+| `reading_status`       | String | No       | `"Might Read"` | See options.md for all valid values                                                                      |
+
+#### Progress Tracking
+
+| Column               | Type   | Nullable | Default | Notes                                                                                    |
+| -------------------- | ------ | -------- | ------- | ---------------------------------------------------------------------------------------- |
+| `vol_total_original` | Float  | Yes      | —       | Total volumes of the entry (original)                                                    |
+| `vol_total_tw`       | Float  | Yes      | —       | Total volumes of the entry (Taiwan)                                                      |
+| `vol_fin`            | Float  | No       | `0`     | Volumes finished; cannot exceed max(vol_total_original, vol_total_tw)                    |
+| `arc_total`          | Float  | Yes      | —       | Total arcs of the entry                                                                  |
+| `arc_fin`            | Float  | No       | `0`     | Arcs finished; cannot exceed arc_total                                                   |
+| `ch_total`           | Float  | Yes      | —       | Total chapters of the entry                                                              |
+| `ch_fin`             | Float  | No       | `0`     | Chapters finished; cannot exceed ch_total                                                |
+| `progress_display`   | String | Yes      | —       | `"vol_tw"`, `"vol_original"`, `"arc_ch"`, `"ch"`, null; determines which tracker to show |
+
+#### Ratings
+
+| Column           | Type   | Nullable | Notes                                            |
+| ---------------- | ------ | -------- | ------------------------------------------------ |
+| `my_rating`      | String | Yes      | S / A+ / A / B / C / D / E / F                   |
+| `mal_rating`     | Float  | Yes      | MAL score; `"N/A"` stored as null                |
+| `mal_rank`       | String | Yes      | MAL rank stored as string (e.g. `"53"`, `"N/A"`) |
+| `anilist_rating` | String | Yes      | AniList score stored as string                   |
+
+#### Production & Release
+
+| Column         | Type    | Nullable | Notes                                                            |
+| -------------- | ------- | -------- | ---------------------------------------------------------------- |
+| `author`       | String  | Yes      | Authors; category in system_options: Novel Author                |
+| `illustrator`  | String  | Yes      | Illustrators; category in system_options: Novel Illustrator      |
+| `release_year` | Integer | Yes      | Release year of the first book; cannot exceed end_year           |
+| `end_year`     | Integer | Yes      | Release year of the last book                                    |
+| `publisher_tw` | String  | Yes      | Taiwan publisher; category in system_options: Novel Publisher TW |
+
+#### Relational & Ordering
+
+| Column          | Type    | Nullable | Notes                                                        |
+| --------------- | ------- | -------- | ------------------------------------------------------------ |
+| `prequel_id`    | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint           |
+| `sequel_id`     | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint            |
+| `is_main_entry` | Boolean | Yes      | Whether this is the main entry among its alternative entries |
+| `read_order`    | Float   | Yes      | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`) |
+
+#### External Links
+
+| Column         | Type    | Nullable |
+| -------------- | ------- | -------- |
+| `mal_id`       | Integer | Yes      |
+| `mal_link`     | String  | Yes      |
+| `anilist_link` | String  | Yes      |
+| `source_other` | JSONB   | Yes      |
+
+#### Misc
+
+| Column             | Type     | Nullable | Notes                                       |
+| ------------------ | -------- | -------- | ------------------------------------------- |
+| `read_next`        | Boolean  | Yes      | —                                           |
+| `to_reread`        | Boolean  | Yes      | —                                           |
+| `remark`           | Text     | Yes      | Temporary free-form notes                   |
+| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
+| `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
+| `completed_at`     | DateTime | Yes      | When entry was marked completed             |
+| `created_at`       | DateTime | No       | Auto-set on create                          |
+| `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
 ---
 
@@ -727,6 +825,9 @@ Dynamic dropdown/choice list values used in frontend forms. Editable via the adm
 | `Movie Franchise (Filter)`  | Filter option for movies page                     |
 | `Main / Spinoff`            | `anime.is_main`, `movies.is_main`, etc.           |
 | `Dub Preference`            | Preference settings                               |
+| `Novel Author`              | `novel.author`                                    |
+| `Novel Illustrator`         | `novel.illustrator`                               |
+| `Novel Publisher TW`        | `novel.publisher_tw`                              |
 
 ---
 
