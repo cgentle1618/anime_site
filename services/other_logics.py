@@ -29,7 +29,7 @@ from models import (
     SystemOption,
 )
 
-from services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_data
+from services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
 from services.imdb import fetch_imdb_data
 from services.tmdb import fetch_tmdb_tv_season_data
 from services.image_manager import download_cover_image
@@ -815,7 +815,7 @@ def has_missing_values_manga(manga: Manga) -> bool:
     return False
 
 
-def has_missing_values_novel(novel: "Novel") -> bool:
+def has_missing_values_novel(novel: Novel) -> bool:
     """
     Returns True if any required fill field is blank.
     Special case: vol_total_original and ch_total are only required when serialization_status == "完結".
@@ -1612,7 +1612,7 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     return False
 
 
-def apply_extract_mal_id_manga_novel(entry: Manga) -> bool:
+def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
     """Extracts MAL manga ID from mal_link and writes it to mal_id. Returns True if set."""
     mal_id = extract_mal_id_manga_novel(entry.mal_link)
     if mal_id:
@@ -2223,7 +2223,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
         return
 
     try:
-        raw_data = fetch_jikan_manga_data(mal_id)
+        raw_data = fetch_jikan_manga_novel_data(mal_id)
         if not raw_data:
             return
 
@@ -2261,7 +2261,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
         )
 
 
-def autofill_novel_from_mal(novel: "Novel", force_replace_ratings: bool = True) -> None:
+def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) -> None:
     """
     Enriches a single Novel entry with Jikan API data. Does not commit — caller is responsible.
     Fill-only: serialization_status, release_year, end_year.
@@ -2273,7 +2273,7 @@ def autofill_novel_from_mal(novel: "Novel", force_replace_ratings: bool = True) 
         return
 
     try:
-        raw_data = fetch_jikan_manga_data(mal_id)
+        raw_data = fetch_jikan_manga_novel_data(mal_id)
         if not raw_data:
             return
 
@@ -2547,14 +2547,15 @@ def mark_reading_completed(entry: Manga) -> None:
     entry.vol_fin_page = 0
 
 
-def mark_novel_completed(entry: "Novel") -> None:
+def mark_novel_completed(entry: Novel) -> None:
     """Sets a novel entry to a fully finished reading state."""
     entry.serialization_status = "完結"
     entry.reading_status = "Completed"
 
     # vol: set all three to the max of the three
     vol_vals = [
-        v for v in [entry.vol_total_original, entry.vol_total_tw, entry.vol_fin]
+        v
+        for v in [entry.vol_total_original, entry.vol_total_tw, entry.vol_fin]
         if v is not None
     ]
     if vol_vals:
@@ -2671,7 +2672,7 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
         derive_related_manga(db)
 
 
-def apply_single_replace_novel(db: Session, novel: "Novel", bulk: bool = False) -> None:
+def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single Novel entry.
     No post_processing and no derive_related — novel has neither.

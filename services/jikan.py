@@ -120,7 +120,7 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
     ),
     reraise=False,
 )
-def fetch_jikan_manga_data(mal_id: int) -> Optional[Dict[str, Any]]:
+def fetch_jikan_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
     """
     Fetches raw manga details from Jikan.
     Uses the same JikanRateLimiter and retry configuration as fetch_jikan_anime_data.
