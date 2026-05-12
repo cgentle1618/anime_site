@@ -722,6 +722,7 @@ class Novel(Base, NameFallbackMixin):
 
     prequel_id = Column(UUID(as_uuid=True), nullable=True)
     sequel_id = Column(UUID(as_uuid=True), nullable=True)
+    alternative = Column(String, nullable=True)
     is_main_entry = Column(Boolean, nullable=True)
     read_order = Column(Float, nullable=True)
 

@@ -2270,6 +2270,94 @@ git commit -m "feat(novel): update FranchisePage, Search, Statistics, Index, Adm
 
 ---
 
+---
+
+### Task 22: Add `alternative` column to Novel
+
+**Files:**
+- Modify: `models.py` (Novel class)
+- Modify: `schemas.py` (NovelBase)
+- Modify: `utils/formatter.py` (parse_novel_from_sheet)
+- Create: `alembic/versions/<hash>_add_alternative_to_novel.py`
+- Modify: `frontend/src/pages/Novel.jsx`
+- Modify: `frontend/src/pages/Admin.jsx` (Add Novel tab and Modify Novel tab)
+
+**Notes:**
+- `format_model_for_sheet` is dynamic — no change needed for sheet export.
+- CRUD router is schema-driven — no change needed.
+- `alternative` is user-entered; do NOT add to `NOVEL_FIELDS_TO_FILL`.
+- `autofill_novel_from_mal` has no equivalent MAL field — no change needed.
+
+- [ ] **Step 1: Add column to models.py**
+
+In the `Novel` class, after `sequel_id`:
+
+```python
+alternative = Column(String, nullable=True)
+```
+
+- [ ] **Step 2: Add field to schemas.py**
+
+In `NovelBase`, after `sequel_id`:
+
+```python
+alternative: Optional[str] = None
+```
+
+- [ ] **Step 3: Add field to parse_novel_from_sheet**
+
+In `parse_novel_from_sheet` in `utils/formatter.py`, after the `"sequel_id"` entry:
+
+```python
+"alternative": parse_from_sheet(raw.get("alternative"), str),
+```
+
+- [ ] **Step 4: Generate and apply Alembic migration**
+
+```bash
+alembic revision --autogenerate -m "add alternative to novel"
+alembic upgrade head
+```
+
+Expected: migration adds `ALTER TABLE novel ADD COLUMN alternative VARCHAR;`
+
+- [ ] **Step 5: Commit backend changes**
+
+```bash
+git add models.py schemas.py utils/formatter.py alembic/versions/<hash>_add_alternative_to_novel.py
+git commit -m "feat(novel): add alternative column to novel table"
+```
+
+- [ ] **Step 6: Display alternative in Novel.jsx**
+
+In the novel detail page, find where `prequel_id`/`sequel_id` or `remark` is displayed and add:
+
+```jsx
+{novel.alternative && (
+  <div>
+    <span className="label">Alternative</span>
+    <span>{novel.alternative}</span>
+  </div>
+)}
+```
+
+- [ ] **Step 7: Add alternative input to Admin Add Novel tab**
+
+In `Admin.jsx` Add Novel tab, add a text input for `alternative` (after the sequel field, following the same pattern as other string fields).
+
+- [ ] **Step 8: Add alternative input to Admin Modify Novel tab**
+
+In `Admin.jsx` Modify Novel tab, prefill `alternative` from the loaded entry and add the same text input.
+
+- [ ] **Step 9: Commit frontend changes**
+
+```bash
+git add frontend/src/pages/Novel.jsx frontend/src/pages/Admin.jsx
+git commit -m "feat(novel): display and edit alternative field in frontend"
+```
+
+---
+
 ## Self-Review: Spec Coverage Check
 
 | Spec Requirement                                                                           | Task    |
@@ -2307,3 +2395,4 @@ git commit -m "feat(novel): update FranchisePage, Search, Statistics, Index, Adm
 | App.jsx routes, Nav.jsx link                                                               | Task 20 |
 | FranchisePage (Novel tab content render; state/flag/fetch already done per Gap #1)         | Task 21 |
 | Search, Statistics, Index, Admin, DataHistory                                              | Task 21 |
+| `alternative` column — model, schema, formatter, migration, Novel.jsx, Admin forms         | Task 22 |

@@ -488,6 +488,7 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
+        "alternative": parse_from_sheet(raw.get("alternative"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "read_order": parse_from_sheet(raw.get("read_order"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
