@@ -4,7 +4,7 @@
 
 **Goal:** Add Novel as a fully supported media type — database model, CRUD API, all business-logic pipelines (Fill, Replace, Backup, Pull), and all frontend pages (Detail, Library, Admin forms, Nav, FranchisePage).
 
-**Architecture:** Novel mirrors Manga with key divergences: Float progress fields (vol_total_original/tw, arc_total/fin, ch_total/fin), `progress_display` for per-entry tracker selection, `release_year`/`end_year` as Integer, auto-franchise with `franchise_type="Novel"`, and a more complex `mark_novel_completed` that takes maximums across multiple totals. No `derive_related` step (unlike manga). MAL data is fetched via the same `fetch_jikan_manga_data` used for manga, mapped through a new `map_jikan_to_novel_data`.
+**Architecture:** Novel mirrors Manga with key divergences: Float progress fields (vol_total_original/tw, arc_total/fin, ch_total/fin), `progress_display` for per-entry tracker selection, `release_year`/`end_year` as Integer, auto-franchise with `franchise_type="Novel"`, and a more complex `mark_novel_completed` that takes maximums across multiple totals. No `derive_related` step (unlike manga). MAL data is fetched via the same `fetch_jikan_manga_novel_data` used for manga, mapped through a new `map_jikan_to_novel_data`.
 
 **Tech Stack:** FastAPI, SQLAlchemy (PostgreSQL), Alembic, Pydantic v2, React + Vite, Tailwind CSS v4, Jikan v4 API, GCS.
 
@@ -1006,7 +1006,7 @@ def autofill_novel_from_mal(novel: "Novel", force_replace_ratings: bool = True) 
         return
 
     try:
-        raw_data = fetch_jikan_manga_data(mal_id)
+        raw_data = fetch_jikan_manga_novel_data(mal_id)
         if not raw_data:
             return
 
@@ -2158,7 +2158,7 @@ git commit -m "feat(novel): add Novel tab to Delete page"
 - Modify: `frontend/src/App.jsx`
 - Modify: `frontend/src/components/Nav.jsx`
 
-- [ ] **Step 1: Add novel routes to App.jsx**
+- [x] **Step 1: Add novel routes to App.jsx**
 
 Import `Novel` and `LibraryNovel`, then add routes:
 
@@ -2171,7 +2171,7 @@ import LibraryNovel from "./pages/LibraryNovel";
 <Route path="/library/novel" element={<LibraryNovel />} />
 ```
 
-- [ ] **Step 2: Add novel library link to Nav.jsx**
+- [x] **Step 2: Add novel library link to Nav.jsx**
 
 Find where the manga library link is rendered in `Nav.jsx` and add a novel link immediately after:
 
@@ -2179,7 +2179,7 @@ Find where the manga library link is rendered in `Nav.jsx` and add a novel link 
 <NavLink to="/library/novel">Novel</NavLink>
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/App.jsx frontend/src/components/Nav.jsx
@@ -2199,7 +2199,7 @@ git commit -m "feat(novel): add novel routes and nav link"
 - Modify: `frontend/src/pages/Admin.jsx`
 - Modify: `frontend/src/pages/DataHistory.jsx`
 
-- [ ] **Step 1: FranchisePage.jsx — render Novel tab content**
+- [x] **Step 1: FranchisePage.jsx — render Novel tab content**
 
 **State, flag, and fetch are already done** (committed earlier in the novel branch):
 
@@ -2223,14 +2223,14 @@ import NovelCard from "../components/NovelCard";
 
 Also add sort/filter/group-by controls using `novelSort`, `novelFilters`, `novelGroupBySeries` state (follow the manga tab panel pattern exactly).
 
-- [ ] **Step 2: Search.jsx — include novels in results**
+- [x] **Step 2: Search.jsx — include novels in results**
 
 Find where manga search results are handled and add a parallel novel search:
 
 - Fetch `GET /api/novel/?search_query=:q`
 - Display novel results in a "Novel" section with `<NovelCard>` or a search result row
 
-- [ ] **Step 3: Statistics.jsx — add novel statistics row**
+- [x] **Step 3: Statistics.jsx — add novel statistics row**
 
 Find where manga statistics are displayed and add a novel row:
 
@@ -2238,7 +2238,7 @@ Find where manga statistics are displayed and add a novel row:
 - Count by reading_status and serialization_status
 - Display alongside manga stats
 
-- [ ] **Step 4: Index.jsx — add recent novels section**
+- [x] **Step 4: Index.jsx — add recent novels section**
 
 Add a "Recent Novels" section (fetch `GET /api/novel/` ordered by created_at, take first 5):
 
@@ -2247,7 +2247,7 @@ Add a "Recent Novels" section (fetch `GET /api/novel/` ordered by created_at, ta
 // Use <NovelCard> or a simpler inline display
 ```
 
-- [ ] **Step 5: Admin.jsx — wire novel data control actions**
+- [x] **Step 5: Admin.jsx — wire novel data control actions**
 
 Find where manga Fill/Replace buttons are defined in Admin.jsx and add parallel Novel buttons:
 
@@ -2255,11 +2255,11 @@ Find where manga Fill/Replace buttons are defined in Admin.jsx and add parallel 
 - Replace Novel button: calls the Replace Novel SSE endpoint
 - Follow the same SSE streaming pattern as manga
 
-- [ ] **Step 6: DataHistory.jsx — add novel tab or include in history view**
+- [x] **Step 6: DataHistory.jsx — add novel tab or include in history view**
 
 Follow the existing manga pattern to include novel entries in the data history log view if filtered by type.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add frontend/src/pages/FranchisePage.jsx frontend/src/pages/Search.jsx \
