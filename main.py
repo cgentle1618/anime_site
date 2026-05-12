@@ -28,6 +28,7 @@ from routers import (
     movie,
     tv_show,
     manga,
+    novel,
     seasonal,
     data_control,
     system,
@@ -116,6 +117,7 @@ app.include_router(cartoon.router)
 app.include_router(movie.router)
 app.include_router(tv_show.router)
 app.include_router(manga.router)
+app.include_router(novel.router)
 app.include_router(seasonal.router)
 
 app.include_router(data_control.router)
