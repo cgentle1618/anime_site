@@ -979,7 +979,7 @@ Enriches a single Manga entry with Jikan API data. Does not commit — caller is
 **Steps:**
 
 1. Resolve `mal_id` from `manga.mal_id`. Return if no ID.
-2. Call `fetch_jikan_manga_data(mal_id)`.
+2. Call `fetch_jikan_manga_novel_data(mal_id)`.
 3. Map response via `map_jikan_to_manga_data()`.
 4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total`, `ch_total`.
    - Exception: `vol_total` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
@@ -995,7 +995,7 @@ Enriches a single Novel entry with Jikan API data. Does not commit — caller is
 **Steps:**
 
 1. Resolve `mal_id` from `novel.mal_id`. Return if no ID.
-2. Call `fetch_jikan_manga_data(mal_id)`.
+2. Call `fetch_jikan_manga_novel_data(mal_id)`.
 3. Map response via `map_jikan_to_novel_data()`.
 4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total_original`, `ch_total`.
    - Exception: `vol_total_original` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
@@ -1090,7 +1090,7 @@ Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
 
 ---
 
-### MAL Fetch Manga — `fetch_jikan_manga_data(mal_id)` in `services/jikan.py`
+### MAL Fetch Manga — `fetch_jikan_manga_novel_data(mal_id)` in `services/jikan.py`
 
 Fetches `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. If `mal_id` is null, returns `None`.
 
