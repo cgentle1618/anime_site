@@ -26,6 +26,7 @@ from services.other_logics import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_manga_from_mal,
+    autofill_novel_from_mal,
     autofill_movie_from_imdb,
     autofill_tv_show_from_imdb,
     autofill_cartoon_from_imdb,
@@ -324,6 +325,17 @@ def bulk_download_missing_covers(
         autofill_manga_from_mal(manga, force_replace_ratings=False)
         if manga.cover_image_file:
             downloaded += 1
+
+    novel_query = db.query(Novel).filter(Novel.cover_image_file.isnot(None))
+    for novel in _collect(novel_query, Novel):
+        total += 1
+        if novel.mal_link:
+            novel.cover_image_file = None
+            autofill_novel_from_mal(novel, force_replace_ratings=False)
+            if novel.cover_image_file:
+                downloaded += 1
+        else:
+            skipped += 1
 
     if total:
         db.commit()
