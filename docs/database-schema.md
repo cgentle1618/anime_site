@@ -707,15 +707,15 @@ Light novel and book entries.
 
 #### Names
 
-| Column               | Type   | Nullable | Notes                                                |
-| -------------------- | ------ | -------- | ---------------------------------------------------- |
-| `novel_name_en`      | String | Yes      |                                                      |
-| `novel_name_cn`      | String | Yes      |                                                      |
-| `novel_name_roman`   | String | Yes      |                                                      |
-| `novel_name_jp`      | String | Yes      |                                                      |
-| `novel_name_alt`     | String | Yes      |                                                      |
-| `novel_name_each_cn` | JSONB  | Yes      | Sets of Chinese book names that belong to each entry |
-| `novel_name_each_en` | JSONB  | Yes      | Sets of English book names that belong to each entry |
+| Column               | Type   | Nullable | Notes                                                                                                                                                                                                                                 |
+| -------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `novel_name_en`      | String | Yes      |                                                                                                                                                                                                                                       |
+| `novel_name_cn`      | String | Yes      |                                                                                                                                                                                                                                       |
+| `novel_name_roman`   | String | Yes      |                                                                                                                                                                                                                                       |
+| `novel_name_jp`      | String | Yes      |                                                                                                                                                                                                                                       |
+| `novel_name_alt`     | String | Yes      |                                                                                                                                                                                                                                       |
+| `novel_name_each_cn` | JSONB  | Yes      | Ordered dict of individual CN book names belonging to this novel entry. Key = book number or identifier (string), value = book name. Example: `{"1": "最後帝國", "2": "昇華之井", "3": "永世英雄"}`. Keys may be non-numeric strings. |
+| `novel_name_each_en` | JSONB  | Yes      | Same as `novel_name_each_cn` but for EN book names. Keys must match between CN and EN dicts for the same entry.                                                                                                                       |
 
 **Constraints:** At least one name field must be non-null.
 

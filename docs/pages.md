@@ -485,6 +485,7 @@ Full detail page for a single novel entry.
 - **Information Card** (reusable)
 - **Production Card** (reusable)
 - Remarks — shown when `remark` is not null
+- **Belonging Novels Card** (reusable) — editable for admin only; renders `novel_name_each_cn` and `novel_name_each_en`
 - **Notes Card** (reusable) — editable for admin only
 
 Admin writes use `PATCH /api/novel/:system_id`.
@@ -502,7 +503,8 @@ Admin writes use `PATCH /api/novel/:system_id`.
 | Flag         | True when `franchise_type` includes… | Controls                    |
 | ------------ | ------------------------------------ | --------------------------- |
 | `hasACG`     | `"ACG"` or `"Anime"`                 | Anime tab, Anime Movies tab |
-| `hasACGFull` | `"ACG"`                              | Manga tab, Novel tab        |
+| `hasACGFull` | `"ACG"`                              | Manga tab                   |
+| `hasNovel`   | `"Novel"` or `"ACG"`                 | Novel tab                   |
 | `hasTvMovie` | `"TV or Movie"`                      | Movies tab, TV Shows tab    |
 | `hasCartoon` | `"Cartoon"`                          | Cartoons tab                |
 
@@ -541,7 +543,7 @@ Admin writes use `PATCH /api/novel/:system_id`.
 | Anime        | `hasACG`     | `animeList`      |
 | Anime Movies | `hasACG`     | `animeMovieList` |
 | Manga        | `hasACGFull` | `mangaList`      |
-| Novel        | `hasACGFull` | `novelList`      |
+| Novel        | `hasNovel`   | `novelList`      |
 | Movies       | `hasTvMovie` | `movieList`      |
 | TV Shows     | `hasTvMovie` | `tvShowList`     |
 | Cartoons     | `hasCartoon` | `cartoonList`    |

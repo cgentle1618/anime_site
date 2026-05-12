@@ -379,7 +379,46 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 **Second Type** — `frontend/src/components/NovelCard.jsx` — used on Franchise Hub (Novel tab), Novel Library, Search page
 
-(Poster card for grid/library views — full spec TBD)
+Poster card for grid/library views. Displays:
+
+- Poster (cover image)
+- My Rating badge (top-left, hidden if null)
+- Region badge (top-right, hidden if null)
+- Novel Name CN with fallback
+- Release Year – End Year (e.g. `2010 – 2015`; omit end year if same as release year)
+- MAL Rating (hidden if null)
+- Progress tracker row based on `progress_display`:
+  - `vol_tw`: `vol_fin / vol_total_tw VOL TW`
+  - `vol_original`: `vol_fin / vol_total_original VOL`
+  - `arc_ch`: `arc_fin/arc_total ARC  ch_fin/ch_total CH`
+  - `ch` (or null with ch_total set): `ch_fin / ch_total CH`
+- Reading status + button (admin only)
+
+---
+
+### Belonging Novels Card
+
+**File:** rendered inside `Novel.jsx` (novel detail page). Editable for admin only.
+
+Displays the ordered list of individual book names from `novel_name_each_cn` and `novel_name_each_en`.
+
+**Data source:** `novel.novel_name_each_cn` and `novel.novel_name_each_en` — JSONB columns where each key is a book identifier (string; may be numeric like `"1"` or non-numeric) and the value is the book name.
+
+**Structure:**
+
+Two sections, one per language:
+
+- **Novel Name CN Section** — renders pairs from `novel_name_each_cn`
+- **Novel Name EN Section** — renders pairs from `novel_name_each_en`
+
+Within each section:
+
+- Each pair is rendered as `[key]: [name]` (e.g. `1: 最後帝國`)
+- Keys may be non-numeric (e.g. `"Prologue"`, `"1"`, `"1.5"`)
+- **Admin only** — pairs can be added, deleted, and reordered via drag-and-drop or up/down controls
+- Saves via `PATCH /api/novel/:id` with updated `novel_name_each_cn` / `novel_name_each_en`
+
+**Note:** Both sections are shown even if one language is empty, but the section is hidden if the JSONB value is null.
 
 ---
 

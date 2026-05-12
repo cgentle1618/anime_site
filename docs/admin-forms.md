@@ -262,7 +262,7 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 **Prefill from existing entry**
 
-- A search box allows typing to find an existing novel entry. Selecting one prefills: Franchise, Series, all Novel Name fields (CN/EN/Alt), Type, Region, Main / Spinoff, Author, Illustrator.
+- A search box allows typing to find an existing novel entry. Selecting one prefills: Franchise, Series, all Novel Name fields (CN/EN/Roman/JP/Alt), Type, Region, Main / Spinoff, Author, Illustrator.
 
 **Franchise field**
 
@@ -297,6 +297,13 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 **Series Generation modal**
 
 - Series is created using all novel name fields filled in the form (the text typed in the Series field is ignored for name generation).
+
+**Novel Name Each fields**
+
+- `novel_name_each_cn` and `novel_name_each_en`: a dynamic list of key-value pairs editable in the Relational & Timeline section.
+- Each pair: key (book identifier — string, may be non-numeric) + value (book name).
+- User can add new pairs, delete existing pairs, and reorder pairs.
+- Stored as a JSON object on submit: `{"1": "最後帝國", "2": "昇華之井"}`.
 
 ---
 
@@ -475,6 +482,15 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 **Franchise Generation modal** — same logic as Add (names from novel name fields, type = Novel, expectation default Low).
 
 **Series Generation modal** — same logic as Add (names from novel name fields).
+
+**Novel Name Each fields**
+
+- `novel_name_each_cn` and `novel_name_each_en`: same editable key-value pair list as Add form.
+- Pre-populated from the loaded entry.
+- User can add, delete, and reorder pairs.
+
+**Structured Notes section** — editable in the Modify form. Sections:
+Remark, 優點, 缺點, 優缺點, 大眾評價, 我的評價, 神片段, 解析, 巧思, Foreshadowing, 對稱, 改編, Resources, Unread, Questions, 名言/梗/迷因
 
 ---
 
