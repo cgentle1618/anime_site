@@ -5,7 +5,39 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/anime";
+import { getDisplayName, parseTypes } from "../../utils/media";
+
+export const defaultTvShow = () => ({
+  tv_name_en: "",
+  tv_name_cn: "",
+  tv_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  season_part: "",
+  region: "",
+  source_official: "",
+  is_main: "本傳",
+  airing_status: "Not Yet Aired",
+  watching_status: "Might Watch",
+  ep_total: "",
+  ep_fin: "",
+  my_rating: "",
+  imdb_rating: "",
+  release_date: "",
+  prequel_id: null,
+  sequel_id: null,
+  watch_order: "",
+  derive_related: "",
+  imdb_id: "",
+  imdb_link: "",
+  source_other: [],
+  watch_next: false,
+  to_rewatch: false,
+  cover_image_file: "",
+  remark: "",
+});
 
 export default function TvShowAddTab({
   tvf,
