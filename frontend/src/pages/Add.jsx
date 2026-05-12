@@ -12,6 +12,7 @@ import FranchiseAddTab from "./add-tabs/FranchiseAddTab";
 import SeriesAddTab from "./add-tabs/SeriesAddTab";
 import OptionsAddTab from "./add-tabs/OptionsAddTab";
 import MangaAddTab from "./add-tabs/MangaAddTab";
+import NovelAddTab from "./add-tabs/NovelAddTab";
 import CartoonAddTab from "./add-tabs/CartoonAddTab";
 import TvShowAddTab from "./add-tabs/TvShowAddTab";
 import MovieAddTab from "./add-tabs/MovieAddTab";
@@ -226,6 +227,52 @@ const defaultCartoon = () => ({
   remark: "",
 });
 
+const defaultNovel = () => ({
+  novel_name_cn: "",
+  novel_name_en: "",
+  novel_name_roman: "",
+  novel_name_jp: "",
+  novel_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  region: "",
+  type: "",
+  is_main: "本傳",
+  serialization_status: "",
+  reading_status: "Might Read",
+  progress_display: "",
+  vol_total_original: "",
+  vol_total_tw: "",
+  vol_fin: "",
+  arc_total: "",
+  arc_fin: "",
+  ch_total: "",
+  ch_fin: "",
+  my_rating: "",
+  mal_rating: "",
+  mal_rank: "",
+  anilist_rating: "",
+  author: "",
+  illustrator: "",
+  release_year: "",
+  end_year: "",
+  publisher_tw: "",
+  prequel_id: null,
+  sequel_id: null,
+  read_order: "",
+  novel_name_each: [],
+  mal_id: "",
+  mal_link: "",
+  anilist_link: "",
+  source_other: [],
+  read_next: false,
+  to_reread: false,
+  cover_image_file: "",
+  remark: "",
+});
+
 const defaultManga = () => ({
   manga_name_cn: "",
   manga_name_en: "",
@@ -282,6 +329,7 @@ export default function Add() {
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
+  const [allNovels, setAllNovels] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -313,6 +361,11 @@ export default function Add() {
   const [mangaFillOpen, setMangaFillOpen] = useState(false);
   const mangaFillRef = useRef(null);
 
+  // Novel auto-fill search
+  const [novelFillQuery, setNovelFillQuery] = useState("");
+  const [novelFillOpen, setNovelFillOpen] = useState(false);
+  const novelFillRef = useRef(null);
+
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
   const [createModal, setCreateModal] = useState(null); // {entityType, text, onConfirm, onCancel}
@@ -327,6 +380,7 @@ export default function Add() {
   const [tvf, setTvf] = useState(defaultTvShow());
   const [cf, setCf] = useState(defaultCartoon());
   const [mgf, setMgf] = useState(defaultManga());
+  const [nvf, setNvf] = useState(defaultNovel());
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
 
@@ -338,11 +392,12 @@ export default function Add() {
   const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
   const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
   const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
+  const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes, mgRes] =
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes, mgRes, nvRes] =
           await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
@@ -353,6 +408,7 @@ export default function Add() {
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
             fetch("/api/manga/", { credentials: "include" }),
+            fetch("/api/novel/", { credentials: "include" }),
           ]);
         const [
           anime,
@@ -364,6 +420,7 @@ export default function Add() {
           tvShows,
           cartoons,
           mangas,
+          novels,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -374,6 +431,7 @@ export default function Add() {
           tvRes.json(),
           cRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -384,6 +442,7 @@ export default function Add() {
         setAllTvShows(tvShows);
         setAllCartoons(cartoons);
         setAllMangas(mangas);
+        setAllNovels(novels);
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -438,6 +497,15 @@ export default function Add() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    function handleClick(e) {
+      if (novelFillRef.current && !novelFillRef.current.contains(e.target))
+        setNovelFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Auto-fill results
   const fillResults = fillQuery
     ? allAnime
@@ -474,6 +542,23 @@ export default function Add() {
             m.manga_name_alt,
           ].some(
             (n) => n && cleanString(n).includes(cleanString(mangaFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
+  const novelFillResults = novelFillQuery
+    ? allNovels
+        .filter((n) =>
+          [
+            n.novel_name_cn,
+            n.novel_name_en,
+            n.novel_name_roman,
+            n.novel_name_jp,
+            n.novel_name_alt,
+          ].some(
+            (name) =>
+              name && cleanString(name).includes(cleanString(novelFillQuery)),
           ),
         )
         .slice(0, 10)
@@ -547,6 +632,29 @@ export default function Add() {
     }));
     setMangaFillQuery("");
     setMangaFillOpen(false);
+    showToast("success", "Auto-filled fields from existing entry.");
+  }
+
+  function applyNovelAutofill(novel) {
+    const f = allFranchises.find((x) => x.system_id === novel.franchise_id);
+    const s = allSeries.find((x) => x.system_id === novel.series_id);
+    setNvf((p) => ({
+      ...p,
+      novel_name_cn: novel.novel_name_cn || "",
+      novel_name_en: novel.novel_name_en || "",
+      novel_name_roman: novel.novel_name_roman || "",
+      novel_name_jp: novel.novel_name_jp || "",
+      novel_name_alt: novel.novel_name_alt || "",
+      franchise_id: novel.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: novel.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: novel.region || "",
+      type: novel.type || "",
+      is_main: novel.is_main || "",
+    }));
+    setNovelFillQuery("");
+    setNovelFillOpen(false);
     showToast("success", "Auto-filled fields from existing entry.");
   }
 
@@ -629,6 +737,7 @@ export default function Add() {
       else if (activeTab === "tv-show") await submitTvShow();
       else if (activeTab === "cartoon") await submitCartoon();
       else if (activeTab === "manga") await submitManga();
+      else if (activeTab === "novel") await submitNovel();
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
@@ -1673,6 +1782,174 @@ export default function Add() {
     setAllMangas((prev) => [...prev, created]);
   }
 
+  async function submitNovel() {
+    if (!nvf.novel_name_cn && !nvf.novel_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!nvf.franchise_id && !nvf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    let franchiseId = nvf.franchise_id;
+    if (!franchiseId && nvf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Novel",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: nvf.novel_name_en || null,
+          franchise_name_cn: nvf.novel_name_cn || null,
+          franchise_name_roman: nvf.novel_name_roman || null,
+          franchise_name_jp: nvf.novel_name_jp || null,
+          franchise_name_alt: nvf.novel_name_alt || null,
+          franchise_type: "Novel",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = nvf.series_id;
+    if (!seriesId && nvf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: nvf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: nvf.novel_name_en || null,
+          series_name_cn: nvf.novel_name_cn || null,
+          series_name_alt: nvf.novel_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    const novelNameEachCn = nvf.novel_name_each.length > 0
+      ? Object.fromEntries(nvf.novel_name_each.filter((e) => e.cn.trim()).map((e) => [e.key, e.cn.trim()]))
+      : null;
+    const novelNameEachEn = nvf.novel_name_each.length > 0
+      ? Object.fromEntries(nvf.novel_name_each.filter((e) => e.en.trim()).map((e) => [e.key, e.en.trim()]))
+      : null;
+
+    const payload = {
+      novel_name_cn: nvf.novel_name_cn || null,
+      novel_name_en: nvf.novel_name_en || null,
+      novel_name_roman: nvf.novel_name_roman || null,
+      novel_name_jp: nvf.novel_name_jp || null,
+      novel_name_alt: nvf.novel_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: nvf.region || null,
+      type: nvf.type || null,
+      is_main: nvf.is_main || null,
+      serialization_status: nvf.serialization_status || null,
+      reading_status: nvf.reading_status || "Might Read",
+      progress_display: nvf.progress_display || null,
+      vol_total_original: nvf.vol_total_original !== "" ? parseFloat(nvf.vol_total_original) : null,
+      vol_total_tw: nvf.vol_total_tw !== "" ? parseFloat(nvf.vol_total_tw) : null,
+      vol_fin: nvf.vol_fin !== "" ? parseFloat(nvf.vol_fin) : 0,
+      arc_total: nvf.arc_total !== "" ? parseFloat(nvf.arc_total) : null,
+      arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : null,
+      ch_total: nvf.ch_total !== "" ? parseFloat(nvf.ch_total) : null,
+      ch_fin: nvf.ch_fin !== "" ? parseFloat(nvf.ch_fin) : 0,
+      my_rating: nvf.my_rating || null,
+      mal_rating: nvf.mal_rating !== "" ? parseFloat(nvf.mal_rating) : null,
+      mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
+      anilist_rating: nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
+      author: nvf.author || null,
+      illustrator: nvf.illustrator || null,
+      release_year: nvf.release_year !== "" ? parseInt(nvf.release_year) : null,
+      end_year: nvf.end_year !== "" ? parseInt(nvf.end_year) : null,
+      publisher_tw: nvf.publisher_tw || null,
+      prequel_id: nvf.prequel_id || null,
+      sequel_id: nvf.sequel_id || null,
+      read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
+      novel_name_each_cn: novelNameEachCn && Object.keys(novelNameEachCn).length > 0 ? novelNameEachCn : null,
+      novel_name_each_en: novelNameEachEn && Object.keys(novelNameEachEn).length > 0 ? novelNameEachEn : null,
+      mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
+      mal_link: nvf.mal_link || null,
+      anilist_link: nvf.anilist_link || null,
+      source_other:
+        nvf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              nvf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: nvf.read_next ?? false,
+      to_reread: nvf.to_reread ?? false,
+      cover_image_file: nvf.cover_image_file || null,
+      remark: nvf.remark || null,
+    };
+
+    const res = await fetch("/api/novel/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    window.scrollTo(0, 0);
+    showToast("success", "Novel appended successfully.");
+    setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
+    setNvf(defaultNovel());
+    setAllNovels((prev) => [...prev, created]);
+  }
+
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
     label: getDisplayName(f, "franchise"),
@@ -1745,6 +2022,18 @@ export default function Add() {
       .join(" "),
   }));
 
+  const seriesItemsForNovel = (
+    nvf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const optionCategories = [
     ...new Set(allOptions.map((o) => o.category)),
   ].sort();
@@ -1767,6 +2056,7 @@ export default function Add() {
     { key: "tv-show", icon: "fa-video", label: "Add TV Show" },
     { key: "cartoon", icon: "fa-paint-brush", label: "Add Cartoon" },
     { key: "manga", icon: "fa-book", label: "Add Manga Entry" },
+    { key: "novel", icon: "fa-book-open", label: "Add Novel Entry" },
     { key: "franchise", icon: "fa-sitemap", label: "Add Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Add Series" },
     { key: "options", icon: "fa-cog", label: "Add System Option" },
@@ -1910,6 +2200,23 @@ export default function Add() {
             allFranchises={allFranchises}
             seriesItemsForManga={seriesItemsForManga}
             allOptions={allOptions}
+          />
+        )}
+
+        {/* ═══ NOVEL TAB ═══ */}
+        {activeTab === "novel" && (
+          <NovelAddTab
+            nvf={nvf}
+            unv={unv}
+            novelFillQuery={novelFillQuery}
+            setNovelFillQuery={setNovelFillQuery}
+            novelFillOpen={novelFillOpen}
+            setNovelFillOpen={setNovelFillOpen}
+            novelFillRef={novelFillRef}
+            novelFillResults={novelFillResults}
+            applyNovelAutofill={applyNovelAutofill}
+            allFranchises={allFranchises}
+            seriesItemsForNovel={seriesItemsForNovel}
           />
         )}
 
