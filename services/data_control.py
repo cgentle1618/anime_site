@@ -175,6 +175,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         ]
         bulk_overwrite_sheet("Manga", manga_matrix)
 
+        novel_entries = db.query(Novel).all()
+        novel_headers = [c.name for c in Novel.__table__.columns]
+        novel_matrix = [novel_headers] + [
+            format_model_for_sheet(n) for n in novel_entries
+        ]
+        bulk_overwrite_sheet("Novel", novel_matrix)
+
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
         return {"status": "success", "message": "All tabs backed up to Google Sheets"}
@@ -923,6 +930,25 @@ async def execute_fill_all(db: Session, request: Request, action_type: str = "Ma
                     total_processed += data.get("processed", 0)
                 elif data.get("status") == "error":
                     sub_errors.append(data.get("message", "Fill Manga failed"))
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
+        # Fill Novel
+        async for message in execute_fill_novel(
+            db,
+            request,
+            action_specific="Fill Novel",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Fill Novel failed"))
             yield message
 
         if await request.is_disconnected():
@@ -2315,6 +2341,25 @@ async def execute_replace_all(
         if await request.is_disconnected():
             raise asyncio.CancelledError()
 
+        # Replace Novel
+        async for message in execute_replace_novel(
+            db,
+            request,
+            action_specific="Replace Novel",
+            action_type=action_type,
+            log_action=False,
+        ):
+            if message.startswith("data: "):
+                data = json.loads(message[6:])
+                if data.get("status") == "success":
+                    total_processed_across_all += data.get("processed", 0)
+                elif data.get("status") == "error":
+                    sub_errors.append(data.get("message", "Replace Novel failed"))
+            yield message
+
+        if await request.is_disconnected():
+            raise asyncio.CancelledError()
+
         if sub_errors:
             error_summary = "; ".join(sub_errors)
             log_data_control(
@@ -2392,6 +2437,7 @@ def execute_pull_specific(
         "Anime Movies": AnimeMovies,
         "Cartoons": Cartoon,
         "Manga": Manga,
+        "Novel": Novel,
         "Movies": Movies,
         "TV Shows": TVShows,
         "System Options": SystemOption,
@@ -2405,6 +2451,7 @@ def execute_pull_specific(
         "Anime Movies": parse_anime_movie_from_sheet,
         "Cartoons": parse_cartoon_from_sheet,
         "Manga": parse_manga_from_sheet,
+        "Novel": parse_novel_from_sheet,
         "Movies": parse_movie_from_sheet,
         "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
@@ -2478,6 +2525,20 @@ def execute_pull_specific(
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_manga_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Novel uses resolve_novel_parent_hierarchy (auto-creates franchise with type "Novel", looks up series)
+        elif tab_name == "Novel" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("novel_name_en"),
+                "cn": clean_header_dict.get("novel_name_cn"),
+                "roman": clean_header_dict.get("novel_name_roman"),
+                "jp": clean_header_dict.get("novel_name_jp"),
+                "alt": clean_header_dict.get("novel_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_novel_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
@@ -2807,6 +2868,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "TV Shows",
         "Cartoons",
         "Manga",
+        "Novel",
         "Seasonal",
     ]
 
