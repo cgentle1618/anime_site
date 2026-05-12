@@ -102,6 +102,15 @@ MANGA_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+NOVEL_FIELDS_TO_FILL = [
+    "serialization_status",
+    "release_year",
+    "end_year",
+    "mal_rating",
+    "mal_rank",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================

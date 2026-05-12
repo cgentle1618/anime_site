@@ -20,6 +20,7 @@ from models import (
     AnimeMovies,
     Cartoon,
     Manga,
+    Novel,
     Movies,
     TVShows,
     Franchise,
@@ -28,7 +29,7 @@ from models import (
     SystemOption,
 )
 
-from services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_data
+from services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
 from services.imdb import fetch_imdb_data
 from services.tmdb import fetch_tmdb_tv_season_data
 from services.image_manager import download_cover_image
@@ -41,6 +42,7 @@ from utils.utils import (
     CARTOON_TV_FIELDS_TO_FILL,
     CARTOON_MOVIE_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
+    NOVEL_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
@@ -56,6 +58,7 @@ from utils.jikan_utils import (
     map_jikan_to_anime_data,
     map_jikan_to_anime_movie_data,
     map_jikan_to_manga_data,
+    map_jikan_to_novel_data,
 )
 from utils.imdb_utils import (
     _parse_season_number,
@@ -590,6 +593,86 @@ def resolve_manga_parent_hierarchy(
     return final_franchise_id, final_series_id
 
 
+def resolve_novel_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
+    """
+    Ensures valid franchise_id and series_id UUIDs for a Novel entry.
+    Franchise: valid UUID pass-through; null/string → search by name across all name fields;
+    not found → auto-create with franchise_type="Novel".
+    Series: non-string pass-through; non-empty string → search by name; not found → set null.
+    Returns (final_franchise_id, final_series_id).
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        final_franchise_id = franchise_id
+    else:
+        valid_names = set()
+        for lang_key in ["en", "cn", "roman", "jp", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        search_conditions = []
+        for name_str in valid_names:
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_roman.ilike(name_str),
+                    Franchise.franchise_name_jp.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing = None
+        if search_conditions:
+            existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+        if existing:
+            final_franchise_id = existing.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise for Novel: {final_franchise_id}"
+            )
+        else:
+            new_fran = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type="Novel",
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_roman=names.get("roman"),
+                franchise_name_jp=names.get("jp"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_fran)
+            db.flush()
+            final_franchise_id = new_fran.system_id
+            logger.info(
+                f"Auto-created missing Franchise for Novel: {final_franchise_id}"
+            )
+
+    final_series_id = series_id
+    if isinstance(series_id, str):
+        if series_id.strip():
+            series_obj = (
+                db.query(Series)
+                .filter(
+                    or_(
+                        Series.series_name_en == series_id,
+                        Series.series_name_cn == series_id,
+                        Series.series_name_alt == series_id,
+                    )
+                )
+                .first()
+            )
+            final_series_id = series_obj.system_id if series_obj else None
+        else:
+            final_series_id = None
+
+    return final_franchise_id, final_series_id
+
+
 # ==========================================
 # CHECKING LOGICS
 # ==========================================
@@ -727,6 +810,27 @@ def has_missing_values_manga(manga: Manga) -> bool:
 
     if manga.serialization_status == "完結":
         if manga.vol_total is None and manga.ch_total is None:
+            return True
+
+    return False
+
+
+def has_missing_values_novel(novel: Novel) -> bool:
+    """
+    Returns True if any required fill field is blank.
+    Special case: vol_total_original and ch_total are only required when serialization_status == "完結".
+    Gate: if mal_link is null, returns False (skip entirely — no MAL data source available).
+    """
+    if novel.mal_link is None:
+        return False
+
+    for field in NOVEL_FIELDS_TO_FILL:
+        val = getattr(novel, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+
+    if novel.serialization_status == "完結":
+        if novel.vol_total_original is None and novel.ch_total is None:
             return True
 
     return False
@@ -1480,6 +1584,81 @@ def find_duplicate_manga(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_novel(db: Session) -> list[list[dict]]:
+    """
+    Finds Novel entries that share the same (franchise_id, series_id, is_main)
+    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    novels = db.query(Novel).filter(Novel.franchise_id.isnot(None)).all()
+
+    def _key(n: Novel) -> tuple:
+        return (
+            str(n.franchise_id),
+            str(n.series_id) if n.series_id else None,
+            n.is_main,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for n in novels:
+        by_key.setdefault(_key(n), []).append(n)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    novel_map = {str(n.system_id): n for n in novels}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for nid in novel_map:
+        clusters.setdefault(find(nid), []).append(nid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": nid,
+                        "franchise_id": str(novel_map[nid].franchise_id),
+                        "series_id": (
+                            str(novel_map[nid].series_id)
+                            if novel_map[nid].series_id
+                            else None
+                        ),
+                        "is_main": novel_map[nid].is_main,
+                        "novel_name_cn": novel_map[nid].novel_name_cn,
+                        "novel_name_en": novel_map[nid].novel_name_en,
+                        "novel_name_roman": novel_map[nid].novel_name_roman,
+                        "novel_name_jp": novel_map[nid].novel_name_jp,
+                        "novel_name_alt": novel_map[nid].novel_name_alt,
+                    }
+                    for nid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -1491,6 +1670,7 @@ def find_all_duplicates(db: Session) -> dict:
         "movie": find_duplicate_movie(db),
         "tv_show": find_duplicate_tv_show(db),
         "manga": find_duplicate_manga(db),
+        "novel": find_duplicate_novel(db),
         "system_options": find_duplicate_system_options(db),
     }
 
@@ -1508,7 +1688,7 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     return False
 
 
-def apply_extract_mal_id_manga_novel(entry: Manga) -> bool:
+def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
     """Extracts MAL manga ID from mal_link and writes it to mal_id. Returns True if set."""
     mal_id = extract_mal_id_manga_novel(entry.mal_link)
     if mal_id:
@@ -2119,7 +2299,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
         return
 
     try:
-        raw_data = fetch_jikan_manga_data(mal_id)
+        raw_data = fetch_jikan_manga_novel_data(mal_id)
         if not raw_data:
             return
 
@@ -2154,6 +2334,56 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
     except Exception as e:
         logger.error(
             f"MAL Autofill failed for Manga ID {manga.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) -> None:
+    """
+    Enriches a single Novel entry with Jikan API data. Does not commit — caller is responsible.
+    Fill-only: serialization_status, release_year, end_year.
+    vol_total_original and ch_total are filled only when serialization_status == "完結".
+    Ratings always replaced when force_replace_ratings=True.
+    """
+    mal_id = novel.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_jikan_manga_novel_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_jikan_to_novel_data(raw_data)
+
+        if novel.serialization_status is None:
+            novel.serialization_status = j_data.get("serialization_status")
+        if novel.release_year is None:
+            novel.release_year = j_data.get("release_year")
+        if novel.end_year is None:
+            novel.end_year = j_data.get("end_year")
+
+        if novel.serialization_status == "完結":
+            if novel.vol_total_original is None:
+                novel.vol_total_original = j_data.get("vol_total_original")
+            if novel.ch_total is None:
+                novel.ch_total = j_data.get("ch_total")
+
+        if force_replace_ratings or novel.mal_rating is None:
+            novel.mal_rating = j_data.get("mal_rating") or novel.mal_rating
+        if force_replace_ratings or novel.mal_rank is None:
+            raw_rank = j_data.get("mal_rank")
+            novel.mal_rank = str(raw_rank) if raw_rank else novel.mal_rank
+
+        if not novel.cover_image_file and j_data.get("cover_image_url"):
+            filename = download_cover_image(
+                j_data.get("cover_image_url"), str(novel.system_id)
+            )
+            if filename:
+                novel.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"MAL Autofill failed for Novel ID {novel.system_id} (MAL {mal_id}): {e}"
         )
 
 
@@ -2393,6 +2623,42 @@ def mark_reading_completed(entry: Manga) -> None:
     entry.vol_fin_page = 0
 
 
+def mark_novel_completed(entry: Novel) -> None:
+    """Sets a novel entry to a fully finished reading state."""
+    entry.serialization_status = "完結"
+    entry.reading_status = "Completed"
+
+    # vol: set all three to the max of the three
+    vol_vals = [
+        v
+        for v in [entry.vol_total_original, entry.vol_total_tw, entry.vol_fin]
+        if v is not None
+    ]
+    if vol_vals:
+        vol_max = max(vol_vals)
+        entry.vol_fin = vol_max
+        if entry.vol_total_original is not None:
+            entry.vol_total_original = vol_max
+        if entry.vol_total_tw is not None:
+            entry.vol_total_tw = vol_max
+
+    # arc: set both to max of the two
+    arc_vals = [v for v in [entry.arc_total, entry.arc_fin] if v is not None]
+    if arc_vals:
+        arc_max = max(arc_vals)
+        entry.arc_fin = arc_max
+        if entry.arc_total is not None:
+            entry.arc_total = arc_max
+
+    # ch: set both to max of the two
+    ch_vals = [v for v in [entry.ch_total, entry.ch_fin] if v is not None]
+    if ch_vals:
+        ch_max = max(ch_vals)
+        entry.ch_fin = ch_max
+        if entry.ch_total is not None:
+            entry.ch_total = ch_max
+
+
 # ==========================================
 # REPLACE for Single Entry
 # ==========================================
@@ -2480,6 +2746,15 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
 
     if not bulk:
         derive_related_manga(db)
+
+
+def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single Novel entry.
+    No post_processing and no derive_related — novel has neither.
+    """
+    apply_extract_mal_id_manga_novel(novel)
+    autofill_novel_from_mal(novel, force_replace_ratings=True)
 
 
 # ==========================================
@@ -2789,6 +3064,50 @@ def extract_system_options_from_manga(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"Scanned {len(mangas)} entries, created {len(new_options)} missing system options.",
+    }
+
+
+_NOVEL_OPTION_FIELD_MAP = {
+    "Novel Author": "author",
+    "Novel Illustrator": "illustrator",
+    "Novel Publisher TW": "publisher_tw",
+}
+
+
+def extract_system_options_from_novel(db: Session) -> dict:
+    """
+    Scans all Novel entries for values in author, illustrator, publisher_tw.
+    Any value not already in SystemOption is created.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    novels = db.query(Novel).all()
+    new_options = []
+
+    for category, field in _NOVEL_OPTION_FIELD_MAP.items():
+        for novel in novels:
+            raw = getattr(novel, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_novel: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(novels)} entries, created {len(new_options)} missing system options.",
     }
 
 

@@ -154,6 +154,7 @@ Field: `franchise.franchise_type` — Default: `null`
 | `Anime Movie` |         |
 | `TV or Movie` |         |
 | `Cartoon`     |         |
+| `Novel`       |         |
 
 ---
 
@@ -259,13 +260,14 @@ Field: `region` for manga entries _(future)_ — Default: `null`
 
 Field: `serialization_status` _(future)_ — Default: `null`
 
-| Value    | Default | Notes                 |
-| -------- | ------- | --------------------- |
-| `null`   | Yes     |                       |
-| `連載中` |         | Currently serializing |
-| `停更`   |         | On hiatus             |
-| `腰斬`   |         | Cancelled / axed      |
-| `完結`   |         | Completed             |
+| Value    | Default | Notes                          |
+| -------- | ------- | ------------------------------ |
+| `null`   | Yes     |                                |
+| `連載中` |         | Currently serializing          |
+| `停更`   |         | On hiatus                      |
+| `腰斬`   |         | Cancelled / axed               |
+| `完結`   |         | Completed                      |
+| `未出`   |         | Not yet published (novel only) |
 
 ---
 
@@ -402,3 +404,16 @@ Required metadata fields that should be populated for each entry type. Used by `
 | `mal_rating`           |       |
 | `mal_rank`             |       |
 | `cover_image_file`     |       |
+
+### Novel
+
+| Field                  | Notes                                           |
+| ---------------------- | ----------------------------------------------- |
+| `serialization_status` |                                                 |
+| `release_year`         |                                                 |
+| `end_year`             |                                                 |
+| `mal_rating`           |                                                 |
+| `mal_rank`             |                                                 |
+| `vol_total_original`   | Skipped if `serialization_status` is not `完結` |
+| `ch_total`             | Skipped if `serialization_status` is not `完結` |
+| `cover_image_file`     |                                                 |

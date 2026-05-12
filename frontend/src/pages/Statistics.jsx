@@ -95,7 +95,9 @@ export default function Statistics() {
   const [allTVShows, setAllTVShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
   const [allManga, setAllManga] = useState([]);
+  const [allNovel, setAllNovel] = useState([]);
   const [cartoonCompletionPages, setCartoonCompletionPages] = useState({});
+  const [novelCompletionPages, setNovelCompletionPages] = useState({});
   const [mangaCompletionPages, setMangaCompletionPages] = useState({});
   const [seasonals, setSeasonals] = useState([]);
   const [currentSeason, setCurrentSeason] = useState(null);
@@ -106,7 +108,7 @@ export default function Statistics() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes, cRes, mgRes] =
+        const [fRes, aRes, amRes, mRes, tvRes, sRes, csRes, cRes, mgRes, nvRes] =
           await Promise.all([
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
@@ -117,6 +119,7 @@ export default function Statistics() {
             fetch("/api/seasonal/current-season", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
             fetch("/api/manga/", { credentials: "include" }),
+            fetch("/api/novel/", { credentials: "include" }),
           ]);
         if (
           !fRes.ok ||
@@ -127,7 +130,8 @@ export default function Statistics() {
           !sRes.ok ||
           !csRes.ok ||
           !cRes.ok ||
-          !mgRes.ok
+          !mgRes.ok ||
+          !nvRes.ok
         )
           throw new Error("Failed to load data.");
         const [
@@ -140,6 +144,7 @@ export default function Statistics() {
           csData,
           cData,
           mgData,
+          nvData,
         ] = await Promise.all([
           fRes.json(),
           aRes.json(),
@@ -150,6 +155,7 @@ export default function Statistics() {
           csRes.json(),
           cRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         setCurrentSeason(csData.current_season);
         setFranchises(fData);
@@ -159,6 +165,7 @@ export default function Statistics() {
         setAllTVShows(tvData);
         setAllCartoons(cData);
         setAllManga(mgData);
+        setAllNovel(nvData);
         const fMap = {};
         fData.forEach((f) => {
           fMap[String(f.system_id)] = f;
@@ -170,6 +177,7 @@ export default function Statistics() {
           ...mData,
           ...tvData,
           ...mgData,
+          ...nvData,
         ];
         const byFranchise = {};
         allEntries.forEach((e) => {
@@ -676,7 +684,7 @@ export default function Statistics() {
             dev: false,
           },
           { key: "manga", label: "Manga", icon: "fa-book", dev: false },
-          { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
+          { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
         ];
 
         const grouped = {};
@@ -1301,25 +1309,63 @@ export default function Statistics() {
                 );
               })()}
 
-            {/* Under-development tabs */}
-            {![
-              "anime",
-              "anime-movie",
-              "movie",
-              "tv-show",
-              "cartoon",
-              "manga",
-            ].includes(watchNextTab) && (
-              <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
-                <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
-                  <i className="fas fa-list-ol text-brand text-xl"></i>
-                </div>
-                <p className="text-gray-700 font-bold">Under Development</p>
-                <p className="text-gray-400 text-sm font-medium mt-1">
-                  This section is coming soon.
-                </p>
-              </div>
-            )}
+            {/* Novel tab */}
+            {watchNextTab === "novel" &&
+              (() => {
+                const readNextNovels = allNovel.filter((n) => n.read_next);
+                if (readNextNovels.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-book-open text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No novels in read list.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "Read Next" on a novel entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {readNextNovels.map((n) => {
+                      const name =
+                        n.novel_name_cn ||
+                        n.novel_name_en ||
+                        n.novel_name_roman ||
+                        "—";
+                      return (
+                        <Link
+                          key={n.system_id}
+                          to={`/novel/${n.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(n.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {n.serialization_status && (
+                              <span className="text-teal-300 text-[10px] font-bold">
+                                {n.serialization_status}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
           </section>
         );
       })()}
@@ -1348,7 +1394,7 @@ export default function Statistics() {
             dev: false,
           },
           { key: "manga", label: "Manga", icon: "fa-book", dev: false },
-          { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
+          { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
         ];
 
         const rewatchItems = franchises
@@ -1758,6 +1804,70 @@ export default function Statistics() {
                 );
               })()}
 
+            {/* Novel tab */}
+            {rewatchTab === "novel" &&
+              (() => {
+                const rereadNovels = allNovel
+                  .filter((n) => n.to_reread)
+                  .sort((a, b) =>
+                    (a.novel_name_en || a.novel_name_cn || "").localeCompare(
+                      b.novel_name_en || b.novel_name_cn || "",
+                    ),
+                  );
+                if (rereadNovels.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                      <i className="fas fa-redo text-3xl text-gray-300 mb-3"></i>
+                      <p className="text-gray-500 font-medium">
+                        No novels marked for re-read.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Toggle "To Re-read" on a novel entry.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {rereadNovels.map((n) => {
+                      const name =
+                        n.novel_name_cn ||
+                        n.novel_name_en ||
+                        n.novel_name_roman ||
+                        "—";
+                      return (
+                        <Link
+                          key={n.system_id}
+                          to={`/novel/${n.system_id}`}
+                          className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <div className="aspect-[3/4] bg-gray-100">
+                            <img
+                              src={getCoverUrl(n.cover_image_file)}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = FALLBACK_SVG;
+                              }}
+                            />
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
+                            <p className="text-white text-xs font-bold leading-tight truncate">
+                              {name}
+                            </p>
+                            {n.my_rating && (
+                              <span className="text-yellow-300 text-[10px] font-black">
+                                {n.my_rating}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             {/* Under-development tabs */}
             {![
               "anime",
@@ -1766,6 +1876,7 @@ export default function Statistics() {
               "tv-show",
               "cartoon",
               "manga",
+              "novel",
             ].includes(rewatchTab) && (
               <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                 <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
@@ -1820,7 +1931,7 @@ export default function Statistics() {
                 dev: false,
               },
               { key: "manga", label: "Manga", icon: "fa-book", dev: false },
-              { key: "novel", label: "Novel", icon: "fa-book-open", dev: true },
+              { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -2808,6 +2919,172 @@ export default function Statistics() {
             );
           })()}
 
+        {/* Novel tab */}
+        {completionsTab === "novel" &&
+          (() => {
+            const NOVEL_GROUPS = [
+              { key: "JP", label: "JP" },
+              { key: "CN", label: "CN" },
+              { key: "TW", label: "TW" },
+              { key: "KR", label: "KR" },
+              { key: "Western", label: "Western" },
+              { key: "others", label: "Others" },
+            ];
+            const completed = allNovel
+              .filter((n) => n.reading_status === "Completed" && n.completed_at)
+              .sort(
+                (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+              );
+            const novelGrouped = {
+              JP: [],
+              CN: [],
+              TW: [],
+              KR: [],
+              Western: [],
+              others: [],
+            };
+            completed.forEach((n) => {
+              const key = ["JP", "CN", "TW", "KR", "Western"].includes(
+                n.region,
+              )
+                ? n.region
+                : "others";
+              novelGrouped[key].push(n);
+            });
+
+            if (completed.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                  <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                  <p className="text-gray-500 font-medium">
+                    No novel completions recorded yet.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {NOVEL_GROUPS.map(({ key, label }) => {
+                  const items = novelGrouped[key];
+                  if (items.length === 0) return null;
+                  const PAGE_SIZE = 10;
+                  const page = novelCompletionPages[key] ?? 0;
+                  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                  const pageItems = items.slice(
+                    page * PAGE_SIZE,
+                    (page + 1) * PAGE_SIZE,
+                  );
+                  const setPage = (p) =>
+                    setNovelCompletionPages((prev) => ({ ...prev, [key]: p }));
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                        <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                          {items.length}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        {pageItems.map((n, idx) => {
+                          const globalIdx = page * PAGE_SIZE + idx;
+                          const franchise =
+                            franchiseMap[String(n.franchise_id)];
+                          const name =
+                            n.novel_name_cn ||
+                            n.novel_name_en ||
+                            n.novel_name_roman ||
+                            "—";
+                          const franchiseName = franchise
+                            ? franchise.franchise_name_cn ||
+                              franchise.franchise_name_en ||
+                              franchise.franchise_name_roman
+                            : null;
+                          const dateStr = new Date(
+                            n.completed_at,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          });
+                          return (
+                            <Link
+                              key={n.system_id}
+                              to={`/novel/${n.system_id}`}
+                              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                                idx < pageItems.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                                {globalIdx + 1}
+                              </span>
+                              <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                                <img
+                                  src={getCoverUrl(n.cover_image_file)}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = FALLBACK_SVG;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {name}
+                                </p>
+                                {franchiseName && (
+                                  <p className="text-xs text-gray-400 font-medium truncate">
+                                    {franchiseName}
+                                  </p>
+                                )}
+                              </div>
+                              {n.my_rating && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                  {n.my_rating}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                                {dateStr}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-3 px-1">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                            Prev
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">
+                            Page {page + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page >= totalPages - 1}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            Next
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
         {/* Under-development tabs */}
         {![
           "anime",
@@ -2816,6 +3093,7 @@ export default function Statistics() {
           "tv-show",
           "cartoon",
           "manga",
+          "novel",
         ].includes(completionsTab) && (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
             <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">

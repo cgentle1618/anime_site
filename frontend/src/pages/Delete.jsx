@@ -9,6 +9,7 @@ const TABS = [
   "tv-show",
   "cartoon",
   "manga",
+  "novel",
   "franchise",
   "series",
   "options",
@@ -58,6 +59,15 @@ function getDisplayTitle(item, type) {
       item.manga_name_roman ||
       item.manga_name_jp ||
       item.manga_name_alt ||
+      "Unknown"
+    );
+  if (type === "novel")
+    return (
+      item.novel_name_cn ||
+      item.novel_name_en ||
+      item.novel_name_roman ||
+      item.novel_name_jp ||
+      item.novel_name_alt ||
       "Unknown"
     );
   if (type === "franchise")
@@ -147,6 +157,7 @@ export default function Delete() {
     "tv-show": [],
     cartoon: [],
     manga: [],
+    novel: [],
     franchise: [],
     series: [],
     options: [],
@@ -160,6 +171,7 @@ export default function Delete() {
   const [selectedTvShow, setSelectedTvShow] = useState(null);
   const [selectedCartoon, setSelectedCartoon] = useState(null);
   const [selectedManga, setSelectedManga] = useState(null);
+  const [selectedNovel, setSelectedNovel] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -172,7 +184,7 @@ export default function Delete() {
 
   const loadDb = useCallback(async () => {
     try {
-      const [aRes, fRes, sRes, oRes, amRes, mRes, tvRes, ctRes, mgRes] =
+      const [aRes, fRes, sRes, oRes, amRes, mRes, tvRes, ctRes, mgRes, nvRes] =
         await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
@@ -183,8 +195,9 @@ export default function Delete() {
           fetch("/api/tv-shows/", { credentials: "include" }),
           fetch("/api/cartoon/", { credentials: "include" }),
           fetch("/api/manga/", { credentials: "include" }),
+          fetch("/api/novel/", { credentials: "include" }),
         ]);
-      const [a, f, s, o, am, mv, tv, ct, mg] = await Promise.all([
+      const [a, f, s, o, am, mv, tv, ct, mg, nv] = await Promise.all([
         aRes.json(),
         fRes.json(),
         sRes.json(),
@@ -194,6 +207,7 @@ export default function Delete() {
         tvRes.json(),
         ctRes.json(),
         mgRes.json(),
+        nvRes.json(),
       ]);
       setDb({
         anime: a,
@@ -202,6 +216,7 @@ export default function Delete() {
         "tv-show": tv,
         cartoon: ct,
         manga: mg,
+        novel: nv,
         franchise: f,
         series: s,
         options: o,
@@ -409,6 +424,31 @@ export default function Delete() {
         return;
       }
 
+      if (type === "novel") {
+        const res = await fetch(`/api/novel/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete novel");
+        if (orphanSeriesChecked && item.series_id) {
+          await fetch(`/api/series/${item.series_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedNovel(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
       // Cascade deletions
       if (type === "franchise" && cascadeChecked) {
         for (const a of db.anime.filter(
@@ -528,6 +568,7 @@ export default function Delete() {
               setSelectedTvShow(null);
               setSelectedCartoon(null);
               setSelectedManga(null);
+              setSelectedNovel(null);
               setSelectedFranchise(null);
               setSelectedSeries(null);
               setSelectedOption(null);
@@ -1001,6 +1042,88 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("manga", selectedManga)}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* NOVEL TAB */}
+      {tab === "novel" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <SearchBox
+              placeholder="Search novel to delete..."
+              items={db.novel}
+              type="novel"
+              onSelect={setSelectedNovel}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-gray-800 text-sm">
+                    {getDisplayTitle(item, "novel")}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {getFranchiseTitle(item.franchise_id)} ·{" "}
+                    {item.reading_status || item.region || "Unknown"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedNovel && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedNovel.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">
+                    {getDisplayTitle(selectedNovel, "novel")}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedNovel.novel_name_en || "-"}
+                  </p>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedNovel.reading_status && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedNovel.reading_status}
+                      </span>
+                    )}
+                    {selectedNovel.region && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedNovel.region}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedNovel.franchise_id)}
+                    {selectedNovel.series_id &&
+                      ` / ${getSeriesTitle(selectedNovel.series_id)}`}
+                  </p>
+                  <p className="text-xs font-mono text-gray-400">
+                    {selectedNovel.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedNovel(null)}
+                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("novel", selectedNovel)}
                     className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
@@ -1612,6 +1735,81 @@ export default function Delete() {
                 ).length === 0 &&
                 db.manga.filter(
                   (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 1 &&
+                (db.series.filter(
+                  (s) => s.franchise_id === modal.item.franchise_id,
+                ).length === 0 ||
+                  orphanSeriesChecked) && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanFranchiseChecked}
+                      onChange={(e) =>
+                        setOrphanFranchiseChecked(e.target.checked)
+                      }
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Franchise
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Franchise Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan series warning (novel) */}
+              {modal.type === "novel" &&
+                modal.item.series_id &&
+                db.anime.filter((a) => a.series_id === modal.item.series_id)
+                  .length +
+                  db.manga.filter((m) => m.series_id === modal.item.series_id)
+                    .length +
+                  db.novel.filter((n) => n.series_id === modal.item.series_id)
+                    .length ===
+                  1 && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanSeriesChecked}
+                      onChange={(e) => setOrphanSeriesChecked(e.target.checked)}
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Series
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Series Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan franchise warning (novel) */}
+              {modal.type === "novel" &&
+                modal.item.franchise_id &&
+                db.anime.filter(
+                  (a) => a.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["tv-show"].filter(
+                  (t) => t.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.cartoon.filter(
+                  (c) => c.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.manga.filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.novel.filter(
+                  (n) => n.franchise_id === modal.item.franchise_id,
                 ).length === 1 &&
                 (db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,

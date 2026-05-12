@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from utils.jikan_utils import ALLOWED_AIRING_TYPES
 from utils.data_control_utils import log_data_control
 
-from models import Anime, AnimeMovies, Cartoon, Manga, Movies, TVShows
+from models import Anime, AnimeMovies, Cartoon, Manga, Movies, Novel, TVShows
 
 from services.image_manager import cover_image_exists, list_all_cover_images
 from services.other_logics import (
@@ -22,9 +22,11 @@ from services.other_logics import (
     extract_system_options_from_cartoon,
     extract_system_options_from_tv_show,
     extract_system_options_from_manga,
+    extract_system_options_from_novel,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_manga_from_mal,
+    autofill_novel_from_mal,
     autofill_movie_from_imdb,
     autofill_tv_show_from_imdb,
     autofill_cartoon_from_imdb,
@@ -83,6 +85,12 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
             .filter(Manga.cover_image_file.isnot(None))
             .all()
         }
+        | {
+            row[0]
+            for row in db.query(Novel.cover_image_file)
+            .filter(Novel.cover_image_file.isnot(None))
+            .all()
+        }
     )
     entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
     entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
@@ -90,6 +98,7 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
     entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
     entry_map.update({str(e.system_id): e for e in db.query(TVShows).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Manga).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Novel).all()})
 
     should_use = []
     orphaned = []
@@ -188,6 +197,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        novels = db.query(Novel).filter(Novel.cover_image_file.isnot(None)).all()
+        for nv in novels:
+            if not cover_image_exists(str(nv.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(nv.system_id),
+                        "name": nv.display_name or str(nv.system_id),
+                        "entry_type": "novel",
+                    }
+                )
+
     total_checked = len(animes) + (
         0
         if entry_type
@@ -196,6 +216,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(movies)
         + len(tv_shows)
         + len(mangas)
+        + len(novels)
     )
     return {
         "status": "success",
@@ -219,6 +240,7 @@ def bulk_set_cover_image_fields(db: Session) -> dict:
         + db.query(TVShows).filter(TVShows.cover_image_file.is_(None)).all()
         + db.query(Cartoon).filter(Cartoon.cover_image_file.is_(None)).all()
         + db.query(Manga).filter(Manga.cover_image_file.is_(None)).all()
+        + db.query(Novel).filter(Novel.cover_image_file.is_(None)).all()
     )
     for entry in all_entries:
         sid = str(entry.system_id)
@@ -304,6 +326,17 @@ def bulk_download_missing_covers(
         if manga.cover_image_file:
             downloaded += 1
 
+    novel_query = db.query(Novel).filter(Novel.cover_image_file.isnot(None))
+    for novel in _collect(novel_query, Novel):
+        total += 1
+        if novel.mal_link:
+            novel.cover_image_file = None
+            autofill_novel_from_mal(novel, force_replace_ratings=False)
+            if novel.cover_image_file:
+                downloaded += 1
+        else:
+            skipped += 1
+
     if total:
         db.commit()
     parts = [f"Downloaded {downloaded} of {total} missing cover images."]
@@ -366,6 +399,7 @@ def run_sync(db: Session) -> dict:
     run_sync_tv_show(db)
     run_sync_cartoon(db)
     run_sync_manga(db)
+    run_sync_novel(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
@@ -411,6 +445,14 @@ def run_sync_manga(db: Session) -> dict:
     return {
         "status": "success",
         "message": "System options extracted from manga.",
+    }
+
+
+def run_sync_novel(db: Session) -> dict:
+    extract_system_options_from_novel(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from novel.",
     }
 
 

@@ -12,6 +12,7 @@ import {
 import AnimeCard from "../components/AnimeCard";
 import AnimeMovieCard from "../components/AnimeMovieCard";
 import MangaCard from "../components/MangaCard";
+import NovelCard from "../components/NovelCard";
 import MovieCard from "../components/MovieCard";
 import TVCard from "../components/TVCard";
 import CartoonCard from "../components/CartoonCard";
@@ -135,6 +136,7 @@ export default function FranchisePage() {
   const [tvShowList, setTvShowList] = useState([]);
   const [cartoonList, setCartoonList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
+  const [novelList, setNovelList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -174,6 +176,15 @@ export default function FranchisePage() {
     region: new Set(),
   });
 
+  // ── Novel tab state ───────────────────────────────────────────────────────
+  const [novelSort, setNovelSort] = useState("title");
+  const [novelGroupBySeries, setNovelGroupBySeries] = useState(false);
+  const [novelFilters, setNovelFilters] = useState({
+    serializationStatus: new Set(),
+    readingStatus: new Set(),
+    region: new Set(),
+  });
+
   // ── Movies tab state ──────────────────────────────────────────────────────
   const [movSort, setMovSort] = useState("release_date");
   const [movGroupBySeries, setMovGroupBySeries] = useState(true);
@@ -203,7 +214,7 @@ export default function FranchisePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes] =
+        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
           await Promise.all([
             fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
             fetch(`/api/series/?franchise_id=${system_id}`, {
@@ -227,9 +238,12 @@ export default function FranchisePage() {
             fetch(`/api/manga/?franchise_id=${system_id}`, {
               credentials: "include",
             }),
+            fetch(`/api/novel/?franchise_id=${system_id}`, {
+              credentials: "include",
+            }),
           ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, am, m, tv, c, mg] = await Promise.all([
+        const [f, s, a, am, m, tv, c, mg, nv] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
@@ -238,6 +252,7 @@ export default function FranchisePage() {
           tvRes.json(),
           cRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
@@ -247,6 +262,7 @@ export default function FranchisePage() {
         setTvShowList(tv);
         setCartoonList(c);
         setMangaList(mg);
+        setNovelList(nv);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
         setWatchNextGroup(f.watch_next_group || "");
@@ -271,6 +287,10 @@ export default function FranchisePage() {
     [types],
   );
   const hasACGFull = useMemo(() => types.includes("ACG"), [types]);
+  const hasNovel = useMemo(
+    () => types.includes("Novel") || types.includes("ACG"),
+    [types],
+  );
   const hasAnimeMovie = useMemo(() => types.includes("Anime Movie"), [types]);
   const hasMovie = useMemo(() => types.includes("Movie"), [types]);
   const hasTV = useMemo(() => types.includes("TV"), [types]);
@@ -282,6 +302,7 @@ export default function FranchisePage() {
       hasACG && animeList.length && "Anime",
       (hasACG || hasAnimeMovie) && animeMovieList.length && "Anime Movies",
       hasACGFull && mangaList.length && "Manga",
+      hasNovel && novelList.length && "Novel",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -290,6 +311,7 @@ export default function FranchisePage() {
     franchise,
     hasACG,
     hasACGFull,
+    hasNovel,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -297,6 +319,7 @@ export default function FranchisePage() {
     animeList,
     animeMovieList,
     mangaList,
+    novelList,
     movieList,
     tvShowList,
     cartoonList,
@@ -339,6 +362,11 @@ export default function FranchisePage() {
   const handleMangaUpdated = useCallback(
     (u) =>
       setMangaList((p) => p.map((m) => (m.system_id === u.system_id ? u : m))),
+    [],
+  );
+  const handleNovelUpdated = useCallback(
+    (u) =>
+      setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
     [],
   );
 
@@ -524,6 +552,72 @@ export default function FranchisePage() {
       result.push({ type: "standalone", manga: standalone });
     return result;
   }, [filteredAndSortedManga, seriesList]);
+
+  // ── Novel memos ───────────────────────────────────────────────────────────
+  const filteredAndSortedNovel = useMemo(() => {
+    let result = novelList.filter((n) => {
+      if (
+        novelFilters.serializationStatus.size > 0 &&
+        !novelFilters.serializationStatus.has(n.serialization_status || "")
+      )
+        return false;
+      if (
+        novelFilters.region.size > 0 &&
+        !novelFilters.region.has(n.region || "")
+      )
+        return false;
+      if (novelFilters.readingStatus.size > 0) {
+        const rs = n.reading_status || "Might Read";
+        let group = "Might Read";
+        if (rs === "Plan to Read") group = "Planned";
+        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
+          group = "Reading";
+        else if (rs === "Completed") group = "Completed";
+        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
+          group = "Dropped";
+        if (!novelFilters.readingStatus.has(group)) return false;
+      }
+      return true;
+    });
+    result.sort((a, b) => {
+      if (novelSort === "my_rating")
+        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+      if (novelSort === "mal_rating") {
+        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
+        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
+        if (wA !== wB) return wB - wA;
+      }
+      if (novelSort === "release_year")
+        return (
+          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0)
+        );
+      if (novelSort === "end_year")
+        return (parseInt(a.end_year) || 0) - (parseInt(b.end_year) || 0);
+      return (a.novel_name_cn || a.novel_name_en || "").localeCompare(
+        b.novel_name_cn || b.novel_name_en || "",
+      );
+    });
+    return result;
+  }, [novelList, novelFilters, novelSort]);
+
+  const novelSeriesGroups = useMemo(() => {
+    const sm = Object.fromEntries(seriesList.map((s) => [s.system_id, s]));
+    const grouped = {};
+    const standalone = [];
+    filteredAndSortedNovel.forEach((n) => {
+      if (n.series_id && sm[n.series_id]) {
+        (grouped[n.series_id] = grouped[n.series_id] || []).push(n);
+      } else standalone.push(n);
+    });
+    const result = [];
+    seriesList.forEach((s) => {
+      if (grouped[s.system_id]?.length > 0)
+        result.push({ type: "series", series: s, novels: grouped[s.system_id] });
+    });
+    if (standalone.length > 0)
+      result.push({ type: "standalone", novels: standalone });
+    return result;
+  }, [filteredAndSortedNovel, seriesList]);
 
   // ── Movies memos ──────────────────────────────────────────────────────────
   const filteredAndSortedMovies = useMemo(() => {
@@ -760,6 +854,7 @@ export default function FranchisePage() {
       Anime: animeList.length,
       "Anime Movies": animeMovieList.length,
       Manga: mangaList.length,
+      Novel: novelList.length,
       Movies: movieList.length,
       "TV Shows": tvShowList.length,
       Cartoons: cartoonList.length,
@@ -1420,6 +1515,139 @@ export default function FranchisePage() {
                     manga={m}
                     isAdmin={isAdmin}
                     onUpdated={handleMangaUpdated}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* ── Novel tab content ────────────────────────────────────────────── */}
+      {(activeTab === "Novel" || (tabs.length === 1 && tabs[0] === "Novel")) &&
+        novelList.length > 0 && (
+          <div>
+            <SectionHeader
+              icon="fa-book-open"
+              title="Novel"
+              subtitle="Light Novel · Web Novel · Novel"
+              count={filteredAndSortedNovel.length}
+            />
+
+            <div className="flex flex-wrap gap-2 mb-6 items-center">
+              <select
+                value={novelSort}
+                onChange={(e) => setNovelSort(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              >
+                <option value="title">Sort: Title</option>
+                <option value="my_rating">Sort: My Rating</option>
+                <option value="mal_rating">Sort: MAL Rating</option>
+                <option value="release_year">Sort: Release Year</option>
+                <option value="end_year">Sort: End Year</option>
+              </select>
+
+              <div className="w-px h-5 bg-gray-200"></div>
+
+              {["連載中", "完結", "腰斬", "停更"].map((v) => (
+                <button
+                  key={v}
+                  onClick={() =>
+                    toggleSetFilter(setNovelFilters, "serializationStatus", v)
+                  }
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ))}
+
+              <div className="w-px h-5 bg-gray-200"></div>
+
+              {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
+                (v) => (
+                  <button
+                    key={v}
+                    onClick={() =>
+                      toggleSetFilter(setNovelFilters, "readingStatus", v)
+                    }
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  >
+                    {v}
+                  </button>
+                ),
+              )}
+
+              <div className="w-px h-5 bg-gray-200"></div>
+
+              {["JP", "CN", "TW", "KR", "Western"].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ))}
+
+              <div className="w-px h-5 bg-gray-200"></div>
+
+              <button
+                onClick={() => setNovelGroupBySeries((v) => !v)}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                <i className="fas fa-layer-group mr-1"></i>Group by Series
+              </button>
+            </div>
+
+            {filteredAndSortedNovel.length === 0 ? (
+              <EmptyState />
+            ) : novelGroupBySeries ? (
+              <div className="space-y-10">
+                {novelSeriesGroups.map((group) => {
+                  const label =
+                    group.type === "series"
+                      ? getDisplayName(group.series, "series") ||
+                        "Unknown Series"
+                      : "Standalone";
+                  return (
+                    <section
+                      key={
+                        group.type === "series"
+                          ? group.series.system_id
+                          : "standalone"
+                      }
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                          <i
+                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book-open"} text-brand/70`}
+                          ></i>
+                          {label}
+                        </h3>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          {group.novels.length}
+                        </span>
+                        <div className="flex-1 border-t border-gray-100"></div>
+                      </div>
+                      <div className={GRID_CLS}>
+                        {group.novels.map((n) => (
+                          <NovelCard
+                            key={n.system_id}
+                            novel={n}
+                            onUpdated={handleNovelUpdated}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={GRID_CLS}>
+                {filteredAndSortedNovel.map((n) => (
+                  <NovelCard
+                    key={n.system_id}
+                    novel={n}
+                    onUpdated={handleNovelUpdated}
                   />
                 ))}
               </div>

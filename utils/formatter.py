@@ -446,6 +446,66 @@ def parse_manga_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_novel_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Novel sheet into typed data ready for the Database.
+    franchise_id, series_id, prequel_id, sequel_id may be a UUID or a raw string name.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "novel_name_en": parse_from_sheet(raw.get("novel_name_en"), str),
+        "novel_name_cn": parse_from_sheet(raw.get("novel_name_cn"), str),
+        "novel_name_roman": parse_from_sheet(raw.get("novel_name_roman"), str),
+        "novel_name_jp": parse_from_sheet(raw.get("novel_name_jp"), str),
+        "novel_name_alt": parse_from_sheet(raw.get("novel_name_alt"), str),
+        "novel_name_each_cn": _safe_json(raw.get("novel_name_each_cn")),
+        "novel_name_each_en": _safe_json(raw.get("novel_name_each_en")),
+        "region": parse_from_sheet(raw.get("region"), str),
+        "type": parse_from_sheet(raw.get("type"), str),
+        "version": parse_from_sheet(raw.get("version"), str),
+        "is_main": parse_from_sheet(raw.get("is_main"), str),
+        "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
+        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
+        or "Might Read",
+        "vol_total_original": parse_from_sheet(raw.get("vol_total_original"), float),
+        "vol_total_tw": parse_from_sheet(raw.get("vol_total_tw"), float),
+        "vol_fin": parse_from_sheet(raw.get("vol_fin"), float) or 0.0,
+        "arc_total": parse_from_sheet(raw.get("arc_total"), float),
+        "arc_fin": parse_from_sheet(raw.get("arc_fin"), float) or 0.0,
+        "ch_total": parse_from_sheet(raw.get("ch_total"), float),
+        "ch_fin": parse_from_sheet(raw.get("ch_fin"), float) or 0.0,
+        "progress_display": parse_from_sheet(raw.get("progress_display"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
+        "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "author": parse_from_sheet(raw.get("author"), str),
+        "illustrator": parse_from_sheet(raw.get("illustrator"), str),
+        "release_year": parse_from_sheet(raw.get("release_year"), int),
+        "end_year": parse_from_sheet(raw.get("end_year"), int),
+        "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
+        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
+        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
+        "alternative": parse_from_sheet(raw.get("alternative"), str),
+        "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
+        "read_order": parse_from_sheet(raw.get("read_order"), float),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
+        "source_other": _safe_json(raw.get("source_other")),
+        "read_next": parse_from_sheet(raw.get("read_next"), bool),
+        "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "notes": _safe_json(raw.get("notes")),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.

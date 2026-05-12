@@ -7,6 +7,7 @@ import MovieCard from "../components/MovieCard";
 import TVCard from "../components/TVCard";
 import CartoonCard from "../components/CartoonCard";
 import MangaCard from "../components/MangaCard";
+import NovelCard from "../components/NovelCard";
 import { cleanString } from "../utils/anime";
 
 function getFranchiseTitles(f) {
@@ -45,6 +46,7 @@ export default function Search() {
   const [matchedTvShows, setMatchedTvShows] = useState([]);
   const [matchedCartoons, setMatchedCartoons] = useState([]);
   const [matchedMangas, setMatchedMangas] = useState([]);
+  const [matchedNovels, setMatchedNovels] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
@@ -52,6 +54,7 @@ export default function Search() {
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
+  const [allNovels, setAllNovels] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
@@ -84,6 +87,7 @@ export default function Search() {
         const needsTvShow = scope === "all" || scope === "tv-show";
         const needsCartoon = scope === "all" || scope === "cartoon";
         const needsManga = scope === "all" || scope === "manga";
+        const needsNovel = scope === "all" || scope === "novel";
         const needsSeries = scope === "all" || scope === "series";
         const needsSeasonal = scope === "all" || scope === "seasonal";
 
@@ -109,8 +113,9 @@ export default function Search() {
             ? fetch("/api/cartoon/", { credentials: "include" })
             : null,
           needsManga ? fetch("/api/manga/", { credentials: "include" }) : null,
+          needsNovel ? fetch("/api/novel/", { credentials: "include" }) : null,
         ]);
-        const [fRes, aRes, sRes, seaRes, amRes, mvRes, tvRes, cRes, mgRes] =
+        const [fRes, aRes, sRes, seaRes, amRes, mvRes, tvRes, cRes, mgRes, nvRes] =
           fetches;
         if (
           (fRes && !fRes.ok) ||
@@ -121,7 +126,8 @@ export default function Search() {
           (mvRes && !mvRes.ok) ||
           (tvRes && !tvRes.ok) ||
           (cRes && !cRes.ok) ||
-          (mgRes && !mgRes.ok)
+          (mgRes && !mgRes.ok) ||
+          (nvRes && !nvRes.ok)
         )
           throw new Error("Failed to fetch database");
 
@@ -134,12 +140,14 @@ export default function Search() {
         const tvShowResults = tvRes ? await tvRes.json() : [];
         const cartoonResults = cRes ? await cRes.json() : [];
         const mangaResults = mgRes ? await mgRes.json() : [];
+        const novelResults = nvRes ? await nvRes.json() : [];
         setAllAnime(all);
         setAllAnimeMovies(animeMovieResults);
         setAllMovies(movieResults);
         setAllTvShows(tvShowResults);
         setAllCartoons(cartoonResults);
         setAllMangas(mangaResults);
+        setAllNovels(novelResults);
 
         const qClean = cleanString(query);
 
@@ -278,6 +286,21 @@ export default function Search() {
             (a.manga_name_cn || "").localeCompare(b.manga_name_cn || ""),
           );
 
+        // Novel
+        const mnv = novelResults
+          .filter((n) =>
+            [
+              n.novel_name_cn,
+              n.novel_name_en,
+              n.novel_name_roman,
+              n.novel_name_jp,
+              n.novel_name_alt,
+            ].some((v) => cleanString(v).includes(qClean)),
+          )
+          .sort((a, b) =>
+            (a.novel_name_cn || "").localeCompare(b.novel_name_cn || ""),
+          );
+
         setMatchedSeasonal(msea);
         setMatchedFranchises(mf);
         setFilterPillFranchises(pillFranchises);
@@ -288,6 +311,7 @@ export default function Search() {
         setMatchedTvShows(mtv);
         setMatchedCartoons(mc);
         setMatchedMangas(mm);
+        setMatchedNovels(mnv);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -351,6 +375,15 @@ export default function Search() {
     );
   }, []);
 
+  const handleNovelUpdated = useCallback((updated) => {
+    setMatchedNovels((prev) =>
+      prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
+    );
+    setAllNovels((prev) =>
+      prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
+    );
+  }, []);
+
   const showSeasonal = scope === "all" || scope === "seasonal";
   const showFranchise = scope === "all" || scope === "franchise";
   const showSeries = scope === "all" || scope === "series";
@@ -360,6 +393,7 @@ export default function Search() {
   const showTvShow = scope === "all" || scope === "tv-show";
   const showCartoon = scope === "all" || scope === "cartoon";
   const showManga = scope === "all" || scope === "manga";
+  const showNovel = scope === "all" || scope === "novel";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -400,6 +434,7 @@ export default function Search() {
     "tv-show": "TV Show",
     cartoon: "Cartoon",
     manga: "Manga",
+    novel: "Novel",
     seasonal: "Seasonal",
   };
 
@@ -510,6 +545,12 @@ export default function Search() {
           {showManga && matchedMangas.length > 0 && (
             <>
               <span className="font-bold">{matchedMangas.length}</span> manga
+              {showNovel && matchedNovels.length > 0 && " · "}
+            </>
+          )}
+          {showNovel && matchedNovels.length > 0 && (
+            <>
+              <span className="font-bold">{matchedNovels.length}</span> novel
             </>
           )}
         </p>
@@ -871,37 +912,36 @@ export default function Search() {
           </div>
         )}
 
-        {/* Under Development (all scope only) */}
-        {scope === "all" &&
-          [
-            {
-              label: "Novel",
-              icon: "fa-book-open",
-              desc: "Light Novel · Web Novel",
-            },
-          ].map(({ label, icon, desc }) => (
-            <div key={label}>
-              <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-100">
-                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <i className={`fas ${icon} text-gray-400`}></i>
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-gray-400 tracking-tight leading-none">
-                    {label}
-                  </h2>
-                  <p className="text-xs text-gray-400 font-medium mt-0.5">
-                    {desc}
-                  </p>
-                </div>
+        {/* Novel */}
+        {showNovel && matchedNovels.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-book-open text-brand"></i>
               </div>
-              <div className="flex flex-col items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-                <i className="fas fa-tools text-2xl text-gray-300 mb-2"></i>
-                <p className="text-sm font-bold text-gray-400">
-                  Under Development
-                </p>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Novel
+                </h2>
               </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedNovels.length} results
+              </span>
             </div>
-          ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedNovels.map((n) => (
+                <NovelCard
+                  key={n.system_id}
+                  novel={n}
+                  onUpdated={handleNovelUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

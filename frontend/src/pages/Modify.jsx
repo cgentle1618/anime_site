@@ -19,6 +19,7 @@ import FranchiseModifyTab from "./modify-tabs/FranchiseModifyTab";
 import SeriesModifyTab from "./modify-tabs/SeriesModifyTab";
 import OptionsModifyTab from "./modify-tabs/OptionsModifyTab";
 import MangaModifyTab from "./modify-tabs/MangaModifyTab";
+import NovelModifyTab from "./modify-tabs/NovelModifyTab";
 import CartoonModifyTab from "./modify-tabs/CartoonModifyTab";
 import TvShowModifyTab from "./modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "./modify-tabs/MovieModifyTab";
@@ -211,6 +212,7 @@ export default function Modify() {
   const [allTvShows, setAllTvShows] = useState([]);
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
+  const [allNovels, setAllNovels] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -235,6 +237,7 @@ export default function Modify() {
   const [tvmf, setTvmf] = useState({});
   const [cmf, setCmf] = useState({});
   const [cmgf, setCmgf] = useState({});
+  const [cnvf, setCnvf] = useState({});
   const [optValue, setOptValue] = useState("");
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
@@ -245,11 +248,12 @@ export default function Modify() {
   const utv = (k, v) => setTvmf((p) => ({ ...p, [k]: v }));
   const uc = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
   const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
+  const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes, mgRes] =
+        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes, mgRes, nvRes] =
           await Promise.all([
             fetch("/api/anime/", { credentials: "include" }),
             fetch("/api/franchise/", { credentials: "include" }),
@@ -260,6 +264,7 @@ export default function Modify() {
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
             fetch("/api/manga/", { credentials: "include" }),
+            fetch("/api/novel/", { credentials: "include" }),
           ]);
         const [
           anime,
@@ -271,6 +276,7 @@ export default function Modify() {
           tvShows,
           cartoons,
           mangas,
+          novels,
         ] = await Promise.all([
           aRes.json(),
           fRes.json(),
@@ -281,6 +287,7 @@ export default function Modify() {
           tvRes.json(),
           ctRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         setAllAnime(anime);
         setAllFranchises(franchises);
@@ -291,6 +298,7 @@ export default function Modify() {
         setAllTvShows(tvShows);
         setAllCartoons(cartoons);
         setAllMangas(mangas);
+        setAllNovels(novels);
 
         const urlId = searchParams.get("id");
         const urlType = searchParams.get("type");
@@ -308,6 +316,14 @@ export default function Modify() {
             if (mg) {
               openEditorWith(mg, "manga", franchises, series);
               setActiveTab("manga");
+              return;
+            }
+          }
+          if (urlType === "novel") {
+            const nv = novels.find((x) => x.system_id === urlId);
+            if (nv) {
+              openEditorWith(nv, "novel", franchises, series);
+              setActiveTab("novel");
               return;
             }
           }
@@ -571,6 +587,72 @@ export default function Modify() {
     };
   }
 
+  function novelToForm(n, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === n.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === n.series_id,
+    );
+    const cnMerged = Object.entries(n.novel_name_each_cn || {});
+    const enMap = n.novel_name_each_en || {};
+    const novel_name_each = cnMerged.length > 0
+      ? cnMerged.map(([key, cn]) => ({ key, cn, en: enMap[key] || "" }))
+      : Object.keys(enMap).length > 0
+        ? Object.entries(enMap).map(([key, en]) => ({ key, cn: "", en }))
+        : [];
+    return {
+      novel_name_cn: n.novel_name_cn || "",
+      novel_name_en: n.novel_name_en || "",
+      novel_name_roman: n.novel_name_roman || "",
+      novel_name_jp: n.novel_name_jp || "",
+      novel_name_alt: n.novel_name_alt || "",
+      franchise_id: n.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: n.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: n.region || "",
+      type: n.type || "",
+      is_main: n.is_main || "",
+      serialization_status: n.serialization_status || "",
+      reading_status: n.reading_status || "Might Read",
+      progress_display: n.progress_display || "",
+      vol_total_original: n.vol_total_original ?? "",
+      vol_total_tw: n.vol_total_tw ?? "",
+      vol_fin: n.vol_fin ?? "",
+      arc_total: n.arc_total ?? "",
+      arc_fin: n.arc_fin ?? "",
+      ch_total: n.ch_total ?? "",
+      ch_fin: n.ch_fin ?? "",
+      my_rating: n.my_rating || "",
+      mal_rating: n.mal_rating ?? "",
+      mal_rank: n.mal_rank ?? "",
+      anilist_rating: n.anilist_rating ?? "",
+      author: n.author || "",
+      illustrator: n.illustrator || "",
+      release_year: n.release_year ?? "",
+      end_year: n.end_year ?? "",
+      publisher_tw: n.publisher_tw || "",
+      prequel_id: n.prequel_id || null,
+      sequel_id: n.sequel_id || null,
+      alternative: n.alternative || "",
+      read_order: n.read_order ?? "",
+      novel_name_each,
+      mal_id: n.mal_id ?? "",
+      mal_link: n.mal_link || "",
+      anilist_link: n.anilist_link || "",
+      source_other: Array.isArray(n.source_other)
+        ? n.source_other
+        : Object.entries(n.source_other || {}).map(([name, url]) => ({
+            name,
+            url: url || "",
+          })),
+      read_next: n.read_next ?? false,
+      to_reread: n.to_reread ?? false,
+      cover_image_file: n.cover_image_file || "",
+      remark: n.remark || "",
+      notes: n.notes || {},
+    };
+  }
+
   function openEditorWith(item, type, franchises, series) {
     setEditingItem(item);
     setEditingType(type);
@@ -585,6 +667,7 @@ export default function Modify() {
     else if (type === "cartoon")
       setCmf(cartoonToForm(item, franchises, series));
     else if (type === "manga") setCmgf(mangaToForm(item, franchises, series));
+    else if (type === "novel") setCnvf(novelToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -613,6 +696,7 @@ export default function Modify() {
       else if (editingType === "tv-show") await saveTvShow();
       else if (editingType === "cartoon") await saveCartoon();
       else if (editingType === "manga") await saveManga();
+      else if (editingType === "novel") await saveNovel();
       else if (editingType === "options") await saveOption();
     } finally {
       setSubmitting(false);
@@ -1503,6 +1587,165 @@ export default function Modify() {
     showToast("success", "Update and enrichment successful.");
   }
 
+  async function saveNovel() {
+    let franchiseId = cnvf.franchise_id;
+    if (!franchiseId && (cnvf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Novel",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cnvf.novel_name_en || null,
+          franchise_name_cn: cnvf.novel_name_cn || null,
+          franchise_name_roman: cnvf.novel_name_roman || null,
+          franchise_name_jp: cnvf.novel_name_jp || null,
+          franchise_name_alt: cnvf.novel_name_alt || null,
+          franchise_type: "Novel",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cnvf.series_id;
+    if (!seriesId && (cnvf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cnvf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cnvf.novel_name_en || null,
+          series_name_cn: cnvf.novel_name_cn || null,
+          series_name_alt: cnvf.novel_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const novelNameEachCn = (cnvf.novel_name_each || []).filter((e) => e.cn.trim()).length > 0
+      ? Object.fromEntries((cnvf.novel_name_each || []).filter((e) => e.cn.trim()).map((e) => [e.key, e.cn.trim()]))
+      : null;
+    const novelNameEachEn = (cnvf.novel_name_each || []).filter((e) => e.en.trim()).length > 0
+      ? Object.fromEntries((cnvf.novel_name_each || []).filter((e) => e.en.trim()).map((e) => [e.key, e.en.trim()]))
+      : null;
+    const payload = {
+      novel_name_cn: cnvf.novel_name_cn || null,
+      novel_name_en: cnvf.novel_name_en || null,
+      novel_name_roman: cnvf.novel_name_roman || null,
+      novel_name_jp: cnvf.novel_name_jp || null,
+      novel_name_alt: cnvf.novel_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: cnvf.region || null,
+      type: cnvf.type || null,
+      is_main: cnvf.is_main || null,
+      serialization_status: cnvf.serialization_status || null,
+      reading_status: cnvf.reading_status || "Might Read",
+      progress_display: cnvf.progress_display || null,
+      vol_total_original: cnvf.vol_total_original !== "" ? parseFloat(cnvf.vol_total_original) : null,
+      vol_total_tw: cnvf.vol_total_tw !== "" ? parseFloat(cnvf.vol_total_tw) : null,
+      vol_fin: cnvf.vol_fin !== "" ? parseFloat(cnvf.vol_fin) : null,
+      arc_total: cnvf.arc_total !== "" ? parseFloat(cnvf.arc_total) : null,
+      arc_fin: cnvf.arc_fin !== "" ? parseFloat(cnvf.arc_fin) : null,
+      ch_total: cnvf.ch_total !== "" ? parseFloat(cnvf.ch_total) : null,
+      ch_fin: cnvf.ch_fin !== "" ? parseFloat(cnvf.ch_fin) : null,
+      my_rating: cnvf.my_rating || null,
+      mal_rating: cnvf.mal_rating !== "" ? parseFloat(cnvf.mal_rating) : null,
+      mal_rank: cnvf.mal_rank !== "" ? parseInt(cnvf.mal_rank) : null,
+      anilist_rating: cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
+      author: cnvf.author || null,
+      illustrator: cnvf.illustrator || null,
+      release_year: cnvf.release_year !== "" ? parseInt(cnvf.release_year) : null,
+      end_year: cnvf.end_year !== "" ? parseInt(cnvf.end_year) : null,
+      publisher_tw: cnvf.publisher_tw || null,
+      prequel_id: cnvf.prequel_id || null,
+      sequel_id: cnvf.sequel_id || null,
+      alternative: cnvf.alternative || null,
+      read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
+      novel_name_each_cn: novelNameEachCn,
+      novel_name_each_en: novelNameEachEn,
+      mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
+      mal_link: cnvf.mal_link || null,
+      anilist_link: cnvf.anilist_link || null,
+      source_other:
+        (cnvf.source_other || []).filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              (cnvf.source_other || [])
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: cnvf.read_next ?? false,
+      to_reread: cnvf.to_reread ?? false,
+      cover_image_file: cnvf.cover_image_file || null,
+      remark: cnvf.remark || null,
+      notes: Object.keys(cnvf.notes || {}).length > 0 ? cnvf.notes : null,
+    };
+    const res = await fetch(`/api/novel/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    setAllNovels((prev) =>
+      prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
+    );
+    setEditingItem(updated);
+    setCnvf(novelToForm(updated, allFranchises, allSeries));
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -1532,6 +1775,15 @@ export default function Modify() {
         item.manga_name_roman ||
         item.manga_name_jp ||
         item.manga_name_alt ||
+        "Unknown"
+      );
+    if (type === "novel")
+      return (
+        item.novel_name_cn ||
+        item.novel_name_en ||
+        item.novel_name_roman ||
+        item.novel_name_jp ||
+        item.novel_name_alt ||
         "Unknown"
       );
     if (type === "options") return `${item.category}: ${item.option_value}`;
@@ -1621,6 +1873,18 @@ export default function Modify() {
           ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
+    if (activeTab === "novel")
+      return allNovels
+        .filter((n) =>
+          [
+            n.novel_name_cn,
+            n.novel_name_en,
+            n.novel_name_roman,
+            n.novel_name_jp,
+            n.novel_name_alt,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
@@ -1644,6 +1908,7 @@ export default function Modify() {
     if (activeTab === "cartoon")
       return [...allCartoons].sort(sort).slice(0, 12);
     if (activeTab === "manga") return [...allMangas].sort(sort).slice(0, 12);
+    if (activeTab === "novel") return [...allNovels].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -1887,6 +2152,18 @@ export default function Modify() {
       .join(" "),
   }));
 
+  const seriesItemsForNovel = (
+    cnvf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cnvf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const tvRibbonSection = (() => {
     const tvRibbon =
       editingType === "tv-show" && tvmf.franchise_id
@@ -2099,6 +2376,77 @@ export default function Modify() {
     );
   })();
 
+  const novelRibbonSection = (() => {
+    const novelRibbon = cnvf.franchise_id
+      ? allNovels.filter(
+          (n) =>
+            n.franchise_id === cnvf.franchise_id &&
+            n.system_id !== editingItem?.system_id,
+        )
+      : [];
+    if (!novelRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const n of novelRibbon) {
+      if (n.series_id) {
+        (bySeries[n.series_id] = bySeries[n.series_id] || []).push(n);
+      } else noSeries.push(n);
+    }
+    const sortByName = (x, y) =>
+      (
+        x.novel_name_cn ||
+        x.novel_name_en ||
+        x.novel_name_alt ||
+        ""
+      ).localeCompare(
+        y.novel_name_cn || y.novel_name_en || y.novel_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
+    noSeries.sort(sortByName);
+    const renderChip = (n) => (
+      <button
+        key={n.system_id}
+        type="button"
+        onClick={() => openEditor(n, "novel")}
+        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+      >
+        {n.novel_name_cn || n.novel_name_en || n.novel_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
   const tabDefs = [
     { key: "anime", icon: "fa-tv", label: "Modify Anime Entry" },
     { key: "anime-movie", icon: "fa-film", label: "Modify Anime Movie" },
@@ -2106,6 +2454,7 @@ export default function Modify() {
     { key: "tv-show", icon: "fa-video", label: "Modify TV Show" },
     { key: "cartoon", icon: "fa-paint-brush", label: "Modify Cartoon" },
     { key: "manga", icon: "fa-book", label: "Modify Manga" },
+    { key: "novel", icon: "fa-book-open", label: "Modify Novel" },
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
@@ -2325,6 +2674,9 @@ export default function Modify() {
           {/* Cartoon ribbon — grouped by series */}
           {editingType === "cartoon" && cartoonRibbonSection}
 
+          {/* Novel ribbon — grouped by series */}
+          {editingType === "novel" && novelRibbonSection}
+
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
             <h2 className="text-lg font-black text-gray-900">
               {getItemLabel(editingItem, editingType)}
@@ -2417,6 +2769,18 @@ export default function Modify() {
                 seriesItemsForManga={seriesItemsForManga}
                 editingItem={editingItem}
                 ribbonSection={mangaRibbonSection}
+              />
+            )}
+
+            {/* ── NOVEL EDITOR ── */}
+            {editingType === "novel" && (
+              <NovelModifyTab
+                cnvf={cnvf}
+                unv={unv}
+                allFranchises={allFranchises}
+                seriesItemsForNovel={seriesItemsForNovel}
+                editingItem={editingItem}
+                ribbonSection={novelRibbonSection}
               />
             )}
 

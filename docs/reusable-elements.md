@@ -5,7 +5,7 @@ Design-level components used across multiple pages. Items marked _(future)_ are 
 ## Table of Contents
 
 - [Universal Bar](#universal-bar)
-- [Search Suggestion Entry](#search-suggestion-entry)
+- [Search Suggestion](#search-suggestion)
 - [Search Suggestion for Deletion](#search-suggestion-for-deletion)
 - [Search Result Entry](#search-result-entry)
 - [Entry Info for Deletion](#entry-info-for-deletion)
@@ -57,7 +57,7 @@ Present on every page. Contains:
 
 ---
 
-## Search Suggestion Entry
+## Search Suggestion
 
 Compact entries shown in the universal search bar dropdown.
 
@@ -75,25 +75,29 @@ Name CN (fallback) · Airing Type
 
 ### Anime Movie Entry
 
-Name CN (fallback)
+Name CN (fallback) · Release Date with fallback (release_date_jp, release_date_tw)
 
 ### Movie Entry
 
-Name CN (fallback)
+Name CN (fallback) · Movie Type
 
 ### TV Show Entry
 
-Name CN (fallback)
+Name CN (fallback) · TV Show Region
 
 ### Cartoon Entry
 
-Name CN (fallback)
+Name CN (fallback) · Airing Type
 
 ### Manga Entry
 
-Name CN (fallback) · Release Year
+Name CN (fallback) · Manga Region
 
-### Novel Entry _(future)_ / Studio Entry _(future)_ / Seiyuu Entry _(future)_
+### Novel Entry
+
+Novel Name CN with fallback · Novel Type
+
+### Studio Entry _(future)_ / Seiyuu Entry _(future)_
 
 TBD
 
@@ -130,6 +134,14 @@ Main Title: TV Show Name CN (fallback) · Sub Title: Franchise Name CN (fallback
 ### Cartoon
 
 Main Title: Cartoon Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Airing Type
+
+### Manga
+
+Main Title: Manga Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Release Year
+
+### Novel
+
+Main Title: Novel Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Novel Type · Release Year
 
 ---
 
@@ -187,6 +199,10 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN
 
 Name CN (fallback) · Name EN (fallback) · Name JP (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Manga Region · Reading Status · Remark field in notes column · System ID
 
+### Novel
+
+Novel Name CN with fallback · Novel Name EN with fallback · Novel Name JP with fallback · Novel Name Alt with fallback · Franchise Name CN with fallback · Series Name CN with fallback · Novel Region · Novel Type · Reading Status · Remark field in notes column · System ID
+
 ---
 
 ## Entry Card
@@ -207,7 +223,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Anime Entry Card
 
-**First Type** — used on Dashboard, Seasonal pages
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard, Seasonal pages
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Airing Type · Bahamut / Netflix / Other source icons · Progress % bar · Ep Watched / Ep Total (cumulative) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
@@ -264,7 +280,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### TV Show Entry Card
 
-**First Type** — used on Dashboard _(TBD)_
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
@@ -294,7 +310,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Cartoon Entry Card
 
-**First Type** — used on Dashboard _(TBD)_
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · My Rating (hidden if null) · Name CN (fallback) · Franchise Name CN (fallback) · Airing Type · Airing Status · Progress % bar (own ep count, not cumulative) · Ep Watched / Ep Total (cumulative ep watched / ep total if applicable, e.g. 3/11 (69/77)) · +/- episode controls _(admin)_ · direct ep edit _(admin)_ · Edit button → Modify page _(admin)_
 
@@ -325,7 +341,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Manga Entry Card
 
-**First Type** — used on Dashboard
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
 - Poster · Name CN (fallback) · Franchise Name CN (fallback) · My Rating (hidden if null) · Manga Region · Serialization Status · Progress % bar · Ch Watched / Ch Total · Volumes Read + Pages Read/ Volumes Total · +/- episode controls _(admin)_ · direct vol edit _(admin)_ · direct pages edit _(admin)_· direct ch edit _(admin)_· Edit button → Modify page _(admin)_
 
@@ -337,11 +353,72 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ---
 
-### Novel Entry Card _(future)_
+### Novel Entry Card
 
-**First Type** — used on Dashboard
+**First Type** — `frontend/src/components/DashboardCard.jsx` - used on Dashboard
 
-- Poster · Novel Name CN · Franchise Name CN (fallback) · My Rating (hidden if null) · Serialization Status · Progress % bar · Ch / Volume progress with edit controls _(admin)_ · Edit button _(admin)_
+- Poster
+- My Rating (hidden if null)
+- Novel Name CN with fallback
+- From: Franchise Name CN with fallback
+- Novel Region
+- Serialization Status
+- Progress % Done Indicator
+  - if `progress_display` is `vol_tw`: percentage = vol_fin / vol_total_tw
+  - if `progress_display` is `vol_original`: percentage = vol_fin / vol_total_original
+  - if `progress_display` is `arc_ch`: percentage = arc_fin / arc_total
+  - if `progress_display` is `ch`: percentage = ch_fin / ch_total
+  - if `progress_display` is null: no percentage; show "ongoing" instead
+- Progress Tracker
+  - `vol_tw`: vol*fin / vol_total_tw (e.g. 1.5 / 13 Vol) · +/- volume control *(admin, rounds to nearest integer)_ · direct edit _(admin)\_
+  - `vol_original`: vol*fin / vol_total_original (e.g. 1.5 / 13 Vol) · +/- volume control *(admin, rounds to nearest integer)_ · direct edit _(admin)\_
+  - `arc_ch`: arc*fin, ch_fin / arc_total, ch_total (e.g. Arc 9 Ch 13 / Arc ? Ch ?) · +/- chapter control *(admin, rounds to nearest integer)_ · direct edit for arcs and chapters _(admin)\_
+  - `ch`: ch*fin / ch_total (e.g. 13 / ? Ch) · +/- chapter control *(admin, rounds to nearest integer)_ · direct edit _(admin)\_
+  - null: show with fallback order vol_tw → vol_original → arc_ch → ch
+- Edit Button → Modify page _(admin only)_
+
+**Second Type** — `frontend/src/components/NovelCard.jsx` — used on Franchise Hub (Novel tab), Novel Library, Search page
+
+Poster card for grid/library views. Displays:
+
+- Poster (cover image)
+- My Rating badge (top-left, hidden if null)
+- Region badge (top-right, hidden if null)
+- Novel Name CN with fallback
+- Release Year – End Year (e.g. `2010 – 2015`; omit end year if same as release year)
+- MAL Rating (hidden if null)
+- Progress tracker row based on `progress_display`:
+  - `vol_tw`: `vol_fin / vol_total_tw VOL TW`
+  - `vol_original`: `vol_fin / vol_total_original VOL`
+  - `arc_ch`: `arc_fin/arc_total ARC  ch_fin/ch_total CH`
+  - `ch` (or null with ch_total set): `ch_fin / ch_total CH`
+- Reading status + button (admin only)
+
+---
+
+### Belonging Novels Card
+
+**File:** rendered inside `Novel.jsx` (novel detail page). Editable for admin only.
+
+Displays the ordered list of individual book names from `novel_name_each_cn` and `novel_name_each_en`.
+
+**Data source:** `novel.novel_name_each_cn` and `novel.novel_name_each_en` — JSONB columns where each key is a book identifier (string; may be numeric like `"1"` or non-numeric) and the value is the book name.
+
+**Structure:**
+
+Two sections, one per language:
+
+- **Novel Name CN Section** — renders pairs from `novel_name_each_cn`
+- **Novel Name EN Section** — renders pairs from `novel_name_each_en`
+
+Within each section:
+
+- Each pair is rendered as `[key]: [name]` (e.g. `1: 最後帝國`)
+- Keys may be non-numeric (e.g. `"Prologue"`, `"1"`, `"1.5"`)
+- **Admin only** — pairs can be added, deleted, and reordered via drag-and-drop or up/down controls
+- Saves via `PATCH /api/novel/:id` with updated `novel_name_each_cn` / `novel_name_each_en`
+
+**Note:** Both sections are shown even if one language is empty, but the section is hidden if the JSONB value is null.
 
 ---
 
@@ -470,7 +547,7 @@ Movie / TV Show / Cartoon Naming Card
 
 ### Score Block (includes Last Updated Time)
 
-Anime / Anime Movie / Manga Score Block
+Anime / Anime Movie / Manga / Novel Score Block
 
 - MyAnimeList Score, MyAnimeList Rank, AniList Score
 - Last Updated Time
@@ -517,6 +594,12 @@ Manga Sources Card
 - AniList Link navigation button
 - Other Source button with navigation
 
+Novel Sources Card
+
+- MyAnimeList Link navigation button
+- AniList Link navigation button
+- Other Source button with navigation
+
 ### Related Entries Card
 
 - Enable navigation for each entry.
@@ -549,6 +632,12 @@ Cartoon Related Entries Card, show the following for each entry:
 - Release Year
 
 Manga Related Entries Card, show the following for each entry:
+
+- Poster
+- Name CN with fallback
+- Release Year
+
+Novel Related Entries Card, show the following for each entry:
 
 - Poster
 - Name CN with fallback
@@ -595,6 +684,24 @@ Manga My Tracker Block
 - Reading Status (editable for admin only)
 - My Rating (editable for admin only)
 
+Novel My Tracker Block
+
+- Reading Status (editable for admin only)
+- My Rating (editable for admin only)
+- Volumes Fin / Volumes Total TW; Volumes Total Original
+  - e.g. 3.5 / 10; 12 Vol
+  - +, - button for volume progress control (visible to admin only; rounds to nearest integer)
+  - directly modify volumes read (admin only)
+- Arc Fin / Arc Total
+  - +, - button for arc progress control (visible to admin only; rounds to nearest integer)
+  - directly modify arcs read (admin only)
+- Ch Fin / Ch Total
+  - +, - button for chapter progress control (visible to admin only; rounds to nearest integer)
+  - directly modify chapters read (admin only)
+- Read Next checkbox (editable for admin only)
+- To Reread checkbox (editable for admin only)
+- Note: for each sub tracker, show highlight based on `progress_display`
+
 ### Information Card
 
 Anime Information Card
@@ -633,6 +740,12 @@ Manga Information Card
 - Release Year, End Year
 - Volume Total, Ch Total
 
+Novel Information Card
+
+- Novel Region, Novel Type, 本傳 / 外傳 (is_main)
+- Serialization Status, Release Year, End Year
+- Volume Total, Arc Total, Ch Total
+
 ### Production Card
 
 Anime Production Card
@@ -656,6 +769,10 @@ Manga Production Card
 - 作畫 (author_draw)
   - show if both author_plot and author_draw is not the same
 - Anime Studio
+
+Novel Production Card
+
+- Author, Illustrator, Novel Publisher TW
 
 ### Notes Card
 
@@ -774,6 +891,27 @@ Used on: Cartoon Detail page, Modify Cartoon tab.
 - 名言/梗/迷因 Quotes & Memes
 
 Used on: Manga Detail page, Modify Manga tab.
+
+**Novel Notes Card** — `frontend/src/pages/NovelNotes.jsx`
+
+- Remark
+- 優點 Advantages
+- 缺點 Disadvantages
+- 優缺點 (similar to double-edged sword)
+- 大眾評價 Public Reviews
+- 我的評價 Personal Reviews
+- 神片段 Highlights
+- 解析 Analysis
+- 巧思
+- Foreshadowing
+- 對稱 Symmetry
+- 改編 Adaptation
+- Resources
+- Unread
+- Questions
+- 名言/梗/迷因 Quotes & Memes
+
+Used on: Novel Detail page, Modify Novel tab.
 
 Here is the description for all sub fields in notes:
 
