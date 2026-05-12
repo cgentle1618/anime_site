@@ -22,6 +22,7 @@ from services.other_logics import (
     extract_system_options_from_cartoon,
     extract_system_options_from_tv_show,
     extract_system_options_from_manga,
+    extract_system_options_from_novel,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_manga_from_mal,
@@ -366,6 +367,7 @@ def run_sync(db: Session) -> dict:
     run_sync_tv_show(db)
     run_sync_cartoon(db)
     run_sync_manga(db)
+    run_sync_novel(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
@@ -411,6 +413,14 @@ def run_sync_manga(db: Session) -> dict:
     return {
         "status": "success",
         "message": "System options extracted from manga.",
+    }
+
+
+def run_sync_novel(db: Session) -> dict:
+    extract_system_options_from_novel(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from novel.",
     }
 
 
