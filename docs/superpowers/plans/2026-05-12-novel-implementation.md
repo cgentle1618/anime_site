@@ -2328,7 +2328,7 @@ git add models.py schemas.py utils/formatter.py alembic/versions/<hash>_add_alte
 git commit -m "feat(novel): add alternative column to novel table"
 ```
 
-- [ ] **Step 6: Display alternative in Novel.jsx**
+- [x] **Step 6: Display alternative in Novel.jsx**
 
 In the novel detail page, find where `prequel_id`/`sequel_id` or `remark` is displayed and add:
 
@@ -2341,15 +2341,15 @@ In the novel detail page, find where `prequel_id`/`sequel_id` or `remark` is dis
 )}
 ```
 
-- [ ] **Step 7: Add alternative input to Admin Add Novel tab**
+- [x] **Step 7: Add alternative input to Admin Add Novel tab**
 
 In `Admin.jsx` Add Novel tab, add a text input for `alternative` (after the sequel field, following the same pattern as other string fields).
 
-- [ ] **Step 8: Add alternative input to Admin Modify Novel tab**
+- [x] **Step 8: Add alternative input to Admin Modify Novel tab**
 
 In `Admin.jsx` Modify Novel tab, prefill `alternative` from the loaded entry and add the same text input.
 
-- [ ] **Step 9: Commit frontend changes**
+- [x] **Step 9: Commit frontend changes**
 
 ```bash
 git add frontend/src/pages/Novel.jsx frontend/src/pages/Admin.jsx

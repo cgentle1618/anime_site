@@ -919,6 +919,16 @@ export default function Novel() {
                       novel.end_year != null ? String(novel.end_year) : null,
                   },
                 ],
+                ...(novel.alternative
+                  ? [
+                      [
+                        {
+                          label: "Alternative IDs",
+                          value: novel.alternative,
+                        },
+                      ],
+                    ]
+                  : []),
                 [
                   {
                     label: "Vol Total (Original)",

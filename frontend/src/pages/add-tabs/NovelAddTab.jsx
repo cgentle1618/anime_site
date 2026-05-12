@@ -506,6 +506,14 @@ export default function NovelAddTab({
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
           />
         </Field>
+        <Field label="Alternative IDs" hint="Comma-separated UUIDs">
+          <input
+            className={inputCls + " font-mono text-xs"}
+            value={nvf.alternative || ""}
+            onChange={(e) => unv("alternative", e.target.value)}
+            placeholder="uuid1, uuid2, ..."
+          />
+        </Field>
         <Field label="Read Order" hint="e.g. 1, 1.5, 2">
           <input
             className={inputCls}
