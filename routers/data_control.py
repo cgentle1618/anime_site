@@ -18,6 +18,7 @@ from services.data_control import (
     execute_fill_anime_movie,
     execute_fill_cartoon,
     execute_fill_manga,
+    execute_fill_novel,
     execute_fill_movie,
     execute_fill_tv_show,
     execute_fill_all,
@@ -25,6 +26,7 @@ from services.data_control import (
     execute_replace_anime_movie,
     execute_replace_cartoon,
     execute_replace_manga,
+    execute_replace_novel,
     execute_replace_movie,
     execute_replace_tv_show,
     execute_replace_all,
@@ -32,6 +34,7 @@ from services.data_control import (
     execute_replace_single_anime_movie,
     execute_replace_single_cartoon,
     execute_replace_single_manga,
+    execute_replace_single_novel,
     execute_replace_single_movie,
     execute_replace_single_tv_show,
 )
@@ -484,6 +487,79 @@ def trigger_pull_manga(db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error in pull manga: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fill/novel")
+async def trigger_fill_novel(request: Request, db: Session = Depends(get_db)):
+    """Triggers the Fill Pipeline specifically for Novel entries. SSE streaming."""
+    try:
+        return StreamingResponse(
+            execute_fill_novel(
+                db,
+                request,
+                action_specific="Fill Novel",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in fill novel: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/novel")
+async def trigger_replace_novel(request: Request, db: Session = Depends(get_db)):
+    """Triggers the Replace Pipeline specifically for Novel entries. SSE streaming."""
+    try:
+        return StreamingResponse(
+            execute_replace_novel(
+                db,
+                request,
+                action_specific="Replace Novel",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in replace novel: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/novel/{novel_id}")
+async def trigger_replace_single_novel(novel_id: str, db: Session = Depends(get_db)):
+    """Triggers the Replace Pipeline for a single novel entry (Autofill & Update)."""
+    try:
+        result = await execute_replace_single_novel(
+            db, novel_id, action_type="Manual", log_action=False
+        )
+        if result.get("status") == "error":
+            status_code = result.get("status_code", 400)
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in replace single novel: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pull/novel")
+def trigger_pull_novel(db: Session = Depends(get_db)):
+    """Triggers a pull from the Novel Google Sheets tab."""
+    try:
+        result = execute_pull_specific(
+            db, "Novel", action_type="Manual", log_action=True
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in pull novel: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
