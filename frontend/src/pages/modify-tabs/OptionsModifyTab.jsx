@@ -1,6 +1,10 @@
 import { Field, SectionHeader, inputCls } from "../../components/FormField";
 
-export default function OptionsModifyTab({ editingItem, optValue, setOptValue }) {
+export default function OptionsModifyTab({
+  editingItem,
+  optValue,
+  setOptValue,
+}) {
   return (
     <>
       <SectionHeader icon="fa-cog" title="System Option" />

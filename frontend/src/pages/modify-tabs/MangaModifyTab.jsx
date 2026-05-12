@@ -164,9 +164,7 @@ export default function MangaModifyTab({
           <select
             className={selectCls}
             value={cmgf.serialization_status || ""}
-            onChange={(e) =>
-              umg("serialization_status", e.target.value)
-            }
+            onChange={(e) => umg("serialization_status", e.target.value)}
           >
             <option value="">—</option>
             {["連載中", "停更", "腰斬", "完結"].map((v) => (
@@ -338,9 +336,7 @@ export default function MangaModifyTab({
           <input
             className={inputCls}
             value={cmgf.serialization_platform || ""}
-            onChange={(e) =>
-              umg("serialization_platform", e.target.value)
-            }
+            onChange={(e) => umg("serialization_platform", e.target.value)}
           />
         </Field>
         <Field label="Distributor TW">
@@ -358,9 +354,7 @@ export default function MangaModifyTab({
           <input
             className={inputCls + " font-mono text-xs"}
             value={cmgf.prequel_id || ""}
-            onChange={(e) =>
-              umg("prequel_id", e.target.value || null)
-            }
+            onChange={(e) => umg("prequel_id", e.target.value || null)}
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
           />
         </Field>
@@ -394,10 +388,7 @@ export default function MangaModifyTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-external-link-alt"
-        title="Source & Links"
-      />
+      <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="MAL ID">
           <input
@@ -464,9 +455,7 @@ export default function MangaModifyTab({
                 onClick={() =>
                   umg(
                     "source_other",
-                    (cmgf.source_other || []).filter(
-                      (_, j) => j !== i,
-                    ),
+                    (cmgf.source_other || []).filter((_, j) => j !== i),
                   )
                 }
               >

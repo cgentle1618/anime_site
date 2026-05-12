@@ -1,5 +1,10 @@
 import { parseTypes } from "../../utils/anime";
-import { Field, SectionHeader, inputCls, selectCls } from "../../components/FormField";
+import {
+  Field,
+  SectionHeader,
+  inputCls,
+  selectCls,
+} from "../../components/FormField";
 
 export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
   return (
@@ -24,9 +29,7 @@ export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
           <input
             className={inputCls}
             value={ff.franchise_name_roman}
-            onChange={(e) =>
-              uf("franchise_name_roman", e.target.value)
-            }
+            onChange={(e) => uf("franchise_name_roman", e.target.value)}
           />
         </Field>
         <Field label="Franchise Name JP">
@@ -44,43 +47,35 @@ export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
           />
         </Field>
       </div>
-      <SectionHeader
-        icon="fa-info-circle"
-        title="Other Information"
-      />
+      <SectionHeader icon="fa-info-circle" title="Other Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
-            {[
-              "ACG",
-              "Anime Movie",
-              "TV",
-              "Movie",
-              "Cartoon",
-              "Novel",
-            ].map((v) => {
-              const types = parseTypes(ff.franchise_type);
-              const checked = types.includes(v);
-              return (
-                <label
-                  key={v}
-                  className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      const next = checked
-                        ? types.filter((t) => t !== v)
-                        : [...types, v];
-                      uf("franchise_type", next.join(", "));
-                    }}
-                    className="rounded accent-brand"
-                  />
-                  {v}
-                </label>
-              );
-            })}
+            {["ACG", "Anime Movie", "TV", "Movie", "Cartoon", "Novel"].map(
+              (v) => {
+                const types = parseTypes(ff.franchise_type);
+                const checked = types.includes(v);
+                return (
+                  <label
+                    key={v}
+                    className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? types.filter((t) => t !== v)
+                          : [...types, v];
+                        uf("franchise_type", next.join(", "));
+                      }}
+                      className="rounded accent-brand"
+                    />
+                    {v}
+                  </label>
+                );
+              },
+            )}
           </div>
         </Field>
         <Field label="My Rating">
@@ -101,9 +96,7 @@ export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
           <select
             className={selectCls}
             value={ff.franchise_expectation}
-            onChange={(e) =>
-              uf("franchise_expectation", e.target.value)
-            }
+            onChange={(e) => uf("franchise_expectation", e.target.value)}
           >
             <option value="">—</option>
             {["Highest", "High", "Medium", "Low"].map((v) => (
@@ -135,9 +128,7 @@ export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
         <select
           className={selectCls}
           value={ff.cover_anime_id || ""}
-          onChange={(e) =>
-            uf("cover_anime_id", e.target.value || null)
-          }
+          onChange={(e) => uf("cover_anime_id", e.target.value || null)}
         >
           <option value="">— Auto (latest with cover) —</option>
           {allAnime
@@ -165,9 +156,7 @@ export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
         <select
           className={selectCls}
           value={ff.watch_next_group || ""}
-          onChange={(e) =>
-            uf("watch_next_group", e.target.value || null)
-          }
+          onChange={(e) => uf("watch_next_group", e.target.value || null)}
         >
           <option value="">— Not in Watch List —</option>
           <option value="12ep">12 EP</option>

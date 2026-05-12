@@ -1678,10 +1678,7 @@ export default function Modify() {
         x.anime_name_roman ||
         ""
       ).localeCompare(
-        y.anime_name_en ||
-          y.anime_name_cn ||
-          y.anime_name_roman ||
-          "",
+        y.anime_name_en || y.anime_name_cn || y.anime_name_roman || "",
       );
     Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
     noSeries.sort(sortByEn);
@@ -1784,10 +1781,7 @@ export default function Modify() {
         onClick={() => openEditor(m, "movie")}
         className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
       >
-        {m.movie_name_cn ||
-          m.movie_name_en ||
-          m.movie_name_alt ||
-          "Unknown"}
+        {m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "Unknown"}
       </button>
     );
     return (
@@ -1911,12 +1905,7 @@ export default function Modify() {
       } else noSeries.push(t);
     }
     const sortByEn = (x, y) =>
-      (
-        x.tv_name_en ||
-        x.tv_name_cn ||
-        x.tv_name_alt ||
-        ""
-      ).localeCompare(
+      (x.tv_name_en || x.tv_name_cn || x.tv_name_alt || "").localeCompare(
         y.tv_name_en || y.tv_name_cn || y.tv_name_alt || "",
       );
     Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
@@ -1988,10 +1977,7 @@ export default function Modify() {
         x.cartoon_name_alt ||
         ""
       ).localeCompare(
-        y.cartoon_name_en ||
-          y.cartoon_name_cn ||
-          y.cartoon_name_alt ||
-          "",
+        y.cartoon_name_en || y.cartoon_name_cn || y.cartoon_name_alt || "",
       );
     Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
     noSeries.sort(sortByEn);
@@ -2371,7 +2357,11 @@ export default function Modify() {
 
             {/* ── SERIES EDITOR ── */}
             {editingType === "series" && (
-              <SeriesModifyTab sf={sf} us={us} franchiseItems={franchiseItems} />
+              <SeriesModifyTab
+                sf={sf}
+                us={us}
+                franchiseItems={franchiseItems}
+              />
             )}
 
             {/* ── ANIME MOVIE EDITOR ── */}

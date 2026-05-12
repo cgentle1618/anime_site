@@ -113,10 +113,7 @@ export default function CartoonModifyTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-chart-bar"
-        title="Status & Classification"
-      />
+      <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Airing Type">
           <select

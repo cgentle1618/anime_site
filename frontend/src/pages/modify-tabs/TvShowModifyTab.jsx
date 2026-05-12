@@ -118,21 +118,16 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("region", e.target.value)}
           >
             <option value="">—</option>
-            {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map(
-              (v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ),
-            )}
+            {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-chart-bar"
-        title="Status & Classification"
-      />
+      <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Airing Status">
           <select
@@ -141,13 +136,11 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {["Not Yet Aired", "Airing", "Finished Airing"].map(
-              (v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ),
-            )}
+            {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Watching Status">
@@ -284,9 +277,7 @@ export default function TvShowModifyTab({
           <input
             className={inputCls + " font-mono text-xs"}
             value={tvmf.prequel_id || ""}
-            onChange={(e) =>
-              utv("prequel_id", e.target.value || null)
-            }
+            onChange={(e) => utv("prequel_id", e.target.value || null)}
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
           />
         </Field>

@@ -593,10 +593,7 @@ export default function AnimeAddTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-broadcast-tower"
-        title="Source Availability"
-      />
+      <SectionHeader icon="fa-broadcast-tower" title="Source Availability" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Bahamut Source">
           <select
@@ -681,10 +678,7 @@ export default function AnimeAddTab({
               type="button"
               className="text-xs text-brand hover:underline mt-1"
               onClick={() =>
-                ua("source_other", [
-                  ...af.source_other,
-                  { name: "", url: "" },
-                ])
+                ua("source_other", [...af.source_other, { name: "", url: "" }])
               }
             >
               + Add Source

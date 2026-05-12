@@ -177,10 +177,7 @@ export default function CartoonAddTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-chart-bar"
-        title="Status & Classification"
-      />
+      <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Airing Type">
           <select
@@ -475,10 +472,7 @@ export default function CartoonAddTab({
               type="button"
               className="text-xs text-brand hover:underline mt-1"
               onClick={() =>
-                uc("source_other", [
-                  ...cf.source_other,
-                  { name: "", url: "" },
-                ])
+                uc("source_other", [...cf.source_other, { name: "", url: "" }])
               }
             >
               + Add Source

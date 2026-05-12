@@ -263,19 +263,13 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("airing_type", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "TV",
-              "Movie",
-              "ONA",
-              "OVA",
-              "OAD",
-              "Special",
-              "Other",
-            ].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            {["TV", "Movie", "ONA", "OVA", "OAD", "Special", "Other"].map(
+              (v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ),
+            )}
           </select>
         </Field>
         <Field label="Main / Spinoff">
@@ -466,10 +460,7 @@ export default function AnimeModifyTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-external-link-alt"
-        title="Source & Links"
-      />
+      <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="MAL ID">
           <input
@@ -513,10 +504,7 @@ export default function AnimeModifyTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-broadcast-tower"
-        title="Source Availability"
-      />
+      <SectionHeader icon="fa-broadcast-tower" title="Source Availability" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Bahamut Source">
           <select
@@ -600,10 +588,7 @@ export default function AnimeModifyTab({
               type="button"
               className="text-xs text-brand hover:underline mt-1"
               onClick={() =>
-                ua("source_other", [
-                  ...af.source_other,
-                  { name: "", url: "" },
-                ])
+                ua("source_other", [...af.source_other, { name: "", url: "" }])
               }
             >
               + Add Source

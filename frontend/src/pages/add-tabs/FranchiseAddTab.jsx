@@ -1,5 +1,10 @@
 import { parseTypes } from "../../utils/anime";
-import { Field, SectionHeader, inputCls, selectCls } from "../../components/FormField";
+import {
+  Field,
+  SectionHeader,
+  inputCls,
+  selectCls,
+} from "../../components/FormField";
 
 export default function FranchiseAddTab({ ff, uf }) {
   return (
@@ -48,36 +53,31 @@ export default function FranchiseAddTab({ ff, uf }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
-            {[
-              "ACG",
-              "Anime Movie",
-              "TV",
-              "Movie",
-              "Cartoon",
-              "Novel",
-            ].map((v) => {
-              const types = parseTypes(ff.franchise_type);
-              const checked = types.includes(v);
-              return (
-                <label
-                  key={v}
-                  className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      const next = checked
-                        ? types.filter((t) => t !== v)
-                        : [...types, v];
-                      uf("franchise_type", next.join(", "));
-                    }}
-                    className="rounded accent-brand"
-                  />
-                  {v}
-                </label>
-              );
-            })}
+            {["ACG", "Anime Movie", "TV", "Movie", "Cartoon", "Novel"].map(
+              (v) => {
+                const types = parseTypes(ff.franchise_type);
+                const checked = types.includes(v);
+                return (
+                  <label
+                    key={v}
+                    className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? types.filter((t) => t !== v)
+                          : [...types, v];
+                        uf("franchise_type", next.join(", "));
+                      }}
+                      className="rounded accent-brand"
+                    />
+                    {v}
+                  </label>
+                );
+              },
+            )}
           </div>
         </Field>
         <Field label="My Rating">

@@ -441,10 +441,7 @@ export default function MovieAddTab({
             type="button"
             className="text-xs text-brand hover:underline mt-1"
             onClick={() =>
-              umf("source_other", [
-                ...mf.source_other,
-                { name: "", url: "" },
-              ])
+              umf("source_other", [...mf.source_other, { name: "", url: "" }])
             }
           >
             + Add Source

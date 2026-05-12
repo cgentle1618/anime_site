@@ -421,9 +421,7 @@ export default function MangaAddTab({
           <input
             className={inputCls}
             value={mgf.serialization_platform}
-            onChange={(e) =>
-              umg("serialization_platform", e.target.value)
-            }
+            onChange={(e) => umg("serialization_platform", e.target.value)}
             placeholder="e.g. 週刊少年ジャンプ"
           />
         </Field>
@@ -563,10 +561,7 @@ export default function MangaAddTab({
             type="button"
             className="text-xs text-brand hover:underline mt-1"
             onClick={() =>
-              umg("source_other", [
-                ...mgf.source_other,
-                { name: "", url: "" },
-              ])
+              umg("source_other", [...mgf.source_other, { name: "", url: "" }])
             }
           >
             + Add Source

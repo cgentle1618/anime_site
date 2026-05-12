@@ -177,10 +177,7 @@ export default function TvShowAddTab({
         </Field>
       </div>
 
-      <SectionHeader
-        icon="fa-chart-bar"
-        title="Status & Classification"
-      />
+      <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Airing Status">
           <select
@@ -315,13 +312,11 @@ export default function TvShowAddTab({
             onChange={(e) => utf("region", e.target.value)}
           >
             <option value="">—</option>
-            {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map(
-              (v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ),
-            )}
+            {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Source Official">
