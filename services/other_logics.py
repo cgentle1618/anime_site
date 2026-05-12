@@ -1584,6 +1584,81 @@ def find_duplicate_manga(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_novel(db: Session) -> list[list[dict]]:
+    """
+    Finds Novel entries that share the same (franchise_id, series_id, is_main)
+    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
+    """
+    novels = db.query(Novel).filter(Novel.franchise_id.isnot(None)).all()
+
+    def _key(n: Novel) -> tuple:
+        return (
+            str(n.franchise_id),
+            str(n.series_id) if n.series_id else None,
+            n.is_main,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for n in novels:
+        by_key.setdefault(_key(n), []).append(n)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    novel_map = {str(n.system_id): n for n in novels}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            for j in range(i + 1, len(group)):
+                if a_names & group[j].get_all_names():
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for nid in novel_map:
+        clusters.setdefault(find(nid), []).append(nid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": nid,
+                        "franchise_id": str(novel_map[nid].franchise_id),
+                        "series_id": (
+                            str(novel_map[nid].series_id)
+                            if novel_map[nid].series_id
+                            else None
+                        ),
+                        "is_main": novel_map[nid].is_main,
+                        "novel_name_cn": novel_map[nid].novel_name_cn,
+                        "novel_name_en": novel_map[nid].novel_name_en,
+                        "novel_name_roman": novel_map[nid].novel_name_roman,
+                        "novel_name_jp": novel_map[nid].novel_name_jp,
+                        "novel_name_alt": novel_map[nid].novel_name_alt,
+                    }
+                    for nid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -1595,6 +1670,7 @@ def find_all_duplicates(db: Session) -> dict:
         "movie": find_duplicate_movie(db),
         "tv_show": find_duplicate_tv_show(db),
         "manga": find_duplicate_manga(db),
+        "novel": find_duplicate_novel(db),
         "system_options": find_duplicate_system_options(db),
     }
 
