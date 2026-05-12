@@ -16,6 +16,7 @@ from models import (
     Cartoon,
     Franchise,
     Manga,
+    Novel,
     Series,
     Anime,
     AnimeMovies,
@@ -34,6 +35,7 @@ from utils.formatter import (
     parse_anime_movie_from_sheet,
     parse_cartoon_from_sheet,
     parse_manga_from_sheet,
+    parse_novel_from_sheet,
     parse_movie_from_sheet,
     parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
@@ -47,18 +49,21 @@ from services.other_logics import (
     has_missing_values_anime_movie,
     has_missing_values_cartoon,
     has_missing_values_manga,
+    has_missing_values_novel,
     has_missing_values_movie,
     has_missing_values_tv_show,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_manga_from_mal,
+    autofill_novel_from_mal,
     autofill_movie_from_imdb,
     autofill_tv_show_from_imdb,
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
     apply_single_replace_cartoon,
     apply_single_replace_manga,
+    apply_single_replace_novel,
     apply_single_replace_movie,
     apply_single_replace_tv_show,
     apply_extract_mal_id_anime,
@@ -76,6 +81,7 @@ from services.other_logics import (
     resolve_anime_movie_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_manga_parent_hierarchy,
+    resolve_novel_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
@@ -84,6 +90,7 @@ from services.calculation import (
     run_sync_anime_movie,
     run_sync_cartoon,
     run_sync_manga,
+    run_sync_novel,
     run_sync_tv_show,
 )
 
@@ -1890,6 +1897,249 @@ async def execute_replace_manga(
 
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
         run_sync_manga(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Aborted",
+                rows_updated=processed_count,
+            )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                rows_updated=processed_count,
+                error_message=str(e),
+            )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
+async def execute_fill_novel(
+    db: Session,
+    request: Request,
+    action_specific: str = "Fill Novel",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE) for 'Fill Novel'. Supports graceful frontend abort."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_novels = db.query(Novel).all()
+        for novel in all_novels:
+            apply_extract_mal_id_manga_novel(novel)
+        db.commit()
+
+        # Gate: skip entries with no mal_link (no source to fill from)
+        queue_to_process = [
+            n for n in all_novels
+            if n.mal_link is not None and has_missing_values_novel(n)
+        ]
+        total_in_queue = len(queue_to_process)
+
+        if total_in_queue > 0:
+            for index, novel in enumerate(queue_to_process, start=1):
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError()
+
+                name = novel.display_name or "Unknown Novel"
+                yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+                try:
+                    autofill_novel_from_mal(novel, force_replace_ratings=True)
+                    db.commit()
+                    processed_count += 1
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"MAL Autofill failed for {name}: {e}")
+
+                await asyncio.sleep(1)
+        else:
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No entries need filling. Running post-processing...', 'processed': 0, 'total': 0})}\n\n"
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_novel(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=processed_count,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete.', 'total': total_in_queue, 'processed': processed_count})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.info(f"Client disconnected. Aborting {action_specific}.")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Aborted",
+            rows_updated=processed_count,
+        )
+        return
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Pipeline crashed: {e}")
+        log_data_control(
+            db,
+            "Fill",
+            action_specific,
+            action_type,
+            "Failed",
+            rows_updated=processed_count,
+            error_message=str(e),
+        )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
+async def execute_replace_single_novel(
+    db: Session,
+    novel_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """Fetches Jikan data for a single Novel entry and syncs."""
+    logger.info(f"Starting Single Replace Pipeline for Novel ID: {novel_id}")
+    action_specific = "Replace for single novel entry"
+
+    try:
+        novel = db.query(Novel).filter(Novel.system_id == novel_id).first()
+        if not novel:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="Novel not found 404",
+                )
+            return {
+                "status": "error",
+                "message": "Novel entry not found",
+                "status_code": 404,
+            }
+
+        apply_single_replace_novel(db, novel, bulk=False)
+        db.commit()
+
+        run_sync_novel(db)
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated {novel.display_name}.",
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Single Replace Novel Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e), "status_code": 500}
+
+
+async def execute_replace_novel(
+    db: Session,
+    request: Request,
+    action_specific: str = "Replace Novel",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """Async Generator (SSE). Replace all novel entries with Jikan data."""
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    processed_count = 0
+    total_in_queue = 0
+
+    try:
+        all_novels = (
+            db.query(Novel)
+            .filter(or_(Novel.mal_id.isnot(None), Novel.mal_link.isnot(None)))
+            .all()
+        )
+        total_in_queue = len(all_novels)
+
+        if total_in_queue == 0:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Success",
+                    rows_updated=0,
+                )
+            yield f"data: {json.dumps({'status': 'info', 'message': 'No novel entries found to replace', 'total': 0, 'processed': 0})}\n\n"
+            return
+
+        for index, novel in enumerate(all_novels, start=1):
+            if await request.is_disconnected():
+                raise asyncio.CancelledError()
+
+            name = novel.display_name or "Unknown Novel"
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+            try:
+                apply_single_replace_novel(db, novel, bulk=True)
+                db.commit()
+                processed_count += 1
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to replace {name}: {e}")
+
+            await asyncio.sleep(1)
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        run_sync_novel(db)
 
         if log_action:
             log_data_control(
