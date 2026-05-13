@@ -1,12 +1,13 @@
 import BelongingNovelsEditor from "../../components/BelongingNovelsEditor";
 import ComboBox from "../../components/ComboBox";
+import MultiSelect from "../../components/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
 const SERIALIZATION_STATUSES = [
@@ -88,7 +89,10 @@ export default function NovelAddTab({
   applyNovelAutofill,
   allFranchises,
   seriesItemsForNovel,
+  allOptions,
 }) {
+  const publisherOptions = getOptions(allOptions, "Novel Publisher TW");
+  const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
       {/* Auto-fill search */}
@@ -501,19 +505,19 @@ export default function NovelAddTab({
       <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Author")}
             value={nvf.author}
-            onChange={(e) => unv("author", e.target.value)}
-            placeholder="Author name"
+            onChange={(v) => unv("author", v)}
+            placeholder="Select or type author..."
           />
         </Field>
         <Field label="Illustrator">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Illustrator")}
             value={nvf.illustrator}
-            onChange={(e) => unv("illustrator", e.target.value)}
-            placeholder="Illustrator name"
+            onChange={(v) => unv("illustrator", v)}
+            placeholder="Select or type illustrator..."
           />
         </Field>
       </div>
@@ -537,11 +541,15 @@ export default function NovelAddTab({
           />
         </Field>
         <Field label="Publisher TW">
-          <input
-            className={inputCls}
-            value={nvf.publisher_tw}
-            onChange={(e) => unv("publisher_tw", e.target.value)}
+          <ComboBox
+            items={publisherItems}
+            selectedId={publisherOptions.includes(nvf.publisher_tw) ? nvf.publisher_tw : null}
+            inputText={nvf.publisher_tw || ""}
+            onSelect={(id) => unv("publisher_tw", id)}
+            onType={(text) => unv("publisher_tw", text)}
+            onClear={() => unv("publisher_tw", "")}
             placeholder="e.g. 台灣角川"
+            allowNew
           />
         </Field>
       </div>

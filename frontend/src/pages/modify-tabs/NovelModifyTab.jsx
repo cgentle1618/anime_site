@@ -1,12 +1,13 @@
 import BelongingNovelsEditor from "../../components/BelongingNovelsEditor";
 import ComboBox from "../../components/ComboBox";
+import MultiSelect from "../../components/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 import NovelNotes from "../NovelNotes";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
@@ -35,7 +36,11 @@ export default function NovelModifyTab({
   seriesItemsForNovel,
   editingItem,
   ribbonSection,
+  allOptions,
 }) {
+  const publisherOptions = getOptions(allOptions, "Novel Publisher TW");
+  const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
+
   return (
     <>
       {ribbonSection}
@@ -372,17 +377,19 @@ export default function NovelModifyTab({
       <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Author")}
             value={cnvf.author || ""}
-            onChange={(e) => unv("author", e.target.value)}
+            onChange={(v) => unv("author", v)}
+            placeholder="Select or type author..."
           />
         </Field>
         <Field label="Illustrator">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Illustrator")}
             value={cnvf.illustrator || ""}
-            onChange={(e) => unv("illustrator", e.target.value)}
+            onChange={(v) => unv("illustrator", v)}
+            placeholder="Select or type illustrator..."
           />
         </Field>
       </div>
@@ -404,10 +411,15 @@ export default function NovelModifyTab({
           />
         </Field>
         <Field label="Publisher TW">
-          <input
-            className={inputCls}
-            value={cnvf.publisher_tw || ""}
-            onChange={(e) => unv("publisher_tw", e.target.value)}
+          <ComboBox
+            items={publisherItems}
+            selectedId={publisherOptions.includes(cnvf.publisher_tw) ? cnvf.publisher_tw : null}
+            inputText={cnvf.publisher_tw || ""}
+            onSelect={(id) => unv("publisher_tw", id)}
+            onType={(text) => unv("publisher_tw", text)}
+            onClear={() => unv("publisher_tw", "")}
+            placeholder="e.g. 台灣角川"
+            allowNew
           />
         </Field>
       </div>
