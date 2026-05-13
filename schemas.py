@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 # ==========================================
 # AUTHENTICATION SCHEMAS
@@ -627,6 +627,13 @@ class NovelBase(BaseModel):
     novel_name_alt: Optional[str] = None
     novel_name_each_cn: Optional[list] = None
     novel_name_each_en: Optional[list] = None
+
+    @field_validator("novel_name_each_cn", "novel_name_each_en", mode="before")
+    @classmethod
+    def _coerce_each_to_list(cls, v):
+        if isinstance(v, dict):
+            return [{"key": k, "name": n} for k, n in v.items()]
+        return v
 
     region: Optional[str] = None
     type: Optional[str] = None
