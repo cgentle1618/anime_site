@@ -147,7 +147,7 @@ export default function NovelModifyTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="Region">
           <select
             className={selectCls}
@@ -189,6 +189,14 @@ export default function NovelModifyTab({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Version">
+          <input
+            className={inputCls}
+            value={cnvf.version || ""}
+            onChange={(e) => unv("version", e.target.value)}
+            placeholder="e.g. 陸版"
+          />
         </Field>
       </div>
 

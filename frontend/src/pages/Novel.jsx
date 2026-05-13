@@ -897,6 +897,7 @@ export default function Novel() {
                 [
                   { label: "Region", value: novel.region },
                   { label: "Type", value: novel.type },
+                  { label: "Version", value: novel.version },
                 ],
                 [
                   { label: "本傳 / 外傳", value: novel.is_main },

@@ -39,6 +39,7 @@ export const defaultNovel = () => ({
   series_text: "",
   region: "",
   type: "",
+  version: "",
   is_main: "本傳",
   serialization_status: "",
   reading_status: "Might Read",
@@ -265,7 +266,7 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="Region">
           <select
             className={selectCls}
@@ -307,6 +308,14 @@ export default function NovelAddTab({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Version">
+          <input
+            className={inputCls}
+            value={nvf.version}
+            onChange={(e) => unv("version", e.target.value)}
+            placeholder="e.g. 陸版"
+          />
         </Field>
       </div>
 

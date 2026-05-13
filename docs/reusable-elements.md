@@ -742,7 +742,7 @@ Manga Information Card
 
 Novel Information Card
 
-- Novel Region, Novel Type, 本傳 / 外傳 (is_main)
+- Novel Region, Novel Type, 本傳 / 外傳 (is_main), Version
 - Serialization Status, Release Year, End Year
 - Volume Total, Arc Total, Ch Total
 
