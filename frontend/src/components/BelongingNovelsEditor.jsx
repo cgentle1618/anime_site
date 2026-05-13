@@ -5,13 +5,7 @@ const nameInputCls = baseCls + " flex-1 min-w-0";
 
 export default function BelongingNovelsEditor({ items, onChange, label, placeholder }) {
   const addEntry = () => {
-    const nextKey = String(
-      items.reduce((max, e) => {
-        const n = parseInt(e.key, 10);
-        return !isNaN(n) ? Math.max(max, n) : max;
-      }, 0) + 1,
-    );
-    onChange([...items, { key: nextKey, name: "" }]);
+    onChange([...items, { key: "", name: "" }]);
   };
 
   const removeEntry = (i) => onChange(items.filter((_, j) => j !== i));
@@ -61,7 +55,7 @@ export default function BelongingNovelsEditor({ items, onChange, label, placehol
             </div>
             <input
               className={keyInputCls}
-              placeholder="#"
+              placeholder="key"
               value={entry.key}
               onChange={(e) => updateEntry(i, "key", e.target.value)}
             />
