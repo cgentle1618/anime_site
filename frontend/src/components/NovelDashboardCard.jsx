@@ -127,7 +127,7 @@ export default function NovelDashboardCard({
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-12 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-gray-900 w-16 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={fin}
                 onChange={(e) =>
                   handleVolChange(parseFloat(e.target.value) || 0)
@@ -135,7 +135,7 @@ export default function NovelDashboardCard({
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-12 text-center">
+              <span className="text-gray-500 text-[13px] w-16 text-center">
                 {total}
               </span>
               <span className="text-gray-400 ml-1 text-[10px] font-sans">
@@ -186,7 +186,7 @@ export default function NovelDashboardCard({
               <span className="text-[9px] text-gray-400 font-sans">ARC</span>
               <input
                 type="number"
-                className="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-gray-900 w-10 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={arcFin}
                 onChange={(e) =>
                   handleArcChange(parseFloat(e.target.value) || 0)
@@ -198,7 +198,7 @@ export default function NovelDashboardCard({
               <span className="text-[9px] text-gray-400 font-sans">CH</span>
               <input
                 type="number"
-                className="text-gray-900 w-8 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-gray-900 w-10 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={chFin}
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
@@ -249,7 +249,7 @@ export default function NovelDashboardCard({
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-14 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-gray-900 w-16 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={fin}
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
@@ -257,7 +257,7 @@ export default function NovelDashboardCard({
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-14 text-center">
+              <span className="text-gray-500 text-[13px] w-16 text-center">
                 {total}
               </span>
               <span className="text-gray-400 ml-1 text-[10px] font-sans">
