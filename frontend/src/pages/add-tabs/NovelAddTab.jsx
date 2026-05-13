@@ -574,24 +574,20 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
-          Belonging Novels
-        </label>
-        <div className="space-y-4">
-          <BelongingNovelsEditor
-            items={nvf.novel_name_each_cn}
-            onChange={(val) => unv("novel_name_each_cn", val)}
-            label="CN"
-            placeholder="CN book name"
-          />
-          <BelongingNovelsEditor
-            items={nvf.novel_name_each_en}
-            onChange={(val) => unv("novel_name_each_en", val)}
-            label="EN"
-            placeholder="EN book name"
-          />
-        </div>
+      <SectionHeader icon="fa-book-open" title="Belonging Novels" />
+      <div className="space-y-4">
+        <BelongingNovelsEditor
+          items={nvf.novel_name_each_cn}
+          onChange={(val) => unv("novel_name_each_cn", val)}
+          label="CN"
+          placeholder="CN book name"
+        />
+        <BelongingNovelsEditor
+          items={nvf.novel_name_each_en}
+          onChange={(val) => unv("novel_name_each_en", val)}
+          label="EN"
+          placeholder="EN book name"
+        />
       </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
