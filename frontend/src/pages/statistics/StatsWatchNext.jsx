@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/anime";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "./statsUtils";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };

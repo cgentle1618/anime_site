@@ -6,7 +6,7 @@ import {
   FALLBACK_SVG,
   isBaha,
   getStatusButtonConfig,
-} from "../utils/anime";
+} from "../utils/media";
 
 function formatLength(minutes) {
   if (!minutes) return null;

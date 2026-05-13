@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/anime";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "./statsUtils";
 
 const REWATCH_TABS = [

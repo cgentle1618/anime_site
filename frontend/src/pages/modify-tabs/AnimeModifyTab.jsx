@@ -6,7 +6,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getOptions } from "../../utils/anime";
+import { getOptions } from "../../utils/media";
 import AnimeNotes from "../AnimeNotes";
 
 export default function AnimeModifyTab({

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG } from "../../utils/anime";
+import { FALLBACK_SVG } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "./statsUtils";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];

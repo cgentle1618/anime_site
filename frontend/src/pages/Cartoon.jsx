@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
+import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 import InfoCard from "../components/InfoCard";
 import CartoonNamingCard from "../components/CartoonNamingCard";
 import SourcesCard from "../components/SourcesCard";

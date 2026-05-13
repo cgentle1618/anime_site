@@ -1,4 +1,4 @@
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/anime";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 
 export function getDisplayName(f) {
   return (
