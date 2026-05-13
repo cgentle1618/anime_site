@@ -625,8 +625,8 @@ class NovelBase(BaseModel):
     novel_name_roman: Optional[str] = None
     novel_name_jp: Optional[str] = None
     novel_name_alt: Optional[str] = None
-    novel_name_each_cn: Optional[dict] = None
-    novel_name_each_en: Optional[dict] = None
+    novel_name_each_cn: Optional[list] = None
+    novel_name_each_en: Optional[list] = None
 
     region: Optional[str] = None
     type: Optional[str] = None

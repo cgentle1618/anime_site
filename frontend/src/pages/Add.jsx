@@ -1572,10 +1572,10 @@ export default function Add() {
     }
 
     const novelNameEachCn = nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
-      ? Object.fromEntries(nvf.novel_name_each_cn.filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
+      ? nvf.novel_name_each_cn.filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
     const novelNameEachEn = nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
-      ? Object.fromEntries(nvf.novel_name_each_en.filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
+      ? nvf.novel_name_each_en.filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
 
     // Auto-create missing system options for author, illustrator, publisher_tw

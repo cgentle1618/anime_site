@@ -592,8 +592,8 @@ export default function Modify() {
     const s = (seriesList || allSeries).find(
       (x) => x.system_id === n.series_id,
     );
-    const novel_name_each_cn = Object.entries(n.novel_name_each_cn || {}).map(([key, name]) => ({ key, name }));
-    const novel_name_each_en = Object.entries(n.novel_name_each_en || {}).map(([key, name]) => ({ key, name }));
+    const novel_name_each_cn = n.novel_name_each_cn || [];
+    const novel_name_each_en = n.novel_name_each_en || [];
     return {
       novel_name_cn: n.novel_name_cn || "",
       novel_name_en: n.novel_name_en || "",
@@ -1661,10 +1661,10 @@ export default function Modify() {
       setAllSeries((prev) => [...prev, ns]);
     }
     const novelNameEachCn = (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
-      ? Object.fromEntries((cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
+      ? (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
     const novelNameEachEn = (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
-      ? Object.fromEntries((cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
+      ? (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
 
     // Auto-create missing system options for author, illustrator, publisher_tw

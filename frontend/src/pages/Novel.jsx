@@ -25,28 +25,24 @@ function serializationStatusColor(status) {
 
 
 function BelongingNovelsCard({ novel, isAdmin, onSave }) {
-  const objToItems = (obj) =>
-    Object.entries(obj || {}).map(([key, name]) => ({ key, name }));
-
-  const [cnItems, setCnItems] = useState(objToItems(novel.novel_name_each_cn));
-  const [enItems, setEnItems] = useState(objToItems(novel.novel_name_each_en));
+  const [cnItems, setCnItems] = useState(novel.novel_name_each_cn || []);
+  const [enItems, setEnItems] = useState(novel.novel_name_each_en || []);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setCnItems(objToItems(novel.novel_name_each_cn));
-    setEnItems(objToItems(novel.novel_name_each_en));
+    setCnItems(novel.novel_name_each_cn || []);
+    setEnItems(novel.novel_name_each_en || []);
     setDirty(false);
   }, [novel.novel_name_each_cn, novel.novel_name_each_en]);
 
   function handleSave() {
-    const toObj = (items) => {
-      const o = {};
-      items.forEach(({ key, name }) => { if (key && name) o[key] = name; });
-      return Object.keys(o).length ? o : null;
+    const toArr = (items) => {
+      const filtered = items.filter(({ key, name }) => key && name);
+      return filtered.length ? filtered : null;
     };
     onSave({
-      novel_name_each_cn: toObj(cnItems),
-      novel_name_each_en: toObj(enItems),
+      novel_name_each_cn: toArr(cnItems),
+      novel_name_each_en: toArr(enItems),
     });
     setDirty(false);
   }
