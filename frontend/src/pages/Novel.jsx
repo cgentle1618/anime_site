@@ -628,6 +628,9 @@ export default function Novel() {
             }
             onReadNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
             onToRerereadChange={(v, msg) => performPatch({ to_reread: v }, msg)}
+            onProgressDisplayChange={(v) =>
+              performPatch({ progress_display: v || null }, "Progress display updated")
+            }
           />
 
           {/* Detail Cards */}

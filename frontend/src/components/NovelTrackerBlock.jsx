@@ -1,3 +1,11 @@
+const PROGRESS_DISPLAY_OPTIONS = [
+  { value: "", label: "— Default (VOL Original) —" },
+  { value: "ch", label: "CH (Chapters)" },
+  { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
+  { value: "vol_original", label: "VOL Original" },
+  { value: "arc_ch", label: "ARC + CH" },
+];
+
 const READING_STATUSES = [
   "Might Read",
   "Plan to Read",
@@ -52,6 +60,7 @@ export default function NovelTrackerBlock({
   onRatingChange,
   onReadNextChange,
   onToRerereadChange,
+  onProgressDisplayChange,
 }) {
   const pd = novel.progress_display;
   const volHighlighted = !pd || pd === "vol_original" || pd === "vol_tw";
@@ -106,8 +115,8 @@ export default function NovelTrackerBlock({
       </div>
       <div className="p-5 space-y-4">
 
-        {/* Status & Rating */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Status, Rating & Progress Display */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Reading Status
@@ -136,6 +145,21 @@ export default function NovelTrackerBlock({
               <option value="">Unrated</option>
               {MY_RATINGS.map((r) => (
                 <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Progress Display
+            </label>
+            <select
+              value={novel.progress_display || ""}
+              disabled={!isAdmin}
+              onChange={(e) => isAdmin && onProgressDisplayChange(e.target.value)}
+              className={selectCls}
+            >
+              {PROGRESS_DISPLAY_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
               ))}
             </select>
           </div>
