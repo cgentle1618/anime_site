@@ -21,7 +21,7 @@ const SERIALIZATION_STATUSES = [
   "未出",
 ];
 const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (CH) —" },
+  { value: "", label: "— Default (VOL Original) —" },
   { value: "ch", label: "CH (Chapters)" },
   { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
   { value: "vol_original", label: "VOL Original" },

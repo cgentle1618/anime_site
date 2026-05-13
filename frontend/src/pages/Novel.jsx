@@ -108,7 +108,7 @@ function NovelTrackerBlock({
 
   const pd = novel.progress_display;
   const showVolTw = pd === "vol_tw";
-  const showVolOrig = pd === "vol_original";
+  const showVolOrig = pd === "vol_original" || !pd;
   const showArcCh = pd === "arc_ch";
 
   const chFin = novel.ch_fin ?? 0;
