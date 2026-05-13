@@ -1,6 +1,15 @@
 import ComboBox from "../../components/ComboBox";
 import { Field, SectionHeader, inputCls } from "../../components/FormField";
 
+export const defaultSeries = () => ({
+  franchise_id: null,
+  franchise_text: "",
+  series_name_en: "",
+  series_name_cn: "",
+  series_name_alt: "",
+  remark: "",
+});
+
 export default function SeriesAddTab({ sf, us, franchiseItems }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">

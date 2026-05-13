@@ -5,7 +5,7 @@ import {
   getCoverUrl,
   FALLBACK_SVG,
   getStatusButtonConfig,
-} from "../utils/anime";
+} from "../utils/media";
 
 export default function CartoonCard({
   cartoon,

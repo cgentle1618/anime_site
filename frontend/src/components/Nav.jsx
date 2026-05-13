@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-import { cleanString } from "../utils/anime";
+import { cleanString } from "../utils/media";
 
 const SCOPES = [
   { key: "all", label: "All" },

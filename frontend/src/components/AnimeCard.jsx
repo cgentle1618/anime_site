@@ -11,7 +11,7 @@ import {
   isBaha,
   getStatusButtonConfig,
   getReleaseFallback,
-} from "../utils/anime";
+} from "../utils/media";
 
 export default function AnimeCard({ anime, onUpdated, adminOverride }) {
   const { isAdmin } = useAuth();

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/anime";
+import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/media";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard, { InfoRow } from "../components/InfoCard";
 import NamingCard from "../components/NamingCard";

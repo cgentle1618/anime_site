@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-import { getRatingWeight } from "../utils/anime";
+import { getRatingWeight } from "../utils/media";
 import DashboardCard from "../components/DashboardCard";
 import RatingDistributionBlock from "../components/RatingDistributionBlock";
 

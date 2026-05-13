@@ -5,7 +5,40 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/anime";
+import { getDisplayName, parseTypes } from "../../utils/media";
+
+export const defaultCartoon = () => ({
+  cartoon_name_en: "",
+  cartoon_name_cn: "",
+  cartoon_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  season_part: "",
+  airing_type: "TV",
+  airing_status: "Not Yet Aired",
+  watching_status: "Might Watch",
+  is_main: "本傳",
+  ep_total: "",
+  ep_fin: "",
+  my_rating: "",
+  imdb_rating: "",
+  length_ep_min: "",
+  source_official: "",
+  release_date: "",
+  prequel_id: null,
+  sequel_id: null,
+  watch_order: "",
+  derive_related: "",
+  imdb_id: "",
+  imdb_link: "",
+  source_other: [],
+  watch_next: false,
+  to_rewatch: false,
+  cover_image_file: "",
+  remark: "",
+});
 
 export default function CartoonAddTab({
   cf,

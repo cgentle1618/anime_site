@@ -1,4 +1,4 @@
-import { parseTypes } from "../../utils/anime";
+import { parseTypes } from "../../utils/media";
 import {
   Field,
   SectionHeader,

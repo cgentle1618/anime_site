@@ -5,7 +5,37 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/anime";
+import { getDisplayName, parseTypes } from "../../utils/media";
+
+export const defaultMovie = () => ({
+  movie_name_en: "",
+  movie_name_cn: "",
+  movie_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  airing_status: "Not Yet Aired",
+  watching_status: "Might Watch",
+  my_rating: "",
+  movie_type: "",
+  is_main: "本傳",
+  length_min: "",
+  release_date_usa: "",
+  release_date_tw: "",
+  director: "",
+  prequel_id: null,
+  sequel_id: null,
+  watch_order: "",
+  derive_related: "",
+  imdb_id: "",
+  imdb_link: "",
+  source_other: [],
+  watch_next: false,
+  to_rewatch: false,
+  cover_image_file: "",
+  remark: "",
+});
 
 export default function MovieAddTab({
   mf,

@@ -11,7 +11,7 @@ import {
   getStatusButtonConfig,
   getRatingWeight,
   cleanString,
-} from "../utils/anime";
+} from "../utils/media";
 import { useToast } from "../hooks/useToast";
 
 const MONTH_MAP = {

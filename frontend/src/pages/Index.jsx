@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
-import { getRatingWeight } from "../utils/anime";
+import { getRatingWeight } from "../utils/media";
 import DashboardCard from "../components/DashboardCard";
 
 const RATING_WEIGHT = {
