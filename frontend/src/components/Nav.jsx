@@ -286,7 +286,7 @@ export default function Nav() {
               ].some((n) => cleanString(n).includes(qClean)),
             )
             .slice(0, limit)
-            .forEach((n) => results.push({ type: "novel", ...n }));
+            .forEach((n) => results.push({ ...n, type: "novel" }));
         }
 
         if (scope === "all" || scope === "seasonal") {
