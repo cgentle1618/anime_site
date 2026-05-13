@@ -1206,7 +1206,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 Includes auto-fill from existing entry search bar (searches all languages including Alt).
 
 - **Titles & Naming:** Franchise (ComboBox + auto-create modal), Series (ComboBox + auto-create modal), Novel Name EN/CN/Roman/JP/Alt
-- **Classification:** Novel Region dropdown, Novel Type dropdown, Main/Spinoff dropdown (default: 本傳)
+- **Classification:** Novel Region dropdown, Novel Type dropdown, Main/Spinoff dropdown (default: 本傳), Version
 - **Status & Progress:** Serialization Status dropdown, Reading Status dropdown (default: Might Read), Volumes Total Original, Volumes Total TW, Volumes Read, Arc Total, Arc Read, Ch Total, Ch Read, My Rating dropdown, MAL Rating, MAL Rank, AniList Rating, Read Next checkbox, To Reread checkbox
 - **Production:** Author searchable dropdown (multi-selectable), Illustrator searchable dropdown (multi-selectable), Release Year, Ending Year, Publisher TW dropdown
 - **Relational & Timeline:** Prequel ID, Sequel ID, Alternative IDs, Is Main Entry checkbox, Read Order

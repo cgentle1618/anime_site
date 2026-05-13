@@ -1,11 +1,13 @@
+import BelongingNovelsEditor from "../../components/BelongingNovelsEditor";
 import ComboBox from "../../components/ComboBox";
+import MultiSelect from "../../components/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
 const SERIALIZATION_STATUSES = [
@@ -19,7 +21,7 @@ const SERIALIZATION_STATUSES = [
   "未出",
 ];
 const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (CH) —" },
+  { value: "", label: "— Default (VOL Original) —" },
   { value: "ch", label: "CH (Chapters)" },
   { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
   { value: "vol_original", label: "VOL Original" },
@@ -38,6 +40,7 @@ export const defaultNovel = () => ({
   series_text: "",
   region: "",
   type: "",
+  version: "",
   is_main: "本傳",
   serialization_status: "",
   reading_status: "Might Read",
@@ -62,7 +65,8 @@ export const defaultNovel = () => ({
   sequel_id: null,
   alternative: "",
   read_order: "",
-  novel_name_each: [],
+  novel_name_each_cn: [],
+  novel_name_each_en: [],
   mal_id: "",
   mal_link: "",
   anilist_link: "",
@@ -85,7 +89,10 @@ export default function NovelAddTab({
   applyNovelAutofill,
   allFranchises,
   seriesItemsForNovel,
+  allOptions,
 }) {
+  const publisherOptions = getOptions(allOptions, "Novel Publisher TW");
+  const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
       {/* Auto-fill search */}
@@ -263,7 +270,7 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="Region">
           <select
             className={selectCls}
@@ -305,6 +312,14 @@ export default function NovelAddTab({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Version">
+          <input
+            className={inputCls}
+            value={nvf.version}
+            onChange={(e) => unv("version", e.target.value)}
+            placeholder="e.g. 陸版"
+          />
         </Field>
       </div>
 
@@ -490,19 +505,19 @@ export default function NovelAddTab({
       <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Author")}
             value={nvf.author}
-            onChange={(e) => unv("author", e.target.value)}
-            placeholder="Author name"
+            onChange={(v) => unv("author", v)}
+            placeholder="Select or type author..."
           />
         </Field>
         <Field label="Illustrator">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Illustrator")}
             value={nvf.illustrator}
-            onChange={(e) => unv("illustrator", e.target.value)}
-            placeholder="Illustrator name"
+            onChange={(v) => unv("illustrator", v)}
+            placeholder="Select or type illustrator..."
           />
         </Field>
       </div>
@@ -526,11 +541,15 @@ export default function NovelAddTab({
           />
         </Field>
         <Field label="Publisher TW">
-          <input
-            className={inputCls}
-            value={nvf.publisher_tw}
-            onChange={(e) => unv("publisher_tw", e.target.value)}
+          <ComboBox
+            items={publisherItems}
+            selectedId={publisherOptions.includes(nvf.publisher_tw) ? nvf.publisher_tw : null}
+            inputText={nvf.publisher_tw || ""}
+            onSelect={(id) => unv("publisher_tw", id)}
+            onType={(text) => unv("publisher_tw", text)}
+            onClear={() => unv("publisher_tw", "")}
             placeholder="e.g. 台灣角川"
+            allowNew
           />
         </Field>
       </div>
@@ -572,85 +591,20 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-          Belonging Novels (CN / EN)
-        </label>
-        <div className="space-y-2">
-          {nvf.novel_name_each.map((entry, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                className={inputCls + " w-16 shrink-0"}
-                placeholder="#"
-                value={entry.key}
-                onChange={(e) =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.map((x, j) =>
-                      j === i ? { ...x, key: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                placeholder="CN name"
-                value={entry.cn}
-                onChange={(e) =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.map((x, j) =>
-                      j === i ? { ...x, cn: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                placeholder="EN name"
-                value={entry.en}
-                onChange={(e) =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.map((x, j) =>
-                      j === i ? { ...x, en: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                className="text-red-400 hover:text-red-600 px-1 shrink-0"
-                onClick={() =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline mt-1"
-            onClick={() => {
-              const nextKey = String(
-                nvf.novel_name_each.reduce((max, e) => {
-                  const n = parseInt(e.key, 10);
-                  return !isNaN(n) ? Math.max(max, n) : max;
-                }, 0) + 1,
-              );
-              unv("novel_name_each", [
-                ...nvf.novel_name_each,
-                { key: nextKey, cn: "", en: "" },
-              ]);
-            }}
-          >
-            + Add Entry
-          </button>
-        </div>
+      <SectionHeader icon="fa-book-open" title="Belonging Novels" />
+      <div className="space-y-4">
+        <BelongingNovelsEditor
+          items={nvf.novel_name_each_cn}
+          onChange={(val) => unv("novel_name_each_cn", val)}
+          label="CN"
+          placeholder="CN book name"
+        />
+        <BelongingNovelsEditor
+          items={nvf.novel_name_each_en}
+          onChange={(val) => unv("novel_name_each_en", val)}
+          label="EN"
+          placeholder="EN book name"
+        />
       </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />

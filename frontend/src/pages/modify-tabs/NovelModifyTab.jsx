@@ -1,11 +1,13 @@
+import BelongingNovelsEditor from "../../components/BelongingNovelsEditor";
 import ComboBox from "../../components/ComboBox";
+import MultiSelect from "../../components/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 import NovelNotes from "../NovelNotes";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
@@ -20,7 +22,7 @@ const SERIALIZATION_STATUSES = [
   "未出",
 ];
 const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (CH) —" },
+  { value: "", label: "— Default (VOL Original) —" },
   { value: "ch", label: "CH (Chapters)" },
   { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
   { value: "vol_original", label: "VOL Original" },
@@ -34,7 +36,11 @@ export default function NovelModifyTab({
   seriesItemsForNovel,
   editingItem,
   ribbonSection,
+  allOptions,
 }) {
+  const publisherOptions = getOptions(allOptions, "Novel Publisher TW");
+  const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
+
   return (
     <>
       {ribbonSection}
@@ -146,7 +152,7 @@ export default function NovelModifyTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="Region">
           <select
             className={selectCls}
@@ -188,6 +194,14 @@ export default function NovelModifyTab({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Version">
+          <input
+            className={inputCls}
+            value={cnvf.version || ""}
+            onChange={(e) => unv("version", e.target.value)}
+            placeholder="e.g. 陸版"
+          />
         </Field>
       </div>
 
@@ -363,17 +377,19 @@ export default function NovelModifyTab({
       <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Author")}
             value={cnvf.author || ""}
-            onChange={(e) => unv("author", e.target.value)}
+            onChange={(v) => unv("author", v)}
+            placeholder="Select or type author..."
           />
         </Field>
         <Field label="Illustrator">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getOptions(allOptions, "Novel Illustrator")}
             value={cnvf.illustrator || ""}
-            onChange={(e) => unv("illustrator", e.target.value)}
+            onChange={(v) => unv("illustrator", v)}
+            placeholder="Select or type illustrator..."
           />
         </Field>
       </div>
@@ -395,10 +411,15 @@ export default function NovelModifyTab({
           />
         </Field>
         <Field label="Publisher TW">
-          <input
-            className={inputCls}
-            value={cnvf.publisher_tw || ""}
-            onChange={(e) => unv("publisher_tw", e.target.value)}
+          <ComboBox
+            items={publisherItems}
+            selectedId={publisherOptions.includes(cnvf.publisher_tw) ? cnvf.publisher_tw : null}
+            inputText={cnvf.publisher_tw || ""}
+            onSelect={(id) => unv("publisher_tw", id)}
+            onType={(text) => unv("publisher_tw", text)}
+            onClear={() => unv("publisher_tw", "")}
+            placeholder="e.g. 台灣角川"
+            allowNew
           />
         </Field>
       </div>
@@ -438,6 +459,22 @@ export default function NovelModifyTab({
             onChange={(e) => unv("read_order", e.target.value)}
           />
         </Field>
+      </div>
+
+      <SectionHeader icon="fa-book-open" title="Belonging Novels" />
+      <div className="space-y-4">
+        <BelongingNovelsEditor
+          items={cnvf.novel_name_each_cn || []}
+          onChange={(val) => unv("novel_name_each_cn", val)}
+          label="CN"
+          placeholder="CN book name"
+        />
+        <BelongingNovelsEditor
+          items={cnvf.novel_name_each_en || []}
+          onChange={(val) => unv("novel_name_each_en", val)}
+          label="EN"
+          placeholder="EN book name"
+        />
       </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />

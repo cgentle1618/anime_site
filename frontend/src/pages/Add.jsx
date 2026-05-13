@@ -1571,12 +1571,47 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    const novelNameEachCn = nvf.novel_name_each.length > 0
-      ? Object.fromEntries(nvf.novel_name_each.filter((e) => e.cn.trim()).map((e) => [e.key, e.cn.trim()]))
+    const novelNameEachCn = nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
+      ? nvf.novel_name_each_cn.filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
-    const novelNameEachEn = nvf.novel_name_each.length > 0
-      ? Object.fromEntries(nvf.novel_name_each.filter((e) => e.en.trim()).map((e) => [e.key, e.en.trim()]))
+    const novelNameEachEn = nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
+      ? nvf.novel_name_each_en.filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
+
+    // Auto-create missing system options for author, illustrator, publisher_tw
+    {
+      const existingValues = {};
+      for (const o of allOptions) {
+        if (!existingValues[o.category]) existingValues[o.category] = new Set();
+        existingValues[o.category].add(o.option_value);
+      }
+      const toCreate = [];
+      for (const v of (nvf.author || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+        if (!existingValues["Novel Author"]?.has(v))
+          toCreate.push({ category: "Novel Author", option_value: v });
+      }
+      for (const v of (nvf.illustrator || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+        if (!existingValues["Novel Illustrator"]?.has(v))
+          toCreate.push({ category: "Novel Illustrator", option_value: v });
+      }
+      const pub = (nvf.publisher_tw || "").trim();
+      if (pub && !existingValues["Novel Publisher TW"]?.has(pub))
+        toCreate.push({ category: "Novel Publisher TW", option_value: pub });
+      if (toCreate.length > 0) {
+        await Promise.all(
+          toCreate.map((item) =>
+            fetch("/api/options/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item),
+              credentials: "include",
+            }),
+          ),
+        );
+        const oRes = await fetch("/api/options/", { credentials: "include" });
+        if (oRes.ok) setAllOptions(await oRes.json());
+      }
+    }
 
     const payload = {
       novel_name_cn: nvf.novel_name_cn || null,
@@ -1588,6 +1623,7 @@ export default function Add() {
       series_id: seriesId || null,
       region: nvf.region || null,
       type: nvf.type || null,
+      version: nvf.version || null,
       is_main: nvf.is_main || null,
       serialization_status: nvf.serialization_status || null,
       reading_status: nvf.reading_status || "Might Read",
@@ -1596,7 +1632,7 @@ export default function Add() {
       vol_total_tw: nvf.vol_total_tw !== "" ? parseFloat(nvf.vol_total_tw) : null,
       vol_fin: nvf.vol_fin !== "" ? parseFloat(nvf.vol_fin) : 0,
       arc_total: nvf.arc_total !== "" ? parseFloat(nvf.arc_total) : null,
-      arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : null,
+      arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : 0,
       ch_total: nvf.ch_total !== "" ? parseFloat(nvf.ch_total) : null,
       ch_fin: nvf.ch_fin !== "" ? parseFloat(nvf.ch_fin) : 0,
       my_rating: nvf.my_rating || null,
@@ -1920,6 +1956,7 @@ export default function Add() {
             applyNovelAutofill={applyNovelAutofill}
             allFranchises={allFranchises}
             seriesItemsForNovel={seriesItemsForNovel}
+            allOptions={allOptions}
           />
         )}
 

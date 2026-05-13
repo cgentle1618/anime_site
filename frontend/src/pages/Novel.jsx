@@ -5,23 +5,12 @@ import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 import InfoCard from "../components/InfoCard";
 import NamingCard from "../components/NamingCard";
+import NovelTrackerBlock from "../components/NovelTrackerBlock";
 import SourcesCard from "../components/SourcesCard";
 import ScoreBlock from "../components/ScoreBlock";
 import SeriesModal from "../components/SeriesModal";
 import NovelNotes from "./NovelNotes";
-
-const READING_STATUSES = [
-  "Might Read",
-  "Plan to Read",
-  "Active Reading",
-  "Passive Reading",
-  "Paused",
-  "Temp Dropped",
-  "Dropped",
-  "Won't Read",
-  "Completed",
-];
-const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+import BelongingNovelsEditor from "../components/BelongingNovelsEditor";
 
 function serializationStatusColor(status) {
   if (status === "連載中")
@@ -34,485 +23,106 @@ function serializationStatusColor(status) {
   return "bg-gray-100 text-gray-600 border border-gray-200";
 }
 
-function ProgressStepper({ label, fin, total, unit, isAdmin, onChange }) {
-  function step(delta) {
-    if (!isAdmin) return;
-    let next = (fin || 0) + delta;
-    if (total !== null && next > total) next = total;
-    if (next < 0) next = 0;
-    if (next === fin) return;
-    onChange(next);
-  }
-
-  return (
-    <div>
-      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
-        {label}
-      </div>
-      <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm w-fit">
-        <button
-          onClick={() => step(-1)}
-          disabled={!isAdmin}
-          className="w-8 h-8 shrink-0 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center disabled:opacity-40"
-        >
-          <i className="fas fa-minus text-xs"></i>
-        </button>
-        <div className="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap">
-          <input
-            type="number"
-            value={fin}
-            disabled={!isAdmin}
-            step="0.5"
-            onChange={(e) => {
-              if (!isAdmin) return;
-              const v = parseFloat(e.target.value) || 0;
-              if (total !== null && v > total) return;
-              onChange(Math.max(0, v));
-            }}
-            className="text-gray-900 w-12 text-right bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
-          />
-          <span className="text-gray-400 mx-1 text-xs">/</span>
-          <span className="text-gray-500 text-sm leading-none">
-            {total ?? "?"}
-          </span>
-          <span className="text-[9px] text-gray-400 font-sans ml-1.5">
-            {unit}
-          </span>
-        </div>
-        <button
-          onClick={() => step(1)}
-          disabled={!isAdmin}
-          className="w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center disabled:opacity-40"
-        >
-          <i className="fas fa-plus text-xs"></i>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function NovelTrackerBlock({
-  novel,
-  isAdmin,
-  onChChange,
-  onVolChange,
-  onArcChange,
-  onStatusChange,
-  onRatingChange,
-  onReadNextChange,
-  onToRerereadChange,
-}) {
-  const selectDisabledCls = !isAdmin
-    ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-    : "";
-
-  const pd = novel.progress_display;
-  const showVolTw = pd === "vol_tw";
-  const showVolOrig = pd === "vol_original";
-  const showArcCh = pd === "arc_ch";
-
-  const chFin = novel.ch_fin ?? 0;
-  const chTotal = novel.ch_total ?? null;
-  const volFin = novel.vol_fin ?? 0;
-  const arcFin = novel.arc_fin ?? 0;
-  const arcTotal = novel.arc_total ?? null;
-  const volTotalTw = novel.vol_total_tw ?? null;
-  const volTotalOrig = novel.vol_total_original ?? null;
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-t-4 border-t-brand">
-      <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5">
-        <h3 className="font-bold text-gray-800 text-lg flex items-center">
-          <i className="fas fa-book-reader text-brand mr-2"></i>My Tracker
-        </h3>
-      </div>
-      <div className="p-5 space-y-5">
-        {showVolTw && (
-          <ProgressStepper
-            label="Volumes (TW)"
-            fin={volFin}
-            total={volTotalTw}
-            unit="VOL TW"
-            isAdmin={isAdmin}
-            onChange={onVolChange}
-          />
-        )}
-        {showVolOrig && (
-          <ProgressStepper
-            label="Volumes (Original)"
-            fin={volFin}
-            total={volTotalOrig}
-            unit="VOL"
-            isAdmin={isAdmin}
-            onChange={onVolChange}
-          />
-        )}
-        {showArcCh && (
-          <div className="flex gap-4 flex-wrap">
-            <ProgressStepper
-              label="Arcs"
-              fin={arcFin}
-              total={arcTotal}
-              unit="ARC"
-              isAdmin={isAdmin}
-              onChange={onArcChange}
-            />
-            <ProgressStepper
-              label="Chapters"
-              fin={chFin}
-              total={chTotal}
-              unit="CH"
-              isAdmin={isAdmin}
-              onChange={onChChange}
-            />
-          </div>
-        )}
-        {!showVolTw && !showVolOrig && !showArcCh && (
-          <ProgressStepper
-            label="Chapters"
-            fin={chFin}
-            total={chTotal}
-            unit="CH"
-            isAdmin={isAdmin}
-            onChange={onChChange}
-          />
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Reading Status
-            </label>
-            <select
-              value={novel.reading_status || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onStatusChange(e.target.value)}
-              className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-            >
-              {READING_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Rating
-            </label>
-            <select
-              value={novel.my_rating || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onRatingChange(e.target.value)}
-              className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-            >
-              <option value="">Unrated</option>
-              {MY_RATINGS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Read Next
-            </label>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
-              <input
-                type="checkbox"
-                checked={!!novel.read_next}
-                disabled={!isAdmin}
-                onChange={(e) =>
-                  isAdmin &&
-                  onReadNextChange(
-                    e.target.checked,
-                    e.target.checked
-                      ? "Added to Read Next"
-                      : "Removed from Read Next",
-                  )
-                }
-                className="w-4 h-4 rounded accent-brand"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Read Next
-              </span>
-            </label>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              To Reread
-            </label>
-            <label
-              className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-            >
-              <input
-                type="checkbox"
-                checked={!!novel.to_reread}
-                disabled={!isAdmin}
-                onChange={(e) =>
-                  isAdmin &&
-                  onToRerereadChange(
-                    e.target.checked,
-                    e.target.checked
-                      ? "Marked for reread"
-                      : "Removed from reread",
-                  )
-                }
-                className="w-4 h-4 rounded accent-brand"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                To Reread
-              </span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const inputCls =
-  "w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
 
 function BelongingNovelsCard({ novel, isAdmin, onSave }) {
-  const cnObj = novel.novel_name_each_cn || {};
-  const enObj = novel.novel_name_each_en || {};
-  const allKeys = [
-    ...new Set([...Object.keys(cnObj), ...Object.keys(enObj)]),
-  ].sort((a, b) => {
-    const na = parseFloat(a);
-    const nb = parseFloat(b);
-    if (!isNaN(na) && !isNaN(nb)) return na - nb;
-    return a.localeCompare(b);
-  });
-
-  const [items, setItems] = useState(
-    allKeys.map((k) => ({ key: k, cn: cnObj[k] || "", en: enObj[k] || "" })),
-  );
-  const [editIdx, setEditIdx] = useState(null);
-  const [editVal, setEditVal] = useState({ key: "", cn: "", en: "" });
-  const [adding, setAdding] = useState(false);
-  const [addVal, setAddVal] = useState({ key: "", cn: "", en: "" });
+  const [cnItems, setCnItems] = useState(novel.novel_name_each_cn || []);
+  const [enItems, setEnItems] = useState(novel.novel_name_each_en || []);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    const cnO = novel.novel_name_each_cn || {};
-    const enO = novel.novel_name_each_en || {};
-    const keys = [
-      ...new Set([...Object.keys(cnO), ...Object.keys(enO)]),
-    ].sort((a, b) => {
-      const na = parseFloat(a);
-      const nb = parseFloat(b);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      return a.localeCompare(b);
-    });
-    setItems(keys.map((k) => ({ key: k, cn: cnO[k] || "", en: enO[k] || "" })));
+    setCnItems(novel.novel_name_each_cn || []);
+    setEnItems(novel.novel_name_each_en || []);
+    setDirty(false);
   }, [novel.novel_name_each_cn, novel.novel_name_each_en]);
 
-  function saveItems(next) {
-    const cnResult = {};
-    const enResult = {};
-    next.forEach(({ key, cn, en }) => {
-      if (cn) cnResult[key] = cn;
-      if (en) enResult[key] = en;
-    });
+  function handleSave() {
+    const toArr = (items) => {
+      const filtered = items.filter(({ key, name }) => key && name);
+      return filtered.length ? filtered : null;
+    };
     onSave({
-      novel_name_each_cn: Object.keys(cnResult).length ? cnResult : null,
-      novel_name_each_en: Object.keys(enResult).length ? enResult : null,
+      novel_name_each_cn: toArr(cnItems),
+      novel_name_each_en: toArr(enItems),
     });
-    setItems(next);
+    setDirty(false);
   }
 
-  function commitEdit() {
-    const next = [...items];
-    next[editIdx] = { ...editVal };
-    setEditIdx(null);
-    saveItems(next);
+  function handleCancel() {
+    setCnItems(objToItems(novel.novel_name_each_cn));
+    setEnItems(objToItems(novel.novel_name_each_en));
+    setDirty(false);
   }
 
-  function commitAdd() {
-    if (!addVal.key.trim()) return;
-    const next = [...items, { ...addVal, key: addVal.key.trim() }];
-    setAdding(false);
-    setAddVal({ key: "", cn: "", en: "" });
-    saveItems(next);
+  function renderReadOnly(items) {
+    if (!items.length)
+      return <p className="text-xs text-gray-400 italic">No entries.</p>;
+    return (
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <div key={item.key} className="flex items-center gap-2">
+            <span className="text-[10px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded shrink-0">
+              {item.key}
+            </span>
+            <span className="text-sm text-gray-800">{item.name}</span>
+          </div>
+        ))}
+      </div>
+    );
   }
-
-  function removeItem(i) {
-    const next = items.filter((_, idx) => idx !== i);
-    saveItems(next);
-  }
-
-  const nextKey = String(
-    items.reduce((max, item) => {
-      const n = parseInt(item.key, 10);
-      return !isNaN(n) ? Math.max(max, n) : max;
-    }, 0) + 1,
-  );
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
         <h3 className="font-bold text-gray-800">
           <i className="fas fa-books text-brand mr-2"></i>Belonging Novels
         </h3>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => {
-              setAdding(true);
-              setAddVal({ key: nextKey, cn: "", en: "" });
-            }}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-brand text-white hover:bg-brand/90 transition-colors"
-          >
-            <i className="fas fa-plus text-[10px]"></i> Add
-          </button>
-        )}
       </div>
-      <div className="p-4">
-        {items.length === 0 && !adding && (
-          <p className="text-xs text-gray-400 italic">No entries.</p>
-        )}
-        <div className="space-y-2">
-          {items.map((item, i) => (
-            <div
-              key={item.key}
-              className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
-            >
-              {editIdx === i ? (
-                <div className="space-y-1.5">
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      value={editVal.key}
-                      onChange={(e) =>
-                        setEditVal({ ...editVal, key: e.target.value })
-                      }
-                      placeholder="Key"
-                      className={inputCls}
-                    />
-                    <input
-                      value={editVal.cn}
-                      onChange={(e) =>
-                        setEditVal({ ...editVal, cn: e.target.value })
-                      }
-                      placeholder="Chinese name"
-                      className={inputCls}
-                    />
-                    <input
-                      value={editVal.en}
-                      onChange={(e) =>
-                        setEditVal({ ...editVal, en: e.target.value })
-                      }
-                      placeholder="English name"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={commitEdit}
-                      className="px-2 py-1 rounded text-xs font-semibold bg-brand text-white hover:bg-brand/90"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditIdx(null)}
-                      className="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded shrink-0">
-                    {item.key}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    {item.cn && (
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {item.cn}
-                      </div>
-                    )}
-                    {item.en && (
-                      <div className="text-xs text-gray-500 truncate">
-                        {item.en}
-                      </div>
-                    )}
-                  </div>
-                  {isAdmin && (
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditIdx(i);
-                          setEditVal({ ...item });
-                        }}
-                        className="text-gray-400 hover:text-brand text-xs px-1"
-                      >
-                        <i className="fas fa-pencil-alt"></i>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(i)}
-                        className="text-gray-400 hover:text-red-500 text-xs px-1"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-          {adding && (
-            <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5 space-y-1.5">
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  value={addVal.key}
-                  onChange={(e) => setAddVal({ ...addVal, key: e.target.value })}
-                  placeholder="Key (e.g. 1)"
-                  className={inputCls}
-                />
-                <input
-                  value={addVal.cn}
-                  onChange={(e) => setAddVal({ ...addVal, cn: e.target.value })}
-                  placeholder="Chinese name"
-                  className={inputCls}
-                  autoFocus
-                />
-                <input
-                  value={addVal.en}
-                  onChange={(e) => setAddVal({ ...addVal, en: e.target.value })}
-                  placeholder="English name"
-                  className={inputCls}
-                />
-              </div>
-              <div className="flex gap-2">
+      <div className="p-4 space-y-4">
+        {isAdmin ? (
+          <>
+            <BelongingNovelsEditor
+              label="CN"
+              placeholder="Chinese title"
+              items={cnItems}
+              onChange={(v) => { setCnItems(v); setDirty(true); }}
+            />
+            <BelongingNovelsEditor
+              label="EN"
+              placeholder="English title"
+              items={enItems}
+              onChange={(v) => { setEnItems(v); setDirty(true); }}
+            />
+            {dirty && (
+              <div className="flex gap-2 pt-1 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={commitAdd}
-                  className="px-2 py-1 rounded text-xs font-semibold bg-brand text-white hover:bg-brand/90"
+                  onClick={handleSave}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand text-white hover:bg-brand/90 transition-colors"
                 >
                   Save
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setAdding(false);
-                    setAddVal({ key: "", cn: "", en: "" });
-                  }}
-                  className="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  onClick={handleCancel}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
               </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">CN</p>
+              {renderReadOnly(cnItems)}
             </div>
-          )}
-        </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">EN</p>
+              {renderReadOnly(enItems)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -879,6 +489,9 @@ export default function Novel() {
             }
             onReadNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
             onToRerereadChange={(v, msg) => performPatch({ to_reread: v }, msg)}
+            onProgressDisplayChange={(v) =>
+              performPatch({ progress_display: v || null }, "Progress display updated")
+            }
           />
 
           {/* Detail Cards */}
@@ -897,6 +510,7 @@ export default function Novel() {
                 [
                   { label: "Region", value: novel.region },
                   { label: "Type", value: novel.type },
+                  { label: "Version", value: novel.version },
                 ],
                 [
                   { label: "本傳 / 外傳", value: novel.is_main },

@@ -385,6 +385,7 @@ Poster card for grid/library views. Displays:
 - My Rating badge (top-left, hidden if null)
 - Region badge (top-right, hidden if null)
 - Novel Name CN with fallback
+- Novel Type, Serialization Status, Version
 - Release Year – End Year (e.g. `2010 – 2015`; omit end year if same as release year)
 - MAL Rating (hidden if null)
 - Progress tracker row based on `progress_display`:
@@ -742,7 +743,7 @@ Manga Information Card
 
 Novel Information Card
 
-- Novel Region, Novel Type, 本傳 / 外傳 (is_main)
+- Novel Region, Novel Type, 本傳 / 外傳 (is_main), Version
 - Serialization Status, Release Year, End Year
 - Volume Total, Arc Total, Ch Total
 

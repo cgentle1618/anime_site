@@ -592,13 +592,8 @@ export default function Modify() {
     const s = (seriesList || allSeries).find(
       (x) => x.system_id === n.series_id,
     );
-    const cnMerged = Object.entries(n.novel_name_each_cn || {});
-    const enMap = n.novel_name_each_en || {};
-    const novel_name_each = cnMerged.length > 0
-      ? cnMerged.map(([key, cn]) => ({ key, cn, en: enMap[key] || "" }))
-      : Object.keys(enMap).length > 0
-        ? Object.entries(enMap).map(([key, en]) => ({ key, cn: "", en }))
-        : [];
+    const novel_name_each_cn = n.novel_name_each_cn || [];
+    const novel_name_each_en = n.novel_name_each_en || [];
     return {
       novel_name_cn: n.novel_name_cn || "",
       novel_name_en: n.novel_name_en || "",
@@ -611,6 +606,7 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       region: n.region || "",
       type: n.type || "",
+      version: n.version || "",
       is_main: n.is_main || "",
       serialization_status: n.serialization_status || "",
       reading_status: n.reading_status || "Might Read",
@@ -635,7 +631,8 @@ export default function Modify() {
       sequel_id: n.sequel_id || null,
       alternative: n.alternative || "",
       read_order: n.read_order ?? "",
-      novel_name_each,
+      novel_name_each_cn,
+      novel_name_each_en,
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
       anilist_link: n.anilist_link || "",
@@ -1663,12 +1660,48 @@ export default function Modify() {
       seriesId = ns.system_id;
       setAllSeries((prev) => [...prev, ns]);
     }
-    const novelNameEachCn = (cnvf.novel_name_each || []).filter((e) => e.cn.trim()).length > 0
-      ? Object.fromEntries((cnvf.novel_name_each || []).filter((e) => e.cn.trim()).map((e) => [e.key, e.cn.trim()]))
+    const novelNameEachCn = (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
+      ? (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
-    const novelNameEachEn = (cnvf.novel_name_each || []).filter((e) => e.en.trim()).length > 0
-      ? Object.fromEntries((cnvf.novel_name_each || []).filter((e) => e.en.trim()).map((e) => [e.key, e.en.trim()]))
+    const novelNameEachEn = (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
+      ? (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
       : null;
+
+    // Auto-create missing system options for author, illustrator, publisher_tw
+    {
+      const existingValues = {};
+      for (const o of allOptions) {
+        if (!existingValues[o.category]) existingValues[o.category] = new Set();
+        existingValues[o.category].add(o.option_value);
+      }
+      const toCreate = [];
+      for (const v of (cnvf.author || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+        if (!existingValues["Novel Author"]?.has(v))
+          toCreate.push({ category: "Novel Author", option_value: v });
+      }
+      for (const v of (cnvf.illustrator || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+        if (!existingValues["Novel Illustrator"]?.has(v))
+          toCreate.push({ category: "Novel Illustrator", option_value: v });
+      }
+      const pub = (cnvf.publisher_tw || "").trim();
+      if (pub && !existingValues["Novel Publisher TW"]?.has(pub))
+        toCreate.push({ category: "Novel Publisher TW", option_value: pub });
+      if (toCreate.length > 0) {
+        await Promise.all(
+          toCreate.map((item) =>
+            fetch("/api/options/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item),
+              credentials: "include",
+            }),
+          ),
+        );
+        const oRes = await fetch("/api/options/", { credentials: "include" });
+        if (oRes.ok) setAllOptions(await oRes.json());
+      }
+    }
+
     const payload = {
       novel_name_cn: cnvf.novel_name_cn || null,
       novel_name_en: cnvf.novel_name_en || null,
@@ -1679,6 +1712,7 @@ export default function Modify() {
       series_id: seriesId || null,
       region: cnvf.region || null,
       type: cnvf.type || null,
+      version: cnvf.version || null,
       is_main: cnvf.is_main || null,
       serialization_status: cnvf.serialization_status || null,
       reading_status: cnvf.reading_status || "Might Read",
@@ -2781,6 +2815,7 @@ export default function Modify() {
                 seriesItemsForNovel={seriesItemsForNovel}
                 editingItem={editingItem}
                 ribbonSection={novelRibbonSection}
+                allOptions={allOptions}
               />
             )}
 

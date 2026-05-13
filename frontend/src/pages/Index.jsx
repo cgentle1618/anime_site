@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/media";
 import DashboardCard from "../components/DashboardCard";
+import NovelDashboardCard from "../components/NovelDashboardCard";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -166,7 +167,10 @@ function ReadingSection({
   franchiseData,
   isAdmin,
   onChChange,
+  onNovelProgressChange,
 }) {
+  const typeIcons = { Manga: "fa-book", Novel: "fa-scroll" };
+
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
@@ -187,18 +191,74 @@ function ReadingSection({
           </p>
         </div>
       ) : (
-        <div className="pt-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {items.map((manga) => (
-            <DashboardCard
-              key={manga.system_id}
-              anime={manga}
-              franchise={franchiseData.find(
-                (f) => f.system_id === manga.franchise_id,
-              )}
-              isAdmin={isAdmin}
-              onEpChange={onChChange}
-            />
-          ))}
+        <div className="pt-4 space-y-6">
+          {["Manga", "Novel"].map((type) => {
+            const typeItems = items.filter((i) => i._ui_type === type);
+            if (!typeItems.length) return null;
+            const sorted = [...typeItems].sort((a, b) => {
+              const ratingDiff =
+                (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
+                (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
+              if (ratingDiff !== 0) return ratingDiff;
+              const nameA =
+                (type === "Novel"
+                  ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
+                  : a.manga_name_en ||
+                    a.manga_name_roman ||
+                    a.manga_name_jp ||
+                    a.manga_name_cn ||
+                    a.manga_name_alt) || "";
+              const nameB =
+                (type === "Novel"
+                  ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
+                  : b.manga_name_en ||
+                    b.manga_name_roman ||
+                    b.manga_name_jp ||
+                    b.manga_name_cn ||
+                    b.manga_name_alt) || "";
+              return nameA.localeCompare(nameB);
+            });
+            return (
+              <div key={type} className="space-y-6">
+                <div className="border-b-2 border-gray-100 pb-2 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
+                    <i
+                      className={`fas ${typeIcons[type]} text-brand/70 mr-2`}
+                    ></i>
+                    {type}
+                  </h3>
+                  <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-gray-200">
+                    {sorted.length} Entries
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {sorted.map((item) =>
+                    item._ui_type === "Novel" ? (
+                      <NovelDashboardCard
+                        key={item.system_id}
+                        novel={item}
+                        franchise={franchiseData.find(
+                          (f) => f.system_id === item.franchise_id,
+                        )}
+                        isAdmin={isAdmin}
+                        onProgressChange={onNovelProgressChange}
+                      />
+                    ) : (
+                      <DashboardCard
+                        key={item.system_id}
+                        anime={item}
+                        franchise={franchiseData.find(
+                          (f) => f.system_id === item.franchise_id,
+                        )}
+                        isAdmin={isAdmin}
+                        onEpChange={onChChange}
+                      />
+                    ),
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -229,7 +289,14 @@ export default function Index() {
           fetch("/api/manga/", { credentials: "include" }),
           fetch("/api/novel/", { credentials: "include" }),
         ]);
-        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok || !mgRes.ok || !nvRes.ok)
+        if (
+          !aRes.ok ||
+          !fRes.ok ||
+          !tvRes.ok ||
+          !cRes.ok ||
+          !mgRes.ok ||
+          !nvRes.ok
+        )
           throw new Error("Failed to load tracking data");
         setAnimeData(await aRes.json());
         setFranchiseData(await fRes.json());
@@ -383,20 +450,12 @@ export default function Index() {
     );
   }
 
-  async function handleChChange(sysId, newVal, prevVal, uiType) {
-    const isNovel = uiType === "Novel";
-    if (isNovel) {
-      setNovelData((prev) =>
-        prev.map((n) => (n.system_id === sysId ? { ...n, ch_fin: newVal } : n)),
-      );
-    } else {
-      setMangaData((prev) =>
-        prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
-      );
-    }
+  async function handleChChange(sysId, newVal, prevVal) {
+    setMangaData((prev) =>
+      prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
+    );
     try {
-      const endpoint = isNovel ? `/api/novel/${sysId}` : `/api/manga/${sysId}`;
-      const res = await fetch(endpoint, {
+      const res = await fetch(`/api/manga/${sysId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ch_fin: newVal }),
@@ -405,19 +464,38 @@ export default function Index() {
       if (!res.ok) throw new Error("Failed to sync");
       showToast("success", "Chapters updated!");
     } catch {
-      if (isNovel) {
-        setNovelData((prev) =>
-          prev.map((n) =>
-            n.system_id === sysId ? { ...n, ch_fin: prevVal } : n,
-          ),
-        );
-      } else {
-        setMangaData((prev) =>
-          prev.map((m) =>
-            m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
-          ),
-        );
-      }
+      setMangaData((prev) =>
+        prev.map((m) =>
+          m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
+        ),
+      );
+      showToast("error", "Network error. Progress reverted.");
+    }
+  }
+
+  async function handleNovelProgressChange(
+    sysId,
+    fieldUpdates,
+    prevFieldUpdates,
+  ) {
+    setNovelData((prev) =>
+      prev.map((n) => (n.system_id === sysId ? { ...n, ...fieldUpdates } : n)),
+    );
+    try {
+      const res = await fetch(`/api/novel/${sysId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fieldUpdates),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to sync");
+      showToast("success", "Progress updated!");
+    } catch {
+      setNovelData((prev) =>
+        prev.map((n) =>
+          n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
+        ),
+      );
       showToast("error", "Network error. Progress reverted.");
     }
   }
@@ -453,11 +531,19 @@ export default function Index() {
     const nameA =
       (a._ui_type === "Novel"
         ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
-        : a.manga_name_en || a.manga_name_roman || a.manga_name_jp || a.manga_name_cn || a.manga_name_alt) || "";
+        : a.manga_name_en ||
+          a.manga_name_roman ||
+          a.manga_name_jp ||
+          a.manga_name_cn ||
+          a.manga_name_alt) || "";
     const nameB =
       (b._ui_type === "Novel"
         ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
-        : b.manga_name_en || b.manga_name_roman || b.manga_name_jp || b.manga_name_cn || b.manga_name_alt) || "";
+        : b.manga_name_en ||
+          b.manga_name_roman ||
+          b.manga_name_jp ||
+          b.manga_name_cn ||
+          b.manga_name_alt) || "";
     return nameA.localeCompare(nameB);
   });
   const activeReading = readingSorted.filter(
@@ -563,6 +649,7 @@ export default function Index() {
                 franchiseData={franchiseData}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
+                onNovelProgressChange={handleNovelProgressChange}
               />
               <ReadingSection
                 id="reading-passive"
@@ -573,6 +660,7 @@ export default function Index() {
                 franchiseData={franchiseData}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
+                onNovelProgressChange={handleNovelProgressChange}
               />
               <ReadingSection
                 id="reading-paused"
@@ -583,6 +671,7 @@ export default function Index() {
                 franchiseData={franchiseData}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
+                onNovelProgressChange={handleNovelProgressChange}
               />
             </div>
           </div>
