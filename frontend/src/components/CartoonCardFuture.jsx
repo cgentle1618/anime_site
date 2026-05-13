@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
+import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 import { useToast } from "../hooks/useToast";
 
 const WATCHING_OPTIONS = ["Might Watch", "Plan to Watch", "Watch When Airs"];

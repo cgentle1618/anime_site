@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/anime";
+import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 
 const TABS = [
   "anime",

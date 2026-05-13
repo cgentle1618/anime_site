@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import NovelCard, { getReadingButtonConfig } from "../components/NovelCard";
-import { getRatingWeight, cleanString } from "../utils/anime";
+import { getRatingWeight, cleanString } from "../utils/media";
 import { useToast } from "../hooks/useToast";
 
 function getNovelTitle(n) {

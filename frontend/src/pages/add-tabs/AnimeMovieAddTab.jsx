@@ -6,7 +6,41 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getOptions } from "../../utils/anime";
+import { getOptions } from "../../utils/media";
+
+export const defaultAnimeMovie = () => ({
+  anime_movie_name_en: "",
+  anime_movie_name_cn: "",
+  anime_movie_name_roman: "",
+  anime_movie_name_jp: "",
+  anime_movie_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  airing_status: "Not Yet Aired",
+  watching_status: "Might Watch",
+  my_rating: "",
+  mal_rating: "",
+  mal_rank: "",
+  anilist_rating: "",
+  release_date_jp: "",
+  release_date_tw: "",
+  length_min: "",
+  studio: "",
+  director: "",
+  mal_id: "",
+  mal_link: "",
+  anilist_link: "",
+  official_link: "",
+  twitter_link: "",
+  source_baha: "",
+  baha_link: "",
+  source_netflix: "",
+  source_other: [],
+  watch_next: false,
+  to_rewatch: false,
+  cover_image_file: "",
+  remark: "",
+});
 
 export default function AnimeMovieAddTab({
   amf,

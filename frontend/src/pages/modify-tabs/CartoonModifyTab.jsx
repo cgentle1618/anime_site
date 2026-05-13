@@ -5,7 +5,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/anime";
+import { getDisplayName, parseTypes } from "../../utils/media";
 import CartoonNotes from "../CartoonNotes";
 
 export default function CartoonModifyTab({

@@ -6,7 +6,7 @@ import {
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
-} from "../utils/anime";
+} from "../utils/media";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 import MovieNotes from "./MovieNotes";
 import TVShowNotes from "./TVShowNotes";

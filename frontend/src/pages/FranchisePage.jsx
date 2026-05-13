@@ -8,7 +8,7 @@ import {
   isBaha,
   getRatingWeight,
   parseTypes,
-} from "../utils/anime";
+} from "../utils/media";
 import AnimeCard from "../components/AnimeCard";
 import AnimeMovieCard from "../components/AnimeMovieCard";
 import MangaCard from "../components/MangaCard";

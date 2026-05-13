@@ -8,7 +8,7 @@ import TVCard from "../components/TVCard";
 import CartoonCard from "../components/CartoonCard";
 import MangaCard from "../components/MangaCard";
 import NovelCard from "../components/NovelCard";
-import { cleanString } from "../utils/anime";
+import { cleanString } from "../utils/media";
 
 function getFranchiseTitles(f) {
   const raw = [

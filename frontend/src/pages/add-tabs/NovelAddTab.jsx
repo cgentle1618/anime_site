@@ -5,7 +5,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/anime";
+import { getDisplayName, parseTypes } from "../../utils/media";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
 const SERIALIZATION_STATUSES = [
@@ -25,6 +25,53 @@ const PROGRESS_DISPLAY_OPTIONS = [
   { value: "vol_original", label: "VOL Original" },
   { value: "arc_ch", label: "ARC + CH" },
 ];
+
+export const defaultNovel = () => ({
+  novel_name_cn: "",
+  novel_name_en: "",
+  novel_name_roman: "",
+  novel_name_jp: "",
+  novel_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  region: "",
+  type: "",
+  is_main: "本傳",
+  serialization_status: "",
+  reading_status: "Might Read",
+  progress_display: "",
+  vol_total_original: "",
+  vol_total_tw: "",
+  vol_fin: "",
+  arc_total: "",
+  arc_fin: "",
+  ch_total: "",
+  ch_fin: "",
+  my_rating: "",
+  mal_rating: "",
+  mal_rank: "",
+  anilist_rating: "",
+  author: "",
+  illustrator: "",
+  release_year: "",
+  end_year: "",
+  publisher_tw: "",
+  prequel_id: null,
+  sequel_id: null,
+  alternative: "",
+  read_order: "",
+  novel_name_each: [],
+  mal_id: "",
+  mal_link: "",
+  anilist_link: "",
+  source_other: [],
+  read_next: false,
+  to_reread: false,
+  cover_image_file: "",
+  remark: "",
+});
 
 export default function NovelAddTab({
   nvf,

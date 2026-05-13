@@ -1,10 +1,23 @@
-import { parseTypes } from "../../utils/anime";
+import { parseTypes } from "../../utils/media";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/FormField";
+
+export const defaultFranchise = () => ({
+  franchise_name_en: "",
+  franchise_name_cn: "",
+  franchise_name_roman: "",
+  franchise_name_jp: "",
+  franchise_name_alt: "",
+  franchise_type: "",
+  my_rating: "",
+  franchise_expectation: "",
+  favorite_3x3_slot: "",
+  remark: "",
+});
 
 export default function FranchiseAddTab({ ff, uf }) {
   return (

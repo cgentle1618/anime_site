@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/anime";
+import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/media";
 
 export default function DashboardCard({
   anime,
