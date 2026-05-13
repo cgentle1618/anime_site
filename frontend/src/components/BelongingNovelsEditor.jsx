@@ -1,4 +1,7 @@
-import { inputCls } from "./FormField";
+const baseCls =
+  "border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
+const keyInputCls = baseCls + " w-20 shrink-0";
+const nameInputCls = baseCls + " flex-1 min-w-0";
 
 export default function BelongingNovelsEditor({ items, onChange, label, placeholder }) {
   const addEntry = () => {
@@ -57,13 +60,13 @@ export default function BelongingNovelsEditor({ items, onChange, label, placehol
               </button>
             </div>
             <input
-              className={inputCls + " w-20 shrink-0"}
+              className={keyInputCls}
               placeholder="#"
               value={entry.key}
               onChange={(e) => updateEntry(i, "key", e.target.value)}
             />
             <input
-              className={inputCls}
+              className={nameInputCls}
               placeholder={placeholder}
               value={entry.name}
               onChange={(e) => updateEntry(i, "name", e.target.value)}
