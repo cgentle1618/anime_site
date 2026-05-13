@@ -193,7 +193,7 @@ export default function NovelCard({ novel, isAdmin: isAdminProp, onUpdated }) {
         </h3>
         <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-end justify-between gap-1">
           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-            {(novel.type || novel.serialization_status) && (
+            {(novel.type || novel.serialization_status || novel.version) && (
               <div className="flex items-center gap-1">
                 {novel.type && (
                   <span className="shrink-0 text-[9px] font-black px-1 py-0.5 rounded bg-gray-100 text-gray-500">
@@ -203,6 +203,11 @@ export default function NovelCard({ novel, isAdmin: isAdminProp, onUpdated }) {
                 {novel.serialization_status && (
                   <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded border ${serializationStatusCls(novel.serialization_status)}`}>
                     {novel.serialization_status}
+                  </span>
+                )}
+                {novel.version && (
+                  <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                    {novel.version}
                   </span>
                 )}
               </div>
