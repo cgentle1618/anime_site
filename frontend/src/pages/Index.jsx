@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/media";
 import DashboardCard from "../components/DashboardCard";
+import NovelDashboardCard from "../components/NovelDashboardCard";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -166,6 +167,7 @@ function ReadingSection({
   franchiseData,
   isAdmin,
   onChChange,
+  onNovelProgressChange,
 }) {
   const typeIcons = { Manga: "fa-book", Novel: "fa-scroll" };
 
@@ -230,17 +232,29 @@ function ReadingSection({
                   </span>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {sorted.map((item) => (
-                    <DashboardCard
-                      key={item.system_id}
-                      anime={item}
-                      franchise={franchiseData.find(
-                        (f) => f.system_id === item.franchise_id,
-                      )}
-                      isAdmin={isAdmin}
-                      onEpChange={onChChange}
-                    />
-                  ))}
+                  {sorted.map((item) =>
+                    item._ui_type === "Novel" ? (
+                      <NovelDashboardCard
+                        key={item.system_id}
+                        novel={item}
+                        franchise={franchiseData.find(
+                          (f) => f.system_id === item.franchise_id,
+                        )}
+                        isAdmin={isAdmin}
+                        onProgressChange={onNovelProgressChange}
+                      />
+                    ) : (
+                      <DashboardCard
+                        key={item.system_id}
+                        anime={item}
+                        franchise={franchiseData.find(
+                          (f) => f.system_id === item.franchise_id,
+                        )}
+                        isAdmin={isAdmin}
+                        onEpChange={onChChange}
+                      />
+                    ),
+                  )}
                 </div>
               </div>
             );
@@ -436,20 +450,12 @@ export default function Index() {
     );
   }
 
-  async function handleChChange(sysId, newVal, prevVal, uiType) {
-    const isNovel = uiType === "Novel";
-    if (isNovel) {
-      setNovelData((prev) =>
-        prev.map((n) => (n.system_id === sysId ? { ...n, ch_fin: newVal } : n)),
-      );
-    } else {
-      setMangaData((prev) =>
-        prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
-      );
-    }
+  async function handleChChange(sysId, newVal, prevVal) {
+    setMangaData((prev) =>
+      prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
+    );
     try {
-      const endpoint = isNovel ? `/api/novel/${sysId}` : `/api/manga/${sysId}`;
-      const res = await fetch(endpoint, {
+      const res = await fetch(`/api/manga/${sysId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ch_fin: newVal }),
@@ -458,19 +464,38 @@ export default function Index() {
       if (!res.ok) throw new Error("Failed to sync");
       showToast("success", "Chapters updated!");
     } catch {
-      if (isNovel) {
-        setNovelData((prev) =>
-          prev.map((n) =>
-            n.system_id === sysId ? { ...n, ch_fin: prevVal } : n,
-          ),
-        );
-      } else {
-        setMangaData((prev) =>
-          prev.map((m) =>
-            m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
-          ),
-        );
-      }
+      setMangaData((prev) =>
+        prev.map((m) =>
+          m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
+        ),
+      );
+      showToast("error", "Network error. Progress reverted.");
+    }
+  }
+
+  async function handleNovelProgressChange(
+    sysId,
+    fieldUpdates,
+    prevFieldUpdates,
+  ) {
+    setNovelData((prev) =>
+      prev.map((n) => (n.system_id === sysId ? { ...n, ...fieldUpdates } : n)),
+    );
+    try {
+      const res = await fetch(`/api/novel/${sysId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fieldUpdates),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to sync");
+      showToast("success", "Progress updated!");
+    } catch {
+      setNovelData((prev) =>
+        prev.map((n) =>
+          n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
+        ),
+      );
       showToast("error", "Network error. Progress reverted.");
     }
   }
@@ -624,6 +649,7 @@ export default function Index() {
                 franchiseData={franchiseData}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
+                onNovelProgressChange={handleNovelProgressChange}
               />
               <ReadingSection
                 id="reading-passive"
@@ -634,6 +660,7 @@ export default function Index() {
                 franchiseData={franchiseData}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
+                onNovelProgressChange={handleNovelProgressChange}
               />
               <ReadingSection
                 id="reading-paused"
@@ -644,6 +671,7 @@ export default function Index() {
                 franchiseData={franchiseData}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
+                onNovelProgressChange={handleNovelProgressChange}
               />
             </div>
           </div>
