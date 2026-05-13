@@ -1571,11 +1571,11 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    const novelNameEachCn = nvf.novel_name_each.length > 0
-      ? Object.fromEntries(nvf.novel_name_each.filter((e) => e.cn.trim()).map((e) => [e.key, e.cn.trim()]))
+    const novelNameEachCn = nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
+      ? Object.fromEntries(nvf.novel_name_each_cn.filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
       : null;
-    const novelNameEachEn = nvf.novel_name_each.length > 0
-      ? Object.fromEntries(nvf.novel_name_each.filter((e) => e.en.trim()).map((e) => [e.key, e.en.trim()]))
+    const novelNameEachEn = nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
+      ? Object.fromEntries(nvf.novel_name_each_en.filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
       : null;
 
     const payload = {

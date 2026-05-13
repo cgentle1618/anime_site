@@ -592,13 +592,8 @@ export default function Modify() {
     const s = (seriesList || allSeries).find(
       (x) => x.system_id === n.series_id,
     );
-    const cnMerged = Object.entries(n.novel_name_each_cn || {});
-    const enMap = n.novel_name_each_en || {};
-    const novel_name_each = cnMerged.length > 0
-      ? cnMerged.map(([key, cn]) => ({ key, cn, en: enMap[key] || "" }))
-      : Object.keys(enMap).length > 0
-        ? Object.entries(enMap).map(([key, en]) => ({ key, cn: "", en }))
-        : [];
+    const novel_name_each_cn = Object.entries(n.novel_name_each_cn || {}).map(([key, name]) => ({ key, name }));
+    const novel_name_each_en = Object.entries(n.novel_name_each_en || {}).map(([key, name]) => ({ key, name }));
     return {
       novel_name_cn: n.novel_name_cn || "",
       novel_name_en: n.novel_name_en || "",
@@ -635,7 +630,8 @@ export default function Modify() {
       sequel_id: n.sequel_id || null,
       alternative: n.alternative || "",
       read_order: n.read_order ?? "",
-      novel_name_each,
+      novel_name_each_cn,
+      novel_name_each_en,
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
       anilist_link: n.anilist_link || "",
@@ -1663,11 +1659,11 @@ export default function Modify() {
       seriesId = ns.system_id;
       setAllSeries((prev) => [...prev, ns]);
     }
-    const novelNameEachCn = (cnvf.novel_name_each || []).filter((e) => e.cn.trim()).length > 0
-      ? Object.fromEntries((cnvf.novel_name_each || []).filter((e) => e.cn.trim()).map((e) => [e.key, e.cn.trim()]))
+    const novelNameEachCn = (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
+      ? Object.fromEntries((cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
       : null;
-    const novelNameEachEn = (cnvf.novel_name_each || []).filter((e) => e.en.trim()).length > 0
-      ? Object.fromEntries((cnvf.novel_name_each || []).filter((e) => e.en.trim()).map((e) => [e.key, e.en.trim()]))
+    const novelNameEachEn = (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
+      ? Object.fromEntries((cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).map((e) => [e.key, e.name.trim()]))
       : null;
     const payload = {
       novel_name_cn: cnvf.novel_name_cn || null,

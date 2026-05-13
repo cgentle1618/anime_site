@@ -1,3 +1,4 @@
+import BelongingNovelsEditor from "../../components/BelongingNovelsEditor";
 import ComboBox from "../../components/ComboBox";
 import {
   Field,
@@ -62,7 +63,8 @@ export const defaultNovel = () => ({
   sequel_id: null,
   alternative: "",
   read_order: "",
-  novel_name_each: [],
+  novel_name_each_cn: [],
+  novel_name_each_en: [],
   mal_id: "",
   mal_link: "",
   anilist_link: "",
@@ -573,83 +575,22 @@ export default function NovelAddTab({
         </Field>
       </div>
       <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-          Belonging Novels (CN / EN)
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+          Belonging Novels
         </label>
-        <div className="space-y-2">
-          {nvf.novel_name_each.map((entry, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                className={inputCls + " w-16 shrink-0"}
-                placeholder="#"
-                value={entry.key}
-                onChange={(e) =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.map((x, j) =>
-                      j === i ? { ...x, key: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                placeholder="CN name"
-                value={entry.cn}
-                onChange={(e) =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.map((x, j) =>
-                      j === i ? { ...x, cn: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                placeholder="EN name"
-                value={entry.en}
-                onChange={(e) =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.map((x, j) =>
-                      j === i ? { ...x, en: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                className="text-red-400 hover:text-red-600 px-1 shrink-0"
-                onClick={() =>
-                  unv(
-                    "novel_name_each",
-                    nvf.novel_name_each.filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline mt-1"
-            onClick={() => {
-              const nextKey = String(
-                nvf.novel_name_each.reduce((max, e) => {
-                  const n = parseInt(e.key, 10);
-                  return !isNaN(n) ? Math.max(max, n) : max;
-                }, 0) + 1,
-              );
-              unv("novel_name_each", [
-                ...nvf.novel_name_each,
-                { key: nextKey, cn: "", en: "" },
-              ]);
-            }}
-          >
-            + Add Entry
-          </button>
+        <div className="space-y-4">
+          <BelongingNovelsEditor
+            items={nvf.novel_name_each_cn}
+            onChange={(val) => unv("novel_name_each_cn", val)}
+            label="CN"
+            placeholder="CN book name"
+          />
+          <BelongingNovelsEditor
+            items={nvf.novel_name_each_en}
+            onChange={(val) => unv("novel_name_each_en", val)}
+            label="EN"
+            placeholder="EN book name"
+          />
         </div>
       </div>
 
