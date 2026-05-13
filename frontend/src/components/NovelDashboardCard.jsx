@@ -67,10 +67,14 @@ export default function NovelDashboardCard({
     "bg-gray-100 text-gray-600 border-gray-200";
 
   // ── Admin change handlers ────────────────────────────────────────
-  function handleVolChange(newVal) {
+  function handleVolChange(newVal, maxVolOverride) {
     const target = Math.max(0, newVal);
     const maxVol =
-      pd === "vol_tw" ? novel.vol_total_tw : novel.vol_total_original;
+      maxVolOverride !== undefined
+        ? maxVolOverride
+        : pd === "vol_tw"
+          ? novel.vol_total_tw
+          : novel.vol_total_original;
     if (maxVol != null && target > maxVol) {
       showToast("error", "Cannot exceed total volumes.");
       return;
@@ -284,17 +288,53 @@ export default function NovelDashboardCard({
       );
     }
 
-    // null mode — display-only, fallback order: vol_tw → vol_original → arc_ch → ch
+    // null mode — fallback order: vol_tw → vol_original → arc_ch → ch
     if (novel.vol_total_tw != null) {
+      const fin = novel.vol_fin ?? 0;
+      const total = novel.vol_total_tw;
+      if (isAdmin) {
+        return (
+          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+            <button
+              onClick={() => handleVolChange(Math.round(fin) - 1, total)}
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+            >
+              <i className="fas fa-minus text-[10px]"></i>
+            </button>
+            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
+              <input
+                type="number"
+                className="text-gray-900 w-12 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                value={fin}
+                onChange={(e) =>
+                  handleVolChange(parseFloat(e.target.value) || 0, total)
+                }
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-gray-400 mx-0.5 text-xs">/</span>
+              <span className="text-gray-500 text-[13px] w-12 text-center">
+                {total}
+              </span>
+              <span className="text-gray-400 ml-1 text-[10px] font-sans">
+                VOL TW
+              </span>
+            </div>
+            <button
+              onClick={() => handleVolChange(Math.round(fin) + 1, total)}
+              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+            >
+              <i className="fas fa-plus text-[10px]"></i>
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
           <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-            <span className="text-gray-900 w-12 text-center">
-              {novel.vol_fin ?? 0}
-            </span>
+            <span className="text-gray-900 w-12 text-center">{fin}</span>
             <span className="text-gray-400 mx-0.5 text-xs">/</span>
             <span className="text-gray-500 text-[13px] w-12 text-center">
-              {novel.vol_total_tw}
+              {total}
             </span>
             <span className="text-gray-400 ml-1 text-[10px] font-sans">
               VOL TW
@@ -304,15 +344,51 @@ export default function NovelDashboardCard({
       );
     }
     if (novel.vol_total_original != null) {
+      const fin = novel.vol_fin ?? 0;
+      const total = novel.vol_total_original;
+      if (isAdmin) {
+        return (
+          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+            <button
+              onClick={() => handleVolChange(Math.round(fin) - 1, total)}
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+            >
+              <i className="fas fa-minus text-[10px]"></i>
+            </button>
+            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
+              <input
+                type="number"
+                className="text-gray-900 w-12 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                value={fin}
+                onChange={(e) =>
+                  handleVolChange(parseFloat(e.target.value) || 0, total)
+                }
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-gray-400 mx-0.5 text-xs">/</span>
+              <span className="text-gray-500 text-[13px] w-12 text-center">
+                {total}
+              </span>
+              <span className="text-gray-400 ml-1 text-[10px] font-sans">
+                VOL
+              </span>
+            </div>
+            <button
+              onClick={() => handleVolChange(Math.round(fin) + 1, total)}
+              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+            >
+              <i className="fas fa-plus text-[10px]"></i>
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
           <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-            <span className="text-gray-900 w-12 text-center">
-              {novel.vol_fin ?? 0}
-            </span>
+            <span className="text-gray-900 w-12 text-center">{fin}</span>
             <span className="text-gray-400 mx-0.5 text-xs">/</span>
             <span className="text-gray-500 text-[13px] w-12 text-center">
-              {novel.vol_total_original}
+              {total}
             </span>
             <span className="text-gray-400 ml-1 text-[10px] font-sans">
               VOL
@@ -322,31 +398,111 @@ export default function NovelDashboardCard({
       );
     }
     if (novel.arc_total != null) {
+      const arcFin = novel.arc_fin ?? 0;
+      const arcTotal = novel.arc_total ?? "?";
+      const chFin = novel.ch_fin ?? 0;
+      const chTotal = novel.ch_total ?? "?";
+      if (isAdmin) {
+        return (
+          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20 gap-1">
+            <button
+              onClick={() => handleChChange(Math.round(chFin) - 1)}
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+            >
+              <i className="fas fa-minus text-[10px]"></i>
+            </button>
+            <div className="font-mono font-bold text-[11px] tracking-wide flex items-baseline justify-center select-none flex-1 whitespace-nowrap gap-1">
+              <span className="text-[9px] text-gray-400 font-sans">ARC</span>
+              <input
+                type="number"
+                className="text-gray-900 w-7 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                value={arcFin}
+                onChange={(e) =>
+                  handleArcChange(parseFloat(e.target.value) || 0)
+                }
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-gray-400 text-[9px]">/{arcTotal}</span>
+              <span className="text-gray-300 mx-0.5">·</span>
+              <span className="text-[9px] text-gray-400 font-sans">CH</span>
+              <input
+                type="number"
+                className="text-gray-900 w-8 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                value={chFin}
+                onChange={(e) =>
+                  handleChChange(parseFloat(e.target.value) || 0)
+                }
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-gray-400 text-[9px]">/{chTotal}</span>
+            </div>
+            <button
+              onClick={() => handleChChange(Math.round(chFin) + 1)}
+              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+            >
+              <i className="fas fa-plus text-[10px]"></i>
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
           <div className="font-mono font-bold text-[11px] tracking-wide flex items-baseline justify-center select-none w-full px-1 gap-1">
             <span className="text-[9px] text-gray-400 font-sans">ARC</span>
             <span className="text-gray-900">
-              {novel.arc_fin ?? 0}/{novel.arc_total ?? "?"}
+              {arcFin}/{arcTotal}
             </span>
             <span className="text-gray-300 mx-1">·</span>
             <span className="text-[9px] text-gray-400 font-sans">CH</span>
             <span className="text-gray-900">
-              {novel.ch_fin ?? 0}/{novel.ch_total ?? "?"}
+              {chFin}/{chTotal}
             </span>
           </div>
+        </div>
+      );
+    }
+    // ch fallback
+    const fin = novel.ch_fin ?? 0;
+    const total = novel.ch_total ?? "?";
+    if (isAdmin) {
+      return (
+        <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+          <button
+            onClick={() => handleChChange(Math.round(fin) - 1)}
+            className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+          >
+            <i className="fas fa-minus text-[10px]"></i>
+          </button>
+          <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
+            <input
+              type="number"
+              className="text-gray-900 w-14 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+              value={fin}
+              onChange={(e) => handleChChange(parseFloat(e.target.value) || 0)}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="text-gray-400 mx-0.5 text-xs">/</span>
+            <span className="text-gray-500 text-[13px] w-14 text-center">
+              {total}
+            </span>
+            <span className="text-gray-400 ml-1 text-[10px] font-sans">CH</span>
+          </div>
+          <button
+            onClick={() => handleChChange(Math.round(fin) + 1)}
+            className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+          >
+            <i className="fas fa-plus text-[10px]"></i>
+          </button>
         </div>
       );
     }
     return (
       <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
         <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-          <span className="text-gray-900 w-14 text-center">
-            {novel.ch_fin ?? 0}
-          </span>
+          <span className="text-gray-900 w-14 text-center">{fin}</span>
           <span className="text-gray-400 mx-0.5 text-xs">/</span>
           <span className="text-gray-500 text-[13px] w-14 text-center">
-            {novel.ch_total ?? "?"}
+            {total}
           </span>
           <span className="text-gray-400 ml-1 text-[10px] font-sans">CH</span>
         </div>
