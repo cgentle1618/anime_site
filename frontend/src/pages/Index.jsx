@@ -167,6 +167,8 @@ function ReadingSection({
   isAdmin,
   onChChange,
 }) {
+  const typeIcons = { Manga: "fa-book", Novel: "fa-scroll" };
+
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
@@ -187,18 +189,62 @@ function ReadingSection({
           </p>
         </div>
       ) : (
-        <div className="pt-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {items.map((manga) => (
-            <DashboardCard
-              key={manga.system_id}
-              anime={manga}
-              franchise={franchiseData.find(
-                (f) => f.system_id === manga.franchise_id,
-              )}
-              isAdmin={isAdmin}
-              onEpChange={onChChange}
-            />
-          ))}
+        <div className="pt-4 space-y-6">
+          {["Manga", "Novel"].map((type) => {
+            const typeItems = items.filter((i) => i._ui_type === type);
+            if (!typeItems.length) return null;
+            const sorted = [...typeItems].sort((a, b) => {
+              const ratingDiff =
+                (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
+                (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
+              if (ratingDiff !== 0) return ratingDiff;
+              const nameA =
+                (type === "Novel"
+                  ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
+                  : a.manga_name_en ||
+                    a.manga_name_roman ||
+                    a.manga_name_jp ||
+                    a.manga_name_cn ||
+                    a.manga_name_alt) || "";
+              const nameB =
+                (type === "Novel"
+                  ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
+                  : b.manga_name_en ||
+                    b.manga_name_roman ||
+                    b.manga_name_jp ||
+                    b.manga_name_cn ||
+                    b.manga_name_alt) || "";
+              return nameA.localeCompare(nameB);
+            });
+            return (
+              <div key={type} className="space-y-6">
+                <div className="border-b-2 border-gray-100 pb-2 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
+                    <i
+                      className={`fas ${typeIcons[type]} text-brand/70 mr-2`}
+                    ></i>
+                    {type}
+                  </h3>
+                  <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-gray-200">
+                    {sorted.length} Entries
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {sorted.map((item) => (
+                    <DashboardCard
+                      key={item.system_id}
+                      anime={item}
+                      franchise={franchiseData.find(
+                        (f) => f.system_id === item.franchise_id,
+                      )}
+                      isAdmin={isAdmin}
+                      onEpChange={onChChange}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -229,7 +275,14 @@ export default function Index() {
           fetch("/api/manga/", { credentials: "include" }),
           fetch("/api/novel/", { credentials: "include" }),
         ]);
-        if (!aRes.ok || !fRes.ok || !tvRes.ok || !cRes.ok || !mgRes.ok || !nvRes.ok)
+        if (
+          !aRes.ok ||
+          !fRes.ok ||
+          !tvRes.ok ||
+          !cRes.ok ||
+          !mgRes.ok ||
+          !nvRes.ok
+        )
           throw new Error("Failed to load tracking data");
         setAnimeData(await aRes.json());
         setFranchiseData(await fRes.json());
@@ -453,11 +506,19 @@ export default function Index() {
     const nameA =
       (a._ui_type === "Novel"
         ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
-        : a.manga_name_en || a.manga_name_roman || a.manga_name_jp || a.manga_name_cn || a.manga_name_alt) || "";
+        : a.manga_name_en ||
+          a.manga_name_roman ||
+          a.manga_name_jp ||
+          a.manga_name_cn ||
+          a.manga_name_alt) || "";
     const nameB =
       (b._ui_type === "Novel"
         ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
-        : b.manga_name_en || b.manga_name_roman || b.manga_name_jp || b.manga_name_cn || b.manga_name_alt) || "";
+        : b.manga_name_en ||
+          b.manga_name_roman ||
+          b.manga_name_jp ||
+          b.manga_name_cn ||
+          b.manga_name_alt) || "";
     return nameA.localeCompare(nameB);
   });
   const activeReading = readingSorted.filter(
