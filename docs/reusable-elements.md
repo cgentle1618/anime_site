@@ -384,7 +384,9 @@ Poster card for grid/library views. Displays:
 - Poster (cover image)
 - My Rating badge (top-left, hidden if null)
 - Region badge (top-right, hidden if null)
+- Novel Type
 - Novel Name CN with fallback
+- Serialization Status
 - Release Year – End Year (e.g. `2010 – 2015`; omit end year if same as release year)
 - MAL Rating (hidden if null)
 - Progress tracker row based on `progress_display`:
