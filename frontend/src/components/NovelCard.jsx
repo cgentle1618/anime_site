@@ -55,6 +55,15 @@ export function getReadingButtonConfig(status) {
   return READING_BUTTON_CONFIG[status] || READING_BUTTON_CONFIG["Might Read"];
 }
 
+function serializationStatusCls(status) {
+  if (status === "連載中") return "bg-green-100 text-green-700 border-green-200";
+  if (status === "完結") return "bg-blue-100 text-blue-700 border-blue-200";
+  if (status === "連載中 (不穩定)" || status === "連載中 (有生之年)")
+    return "bg-yellow-100 text-yellow-700 border-yellow-200";
+  if (status === "停更") return "bg-red-100 text-red-700 border-red-200";
+  return "bg-gray-100 text-gray-500 border-gray-200";
+}
+
 export default function NovelCard({ novel, isAdmin: isAdminProp, onUpdated }) {
   const { isAdmin: authAdmin } = useAuth();
   const showAdmin = isAdminProp !== undefined ? isAdminProp : authAdmin;
@@ -182,13 +191,29 @@ export default function NovelCard({ novel, isAdmin: isAdminProp, onUpdated }) {
         >
           {title}
         </h3>
-        <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-center justify-between gap-1">
-          <span className="truncate pr-1">
-            {novel.release_year || "?"}
-            {novel.end_year && novel.end_year !== novel.release_year
-              ? ` – ${novel.end_year}`
-              : ""}
-          </span>
+        <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-end justify-between gap-1">
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            {(novel.type || novel.serialization_status) && (
+              <div className="flex items-center gap-1">
+                {novel.type && (
+                  <span className="shrink-0 text-[9px] font-black px-1 py-0.5 rounded bg-gray-100 text-gray-500">
+                    {novel.type}
+                  </span>
+                )}
+                {novel.serialization_status && (
+                  <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded border ${serializationStatusCls(novel.serialization_status)}`}>
+                    {novel.serialization_status}
+                  </span>
+                )}
+              </div>
+            )}
+            <span className="truncate">
+              {novel.release_year || "?"}
+              {novel.end_year && novel.end_year !== novel.release_year
+                ? ` – ${novel.end_year}`
+                : ""}
+            </span>
+          </div>
           {novel.mal_rating && (
             <span className="shrink-0 flex items-center gap-0.5 text-blue-600 font-bold">
               <i className="fas fa-star text-[8px]"></i>
