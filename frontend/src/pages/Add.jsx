@@ -1632,7 +1632,7 @@ export default function Add() {
       vol_total_tw: nvf.vol_total_tw !== "" ? parseFloat(nvf.vol_total_tw) : null,
       vol_fin: nvf.vol_fin !== "" ? parseFloat(nvf.vol_fin) : 0,
       arc_total: nvf.arc_total !== "" ? parseFloat(nvf.arc_total) : null,
-      arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : null,
+      arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : 0,
       ch_total: nvf.ch_total !== "" ? parseFloat(nvf.ch_total) : null,
       ch_fin: nvf.ch_fin !== "" ? parseFloat(nvf.ch_fin) : 0,
       my_rating: nvf.my_rating || null,
