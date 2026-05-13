@@ -10,6 +10,7 @@ import SourcesCard from "../components/SourcesCard";
 import ScoreBlock from "../components/ScoreBlock";
 import SeriesModal from "../components/SeriesModal";
 import NovelNotes from "./NovelNotes";
+import BelongingNovelsEditor from "../components/BelongingNovelsEditor";
 
 function serializationStatusColor(status) {
   if (status === "連載中")
@@ -23,245 +24,109 @@ function serializationStatusColor(status) {
 }
 
 
-const inputCls =
-  "w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
-
 function BelongingNovelsCard({ novel, isAdmin, onSave }) {
-  const cnObj = novel.novel_name_each_cn || {};
-  const enObj = novel.novel_name_each_en || {};
-  const allKeys = [
-    ...new Set([...Object.keys(cnObj), ...Object.keys(enObj)]),
-  ].sort((a, b) => {
-    const na = parseFloat(a);
-    const nb = parseFloat(b);
-    if (!isNaN(na) && !isNaN(nb)) return na - nb;
-    return a.localeCompare(b);
-  });
+  const objToItems = (obj) =>
+    Object.entries(obj || {}).map(([key, name]) => ({ key, name }));
 
-  const [items, setItems] = useState(
-    allKeys.map((k) => ({ key: k, cn: cnObj[k] || "", en: enObj[k] || "" })),
-  );
-  const [editIdx, setEditIdx] = useState(null);
-  const [editVal, setEditVal] = useState({ key: "", cn: "", en: "" });
-  const [adding, setAdding] = useState(false);
-  const [addVal, setAddVal] = useState({ key: "", cn: "", en: "" });
+  const [cnItems, setCnItems] = useState(objToItems(novel.novel_name_each_cn));
+  const [enItems, setEnItems] = useState(objToItems(novel.novel_name_each_en));
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    const cnO = novel.novel_name_each_cn || {};
-    const enO = novel.novel_name_each_en || {};
-    const keys = [
-      ...new Set([...Object.keys(cnO), ...Object.keys(enO)]),
-    ].sort((a, b) => {
-      const na = parseFloat(a);
-      const nb = parseFloat(b);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      return a.localeCompare(b);
-    });
-    setItems(keys.map((k) => ({ key: k, cn: cnO[k] || "", en: enO[k] || "" })));
+    setCnItems(objToItems(novel.novel_name_each_cn));
+    setEnItems(objToItems(novel.novel_name_each_en));
+    setDirty(false);
   }, [novel.novel_name_each_cn, novel.novel_name_each_en]);
 
-  function saveItems(next) {
-    const cnResult = {};
-    const enResult = {};
-    next.forEach(({ key, cn, en }) => {
-      if (cn) cnResult[key] = cn;
-      if (en) enResult[key] = en;
-    });
+  function handleSave() {
+    const toObj = (items) => {
+      const o = {};
+      items.forEach(({ key, name }) => { if (key && name) o[key] = name; });
+      return Object.keys(o).length ? o : null;
+    };
     onSave({
-      novel_name_each_cn: Object.keys(cnResult).length ? cnResult : null,
-      novel_name_each_en: Object.keys(enResult).length ? enResult : null,
+      novel_name_each_cn: toObj(cnItems),
+      novel_name_each_en: toObj(enItems),
     });
-    setItems(next);
+    setDirty(false);
   }
 
-  function commitEdit() {
-    const next = [...items];
-    next[editIdx] = { ...editVal };
-    setEditIdx(null);
-    saveItems(next);
+  function handleCancel() {
+    setCnItems(objToItems(novel.novel_name_each_cn));
+    setEnItems(objToItems(novel.novel_name_each_en));
+    setDirty(false);
   }
 
-  function commitAdd() {
-    if (!addVal.key.trim()) return;
-    const next = [...items, { ...addVal, key: addVal.key.trim() }];
-    setAdding(false);
-    setAddVal({ key: "", cn: "", en: "" });
-    saveItems(next);
+  function renderReadOnly(items) {
+    if (!items.length)
+      return <p className="text-xs text-gray-400 italic">No entries.</p>;
+    return (
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <div key={item.key} className="flex items-center gap-2">
+            <span className="text-[10px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded shrink-0">
+              {item.key}
+            </span>
+            <span className="text-sm text-gray-800">{item.name}</span>
+          </div>
+        ))}
+      </div>
+    );
   }
-
-  function removeItem(i) {
-    const next = items.filter((_, idx) => idx !== i);
-    saveItems(next);
-  }
-
-  const nextKey = String(
-    items.reduce((max, item) => {
-      const n = parseInt(item.key, 10);
-      return !isNaN(n) ? Math.max(max, n) : max;
-    }, 0) + 1,
-  );
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
         <h3 className="font-bold text-gray-800">
           <i className="fas fa-books text-brand mr-2"></i>Belonging Novels
         </h3>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => {
-              setAdding(true);
-              setAddVal({ key: nextKey, cn: "", en: "" });
-            }}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-brand text-white hover:bg-brand/90 transition-colors"
-          >
-            <i className="fas fa-plus text-[10px]"></i> Add
-          </button>
-        )}
       </div>
-      <div className="p-4">
-        {items.length === 0 && !adding && (
-          <p className="text-xs text-gray-400 italic">No entries.</p>
-        )}
-        <div className="space-y-2">
-          {items.map((item, i) => (
-            <div
-              key={item.key}
-              className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
-            >
-              {editIdx === i ? (
-                <div className="space-y-1.5">
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      value={editVal.key}
-                      onChange={(e) =>
-                        setEditVal({ ...editVal, key: e.target.value })
-                      }
-                      placeholder="Key"
-                      className={inputCls}
-                    />
-                    <input
-                      value={editVal.cn}
-                      onChange={(e) =>
-                        setEditVal({ ...editVal, cn: e.target.value })
-                      }
-                      placeholder="Chinese name"
-                      className={inputCls}
-                    />
-                    <input
-                      value={editVal.en}
-                      onChange={(e) =>
-                        setEditVal({ ...editVal, en: e.target.value })
-                      }
-                      placeholder="English name"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={commitEdit}
-                      className="px-2 py-1 rounded text-xs font-semibold bg-brand text-white hover:bg-brand/90"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditIdx(null)}
-                      className="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded shrink-0">
-                    {item.key}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    {item.cn && (
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {item.cn}
-                      </div>
-                    )}
-                    {item.en && (
-                      <div className="text-xs text-gray-500 truncate">
-                        {item.en}
-                      </div>
-                    )}
-                  </div>
-                  {isAdmin && (
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditIdx(i);
-                          setEditVal({ ...item });
-                        }}
-                        className="text-gray-400 hover:text-brand text-xs px-1"
-                      >
-                        <i className="fas fa-pencil-alt"></i>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(i)}
-                        className="text-gray-400 hover:text-red-500 text-xs px-1"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-          {adding && (
-            <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5 space-y-1.5">
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  value={addVal.key}
-                  onChange={(e) => setAddVal({ ...addVal, key: e.target.value })}
-                  placeholder="Key (e.g. 1)"
-                  className={inputCls}
-                />
-                <input
-                  value={addVal.cn}
-                  onChange={(e) => setAddVal({ ...addVal, cn: e.target.value })}
-                  placeholder="Chinese name"
-                  className={inputCls}
-                  autoFocus
-                />
-                <input
-                  value={addVal.en}
-                  onChange={(e) => setAddVal({ ...addVal, en: e.target.value })}
-                  placeholder="English name"
-                  className={inputCls}
-                />
-              </div>
-              <div className="flex gap-2">
+      <div className="p-4 space-y-4">
+        {isAdmin ? (
+          <>
+            <BelongingNovelsEditor
+              label="CN"
+              placeholder="Chinese title"
+              items={cnItems}
+              onChange={(v) => { setCnItems(v); setDirty(true); }}
+            />
+            <BelongingNovelsEditor
+              label="EN"
+              placeholder="English title"
+              items={enItems}
+              onChange={(v) => { setEnItems(v); setDirty(true); }}
+            />
+            {dirty && (
+              <div className="flex gap-2 pt-1 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={commitAdd}
-                  className="px-2 py-1 rounded text-xs font-semibold bg-brand text-white hover:bg-brand/90"
+                  onClick={handleSave}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand text-white hover:bg-brand/90 transition-colors"
                 >
                   Save
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setAdding(false);
-                    setAddVal({ key: "", cn: "", en: "" });
-                  }}
-                  className="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  onClick={handleCancel}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
               </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">CN</p>
+              {renderReadOnly(cnItems)}
             </div>
-          )}
-        </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">EN</p>
+              {renderReadOnly(enItems)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
