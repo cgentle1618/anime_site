@@ -1,4 +1,4 @@
-import BelongingNovelsEditor from "../../components/info/BelongingNovelsEditor";
+import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {

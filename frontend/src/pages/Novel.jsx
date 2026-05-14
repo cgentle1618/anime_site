@@ -10,7 +10,7 @@ import SourcesCard from "../components/info/SourcesCard";
 import ScoreBlock from "../components/info/ScoreBlock";
 import SeriesModal from "../components/modals/SeriesModal";
 import NovelNotes from "./NovelNotes";
-import BelongingNovelsEditor from "../components/info/BelongingNovelsEditor";
+import BelongingNovelsEditor from "../components/forms/BelongingNovelsEditor";
 
 function serializationStatusColor(status) {
   if (status === "連載中")
