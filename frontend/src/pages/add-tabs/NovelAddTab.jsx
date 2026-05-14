@@ -1,12 +1,12 @@
-import BelongingNovelsEditor from "../../components/BelongingNovelsEditor";
-import ComboBox from "../../components/ComboBox";
-import MultiSelect from "../../components/MultiSelect";
+import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
+import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
-} from "../../components/FormField";
+} from "../../components/forms/FormField";
 import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];

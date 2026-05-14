@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeCard from "../components/AnimeCard";
-import AnimeMovieCard from "../components/AnimeMovieCard";
-import MovieCard from "../components/MovieCard";
-import TVCard from "../components/TVCard";
-import CartoonCard from "../components/CartoonCard";
-import MangaCard from "../components/MangaCard";
-import NovelCard from "../components/NovelCard";
+import AnimeCard from "../components/cards/AnimeCard";
+import AnimeMovieCard from "../components/cards/AnimeMovieCard";
+import MovieCard from "../components/cards/MovieCard";
+import TVCard from "../components/cards/TVCard";
+import CartoonCard from "../components/cards/CartoonCard";
+import MangaCard from "../components/cards/MangaCard";
+import NovelCard from "../components/cards/NovelCard";
 import { cleanString } from "../utils/media";
 
 function getFranchiseTitles(f) {

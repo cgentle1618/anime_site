@@ -7,7 +7,7 @@ import {
   cleanString,
   parseTypes,
 } from "../utils/media";
-import FranchiseCard from "../components/FranchiseCard";
+import FranchiseCard from "../components/cards/FranchiseCard";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -44,17 +44,26 @@ function getEntryYear(entry) {
 function getFranchiseCover(franchise, allEntriesDict, allEntriesByFranchise) {
   if (franchise.cover_entry_id) {
     const coverEntry = allEntriesDict[franchise.cover_entry_id];
-    if (coverEntry?.cover_image_file && coverEntry.cover_image_file !== "N/A") {
-      return getCoverUrl(coverEntry.cover_image_file);
+    if (coverEntry) {
+      const file = coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A"
+        ? coverEntry.cover_image_file
+        : `${coverEntry.system_id}.jpg`;
+      return getCoverUrl(file);
     }
   }
   const entries = allEntriesByFranchise[franchise.system_id] || [];
   const withCovers = entries.filter(
     (e) => e.cover_image_file && e.cover_image_file !== "N/A",
   );
-  if (withCovers.length === 0) return FALLBACK_SVG;
-  withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
-  return getCoverUrl(withCovers[0].cover_image_file);
+  if (withCovers.length > 0) {
+    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
+    return getCoverUrl(withCovers[0].cover_image_file);
+  }
+  if (entries.length > 0) {
+    const sorted = [...entries].sort((a, b) => getEntryYear(b) - getEntryYear(a));
+    return getCoverUrl(`${sorted[0].system_id}.jpg`);
+  }
+  return FALLBACK_SVG;
 }
 
 const EMPTY_FILTERS = { franchiseType: new Set() };
@@ -78,14 +87,14 @@ export default function FranchiseLibrary() {
       try {
         const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] = await Promise.all(
           [
-            fetch("/api/franchise/", { credentials: "include" }),
-            fetch("/api/anime/", { credentials: "include" }),
-            fetch("/api/anime-movie/", { credentials: "include" }),
-            fetch("/api/movies/", { credentials: "include" }),
-            fetch("/api/tv-shows/", { credentials: "include" }),
-            fetch("/api/cartoon/", { credentials: "include" }),
-            fetch("/api/manga/", { credentials: "include" }),
-            fetch("/api/novel/", { credentials: "include" }),
+            fetch("/api/franchise/?limit=2000", { credentials: "include" }),
+            fetch("/api/anime/?limit=2000", { credentials: "include" }),
+            fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
+            fetch("/api/movies/?limit=2000", { credentials: "include" }),
+            fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
+            fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
+            fetch("/api/manga/?limit=2000", { credentials: "include" }),
+            fetch("/api/novel/?limit=2000", { credentials: "include" }),
           ],
         );
         if (

@@ -1,47 +1,42 @@
-import { useNavigate } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
-import { useToast } from "../hooks/useToast";
+﻿import { useNavigate } from "react-router-dom";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import { useToast } from "../../hooks/useToast";
 
 const WATCHING_OPTIONS = ["Might Watch", "Plan to Watch", "Watch When Airs"];
 
-function formatLength(minutes) {
-  if (!minutes) return null;
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hrs === 0) return `${mins}min`;
-  if (mins === 0) return `${hrs}hr`;
-  return `${hrs}hr ${mins}min`;
-}
+const EXPECTATION_COLOR = {
+  Highest: "bg-purple-500/80",
+  High: "bg-amber-500/80",
+  Medium: "bg-sky-500/80",
+  Low: "bg-gray-500/70",
+};
 
-function getReleaseYearJp(releaseDate) {
-  if (!releaseDate) return null;
-  const parts = String(releaseDate).trim().split(" ");
-  return parts[parts.length - 1];
-}
-
-export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
+export default function CartoonCardFuture({
+  cartoon,
+  franchiseDict,
+  isAdmin,
+  onUpdated,
+}) {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const title =
-    movie.anime_movie_name_cn ||
-    movie.anime_movie_name_en ||
-    movie.anime_movie_name_alt ||
-    movie.anime_movie_name_roman ||
-    movie.anime_movie_name_jp ||
-    "Unknown Title";
-  const imageUrl = getCoverUrl(movie.cover_image_file);
-  const length = formatLength(movie.length_min);
-  const releaseYear = getReleaseYearJp(movie.release_date_jp);
+    cartoon.cartoon_name_cn ||
+    cartoon.cartoon_name_en ||
+    cartoon.cartoon_name_alt ||
+    "Unknown";
+  const imageUrl = getCoverUrl(cartoon.cover_image_file);
+  const franchise = franchiseDict?.[cartoon.franchise_id];
+  const expectation = franchise?.franchise_expectation;
 
-  const currentStatus = movie.watching_status || "Might Watch";
+  const currentStatus = cartoon.watching_status || "Might Watch";
   const needsExtra = !WATCHING_OPTIONS.includes(currentStatus);
 
   async function handleStatusChange(e) {
     e.stopPropagation();
     const newStatus = e.target.value;
     try {
-      const res = await fetch(`/api/anime-movie/${movie.system_id}`, {
+      const res = await fetch(`/api/cartoon/${cartoon.system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ watching_status: newStatus }),
@@ -61,16 +56,16 @@ export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
   async function handleMarkAiring(e) {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/anime-movie/${movie.system_id}`, {
+      const res = await fetch(`/api/cartoon/${cartoon.system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ airing_status: "Finished Airing" }),
+        body: JSON.stringify({ airing_status: "Airing" }),
         credentials: "include",
       });
       if (res.ok) {
         const updated = await res.json();
         onUpdated?.(updated);
-        showToast("success", `${title} marked as Finished Airing`);
+        showToast("success", `${title} marked as Airing`);
       } else {
         showToast("error", "Update failed");
       }
@@ -82,10 +77,21 @@ export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
   return (
     <div
       className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-      onClick={() => navigate(`/anime-movie/${movie.system_id}`)}
+      onClick={() => navigate(`/cartoon/${cartoon.system_id}`)}
     >
-      {/* Poster */}
       <div className="w-full aspect-[3/4] bg-gray-100 relative overflow-hidden">
+        {expectation && (
+          <div
+            className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-gray-500/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}
+          >
+            {expectation}
+          </div>
+        )}
+        {cartoon.airing_type && (
+          <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+            {cartoon.airing_type}
+          </div>
+        )}
         <img
           src={imageUrl}
           alt={title}
@@ -97,7 +103,6 @@ export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
         />
       </div>
 
-      {/* Card body */}
       <div className="p-3 flex flex-col flex-1 bg-white">
         <h3
           className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight"
@@ -105,14 +110,8 @@ export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
         >
           {title}
         </h3>
-        <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
-          {length && (
-            <span className="flex items-center gap-0.5 shrink-0">
-              <i className="fas fa-clock text-gray-400"></i>
-              {length}
-            </span>
-          )}
-          {releaseYear && <span className="truncate">{releaseYear}</span>}
+        <div className="text-[10px] text-gray-500 font-medium mt-1 truncate">
+          {cartoon.release_date || "TBD"}
         </div>
         <div className="mt-auto flex items-center gap-1 border-t border-gray-100 pt-2.5">
           {isAdmin && (
@@ -138,7 +137,7 @@ export default function AnimeMovieCardFuture({ movie, isAdmin, onUpdated }) {
               <button
                 onClick={handleMarkAiring}
                 className="w-6 h-6 flex items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 transition text-[10px] shrink-0"
-                title="Mark as Finished Airing"
+                title="Mark as Airing"
               >
                 <i className="fas fa-bolt"></i>
               </button>

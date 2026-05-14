@@ -1,10 +1,10 @@
-import ComboBox from "../../components/ComboBox";
+import ComboBox from "../../components/forms/ComboBox";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
-} from "../../components/FormField";
+} from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import CartoonNotes from "../CartoonNotes";
 

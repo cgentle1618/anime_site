@@ -6,8 +6,8 @@ import {
   buildAnimePayload,
   buildAnimeMoviePayload,
 } from "../utils/media";
-import FranchiseCreateModal from "../components/FranchiseCreateModal";
-import CreateNewEntityModal from "../components/CreateNewEntityModal";
+import FranchiseCreateModal from "../components/modals/FranchiseCreateModal";
+import CreateNewEntityModal from "../components/modals/CreateNewEntityModal";
 import FranchiseAddTab, { defaultFranchise } from "./add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "./add-tabs/SeriesAddTab";
 import OptionsAddTab from "./add-tabs/OptionsAddTab";

@@ -3,11 +3,11 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
-import InfoCard from "../components/InfoCard";
-import CartoonNamingCard from "../components/CartoonNamingCard";
-import SourcesCard from "../components/SourcesCard";
-import MyTrackerCard from "../components/MyTrackerCard";
-import SeriesModal from "../components/SeriesModal";
+import InfoCard from "../components/info/InfoCard";
+import CartoonNamingCard from "../components/info/CartoonNamingCard";
+import SourcesCard from "../components/info/SourcesCard";
+import MyTrackerCard from "../components/tracker/MyTrackerCard";
+import SeriesModal from "../components/modals/SeriesModal";
 import CartoonNotes from "./CartoonNotes";
 
 const WATCHING_STATUSES = [

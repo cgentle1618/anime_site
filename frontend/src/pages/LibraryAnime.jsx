@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeCard from "../components/AnimeCard";
+import AnimeCard from "../components/cards/AnimeCard";
 import {
   getDisplayName,
   getSortName,

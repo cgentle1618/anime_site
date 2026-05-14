@@ -4,12 +4,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/media";
 import AnimeNotes from "./AnimeNotes";
-import InfoCard, { InfoRow } from "../components/InfoCard";
-import NamingCard from "../components/NamingCard";
-import ScoreBlock from "../components/ScoreBlock";
-import SourcesCard from "../components/SourcesCard";
-import MyTrackerCard from "../components/MyTrackerCard";
-import SeriesModal from "../components/SeriesModal";
+import InfoCard, { InfoRow } from "../components/info/InfoCard";
+import NamingCard from "../components/info/NamingCard";
+import ScoreBlock from "../components/info/ScoreBlock";
+import SourcesCard from "../components/info/SourcesCard";
+import MyTrackerCard from "../components/tracker/MyTrackerCard";
+import SeriesModal from "../components/modals/SeriesModal";
 
 const WATCHING_STATUSES = [
   "Might Watch",

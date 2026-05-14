@@ -8,7 +8,7 @@ Strictly protected by Admin Role-Based Access Control.
 import urllib.request
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from google.cloud import storage
@@ -73,12 +73,17 @@ def set_current_season(payload: dict = Body(...), db: Session = Depends(get_db))
     response_model=List[schemas.DataControlLogResponse],
     summary="Get Data Control Logs",
 )
-def get_system_logs(db: Session = Depends(get_db)):
+def get_system_logs(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     """Fetches the most recent data control logs."""
     logs = (
         db.query(models.DataControlLog)
         .order_by(models.DataControlLog.timestamp.desc())
-        .limit(50)
+        .limit(limit)
+        .offset(offset)
         .all()
     )
     return logs
@@ -118,12 +123,17 @@ def delete_system_log(log_id: int, db: Session = Depends(get_db)):
     response_model=List[schemas.DeletedRecordResponse],
     summary="Get Deleted Records",
 )
-def get_deleted_records(db: Session = Depends(get_db)):
+def get_deleted_records(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     """Fetches the most recent deleted records log."""
     records = (
         db.query(models.DeletedRecord)
         .order_by(models.DeletedRecord.timestamp.desc())
-        .limit(50)
+        .limit(limit)
+        .offset(offset)
         .all()
     )
     return records

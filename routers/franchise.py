@@ -8,7 +8,7 @@ import uuid
 import json
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -32,7 +32,10 @@ router = APIRouter(prefix="/api/franchise", tags=["Franchise Management"])
     "/", response_model=List[schemas.FranchiseResponse], summary="Get All Franchises"
 )
 def get_all_franchises(
-    search_query: Optional[str] = None, db: Session = Depends(get_db)
+    search_query: Optional[str] = None,
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
 ):
     """
     Retrieves all high-level Franchises from the database.
@@ -53,7 +56,7 @@ def get_all_franchises(
             )
         )
 
-    return query.order_by(models.Franchise.franchise_name_en).all()
+    return query.order_by(models.Franchise.franchise_name_en).limit(limit).offset(offset).all()
 
 
 @router.get(

@@ -1,63 +1,43 @@
-/**
- * Shared anime card (poster-style, 3:4 aspect ratio).
- * Used by LibraryAnime, Search, and FutureReleases pages.
- */
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
+﻿import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
   FALLBACK_SVG,
-  isBaha,
   getStatusButtonConfig,
-  getReleaseFallback,
-} from "../utils/media";
+} from "../../utils/media";
 
-export default function AnimeCard({ anime, onUpdated, adminOverride }) {
-  const { isAdmin } = useAuth();
-  const showAdmin = adminOverride !== undefined ? adminOverride : isAdmin;
+export default function CartoonCard({
+  cartoon,
+  isAdmin: isAdminProp,
+  onUpdated,
+}) {
+  const { isAdmin: authAdmin } = useAuth();
+  const showAdmin = isAdminProp !== undefined ? isAdminProp : authAdmin;
   const { showToast } = useToast();
   const navigate = useNavigate();
 
   const title =
-    anime.anime_name_cn ||
-    anime.anime_name_en ||
-    anime.anime_name_alt ||
-    anime.anime_name_roman ||
-    anime.anime_name_jp ||
+    cartoon.cartoon_name_cn ||
+    cartoon.cartoon_name_en ||
+    cartoon.cartoon_name_alt ||
     "Unknown Title";
-  const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isBaha(anime);
-  const releaseFallback = getReleaseFallback(anime);
+  const imageUrl = getCoverUrl(cartoon.cover_image_file);
+  const btnConfig = getStatusButtonConfig(cartoon.watching_status);
 
-  const localFin = anime.ep_fin || 0;
-  const localTotal =
-    anime.ep_total !== null &&
-    anime.ep_total !== undefined &&
-    anime.ep_total !== ""
-      ? parseInt(anime.ep_total, 10)
+  const epFin = cartoon.ep_fin ?? 0;
+  const epTotal =
+    cartoon.ep_total !== null &&
+    cartoon.ep_total !== undefined &&
+    cartoon.ep_total !== ""
+      ? parseInt(cartoon.ep_total, 10)
       : "?";
-  const cumFin = anime.cum_ep_fin ?? localFin;
-  const cumTotal = anime.cum_ep_total ?? localTotal;
-
-  const malText = anime.mal_rating ? (
-    <>
-      <i className="fas fa-star text-blue-500 mr-0.5"></i>
-      {anime.mal_rating}
-    </>
-  ) : (
-    <>
-      <i className="fas fa-star text-gray-300 mr-0.5"></i>-
-    </>
-  );
-
-  const btnConfig = getStatusButtonConfig(anime.watching_status);
 
   async function handleStatusToggle(e) {
     e.stopPropagation();
     const target = btnConfig.target;
     try {
-      const res = await fetch(`/api/anime/${anime.system_id}`, {
+      const res = await fetch(`/api/cartoon/${cartoon.system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ watching_status: target }),
@@ -78,30 +58,19 @@ export default function AnimeCard({ anime, onUpdated, adminOverride }) {
   return (
     <div
       className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-      onClick={() => navigate(`/anime/${anime.system_id}`)}
+      onClick={() => navigate(`/cartoon/${cartoon.system_id}`)}
     >
       {/* Poster */}
       <div className="w-full aspect-[3/4] bg-gray-100 relative overflow-hidden">
-        {anime.my_rating && (
+        {cartoon.my_rating && (
           <div className="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm">
             <i className="fas fa-star text-[8px] mr-1"></i>
-            {anime.my_rating}
+            {cartoon.my_rating}
           </div>
         )}
-        <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
-          <i className="fas fa-tv mr-1 text-brand"></i>
-          {anime.airing_type || "TV"}
-        </div>
-        {bahaFlag && (
-          <div
-            className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
-            title="Available on Bahamut"
-          >
-            <img
-              src="https://i2.bahamut.com.tw/anime/logo.svg"
-              className="h-3 opacity-90"
-              alt="Baha"
-            />
+        {cartoon.airing_type && (
+          <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+            {cartoon.airing_type}
           </div>
         )}
         <img
@@ -122,13 +91,18 @@ export default function AnimeCard({ anime, onUpdated, adminOverride }) {
         >
           {title}
         </h3>
-        <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between">
-          <span className="truncate pr-1">{releaseFallback}</span>
-          <span className="shrink-0 flex items-center">{malText}</span>
+        <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
+          <span className="truncate pr-1">{cartoon.release_date || "TBD"}</span>
+          {cartoon.imdb_rating && cartoon.imdb_rating !== "N/A" && (
+            <span className="shrink-0 flex items-center gap-0.5 text-yellow-600 font-bold">
+              <i className="fas fa-star text-[8px]"></i>
+              {cartoon.imdb_rating}
+            </span>
+          )}
         </div>
         <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-2.5">
           <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
-            {localFin} <span className="text-gray-400">/</span> {localTotal}{" "}
+            {epFin} <span className="text-gray-400">/</span> {epTotal}{" "}
             <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
               EP
             </span>
@@ -137,16 +111,16 @@ export default function AnimeCard({ anime, onUpdated, adminOverride }) {
             <button
               onClick={handleStatusToggle}
               className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors font-bold text-[13px] leading-none ${btnConfig.cls}`}
-              title={`${anime.watching_status || "Might Watch"} → ${btnConfig.target}`}
+              title={`${cartoon.watching_status || "Might Watch"} → ${btnConfig.target}`}
             >
               {btnConfig.symbol}
             </button>
-          ) : anime.watching_status ? (
+          ) : cartoon.watching_status ? (
             <div
               className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 max-w-[65px] truncate"
-              title={anime.watching_status}
+              title={cartoon.watching_status}
             >
-              {anime.watching_status}
+              {cartoon.watching_status}
             </div>
           ) : null}
         </div>

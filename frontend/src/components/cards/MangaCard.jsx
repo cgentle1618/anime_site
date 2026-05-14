@@ -1,8 +1,8 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 
 const READING_BUTTON_CONFIG = {
   "Might Read": {

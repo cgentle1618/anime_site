@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeMovieCard from "../components/AnimeMovieCard";
+import AnimeMovieCard from "../components/cards/AnimeMovieCard";
 import {
   isBaha,
   getStatusButtonConfig,

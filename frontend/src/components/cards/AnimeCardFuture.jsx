@@ -1,25 +1,46 @@
-import { useNavigate } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
-import { useToast } from "../hooks/useToast";
+﻿import { useNavigate } from "react-router-dom";
+import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import { useToast } from "../../hooks/useToast";
 
 const WATCHING_OPTIONS = ["Might Watch", "Plan to Watch", "Watch When Airs"];
 
-export default function TVCardFuture({ show, isAdmin, onUpdated }) {
+const EXPECTATION_COLOR = {
+  Highest: "bg-purple-500/80",
+  High: "bg-amber-500/80",
+  Medium: "bg-sky-500/80",
+  Low: "bg-gray-500/70",
+};
+
+export default function AnimeCardFuture({
+  anime,
+  franchiseDict,
+  isAdmin,
+  onUpdated,
+}) {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const title =
-    show.tv_name_cn || show.tv_name_en || show.tv_name_alt || "Unknown Title";
-  const imageUrl = getCoverUrl(show.cover_image_file);
+    anime.anime_name_cn ||
+    anime.anime_name_en ||
+    anime.anime_name_alt ||
+    anime.anime_name_roman ||
+    anime.anime_name_jp ||
+    "Unknown";
+  const imageUrl = getCoverUrl(anime.cover_image_file);
+  const franchise = franchiseDict[anime.franchise_id];
+  const expectation = franchise?.franchise_expectation;
+  const bahaFlag = isBaha(anime);
+  const hasBahaLink = bahaFlag && anime.baha_link && anime.baha_link !== "N/A";
 
-  const currentStatus = show.watching_status || "Might Watch";
+  const currentStatus = anime.watching_status || "Might Watch";
   const needsExtra = !WATCHING_OPTIONS.includes(currentStatus);
 
   async function handleStatusChange(e) {
     e.stopPropagation();
     const newStatus = e.target.value;
     try {
-      const res = await fetch(`/api/tv-shows/${show.system_id}`, {
+      const res = await fetch(`/api/anime/${anime.system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ watching_status: newStatus }),
@@ -39,7 +60,7 @@ export default function TVCardFuture({ show, isAdmin, onUpdated }) {
   async function handleMarkAiring(e) {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/tv-shows/${show.system_id}`, {
+      const res = await fetch(`/api/anime/${anime.system_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ airing_status: "Airing" }),
@@ -60,10 +81,48 @@ export default function TVCardFuture({ show, isAdmin, onUpdated }) {
   return (
     <div
       className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-      onClick={() => navigate(`/tv-show/${show.system_id}`)}
+      onClick={() => navigate(`/anime/${anime.system_id}`)}
     >
-      {/* Poster */}
       <div className="w-full aspect-[3/4] bg-gray-100 relative overflow-hidden">
+        {expectation && (
+          <div
+            className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-gray-500/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}
+          >
+            {expectation}
+          </div>
+        )}
+        <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+          <i className="fas fa-tv mr-1 text-brand"></i>
+          {anime.airing_type || "?"}
+        </div>
+        {bahaFlag &&
+          (hasBahaLink ? (
+            <a
+              href={anime.baha_link}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+              title="Watch on Bahamut"
+            >
+              <img
+                src="https://i2.bahamut.com.tw/anime/logo.svg"
+                className="h-3 opacity-90"
+                alt="Baha"
+              />
+            </a>
+          ) : (
+            <div
+              className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+              title="Available on Bahamut (no link)"
+            >
+              <img
+                src="https://i2.bahamut.com.tw/anime/logo.svg"
+                className="h-3 opacity-30 grayscale"
+                alt="Baha"
+              />
+            </div>
+          ))}
         <img
           src={imageUrl}
           alt={title}
@@ -75,7 +134,6 @@ export default function TVCardFuture({ show, isAdmin, onUpdated }) {
         />
       </div>
 
-      {/* Card body */}
       <div className="p-3 flex flex-col flex-1 bg-white">
         <h3
           className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight"
@@ -83,10 +141,11 @@ export default function TVCardFuture({ show, isAdmin, onUpdated }) {
         >
           {title}
         </h3>
-        <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
-          {show.region && <span className="shrink-0">{show.region}</span>}
-          <span className="truncate">{show.release_date || "TBD"}</span>
-        </div>
+        {anime.studio && (
+          <p className="text-[10px] text-gray-400 truncate mt-0.5">
+            {anime.studio}
+          </p>
+        )}
         <div className="mt-auto flex items-center gap-1 border-t border-gray-100 pt-2.5">
           {isAdmin && (
             <>

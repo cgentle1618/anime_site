@@ -7,7 +7,7 @@ Strictly handles database updates. Backups to Google Sheets are handled manually
 
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 import models
@@ -30,7 +30,11 @@ router = APIRouter(prefix="/api/options", tags=["System Options"])
     response_model=List[schemas.SystemOptionResponse],
     summary="Get All System Options",
 )
-def get_all_system_options(db: Session = Depends(get_db)):
+def get_all_system_options(
+    limit: int = Query(default=1000, ge=1, le=5000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     """
     Fetches all system options across all categories.
     Used by the frontend UI to populate all dropdowns dynamically at once.
@@ -38,6 +42,8 @@ def get_all_system_options(db: Session = Depends(get_db)):
     options = (
         db.query(models.SystemOption)
         .order_by(models.SystemOption.category, models.SystemOption.option_value)
+        .limit(limit)
+        .offset(offset)
         .all()
     )
     return options
@@ -48,7 +54,12 @@ def get_all_system_options(db: Session = Depends(get_db)):
     response_model=List[schemas.SystemOptionResponse],
     summary="Get System Options by Category",
 )
-def get_system_options(category: str, db: Session = Depends(get_db)):
+def get_system_options(
+    category: str,
+    limit: int = Query(default=1000, ge=1, le=5000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     """
     Fetches a list of system options for a specific category (e.g., 'Studio', 'Genre Main').
     Used extensively by the frontend UI to populate dropdowns dynamically.
@@ -57,6 +68,8 @@ def get_system_options(category: str, db: Session = Depends(get_db)):
         db.query(models.SystemOption)
         .filter(models.SystemOption.category == category)
         .order_by(models.SystemOption.option_value)
+        .limit(limit)
+        .offset(offset)
         .all()
     )
     return options

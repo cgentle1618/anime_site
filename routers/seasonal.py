@@ -5,7 +5,7 @@ and patching the my_rating field for admin users.
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from dependencies import get_db, get_current_admin
@@ -27,11 +27,17 @@ def get_current_season_public(db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[schemas.SeasonalResponse], summary="List All Seasonals")
-def list_seasonals(db: Session = Depends(get_db)):
+def list_seasonals(
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
     """Returns all seasonal records ordered by seasonal string descending."""
     return (
         db.query(models.Seasonal)
         .order_by(models.Seasonal.seasonal.desc())
+        .limit(limit)
+        .offset(offset)
         .all()
     )
 

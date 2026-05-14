@@ -9,7 +9,7 @@ import uuid
 import json
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -20,11 +20,12 @@ import schemas
 
 from services.image_manager import delete_cover_image
 from services.other_logics import (
+    apply_completion_timestamp,
+    apply_single_replace_anime,
     create_missing_seasonal,
     derive_ep_previous_anime,
-    apply_single_replace_anime,
-    resolve_anime_parent_hierarchy,
     mark_tv_completed,
+    resolve_anime_parent_hierarchy,
 )
 
 from utils.data_control_utils import log_deleted_record
@@ -45,6 +46,8 @@ def get_all_anime(
     series_id: Optional[str] = None,
     search_query: Optional[str] = None,
     airing_season: Optional[str] = None,
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     """Retrieves Anime entries, supporting foreign key filters and search.
@@ -77,7 +80,7 @@ def get_all_anime(
             )
         )
 
-    return query.order_by(models.Anime.created_at.desc()).all()
+    return query.order_by(models.Anime.created_at.desc()).limit(limit).offset(offset).all()
 
 
 @router.get(
@@ -164,11 +167,7 @@ def update_anime_entry(
     for key, value in update_data.items():
         setattr(db_anime, key, value)
 
-    if (
-        update_data.get("watching_status") == "Completed"
-        and db_anime.completed_at is None
-    ):
-        db_anime.completed_at = get_taipei_now()
+    apply_completion_timestamp(db_anime, update_data.get("watching_status"))
 
     final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
         db, db_anime.franchise_id, db_anime.series_id, db_anime.names_dict
@@ -216,8 +215,7 @@ def patch_anime_entry(
         if hasattr(db_anime, key):
             setattr(db_anime, key, value)
 
-    if payload.get("watching_status") == "Completed" and db_anime.completed_at is None:
-        db_anime.completed_at = get_taipei_now()
+    apply_completion_timestamp(db_anime, payload.get("watching_status"))
 
     db_anime.updated_at = get_taipei_now()
     db.commit()

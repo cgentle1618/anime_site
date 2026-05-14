@@ -9,14 +9,14 @@ import {
   getRatingWeight,
   parseTypes,
 } from "../utils/media";
-import AnimeCard from "../components/AnimeCard";
-import AnimeMovieCard from "../components/AnimeMovieCard";
-import MangaCard from "../components/MangaCard";
-import NovelCard from "../components/NovelCard";
-import MovieCard from "../components/MovieCard";
-import TVCard from "../components/TVCard";
-import CartoonCard from "../components/CartoonCard";
-import SeriesModal from "../components/SeriesModal";
+import AnimeCard from "../components/cards/AnimeCard";
+import AnimeMovieCard from "../components/cards/AnimeMovieCard";
+import MangaCard from "../components/cards/MangaCard";
+import NovelCard from "../components/cards/NovelCard";
+import MovieCard from "../components/cards/MovieCard";
+import TVCard from "../components/cards/TVCard";
+import CartoonCard from "../components/cards/CartoonCard";
+import SeriesModal from "../components/modals/SeriesModal";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],

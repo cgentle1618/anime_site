@@ -1,4 +1,4 @@
-import { Field, SectionHeader, inputCls } from "../../components/FormField";
+import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 
 export default function OptionsAddTab({
   optCategory,

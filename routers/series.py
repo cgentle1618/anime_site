@@ -9,7 +9,7 @@ import uuid
 import json
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -36,6 +36,8 @@ router = APIRouter(prefix="/api/series", tags=["Series Management"])
 def get_all_series(
     franchise_id: Optional[str] = None,
     search_query: Optional[str] = None,
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     """
@@ -59,7 +61,7 @@ def get_all_series(
             )
         )
 
-    return query.order_by(models.Series.series_name_en).all()
+    return query.order_by(models.Series.series_name_en).limit(limit).offset(offset).all()
 
 
 @router.get(

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { InfoRow } from "./InfoCard";
+import { InfoRow } from "../info/InfoCard";
 
 export default function SeriesModal({ series, isAdmin, onClose }) {
   return (

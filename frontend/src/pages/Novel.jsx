@@ -3,14 +3,14 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
-import InfoCard from "../components/InfoCard";
-import NamingCard from "../components/NamingCard";
-import NovelTrackerBlock from "../components/NovelTrackerBlock";
-import SourcesCard from "../components/SourcesCard";
-import ScoreBlock from "../components/ScoreBlock";
-import SeriesModal from "../components/SeriesModal";
+import InfoCard from "../components/info/InfoCard";
+import NamingCard from "../components/info/NamingCard";
+import NovelTrackerBlock from "../components/tracker/NovelTrackerBlock";
+import SourcesCard from "../components/info/SourcesCard";
+import ScoreBlock from "../components/info/ScoreBlock";
+import SeriesModal from "../components/modals/SeriesModal";
 import NovelNotes from "./NovelNotes";
-import BelongingNovelsEditor from "../components/BelongingNovelsEditor";
+import BelongingNovelsEditor from "../components/forms/BelongingNovelsEditor";
 
 function serializationStatusColor(status) {
   if (status === "連載中")

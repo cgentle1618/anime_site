@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import CartoonCard from "../components/CartoonCard";
+import CartoonCard from "../components/cards/CartoonCard";
 import {
   getRatingWeight,
   cleanString,

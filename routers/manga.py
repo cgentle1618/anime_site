@@ -7,7 +7,7 @@ Thin controller layer — all heavy logic delegated to services.
 import uuid
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -17,7 +17,7 @@ import models
 import schemas
 
 from services.image_manager import delete_cover_image
-from services.other_logics import resolve_manga_parent_hierarchy, mark_reading_completed
+from services.other_logics import apply_completion_timestamp, mark_reading_completed, resolve_manga_parent_hierarchy
 from services.data_control import execute_replace_single_manga
 from utils.data_control_utils import log_deleted_record
 
@@ -39,6 +39,8 @@ def get_all_manga(
     serialization_status: Optional[str] = None,
     to_reread: Optional[bool] = None,
     search_query: Optional[str] = None,
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     query = db.query(models.Manga)
@@ -65,7 +67,7 @@ def get_all_manga(
             )
         )
 
-    return query.order_by(models.Manga.created_at.desc()).all()
+    return query.order_by(models.Manga.created_at.desc()).limit(limit).offset(offset).all()
 
 
 @router.get(
@@ -140,8 +142,7 @@ async def update_manga(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(entry, key, value)
 
-    if data.reading_status == "Completed" and entry.completed_at is None:
-        entry.completed_at = get_taipei_now()
+    apply_completion_timestamp(entry, data.reading_status)
 
     entry.franchise_id, entry.series_id = resolve_manga_parent_hierarchy(
         db,
@@ -187,8 +188,7 @@ async def patch_manga(
         if hasattr(entry, key):
             setattr(entry, key, value)
 
-    if payload.get("reading_status") == "Completed" and entry.completed_at is None:
-        entry.completed_at = get_taipei_now()
+    apply_completion_timestamp(entry, payload.get("reading_status"))
 
     entry.updated_at = get_taipei_now()
     db.commit()

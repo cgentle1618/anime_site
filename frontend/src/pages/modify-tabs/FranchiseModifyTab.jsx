@@ -4,7 +4,7 @@ import {
   SectionHeader,
   inputCls,
   selectCls,
-} from "../../components/FormField";
+} from "../../components/forms/FormField";
 
 const TYPE_TO_ENTRY_TYPES = {
   ACG: ["anime", "manga", "novel"],

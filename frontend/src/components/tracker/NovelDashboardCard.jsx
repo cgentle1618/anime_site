@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
-import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
+﻿import { useNavigate } from "react-router-dom";
+import { useToast } from "../../hooks/useToast";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 
 const SERIALIZATION_COLORS = {
   完結: "bg-blue-100 text-blue-700 border-blue-200",

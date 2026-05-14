@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./hooks/useToast";
-import Layout from "./components/Layout";
-import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/layout/Layout";
+import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";

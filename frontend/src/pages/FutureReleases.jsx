@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeCardFuture from "../components/AnimeCardFuture";
-import AnimeMovieCardFuture from "../components/AnimeMovieCardFuture";
-import MovieCardFuture from "../components/MovieCardFuture";
-import TVCardFuture from "../components/TVCardFuture";
-import CartoonCardFuture from "../components/CartoonCardFuture";
+import AnimeCardFuture from "../components/cards/AnimeCardFuture";
+import AnimeMovieCardFuture from "../components/cards/AnimeMovieCardFuture";
+import MovieCardFuture from "../components/cards/MovieCardFuture";
+import TVCardFuture from "../components/cards/TVCardFuture";
+import CartoonCardFuture from "../components/cards/CartoonCardFuture";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
