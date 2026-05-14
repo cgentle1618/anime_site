@@ -1,8 +1,6 @@
 import useStatisticsData from "./statistics/useStatisticsData";
 import StatsFavoriteGrids from "./statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "./statistics/StatsFranchiseSummary";
-import StatsWatchNext from "./statistics/StatsWatchNext";
-import StatsToRewatch from "./statistics/StatsToRewatch";
 import StatsCompletions from "./statistics/StatsCompletions";
 
 export default function Statistics() {
@@ -79,31 +77,6 @@ export default function Statistics() {
         allNovel={allNovel}
         seasonals={seasonals}
         currentSeason={currentSeason}
-      />
-
-      {/* Block 3 — Watch Next */}
-      <StatsWatchNext
-        franchises={franchises}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allTVShows={allTVShows}
-        allCartoons={allCartoons}
-        allManga={allManga}
-        allNovel={allNovel}
-        allEntriesByFranchise={allEntriesByFranchise}
-        franchiseMap={franchiseMap}
-      />
-
-      {/* Block 3.5 — To Rewatch */}
-      <StatsToRewatch
-        franchises={franchises}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allTVShows={allTVShows}
-        allCartoons={allCartoons}
-        allManga={allManga}
-        allNovel={allNovel}
-        allEntriesByFranchise={allEntriesByFranchise}
       />
 
       {/* Block 4 — Recent Completions */}
