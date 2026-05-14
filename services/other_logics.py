@@ -973,6 +973,17 @@ def find_all_remarks(db: Session) -> dict:
             }
             for e in _query(Manga)
         ],
+        "novel": [
+            {
+                "system_id": str(e.system_id),
+                "novel_name_cn": e.novel_name_cn,
+                "novel_name_en": e.novel_name_en,
+                "is_main": e.is_main,
+                "reading_status": e.reading_status,
+                "remark": e.remark,
+            }
+            for e in _query(Novel)
+        ],
     }
 
 
