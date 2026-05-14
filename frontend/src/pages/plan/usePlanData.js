@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function usePlanData() {
+export default function usePlanData(reloadKey = 0) {
   const [franchises, setFranchises] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
@@ -86,7 +86,7 @@ export default function usePlanData() {
       }
     }
     load();
-  }, []);
+  }, [reloadKey]);
 
   return {
     franchises,

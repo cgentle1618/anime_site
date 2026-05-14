@@ -1,10 +1,14 @@
+import { useState } from "react";
 import usePlanData from "./plan/usePlanData";
 import PlanWatchNext from "./plan/PlanWatchNext";
 import PlanToRewatch from "./plan/PlanToRewatch";
+import PlanToWatchFuture from "./plan/PlanToWatchFuture";
 
 export default function Plan() {
+  const [reloadKey, setReloadKey] = useState(0);
   const {
     franchises,
+    allAnime,
     allAnimeMovies,
     allMovies,
     allTVShows,
@@ -15,7 +19,7 @@ export default function Plan() {
     franchiseMap,
     loading,
     error,
-  } = usePlanData();
+  } = usePlanData(reloadKey);
 
   if (loading) {
     return (
@@ -52,7 +56,7 @@ export default function Plan() {
             Plan
           </h1>
           <p className="text-xs text-gray-400 font-medium mt-0.5">
-            Watch Next &amp; To Rewatch
+            Watch Next, To Rewatch &amp; Future Plans
           </p>
         </div>
       </div>
@@ -80,6 +84,17 @@ export default function Plan() {
         allManga={allManga}
         allNovel={allNovel}
         allEntriesByFranchise={allEntriesByFranchise}
+      />
+
+      {/* Plan to Watch in the Future */}
+      <PlanToWatchFuture
+        allAnime={allAnime}
+        allAnimeMovies={allAnimeMovies}
+        allMovies={allMovies}
+        allTVShows={allTVShows}
+        allCartoons={allCartoons}
+        franchiseMap={franchiseMap}
+        onUpdated={() => setReloadKey((k) => k + 1)}
       />
     </div>
   );

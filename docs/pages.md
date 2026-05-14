@@ -896,6 +896,13 @@ Planning dashboard for tracking what to watch or read next.
    - Manga tab: sorted by Manga Name EN; shows poster, Manga Name CN with fallback, My Rating
    - Novel tab: sorted by Novel Name EN; shows poster, Novel Name CN with fallback, My Rating
 
+3. **Plan to Watch in the Future** (`frontend/src/pages/plan/PlanToWatchFuture.jsx`) — two-tab view of upcoming planned entries:
+   - **Watch When Airs tab**: all Anime, Anime Movie, Movie, TV Show, Cartoon entries where `watching_status === "Watch When Airs"`, grouped by release year (ascending; TBD last), sorted within each year by media type order (Anime → Anime Movie → Movie → TV Show → Cartoon) then by name EN. Renders type-specific future release card per entry.
+   - **Plan to Watch tab**: same structure but filtered to `watching_status === "Plan to Watch"` AND `airing_status === "Not Yet Aired"` (future releases only). Anime entries additionally require their season key ≥ the current season key (fetched from `GET /api/system/config/current_season`) to exclude stale past-season entries.
+   - Manga and Novel are excluded (they use `reading_status`, not `watching_status`, and have no future release card).
+   - Release year extraction per type: Anime uses `release_year`; Anime Movie uses first 4 chars of `release_date_jp` or `release_date_tw`; Movie uses `release_date_usa` or `release_date_tw`; TV Show and Cartoon use first 4 chars of `release_date`.
+   - Cards used: `AnimeCardFuture`, `AnimeMovieCardFuture`, `MovieCardFuture`, `TVCardFuture`, `CartoonCardFuture`. Cards are interactive — admins can change `watching_status` via dropdown; changing status triggers a full data reload.
+
 ---
 
 ### Statistics (`/statistics`)
