@@ -29,8 +29,8 @@ function getEntryYear(entry) {
 }
 
 function getFranchiseCover(franchise, allEntriesDict, allEntriesByFranchise) {
-  if (franchise.cover_anime_id) {
-    const coverEntry = allEntriesDict[franchise.cover_anime_id];
+  if (franchise.cover_entry_id) {
+    const coverEntry = allEntriesDict[franchise.cover_entry_id];
     if (coverEntry?.cover_image_file && coverEntry.cover_image_file !== "N/A") {
       return getCoverUrl(coverEntry.cover_image_file);
     }
@@ -61,7 +61,7 @@ export default function FranchiseLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes] = await Promise.all(
+        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] = await Promise.all(
           [
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
@@ -70,6 +70,7 @@ export default function FranchiseLibrary() {
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
             fetch("/api/manga/", { credentials: "include" }),
+            fetch("/api/novel/", { credentials: "include" }),
           ],
         );
         if (
@@ -79,7 +80,8 @@ export default function FranchiseLibrary() {
           !mRes.ok ||
           !tvRes.ok ||
           !cRes.ok ||
-          !mgRes.ok
+          !mgRes.ok ||
+          !nvRes.ok
         )
           throw new Error("Failed to load data");
         const [
@@ -90,6 +92,7 @@ export default function FranchiseLibrary() {
           tvShows,
           cartoons,
           mangas,
+          novels,
         ] = await Promise.all([
           fRes.json(),
           aRes.json(),
@@ -98,6 +101,7 @@ export default function FranchiseLibrary() {
           tvRes.json(),
           cRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         const allEntries = [
           ...anime,
@@ -106,6 +110,7 @@ export default function FranchiseLibrary() {
           ...tvShows,
           ...cartoons,
           ...mangas,
+          ...novels,
         ];
         setAllFranchises(franchises);
         setAllEntriesDict(
