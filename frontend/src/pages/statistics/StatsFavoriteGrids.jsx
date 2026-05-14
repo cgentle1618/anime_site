@@ -17,14 +17,6 @@ const GRID_CONFIGS = [
 function getSlot(f, typeKey) {
   const fromTypeSlots = f.type_slots?.[typeKey];
   if (fromTypeSlots >= 1 && fromTypeSlots <= 9) return fromTypeSlots;
-  // Fallback: ACG grid supports the legacy favorite_3x3_slot field
-  if (
-    typeKey === "ACG" &&
-    f.favorite_3x3_slot >= 1 &&
-    f.favorite_3x3_slot <= 9
-  ) {
-    return f.favorite_3x3_slot;
-  }
   return null;
 }
 

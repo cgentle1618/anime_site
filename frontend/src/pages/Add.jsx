@@ -624,9 +624,6 @@ export default function Add() {
         franchise_type: ff.franchise_type || null,
         my_rating: ff.my_rating || null,
         franchise_expectation: ff.franchise_expectation || null,
-        favorite_3x3_slot: ff.favorite_3x3_slot
-          ? parseInt(ff.favorite_3x3_slot)
-          : null,
         remark: ff.remark || null,
       }),
       credentials: "include",

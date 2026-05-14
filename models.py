@@ -90,7 +90,6 @@ class Franchise(Base, NameFallbackMixin):
 
     my_rating = Column(String, nullable=True)
     franchise_expectation = Column(String, default="Low")
-    favorite_3x3_slot = Column(Integer, nullable=True)
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
     type_covers = Column(JSONB, nullable=True)
     type_slots = Column(JSONB, nullable=True)

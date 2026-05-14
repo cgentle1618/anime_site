@@ -15,7 +15,6 @@ export const defaultFranchise = () => ({
   franchise_type: "",
   my_rating: "",
   franchise_expectation: "",
-  favorite_3x3_slot: "",
   remark: "",
 });
 
@@ -117,20 +116,6 @@ export default function FranchiseAddTab({ ff, uf }) {
             {["Highest", "High", "Medium", "Low"].map((v) => (
               <option key={v} value={v}>
                 {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Favorite 3x3 Slot" hint="1–9">
-          <select
-            className={selectCls}
-            value={ff.favorite_3x3_slot}
-            onChange={(e) => uf("favorite_3x3_slot", e.target.value)}
-          >
-            <option value="">—</option>
-            {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                {n}
               </option>
             ))}
           </select>

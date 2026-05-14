@@ -137,7 +137,6 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_expectation": parse_from_sheet(
             raw.get("franchise_expectation"), str
         ),
-        "favorite_3x3_slot": parse_from_sheet(raw.get("favorite_3x3_slot"), int),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

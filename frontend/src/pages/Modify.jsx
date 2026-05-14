@@ -126,7 +126,6 @@ function franchiseToForm(f) {
     franchise_type: f.franchise_type || "",
     my_rating: f.my_rating || "",
     franchise_expectation: f.franchise_expectation || "",
-    favorite_3x3_slot: f.favorite_3x3_slot ?? "",
     cover_entry_id: f.cover_entry_id ?? null,
     type_covers: f.type_covers ?? null,
     type_slots: f.type_slots ?? null,
@@ -825,8 +824,6 @@ export default function Modify() {
         franchise_type: ff.franchise_type || null,
         my_rating: ff.my_rating || null,
         franchise_expectation: ff.franchise_expectation || null,
-        favorite_3x3_slot:
-          ff.favorite_3x3_slot !== "" ? parseInt(ff.favorite_3x3_slot) : null,
         cover_entry_id: ff.cover_entry_id || null,
         type_covers: ff.type_covers || null,
         type_slots: ff.type_slots || null,

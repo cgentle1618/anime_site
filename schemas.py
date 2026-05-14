@@ -75,7 +75,6 @@ class FranchiseBase(BaseModel):
     franchise_name_alt: Optional[str] = None
     my_rating: Optional[str] = None
     franchise_expectation: Optional[str] = "Low"
-    favorite_3x3_slot: Optional[int] = None
     cover_entry_id: Optional[UUID] = None
     type_covers: Optional[dict] = None
     type_slots: Optional[dict] = None

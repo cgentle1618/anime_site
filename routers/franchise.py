@@ -97,7 +97,6 @@ def create_franchise(
             franchise_name_alt=payload.franchise_name_alt,
             my_rating=payload.my_rating,
             franchise_expectation=payload.franchise_expectation,
-            favorite_3x3_slot=payload.favorite_3x3_slot,
             remark=payload.remark,
             created_at=get_taipei_now(),
             updated_at=get_taipei_now(),
