@@ -15,6 +15,7 @@ import FutureReleases from "./pages/FutureReleases";
 import SeasonalOverall from "./pages/SeasonalOverall";
 import SeasonalDetail from "./pages/SeasonalDetail";
 import Statistics from "./pages/Statistics";
+import Plan from "./pages/Plan";
 import LibraryAnime from "./pages/LibraryAnime";
 import LibraryAnimeMovie from "./pages/LibraryAnimeMovie";
 import FranchiseLibrary from "./pages/FranchiseLibrary";
@@ -91,6 +92,7 @@ export default function App() {
                   element={<SeasonalDetail />}
                 />
                 <Route path="/statistics" element={<Statistics />} />
+                <Route path="/plan" element={<Plan />} />
                 <Route
                   path="/under-development"
                   element={<UnderDevelopment />}
