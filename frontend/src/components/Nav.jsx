@@ -557,6 +557,9 @@ export default function Nav() {
                 label="More"
                 items={
                   <>
+                    <NavLink to="/plan" icon="fas fa-clipboard-list">
+                      Plan
+                    </NavLink>
                     <NavLink to="/statistics" icon="fas fa-chart-bar">
                       Statistics
                     </NavLink>
@@ -888,6 +891,13 @@ export default function Nav() {
                 </span>
               </summary>
               <div className="pl-12 pr-3 py-1 space-y-1 border-l-2 border-gray-100 ml-6 mb-2">
+                <Link
+                  to="/plan"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Plan
+                </Link>
                 <Link
                   to="/statistics"
                   onClick={() => setMobileOpen(false)}
