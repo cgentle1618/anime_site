@@ -44,17 +44,26 @@ function getEntryYear(entry) {
 function getFranchiseCover(franchise, allEntriesDict, allEntriesByFranchise) {
   if (franchise.cover_entry_id) {
     const coverEntry = allEntriesDict[franchise.cover_entry_id];
-    if (coverEntry?.cover_image_file && coverEntry.cover_image_file !== "N/A") {
-      return getCoverUrl(coverEntry.cover_image_file);
+    if (coverEntry) {
+      const file = coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A"
+        ? coverEntry.cover_image_file
+        : `${coverEntry.system_id}.jpg`;
+      return getCoverUrl(file);
     }
   }
   const entries = allEntriesByFranchise[franchise.system_id] || [];
   const withCovers = entries.filter(
     (e) => e.cover_image_file && e.cover_image_file !== "N/A",
   );
-  if (withCovers.length === 0) return FALLBACK_SVG;
-  withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
-  return getCoverUrl(withCovers[0].cover_image_file);
+  if (withCovers.length > 0) {
+    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
+    return getCoverUrl(withCovers[0].cover_image_file);
+  }
+  if (entries.length > 0) {
+    const sorted = [...entries].sort((a, b) => getEntryYear(b) - getEntryYear(a));
+    return getCoverUrl(`${sorted[0].system_id}.jpg`);
+  }
+  return FALLBACK_SVG;
 }
 
 const EMPTY_FILTERS = { franchiseType: new Set() };
