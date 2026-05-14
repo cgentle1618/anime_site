@@ -22,11 +22,11 @@ export function getEntryYear(entry) {
   return 0;
 }
 
-export function getCoverForSlot(franchise, allEntriesByFranchise) {
+export function getCoverForSlot(franchise, allEntriesByFranchise, forType = null) {
   const entries = allEntriesByFranchise[String(franchise.system_id)] || [];
-  if (franchise.cover_anime_id) {
+  if (forType && franchise.type_covers?.[forType]) {
     const chosen = entries.find(
-      (e) => e.system_id === franchise.cover_anime_id,
+      (e) => String(e.system_id) === franchise.type_covers[forType],
     );
     if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
       return getCoverUrl(chosen.cover_image_file);
