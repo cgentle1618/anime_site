@@ -64,13 +64,13 @@ export default function usePlanData() {
         });
         setFranchiseMap(fMap);
         const allEntries = [
-          ...aData,
-          ...amData,
-          ...mData,
-          ...tvData,
-          ...cData,
-          ...mgData,
-          ...nvData,
+          ...aData.map((e) => ({ ...e, _type: "anime" })),
+          ...amData.map((e) => ({ ...e, _type: "anime_movie" })),
+          ...mData.map((e) => ({ ...e, _type: "movie" })),
+          ...tvData.map((e) => ({ ...e, _type: "tv_show" })),
+          ...cData.map((e) => ({ ...e, _type: "cartoon" })),
+          ...mgData.map((e) => ({ ...e, _type: "manga" })),
+          ...nvData.map((e) => ({ ...e, _type: "novel" })),
         ];
         const byFranchise = {};
         allEntries.forEach((e) => {

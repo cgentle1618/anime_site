@@ -1,5 +1,14 @@
 import { getCoverUrl, FALLBACK_SVG } from "./media";
 
+const TYPE_TO_ENTRY_TYPES = {
+  ACG: ["anime", "manga", "novel"],
+  "Anime Movie": ["anime_movie"],
+  TV: ["tv_show"],
+  Movie: ["movie"],
+  Cartoon: ["cartoon"],
+  Novel: ["novel"],
+};
+
 export function getDisplayName(f) {
   return (
     f.franchise_name_cn ||
@@ -39,8 +48,12 @@ export function getCoverForSlot(franchise, allEntriesByFranchise, forType = null
       return getCoverUrl(chosen.cover_image_file);
     }
   }
+  const allowedTypes = forType ? TYPE_TO_ENTRY_TYPES[forType] : null;
   const withCover = entries.filter(
-    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
+    (e) =>
+      e.cover_image_file &&
+      e.cover_image_file !== "N/A" &&
+      (!allowedTypes || !e._type || allowedTypes.includes(e._type)),
   );
   if (withCover.length === 0) return FALLBACK_SVG;
   withCover.sort((a, b) => getEntryYear(b) - getEntryYear(a));
