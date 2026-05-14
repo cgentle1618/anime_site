@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeMovieCard from "../components/cards/AnimeMovieCard";
+import MediaCard from "../components/cards/MediaCard";
 import {
   isBaha,
   getStatusButtonConfig,
@@ -358,12 +358,7 @@ export default function LibraryAnimeMovie() {
       ) : currentView === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filteredAndSorted.map((m) => (
-            <AnimeMovieCard
-              key={m.system_id}
-              movie={m}
-              franchises={Object.values(franchiseDict)}
-              onUpdated={handleUpdated}
-            />
+            <MediaCard key={m.system_id} type="anime-movie" data={m} onUpdated={handleUpdated} />
           ))}
         </div>
       ) : (

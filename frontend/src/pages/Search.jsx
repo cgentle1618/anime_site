@@ -1,13 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeCard from "../components/cards/AnimeCard";
-import AnimeMovieCard from "../components/cards/AnimeMovieCard";
-import MovieCard from "../components/cards/MovieCard";
-import TVCard from "../components/cards/TVCard";
-import CartoonCard from "../components/cards/CartoonCard";
-import MangaCard from "../components/cards/MangaCard";
-import NovelCard from "../components/cards/NovelCard";
+import MediaCard from "../components/cards/MediaCard";
 import { cleanString } from "../utils/media";
 
 function getFranchiseTitles(f) {
@@ -741,9 +735,10 @@ export default function Search() {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {items.map((a) => (
-                          <AnimeCard
+                          <MediaCard
                             key={a.system_id}
-                            anime={a}
+                            type="anime"
+                            data={a}
                             onUpdated={handleAnimeUpdated}
                           />
                         ))}
@@ -777,9 +772,10 @@ export default function Search() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {matchedAnimeMovies.map((m) => (
-                <AnimeMovieCard
+                <MediaCard
                   key={m.system_id}
-                  movie={m}
+                  type="anime-movie"
+                  data={m}
                   onUpdated={handleMovieUpdated}
                 />
               ))}
@@ -808,9 +804,10 @@ export default function Search() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {matchedMovies.map((m) => (
-                <MovieCard
+                <MediaCard
                   key={m.system_id}
-                  movie={m}
+                  type="movie"
+                  data={m}
                   onUpdated={handleLiveMovieUpdated}
                 />
               ))}
@@ -839,9 +836,10 @@ export default function Search() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {matchedTvShows.map((t) => (
-                <TVCard
+                <MediaCard
                   key={t.system_id}
-                  show={t}
+                  type="tv-show"
+                  data={t}
                   onUpdated={handleTvShowUpdated}
                 />
               ))}
@@ -870,9 +868,10 @@ export default function Search() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {matchedCartoons.map((c) => (
-                <CartoonCard
+                <MediaCard
                   key={c.system_id}
-                  cartoon={c}
+                  type="cartoon"
+                  data={c}
                   onUpdated={handleCartoonUpdated}
                 />
               ))}
@@ -901,9 +900,10 @@ export default function Search() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {matchedMangas.map((m) => (
-                <MangaCard
+                <MediaCard
                   key={m.system_id}
-                  manga={m}
+                  type="manga"
+                  data={m}
                   isAdmin={isAdmin}
                   onUpdated={handleMangaUpdated}
                 />
@@ -933,9 +933,10 @@ export default function Search() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {matchedNovels.map((n) => (
-                <NovelCard
+                <MediaCard
                   key={n.system_id}
-                  novel={n}
+                  type="novel"
+                  data={n}
                   onUpdated={handleNovelUpdated}
                 />
               ))}

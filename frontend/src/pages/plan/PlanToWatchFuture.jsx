@@ -1,10 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import AnimeCardFuture from "../../components/cards/AnimeCardFuture";
-import AnimeMovieCardFuture from "../../components/cards/AnimeMovieCardFuture";
-import MovieCardFuture from "../../components/cards/MovieCardFuture";
-import TVCardFuture from "../../components/cards/TVCardFuture";
-import CartoonCardFuture from "../../components/cards/CartoonCardFuture";
+import MediaCard from "../../components/cards/MediaCard";
 
 const MAIN_TABS = [
   { key: "Watch When Airs", label: "Watch When Airs", icon: "fa-broadcast-tower" },
@@ -141,58 +137,22 @@ export default function PlanToWatchFuture({
 
   const totalCount = grouped.reduce((sum, g) => sum + g.entries.length, 0);
 
+  const TYPE_MAP = { anime: "anime", anime_movie: "anime-movie", movie: "movie", tv_show: "tv-show", cartoon: "cartoon" };
+
   function renderCard(entry) {
-    switch (entry._type) {
-      case "anime":
-        return (
-          <AnimeCardFuture
-            key={entry.system_id}
-            anime={entry}
-            franchiseDict={franchiseMap}
-            isAdmin={isAdmin}
-            onUpdated={onUpdated}
-          />
-        );
-      case "anime_movie":
-        return (
-          <AnimeMovieCardFuture
-            key={entry.system_id}
-            movie={entry}
-            isAdmin={isAdmin}
-            onUpdated={onUpdated}
-          />
-        );
-      case "movie":
-        return (
-          <MovieCardFuture
-            key={entry.system_id}
-            movie={entry}
-            isAdmin={isAdmin}
-            onUpdated={onUpdated}
-          />
-        );
-      case "tv_show":
-        return (
-          <TVCardFuture
-            key={entry.system_id}
-            show={entry}
-            isAdmin={isAdmin}
-            onUpdated={onUpdated}
-          />
-        );
-      case "cartoon":
-        return (
-          <CartoonCardFuture
-            key={entry.system_id}
-            cartoon={entry}
-            franchiseDict={franchiseMap}
-            isAdmin={isAdmin}
-            onUpdated={onUpdated}
-          />
-        );
-      default:
-        return null;
-    }
+    const type = TYPE_MAP[entry._type];
+    if (!type) return null;
+    return (
+      <MediaCard
+        key={entry.system_id}
+        type={type}
+        variant="future"
+        data={entry}
+        franchiseDict={franchiseMap}
+        isAdmin={isAdmin}
+        onUpdated={onUpdated}
+      />
+    );
   }
 
   return (

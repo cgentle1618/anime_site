@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import NovelCard, { getReadingButtonConfig } from "../components/cards/NovelCard";
-import { getRatingWeight, cleanString } from "../utils/media";
+import MediaCard from "../components/cards/MediaCard";
+import { getRatingWeight, cleanString, getReadingButtonConfig } from "../utils/media";
 import { useToast } from "../hooks/useToast";
 
 function getNovelTitle(n) {
@@ -419,7 +419,7 @@ export default function LibraryNovel() {
       ) : currentView === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filteredAndSorted.map((n) => (
-            <NovelCard key={n.system_id} novel={n} onUpdated={handleUpdated} />
+            <MediaCard key={n.system_id} type="novel" data={n} onUpdated={handleUpdated} />
           ))}
         </div>
       ) : (
