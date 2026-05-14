@@ -78,6 +78,7 @@ class FranchiseBase(BaseModel):
     favorite_3x3_slot: Optional[int] = None
     cover_entry_id: Optional[UUID] = None
     type_covers: Optional[dict] = None
+    type_slots: Optional[dict] = None
     watch_next_group: Optional[str] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None

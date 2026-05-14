@@ -1,4 +1,5 @@
 import useStatisticsData from "./statistics/useStatisticsData";
+import StatsFavoriteGrids from "./statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "./statistics/StatsFranchiseSummary";
 import StatsWatchNext from "./statistics/StatsWatchNext";
 import StatsToRewatch from "./statistics/StatsToRewatch";
@@ -62,13 +63,18 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Blocks 1, 2, 2.5 */}
+      {/* Blocks 1 — Favorite Franchise 3×3 Grids */}
+      <StatsFavoriteGrids
+        franchises={franchises}
+        allEntriesByFranchise={allEntriesByFranchise}
+      />
+
+      {/* Blocks 2, 2.5 */}
       <StatsFranchiseSummary
         franchises={franchises}
         allAnime={allAnime}
         seasonals={seasonals}
         currentSeason={currentSeason}
-        allEntriesByFranchise={allEntriesByFranchise}
       />
 
       {/* Block 3 — Watch Next */}

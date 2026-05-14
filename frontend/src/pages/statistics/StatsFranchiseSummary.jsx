@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG } from "../../utils/media";
-import { getDisplayName, getCoverForSlot } from "./statsUtils";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -33,17 +31,8 @@ export default function StatsFranchiseSummary({
   allAnime,
   seasonals,
   currentSeason,
-  allEntriesByFranchise,
 }) {
   const [seasonalPage, setSeasonalPage] = useState(0);
-
-  // Build slot map (slots 1–9)
-  const slotMap = {};
-  franchises.forEach((f) => {
-    if (f.favorite_3x3_slot >= 1 && f.favorite_3x3_slot <= 9) {
-      slotMap[f.favorite_3x3_slot] = f;
-    }
-  });
 
   // Rating distribution
   const ratingCounts = {};
@@ -94,73 +83,6 @@ export default function StatsFranchiseSummary({
 
   return (
     <>
-      {/* Block 1 — Favorite ACG Franchise 3×3 Grid */}
-      <section>
-        <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">
-          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
-            <i className="fas fa-th text-brand/70"></i>
-            Favorite ACG Franchise
-          </h2>
-        </div>
-        <div className="grid grid-cols-3 gap-3 max-w-sm">
-          {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
-            const f = slotMap[slot];
-            if (f) {
-              const coverUrl = getCoverForSlot(f, allEntriesByFranchise);
-              return (
-                <Link
-                  key={slot}
-                  to={`/franchise/${f.system_id}`}
-                  className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="aspect-[3/4] bg-gray-100">
-                    <img
-                      src={coverUrl}
-                      alt={getDisplayName(f)}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = FALLBACK_SVG;
-                      }}
-                    />
-                  </div>
-                  {/* Name + rating overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
-                    <p className="text-white text-xs font-bold leading-tight truncate">
-                      {getDisplayName(f)}
-                    </p>
-                    {f.my_rating && (
-                      <span className="text-yellow-300 text-[10px] font-black">
-                        {f.my_rating}
-                      </span>
-                    )}
-                  </div>
-                  {/* Slot number badge */}
-                  <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-black/50 rounded-md flex items-center justify-center">
-                    <span className="text-white text-[10px] font-black">
-                      {slot}
-                    </span>
-                  </div>
-                </Link>
-              );
-            }
-            // Empty slot
-            return (
-              <div
-                key={slot}
-                className="aspect-[3/4] rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center bg-gray-50/50"
-              >
-                <span className="text-2xl font-black text-gray-200">
-                  {slot}
-                </span>
-                <span className="text-[10px] text-gray-300 font-medium mt-1">
-                  Empty
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       {/* Block 2 — Rating Distribution */}
       <section>
         <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">

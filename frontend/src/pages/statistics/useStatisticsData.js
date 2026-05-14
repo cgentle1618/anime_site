@@ -87,6 +87,7 @@ export default function useStatisticsData() {
           ...amData,
           ...mData,
           ...tvData,
+          ...cData,
           ...mgData,
           ...nvData,
         ];

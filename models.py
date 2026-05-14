@@ -93,6 +93,7 @@ class Franchise(Base, NameFallbackMixin):
     favorite_3x3_slot = Column(Integer, nullable=True)
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
     type_covers = Column(JSONB, nullable=True)
+    type_slots = Column(JSONB, nullable=True)
     watch_next_group = Column(String, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
