@@ -30,6 +30,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/seasonal/:seasonal_id`  | `SeasonalDetail`                                   | Public     |
 | `/plan`                   | `Plan`                                             | Public     |
 | `/statistics`             | `Statistics`                                       | Public     |
+| `/completions`            | `Completions`                                      | Public     |
 | `/under-development`      | `UnderDevelopment`                                 | Public     |
 | `/system`                 | `Admin`                                            | Admin only |
 | `/data-history`           | `DataHistory`                                      | Admin only |
@@ -61,7 +62,7 @@ Shell rendered for every route. Contains:
   - ACG → Anime, Anime Movie, Manga, Novel (dev), Seiyuu (dev)
   - Reality _(franchise_type="TV or Movie" only)_ → Franchise Library, TV Show Library, Movie Library
   - Cartoon → Cartoon Library
-  - More → Plan, Statistics, Future Release, Seasonal
+  - More → Plan, Statistics, Completions, Future Release, Seasonal
   - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry
 - **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
@@ -909,8 +910,6 @@ Multi-section statistics dashboard.
 - `GET /api/anime/`
 - `GET /api/anime-movie/`
 - `GET /api/movies/`
-- `GET /api/tv-shows/`
-- `GET /api/cartoon/`
 - `GET /api/seasonal/`
 - `GET /api/seasonal/current-season`
 
@@ -929,14 +928,34 @@ Multi-section statistics dashboard.
 3. **Anime Seasonal Overview** — paginated table (12 per page, new to old; highlights current season with "Current" tag):
    - Release Season, My Seasonal Rating, # Completed, # Planned, # Watching, # Dropped
 
-4. **Recent Completions** — paginated list (10 per page):
-   - Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
-   - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
-   - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
-   - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
-   - Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
-   - Manga tab: grouped by Manga Region (日漫, 韓漫, 國漫, 台漫, Others); shows Manga Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
-   - Novel tab: grouped by Novel Type (Light Novel / Novel / Web / Others); shows Novel Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
+---
+
+### Completions (`/completions`)
+
+**File:** `frontend/src/pages/Completions.jsx`
+
+All completed entries, paginated by media type.
+
+**Data loaded:**
+
+- `GET /api/franchise/`
+- `GET /api/anime/`
+- `GET /api/anime-movie/`
+- `GET /api/movies/`
+- `GET /api/tv-shows/`
+- `GET /api/cartoon/`
+- `GET /api/manga/`
+- `GET /api/novel/`
+
+**Content** — tabbed paginated list (10 per page) via `StatsCompletions` component:
+
+- Anime tab: grouped by Airing Type (TV / Movie / ONA / Others); shows Anime Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
+- Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows Anime Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+- Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows Movie Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+- TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows TV Show Name CN with fallback, Name EN (hidden if CN used fallback), My Rating, Completed Date
+- Cartoon tab: grouped by Official Source with the order Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Others; shows Cartoon Name CN with fallback, Name EN (hidden if CN used fallback), Airing Type, My Rating, Completed Date
+- Manga tab: grouped by Manga Region (日漫, 韓漫, 國漫, 台漫, Others); shows Manga Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
+- Novel tab: grouped by Novel Type (Light Novel / Novel / Web / Others); shows Novel Name CN with fallback, Franchise Name CN with fallback, My Rating, Completed Date
 
 ---
 

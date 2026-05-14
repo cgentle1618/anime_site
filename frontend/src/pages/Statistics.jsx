@@ -1,7 +1,6 @@
 import useStatisticsData from "./statistics/useStatisticsData";
 import StatsFavoriteGrids from "./statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "./statistics/StatsFranchiseSummary";
-import StatsCompletions from "./statistics/StatsCompletions";
 
 export default function Statistics() {
   const {
@@ -9,14 +8,11 @@ export default function Statistics() {
     allAnime,
     allAnimeMovies,
     allMovies,
-    allTVShows,
-    allCartoons,
     allManga,
     allNovel,
     seasonals,
     currentSeason,
     allEntriesByFranchise,
-    franchiseMap,
     loading,
     error,
   } = useStatisticsData();
@@ -79,17 +75,6 @@ export default function Statistics() {
         currentSeason={currentSeason}
       />
 
-      {/* Block 4 — Recent Completions */}
-      <StatsCompletions
-        allAnime={allAnime}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allTVShows={allTVShows}
-        allCartoons={allCartoons}
-        allManga={allManga}
-        allNovel={allNovel}
-        franchiseMap={franchiseMap}
-      />
     </div>
   );
 }

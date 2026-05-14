@@ -524,8 +524,12 @@ export default function Nav() {
                     <NavLink to="/library/anime-movie" icon="fas fa-film">
                       Anime Movie
                     </NavLink>
-                    <NavLink to="/library/manga" icon="fas fa-book">Manga Library</NavLink>
-                    <NavLink to="/library/novel" icon="fas fa-book-open">Novel Library</NavLink>
+                    <NavLink to="/library/manga" icon="fas fa-book">
+                      Manga Library
+                    </NavLink>
+                    <NavLink to="/library/novel" icon="fas fa-book-open">
+                      Novel Library
+                    </NavLink>
                     <DevLink icon="fas fa-microphone">Seiyuu</DevLink>
                   </>
                 }
@@ -560,14 +564,17 @@ export default function Nav() {
                     <NavLink to="/plan" icon="fas fa-clipboard-list">
                       Plan
                     </NavLink>
+                    <NavLink to="/seasonal" icon="fas fa-leaf">
+                      Seasonal
+                    </NavLink>
                     <NavLink to="/statistics" icon="fas fa-chart-bar">
                       Statistics
                     </NavLink>
                     <NavLink to="/future-releases" icon="fas fa-calendar-plus">
                       Future Release
                     </NavLink>
-                    <NavLink to="/seasonal" icon="fas fa-leaf">
-                      Seasonal
+                    <NavLink to="/completions" icon="fas fa-history">
+                      Completions
                     </NavLink>
                   </>
                 }
@@ -904,6 +911,13 @@ export default function Nav() {
                   className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
                   Statistics
+                </Link>
+                <Link
+                  to="/completions"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Completions
                 </Link>
                 <Link
                   to="/future-releases"
