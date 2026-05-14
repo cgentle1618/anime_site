@@ -4,7 +4,7 @@ import {
   SectionHeader,
   inputCls,
   selectCls,
-} from "../../components/FormField";
+} from "../../components/forms/FormField";
 
 export const defaultFranchise = () => ({
   franchise_name_en: "",

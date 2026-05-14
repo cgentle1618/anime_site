@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/media";
-import DashboardCard from "../components/DashboardCard";
-import RatingDistributionBlock from "../components/RatingDistributionBlock";
+import DashboardCard from "../components/tracker/DashboardCard";
+import RatingDistributionBlock from "../components/info/RatingDistributionBlock";
 
 // Section definitions — display order and status membership
 const SECTIONS = [

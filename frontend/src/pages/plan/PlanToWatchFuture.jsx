@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import AnimeCardFuture from "../../components/AnimeCardFuture";
-import AnimeMovieCardFuture from "../../components/AnimeMovieCardFuture";
-import MovieCardFuture from "../../components/MovieCardFuture";
-import TVCardFuture from "../../components/TVCardFuture";
-import CartoonCardFuture from "../../components/CartoonCardFuture";
+import AnimeCardFuture from "../../components/cards/AnimeCardFuture";
+import AnimeMovieCardFuture from "../../components/cards/AnimeMovieCardFuture";
+import MovieCardFuture from "../../components/cards/MovieCardFuture";
+import TVCardFuture from "../../components/cards/TVCardFuture";
+import CartoonCardFuture from "../../components/cards/CartoonCardFuture";
 
 const MAIN_TABS = [
   { key: "Watch When Airs", label: "Watch When Airs", icon: "fa-broadcast-tower" },

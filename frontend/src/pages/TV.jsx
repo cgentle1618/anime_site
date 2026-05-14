@@ -3,11 +3,11 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
-import InfoCard from "../components/InfoCard";
-import TVNamingCard from "../components/TVNamingCard";
-import SourcesCard from "../components/SourcesCard";
-import MyTrackerCard from "../components/MyTrackerCard";
-import SeriesModal from "../components/SeriesModal";
+import InfoCard from "../components/info/InfoCard";
+import TVNamingCard from "../components/info/TVNamingCard";
+import SourcesCard from "../components/info/SourcesCard";
+import MyTrackerCard from "../components/tracker/MyTrackerCard";
+import SeriesModal from "../components/modals/SeriesModal";
 import TVShowNotes from "./TVShowNotes";
 
 const WATCHING_STATUSES = [

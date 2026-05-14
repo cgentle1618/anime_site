@@ -1,4 +1,4 @@
-import BarChart from "./BarChart";
+import BarChart from "../charts/BarChart";
 
 const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const MY_RATING_COLORS = {

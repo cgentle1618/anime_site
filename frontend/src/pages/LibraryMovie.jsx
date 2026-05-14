@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import MovieCard from "../components/MovieCard";
+import MovieCard from "../components/cards/MovieCard";
 import {
   getRatingWeight,
   cleanString,

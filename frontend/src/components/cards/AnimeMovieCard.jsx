@@ -1,12 +1,12 @@
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
+﻿import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
   FALLBACK_SVG,
   isBaha,
   getStatusButtonConfig,
-} from "../utils/media";
+} from "../../utils/media";
 
 function formatLength(minutes) {
   if (!minutes) return null;

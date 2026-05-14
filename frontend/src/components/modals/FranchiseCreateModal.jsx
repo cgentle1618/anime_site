@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { inputCls, selectCls } from "./FormField";
+import { inputCls, selectCls } from "../forms/FormField";
 
 export default function FranchiseCreateModal({
   onConfirm,

@@ -3,10 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/media";
-import InfoCard from "../components/InfoCard";
-import NamingCard from "../components/NamingCard";
-import ScoreBlock from "../components/ScoreBlock";
-import SourcesCard from "../components/SourcesCard";
+import InfoCard from "../components/info/InfoCard";
+import NamingCard from "../components/info/NamingCard";
+import ScoreBlock from "../components/info/ScoreBlock";
+import SourcesCard from "../components/info/SourcesCard";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 
 const WATCHING_STATUSES = [

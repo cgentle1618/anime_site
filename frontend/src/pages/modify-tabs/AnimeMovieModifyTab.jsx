@@ -1,11 +1,11 @@
-import ComboBox from "../../components/ComboBox";
-import MultiSelect from "../../components/MultiSelect";
+import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
-} from "../../components/FormField";
+} from "../../components/forms/FormField";
 import { getOptions } from "../../utils/media";
 import AnimeMovieNotes from "../AnimeMovieNotes";
 

@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { FALLBACK_SVG } from "../utils/media";
+﻿import { Link } from "react-router-dom";
+import { FALLBACK_SVG } from "../../utils/media";
 
 const RATING_COLORS = {
   S: "bg-yellow-400 text-yellow-900",
