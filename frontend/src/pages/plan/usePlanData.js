@@ -14,19 +14,26 @@ export default function usePlanData(reloadKey = 0) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  function fetchAll(url) {
+    const hasQuery = url.includes("?");
+    return fetch(`${url}${hasQuery ? "&" : "?"}limit=2000`, {
+      credentials: "include",
+    });
+  }
+
   useEffect(() => {
     async function load() {
       try {
         const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
           await Promise.all([
-            fetch("/api/franchise/", { credentials: "include" }),
-            fetch("/api/anime/", { credentials: "include" }),
-            fetch("/api/anime-movie/", { credentials: "include" }),
-            fetch("/api/movies/", { credentials: "include" }),
-            fetch("/api/tv-shows/", { credentials: "include" }),
-            fetch("/api/cartoon/", { credentials: "include" }),
-            fetch("/api/manga/", { credentials: "include" }),
-            fetch("/api/novel/", { credentials: "include" }),
+            fetchAll("/api/franchise/"),
+            fetchAll("/api/anime/"),
+            fetchAll("/api/anime-movie/"),
+            fetchAll("/api/movies/"),
+            fetchAll("/api/tv-shows/"),
+            fetchAll("/api/cartoon/"),
+            fetchAll("/api/manga/"),
+            fetchAll("/api/novel/"),
           ]);
         if (
           !fRes.ok ||
