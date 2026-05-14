@@ -737,7 +737,7 @@ Cartoon Information Card
 
 Manga Information Card
 
-- Serialization Status, Serialization Place, Manga Distributor TW
+- Serialization Status, Serialization Place
 - Release Year, End Year
 - Volume Total, Ch Total
 
@@ -769,7 +769,7 @@ Manga Production Card
   - show if both author_plot and author_draw is not the same
 - 作畫 (author_draw)
   - show if both author_plot and author_draw is not the same
-- Anime Studio
+- Manga Publisher TW, Anime Studio
 
 Novel Production Card
 

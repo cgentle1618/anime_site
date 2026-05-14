@@ -25,6 +25,7 @@ import TvShowModifyTab from "./modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "./modify-tabs/MovieModifyTab";
 import AnimeMovieModifyTab from "./modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "./modify-tabs/AnimeModifyTab";
+import Fav3x3ModifyTab from "./modify-tabs/Fav3x3ModifyTab";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -126,8 +127,9 @@ function franchiseToForm(f) {
     franchise_type: f.franchise_type || "",
     my_rating: f.my_rating || "",
     franchise_expectation: f.franchise_expectation || "",
-    favorite_3x3_slot: f.favorite_3x3_slot ?? "",
-    cover_anime_id: f.cover_anime_id ?? null,
+    cover_entry_id: f.cover_entry_id ?? null,
+    type_covers: f.type_covers ?? null,
+    type_slots: f.type_slots ?? null,
     watch_next_group: f.watch_next_group ?? null,
     to_rewatch: f.to_rewatch ?? false,
     remark: f.remark || "",
@@ -560,7 +562,7 @@ export default function Modify() {
       end_year: m.end_year ?? "",
       anime_studio: m.anime_studio || "",
       serialization_platform: m.serialization_platform || "",
-      distributor_tw: m.distributor_tw || "",
+      publisher_tw: m.publisher_tw || "",
       derive_related:
         m.derive_related === true
           ? "true"
@@ -823,9 +825,9 @@ export default function Modify() {
         franchise_type: ff.franchise_type || null,
         my_rating: ff.my_rating || null,
         franchise_expectation: ff.franchise_expectation || null,
-        favorite_3x3_slot:
-          ff.favorite_3x3_slot !== "" ? parseInt(ff.favorite_3x3_slot) : null,
-        cover_anime_id: ff.cover_anime_id || null,
+        cover_entry_id: ff.cover_entry_id || null,
+        type_covers: ff.type_covers || null,
+        type_slots: ff.type_slots || null,
         watch_next_group: ff.watch_next_group || null,
         to_rewatch: ff.to_rewatch || false,
         remark: ff.remark || null,
@@ -1528,7 +1530,7 @@ export default function Modify() {
       end_year: cmgf.end_year !== "" ? parseInt(cmgf.end_year) : null,
       anime_studio: cmgf.anime_studio || null,
       serialization_platform: cmgf.serialization_platform || null,
-      distributor_tw: cmgf.distributor_tw || null,
+      publisher_tw: cmgf.publisher_tw || null,
       derive_related:
         cmgf.derive_related === "true"
           ? true
@@ -2492,6 +2494,7 @@ export default function Modify() {
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
+    { key: "fav3x3", icon: "fa-th", label: "Modify Fav 3×3" },
   ];
 
   if (dataLoading)
@@ -2532,8 +2535,23 @@ export default function Modify() {
         ))}
       </div>
 
+      {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
+      {activeTab === "fav3x3" && (
+        <Fav3x3ModifyTab
+          allFranchises={allFranchises}
+          setAllFranchises={setAllFranchises}
+          allAnime={allAnime}
+          allAnimeMovies={allAnimeMovies}
+          allMovies={allMovies}
+          allTvShows={allTvShows}
+          allCartoons={allCartoons}
+          allMangas={allMangas}
+          allNovels={allNovels}
+        />
+      )}
+
       {/* ═══ DISCOVERY VIEW ═══ */}
-      {!editorOpen && (
+      {!editorOpen && activeTab !== "fav3x3" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -2681,7 +2699,7 @@ export default function Modify() {
       )}
 
       {/* ═══ EDITOR VIEW ═══ */}
-      {editorOpen && editingItem && (
+      {editorOpen && editingItem && activeTab !== "fav3x3" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button
@@ -2737,6 +2755,12 @@ export default function Modify() {
                 ff={ff}
                 uf={uf}
                 allAnime={allAnime}
+                allAnimeMovies={allAnimeMovies}
+                allMovies={allMovies}
+                allTvShows={allTvShows}
+                allCartoons={allCartoons}
+                allMangas={allMangas}
+                allNovels={allNovels}
                 editingItem={editingItem}
               />
             )}
@@ -2803,6 +2827,7 @@ export default function Modify() {
                 seriesItemsForManga={seriesItemsForManga}
                 editingItem={editingItem}
                 ribbonSection={mangaRibbonSection}
+                allOptions={allOptions}
               />
             )}
 

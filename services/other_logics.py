@@ -3013,14 +3013,14 @@ def extract_system_options_from_cartoon(db: Session) -> dict:
 
 _MANGA_OPTION_FIELD_MAP = {
     "Manga Author": "author_plot",
-    "Distributor TW": "distributor_tw",
+    "Manga Publisher TW": "publisher_tw",
     "Studio": "anime_studio",
 }
 
 
 def extract_system_options_from_manga(db: Session) -> dict:
     """
-    Scans all Manga entries for values in author_plot, author_draw, distributor_tw, anime_studio.
+    Scans all Manga entries for values in author_plot, author_draw, publisher_tw, anime_studio.
     Any value not already in SystemOption is created.
     """
     existing: dict[str, set] = {}

@@ -77,8 +77,9 @@ Top-level media franchise entity. Groups related series and individual entries.
 | `franchise_name_alt`    | String   | Yes      | —          |                                                                                |
 | `my_rating`             | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                                             |
 | `franchise_expectation` | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                                     |
-| `favorite_3x3_slot`     | Integer  | Yes      | —          | 1–9 slot for 3x3 grid on Stats page                                            |
-| `cover_anime_id`        | UUID     | Yes      | —          | FK -> `anime.system_id` SET NULL; cover image source for franchise-level views |
+| `type_slots`            | JSONB    | Yes      | —          | Dict mapping franchise type → slot (1–9) for 3x3 grids (e.g., `{"ACG": 3, "Movie": 5}`) |
+| `cover_entry_id`        | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover for the Franchise Library page; no FK constraint |
+| `type_covers`           | JSONB    | Yes      | —          | Dict mapping franchise type string → entry UUID; used for per-type covers in 3x3 grids (e.g. `{"ACG": "<uuid>", "TV or Movie": "<uuid>"}` ) |
 | `watch_next_group`      | String   | Yes      | —          | `"12ep"`, `"24ep"`, `"30ep_plus"`, or null                                     |
 | `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                |
 | `remark`                | Text     | Yes      | —          |                                                                                |
@@ -87,7 +88,7 @@ Top-level media franchise entity. Groups related series and individual entries.
 
 **Constraints:** At least one name field must be non-null.
 
-**Relationships:** `series[]` (one-to-many), `animes[]` (one-to-many via `franchise_id`)
+**Relationships:** `series[]` (one-to-many)
 
 ---
 

@@ -137,7 +137,6 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_expectation": parse_from_sheet(
             raw.get("franchise_expectation"), str
         ),
-        "favorite_3x3_slot": parse_from_sheet(raw.get("favorite_3x3_slot"), int),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -426,7 +425,7 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "serialization_platform": parse_from_sheet(
             raw.get("serialization_platform"), str
         ),
-        "distributor_tw": parse_from_sheet(raw.get("distributor_tw"), str),
+        "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
         "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
         "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),

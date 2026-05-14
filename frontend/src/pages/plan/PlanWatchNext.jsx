@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import { getDisplayName, getCoverForSlot } from "./statsUtils";
+import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 const WATCH_NEXT_GROUPS = [
@@ -19,7 +19,7 @@ const WATCH_NEXT_TABS = [
   { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
 ];
 
-export default function StatsWatchNext({
+export default function PlanWatchNext({
   franchises,
   allAnimeMovies,
   allMovies,

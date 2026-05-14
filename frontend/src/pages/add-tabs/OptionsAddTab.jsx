@@ -23,6 +23,7 @@ export default function OptionsAddTab({
             ...new Set([
               "Studio",
               "Distributor TW",
+              "Manga Publisher TW",
               "Director",
               "Producer",
               "Music / Composer",

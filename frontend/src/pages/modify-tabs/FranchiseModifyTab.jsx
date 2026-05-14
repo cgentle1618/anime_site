@@ -1,4 +1,4 @@
-import { parseTypes } from "../../utils/media";
+import { getDisplayName, parseTypes } from "../../utils/media";
 import {
   Field,
   SectionHeader,
@@ -6,7 +6,81 @@ import {
   selectCls,
 } from "../../components/FormField";
 
-export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
+const TYPE_TO_ENTRY_TYPES = {
+  ACG: ["anime", "manga", "novel"],
+  "Anime Movie": ["anime_movie"],
+  TV: ["tv_show"],
+  Movie: ["movie"],
+  Cartoon: ["cartoon"],
+  Novel: ["novel"],
+};
+
+function getEntryYear(e) {
+  if (e.release_year != null) return parseInt(e.release_year, 10) || 0;
+  const d =
+    e.release_date_jp ||
+    e.release_date_tw ||
+    e.release_date_usa ||
+    e.release_date;
+  if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
+  return 0;
+}
+
+export default function FranchiseModifyTab({
+  ff,
+  uf,
+  allAnime,
+  allAnimeMovies,
+  allMovies,
+  allTvShows,
+  allCartoons,
+  allMangas,
+  allNovels,
+  editingItem,
+}) {
+  const franchiseId = editingItem?.system_id;
+
+  const franchiseEntries = [
+    ...(allAnime || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "anime" })),
+    ...(allAnimeMovies || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "anime_movie" })),
+    ...(allMovies || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "movie" })),
+    ...(allTvShows || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "tv_show" })),
+    ...(allCartoons || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "cartoon" })),
+    ...(allMangas || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "manga" })),
+    ...(allNovels || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "novel" })),
+  ].sort((a, b) => getEntryYear(b) - getEntryYear(a));
+
+  const franchiseTypes = parseTypes(ff.franchise_type);
+
+  function entryOptionLabel(e) {
+    const name = getDisplayName(e, e._type);
+    const yr =
+      e.release_year ||
+      (
+        e.release_date_jp ||
+        e.release_date_usa ||
+        e.release_date ||
+        ""
+      )
+        .toString()
+        .slice(0, 4);
+    return `${name}${yr ? ` (${yr})` : ""} [${e._type}]`;
+  }
+
   return (
     <>
       <SectionHeader icon="fa-sitemap" title="Titles & Naming" />
@@ -106,52 +180,101 @@ export default function FranchiseModifyTab({ ff, uf, allAnime, editingItem }) {
             ))}
           </select>
         </Field>
-        <Field label="Favorite 3x3 Slot">
-          <select
-            className={selectCls}
-            value={ff.favorite_3x3_slot}
-            onChange={(e) => uf("favorite_3x3_slot", e.target.value)}
-          >
-            <option value="">—</option>
-            {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </Field>
       </div>
+      {franchiseTypes.length > 0 && (
+        <div className="space-y-3 mt-4">
+          {franchiseTypes.map((type) => {
+            const currentSlot = (ff.type_slots || {})[type] ?? "";
+            return (
+              <Field
+                key={type}
+                label={`Favorite Grid Slot — ${type}`}
+                hint="1–9 slot for the favorite franchise 3×3 grid"
+              >
+                <select
+                  className={selectCls}
+                  value={currentSlot}
+                  onChange={(ev) => {
+                    const val = ev.target.value
+                      ? parseInt(ev.target.value, 10)
+                      : undefined;
+                    const next = { ...(ff.type_slots || {}), [type]: val };
+                    if (val === undefined) delete next[type];
+                    uf(
+                      "type_slots",
+                      Object.keys(next).length > 0 ? next : null,
+                    );
+                  }}
+                >
+                  <option value="">—</option>
+                  {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            );
+          })}
+        </div>
+      )}
+      <SectionHeader icon="fa-image" title="Cover Images" />
       <Field
-        label="Cover Image Source"
-        hint="3x3 grid cover — leave blank to auto-pick latest entry with cover"
+        label="Main Cover"
+        hint="Library page cover — leave blank to auto-pick latest entry with cover"
       >
         <select
           className={selectCls}
-          value={ff.cover_anime_id || ""}
-          onChange={(e) => uf("cover_anime_id", e.target.value || null)}
+          value={ff.cover_entry_id || ""}
+          onChange={(e) => uf("cover_entry_id", e.target.value || null)}
         >
           <option value="">— Auto (latest with cover) —</option>
-          {allAnime
-            .filter((a) => a.franchise_id === editingItem?.system_id)
-            .sort((a, b) => {
-              const yr =
-                (parseInt(b.release_year, 10) || 0) -
-                (parseInt(a.release_year, 10) || 0);
-              return yr !== 0
-                ? yr
-                : (b.release_month || 0) - (a.release_month || 0);
-            })
-            .map((a) => (
-              <option key={a.system_id} value={a.system_id}>
-                {a.anime_name_cn ||
-                  a.anime_name_en ||
-                  a.anime_name_roman ||
-                  a.system_id}
-                {a.release_year ? ` (${a.release_year})` : ""}
-              </option>
-            ))}
+          {franchiseEntries.map((e) => (
+            <option key={e.system_id} value={e.system_id}>
+              {entryOptionLabel(e)}
+            </option>
+          ))}
         </select>
       </Field>
+      {franchiseTypes.length > 0 && (
+        <div className="space-y-3">
+          {franchiseTypes.map((type) => {
+            const matchingTypes = TYPE_TO_ENTRY_TYPES[type];
+            const options = matchingTypes
+              ? franchiseEntries.filter((e) => matchingTypes.includes(e._type))
+              : franchiseEntries;
+            const currentVal = (ff.type_covers || {})[type] || "";
+            return (
+              <Field
+                key={type}
+                label={`3x3 Cover — ${type}`}
+                hint="3x3 grid cover for this type — leave blank to auto-pick"
+              >
+                <select
+                  className={selectCls}
+                  value={currentVal}
+                  onChange={(ev) => {
+                    const val = ev.target.value || undefined;
+                    const next = { ...(ff.type_covers || {}), [type]: val };
+                    if (!val) delete next[type];
+                    uf(
+                      "type_covers",
+                      Object.keys(next).length > 0 ? next : null,
+                    );
+                  }}
+                >
+                  <option value="">— Auto (latest with cover) —</option>
+                  {options.map((e) => (
+                    <option key={e.system_id} value={e.system_id}>
+                      {entryOptionLabel(e)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            );
+          })}
+        </div>
+      )}
       <Field label="Watch Next Group">
         <select
           className={selectCls}

@@ -15,7 +15,20 @@ function getExpectationWeight(exp) {
   return EXPECTATION_WEIGHT[exp] ?? 4;
 }
 
-const KNOWN_TYPES = ["ACG", "Anime Movie", "TV", "Movie", "Cartoon"];
+function getFilterCategories(franchise, animeSet, mangaSet) {
+  const types = parseTypes(franchise.franchise_type);
+  const isACG = types.includes("ACG");
+  const cats = [];
+  if (isACG && animeSet.has(franchise.system_id)) cats.push("Anime");
+  if (isACG && mangaSet.has(franchise.system_id)) cats.push("Manga");
+  if (types.includes("Novel")) cats.push("Novel");
+  if (types.includes("Anime Movie")) cats.push("Anime Movie");
+  if (types.includes("Movie")) cats.push("Movie");
+  if (types.includes("TV")) cats.push("TV");
+  if (types.includes("Cartoon")) cats.push("Cartoon");
+  if (cats.length === 0) cats.push("Other");
+  return cats;
+}
 
 function getEntryYear(entry) {
   if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
@@ -29,8 +42,8 @@ function getEntryYear(entry) {
 }
 
 function getFranchiseCover(franchise, allEntriesDict, allEntriesByFranchise) {
-  if (franchise.cover_anime_id) {
-    const coverEntry = allEntriesDict[franchise.cover_anime_id];
+  if (franchise.cover_entry_id) {
+    const coverEntry = allEntriesDict[franchise.cover_entry_id];
     if (coverEntry?.cover_image_file && coverEntry.cover_image_file !== "N/A") {
       return getCoverUrl(coverEntry.cover_image_file);
     }
@@ -50,6 +63,8 @@ export default function FranchiseLibrary() {
   const [allFranchises, setAllFranchises] = useState([]);
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
+  const [animesByFranchise, setAnimesByFranchise] = useState(new Set());
+  const [mangasByFranchise, setMangasByFranchise] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,7 +76,7 @@ export default function FranchiseLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes] = await Promise.all(
+        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] = await Promise.all(
           [
             fetch("/api/franchise/", { credentials: "include" }),
             fetch("/api/anime/", { credentials: "include" }),
@@ -70,6 +85,7 @@ export default function FranchiseLibrary() {
             fetch("/api/tv-shows/", { credentials: "include" }),
             fetch("/api/cartoon/", { credentials: "include" }),
             fetch("/api/manga/", { credentials: "include" }),
+            fetch("/api/novel/", { credentials: "include" }),
           ],
         );
         if (
@@ -79,7 +95,8 @@ export default function FranchiseLibrary() {
           !mRes.ok ||
           !tvRes.ok ||
           !cRes.ok ||
-          !mgRes.ok
+          !mgRes.ok ||
+          !nvRes.ok
         )
           throw new Error("Failed to load data");
         const [
@@ -90,6 +107,7 @@ export default function FranchiseLibrary() {
           tvShows,
           cartoons,
           mangas,
+          novels,
         ] = await Promise.all([
           fRes.json(),
           aRes.json(),
@@ -98,6 +116,7 @@ export default function FranchiseLibrary() {
           tvRes.json(),
           cRes.json(),
           mgRes.json(),
+          nvRes.json(),
         ]);
         const allEntries = [
           ...anime,
@@ -106,6 +125,7 @@ export default function FranchiseLibrary() {
           ...tvShows,
           ...cartoons,
           ...mangas,
+          ...novels,
         ];
         setAllFranchises(franchises);
         setAllEntriesDict(
@@ -118,6 +138,12 @@ export default function FranchiseLibrary() {
           byFranchise[e.franchise_id].push(e);
         }
         setAllEntriesByFranchise(byFranchise);
+        setAnimesByFranchise(
+          new Set(anime.filter((a) => a.franchise_id).map((a) => a.franchise_id)),
+        );
+        setMangasByFranchise(
+          new Set(mangas.filter((m) => m.franchise_id).map((m) => m.franchise_id)),
+        );
       } catch (e) {
         setError(e.message);
       } finally {
@@ -158,12 +184,8 @@ export default function FranchiseLibrary() {
       }
 
       if (filters.franchiseType.size > 0) {
-        const tokens = parseTypes(f.franchise_type);
-        const matchesKnown = tokens.some((t) => filters.franchiseType.has(t));
-        const isOther =
-          tokens.length === 0 || tokens.every((t) => !KNOWN_TYPES.includes(t));
-        if (!matchesKnown && !(isOther && filters.franchiseType.has("Other")))
-          return false;
+        const cats = getFilterCategories(f, animesByFranchise, mangasByFranchise);
+        if (!cats.some((c) => filters.franchiseType.has(c))) return false;
       }
 
       return true;
@@ -186,7 +208,7 @@ export default function FranchiseLibrary() {
     });
 
     return result;
-  }, [allFranchises, searchQuery, currentSort, filters]);
+  }, [allFranchises, searchQuery, currentSort, filters, animesByFranchise, mangasByFranchise]);
 
   if (loading) {
     return (
@@ -312,10 +334,12 @@ export default function FranchiseLibrary() {
                 Type
               </span>
               <div className="flex flex-wrap gap-1.5">
-                <FilterTag value="ACG" label="ACG" />
+                <FilterTag value="Anime" label="Anime" />
+                <FilterTag value="Manga" label="Manga" />
+                <FilterTag value="Novel" label="Novel" />
                 <FilterTag value="Anime Movie" label="Anime Movie" />
-                <FilterTag value="TV" label="TV" />
                 <FilterTag value="Movie" label="Movie" />
+                <FilterTag value="TV" label="TV" />
                 <FilterTag value="Cartoon" label="Cartoon" />
                 <FilterTag value="Other" label="Other" />
               </div>

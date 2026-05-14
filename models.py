@@ -90,12 +90,9 @@ class Franchise(Base, NameFallbackMixin):
 
     my_rating = Column(String, nullable=True)
     franchise_expectation = Column(String, default="Low")
-    favorite_3x3_slot = Column(Integer, nullable=True)
-    cover_anime_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("anime.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
+    type_covers = Column(JSONB, nullable=True)
+    type_slots = Column(JSONB, nullable=True)
     watch_next_group = Column(String, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
@@ -625,7 +622,7 @@ class Manga(Base, NameFallbackMixin):
     end_year = Column(String, nullable=True)
     anime_studio = Column(String, nullable=True)
     serialization_platform = Column(String, nullable=True)
-    distributor_tw = Column(String, nullable=True)
+    publisher_tw = Column(String, nullable=True)
 
     derive_related = Column(Boolean, nullable=True)
     prequel_id = Column(UUID(as_uuid=True), nullable=True)

@@ -806,14 +806,13 @@ export default function Manga() {
                       manga.ch_total != null ? String(manga.ch_total) : null,
                   },
                 ],
-                [
-                  { label: "Anime Studio", value: manga.anime_studio },
-                  { label: "Distributor TW", value: manga.distributor_tw },
-                ],
               ]}
             />
             {/* Production Card */}
-            {(manga.author_plot || manga.author_draw || manga.anime_studio) && (
+            {(manga.author_plot ||
+              manga.author_draw ||
+              manga.anime_studio ||
+              manga.publisher_tw) && (
               <InfoCard
                 title="Production"
                 icon="fa-pen-nib"
@@ -828,6 +827,10 @@ export default function Manga() {
                           ? [{ label: "作畫", value: manga.author_draw }]
                           : []),
                       ]),
+                  [
+                    { label: "Publisher TW", value: manga.publisher_tw },
+                    { label: "Anime Studio", value: manga.anime_studio },
+                  ],
                 ]}
               />
             )}

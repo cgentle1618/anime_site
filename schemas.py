@@ -75,8 +75,9 @@ class FranchiseBase(BaseModel):
     franchise_name_alt: Optional[str] = None
     my_rating: Optional[str] = None
     franchise_expectation: Optional[str] = "Low"
-    favorite_3x3_slot: Optional[int] = None
-    cover_anime_id: Optional[UUID] = None
+    cover_entry_id: Optional[UUID] = None
+    type_covers: Optional[dict] = None
+    type_slots: Optional[dict] = None
     watch_next_group: Optional[str] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
@@ -560,7 +561,7 @@ class MangaBase(BaseModel):
     end_year: Optional[str] = None
     anime_studio: Optional[str] = None
     serialization_platform: Optional[str] = None
-    distributor_tw: Optional[str] = None
+    publisher_tw: Optional[str] = None
 
     derive_related: Optional[bool] = None
     prequel_id: Optional[UUID] = None

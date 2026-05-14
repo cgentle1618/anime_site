@@ -37,7 +37,7 @@ export const defaultManga = () => ({
   end_year: "",
   anime_studio: "",
   serialization_platform: "",
-  distributor_tw: "",
+  publisher_tw: "",
   derive_related: "",
   prequel_id: null,
   sequel_id: null,
@@ -469,12 +469,12 @@ export default function MangaAddTab({
             placeholder="e.g. 週刊少年ジャンプ"
           />
         </Field>
-        <Field label="Distributor TW">
-          <input
-            className={inputCls}
-            value={mgf.distributor_tw}
-            onChange={(e) => umg("distributor_tw", e.target.value)}
-            placeholder="TW distributor"
+        <Field label="Publisher TW">
+          <MultiSelect
+            options={getOptions(allOptions, "Manga Publisher TW")}
+            value={mgf.publisher_tw}
+            onChange={(v) => umg("publisher_tw", v)}
+            placeholder="Select publisher..."
           />
         </Field>
       </div>
