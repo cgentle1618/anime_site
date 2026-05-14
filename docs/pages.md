@@ -1353,6 +1353,19 @@ Writes: `PATCH /api/manga/:id`
 
 Writes: `PATCH /api/novel/:id`
 
+#### Modify Fav 3×3 Tab
+
+**File:** `frontend/src/pages/modify-tabs/Fav3x3ModifyTab.jsx`
+
+- No search/edit pattern — renders full grid view immediately on tab open; bypasses discovery and editor views
+- Displays all 5 franchise grids: ACG, Novel, Movie, TV Show, Cartoon (matching Statistics page layout)
+- Each grid section has two panels:
+  - **Left (3×3 visual grid):** Each slot (1–9) shows the assigned franchise's cover image + name overlay + a dropdown below to change the assignment. Dropdown is filtered to franchises of the matching type (sorted by display name). Selecting a franchise removes it from any other slot in the same grid (a franchise can only hold one slot per type).
+  - **Right (ranked list):** Slots 1–9 listed in order. Each row shows a drag handle (⠿), slot number, small cover thumbnail, and franchise display name. Rows are draggable via HTML5 DnD — dropping one row onto another swaps their slot assignments. Both panels stay in sync.
+- "Save Grid" button appears per grid section only when changes are pending (dirty state).
+- On save: detects which franchises' `type_slots` changed, fires `PATCH /api/franchise/:id` for all affected in parallel, then updates local franchise state.
+- Franchise type "Anime Movie" is excluded — no 3×3 grid exists for it.
+
 ---
 
 ### Delete (`/delete`)

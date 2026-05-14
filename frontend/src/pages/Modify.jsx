@@ -25,6 +25,7 @@ import TvShowModifyTab from "./modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "./modify-tabs/MovieModifyTab";
 import AnimeMovieModifyTab from "./modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "./modify-tabs/AnimeModifyTab";
+import Fav3x3ModifyTab from "./modify-tabs/Fav3x3ModifyTab";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -2493,6 +2494,7 @@ export default function Modify() {
     { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
     { key: "series", icon: "fa-layer-group", label: "Modify Series" },
     { key: "options", icon: "fa-cog", label: "Modify System Option" },
+    { key: "fav3x3", icon: "fa-th", label: "Modify Fav 3×3" },
   ];
 
   if (dataLoading)
@@ -2533,8 +2535,23 @@ export default function Modify() {
         ))}
       </div>
 
+      {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
+      {activeTab === "fav3x3" && (
+        <Fav3x3ModifyTab
+          allFranchises={allFranchises}
+          setAllFranchises={setAllFranchises}
+          allAnime={allAnime}
+          allAnimeMovies={allAnimeMovies}
+          allMovies={allMovies}
+          allTvShows={allTvShows}
+          allCartoons={allCartoons}
+          allMangas={allMangas}
+          allNovels={allNovels}
+        />
+      )}
+
       {/* ═══ DISCOVERY VIEW ═══ */}
-      {!editorOpen && (
+      {!editorOpen && activeTab !== "fav3x3" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -2682,7 +2699,7 @@ export default function Modify() {
       )}
 
       {/* ═══ EDITOR VIEW ═══ */}
-      {editorOpen && editingItem && (
+      {editorOpen && editingItem && activeTab !== "fav3x3" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button
