@@ -200,7 +200,7 @@ export default function PlanToWatchFuture({
       <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-gray-200">
         <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
           <i className="fas fa-calendar-alt text-brand/70"></i>
-          Plan to Watch in the Future
+          Plan to Watch for Future Releases
         </h2>
       </div>
 

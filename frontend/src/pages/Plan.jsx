@@ -86,7 +86,7 @@ export default function Plan() {
         allEntriesByFranchise={allEntriesByFranchise}
       />
 
-      {/* Plan to Watch in the Future */}
+      {/* Plan to Watch for Future Releases */}
       <PlanToWatchFuture
         allAnime={allAnime}
         allAnimeMovies={allAnimeMovies}
