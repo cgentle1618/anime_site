@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { parseTypes } from "../../utils/media";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -26,32 +27,90 @@ const MAL_BUCKETS = [
   { key: "<4", min: 0, max: 4, color: "bg-red-400" },
 ];
 
+function computeRatingRows(items) {
+  const counts = {};
+  RATING_ORDER.forEach((r) => {
+    counts[r] = 0;
+  });
+  counts["Unrated"] = 0;
+  items.forEach((item) => {
+    const r = item.my_rating;
+    if (r && RATING_ORDER.includes(r)) {
+      counts[r]++;
+    } else {
+      counts["Unrated"]++;
+    }
+  });
+  const ratedCount = RATING_ORDER.reduce((sum, r) => sum + counts[r], 0);
+  return {
+    rows: [...RATING_ORDER, "Unrated"].map((rating) => ({
+      label: rating,
+      color: MY_RATING_COLORS[rating] || "bg-gray-300",
+      count: counts[rating],
+      dim: rating === "Unrated",
+    })),
+    ratedCount,
+  };
+}
+
+function RatingDistributionCard({ title, subtitle, rows, total }) {
+  const maxCount = Math.max(...rows.filter((r) => !r.dim).map((r) => r.count), 1);
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+        <span>{title}</span>
+        <span className="text-gray-400 font-medium normal-case">{subtitle}</span>
+      </p>
+      <div className="space-y-3">
+        {rows.map(({ label, color, count, dim }) => {
+          const pct = !dim && total > 0 ? Math.round((count / total) * 100) : null;
+          const barWidth = (count / maxCount) * 100;
+          return (
+            <div key={label} className="flex items-center gap-3">
+              <span
+                className={`w-10 text-right text-sm font-black shrink-0 ${
+                  dim ? "text-gray-400" : "text-gray-700"
+                }`}
+              >
+                {label}
+              </span>
+              <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                <div
+                  className={`h-5 rounded-full transition-all duration-700 ${color}`}
+                  style={{ width: `${barWidth}%` }}
+                />
+              </div>
+              <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
+                {count}
+              </span>
+              <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
+                {pct !== null ? `${pct}%` : ""}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function StatsFranchiseSummary({
   franchises,
   allAnime,
+  allAnimeMovies,
+  allMovies,
+  allManga,
+  allNovel,
   seasonals,
   currentSeason,
 }) {
   const [seasonalPage, setSeasonalPage] = useState(0);
 
-  // Rating distribution
-  const ratingCounts = {};
-  RATING_ORDER.forEach((r) => {
-    ratingCounts[r] = 0;
-  });
-  ratingCounts["Unrated"] = 0;
-  franchises.forEach((f) => {
-    const r = f.my_rating;
-    if (r && RATING_ORDER.includes(r)) {
-      ratingCounts[r]++;
-    } else {
-      ratingCounts["Unrated"]++;
-    }
-  });
-  const allRows = [...RATING_ORDER, "Unrated"];
-  const maxCount = Math.max(...RATING_ORDER.map((r) => ratingCounts[r]), 1);
-  const totalFranchises = franchises.length;
+  // Anime entry rating distribution (replaces old ACG franchise distribution)
+  const { rows: animeRows, ratedCount: animeRatedCount } =
+    computeRatingRows(allAnime);
 
+  // MAL rating distribution (all anime)
   const malRatingRows = MAL_BUCKETS.map((b) => ({
     ...b,
     count: allAnime.filter(
@@ -59,27 +118,39 @@ export default function StatsFranchiseSummary({
         a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
     ).length,
   }));
-  const malMaxCount = Math.max(...malRatingRows.map((r) => r.count), 1);
   const totalWithMal = allAnime.filter((a) => a.mal_rating != null).length;
+  const malRows = malRatingRows.map(({ key, count, color }) => ({
+    label: key,
+    color,
+    count,
+    dim: false,
+  }));
 
-  const seasonalRatingCounts = {};
-  RATING_ORDER.forEach((r) => {
-    seasonalRatingCounts[r] = 0;
-  });
-  seasonalRatingCounts["Unrated"] = 0;
-  seasonals.forEach((s) => {
-    const r = s.my_rating;
-    if (r && RATING_ORDER.includes(r)) {
-      seasonalRatingCounts[r]++;
-    } else {
-      seasonalRatingCounts["Unrated"]++;
-    }
-  });
-  const seasonalMaxCount = Math.max(
-    ...RATING_ORDER.map((r) => seasonalRatingCounts[r]),
-    1,
+  // Seasonal rating distribution
+  const { rows: seasonalRows, ratedCount: seasonalRatedCount } =
+    computeRatingRows(seasonals);
+
+  // Entry-level distributions
+  const { rows: mangaRows, ratedCount: mangaRatedCount } =
+    computeRatingRows(allManga);
+  const { rows: novelRows, ratedCount: novelRatedCount } =
+    computeRatingRows(allNovel);
+  const { rows: animeMovieRows, ratedCount: animeMovieRatedCount } =
+    computeRatingRows(allAnimeMovies);
+  const { rows: movieRows, ratedCount: movieRatedCount } =
+    computeRatingRows(allMovies);
+
+  // TV Show and Cartoon franchise distributions
+  const tvFranchises = franchises.filter((f) =>
+    parseTypes(f.franchise_type).includes("TV"),
   );
-  const totalSeasonals = seasonals.length;
+  const cartoonFranchises = franchises.filter((f) =>
+    parseTypes(f.franchise_type).includes("Cartoon"),
+  );
+  const { rows: tvRows, ratedCount: tvRatedCount } =
+    computeRatingRows(tvFranchises);
+  const { rows: cartoonRows, ratedCount: cartoonRatedCount } =
+    computeRatingRows(cartoonFranchises);
 
   return (
     <>
@@ -92,135 +163,64 @@ export default function StatsFranchiseSummary({
           </h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* My Rating */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
-              <span>My Rating</span>
-              <span className="text-gray-400 font-medium normal-case">
-                ACG Franchise
-              </span>
-            </p>
-            <div className="space-y-3">
-              {allRows.map((rating) => {
-                const count = ratingCounts[rating];
-                const pct =
-                  totalFranchises > 0
-                    ? Math.round((count / totalFranchises) * 100)
-                    : 0;
-                const barWidth = (count / maxCount) * 100;
-                const isUnrated = rating === "Unrated";
-                return (
-                  <div key={rating} className="flex items-center gap-3">
-                    <span
-                      className={`w-10 text-right text-sm font-black shrink-0 ${
-                        isUnrated ? "text-gray-400" : "text-gray-700"
-                      }`}
-                    >
-                      {rating}
-                    </span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                      <div
-                        className={`h-5 rounded-full transition-all duration-700 ${
-                          MY_RATING_COLORS[rating] || "bg-gray-300"
-                        }`}
-                        style={{ width: `${barWidth}%` }}
-                      />
-                    </div>
-                    <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
-                      {count}
-                    </span>
-                    <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
-                      {pct}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* MAL Rating */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
-              <span>MAL Rating</span>
-              <span className="text-gray-400 font-medium normal-case">
-                All Anime
-              </span>
-            </p>
-            <div className="space-y-3">
-              {malRatingRows.map(({ key, count, color }) => {
-                const pct =
-                  totalWithMal > 0
-                    ? Math.round((count / totalWithMal) * 100)
-                    : 0;
-                const barWidth = (count / malMaxCount) * 100;
-                return (
-                  <div key={key} className="flex items-center gap-3">
-                    <span className="w-10 text-right text-sm font-black shrink-0 text-gray-700">
-                      {key}
-                    </span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                      <div
-                        className={`h-5 rounded-full transition-all duration-700 ${color}`}
-                        style={{ width: `${barWidth}%` }}
-                      />
-                    </div>
-                    <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
-                      {count}
-                    </span>
-                    <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
-                      {pct}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Seasonal Rating */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
-              <span>Seasonal Rating</span>
-              <span className="text-gray-400 font-medium normal-case">
-                Per Season
-              </span>
-            </p>
-            <div className="space-y-3">
-              {allRows.map((rating) => {
-                const count = seasonalRatingCounts[rating];
-                const pct =
-                  totalSeasonals > 0
-                    ? Math.round((count / totalSeasonals) * 100)
-                    : 0;
-                const barWidth = (count / seasonalMaxCount) * 100;
-                const isUnrated = rating === "Unrated";
-                return (
-                  <div key={rating} className="flex items-center gap-3">
-                    <span
-                      className={`w-10 text-right text-sm font-black shrink-0 ${
-                        isUnrated ? "text-gray-400" : "text-gray-700"
-                      }`}
-                    >
-                      {rating}
-                    </span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                      <div
-                        className={`h-5 rounded-full transition-all duration-700 ${
-                          MY_RATING_COLORS[rating] || "bg-gray-300"
-                        }`}
-                        style={{ width: `${barWidth}%` }}
-                      />
-                    </div>
-                    <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
-                      {count}
-                    </span>
-                    <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
-                      {pct}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="Anime Franchise"
+            rows={animeRows}
+            total={animeRatedCount}
+          />
+          <RatingDistributionCard
+            title="MAL Rating"
+            subtitle="All Anime"
+            rows={malRows}
+            total={totalWithMal}
+          />
+          <RatingDistributionCard
+            title="Seasonal Rating"
+            subtitle="Per Season"
+            rows={seasonalRows}
+            total={seasonalRatedCount}
+          />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="All Manga"
+            rows={mangaRows}
+            total={mangaRatedCount}
+          />
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="All Novel"
+            rows={novelRows}
+            total={novelRatedCount}
+          />
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="All Anime Movie"
+            rows={animeMovieRows}
+            total={animeMovieRatedCount}
+          />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="All Movie"
+            rows={movieRows}
+            total={movieRatedCount}
+          />
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="TV Show Franchise"
+            rows={tvRows}
+            total={tvRatedCount}
+          />
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="Cartoon Franchise"
+            rows={cartoonRows}
+            total={cartoonRatedCount}
+          />
         </div>
       </section>
 

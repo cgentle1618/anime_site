@@ -73,6 +73,10 @@ export default function Statistics() {
       <StatsFranchiseSummary
         franchises={franchises}
         allAnime={allAnime}
+        allAnimeMovies={allAnimeMovies}
+        allMovies={allMovies}
+        allManga={allManga}
+        allNovel={allNovel}
         seasonals={seasonals}
         currentSeason={currentSeason}
       />
