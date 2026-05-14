@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import { getDisplayName, getCoverForSlot } from "./statsUtils";
+import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
 
 const REWATCH_TABS = [
   { key: "anime", label: "Anime", icon: "fa-tv", dev: false },
@@ -13,7 +13,7 @@ const REWATCH_TABS = [
   { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
 ];
 
-export default function StatsToRewatch({
+export default function PlanToRewatch({
   franchises,
   allAnimeMovies,
   allMovies,
