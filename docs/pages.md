@@ -875,7 +875,9 @@ Multi-section statistics dashboard.
 
 **Sections:**
 
-1. **Favorite ACG Franchise 3×3 Grid** — franchises with `favorite_3x3_slot` 1–9; shows poster, Franchise Name CN with fallback, Franchise Rating
+1. **Favorite Franchise 3×3 Grid** — franchises with `favorite_3x3_slot` 1–9; shows poster, Franchise Name CN with fallback, Franchise Rating
+   - One 3x3 grid for each franchise: ACG, Movie, TV Show, Cartoon, and Novel.
+   - Note that we don't have the grid for Anime Movie
 
 2. **Rating Distribution** — horizontal bar charts:
    - My Rating for ACG Franchise (S / A+ / A / B / C / D / E / F / Unrated)
