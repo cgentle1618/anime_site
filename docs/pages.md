@@ -813,16 +813,14 @@ Two-tab seasonal view.
 
 **Current Season tab:**
 
-_This Season block:_
-
 - Seasonal Information Block: Seasonal Name, Total/Planned (Plan to Watch + Watch When Airs)/Watching/Completed entry counts, completion bar, Seasonal Rating (admin editable)
 - **Rating Distribution Block** (reusable)
 - Anime entries sorted by: Watching Status (Completed → Watching → Planned → Might Watch → Dropped), then My Rating, then Franchise Expectation
 - Each card: **Anime Entry Card 1**
 
-_Next Season block:_
+**Next Season tab:**
 
-- Seasonal Information Block: Seasonal Name, Total/Planned entry counts
+- Seasonal Information Block: Seasonal Name, Total/Planned/Watching/Completed entry counts
 - Anime entries sorted by: Watch When Airs → Plan to Watch → Might Watch → Other → Won't Watch, then My Rating, then Franchise Expectation
 - Each card: **Anime Entry Card 1**
 

@@ -623,6 +623,11 @@ export default function Delete() {
                       selectedAnime.anime_name_roman ||
                       "-"}
                   </p>
+                  {selectedAnime.anime_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedAnime.anime_name_alt}
+                    </p>
+                  )}
                   <div className="flex gap-2 mt-2">
                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnime.airing_type || "TV"}
@@ -635,6 +640,11 @@ export default function Delete() {
                     {getFranchiseTitle(selectedAnime.franchise_id)} /{" "}
                     {getSeriesTitle(selectedAnime.series_id)}
                   </p>
+                  {selectedAnime.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedAnime.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedAnime.system_id}
                   </p>
@@ -675,7 +685,7 @@ export default function Delete() {
                   </div>
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.airing_status || "Unknown"}
+                    {item.release_date_jp || item.release_date_tw || "—"}
                   </div>
                 </div>
               )}
@@ -702,6 +712,11 @@ export default function Delete() {
                       selectedAnimeMovie.anime_movie_name_roman ||
                       "-"}
                   </p>
+                  {selectedAnimeMovie.anime_movie_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedAnimeMovie.anime_movie_name_alt}
+                    </p>
+                  )}
                   <div className="flex gap-2 mt-2">
                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnimeMovie.airing_status || "Unknown"}
@@ -713,6 +728,11 @@ export default function Delete() {
                   <p className="text-xs text-gray-400 mt-1">
                     {getFranchiseTitle(selectedAnimeMovie.franchise_id)}
                   </p>
+                  {selectedAnimeMovie.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedAnimeMovie.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedAnimeMovie.system_id}
                   </p>
@@ -755,7 +775,7 @@ export default function Delete() {
                   </div>
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.airing_status || "Unknown"}
+                    {item.release_date_usa || item.release_date_tw || "—"}
                   </div>
                 </div>
               )}
@@ -780,7 +800,17 @@ export default function Delete() {
                   <p className="text-sm text-gray-500">
                     {selectedMovie.movie_name_en || "-"}
                   </p>
-                  <div className="flex gap-2 mt-2">
+                  {selectedMovie.movie_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedMovie.movie_name_alt}
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedMovie.movie_type && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedMovie.movie_type}
+                      </span>
+                    )}
                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
                       {selectedMovie.airing_status || "Unknown"}
                     </span>
@@ -790,7 +820,14 @@ export default function Delete() {
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {getFranchiseTitle(selectedMovie.franchise_id)}
+                    {selectedMovie.series_id &&
+                      ` / ${getSeriesTitle(selectedMovie.series_id)}`}
                   </p>
+                  {selectedMovie.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedMovie.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedMovie.system_id}
                   </p>
@@ -830,8 +867,8 @@ export default function Delete() {
                     {getDisplayTitle(item, "tv-show")}
                   </div>
                   <div className="text-[11px] text-gray-500">
-                    {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.season_part || item.airing_status || "Unknown"}
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.season_part ? ` · ${item.season_part}` : ""}
                   </div>
                 </div>
               )}
@@ -856,7 +893,17 @@ export default function Delete() {
                   <p className="text-sm text-gray-500">
                     {selectedTvShow.tv_name_en || "-"}
                   </p>
-                  <div className="flex gap-2 mt-2">
+                  {selectedTvShow.tv_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedTvShow.tv_name_alt}
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedTvShow.airing_type && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedTvShow.airing_type}
+                      </span>
+                    )}
                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
                       {selectedTvShow.airing_status || "Unknown"}
                     </span>
@@ -866,9 +913,16 @@ export default function Delete() {
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {getFranchiseTitle(selectedTvShow.franchise_id)}
+                    {selectedTvShow.series_id &&
+                      ` / ${getSeriesTitle(selectedTvShow.series_id)}`}
                     {selectedTvShow.season_part &&
                       ` · ${selectedTvShow.season_part}`}
                   </p>
+                  {selectedTvShow.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedTvShow.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedTvShow.system_id}
                   </p>
@@ -909,7 +963,7 @@ export default function Delete() {
                   </div>
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.season_part || item.airing_status || "Unknown"}
+                    {item.airing_type || "—"}
                   </div>
                 </div>
               )}
@@ -934,6 +988,11 @@ export default function Delete() {
                   <p className="text-sm text-gray-500">
                     {selectedCartoon.cartoon_name_en || "-"}
                   </p>
+                  {selectedCartoon.cartoon_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedCartoon.cartoon_name_alt}
+                    </p>
+                  )}
                   <div className="flex gap-2 mt-2">
                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
                       {selectedCartoon.airing_status || "Unknown"}
@@ -944,9 +1003,16 @@ export default function Delete() {
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {getFranchiseTitle(selectedCartoon.franchise_id)}
+                    {selectedCartoon.series_id &&
+                      ` / ${getSeriesTitle(selectedCartoon.series_id)}`}
                     {selectedCartoon.season_part &&
                       ` · ${selectedCartoon.season_part}`}
                   </p>
+                  {selectedCartoon.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedCartoon.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedCartoon.system_id}
                   </p>
@@ -987,7 +1053,7 @@ export default function Delete() {
                   </div>
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.reading_status || item.region || "Unknown"}
+                    {item.release_year || "—"}
                   </div>
                 </div>
               )}
@@ -1012,6 +1078,16 @@ export default function Delete() {
                   <p className="text-sm text-gray-500">
                     {selectedManga.manga_name_en || "-"}
                   </p>
+                  {selectedManga.manga_name_jp && (
+                    <p className="text-xs text-gray-400">
+                      {selectedManga.manga_name_jp}
+                    </p>
+                  )}
+                  {selectedManga.manga_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedManga.manga_name_alt}
+                    </p>
+                  )}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {selectedManga.reading_status && (
                       <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
@@ -1029,6 +1105,11 @@ export default function Delete() {
                     {selectedManga.series_id &&
                       ` / ${getSeriesTitle(selectedManga.series_id)}`}
                   </p>
+                  {selectedManga.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedManga.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedManga.system_id}
                   </p>
@@ -1068,8 +1149,9 @@ export default function Delete() {
                     {getDisplayTitle(item, "novel")}
                   </div>
                   <div className="text-[11px] text-gray-500">
-                    {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.reading_status || item.region || "Unknown"}
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.type ? ` · ${item.type}` : ""}
+                    {item.release_year ? ` · ${item.release_year}` : ""}
                   </div>
                 </div>
               )}
@@ -1094,7 +1176,22 @@ export default function Delete() {
                   <p className="text-sm text-gray-500">
                     {selectedNovel.novel_name_en || "-"}
                   </p>
+                  {selectedNovel.novel_name_jp && (
+                    <p className="text-xs text-gray-400">
+                      {selectedNovel.novel_name_jp}
+                    </p>
+                  )}
+                  {selectedNovel.novel_name_alt && (
+                    <p className="text-xs text-gray-400">
+                      {selectedNovel.novel_name_alt}
+                    </p>
+                  )}
                   <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedNovel.type && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedNovel.type}
+                      </span>
+                    )}
                     {selectedNovel.reading_status && (
                       <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
                         {selectedNovel.reading_status}
@@ -1111,6 +1208,11 @@ export default function Delete() {
                     {selectedNovel.series_id &&
                       ` / ${getSeriesTitle(selectedNovel.series_id)}`}
                   </p>
+                  {selectedNovel.notes?.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedNovel.notes.remark}
+                    </p>
+                  )}
                   <p className="text-xs font-mono text-gray-400">
                     {selectedNovel.system_id}
                   </p>
@@ -1177,6 +1279,10 @@ export default function Delete() {
                     label: "manga",
                     n: db.manga.filter((m) => m.franchise_id === fid).length,
                   },
+                  {
+                    label: "novel",
+                    n: db.novel.filter((n) => n.franchise_id === fid).length,
+                  },
                 ].filter((x) => x.n > 0);
                 return (
                   <div>
@@ -1209,22 +1315,28 @@ export default function Delete() {
                       .filter(Boolean)
                       .join(" · ") || "No alt names"}
                   </p>
+                  {selectedFranchise.franchise_type && (
+                    <span className="inline-block mt-1 bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      {selectedFranchise.franchise_type}
+                    </span>
+                  )}
                   <p className="text-xs font-mono text-gray-400 mt-1">
                     {selectedFranchise.system_id}
                   </p>
                   <p className="text-sm font-bold text-gray-600 mt-2">
-                    {
-                      db.series.filter(
-                        (s) => s.franchise_id === selectedFranchise.system_id,
-                      ).length
-                    }{" "}
-                    Series ·{" "}
-                    {
-                      db.anime.filter(
-                        (a) => a.franchise_id === selectedFranchise.system_id,
-                      ).length
-                    }{" "}
-                    Anime
+                    {[
+                      { label: "Series", n: db.series.filter((s) => s.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Anime", n: db.anime.filter((a) => a.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Anime Movie", n: db["anime-movie"].filter((m) => m.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Movie", n: db.movie.filter((m) => m.franchise_id === selectedFranchise.system_id).length },
+                      { label: "TV Show", n: db["tv-show"].filter((t) => t.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Cartoon", n: db.cartoon.filter((c) => c.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Manga", n: db.manga.filter((m) => m.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Novel", n: db.novel.filter((n) => n.franchise_id === selectedFranchise.system_id).length },
+                    ]
+                      .filter((x) => x.n > 0)
+                      .map((x) => `${x.n} ${x.label}`)
+                      .join(" · ") || "No entries"}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1273,6 +1385,10 @@ export default function Delete() {
                     label: "manga",
                     n: db.manga.filter((m) => m.series_id === sid).length,
                   },
+                  {
+                    label: "novel",
+                    n: db.novel.filter((n) => n.series_id === sid).length,
+                  },
                 ].filter((x) => x.n > 0);
                 return (
                   <div>
@@ -1309,15 +1425,18 @@ export default function Delete() {
                   <p className="text-xs font-mono text-gray-400 mt-1">
                     {selectedSeries.system_id}
                   </p>
-                  <p className="text-sm font-bold text-gray-600 mt-2">
-                    Franchise: {getFranchiseTitle(selectedSeries.franchise_id)}{" "}
-                    ·{" "}
-                    {
-                      db.anime.filter(
-                        (a) => a.series_id === selectedSeries.system_id,
-                      ).length
-                    }{" "}
-                    Anime
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedSeries.franchise_id)}
+                  </p>
+                  <p className="text-sm font-bold text-gray-600 mt-1">
+                    {[
+                      { label: "Anime", n: db.anime.filter((a) => a.series_id === selectedSeries.system_id).length },
+                      { label: "Manga", n: db.manga.filter((m) => m.series_id === selectedSeries.system_id).length },
+                      { label: "Novel", n: db.novel.filter((n) => n.series_id === selectedSeries.system_id).length },
+                    ]
+                      .filter((x) => x.n > 0)
+                      .map((x) => `${x.n} ${x.label}`)
+                      .join(" · ") || "No entries"}
                   </p>
                 </div>
                 <div className="flex gap-2">
