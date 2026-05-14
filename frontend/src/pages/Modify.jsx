@@ -2737,6 +2737,12 @@ export default function Modify() {
                 ff={ff}
                 uf={uf}
                 allAnime={allAnime}
+                allAnimeMovies={allAnimeMovies}
+                allMovies={allMovies}
+                allTvShows={allTvShows}
+                allCartoons={allCartoons}
+                allMangas={allMangas}
+                allNovels={allNovels}
                 editingItem={editingItem}
               />
             )}
