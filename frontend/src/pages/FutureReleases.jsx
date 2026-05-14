@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeCardFuture from "../components/cards/AnimeCardFuture";
-import AnimeMovieCardFuture from "../components/cards/AnimeMovieCardFuture";
-import MovieCardFuture from "../components/cards/MovieCardFuture";
-import TVCardFuture from "../components/cards/TVCardFuture";
-import CartoonCardFuture from "../components/cards/CartoonCardFuture";
+import MediaCard from "../components/cards/MediaCard";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -482,9 +478,11 @@ export default function FutureReleases() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((anime) => (
-                        <AnimeCardFuture
+                        <MediaCard
                           key={anime.system_id}
-                          anime={anime}
+                          type="anime"
+                          variant="future"
+                          data={anime}
                           franchiseDict={franchiseDict}
                           isAdmin={isAdmin}
                           onUpdated={handleUpdated}
@@ -541,9 +539,11 @@ export default function FutureReleases() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((movie) => (
-                        <AnimeMovieCardFuture
+                        <MediaCard
                           key={movie.system_id}
-                          movie={movie}
+                          type="anime-movie"
+                          variant="future"
+                          data={movie}
                           isAdmin={isAdmin}
                           onUpdated={handleMovieUpdated}
                         />
@@ -594,9 +594,11 @@ export default function FutureReleases() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {liveMovieGroups[year].map((movie) => (
-                      <MovieCardFuture
+                      <MediaCard
                         key={movie.system_id}
-                        movie={movie}
+                        type="movie"
+                        variant="future"
+                        data={movie}
                         isAdmin={isAdmin}
                         onUpdated={handleLiveMovieUpdated}
                       />
@@ -647,9 +649,12 @@ export default function FutureReleases() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {cartoonGroups[year].map((cartoon) => (
-                      <CartoonCardFuture
+                      <MediaCard
                         key={cartoon.system_id}
-                        cartoon={cartoon}
+                        type="cartoon"
+                        variant="future"
+                        data={cartoon}
+                        franchiseDict={franchiseDict}
                         isAdmin={isAdmin}
                         onUpdated={handleCartoonUpdated}
                       />
@@ -695,9 +700,11 @@ export default function FutureReleases() {
                   return a.release_date.localeCompare(b.release_date);
                 })
                 .map((show) => (
-                  <TVCardFuture
+                  <MediaCard
                     key={show.system_id}
-                    show={show}
+                    type="tv-show"
+                    variant="future"
+                    data={show}
                     isAdmin={isAdmin}
                     onUpdated={handleTvShowUpdated}
                   />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AnimeCard from "../components/cards/AnimeCard";
+import MediaCard from "../components/cards/MediaCard";
 import {
   getDisplayName,
   getSortName,
@@ -402,7 +402,7 @@ export default function LibraryAnime() {
       ) : currentView === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filteredAndSorted.map((a) => (
-            <AnimeCard key={a.system_id} anime={a} onUpdated={handleUpdated} />
+            <MediaCard key={a.system_id} type="anime" data={a} onUpdated={handleUpdated} />
           ))}
         </div>
       ) : (

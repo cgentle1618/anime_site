@@ -355,6 +355,48 @@ export function buildAnimePayload(
   };
 }
 
+export function formatLength(minutes) {
+  if (!minutes) return null;
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs === 0) return `${mins}min`;
+  if (mins === 0) return `${hrs}hr`;
+  return `${hrs}hr ${mins}min`;
+}
+
+const READING_BUTTON_CONFIG = {
+  "Might Read": { symbol: "+", cls: "bg-gray-50 text-gray-400 border-gray-200", target: "Plan to Read" },
+  "Plan to Read": { symbol: "…", cls: "bg-purple-50 text-purple-600 border-purple-200", target: "Might Read" },
+  "Active Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },
+  "Passive Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },
+  Paused: { symbol: "~", cls: "bg-yellow-50 text-yellow-600 border-yellow-200", target: "Might Read" },
+  Completed: { symbol: "✓", cls: "bg-blue-50 text-blue-600 border-blue-200", target: "Might Read" },
+  "Temp Dropped": { symbol: "✕", cls: "bg-red-50 text-red-500 border-red-200", target: "Might Read" },
+  Dropped: { symbol: "✕", cls: "bg-red-50 text-red-600 border-red-200", target: "Might Read" },
+  "Won't Read": { symbol: "✕", cls: "bg-red-50 text-red-400 border-red-200", target: "Might Read" },
+};
+
+export function getReadingButtonConfig(status) {
+  return READING_BUTTON_CONFIG[status] || READING_BUTTON_CONFIG["Might Read"];
+}
+
+export function getCardStatusConfig(type, status) {
+  if (type === "manga" || type === "novel") return getReadingButtonConfig(status);
+  return getStatusButtonConfig(status);
+}
+
+export const MEDIA_CONFIG = {
+  anime:         { statusField: "watching_status", apiEndpoint: "/api/anime",       navPath: "/anime",        statusType: "watch" },
+  "anime-movie": { statusField: "watching_status", apiEndpoint: "/api/anime-movie", navPath: "/anime-movie",  statusType: "watch" },
+  movie:         { statusField: "watching_status", apiEndpoint: "/api/movies",      navPath: "/movie",        statusType: "watch" },
+  "tv-show":     { statusField: "watching_status", apiEndpoint: "/api/tv-shows",    navPath: "/tv-show",      statusType: "watch" },
+  cartoon:       { statusField: "watching_status", apiEndpoint: "/api/cartoon",     navPath: "/cartoon",      statusType: "watch" },
+  manga:         { statusField: "reading_status",  apiEndpoint: "/api/manga",       navPath: "/manga",        statusType: "read"  },
+  novel:         { statusField: "reading_status",  apiEndpoint: "/api/novel",       navPath: "/novel",        statusType: "read"  },
+  franchise:     { statusField: null,              apiEndpoint: "/api/franchise",   navPath: "/franchise",    statusType: null    },
+  series:        { statusField: null,              apiEndpoint: "/api/series",      navPath: null,            statusType: null    },
+};
+
 export function parseTypes(franchiseType) {
   if (!franchiseType) return [];
   return franchiseType

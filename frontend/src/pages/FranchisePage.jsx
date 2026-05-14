@@ -9,13 +9,7 @@ import {
   getRatingWeight,
   parseTypes,
 } from "../utils/media";
-import AnimeCard from "../components/cards/AnimeCard";
-import AnimeMovieCard from "../components/cards/AnimeMovieCard";
-import MangaCard from "../components/cards/MangaCard";
-import NovelCard from "../components/cards/NovelCard";
-import MovieCard from "../components/cards/MovieCard";
-import TVCard from "../components/cards/TVCard";
-import CartoonCard from "../components/cards/CartoonCard";
+import MediaCard from "../components/cards/MediaCard";
 import SeriesModal from "../components/modals/SeriesModal";
 
 const WATCHING_STATUS_GROUPS = {
@@ -1315,8 +1309,9 @@ export default function FranchisePage() {
                                   )}
                                 </div>
                               )}
-                            <AnimeCard
-                              anime={a}
+                            <MediaCard
+                              type="anime"
+                              data={a}
                               onUpdated={handleAnimeUpdated}
                             />
                           </div>
@@ -1342,7 +1337,7 @@ export default function FranchisePage() {
                         )}
                       </div>
                     )}
-                    <AnimeCard anime={a} onUpdated={handleAnimeUpdated} />
+                    <MediaCard type="anime" data={a} onUpdated={handleAnimeUpdated} />
                   </div>
                 ))}
               </div>
@@ -1377,9 +1372,10 @@ export default function FranchisePage() {
 
             <div className={GRID_CLS}>
               {sortedAnimeMovies.map((m) => (
-                <AnimeMovieCard
+                <MediaCard
                   key={m.system_id}
-                  movie={m}
+                  type="anime-movie"
+                  data={m}
                   onUpdated={handleAnimeMovieUpdated}
                 />
               ))}
@@ -1495,9 +1491,10 @@ export default function FranchisePage() {
                       </div>
                       <div className={GRID_CLS}>
                         {group.manga.map((m) => (
-                          <MangaCard
+                          <MediaCard
                             key={m.system_id}
-                            manga={m}
+                            type="manga"
+                            data={m}
                             isAdmin={isAdmin}
                             onUpdated={handleMangaUpdated}
                           />
@@ -1510,9 +1507,10 @@ export default function FranchisePage() {
             ) : (
               <div className={GRID_CLS}>
                 {filteredAndSortedManga.map((m) => (
-                  <MangaCard
+                  <MediaCard
                     key={m.system_id}
-                    manga={m}
+                    type="manga"
+                    data={m}
                     isAdmin={isAdmin}
                     onUpdated={handleMangaUpdated}
                   />
@@ -1630,9 +1628,10 @@ export default function FranchisePage() {
                       </div>
                       <div className={GRID_CLS}>
                         {group.novels.map((n) => (
-                          <NovelCard
+                          <MediaCard
                             key={n.system_id}
-                            novel={n}
+                            type="novel"
+                            data={n}
                             onUpdated={handleNovelUpdated}
                           />
                         ))}
@@ -1644,9 +1643,10 @@ export default function FranchisePage() {
             ) : (
               <div className={GRID_CLS}>
                 {filteredAndSortedNovel.map((n) => (
-                  <NovelCard
+                  <MediaCard
                     key={n.system_id}
-                    novel={n}
+                    type="novel"
+                    data={n}
                     onUpdated={handleNovelUpdated}
                   />
                 ))}
@@ -1760,9 +1760,10 @@ export default function FranchisePage() {
                       </div>
                       <div className={GRID_CLS}>
                         {group.movies.map((m) => (
-                          <MovieCard
+                          <MediaCard
                             key={m.system_id}
-                            movie={m}
+                            type="movie"
+                            data={m}
                             onUpdated={handleMovieUpdated}
                           />
                         ))}
@@ -1774,9 +1775,10 @@ export default function FranchisePage() {
             ) : (
               <div className={GRID_CLS}>
                 {filteredAndSortedMovies.map((m) => (
-                  <MovieCard
+                  <MediaCard
                     key={m.system_id}
-                    movie={m}
+                    type="movie"
+                    data={m}
                     onUpdated={handleMovieUpdated}
                   />
                 ))}
@@ -1893,9 +1895,10 @@ export default function FranchisePage() {
                       )}
                       <div className={GRID_CLS}>
                         {group.shows.map((t) => (
-                          <TVCard
+                          <MediaCard
                             key={t.system_id}
-                            show={t}
+                            type="tv-show"
+                            data={t}
                             onUpdated={handleTvShowUpdated}
                           />
                         ))}
@@ -1907,9 +1910,10 @@ export default function FranchisePage() {
             ) : (
               <div className={GRID_CLS}>
                 {filteredAndSortedTvShows.map((t) => (
-                  <TVCard
+                  <MediaCard
                     key={t.system_id}
-                    show={t}
+                    type="tv-show"
+                    data={t}
                     onUpdated={handleTvShowUpdated}
                   />
                 ))}
@@ -2041,9 +2045,10 @@ export default function FranchisePage() {
                       </div>
                       <div className={GRID_CLS}>
                         {group.cartoons.map((c) => (
-                          <CartoonCard
+                          <MediaCard
                             key={c.system_id}
-                            cartoon={c}
+                            type="cartoon"
+                            data={c}
                             onUpdated={handleCartoonUpdated}
                           />
                         ))}
@@ -2055,9 +2060,10 @@ export default function FranchisePage() {
             ) : (
               <div className={GRID_CLS}>
                 {filteredAndSortedCartoons.map((c) => (
-                  <CartoonCard
+                  <MediaCard
                     key={c.system_id}
-                    cartoon={c}
+                    type="cartoon"
+                    data={c}
                     onUpdated={handleCartoonUpdated}
                   />
                 ))}
