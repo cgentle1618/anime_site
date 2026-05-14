@@ -164,78 +164,78 @@ frontend/src/
 
 ## Routes
 
-| Path | Page |
-|------|------|
-| `/` | Index |
-| `/login` | Login |
-| `/search` | Search |
-| `/future-releases` | FutureReleases |
-| `/completions` | Completions |
-| `/plan` | Plan |
-| `/statistics` | Statistics |
-| `/seasonal` | SeasonalOverall |
-| `/seasonal/:id` | SeasonalDetail |
-| `/library/anime` | LibraryAnime |
-| `/library/anime-movie` | LibraryAnimeMovie |
-| `/library/movie` | LibraryMovie |
-| `/library/tv-show` | LibraryTV |
-| `/library/cartoon` | LibraryCartoon |
-| `/library/manga` | LibraryManga |
-| `/library/novel` | LibraryNovel |
-| `/library/franchise` | FranchiseLibrary |
-| `/anime/:id` | Anime |
-| `/anime-movie/:id` | AnimeMovie |
-| `/movie/:id` | Movie |
-| `/tv-show/:id` | TV |
-| `/cartoon/:id` | Cartoon |
-| `/manga/:id` | Manga |
-| `/novel/:id` | Novel |
-| `/franchise/:id` | Franchise → FranchisePage |
-| `/add` *(admin)* | Add |
-| `/modify` *(admin)* | Modify |
-| `/delete` *(admin)* | Delete |
-| `/system` *(admin)* | Admin |
-| `/data-history` *(admin)* | DataHistory |
-| `/review-queue` *(admin)* | ReviewQueue |
+| Path                      | Page                      |
+| ------------------------- | ------------------------- |
+| `/`                       | Index                     |
+| `/login`                  | Login                     |
+| `/search`                 | Search                    |
+| `/future-releases`        | FutureReleases            |
+| `/completions`            | Completions               |
+| `/plan`                   | Plan                      |
+| `/statistics`             | Statistics                |
+| `/seasonal`               | SeasonalOverall           |
+| `/seasonal/:id`           | SeasonalDetail            |
+| `/library/anime`          | LibraryAnime              |
+| `/library/anime-movie`    | LibraryAnimeMovie         |
+| `/library/movie`          | LibraryMovie              |
+| `/library/tv-show`        | LibraryTV                 |
+| `/library/cartoon`        | LibraryCartoon            |
+| `/library/manga`          | LibraryManga              |
+| `/library/novel`          | LibraryNovel              |
+| `/library/franchise`      | FranchiseLibrary          |
+| `/anime/:id`              | Anime                     |
+| `/anime-movie/:id`        | AnimeMovie                |
+| `/movie/:id`              | Movie                     |
+| `/tv-show/:id`            | TV                        |
+| `/cartoon/:id`            | Cartoon                   |
+| `/manga/:id`              | Manga                     |
+| `/novel/:id`              | Novel                     |
+| `/franchise/:id`          | Franchise → FranchisePage |
+| `/add` _(admin)_          | Add                       |
+| `/modify` _(admin)_       | Modify                    |
+| `/delete` _(admin)_       | Delete                    |
+| `/system` _(admin)_       | Admin                     |
+| `/data-history` _(admin)_ | DataHistory               |
+| `/review-queue` _(admin)_ | ReviewQueue               |
 
 ---
 
 ## Page → API Endpoints
 
-| Page | Endpoints |
-|------|-----------|
-| Index | GET `/api/anime/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/franchise/`; PATCH individual items |
-| Login | POST `/api/auth/login` |
-| Search | GET all list endpoints + `/api/series/`, `/api/seasonal/` |
-| FutureReleases | GET `/api/anime/`, `/api/franchise/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`; PATCH status |
-| LibraryAnime | GET `/api/anime/`, `/api/franchise/`, `/api/series/`; PATCH status |
-| LibraryAnimeMovie | GET `/api/anime-movie/`, `/api/franchise/`; PATCH status |
-| LibraryMovie | GET `/api/movies/`, `/api/franchise/`; PATCH status |
-| LibraryTV | GET `/api/tv-shows/`, `/api/franchise/`; PATCH status |
-| LibraryCartoon | GET `/api/cartoon/`, `/api/franchise/`; PATCH status |
-| LibraryManga | GET `/api/manga/`, `/api/franchise/`; PATCH status |
-| LibraryNovel | GET `/api/novel/`, `/api/franchise/`; PATCH status |
-| FranchiseLibrary | GET `/api/franchise/` + all media lists (with `?limit=2000`) |
-| Anime | GET `/api/anime/:id`, `/api/franchise/`, `/api/series/`, `/api/anime/`; PATCH, POST complete, POST replace |
-| AnimeMovie | GET `/api/anime-movie/:id`, `/api/franchise/`; PATCH, POST complete, POST replace |
-| Movie | GET `/api/movies/:id`, `/api/franchise/`; PATCH, POST replace |
-| TV | GET `/api/tv-shows/:id`, `/api/franchise/`; PATCH, POST replace |
-| Cartoon | GET `/api/cartoon/:id`, `/api/franchise/`; PATCH, POST replace |
-| Manga | GET `/api/manga/:id`, `/api/franchise/`; PATCH, POST replace |
-| Novel | GET `/api/novel/:id`, `/api/franchise/`; PATCH, POST replace |
-| FranchisePage | GET `/api/franchise/:id`, `/api/anime/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/series/`; PATCH items |
-| Plan | GET all media lists + `/api/franchise/`, `/api/system/config/current_season` |
-| Statistics | GET all media lists + `/api/franchise/` |
-| Completions | GET all media lists + `/api/franchise/` |
-| SeasonalOverall | GET `/api/seasonal/`, `/api/franchise/` |
-| SeasonalDetail | GET `/api/seasonal/:id`, `/api/anime/`, `/api/franchise/` |
-| Add | GET + POST all entity endpoints + `/api/options/` |
-| Modify | GET + PUT/PATCH all entity endpoints + `/api/options/` |
-| Delete | GET + DELETE all entity endpoints |
-| Admin | GET/POST `/api/system/`, `/api/data-control/` |
-| DataHistory | GET `/api/data-control/deleted-records/` |
-| ReviewQueue | GET/PATCH `/api/data-control/review-queue/` |
-| *Notes pages* | GET + PATCH individual media endpoint for notes field |
+| Page              | Endpoints                                                                                                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Index             | GET `/api/anime/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/franchise/`; PATCH individual items                                              |
+| Login             | POST `/api/auth/login`                                                                                                                                                     |
+| Search            | GET all list endpoints + `/api/series/`, `/api/seasonal/`                                                                                                                  |
+| FutureReleases    | GET `/api/anime/`, `/api/franchise/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`; PATCH status                                                 |
+| LibraryAnime      | GET `/api/anime/`, `/api/franchise/`, `/api/series/`; PATCH status                                                                                                         |
+| LibraryAnimeMovie | GET `/api/anime-movie/`, `/api/franchise/`; PATCH status                                                                                                                   |
+| LibraryMovie      | GET `/api/movies/`, `/api/franchise/`; PATCH status                                                                                                                        |
+| LibraryTV         | GET `/api/tv-shows/`, `/api/franchise/`; PATCH status                                                                                                                      |
+| LibraryCartoon    | GET `/api/cartoon/`, `/api/franchise/`; PATCH status                                                                                                                       |
+| LibraryManga      | GET `/api/manga/`, `/api/franchise/`; PATCH status                                                                                                                         |
+| LibraryNovel      | GET `/api/novel/`, `/api/franchise/`; PATCH status                                                                                                                         |
+| FranchiseLibrary  | GET `/api/franchise/` + all media lists (with `?limit=2000`)                                                                                                               |
+| Anime             | GET `/api/anime/:id`, `/api/franchise/`, `/api/series/`, `/api/anime/`; PATCH, POST complete, POST replace                                                                 |
+| AnimeMovie        | GET `/api/anime-movie/:id`, `/api/franchise/`; PATCH, POST complete, POST replace                                                                                          |
+| Movie             | GET `/api/movies/:id`, `/api/franchise/`; PATCH, POST replace                                                                                                              |
+| TV                | GET `/api/tv-shows/:id`, `/api/franchise/`; PATCH, POST replace                                                                                                            |
+| Cartoon           | GET `/api/cartoon/:id`, `/api/franchise/`; PATCH, POST replace                                                                                                             |
+| Manga             | GET `/api/manga/:id`, `/api/franchise/`; PATCH, POST replace                                                                                                               |
+| Novel             | GET `/api/novel/:id`, `/api/franchise/`; PATCH, POST replace                                                                                                               |
+| FranchisePage     | GET `/api/franchise/:id`, `/api/anime/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/series/`; PATCH items |
+| Plan              | GET all media lists + `/api/franchise/`, `/api/system/config/current_season`                                                                                               |
+| Statistics        | GET all media lists + `/api/franchise/`                                                                                                                                    |
+| Completions       | GET all media lists + `/api/franchise/`                                                                                                                                    |
+| SeasonalOverall   | GET `/api/seasonal/`, `/api/franchise/`                                                                                                                                    |
+| SeasonalDetail    | GET `/api/seasonal/:id`, `/api/anime/`, `/api/franchise/`                                                                                                                  |
+| Add               | GET + POST all entity endpoints + `/api/options/`                                                                                                                          |
+| Modify            | GET + PUT/PATCH all entity endpoints + `/api/options/`                                                                                                                     |
+| Delete            | GET + DELETE all entity endpoints                                                                                                                                          |
+| Admin             | GET/POST `/api/system/`, `/api/data-control/`                                                                                                                              |
+| DataHistory       | GET `/api/data-control/deleted-records/`                                                                                                                                   |
+| ReviewQueue       | GET/PATCH `/api/data-control/review-queue/`                                                                                                                                |
+| _Notes pages_     | GET + PATCH individual media endpoint for notes field                                                                                                                      |
 
 ---
 
@@ -260,19 +260,19 @@ Status/progress mutations go through inline `fetch()` PATCH calls inside card or
 
 ## Key Shared Utilities (`utils/media.js`)
 
-| Export | Purpose |
-|--------|---------|
-| `MEDIA_CONFIG` | Per-type config: API endpoint, nav path, status field, status type |
-| `getCoverUrl(file)` | Returns local `/static/covers/` or GCS URL depending on hostname |
-| `FALLBACK_SVG` | Gray "No Image" placeholder |
-| `getDisplayName(item, type)` | Primary display name using `{type}_name_cn` → `_en` → ... fallback |
-| `getSortName(item, type)` | Sort-stable name (English first) |
-| `getStatusButtonConfig(status)` | Watch-status cycle config (symbol, color, next target) |
-| `getReadingButtonConfig(status)` | Read-status cycle config |
-| `getCardStatusConfig(type, status)` | Routes to watch or read config by type |
-| `getReleaseFallback(anime)` | Season/year or month/year release string |
-| `getRatingWeight(rating)` | Numeric weight for S/A+/A/B/C/D/E/F sort |
-| `cleanString(str)` | Lowercase, punctuation-stripped string for search matching |
-| `formatLength(minutes)` | "2hr 15min" format |
-| `isBaha(item)` | True if source_baha flag is set |
-| `parseTypes(franchiseType)` | Splits comma-separated franchise type string |
+| Export                              | Purpose                                                            |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `MEDIA_CONFIG`                      | Per-type config: API endpoint, nav path, status field, status type |
+| `getCoverUrl(file)`                 | Returns local `/static/covers/` or GCS URL depending on hostname   |
+| `FALLBACK_SVG`                      | Gray "No Image" placeholder                                        |
+| `getDisplayName(item, type)`        | Primary display name using `{type}_name_cn` → `_en` → ... fallback |
+| `getSortName(item, type)`           | Sort-stable name (English first)                                   |
+| `getStatusButtonConfig(status)`     | Watch-status cycle config (symbol, color, next target)             |
+| `getReadingButtonConfig(status)`    | Read-status cycle config                                           |
+| `getCardStatusConfig(type, status)` | Routes to watch or read config by type                             |
+| `getReleaseFallback(anime)`         | Season/year or month/year release string                           |
+| `getRatingWeight(rating)`           | Numeric weight for S/A+/A/B/C/D/E/F sort                           |
+| `cleanString(str)`                  | Lowercase, punctuation-stripped string for search matching         |
+| `formatLength(minutes)`             | "2hr 15min" format                                                 |
+| `isBaha(item)`                      | True if source_baha flag is set                                    |
+| `parseTypes(franchiseType)`         | Splits comma-separated franchise type string                       |
