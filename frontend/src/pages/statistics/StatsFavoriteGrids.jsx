@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, parseTypes } from "../../utils/media";
-import { getDisplayName, getCoverForSlot } from "./statsUtils";
+import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
 
 const GRID_CONFIGS = [
   { title: "Favorite ACG Franchise", typeKey: "ACG", forType: null },
