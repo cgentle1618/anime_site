@@ -561,7 +561,7 @@ class MangaBase(BaseModel):
     end_year: Optional[str] = None
     anime_studio: Optional[str] = None
     serialization_platform: Optional[str] = None
-    distributor_tw: Optional[str] = None
+    publisher_tw: Optional[str] = None
 
     derive_related: Optional[bool] = None
     prequel_id: Optional[UUID] = None

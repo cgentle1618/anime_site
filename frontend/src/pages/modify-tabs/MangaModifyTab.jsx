@@ -1,11 +1,12 @@
 import ComboBox from "../../components/ComboBox";
+import MultiSelect from "../../components/MultiSelect";
 import {
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 import MangaNotes from "../MangaNotes";
 
 export default function MangaModifyTab({
@@ -15,6 +16,7 @@ export default function MangaModifyTab({
   seriesItemsForManga,
   editingItem,
   ribbonSection,
+  allOptions,
 }) {
   return (
     <>
@@ -292,17 +294,19 @@ export default function MangaModifyTab({
       <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author (Plot)">
-          <input
-            className={inputCls}
-            value={cmgf.author_plot || ""}
-            onChange={(e) => umg("author_plot", e.target.value)}
+          <MultiSelect
+            options={getOptions(allOptions, "Manga Author")}
+            value={cmgf.author_plot}
+            onChange={(v) => umg("author_plot", v)}
+            placeholder="Select plot author..."
           />
         </Field>
         <Field label="Author (Art)">
-          <input
-            className={inputCls}
-            value={cmgf.author_draw || ""}
-            onChange={(e) => umg("author_draw", e.target.value)}
+          <MultiSelect
+            options={getOptions(allOptions, "Manga Author")}
+            value={cmgf.author_draw}
+            onChange={(v) => umg("author_draw", v)}
+            placeholder="Select art author..."
           />
         </Field>
       </div>
@@ -326,10 +330,11 @@ export default function MangaModifyTab({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">
-          <input
-            className={inputCls}
-            value={cmgf.anime_studio || ""}
-            onChange={(e) => umg("anime_studio", e.target.value)}
+          <MultiSelect
+            options={getOptions(allOptions, "Studio")}
+            value={cmgf.anime_studio}
+            onChange={(v) => umg("anime_studio", v)}
+            placeholder="Select studio..."
           />
         </Field>
         <Field label="Serialization Platform">
@@ -339,11 +344,12 @@ export default function MangaModifyTab({
             onChange={(e) => umg("serialization_platform", e.target.value)}
           />
         </Field>
-        <Field label="Distributor TW">
-          <input
-            className={inputCls}
-            value={cmgf.distributor_tw || ""}
-            onChange={(e) => umg("distributor_tw", e.target.value)}
+        <Field label="Publisher TW">
+          <MultiSelect
+            options={getOptions(allOptions, "Manga Publisher TW")}
+            value={cmgf.publisher_tw}
+            onChange={(v) => umg("publisher_tw", v)}
+            placeholder="Select publisher..."
           />
         </Field>
       </div>

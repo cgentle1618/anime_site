@@ -561,7 +561,7 @@ export default function Modify() {
       end_year: m.end_year ?? "",
       anime_studio: m.anime_studio || "",
       serialization_platform: m.serialization_platform || "",
-      distributor_tw: m.distributor_tw || "",
+      publisher_tw: m.publisher_tw || "",
       derive_related:
         m.derive_related === true
           ? "true"
@@ -1530,7 +1530,7 @@ export default function Modify() {
       end_year: cmgf.end_year !== "" ? parseInt(cmgf.end_year) : null,
       anime_studio: cmgf.anime_studio || null,
       serialization_platform: cmgf.serialization_platform || null,
-      distributor_tw: cmgf.distributor_tw || null,
+      publisher_tw: cmgf.publisher_tw || null,
       derive_related:
         cmgf.derive_related === "true"
           ? true
@@ -2811,6 +2811,7 @@ export default function Modify() {
                 seriesItemsForManga={seriesItemsForManga}
                 editingItem={editingItem}
                 ribbonSection={mangaRibbonSection}
+                allOptions={allOptions}
               />
             )}
 

@@ -622,7 +622,7 @@ class Manga(Base, NameFallbackMixin):
     end_year = Column(String, nullable=True)
     anime_studio = Column(String, nullable=True)
     serialization_platform = Column(String, nullable=True)
-    distributor_tw = Column(String, nullable=True)
+    publisher_tw = Column(String, nullable=True)
 
     derive_related = Column(Boolean, nullable=True)
     prequel_id = Column(UUID(as_uuid=True), nullable=True)

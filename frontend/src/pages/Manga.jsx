@@ -808,7 +808,7 @@ export default function Manga() {
                 ],
                 [
                   { label: "Anime Studio", value: manga.anime_studio },
-                  { label: "Distributor TW", value: manga.distributor_tw },
+                  { label: "Publisher TW", value: manga.publisher_tw },
                 ],
               ]}
             />
