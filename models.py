@@ -91,11 +91,8 @@ class Franchise(Base, NameFallbackMixin):
     my_rating = Column(String, nullable=True)
     franchise_expectation = Column(String, default="Low")
     favorite_3x3_slot = Column(Integer, nullable=True)
-    cover_anime_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("anime.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
+    type_covers = Column(JSONB, nullable=True)
     watch_next_group = Column(String, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)

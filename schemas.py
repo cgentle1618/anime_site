@@ -76,7 +76,8 @@ class FranchiseBase(BaseModel):
     my_rating: Optional[str] = None
     franchise_expectation: Optional[str] = "Low"
     favorite_3x3_slot: Optional[int] = None
-    cover_anime_id: Optional[UUID] = None
+    cover_entry_id: Optional[UUID] = None
+    type_covers: Optional[dict] = None
     watch_next_group: Optional[str] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
