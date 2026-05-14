@@ -34,10 +34,153 @@ function computeOriginal(franchises, typeKey) {
   return original;
 }
 
-function SlotCard({ slot, franchise, coverUrl, franchiseOptions, typeKey, onSelect }) {
+function cleanStr(s) {
+  if (!s) return "";
+  return s.toLowerCase().replace(/[\s\-:;,.'"!?()\[\]{}<>~`+*&^%$#@!\\/|]/g, "");
+}
+
+function FranchisePickerModal({
+  slot,
+  title,
+  currentFranchiseId,
+  franchiseOptions,
+  allEntriesByFranchise,
+  forType,
+  onSelect,
+  onClear,
+  onClose,
+}) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return franchiseOptions;
+    const q = cleanStr(query);
+    return franchiseOptions.filter((f) =>
+      [
+        f.franchise_name_cn,
+        f.franchise_name_en,
+        f.franchise_name_roman,
+        f.franchise_name_jp,
+        f.franchise_name_alt,
+      ].some((n) => n && cleanStr(n).includes(q)),
+    );
+  }, [query, franchiseOptions]);
+
   return (
-    <div className="flex flex-col">
-      <div className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100">
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <h3 className="text-sm font-black text-gray-800">
+            Assign to Slot {slot}
+            <span className="text-gray-400 font-medium ml-2">— {title}</span>
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition text-lg leading-none"
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-5 py-3 border-b border-gray-100 shrink-0">
+          <div className="relative">
+            <i className="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search franchise..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            />
+          </div>
+        </div>
+
+        {/* Franchise grid */}
+        <div className="overflow-y-auto flex-1 p-4">
+          {filtered.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm font-medium py-8">
+              No franchises found
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+              {filtered.map((f) => {
+                const isSelected = f.system_id === currentFranchiseId;
+                const coverUrl = getCoverForSlot(f, allEntriesByFranchise, forType);
+                return (
+                  <button
+                    key={f.system_id}
+                    type="button"
+                    onClick={() => onSelect(f.system_id)}
+                    className={`group flex flex-col focus:outline-none rounded-xl overflow-hidden border-2 transition-all ${
+                      isSelected
+                        ? "border-brand shadow-md"
+                        : "border-transparent hover:border-brand/50"
+                    }`}
+                  >
+                    <div className="relative rounded-t-xl overflow-hidden bg-gray-100">
+                      <div className="aspect-[3/4]">
+                        <img
+                          src={coverUrl}
+                          alt={getDisplayName(f)}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = FALLBACK_SVG;
+                          }}
+                        />
+                      </div>
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center">
+                          <i className="fas fa-check-circle text-brand text-xl"></i>
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-1 py-1.5 bg-white">
+                      <p className="text-[10px] font-bold text-gray-700 truncate leading-tight">
+                        {getDisplayName(f)}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {currentFranchiseId && (
+          <div className="px-5 py-3 border-t border-gray-100 shrink-0">
+            <button
+              type="button"
+              onClick={onClear}
+              className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-700 transition"
+            >
+              <i className="fas fa-times-circle text-xs"></i>
+              Clear slot
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SlotCard({ slot, franchise, coverUrl, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(slot)}
+      className="group flex flex-col w-full text-left focus:outline-none"
+    >
+      <div className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 group-hover:border-brand transition-colors">
         <div className="aspect-[3/4]">
           <img
             src={coverUrl}
@@ -48,6 +191,11 @@ function SlotCard({ slot, franchise, coverUrl, franchiseOptions, typeKey, onSele
             }}
           />
         </div>
+        {/* Hover edit overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+          <i className="fas fa-edit text-white text-base opacity-0 group-hover:opacity-100 transition-opacity"></i>
+        </div>
+        {/* Slot badge */}
         <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-black/60 rounded-md flex items-center justify-center">
           <span className="text-white text-[10px] font-black">{slot}</span>
         </div>
@@ -65,19 +213,7 @@ function SlotCard({ slot, franchise, coverUrl, franchiseOptions, typeKey, onSele
           </div>
         )}
       </div>
-      <select
-        className="mt-1 w-full text-[10px] border border-gray-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-brand bg-white text-gray-700 font-medium truncate"
-        value={franchise?.system_id || ""}
-        onChange={(e) => onSelect(typeKey, slot, e.target.value || null)}
-      >
-        <option value="">— Empty —</option>
-        {franchiseOptions.map((f) => (
-          <option key={f.system_id} value={f.system_id}>
-            {getDisplayName(f)}
-          </option>
-        ))}
-      </select>
-    </div>
+    </button>
   );
 }
 
@@ -146,6 +282,7 @@ function GridEditor({
   saving,
 }) {
   const [dragOverSlot, setDragOverSlot] = useState(null);
+  const [pickerSlot, setPickerSlot] = useState(null);
 
   const franchiseById = useMemo(() => {
     const m = {};
@@ -197,9 +334,7 @@ function GridEditor({
                 slot={slot}
                 franchise={franchise}
                 coverUrl={coverUrl}
-                franchiseOptions={franchiseOptions}
-                typeKey={typeKey}
-                onSelect={onSlotChange}
+                onOpen={(s) => setPickerSlot(s)}
               />
             );
           })}
@@ -240,6 +375,27 @@ function GridEditor({
           </div>
         </div>
       </div>
+
+      {/* Franchise picker modal */}
+      {pickerSlot !== null && (
+        <FranchisePickerModal
+          slot={pickerSlot}
+          title={title}
+          currentFranchiseId={draft[String(pickerSlot)] || null}
+          franchiseOptions={franchiseOptions}
+          allEntriesByFranchise={allEntriesByFranchise}
+          forType={forType}
+          onSelect={(fid) => {
+            onSlotChange(typeKey, pickerSlot, fid);
+            setPickerSlot(null);
+          }}
+          onClear={() => {
+            onSlotChange(typeKey, pickerSlot, null);
+            setPickerSlot(null);
+          }}
+          onClose={() => setPickerSlot(null)}
+        />
+      )}
     </section>
   );
 }
