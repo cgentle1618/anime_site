@@ -31,6 +31,13 @@ export function getCoverForSlot(franchise, allEntriesByFranchise, forType = null
     if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
       return getCoverUrl(chosen.cover_image_file);
     }
+  } else if (!forType && franchise.cover_entry_id) {
+    const chosen = entries.find(
+      (e) => e.system_id === franchise.cover_entry_id,
+    );
+    if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
+      return getCoverUrl(chosen.cover_image_file);
+    }
   }
   const withCover = entries.filter(
     (e) => e.cover_image_file && e.cover_image_file !== "N/A",
