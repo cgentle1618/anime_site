@@ -490,6 +490,7 @@ function RemarksModal({ results, onClose }) {
     { key: "tv_show", label: "TV Show", entries: results.tv_show },
     { key: "cartoon", label: "Cartoon", entries: results.cartoon },
     { key: "manga", label: "Manga", entries: results.manga },
+    { key: "novel", label: "Novel", entries: results.novel },
   ];
 
   const totalEntries = tabs.reduce((s, t) => s + t.entries.length, 0);
@@ -735,7 +736,50 @@ function RemarksModal({ results, onClose }) {
       );
     }
 
-    // manga
+    if (tab === "manga") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+            <tr>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Is Main</th>
+              <th className={colClass}>Reading</th>
+              <th className="pb-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/manga/${e.system_id}`)}
+              >
+                <td
+                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  title={e.manga_name_cn}
+                >
+                  {e.manga_name_cn || "—"}
+                </td>
+                <td
+                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  title={e.manga_name_en}
+                >
+                  {e.manga_name_en || "—"}
+                </td>
+                <td className={cellClass}>{e.is_main || "—"}</td>
+                <td className={cellClass}>{e.reading_status || "—"}</td>
+                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    // novel
     return (
       <table className="w-full text-sm text-left">
         <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
@@ -752,19 +796,19 @@ function RemarksModal({ results, onClose }) {
             <tr
               key={i}
               className="hover:bg-amber-50/40 transition cursor-pointer"
-              onClick={() => (window.location.href = `/manga/${e.system_id}`)}
+              onClick={() => (window.location.href = `/novel/${e.system_id}`)}
             >
               <td
                 className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
-                title={e.manga_name_cn}
+                title={e.novel_name_cn}
               >
-                {e.manga_name_cn || "—"}
+                {e.novel_name_cn || "—"}
               </td>
               <td
                 className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
-                title={e.manga_name_en}
+                title={e.novel_name_en}
               >
-                {e.manga_name_en || "—"}
+                {e.novel_name_en || "—"}
               </td>
               <td className={cellClass}>{e.is_main || "—"}</td>
               <td className={cellClass}>{e.reading_status || "—"}</td>
@@ -842,6 +886,7 @@ function DuplicatesModal({ results, onClose }) {
     { key: "tv_show", label: "TV Show", groups: results.tv_show },
     { key: "cartoon", label: "Cartoon", groups: results.cartoon },
     { key: "manga", label: "Manga", groups: results.manga },
+    { key: "novel", label: "Novel", groups: results.novel },
     {
       key: "system_options",
       label: "Sys. Options",
@@ -1238,6 +1283,57 @@ function DuplicatesModal({ results, onClose }) {
                     {mg.manga_name_cn || "—"}
                   </td>
                   <td className="py-1">{mg.manga_name_en || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (tab === "novel") {
+      const nv0 = group[0];
+      return (
+        <div
+          key={idx}
+          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-gray-400">
+              Franchise: {nv0.franchise_id?.slice(0, 8)}…
+            </span>
+            {nv0.series_id && (
+              <span className="text-[10px] font-mono text-gray-400">
+                Series: {nv0.series_id.slice(0, 8)}…
+              </span>
+            )}
+            {nv0.is_main != null && (
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+                {nv0.is_main ? "Main" : "Side"}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {group.length} entries
+            </span>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-400 text-[10px] uppercase">
+                <th className="text-left pb-1 pr-3">ID</th>
+                <th className="text-left pb-1 pr-3">CN Name</th>
+                <th className="text-left pb-1">EN Name</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-100">
+              {group.map((nv, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                    {nv.system_id.slice(0, 8)}…
+                  </td>
+                  <td className="py-1 pr-3 font-bold">
+                    {nv.novel_name_cn || "—"}
+                  </td>
+                  <td className="py-1">{nv.novel_name_en || "—"}</td>
                 </tr>
               ))}
             </tbody>
