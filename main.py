@@ -5,13 +5,14 @@ Handles app initialization, modular router registration, static file serving,
 and database seeding using modern FastAPI lifespan events.
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 import database
 from database import engine
@@ -34,6 +35,8 @@ from routers import (
     system,
 )
 from services.security import get_password_hash
+
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # SYSTEM INITIALIZATION
@@ -93,6 +96,17 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url}: {exc}", exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected server error occurred."},
+    )
 
 # Serve Vite build output (production only — frontend_dist/ is created by docker build)
 FRONTEND_DIST = Path("frontend_dist")

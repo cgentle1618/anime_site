@@ -9,7 +9,7 @@ called by FastAPI routers or other higher-level orchestrators.
 import logging
 import uuid
 from datetime import date
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -54,6 +54,7 @@ from utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
+from utils.constants import AnimeAiringType, FranchiseType, WatchStatus
 from utils.jikan_utils import (
     map_jikan_to_anime_data,
     map_jikan_to_anime_movie_data,
@@ -74,11 +75,26 @@ logger = logging.getLogger(__name__)
 # PRE-COMPILED REGEX PATTERNS
 # ==========================================
 
-_AIRING_TYPE_ORDER = {"TV": 0, "ONA": 1, "Special": 2, "OVA": 3, "OAD": 4}
-_PLANNED_STATUSES = {"Plan to Watch", "Watch When Airs"}
-_WATCHING_STATUSES = {"Active Watching", "Passive Watching", "Paused"}
-_DROPPED_STATUSES = {"Temp Dropped", "Dropped"}
-_SEASONAL_AIRING_TYPES = {"TV", "ONA", "Movie", "Special"}
+_AIRING_TYPE_ORDER = {
+    AnimeAiringType.TV: 0,
+    AnimeAiringType.ONA: 1,
+    AnimeAiringType.SPECIAL: 2,
+    AnimeAiringType.OVA: 3,
+    AnimeAiringType.OAD: 4,
+}
+_PLANNED_STATUSES = {WatchStatus.PLAN_TO_WATCH, WatchStatus.WATCH_WHEN_AIRS}
+_WATCHING_STATUSES = {
+    WatchStatus.ACTIVE_WATCHING,
+    WatchStatus.PASSIVE_WATCHING,
+    WatchStatus.PAUSED,
+}
+_DROPPED_STATUSES = {WatchStatus.TEMP_DROPPED, WatchStatus.DROPPED}
+_SEASONAL_AIRING_TYPES = {
+    AnimeAiringType.TV,
+    AnimeAiringType.ONA,
+    AnimeAiringType.MOVIE,
+    AnimeAiringType.SPECIAL,
+}
 
 
 # ==========================================
@@ -124,7 +140,7 @@ def resolve_series_parent_hierarchy(
             # Auto-create the missing Franchise
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="Anime",
+                franchise_type=FranchiseType.ANIME,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_alt=names.get("alt"),
@@ -187,7 +203,7 @@ def resolve_anime_parent_hierarchy(
         else:
             new_franchise = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="Anime",  # Default type
+                franchise_type=FranchiseType.ANIME,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_roman=names.get("roman"),
@@ -249,7 +265,7 @@ def resolve_anime_movie_parent_hierarchy(
 
     new_fran = Franchise(
         system_id=str(uuid.uuid4()),
-        franchise_type="Anime",
+        franchise_type=FranchiseType.ANIME,
         franchise_name_en=names.get("en"),
         franchise_name_cn=names.get("cn"),
         franchise_name_roman=names.get("roman"),
@@ -305,7 +321,7 @@ def resolve_movie_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="Movie",
+                franchise_type=FranchiseType.MOVIE,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_alt=names.get("alt"),
@@ -387,7 +403,7 @@ def resolve_tv_show_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="TV",
+                franchise_type=FranchiseType.TV,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_alt=names.get("alt"),
@@ -468,7 +484,7 @@ def resolve_cartoon_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="Cartoon",
+                franchise_type=FranchiseType.CARTOON,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_alt=names.get("alt"),
@@ -551,7 +567,7 @@ def resolve_manga_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="ACG",
+                franchise_type=FranchiseType.ACG,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_roman=names.get("roman"),
@@ -636,7 +652,7 @@ def resolve_novel_parent_hierarchy(
         else:
             new_fran = Franchise(
                 system_id=str(uuid.uuid4()),
-                franchise_type="Novel",
+                franchise_type=FranchiseType.NOVEL,
                 franchise_name_en=names.get("en"),
                 franchise_name_cn=names.get("cn"),
                 franchise_name_roman=names.get("roman"),
@@ -2668,6 +2684,12 @@ def mark_novel_completed(entry: Novel) -> None:
         entry.ch_fin = ch_max
         if entry.ch_total is not None:
             entry.ch_total = ch_max
+
+
+def apply_completion_timestamp(entry, status_value: Optional[str]) -> None:
+    """Sets completed_at the first time an entry reaches Completed status."""
+    if status_value == WatchStatus.COMPLETED and entry.completed_at is None:
+        entry.completed_at = get_taipei_now()
 
 
 # ==========================================
