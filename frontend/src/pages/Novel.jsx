@@ -497,11 +497,8 @@ export default function Novel() {
           {/* Detail Cards */}
           <div className="space-y-6">
             <NamingCard
-              cn={novel.novel_name_cn}
-              en={novel.novel_name_en}
-              jp={novel.novel_name_jp}
-              roman={novel.novel_name_roman}
-              alt={novel.novel_name_alt}
+              type="novel"
+              item={novel}
             />
             <InfoCard
               title="Information"

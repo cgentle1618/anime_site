@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import {
+  getDisplayName,
   getCoverUrl,
   FALLBACK_SVG,
   isBaha,
@@ -12,16 +13,6 @@ import {
   formatLength,
   MEDIA_CONFIG,
 } from "../../utils/media";
-
-const NAME_PREFIX = {
-  anime: "anime",
-  "anime-movie": "anime_movie",
-  movie: "movie",
-  "tv-show": "tv",
-  cartoon: "cartoon",
-  manga: "manga",
-  novel: "novel",
-};
 
 const EXPECTATION_COLOR = {
   Highest: "bg-purple-500/80",
@@ -39,18 +30,6 @@ const BOLT_AIRING_STATUS = {
   "tv-show": "Airing",
   cartoon: "Airing",
 };
-
-function getTitle(type, data) {
-  const p = NAME_PREFIX[type] || type;
-  return (
-    data[`${p}_name_cn`] ||
-    data[`${p}_name_en`] ||
-    data[`${p}_name_alt`] ||
-    data[`${p}_name_roman`] ||
-    data[`${p}_name_jp`] ||
-    "Unknown Title"
-  );
-}
 
 function getReleaseYearFromDate(dateStr) {
   if (!dateStr) return null;
@@ -436,7 +415,7 @@ export default function MediaCard({
   const config = MEDIA_CONFIG[type];
   const { statusField, apiEndpoint, navPath, statusType } = config;
 
-  const title = getTitle(type, data);
+  const title = getDisplayName(data, type);
   const imageUrl = getCoverUrl(data.cover_image_file);
   const currentStatus = data[statusField] || (statusType === "read" ? "Might Read" : "Might Watch");
   const btnConfig = statusType === "read" ? getReadingButtonConfig(currentStatus) : getStatusButtonConfig(currentStatus);

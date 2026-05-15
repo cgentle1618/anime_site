@@ -1,6 +1,10 @@
 ﻿import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import {
+  getCoverUrl,
+  FALLBACK_SVG,
+  getDisplayName,
+} from "../../utils/media";
 
 const SERIALIZATION_COLORS = {
   完結: "bg-blue-100 text-blue-700 border-blue-200",
@@ -21,19 +25,10 @@ export default function NovelDashboardCard({
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const title =
-    novel.novel_name_cn ||
-    novel.novel_name_en ||
-    novel.novel_name_roman ||
-    novel.novel_name_jp ||
-    novel.novel_name_alt ||
-    "Unknown Title";
+  const title = getDisplayName(novel, "novel") || "Unknown Title";
 
   const subTitle = franchise
-    ? franchise.franchise_name_cn ||
-      franchise.franchise_name_en ||
-      franchise.franchise_name_roman ||
-      "Independent"
+    ? getDisplayName(franchise, "franchise") || "Independent"
     : "Independent Series";
 
   const imageUrl = getCoverUrl(novel.cover_image_file);

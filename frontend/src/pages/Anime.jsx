@@ -516,11 +516,8 @@ export default function Anime() {
           {/* Naming / Information / Production (stacked) */}
           <div className="space-y-6">
             <NamingCard
-              cn={anime.anime_name_cn}
-              en={anime.anime_name_en}
-              alt={anime.anime_name_alt}
-              jp={anime.anime_name_jp}
-              roman={anime.anime_name_roman}
+              type="anime"
+              item={anime}
             />
             <InfoCard
               title="Information"

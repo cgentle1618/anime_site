@@ -1,6 +1,11 @@
 ﻿import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import {
+  getCoverUrl,
+  FALLBACK_SVG,
+  getDisplayName,
+  isBaha,
+} from "../../utils/media";
 
 export default function DashboardCard({
   anime,
@@ -17,39 +22,18 @@ export default function DashboardCard({
   const isNovel = anime._ui_type === "Novel";
   const isReading = isManga || isNovel;
 
-  const title = isNovel
-    ? anime.novel_name_cn ||
-      anime.novel_name_en ||
-      anime.novel_name_roman ||
-      anime.novel_name_jp ||
-      anime.novel_name_alt ||
-      "Unknown Title"
+  const titleType = isNovel
+    ? "novel"
     : isManga
-      ? anime.manga_name_cn ||
-        anime.manga_name_en ||
-        anime.manga_name_roman ||
-        anime.manga_name_jp ||
-        anime.manga_name_alt ||
-        "Unknown Title"
+      ? "manga"
       : isCartoon
-        ? anime.cartoon_name_cn ||
-          anime.cartoon_name_en ||
-          anime.cartoon_name_alt ||
-          "Unknown Title"
+        ? "cartoon"
         : isTV
-          ? anime.tv_name_cn ||
-            anime.tv_name_en ||
-            anime.tv_name_alt ||
-            "Unknown Title"
-          : anime.anime_name_cn ||
-            anime.anime_name_en ||
-            anime.anime_name_roman ||
-            "Unknown Title";
+          ? "tv-show"
+          : "anime";
+  const title = getDisplayName(anime, titleType) || "Unknown Title";
   const subTitle = franchise
-    ? franchise.franchise_name_cn ||
-      franchise.franchise_name_en ||
-      franchise.franchise_name_roman ||
-      "Independent"
+    ? getDisplayName(franchise, "franchise") || "Independent"
     : "Independent Series";
 
   const navigatePath = isNovel

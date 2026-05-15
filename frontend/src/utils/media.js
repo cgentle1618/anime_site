@@ -22,6 +22,12 @@ export function getCoverUrl(coverFile) {
 
 export function getDisplayName(item, type) {
   if (!item) return "";
+  const prefix =
+    type === "anime-movie"
+      ? "anime_movie"
+      : type === "tv-show"
+        ? "tv"
+        : type;
   if (type === "series") {
     return (
       item.series_name_cn ||
@@ -31,28 +37,92 @@ export function getDisplayName(item, type) {
     );
   }
   return (
-    item[`${type}_name_cn`] ||
-    item[`${type}_name_en`] ||
-    item[`${type}_name_alt`] ||
-    item[`${type}_name_roman`] ||
-    item[`${type}_name_jp`] ||
+    item[`${prefix}_name_cn`] ||
+    item[`${prefix}_name_en`] ||
+    item[`${prefix}_name_alt`] ||
+    item[`${prefix}_name_roman`] ||
+    item[`${prefix}_name_jp`] ||
     "Unknown Title"
   );
 }
 
+export const NAMING_CONFIGS = {
+  anime: [
+    "anime_name_cn",
+    "anime_name_en",
+    "anime_name_roman",
+    "anime_name_jp",
+    "anime_name_alt",
+  ],
+  "anime-movie": [
+    "anime_movie_name_cn",
+    "anime_movie_name_en",
+    "anime_movie_name_roman",
+    "anime_movie_name_jp",
+    "anime_movie_name_alt",
+  ],
+  movie: ["movie_name_cn", "movie_name_en", "movie_name_alt"],
+  "tv-show": ["tv_name_cn", "tv_name_en", "tv_name_alt"],
+  cartoon: ["cartoon_name_cn", "cartoon_name_en", "cartoon_name_alt"],
+  manga: [
+    "manga_name_cn",
+    "manga_name_en",
+    "manga_name_roman",
+    "manga_name_jp",
+    "manga_name_alt",
+  ],
+  novel: [
+    "novel_name_cn",
+    "novel_name_en",
+    "novel_name_roman",
+    "novel_name_jp",
+    "novel_name_alt",
+  ],
+  franchise: [
+    "franchise_name_cn",
+    "franchise_name_en",
+    "franchise_name_alt",
+  ],
+};
+
+const NAMING_LABELS = {
+  cn: "Chinese",
+  en: "English",
+  jp: "Japanese",
+  roman: "Roman",
+  alt: "Alternative",
+};
+
+export function getNamingFields(item, type) {
+  const fields = NAMING_CONFIGS[type] || [];
+  return fields.map((field) => {
+    const suffix = field.split("_").pop();
+    return {
+      label: NAMING_LABELS[suffix] || field,
+      value: item?.[field],
+    };
+  });
+}
+
 export function getSortName(item, type) {
   if (!item) return "";
+  const prefix =
+    type === "anime-movie"
+      ? "anime_movie"
+      : type === "tv-show"
+        ? "tv"
+        : type;
   if (type === "series") {
     return (
       item.series_name_en || item.series_name_cn || item.series_name_alt || ""
     );
   }
   return (
-    item[`${type}_name_en`] ||
-    item[`${type}_name_roman`] ||
-    item[`${type}_name_cn`] ||
-    item[`${type}_name_alt`] ||
-    item[`${type}_name_jp`] ||
+    item[`${prefix}_name_en`] ||
+    item[`${prefix}_name_roman`] ||
+    item[`${prefix}_name_cn`] ||
+    item[`${prefix}_name_alt`] ||
+    item[`${prefix}_name_jp`] ||
     ""
   );
 }

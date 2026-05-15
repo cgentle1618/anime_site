@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 import InfoCard from "../components/info/InfoCard";
-import CartoonNamingCard from "../components/info/CartoonNamingCard";
+import NamingCard from "../components/info/NamingCard";
 import SourcesCard from "../components/info/SourcesCard";
 import MyTrackerCard from "../components/tracker/MyTrackerCard";
 import SeriesModal from "../components/modals/SeriesModal";
@@ -505,11 +505,7 @@ export default function Cartoon() {
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <CartoonNamingCard
-              cn={cartoon.cartoon_name_cn}
-              en={cartoon.cartoon_name_en}
-              alt={cartoon.cartoon_name_alt}
-            />
+            <NamingCard type="cartoon" item={cartoon} />
             <InfoCard
               title="Information"
               icon="fa-info-circle"

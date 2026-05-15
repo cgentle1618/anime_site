@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 import InfoCard from "../components/info/InfoCard";
-import TVNamingCard from "../components/info/TVNamingCard";
+import NamingCard from "../components/info/NamingCard";
 import SourcesCard from "../components/info/SourcesCard";
 import MyTrackerCard from "../components/tracker/MyTrackerCard";
 import SeriesModal from "../components/modals/SeriesModal";
@@ -507,11 +507,7 @@ export default function TV() {
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <TVNamingCard
-              cn={show.tv_name_cn}
-              en={show.tv_name_en}
-              alt={show.tv_name_alt}
-            />
+            <NamingCard type="tv-show" item={show} />
             <InfoCard
               title="Information"
               icon="fa-info-circle"

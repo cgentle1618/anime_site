@@ -756,11 +756,8 @@ export default function Manga() {
           {/* Detail Cards */}
           <div className="space-y-6">
             <NamingCard
-              cn={manga.manga_name_cn}
-              en={manga.manga_name_en}
-              jp={manga.manga_name_jp}
-              roman={manga.manga_name_roman}
-              alt={manga.manga_name_alt}
+              type="manga"
+              item={manga}
             />
             <InfoCard
               title="Information"

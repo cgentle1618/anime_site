@@ -449,11 +449,8 @@ export default function AnimeMovie() {
           {/* Detail Cards */}
           <div className="space-y-6">
             <NamingCard
-              cn={movie.anime_movie_name_cn}
-              en={movie.anime_movie_name_en}
-              alt={movie.anime_movie_name_alt}
-              jp={movie.anime_movie_name_jp}
-              roman={movie.anime_movie_name_roman}
+              type="anime-movie"
+              item={movie}
             />
             <InfoCard
               title="Information"

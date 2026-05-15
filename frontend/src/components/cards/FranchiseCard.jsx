@@ -1,5 +1,5 @@
 ﻿import { Link } from "react-router-dom";
-import { FALLBACK_SVG } from "../../utils/media";
+import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 
 const RATING_COLORS = {
   S: "bg-yellow-400 text-yellow-900",
@@ -20,11 +20,7 @@ const EXPECTATION_STYLES = {
 };
 
 export default function FranchiseCard({ franchise, coverUrl }) {
-  const name =
-    franchise.franchise_name_cn ||
-    franchise.franchise_name_en ||
-    franchise.franchise_name_roman ||
-    "Unknown Franchise";
+  const name = getDisplayName(franchise, "franchise") || "Unknown Franchise";
   const ratingCls = RATING_COLORS[franchise.my_rating] || "";
   const expectCls =
     EXPECTATION_STYLES[franchise.franchise_expectation] ||

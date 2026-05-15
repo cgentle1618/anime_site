@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
 import InfoCard from "../components/info/InfoCard";
-import MovieNamingCard from "../components/info/MovieNamingCard";
+import NamingCard from "../components/info/NamingCard";
 import SourcesCard from "../components/info/SourcesCard";
 import SeriesModal from "../components/modals/SeriesModal";
 import MovieNotes from "./MovieNotes";
@@ -486,11 +486,7 @@ export default function Movie() {
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <MovieNamingCard
-              cn={movie.movie_name_cn}
-              en={movie.movie_name_en}
-              alt={movie.movie_name_alt}
-            />
+            <NamingCard type="movie" item={movie} />
             <InfoCard
               title="Information"
               icon="fa-info-circle"
