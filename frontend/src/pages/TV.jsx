@@ -43,13 +43,16 @@ export default function TV() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allShowsQuery = useMediaList("tv-show", LIST_OPTIONS);
+  const prequelQuery = useMediaItem("tv-show", show?.prequel_id, {
     enabled: !!show?.prequel_id,
   });
   const sequelQuery = useMediaItem("tv-show", show?.sequel_id, {
     enabled: !!show?.sequel_id,
   });
-  const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("tv-show", system_id);
+  const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
+    "tv-show",
+    system_id,
+  );
 
   useEffect(() => {
     if (showQuery.data) setShow(showQuery.data);
@@ -218,10 +221,13 @@ export default function TV() {
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(`/api/tv-shows/${system_id}/complete`, {
-                    method: "POST",
-                    credentials: "include",
-                  });
+                  const res = await fetch(
+                    `/api/tv-shows/${system_id}/complete`,
+                    {
+                      method: "POST",
+                      credentials: "include",
+                    },
+                  );
                   if (!res.ok) throw new Error("Request failed");
                   showToast("success", "Marked as Completed!");
                   await invalidateMedia();

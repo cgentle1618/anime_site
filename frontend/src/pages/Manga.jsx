@@ -314,13 +314,16 @@ export default function Manga() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMangaQuery = useMediaList("manga", LIST_OPTIONS);
+  const prequelQuery = useMediaItem("manga", manga?.prequel_id, {
     enabled: !!manga?.prequel_id,
   });
   const sequelQuery = useMediaItem("manga", manga?.sequel_id, {
     enabled: !!manga?.sequel_id,
   });
-  const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("manga", system_id);
+  const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
+    "manga",
+    system_id,
+  );
 
   useEffect(() => {
     if (mangaQuery.data) setManga(mangaQuery.data);
@@ -738,10 +741,7 @@ export default function Manga() {
 
           {/* Detail Cards */}
           <div className="space-y-6">
-            <NamingCard
-              type="manga"
-              item={manga}
-            />
+            <NamingCard type="manga" item={manga} />
             <InfoCard
               title="Information"
               icon="fa-info-circle"

@@ -43,13 +43,16 @@ export default function Cartoon() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allCartoonsQuery = useMediaList("cartoon", LIST_OPTIONS);
+  const prequelQuery = useMediaItem("cartoon", cartoon?.prequel_id, {
     enabled: !!cartoon?.prequel_id,
   });
   const sequelQuery = useMediaItem("cartoon", cartoon?.sequel_id, {
     enabled: !!cartoon?.sequel_id,
   });
-  const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("cartoon", system_id);
+  const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
+    "cartoon",
+    system_id,
+  );
 
   useEffect(() => {
     if (cartoonQuery.data) setCartoon(cartoonQuery.data);
@@ -221,10 +224,13 @@ export default function Cartoon() {
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(`/api/cartoon/${system_id}/complete`, {
-                    method: "POST",
-                    credentials: "include",
-                  });
+                  const res = await fetch(
+                    `/api/cartoon/${system_id}/complete`,
+                    {
+                      method: "POST",
+                      credentials: "include",
+                    },
+                  );
                   if (!res.ok) throw new Error("Request failed");
                   showToast("success", "Marked as Completed!");
                   await invalidateMedia();
