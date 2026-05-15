@@ -52,14 +52,16 @@ function getReleaseSortScore(m) {
   return year * 10000 + month * 100 + day;
 }
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function LibraryAnimeMovie() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const moviesQuery = useMediaList("anime-movie");
-  const franchiseQuery = useMediaList("franchise");
+  const moviesQuery = useMediaList("anime-movie", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const allMovies = moviesQuery.data || [];
   const franchiseDict = useMemo(
     () =>

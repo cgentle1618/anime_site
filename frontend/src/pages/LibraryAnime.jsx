@@ -38,15 +38,17 @@ function getReleaseSortScore(item) {
   return y * 100 + m;
 }
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function LibraryAnime() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const animeQuery = useMediaList("anime");
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
+  const animeQuery = useMediaList("anime", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allAnime = animeQuery.data || [];
   const franchiseDict = useMemo(
     () =>

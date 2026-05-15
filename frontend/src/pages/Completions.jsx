@@ -2,15 +2,17 @@ import StatsCompletions from "./statistics/StatsCompletions";
 import MediaLoadingState from "../components/layout/MediaLoadingState";
 import { useMediaList } from "../hooks/useMediaList";
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function Completions() {
-  const franchiseQuery = useMediaList("franchise");
-  const animeQuery = useMediaList("anime");
-  const animeMovieQuery = useMediaList("anime-movie");
-  const movieQuery = useMediaList("movie");
-  const tvQuery = useMediaList("tv-show");
-  const cartoonQuery = useMediaList("cartoon");
-  const mangaQuery = useMediaList("manga");
-  const novelQuery = useMediaList("novel");
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const animeQuery = useMediaList("anime", LIST_OPTIONS);
+  const animeMovieQuery = useMediaList("anime-movie", LIST_OPTIONS);
+  const movieQuery = useMediaList("movie", LIST_OPTIONS);
+  const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
+  const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
+  const mangaQuery = useMediaList("manga", LIST_OPTIONS);
+  const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const queries = [
     franchiseQuery,
     animeQuery,

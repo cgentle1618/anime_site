@@ -298,6 +298,7 @@ function MangaTrackerBlock({
     </div>
   );
 }
+const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Manga() {
   const { system_id } = useParams();
@@ -308,10 +309,11 @@ export default function Manga() {
   const [manga, setManga] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+
   const mangaQuery = useMediaItem("manga", system_id);
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
-  const prequelQuery = useMediaItem("manga", manga?.prequel_id, {
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
+  const allMangaQuery = useMediaList("manga", LIST_OPTIONS);
     enabled: !!manga?.prequel_id,
   });
   const sequelQuery = useMediaItem("manga", manga?.sequel_id, {

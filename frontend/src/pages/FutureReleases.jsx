@@ -77,6 +77,8 @@ function getMovieReleaseYear(movie) {
 
 const SPECIFIC_TYPES = ["TV", "ONA", "Movie"];
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function FutureReleases() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -84,23 +86,26 @@ export default function FutureReleases() {
 
   const [mainTab, setMainTab] = useState("anime");
 
-  const animeQuery = useMediaList("anime");
-  const franchiseQuery = useMediaList("franchise");
+  const animeQuery = useMediaList("anime", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seasonQuery = useApiQuery(
     ["api", "system", "current-season-config"],
     "/api/system/config/current_season",
   );
   const animeMovieQuery = useMediaList("anime-movie", {
+    params: { limit: 2000 },
     enabled: mainTab === "anime-movie",
   });
   const liveMovieQuery = useMediaList("movie", {
     enabled: mainTab === "movie",
-    params: { airing_status: "Not Yet Aired" },
+    params: { limit: 2000, airing_status: "Not Yet Aired" },
   });
   const tvShowQuery = useMediaList("tv-show", {
+    params: { limit: 2000 },
     enabled: mainTab === "tv-show",
   });
   const cartoonQuery = useMediaList("cartoon", {
+    params: { limit: 2000 },
     enabled: mainTab === "cartoon",
   });
 

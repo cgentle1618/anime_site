@@ -41,15 +41,17 @@ const READING_STATUS_GROUP = {
   "Might Read": "Might Read",
 };
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function LibraryManga() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const mangaQuery = useMediaList("manga");
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
+  const mangaQuery = useMediaList("manga", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allManga = mangaQuery.data || [];
   const franchiseDict = useMemo(
     () =>

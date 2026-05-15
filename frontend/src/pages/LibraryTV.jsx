@@ -32,14 +32,16 @@ const WATCHING_STATUS_GROUP = {
   "Might Watch": "Might Watch",
 };
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function LibraryTV() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const showsQuery = useMediaList("tv-show");
-  const franchiseQuery = useMediaList("franchise");
+  const showsQuery = useMediaList("tv-show", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const allShows = showsQuery.data || [];
   const franchiseDict = useMemo(
     () =>

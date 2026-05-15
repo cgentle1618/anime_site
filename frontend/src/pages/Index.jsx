@@ -268,16 +268,18 @@ function ReadingSection({
   );
 }
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function Index() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
-  const animeQuery = useMediaList("anime");
-  const franchiseQuery = useMediaList("franchise");
-  const tvQuery = useMediaList("tv-show");
-  const cartoonQuery = useMediaList("cartoon");
-  const mangaQuery = useMediaList("manga");
-  const novelQuery = useMediaList("novel");
+  const animeQuery = useMediaList("anime", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
+  const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
+  const mangaQuery = useMediaList("manga", LIST_OPTIONS);
+  const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const animeData = animeQuery.data || [];
   const franchiseData = franchiseQuery.data || [];
   const tvData = tvQuery.data || [];

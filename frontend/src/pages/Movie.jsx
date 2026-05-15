@@ -35,6 +35,7 @@ function formatLength(minutes) {
   if (mins === 0) return `${hrs}hr`;
   return `${hrs}hr ${mins}min`;
 }
+const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Movie() {
   const { system_id } = useParams();
@@ -45,10 +46,11 @@ export default function Movie() {
   const [movie, setMovie] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+
   const movieQuery = useMediaItem("movie", system_id);
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
-  const { setMediaItem, fetchMediaItem, invalidateMedia } =
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
+  const allMoviesQuery = useMediaList("movie", LIST_OPTIONS);
     useMediaCacheUpdate("movie", system_id);
 
   useEffect(() => {

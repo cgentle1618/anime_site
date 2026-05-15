@@ -27,6 +27,7 @@ const WATCHING_STATUSES = [
   "Completed",
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function TV() {
   const { system_id } = useParams();
@@ -37,10 +38,11 @@ export default function TV() {
   const [show, setShow] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+
   const showQuery = useMediaItem("tv-show", system_id);
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
-  const prequelQuery = useMediaItem("tv-show", show?.prequel_id, {
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
+  const allShowsQuery = useMediaList("tv-show", LIST_OPTIONS);
     enabled: !!show?.prequel_id,
   });
   const sequelQuery = useMediaItem("tv-show", show?.sequel_id, {

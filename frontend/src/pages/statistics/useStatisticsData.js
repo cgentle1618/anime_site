@@ -4,15 +4,17 @@ import { useMediaList } from "../../hooks/useMediaList";
 
 const SEASON_WEIGHT = { FAL: 4, SUM: 3, SPR: 2, WIN: 1 };
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function useStatisticsData() {
-  const franchiseQuery = useMediaList("franchise");
-  const animeQuery = useMediaList("anime");
-  const animeMovieQuery = useMediaList("anime-movie");
-  const movieQuery = useMediaList("movie");
-  const tvQuery = useMediaList("tv-show");
-  const cartoonQuery = useMediaList("cartoon");
-  const mangaQuery = useMediaList("manga");
-  const novelQuery = useMediaList("novel");
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const animeQuery = useMediaList("anime", LIST_OPTIONS);
+  const animeMovieQuery = useMediaList("anime-movie", LIST_OPTIONS);
+  const movieQuery = useMediaList("movie", LIST_OPTIONS);
+  const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
+  const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
+  const mangaQuery = useMediaList("manga", LIST_OPTIONS);
+  const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/");
   const currentSeasonQuery = useApiQuery(
     ["api", "seasonal", "current-season"],

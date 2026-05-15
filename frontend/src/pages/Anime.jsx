@@ -30,6 +30,8 @@ const WATCHING_STATUSES = [
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const MUSIC_OPTIONS = ["Pending", "Need", "Done"];
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function Anime() {
   const { system_id } = useParams();
   const navigate = useNavigate();
@@ -40,9 +42,9 @@ export default function Anime() {
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
   const animeQuery = useMediaItem("anime", system_id);
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
-  const allAnimeQuery = useMediaList("anime");
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
+  const allAnimeQuery = useMediaList("anime", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime", system_id);
 

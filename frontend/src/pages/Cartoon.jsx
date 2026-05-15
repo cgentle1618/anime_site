@@ -27,6 +27,7 @@ const WATCHING_STATUSES = [
   "Completed",
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Cartoon() {
   const { system_id } = useParams();
@@ -37,10 +38,11 @@ export default function Cartoon() {
   const [cartoon, setCartoon] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+
   const cartoonQuery = useMediaItem("cartoon", system_id);
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
-  const prequelQuery = useMediaItem("cartoon", cartoon?.prequel_id, {
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
+  const allCartoonsQuery = useMediaList("cartoon", LIST_OPTIONS);
     enabled: !!cartoon?.prequel_id,
   });
   const sequelQuery = useMediaItem("cartoon", cartoon?.sequel_id, {

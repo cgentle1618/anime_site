@@ -131,6 +131,7 @@ function BelongingNovelsCard({ novel, isAdmin, onSave }) {
     </div>
   );
 }
+const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Novel() {
   const { system_id } = useParams();
@@ -141,10 +142,11 @@ export default function Novel() {
   const [novel, setNovel] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+
   const novelQuery = useMediaItem("novel", system_id);
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
-  const { setMediaItem, fetchMediaItem, invalidateMedia } =
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
+  const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
     useMediaCacheUpdate("novel", system_id);
 
   useEffect(() => {

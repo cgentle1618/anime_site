@@ -36,6 +36,8 @@ function formatLength(minutes) {
   return `${hrs}hr ${mins}min`;
 }
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function AnimeMovie() {
   const { system_id } = useParams();
   const navigate = useNavigate();
@@ -45,7 +47,7 @@ export default function AnimeMovie() {
   const [movie, setMovie] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
   const movieQuery = useMediaItem("anime-movie", system_id);
-  const franchiseQuery = useMediaList("franchise");
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime-movie", system_id);
 

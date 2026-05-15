@@ -55,15 +55,17 @@ const READING_STATUS_GROUP = {
   "Might Read": "Might Read",
 };
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function LibraryNovel() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const novelQuery = useMediaList("novel");
-  const franchiseQuery = useMediaList("franchise");
-  const seriesQuery = useMediaList("series");
+  const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allNovels = novelQuery.data || [];
   const franchiseDict = useMemo(
     () =>

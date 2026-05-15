@@ -46,33 +46,42 @@ export default function Search() {
   const needsSeasonal = scope === "all" || scope === "seasonal";
 
   const franchiseQuery = useMediaList("franchise", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsFranchise,
   });
   const animeQuery = useMediaList("anime", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsAnime,
   });
   const seriesQuery = useMediaList("series", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsSeries,
   });
   const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/", {
     enabled: hasQuery && needsSeasonal,
   });
   const animeMovieQuery = useMediaList("anime-movie", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsAnimeMovie,
   });
   const movieQuery = useMediaList("movie", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsMovie,
   });
   const tvQuery = useMediaList("tv-show", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsTvShow,
   });
   const cartoonQuery = useMediaList("cartoon", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsCartoon,
   });
   const mangaQuery = useMediaList("manga", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsManga,
   });
   const novelQuery = useMediaList("novel", {
+    params: { limit: 2000 },
     enabled: hasQuery && needsNovel,
   });
   const activeQueries = [

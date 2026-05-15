@@ -40,14 +40,16 @@ const WATCHING_STATUS_GROUP = {
   "Might Watch": "Might Watch",
 };
 
+const LIST_OPTIONS = { params: { limit: 2000 } };
+
 export default function LibraryMovie() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const moviesQuery = useMediaList("movie");
-  const franchiseQuery = useMediaList("franchise");
+  const moviesQuery = useMediaList("movie", LIST_OPTIONS);
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const allMovies = moviesQuery.data || [];
   const franchiseDict = useMemo(
     () =>
