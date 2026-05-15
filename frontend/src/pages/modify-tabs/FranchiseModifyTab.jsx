@@ -9,7 +9,7 @@ import {
 const TYPE_TO_ENTRY_TYPES = {
   ACG: ["anime", "manga"],
   "Anime Movie": ["anime_movie"],
-  TV: ["tv_show"],
+  TV: ["tv-show"],
   Movie: ["movie"],
   Cartoon: ["cartoon"],
   Novel: ["novel"],
@@ -52,7 +52,7 @@ export default function FranchiseModifyTab({
       .map((e) => ({ ...e, _type: "movie" })),
     ...(allTvShows || [])
       .filter((e) => e.franchise_id === franchiseId)
-      .map((e) => ({ ...e, _type: "tv_show" })),
+      .map((e) => ({ ...e, _type: "tv-show" })),
     ...(allCartoons || [])
       .filter((e) => e.franchise_id === franchiseId)
       .map((e) => ({ ...e, _type: "cartoon" })),
