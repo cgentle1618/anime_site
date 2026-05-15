@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
 import { getRatingWeight, cleanString, getReadingButtonConfig } from "../utils/media";
 import { useToast } from "../hooks/useToast";
+import { useMediaList } from "../hooks/useMediaList";
 
 function getNovelTitle(n) {
   return (
@@ -57,12 +59,36 @@ export default function LibraryNovel() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [allNovels, setAllNovels] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [seriesDict, setSeriesDict] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const novelQuery = useMediaList("novel");
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const allNovels = novelQuery.data || [];
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const seriesDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (seriesQuery.data || []).map((series) => [series.system_id, series]),
+      ),
+    [seriesQuery.data],
+  );
+  const loading =
+    novelQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+  const error =
+    novelQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("title");
@@ -75,42 +101,13 @@ export default function LibraryNovel() {
     type: new Set(),
   });
 
-  useEffect(() => {
-    async function fetch_() {
-      try {
-        const [nRes, fRes, sRes] = await Promise.all([
-          fetch("/api/novel/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/series/", { credentials: "include" }),
-        ]);
-        if (!nRes.ok || !fRes.ok || !sRes.ok)
-          throw new Error("Failed to fetch database");
-        const [novels, franchises, seriesList] = await Promise.all([
-          nRes.json(),
-          fRes.json(),
-          sRes.json(),
-        ]);
-        setAllNovels(novels);
-        setFranchiseDict(
-          Object.fromEntries(franchises.map((f) => [f.system_id, f])),
-        );
-        setSeriesDict(
-          Object.fromEntries(seriesList.map((s) => [s.system_id, s])),
-        );
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch_();
-  }, []);
-
   const handleUpdated = useCallback((updated) => {
-    setAllNovels((prev) =>
-      prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
+    queryClient.setQueriesData({ queryKey: ["media-list", "novel"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((n) => (n.system_id === updated.system_id ? updated : n))
+        : old,
     );
-  }, []);
+  }, [queryClient]);
 
   const regionOptions = useMemo(
     () =>

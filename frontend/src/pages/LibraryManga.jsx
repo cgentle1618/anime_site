@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
 import { getRatingWeight, cleanString, getReadingButtonConfig } from "../utils/media";
 import { useToast } from "../hooks/useToast";
+import { useMediaList } from "../hooks/useMediaList";
 
 function getMangaTitle(m) {
   return (
@@ -43,12 +45,36 @@ export default function LibraryManga() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [allManga, setAllManga] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [seriesDict, setSeriesDict] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const mangaQuery = useMediaList("manga");
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const allManga = mangaQuery.data || [];
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const seriesDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (seriesQuery.data || []).map((series) => [series.system_id, series]),
+      ),
+    [seriesQuery.data],
+  );
+  const loading =
+    mangaQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+  const error =
+    mangaQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("title");
@@ -60,42 +86,13 @@ export default function LibraryManga() {
     region: new Set(),
   });
 
-  useEffect(() => {
-    async function fetch_() {
-      try {
-        const [mRes, fRes, sRes] = await Promise.all([
-          fetch("/api/manga/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/series/", { credentials: "include" }),
-        ]);
-        if (!mRes.ok || !fRes.ok || !sRes.ok)
-          throw new Error("Failed to fetch database");
-        const [manga, franchises, seriesList] = await Promise.all([
-          mRes.json(),
-          fRes.json(),
-          sRes.json(),
-        ]);
-        setAllManga(manga);
-        setFranchiseDict(
-          Object.fromEntries(franchises.map((f) => [f.system_id, f])),
-        );
-        setSeriesDict(
-          Object.fromEntries(seriesList.map((s) => [s.system_id, s])),
-        );
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch_();
-  }, []);
-
   const handleUpdated = useCallback((updated) => {
-    setAllManga((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    queryClient.setQueriesData({ queryKey: ["media-list", "manga"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((m) => (m.system_id === updated.system_id ? updated : m))
+        : old,
     );
-  }, []);
+  }, [queryClient]);
 
   const regionOptions = useMemo(
     () => [...new Set(allManga.map((m) => m.region).filter(Boolean))].sort(),

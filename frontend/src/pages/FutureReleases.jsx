@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
+import { useApiQuery } from "../hooks/useApiQuery";
+import { useMediaList } from "../hooks/useMediaList";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -76,215 +79,151 @@ const SPECIFIC_TYPES = ["TV", "ONA", "Movie"];
 
 export default function FutureReleases() {
   const { isAdmin } = useAuth();
-  const [allAnime, setAllAnime] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [currentSeasonKey, setCurrentSeasonKey] = useState(null);
+  const queryClient = useQueryClient();
   const [activeTypeFilter, setActiveTypeFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const [mainTab, setMainTab] = useState("anime");
 
-  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
-  const [movieLoading, setMovieLoading] = useState(false);
-  const [movieLoaded, setMovieLoaded] = useState(false);
-  const [movieError, setMovieError] = useState(null);
+  const animeQuery = useMediaList("anime");
+  const franchiseQuery = useMediaList("franchise");
+  const seasonQuery = useApiQuery(
+    ["api", "system", "current-season-config"],
+    "/api/system/config/current_season",
+  );
+  const animeMovieQuery = useMediaList("anime-movie", {
+    enabled: mainTab === "anime-movie",
+  });
+  const liveMovieQuery = useMediaList("movie", {
+    enabled: mainTab === "movie",
+    params: { airing_status: "Not Yet Aired" },
+  });
+  const tvShowQuery = useMediaList("tv-show", {
+    enabled: mainTab === "tv-show",
+  });
+  const cartoonQuery = useMediaList("cartoon", {
+    enabled: mainTab === "cartoon",
+  });
 
-  const [allLiveMovies, setAllLiveMovies] = useState([]);
-  const [liveMovieLoading, setLiveMovieLoading] = useState(false);
-  const [liveMovieLoaded, setLiveMovieLoaded] = useState(false);
-  const [liveMovieError, setLiveMovieError] = useState(null);
-
-  const [allTvShows, setAllTvShows] = useState([]);
-  const [tvShowLoading, setTvShowLoading] = useState(false);
-  const [tvShowLoaded, setTvShowLoaded] = useState(false);
-  const [tvShowError, setTvShowError] = useState(null);
-
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [cartoonLoading, setCartoonLoading] = useState(false);
-  const [cartoonLoaded, setCartoonLoaded] = useState(false);
-  const [cartoonError, setCartoonError] = useState(null);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [animeRes, franchiseRes, seasonRes] = await Promise.all([
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/system/config/current_season", {
-            credentials: "include",
-          }),
-        ]);
-        if (!animeRes.ok || !franchiseRes.ok) throw new Error("API error");
-        const [animeData, franchiseData, seasonData] = await Promise.all([
-          animeRes.json(),
-          franchiseRes.json(),
-          seasonRes.ok ? seasonRes.json() : Promise.resolve({}),
-        ]);
-
-        const fDict = Object.fromEntries(
-          franchiseData.map((f) => [f.system_id, f]),
-        );
-        setFranchiseDict(fDict);
-
-        const csKey = seasonRawToKey(seasonData.current_season || "");
-        setCurrentSeasonKey(csKey);
-
-        const filtered = animeData.filter((a) => {
-          if (a.airing_status !== "Not Yet Aired") return false;
-          if (csKey) {
-            const key = getGroupKey(a);
-            if (key.startsWith("S_") && key < csKey) return false;
-          }
-          return true;
-        });
-        setAllAnime(filtered);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (mainTab === "anime-movie" && !movieLoaded) {
-      setMovieLoading(true);
-      setMovieError(null);
-      fetch("/api/anime-movie/", { credentials: "include" })
-        .then((r) => {
-          if (!r.ok) throw new Error("API error");
-          return r.json();
-        })
-        .then((data) => {
-          setAllAnimeMovies(
-            data.filter((m) => m.airing_status === "Not Yet Aired"),
-          );
-          setMovieLoaded(true);
-        })
-        .catch((e) => setMovieError(e.message))
-        .finally(() => setMovieLoading(false));
-    }
-  }, [mainTab, movieLoaded]);
-
-  useEffect(() => {
-    if (mainTab === "movie" && !liveMovieLoaded) {
-      setLiveMovieLoading(true);
-      setLiveMovieError(null);
-      fetch("/api/movies/?airing_status=Not+Yet+Aired", {
-        credentials: "include",
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error("API error");
-          return r.json();
-        })
-        .then((data) => {
-          setAllLiveMovies(
-            data.filter((m) => m.release_date_usa || m.release_date_tw),
-          );
-          setLiveMovieLoaded(true);
-        })
-        .catch((e) => setLiveMovieError(e.message))
-        .finally(() => setLiveMovieLoading(false));
-    }
-  }, [mainTab, liveMovieLoaded]);
-
-  useEffect(() => {
-    if (mainTab === "tv-show" && !tvShowLoaded) {
-      setTvShowLoading(true);
-      setTvShowError(null);
-      fetch("/api/tv-shows/", { credentials: "include" })
-        .then((r) => {
-          if (!r.ok) throw new Error("API error");
-          return r.json();
-        })
-        .then((data) => {
-          setAllTvShows(
-            data.filter(
-              (t) =>
-                t.airing_status === "Not Yet Aired" ||
-                t.airing_status === "Airing",
-            ),
-          );
-          setTvShowLoaded(true);
-        })
-        .catch((e) => setTvShowError(e.message))
-        .finally(() => setTvShowLoading(false));
-    }
-  }, [mainTab, tvShowLoaded]);
-
-  useEffect(() => {
-    if (mainTab === "cartoon" && !cartoonLoaded) {
-      setCartoonLoading(true);
-      setCartoonError(null);
-      fetch("/api/cartoon/", { credentials: "include" })
-        .then((r) => {
-          if (!r.ok) throw new Error("API error");
-          return r.json();
-        })
-        .then((data) => {
-          setAllCartoons(
-            data.filter((c) => c.airing_status === "Not Yet Aired"),
-          );
-          setCartoonLoaded(true);
-        })
-        .catch((e) => setCartoonError(e.message))
-        .finally(() => setCartoonLoading(false));
-    }
-  }, [mainTab, cartoonLoaded]);
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const currentSeasonKey = seasonRawToKey(seasonQuery.data?.current_season || "");
+  const allAnime = useMemo(
+    () =>
+      (animeQuery.data || []).filter((anime) => {
+        if (anime.airing_status !== "Not Yet Aired") return false;
+        if (currentSeasonKey) {
+          const key = getGroupKey(anime);
+          if (key.startsWith("S_") && key < currentSeasonKey) return false;
+        }
+        return true;
+      }),
+    [animeQuery.data, currentSeasonKey],
+  );
+  const allAnimeMovies = useMemo(
+    () =>
+      (animeMovieQuery.data || []).filter(
+        (movie) => movie.airing_status === "Not Yet Aired",
+      ),
+    [animeMovieQuery.data],
+  );
+  const allLiveMovies = useMemo(
+    () =>
+      (liveMovieQuery.data || []).filter(
+        (movie) => movie.release_date_usa || movie.release_date_tw,
+      ),
+    [liveMovieQuery.data],
+  );
+  const allTvShows = useMemo(
+    () =>
+      (tvShowQuery.data || []).filter(
+        (show) =>
+          show.airing_status === "Not Yet Aired" ||
+          show.airing_status === "Airing",
+      ),
+    [tvShowQuery.data],
+  );
+  const allCartoons = useMemo(
+    () =>
+      (cartoonQuery.data || []).filter(
+        (cartoon) => cartoon.airing_status === "Not Yet Aired",
+      ),
+    [cartoonQuery.data],
+  );
+  const loading =
+    animeQuery.isLoading || franchiseQuery.isLoading || seasonQuery.isLoading;
+  const error =
+    animeQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seasonQuery.error?.message ||
+    null;
+  const movieLoading = animeMovieQuery.isLoading;
+  const movieError = animeMovieQuery.error?.message || null;
+  const liveMovieLoading = liveMovieQuery.isLoading;
+  const liveMovieError = liveMovieQuery.error?.message || null;
+  const tvShowLoading = tvShowQuery.isLoading;
+  const tvShowError = tvShowQuery.error?.message || null;
+  const cartoonLoading = cartoonQuery.isLoading;
+  const cartoonError = cartoonQuery.error?.message || null;
 
   const handleUpdated = useCallback((updated) => {
-    setAllAnime((prev) => {
-      const idx = prev.findIndex((a) => a.system_id === updated.system_id);
-      if (idx < 0) return prev;
-      if (updated.airing_status === "Airing") {
-        return prev.filter((a) => a.system_id !== updated.system_id);
-      }
-      const next = [...prev];
-      next[idx] = updated;
-      return next;
-    });
-  }, []);
+    queryClient.setQueriesData({ queryKey: ["media-list", "anime"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((anime) =>
+            anime.system_id === updated.system_id ? updated : anime,
+          )
+        : old,
+    );
+  }, [queryClient]);
 
   const handleMovieUpdated = useCallback((updated) => {
-    setAllAnimeMovies((prev) => {
-      if (updated.airing_status === "Airing") {
-        return prev.filter((m) => m.system_id !== updated.system_id);
-      }
-      return prev.map((m) => (m.system_id === updated.system_id ? updated : m));
-    });
-  }, []);
+    queryClient.setQueriesData(
+      { queryKey: ["media-list", "anime-movie"] },
+      (old) =>
+        Array.isArray(old)
+          ? old.map((movie) =>
+              movie.system_id === updated.system_id ? updated : movie,
+            )
+          : old,
+    );
+  }, [queryClient]);
 
   const handleLiveMovieUpdated = useCallback((updated) => {
-    setAllLiveMovies((prev) => {
-      if (updated.airing_status === "Airing") {
-        return prev.filter((m) => m.system_id !== updated.system_id);
-      }
-      return prev.map((m) => (m.system_id === updated.system_id ? updated : m));
-    });
-  }, []);
+    queryClient.setQueriesData({ queryKey: ["media-list", "movie"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((movie) =>
+            movie.system_id === updated.system_id ? updated : movie,
+          )
+        : old,
+    );
+  }, [queryClient]);
 
   const handleTvShowUpdated = useCallback((updated) => {
-    setAllTvShows((prev) => {
-      if (
-        updated.airing_status !== "Not Yet Aired" &&
-        updated.airing_status !== "Airing"
-      ) {
-        return prev.filter((t) => t.system_id !== updated.system_id);
-      }
-      return prev.map((t) => (t.system_id === updated.system_id ? updated : t));
-    });
-  }, []);
+    queryClient.setQueriesData({ queryKey: ["media-list", "tv-show"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((show) =>
+            show.system_id === updated.system_id ? updated : show,
+          )
+        : old,
+    );
+  }, [queryClient]);
 
   const handleCartoonUpdated = useCallback((updated) => {
-    setAllCartoons((prev) => {
-      if (updated.airing_status !== "Not Yet Aired") {
-        return prev.filter((c) => c.system_id !== updated.system_id);
-      }
-      return prev.map((c) => (c.system_id === updated.system_id ? updated : c));
-    });
-  }, []);
+    queryClient.setQueriesData({ queryKey: ["media-list", "cartoon"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((cartoon) =>
+            cartoon.system_id === updated.system_id ? updated : cartoon,
+          )
+        : old,
+    );
+  }, [queryClient]);
 
   const filtered = allAnime.filter((a) => {
     const t = a.airing_type || "";

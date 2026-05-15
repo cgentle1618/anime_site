@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
@@ -8,6 +9,7 @@ import {
   getStatusButtonConfig,
 } from "../utils/media";
 import { useToast } from "../hooks/useToast";
+import { useMediaList } from "../hooks/useMediaList";
 
 function getCartoonTitle(c) {
   return c.cartoon_name_cn || c.cartoon_name_en || c.cartoon_name_alt || "";
@@ -34,12 +36,36 @@ export default function LibraryCartoon() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [seriesDict, setSeriesDict] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const cartoonsQuery = useMediaList("cartoon");
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const allCartoons = cartoonsQuery.data || [];
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const seriesDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (seriesQuery.data || []).map((series) => [series.system_id, series]),
+      ),
+    [seriesQuery.data],
+  );
+  const loading =
+    cartoonsQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+  const error =
+    cartoonsQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("title");
@@ -52,42 +78,13 @@ export default function LibraryCartoon() {
     officialSource: new Set(),
   });
 
-  useEffect(() => {
-    async function fetch_() {
-      try {
-        const [cRes, fRes, sRes] = await Promise.all([
-          fetch("/api/cartoon/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/series/", { credentials: "include" }),
-        ]);
-        if (!cRes.ok || !fRes.ok || !sRes.ok)
-          throw new Error("Failed to fetch database");
-        const [cartoons, franchises, seriesList] = await Promise.all([
-          cRes.json(),
-          fRes.json(),
-          sRes.json(),
-        ]);
-        setAllCartoons(cartoons);
-        setFranchiseDict(
-          Object.fromEntries(franchises.map((f) => [f.system_id, f])),
-        );
-        setSeriesDict(
-          Object.fromEntries(seriesList.map((s) => [s.system_id, s])),
-        );
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch_();
-  }, []);
-
   const handleUpdated = useCallback((updated) => {
-    setAllCartoons((prev) =>
-      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    queryClient.setQueriesData({ queryKey: ["media-list", "cartoon"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((c) => (c.system_id === updated.system_id ? updated : c))
+        : old,
     );
-  }, []);
+  }, [queryClient]);
 
   const airingTypeOptions = useMemo(
     () =>

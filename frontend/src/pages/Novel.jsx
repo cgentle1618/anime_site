@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
@@ -11,6 +11,10 @@ import ScoreBlock from "../components/info/ScoreBlock";
 import SeriesModal from "../components/modals/SeriesModal";
 import NovelNotes from "./NovelNotes";
 import BelongingNovelsEditor from "../components/forms/BelongingNovelsEditor";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
+import { useMediaCacheUpdate } from "../hooks/useMediaCacheUpdate";
+import { useMediaItem } from "../hooks/useMediaItem";
+import { useMediaList } from "../hooks/useMediaList";
 
 function serializationStatusColor(status) {
   if (status === "連載中")
@@ -135,46 +139,41 @@ export default function Novel() {
   const { showToast } = useToast();
 
   const [novel, setNovel] = useState(null);
-  const [franchise, setFranchise] = useState(null);
-  const [series, setSeries] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const [nRes, fRes, sRes] = await Promise.all([
-        fetch(`/api/novel/${system_id}`, { credentials: "include" }),
-        fetch("/api/franchise/", { credentials: "include" }),
-        fetch("/api/series/", { credentials: "include" }),
-      ]);
-      if (!nRes.ok) throw new Error("Novel not found");
-      const n = await nRes.json();
-      const allFranchises = await fRes.json();
-      const allSeries = await sRes.json();
-
-      setNovel(n);
-      setFranchise(
-        n.franchise_id
-          ? allFranchises.find((f) => f.system_id === n.franchise_id) || null
-          : null,
-      );
-      setSeries(
-        n.series_id
-          ? allSeries.find((s) => s.system_id === n.series_id) || null
-          : null,
-      );
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [system_id]);
+  const novelQuery = useMediaItem("novel", system_id);
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const { setMediaItem, fetchMediaItem, invalidateMedia } =
+    useMediaCacheUpdate("novel", system_id);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (novelQuery.data) setNovel(novelQuery.data);
+  }, [novelQuery.data]);
+
+  const franchises = franchiseQuery.data || [];
+  const seriesList = seriesQuery.data || [];
+  const franchise = useMemo(
+    () =>
+      novel?.franchise_id
+        ? franchises.find((f) => f.system_id === novel.franchise_id) || null
+        : null,
+    [franchises, novel?.franchise_id],
+  );
+  const series = useMemo(
+    () =>
+      novel?.series_id
+        ? seriesList.find((s) => s.system_id === novel.series_id) || null
+        : null,
+    [novel?.series_id, seriesList],
+  );
+  const loading =
+    novelQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+  const error =
+    novelQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    null;
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
@@ -188,13 +187,12 @@ export default function Novel() {
       });
       if (!res.ok) throw new Error("Sync failed");
       showToast("success", msg || "Saved");
-      const fresh = await fetch(`/api/novel/${system_id}`, {
-        credentials: "include",
-      });
-      setNovel(await fresh.json());
+      const updated = await res.json();
+      setNovel(updated);
+      setMediaItem(updated);
     } catch {
       showToast("error", "Update failed");
-      load();
+      fetchMediaItem();
     }
   }
 
@@ -211,7 +209,8 @@ export default function Novel() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Autofill failed");
       showToast("success", "Autofill completed");
-      await load();
+      await invalidateMedia();
+      await fetchMediaItem();
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -220,23 +219,15 @@ export default function Novel() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <i className="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p className="text-gray-500 font-medium">Loading details...</p>
-      </div>
-    );
+    return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
 
   if (error || !novel) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error Loading Novel</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <MediaLoadingState
+        error={error || "Novel not found"}
+        errorTitle="Error Loading Novel"
+      />
     );
   }
 
@@ -314,7 +305,8 @@ export default function Novel() {
                   });
                   if (!res.ok) throw new Error("Request failed");
                   showToast("success", "Marked as Completed!");
-                  await load();
+                  await invalidateMedia();
+                  await fetchMediaItem();
                 } catch {
                   showToast("error", "Update failed");
                 }

@@ -3,6 +3,7 @@ import usePlanData from "./plan/usePlanData";
 import PlanWatchNext from "./plan/PlanWatchNext";
 import PlanToRewatch from "./plan/PlanToRewatch";
 import PlanToWatchFuture from "./plan/PlanToWatchFuture";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
 
 export default function Plan() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -22,25 +23,12 @@ export default function Plan() {
   } = usePlanData(reloadKey);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading plan...</p>
-        </div>
-      </div>
-    );
+    return <MediaLoadingState isLoading loadingText="Loading plan..." />;
   }
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error loading plan.</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <MediaLoadingState error={error} errorTitle="Error loading plan." />
     );
   }
 

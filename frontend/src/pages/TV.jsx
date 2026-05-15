@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
@@ -9,6 +9,10 @@ import SourcesCard from "../components/info/SourcesCard";
 import MyTrackerCard from "../components/tracker/MyTrackerCard";
 import SeriesModal from "../components/modals/SeriesModal";
 import TVShowNotes from "./TVShowNotes";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
+import { useMediaCacheUpdate } from "../hooks/useMediaCacheUpdate";
+import { useMediaItem } from "../hooks/useMediaItem";
+import { useMediaList } from "../hooks/useMediaList";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -31,65 +35,49 @@ export default function TV() {
   const { showToast } = useToast();
 
   const [show, setShow] = useState(null);
-  const [franchise, setFranchise] = useState(null);
-  const [series, setSeries] = useState(null);
-  const [prequel, setPrequel] = useState(null);
-  const [sequel, setSequel] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const [tvRes, fRes, sRes] = await Promise.all([
-        fetch(`/api/tv-shows/${system_id}`, { credentials: "include" }),
-        fetch("/api/franchise/", { credentials: "include" }),
-        fetch("/api/series/", { credentials: "include" }),
-      ]);
-      if (!tvRes.ok) throw new Error("TV show not found");
-      const tv = await tvRes.json();
-      const allFranchises = await fRes.json();
-      const allSeries = await sRes.json();
-
-      setShow(tv);
-      setFranchise(
-        tv.franchise_id
-          ? allFranchises.find((f) => f.system_id === tv.franchise_id) || null
-          : null,
-      );
-      setSeries(
-        tv.series_id
-          ? allSeries.find((s) => s.system_id === tv.series_id) || null
-          : null,
-      );
-
-      const relatedFetches = [];
-      if (tv.prequel_id)
-        relatedFetches.push(
-          fetch(`/api/tv-shows/${tv.prequel_id}`, { credentials: "include" })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null),
-        );
-      if (tv.sequel_id)
-        relatedFetches.push(
-          fetch(`/api/tv-shows/${tv.sequel_id}`, { credentials: "include" })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null),
-        );
-      const results = await Promise.all(relatedFetches);
-      setPrequel(tv.prequel_id ? results[0] || null : null);
-      setSequel(tv.sequel_id ? results[tv.prequel_id ? 1 : 0] || null : null);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [system_id]);
+  const showQuery = useMediaItem("tv-show", system_id);
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const prequelQuery = useMediaItem("tv-show", show?.prequel_id, {
+    enabled: !!show?.prequel_id,
+  });
+  const sequelQuery = useMediaItem("tv-show", show?.sequel_id, {
+    enabled: !!show?.sequel_id,
+  });
+  const { setMediaItem, fetchMediaItem, invalidateMedia } =
+    useMediaCacheUpdate("tv-show", system_id);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (showQuery.data) setShow(showQuery.data);
+  }, [showQuery.data]);
+
+  const franchises = franchiseQuery.data || [];
+  const seriesList = seriesQuery.data || [];
+  const franchise = useMemo(
+    () =>
+      show?.franchise_id
+        ? franchises.find((f) => f.system_id === show.franchise_id) || null
+        : null,
+    [franchises, show?.franchise_id],
+  );
+  const series = useMemo(
+    () =>
+      show?.series_id
+        ? seriesList.find((s) => s.system_id === show.series_id) || null
+        : null,
+    [seriesList, show?.series_id],
+  );
+  const prequel = prequelQuery.data || null;
+  const sequel = sequelQuery.data || null;
+  const loading =
+    showQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+  const error =
+    showQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    null;
 
   async function performPatch(payload, msg) {
     if (!isAdmin) return;
@@ -103,13 +91,12 @@ export default function TV() {
       });
       if (!res.ok) throw new Error("Sync failed");
       showToast("success", msg || "Saved");
-      const fresh = await fetch(`/api/tv-shows/${system_id}`, {
-        credentials: "include",
-      });
-      setShow(await fresh.json());
+      const updated = await res.json();
+      setShow(updated);
+      setMediaItem(updated);
     } catch {
       showToast("error", "Update failed");
-      load();
+      fetchMediaItem();
     }
   }
 
@@ -123,7 +110,8 @@ export default function TV() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Autofill failed");
       showToast("success", "Autofill completed");
-      await load();
+      await invalidateMedia();
+      await fetchMediaItem();
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -132,23 +120,15 @@ export default function TV() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <i className="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p className="text-gray-500 font-medium">Loading details...</p>
-      </div>
-    );
+    return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
 
   if (error || !show) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error Loading TV Show</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <MediaLoadingState
+        error={error || "TV show not found"}
+        errorTitle="Error Loading TV Show"
+      />
     );
   }
 
@@ -242,7 +222,8 @@ export default function TV() {
                   });
                   if (!res.ok) throw new Error("Request failed");
                   showToast("success", "Marked as Completed!");
-                  await load();
+                  await invalidateMedia();
+                  await fetchMediaItem();
                 } catch {
                   showToast("error", "Update failed");
                 }

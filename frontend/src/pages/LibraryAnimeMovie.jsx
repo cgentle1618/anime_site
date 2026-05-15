@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
@@ -9,6 +10,7 @@ import {
   cleanString,
 } from "../utils/media";
 import { useToast } from "../hooks/useToast";
+import { useMediaList } from "../hooks/useMediaList";
 
 function getMovieTitle(m) {
   return (
@@ -54,11 +56,24 @@ export default function LibraryAnimeMovie() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [allMovies, setAllMovies] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const moviesQuery = useMediaList("anime-movie");
+  const franchiseQuery = useMediaList("franchise");
+  const allMovies = moviesQuery.data || [];
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const loading = moviesQuery.isLoading || franchiseQuery.isLoading;
+  const error =
+    moviesQuery.error?.message || franchiseQuery.error?.message || null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("title");
@@ -70,36 +85,15 @@ export default function LibraryAnimeMovie() {
     bahaOnly: false,
   });
 
-  useEffect(() => {
-    async function fetch_() {
-      try {
-        const [mRes, fRes] = await Promise.all([
-          fetch("/api/anime-movie/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-        ]);
-        if (!mRes.ok || !fRes.ok) throw new Error("Failed to fetch database");
-        const [movies, franchises] = await Promise.all([
-          mRes.json(),
-          fRes.json(),
-        ]);
-        setAllMovies(movies);
-        setFranchiseDict(
-          Object.fromEntries(franchises.map((f) => [f.system_id, f])),
-        );
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch_();
-  }, []);
-
   const handleUpdated = useCallback((updated) => {
-    setAllMovies((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    queryClient.setQueriesData(
+      { queryKey: ["media-list", "anime-movie"] },
+      (old) =>
+        Array.isArray(old)
+          ? old.map((m) => (m.system_id === updated.system_id ? updated : m))
+          : old,
     );
-  }, []);
+  }, [queryClient]);
 
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);

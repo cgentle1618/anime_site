@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
@@ -8,6 +9,7 @@ import {
   getStatusButtonConfig,
 } from "../utils/media";
 import { useToast } from "../hooks/useToast";
+import { useMediaList } from "../hooks/useMediaList";
 
 function getTVTitle(s) {
   return s.tv_name_cn || s.tv_name_en || s.tv_name_alt || "";
@@ -34,11 +36,24 @@ export default function LibraryTV() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [allShows, setAllShows] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const showsQuery = useMediaList("tv-show");
+  const franchiseQuery = useMediaList("franchise");
+  const allShows = showsQuery.data || [];
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const loading = showsQuery.isLoading || franchiseQuery.isLoading;
+  const error =
+    showsQuery.error?.message || franchiseQuery.error?.message || null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("title");
@@ -50,36 +65,13 @@ export default function LibraryTV() {
     region: new Set(),
   });
 
-  useEffect(() => {
-    async function fetch_() {
-      try {
-        const [sRes, fRes] = await Promise.all([
-          fetch("/api/tv-shows/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-        ]);
-        if (!sRes.ok || !fRes.ok) throw new Error("Failed to fetch database");
-        const [shows, franchises] = await Promise.all([
-          sRes.json(),
-          fRes.json(),
-        ]);
-        setAllShows(shows);
-        setFranchiseDict(
-          Object.fromEntries(franchises.map((f) => [f.system_id, f])),
-        );
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch_();
-  }, []);
-
   const handleUpdated = useCallback((updated) => {
-    setAllShows((prev) =>
-      prev.map((s) => (s.system_id === updated.system_id ? updated : s)),
+    queryClient.setQueriesData({ queryKey: ["media-list", "tv-show"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((s) => (s.system_id === updated.system_id ? updated : s))
+        : old,
     );
-  }, []);
+  }, [queryClient]);
 
   const regionOptions = useMemo(
     () => [...new Set(allShows.map((s) => s.region).filter(Boolean))].sort(),

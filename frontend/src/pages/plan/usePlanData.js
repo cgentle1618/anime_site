@@ -1,99 +1,82 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMediaList } from "../../hooks/useMediaList";
+
+const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function usePlanData(reloadKey = 0) {
-  const [franchises, setFranchises] = useState([]);
-  const [allAnime, setAllAnime] = useState([]);
-  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
-  const [allMovies, setAllMovies] = useState([]);
-  const [allTVShows, setAllTVShows] = useState([]);
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [allManga, setAllManga] = useState([]);
-  const [allNovel, setAllNovel] = useState([]);
-  const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
-  const [franchiseMap, setFranchiseMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  function fetchAll(url) {
-    const hasQuery = url.includes("?");
-    return fetch(`${url}${hasQuery ? "&" : "?"}limit=2000`, {
-      credentials: "include",
-    });
-  }
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
-          await Promise.all([
-            fetchAll("/api/franchise/"),
-            fetchAll("/api/anime/"),
-            fetchAll("/api/anime-movie/"),
-            fetchAll("/api/movies/"),
-            fetchAll("/api/tv-shows/"),
-            fetchAll("/api/cartoon/"),
-            fetchAll("/api/manga/"),
-            fetchAll("/api/novel/"),
-          ]);
-        if (
-          !fRes.ok ||
-          !aRes.ok ||
-          !amRes.ok ||
-          !mRes.ok ||
-          !tvRes.ok ||
-          !cRes.ok ||
-          !mgRes.ok ||
-          !nvRes.ok
-        )
-          throw new Error("Failed to load data.");
-        const [fData, aData, amData, mData, tvData, cData, mgData, nvData] =
-          await Promise.all([
-            fRes.json(),
-            aRes.json(),
-            amRes.json(),
-            mRes.json(),
-            tvRes.json(),
-            cRes.json(),
-            mgRes.json(),
-            nvRes.json(),
-          ]);
-        setFranchises(fData);
-        setAllAnime(aData);
-        setAllAnimeMovies(amData);
-        setAllMovies(mData);
-        setAllTVShows(tvData);
-        setAllCartoons(cData);
-        setAllManga(mgData);
-        setAllNovel(nvData);
-        const fMap = {};
-        fData.forEach((f) => {
-          fMap[String(f.system_id)] = f;
-        });
-        setFranchiseMap(fMap);
-        const allEntries = [
-          ...aData.map((e) => ({ ...e, _type: "anime" })),
-          ...amData.map((e) => ({ ...e, _type: "anime_movie" })),
-          ...mData.map((e) => ({ ...e, _type: "movie" })),
-          ...tvData.map((e) => ({ ...e, _type: "tv_show" })),
-          ...cData.map((e) => ({ ...e, _type: "cartoon" })),
-          ...mgData.map((e) => ({ ...e, _type: "manga" })),
-          ...nvData.map((e) => ({ ...e, _type: "novel" })),
-        ];
-        const byFranchise = {};
-        allEntries.forEach((e) => {
-          const id = String(e.franchise_id);
-          if (!byFranchise[id]) byFranchise[id] = [];
-          byFranchise[id].push(e);
-        });
-        setAllEntriesByFranchise(byFranchise);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
+    if (reloadKey > 0) {
+      queryClient.invalidateQueries({ queryKey: ["media-list"] });
     }
-    load();
-  }, [reloadKey]);
+  }, [queryClient, reloadKey]);
+
+  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const animeQuery = useMediaList("anime", LIST_OPTIONS);
+  const animeMovieQuery = useMediaList("anime-movie", LIST_OPTIONS);
+  const movieQuery = useMediaList("movie", LIST_OPTIONS);
+  const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
+  const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
+  const mangaQuery = useMediaList("manga", LIST_OPTIONS);
+  const novelQuery = useMediaList("novel", LIST_OPTIONS);
+
+  const franchises = franchiseQuery.data || [];
+  const allAnime = animeQuery.data || [];
+  const allAnimeMovies = animeMovieQuery.data || [];
+  const allMovies = movieQuery.data || [];
+  const allTVShows = tvQuery.data || [];
+  const allCartoons = cartoonQuery.data || [];
+  const allManga = mangaQuery.data || [];
+  const allNovel = novelQuery.data || [];
+
+  const franchiseMap = useMemo(
+    () =>
+      Object.fromEntries(
+        franchises.map((franchise) => [String(franchise.system_id), franchise]),
+      ),
+    [franchises],
+  );
+
+  const allEntriesByFranchise = useMemo(() => {
+    const allEntries = [
+      ...allAnime.map((entry) => ({ ...entry, _type: "anime" })),
+      ...allAnimeMovies.map((entry) => ({ ...entry, _type: "anime_movie" })),
+      ...allMovies.map((entry) => ({ ...entry, _type: "movie" })),
+      ...allTVShows.map((entry) => ({ ...entry, _type: "tv_show" })),
+      ...allCartoons.map((entry) => ({ ...entry, _type: "cartoon" })),
+      ...allManga.map((entry) => ({ ...entry, _type: "manga" })),
+      ...allNovel.map((entry) => ({ ...entry, _type: "novel" })),
+    ];
+    const byFranchise = {};
+    allEntries.forEach((entry) => {
+      const id = String(entry.franchise_id);
+      if (!byFranchise[id]) byFranchise[id] = [];
+      byFranchise[id].push(entry);
+    });
+    return byFranchise;
+  }, [
+    allAnime,
+    allAnimeMovies,
+    allMovies,
+    allTVShows,
+    allCartoons,
+    allManga,
+    allNovel,
+  ]);
+
+  const queries = [
+    franchiseQuery,
+    animeQuery,
+    animeMovieQuery,
+    movieQuery,
+    tvQuery,
+    cartoonQuery,
+    mangaQuery,
+    novelQuery,
+  ];
+  const firstError = queries.find((query) => query.error)?.error;
 
   return {
     franchises,
@@ -106,7 +89,7 @@ export default function usePlanData(reloadKey = 0) {
     allNovel,
     allEntriesByFranchise,
     franchiseMap,
-    loading,
-    error,
+    loading: queries.some((query) => query.isLoading),
+    error: firstError?.message || null,
   };
 }

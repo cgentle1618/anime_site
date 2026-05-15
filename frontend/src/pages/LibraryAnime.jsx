@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
@@ -13,6 +14,7 @@ import {
   cleanString,
 } from "../utils/media";
 import { useToast } from "../hooks/useToast";
+import { useMediaList } from "../hooks/useMediaList";
 
 const MONTH_MAP = {
   JAN: 1,
@@ -40,12 +42,36 @@ export default function LibraryAnime() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [allAnime, setAllAnime] = useState([]);
-  const [franchiseDict, setFranchiseDict] = useState({});
-  const [seriesDict, setSeriesDict] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const animeQuery = useMediaList("anime");
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const allAnime = animeQuery.data || [];
+  const franchiseDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (franchiseQuery.data || []).map((franchise) => [
+          franchise.system_id,
+          franchise,
+        ]),
+      ),
+    [franchiseQuery.data],
+  );
+  const seriesDict = useMemo(
+    () =>
+      Object.fromEntries(
+        (seriesQuery.data || []).map((series) => [series.system_id, series]),
+      ),
+    [seriesQuery.data],
+  );
+  const loading =
+    animeQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
+  const error =
+    animeQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("title");
@@ -58,40 +84,13 @@ export default function LibraryAnime() {
     bahaOnly: false,
   });
 
-  useEffect(() => {
-    async function fetch_() {
-      try {
-        const [aRes, fRes, sRes] = await Promise.all([
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/series/", { credentials: "include" }),
-        ]);
-        if (!aRes.ok || !fRes.ok || !sRes.ok)
-          throw new Error("Failed to fetch database");
-        const [anime, franchises, series] = await Promise.all([
-          aRes.json(),
-          fRes.json(),
-          sRes.json(),
-        ]);
-        setAllAnime(anime);
-        setFranchiseDict(
-          Object.fromEntries(franchises.map((f) => [f.system_id, f])),
-        );
-        setSeriesDict(Object.fromEntries(series.map((s) => [s.system_id, s])));
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch_();
-  }, []);
-
   const handleUpdated = useCallback((updated) => {
-    setAllAnime((prev) =>
-      prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
+    queryClient.setQueriesData({ queryKey: ["media-list", "anime"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((a) => (a.system_id === updated.system_id ? updated : a))
+        : old,
     );
-  }, []);
+  }, [queryClient]);
 
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);

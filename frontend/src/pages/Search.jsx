@@ -3,6 +3,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import MediaCard from "../components/cards/MediaCard";
 import { cleanString } from "../utils/media";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
+import { useApiQuery } from "../hooks/useApiQuery";
+import { useMediaList } from "../hooks/useMediaList";
 
 function getFranchiseTitles(f) {
   const raw = [
@@ -29,8 +32,65 @@ export default function Search() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const hasQuery = !!query.trim();
+  const needsFranchise =
+    scope === "all" || scope === "franchise" || scope === "anime";
+  const needsAnime = scope === "all" || scope === "anime";
+  const needsAnimeMovie = scope === "all" || scope === "anime-movie";
+  const needsMovie = scope === "all" || scope === "movie";
+  const needsTvShow = scope === "all" || scope === "tv-show";
+  const needsCartoon = scope === "all" || scope === "cartoon";
+  const needsManga = scope === "all" || scope === "manga";
+  const needsNovel = scope === "all" || scope === "novel";
+  const needsSeries = scope === "all" || scope === "series";
+  const needsSeasonal = scope === "all" || scope === "seasonal";
+
+  const franchiseQuery = useMediaList("franchise", {
+    enabled: hasQuery && needsFranchise,
+  });
+  const animeQuery = useMediaList("anime", {
+    enabled: hasQuery && needsAnime,
+  });
+  const seriesQuery = useMediaList("series", {
+    enabled: hasQuery && needsSeries,
+  });
+  const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/", {
+    enabled: hasQuery && needsSeasonal,
+  });
+  const animeMovieQuery = useMediaList("anime-movie", {
+    enabled: hasQuery && needsAnimeMovie,
+  });
+  const movieQuery = useMediaList("movie", {
+    enabled: hasQuery && needsMovie,
+  });
+  const tvQuery = useMediaList("tv-show", {
+    enabled: hasQuery && needsTvShow,
+  });
+  const cartoonQuery = useMediaList("cartoon", {
+    enabled: hasQuery && needsCartoon,
+  });
+  const mangaQuery = useMediaList("manga", {
+    enabled: hasQuery && needsManga,
+  });
+  const novelQuery = useMediaList("novel", {
+    enabled: hasQuery && needsNovel,
+  });
+  const activeQueries = [
+    needsFranchise && franchiseQuery,
+    needsAnime && animeQuery,
+    needsSeries && seriesQuery,
+    needsSeasonal && seasonalQuery,
+    needsAnimeMovie && animeMovieQuery,
+    needsMovie && movieQuery,
+    needsTvShow && tvQuery,
+    needsCartoon && cartoonQuery,
+    needsManga && mangaQuery,
+    needsNovel && novelQuery,
+  ].filter(Boolean);
+  const loading = hasQuery && activeQueries.some((queryResult) => queryResult.isLoading);
+  const error =
+    activeQueries.find((queryResult) => queryResult.error)?.error?.message ||
+    null;
   const [matchedFranchises, setMatchedFranchises] = useState([]);
   const [filterPillFranchises, setFilterPillFranchises] = useState([]);
   const [matchedSeries, setMatchedSeries] = useState([]);
@@ -65,76 +125,31 @@ export default function Search() {
   useEffect(() => {
     setSelectedFranchise("all");
     if (!query.trim()) {
-      setLoading(false);
+      setMatchedSeasonal([]);
+      setMatchedFranchises([]);
+      setFilterPillFranchises([]);
+      setMatchedAnime([]);
+      setMatchedSeries([]);
+      setMatchedAnimeMovies([]);
+      setMatchedMovies([]);
+      setMatchedTvShows([]);
+      setMatchedCartoons([]);
+      setMatchedMangas([]);
+      setMatchedNovels([]);
       return;
     }
-    setLoading(true);
-    setError(null);
+    if (loading || error) return;
 
-    async function doSearch() {
-      try {
-        const needsFranchise =
-          scope === "all" || scope === "franchise" || scope === "anime";
-        const needsAnime = scope === "all" || scope === "anime";
-        const needsAnimeMovie = scope === "all" || scope === "anime-movie";
-        const needsMovie = scope === "all" || scope === "movie";
-        const needsTvShow = scope === "all" || scope === "tv-show";
-        const needsCartoon = scope === "all" || scope === "cartoon";
-        const needsManga = scope === "all" || scope === "manga";
-        const needsNovel = scope === "all" || scope === "novel";
-        const needsSeries = scope === "all" || scope === "series";
-        const needsSeasonal = scope === "all" || scope === "seasonal";
-
-        const fetches = await Promise.all([
-          needsFranchise
-            ? fetch("/api/franchise/", { credentials: "include" })
-            : null,
-          needsAnime ? fetch("/api/anime/", { credentials: "include" }) : null,
-          needsSeries
-            ? fetch("/api/series/", { credentials: "include" })
-            : null,
-          needsSeasonal
-            ? fetch("/api/seasonal/", { credentials: "include" })
-            : null,
-          needsAnimeMovie
-            ? fetch("/api/anime-movie/", { credentials: "include" })
-            : null,
-          needsMovie ? fetch("/api/movies/", { credentials: "include" }) : null,
-          needsTvShow
-            ? fetch("/api/tv-shows/", { credentials: "include" })
-            : null,
-          needsCartoon
-            ? fetch("/api/cartoon/", { credentials: "include" })
-            : null,
-          needsManga ? fetch("/api/manga/", { credentials: "include" }) : null,
-          needsNovel ? fetch("/api/novel/", { credentials: "include" }) : null,
-        ]);
-        const [fRes, aRes, sRes, seaRes, amRes, mvRes, tvRes, cRes, mgRes, nvRes] =
-          fetches;
-        if (
-          (fRes && !fRes.ok) ||
-          (aRes && !aRes.ok) ||
-          (sRes && !sRes.ok) ||
-          (seaRes && !seaRes.ok) ||
-          (amRes && !amRes.ok) ||
-          (mvRes && !mvRes.ok) ||
-          (tvRes && !tvRes.ok) ||
-          (cRes && !cRes.ok) ||
-          (mgRes && !mgRes.ok) ||
-          (nvRes && !nvRes.ok)
-        )
-          throw new Error("Failed to fetch database");
-
-        const allFranchises = fRes ? await fRes.json() : [];
-        const all = aRes ? await aRes.json() : [];
-        const allSeries = sRes ? await sRes.json() : [];
-        const allSeasonal = seaRes ? await seaRes.json() : [];
-        const animeMovieResults = amRes ? await amRes.json() : [];
-        const movieResults = mvRes ? await mvRes.json() : [];
-        const tvShowResults = tvRes ? await tvRes.json() : [];
-        const cartoonResults = cRes ? await cRes.json() : [];
-        const mangaResults = mgRes ? await mgRes.json() : [];
-        const novelResults = nvRes ? await nvRes.json() : [];
+    const allFranchises = franchiseQuery.data || [];
+    const all = animeQuery.data || [];
+    const allSeries = seriesQuery.data || [];
+    const allSeasonal = seasonalQuery.data || [];
+    const animeMovieResults = animeMovieQuery.data || [];
+    const movieResults = movieQuery.data || [];
+    const tvShowResults = tvQuery.data || [];
+    const cartoonResults = cartoonQuery.data || [];
+    const mangaResults = mangaQuery.data || [];
+    const novelResults = novelQuery.data || [];
         setAllAnime(all);
         setAllAnimeMovies(animeMovieResults);
         setAllMovies(movieResults);
@@ -306,14 +321,22 @@ export default function Search() {
         setMatchedCartoons(mc);
         setMatchedMangas(mm);
         setMatchedNovels(mnv);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    doSearch();
-  }, [query, scope]);
+  }, [
+    animeMovieQuery.data,
+    animeQuery.data,
+    cartoonQuery.data,
+    error,
+    franchiseQuery.data,
+    loading,
+    mangaQuery.data,
+    movieQuery.data,
+    novelQuery.data,
+    query,
+    scope,
+    seasonalQuery.data,
+    seriesQuery.data,
+    tvQuery.data,
+  ]);
 
   const handleAnimeUpdated = useCallback((updated) => {
     setMatchedAnime((prev) =>
@@ -433,14 +456,7 @@ export default function Search() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Searching...</p>
-        </div>
-      </div>
-    );
+    return <MediaLoadingState isLoading loadingText="Searching..." />;
   }
 
   if (!query.trim()) {
@@ -457,13 +473,7 @@ export default function Search() {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Search Error</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <MediaLoadingState error={error} errorTitle="Search Error" />
     );
   }
 

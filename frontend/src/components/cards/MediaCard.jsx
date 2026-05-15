@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
+import { useStatusToggle } from "../../hooks/useStatusToggle";
 import {
   getDisplayName,
   getCoverUrl,
@@ -21,7 +22,11 @@ const EXPECTATION_COLOR = {
   Low: "bg-gray-500/70",
 };
 
-const FUTURE_WATCHING_OPTIONS = ["Might Watch", "Plan to Watch", "Watch When Airs"];
+const FUTURE_WATCHING_OPTIONS = [
+  "Might Watch",
+  "Plan to Watch",
+  "Watch When Airs",
+];
 
 const BOLT_AIRING_STATUS = {
   anime: "Airing",
@@ -33,13 +38,16 @@ const BOLT_AIRING_STATUS = {
 
 function getReleaseYearFromDate(dateStr) {
   if (!dateStr) return null;
-  const parts = String(dateStr).trim().split(/[\s\-]/);
+  const parts = String(dateStr)
+    .trim()
+    .split(/[\s\-]/);
   const year = parts[parts.length - 1];
   return /^\d{4}$/.test(year) ? year : null;
 }
 
 function serializationStatusCls(status) {
-  if (status === "連載中") return "bg-green-100 text-green-700 border-green-200";
+  if (status === "連載中")
+    return "bg-green-100 text-green-700 border-green-200";
   if (status === "完結") return "bg-blue-100 text-blue-700 border-blue-200";
   if (status === "連載中 (不穩定)" || status === "連載中 (有生之年)")
     return "bg-yellow-100 text-yellow-700 border-yellow-200";
@@ -57,7 +65,9 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
     return (
       <>
         {expectation && (type === "anime" || type === "cartoon") && (
-          <div className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-gray-500/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}>
+          <div
+            className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-gray-500/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}
+          >
             {expectation}
           </div>
         )}
@@ -67,8 +77,8 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
             {data.airing_type}
           </div>
         )}
-        {bahaFlag && (
-          hasBahaLink ? (
+        {bahaFlag &&
+          (hasBahaLink ? (
             <a
               href={data.baha_link}
               target="_blank"
@@ -77,17 +87,24 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
               className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
               title="Watch on Bahamut"
             >
-              <img src="https://i2.bahamut.com.tw/anime/logo.svg" className="h-3 opacity-90" alt="Baha" />
+              <img
+                src="https://i2.bahamut.com.tw/anime/logo.svg"
+                className="h-3 opacity-90"
+                alt="Baha"
+              />
             </a>
           ) : (
             <div
               className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
               title="Available on Bahamut (no link)"
             >
-              <img src="https://i2.bahamut.com.tw/anime/logo.svg" className="h-3 opacity-30 grayscale" alt="Baha" />
+              <img
+                src="https://i2.bahamut.com.tw/anime/logo.svg"
+                className="h-3 opacity-30 grayscale"
+                alt="Baha"
+              />
             </div>
-          )
-        )}
+          ))}
       </>
     );
   }
@@ -112,12 +129,14 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
           {data.mal_rating}
         </div>
       )}
-      {(type === "movie" || type === "tv-show") && data.imdb_rating && data.imdb_rating !== "N/A" && (
-        <div className="absolute top-0 right-0 bg-yellow-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center shadow-sm">
-          <i className="fas fa-star text-[8px] mr-1"></i>
-          {data.imdb_rating}
-        </div>
-      )}
+      {(type === "movie" || type === "tv-show") &&
+        data.imdb_rating &&
+        data.imdb_rating !== "N/A" && (
+          <div className="absolute top-0 right-0 bg-yellow-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center shadow-sm">
+            <i className="fas fa-star text-[8px] mr-1"></i>
+            {data.imdb_rating}
+          </div>
+        )}
       {type === "tv-show" && data.region && (
         <div className="absolute bottom-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
           {data.region}
@@ -133,7 +152,11 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
           className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
           title="Available on Bahamut"
         >
-          <img src="https://i2.bahamut.com.tw/anime/logo.svg" className="h-3 opacity-90" alt="Baha" />
+          <img
+            src="https://i2.bahamut.com.tw/anime/logo.svg"
+            className="h-3 opacity-90"
+            alt="Baha"
+          />
         </div>
       )}
     </>
@@ -143,9 +166,14 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
 function LibraryMeta({ type, data }) {
   if (type === "anime") {
     const malText = data.mal_rating ? (
-      <><i className="fas fa-star text-blue-500 mr-0.5"></i>{data.mal_rating}</>
+      <>
+        <i className="fas fa-star text-blue-500 mr-0.5"></i>
+        {data.mal_rating}
+      </>
     ) : (
-      <><i className="fas fa-star text-gray-300 mr-0.5"></i>-</>
+      <>
+        <i className="fas fa-star text-gray-300 mr-0.5"></i>-
+      </>
     );
     return (
       <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between">
@@ -158,8 +186,12 @@ function LibraryMeta({ type, data }) {
   if (type === "tv-show") {
     return (
       <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
-        {data.season_part && <span className="truncate pr-1">{data.season_part}</span>}
-        {data.airing_status && <span className="shrink-0 truncate">{data.airing_status}</span>}
+        {data.season_part && (
+          <span className="truncate pr-1">{data.season_part}</span>
+        )}
+        {data.airing_status && (
+          <span className="shrink-0 truncate">{data.airing_status}</span>
+        )}
       </div>
     );
   }
@@ -170,7 +202,8 @@ function LibraryMeta({ type, data }) {
         <span className="truncate pr-1">{data.release_date || "TBD"}</span>
         {data.imdb_rating && data.imdb_rating !== "N/A" && (
           <span className="shrink-0 flex items-center gap-0.5 text-yellow-600 font-bold">
-            <i className="fas fa-star text-[8px]"></i>{data.imdb_rating}
+            <i className="fas fa-star text-[8px]"></i>
+            {data.imdb_rating}
           </span>
         )}
       </div>
@@ -184,7 +217,8 @@ function LibraryMeta({ type, data }) {
       <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
         {length && (
           <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-gray-400"></i>{length}
+            <i className="fas fa-clock text-gray-400"></i>
+            {length}
           </span>
         )}
         {releaseYear && <span className="truncate">{releaseYear}</span>}
@@ -198,10 +232,13 @@ function LibraryMeta({ type, data }) {
       <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
         {length && (
           <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-gray-400"></i>{length}
+            <i className="fas fa-clock text-gray-400"></i>
+            {length}
           </span>
         )}
-        {data.release_date_usa && <span className="truncate">{data.release_date_usa}</span>}
+        {data.release_date_usa && (
+          <span className="truncate">{data.release_date_usa}</span>
+        )}
       </div>
     );
   }
@@ -211,11 +248,14 @@ function LibraryMeta({ type, data }) {
       <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-center justify-between gap-1">
         <span className="truncate pr-1">
           {data.release_year || "?"}
-          {data.end_year && data.end_year !== data.release_year ? ` – ${data.end_year}` : ""}
+          {data.end_year && data.end_year !== data.release_year
+            ? ` – ${data.end_year}`
+            : ""}
         </span>
         {data.mal_rating && (
           <span className="shrink-0 flex items-center gap-0.5 text-blue-600 font-bold">
-            <i className="fas fa-star text-[8px]"></i>{data.mal_rating}
+            <i className="fas fa-star text-[8px]"></i>
+            {data.mal_rating}
           </span>
         )}
       </div>
@@ -234,7 +274,9 @@ function LibraryMeta({ type, data }) {
                 </span>
               )}
               {data.serialization_status && (
-                <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded border ${serializationStatusCls(data.serialization_status)}`}>
+                <span
+                  className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded border ${serializationStatusCls(data.serialization_status)}`}
+                >
                   {data.serialization_status}
                 </span>
               )}
@@ -247,12 +289,15 @@ function LibraryMeta({ type, data }) {
           )}
           <span className="truncate">
             {data.release_year || "?"}
-            {data.end_year && data.end_year !== data.release_year ? ` – ${data.end_year}` : ""}
+            {data.end_year && data.end_year !== data.release_year
+              ? ` – ${data.end_year}`
+              : ""}
           </span>
         </div>
         {data.mal_rating && (
           <span className="shrink-0 flex items-center gap-0.5 text-blue-600 font-bold">
-            <i className="fas fa-star text-[8px]"></i>{data.mal_rating}
+            <i className="fas fa-star text-[8px]"></i>
+            {data.mal_rating}
           </span>
         )}
       </div>
@@ -265,22 +310,32 @@ function LibraryMeta({ type, data }) {
 function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   if (type === "anime") {
     const localFin = data.ep_fin || 0;
-    const localTotal = data.ep_total != null && data.ep_total !== "" ? parseInt(data.ep_total, 10) : "?";
+    const localTotal =
+      data.ep_total != null && data.ep_total !== ""
+        ? parseInt(data.ep_total, 10)
+        : "?";
     return (
       <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
         {localFin} <span className="text-gray-400">/</span> {localTotal}
-        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">EP</span>
+        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+          EP
+        </span>
       </div>
     );
   }
 
   if (type === "tv-show" || type === "cartoon") {
     const epFin = data.ep_fin ?? 0;
-    const epTotal = data.ep_total != null && data.ep_total !== "" ? parseInt(data.ep_total, 10) : "?";
+    const epTotal =
+      data.ep_total != null && data.ep_total !== ""
+        ? parseInt(data.ep_total, 10)
+        : "?";
     return (
       <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
         {epFin} <span className="text-gray-400">/</span> {epTotal}
-        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">EP</span>
+        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+          EP
+        </span>
       </div>
     );
   }
@@ -294,7 +349,10 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     return (
       <div className="flex items-center gap-1.5">
         <button
-          onClick={(e) => { e.stopPropagation(); onToggleVol(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleVol();
+          }}
           className="text-[9px] text-gray-400 hover:text-brand border border-gray-200 rounded px-1 py-0.5 transition-colors shrink-0"
           title="Toggle Ch/Vol"
         >
@@ -303,14 +361,22 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
         {showVol ? (
           <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
             {volFin}
-            {volFinPage > 0 && <span className="text-[9px] text-gray-400 font-sans ml-0.5">p{volFinPage}</span>}
-            {" "}<span className="text-gray-400">/</span> {volTotal}
-            <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">VOL</span>
+            {volFinPage > 0 && (
+              <span className="text-[9px] text-gray-400 font-sans ml-0.5">
+                p{volFinPage}
+              </span>
+            )}{" "}
+            <span className="text-gray-400">/</span> {volTotal}
+            <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+              VOL
+            </span>
           </div>
         ) : (
           <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
             {chFin} <span className="text-gray-400">/</span> {chTotal}
-            <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">CH</span>
+            <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+              CH
+            </span>
           </div>
         )}
       </div>
@@ -322,7 +388,10 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     if (pd === "vol_tw") {
       return (
         <div className="flex items-center gap-1 text-[11px] font-bold text-gray-700 tracking-tight">
-          <span className="font-mono">{data.vol_fin ?? 0} / {data.vol_total_tw != null ? data.vol_total_tw : "?"}</span>
+          <span className="font-mono">
+            {data.vol_fin ?? 0} /{" "}
+            {data.vol_total_tw != null ? data.vol_total_tw : "?"}
+          </span>
           <span className="text-[9px] text-gray-400">VOL TW</span>
         </div>
       );
@@ -338,14 +407,19 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     if (pd === "ch") {
       return (
         <div className="flex items-center gap-1 text-[11px] font-bold text-gray-700 tracking-tight">
-          <span className="font-mono">{data.ch_fin ?? 0} / {data.ch_total != null ? data.ch_total : "?"}</span>
+          <span className="font-mono">
+            {data.ch_fin ?? 0} / {data.ch_total != null ? data.ch_total : "?"}
+          </span>
           <span className="text-[9px] text-gray-400">CH</span>
         </div>
       );
     }
     return (
       <div className="flex items-center gap-1 text-[11px] font-bold text-gray-700 tracking-tight">
-        <span className="font-mono">{data.vol_fin ?? 0} / {data.vol_total_original != null ? data.vol_total_original : "?"}</span>
+        <span className="font-mono">
+          {data.vol_fin ?? 0} /{" "}
+          {data.vol_total_original != null ? data.vol_total_original : "?"}
+        </span>
         <span className="text-[9px] text-gray-400">VOL</span>
       </div>
     );
@@ -356,14 +430,21 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
 
 function FutureMeta({ type, data }) {
   if (type === "anime") {
-    return data.studio ? <p className="text-[10px] text-gray-400 truncate mt-0.5">{data.studio}</p> : null;
+    return data.studio ? (
+      <p className="text-[10px] text-gray-400 truncate mt-0.5">{data.studio}</p>
+    ) : null;
   }
   if (type === "anime-movie") {
     const length = formatLength(data.length_min);
     const releaseYear = getReleaseYearFromDate(data.release_date_jp);
     return (
       <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
-        {length && <span className="flex items-center gap-0.5 shrink-0"><i className="fas fa-clock text-gray-400"></i>{length}</span>}
+        {length && (
+          <span className="flex items-center gap-0.5 shrink-0">
+            <i className="fas fa-clock text-gray-400"></i>
+            {length}
+          </span>
+        )}
         {releaseYear && <span className="truncate">{releaseYear}</span>}
       </div>
     );
@@ -376,7 +457,12 @@ function FutureMeta({ type, data }) {
     const releaseYear = /^\d{4}$/.test(lastPart) ? lastPart : "TBD";
     return (
       <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
-        {length && <span className="flex items-center gap-0.5 shrink-0"><i className="fas fa-clock text-gray-400"></i>{length}</span>}
+        {length && (
+          <span className="flex items-center gap-0.5 shrink-0">
+            <i className="fas fa-clock text-gray-400"></i>
+            {length}
+          </span>
+        )}
         <span className="truncate">{releaseYear}</span>
       </div>
     );
@@ -390,7 +476,11 @@ function FutureMeta({ type, data }) {
     );
   }
   if (type === "cartoon") {
-    return <div className="text-[10px] text-gray-500 font-medium mt-1 truncate">{data.release_date || "TBD"}</div>;
+    return (
+      <div className="text-[10px] text-gray-500 font-medium mt-1 truncate">
+        {data.release_date || "TBD"}
+      </div>
+    );
   }
   return null;
 }
@@ -411,32 +501,30 @@ export default function MediaCard({
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [showVol, setShowVol] = useState(false);
+  const statusMutation = useStatusToggle(type);
 
   const config = MEDIA_CONFIG[type];
-  const { statusField, apiEndpoint, navPath, statusType } = config;
+  const { statusField, navPath, statusType } = config;
 
   const title = getDisplayName(data, type);
   const imageUrl = getCoverUrl(data.cover_image_file);
-  const currentStatus = data[statusField] || (statusType === "read" ? "Might Read" : "Might Watch");
-  const btnConfig = statusType === "read" ? getReadingButtonConfig(currentStatus) : getStatusButtonConfig(currentStatus);
+  const currentStatus =
+    data[statusField] || (statusType === "read" ? "Might Read" : "Might Watch");
+  const btnConfig =
+    statusType === "read"
+      ? getReadingButtonConfig(currentStatus)
+      : getStatusButtonConfig(currentStatus);
   const needsExtra = !FUTURE_WATCHING_OPTIONS.includes(currentStatus);
 
   async function handleStatusToggle(e) {
     e.stopPropagation();
     try {
-      const res = await fetch(`${apiEndpoint}/${data.system_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [statusField]: btnConfig.target }),
-        credentials: "include",
+      const updated = await statusMutation.mutateAsync({
+        id: data.system_id,
+        value: btnConfig.target,
       });
-      if (res.ok) {
-        const updated = await res.json();
-        showToast("success", `Status → ${btnConfig.target}`);
-        onUpdated?.(updated);
-      } else {
-        showToast("error", "Update failed");
-      }
+      showToast("success", `Status -> ${btnConfig.target}`);
+      onUpdated?.(updated);
     } catch {
       showToast("error", "Network error");
     }
@@ -446,18 +534,11 @@ export default function MediaCard({
     e.stopPropagation();
     const newStatus = e.target.value;
     try {
-      const res = await fetch(`${apiEndpoint}/${data.system_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [statusField]: newStatus }),
-        credentials: "include",
+      const updated = await statusMutation.mutateAsync({
+        id: data.system_id,
+        value: newStatus,
       });
-      if (res.ok) {
-        const updated = await res.json();
-        onUpdated?.(updated);
-      } else {
-        showToast("error", "Update failed");
-      }
+      onUpdated?.(updated);
     } catch {
       showToast("error", "Network error");
     }
@@ -467,19 +548,13 @@ export default function MediaCard({
     e.stopPropagation();
     const airingStatus = BOLT_AIRING_STATUS[type];
     try {
-      const res = await fetch(`${apiEndpoint}/${data.system_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ airing_status: airingStatus }),
-        credentials: "include",
+      const updated = await statusMutation.mutateAsync({
+        id: data.system_id,
+        field: "airing_status",
+        value: airingStatus,
       });
-      if (res.ok) {
-        const updated = await res.json();
-        onUpdated?.(updated);
-        showToast("success", `${title} marked as ${airingStatus}`);
-      } else {
-        showToast("error", "Update failed");
-      }
+      onUpdated?.(updated);
+      showToast("success", `${title} marked as ${airingStatus}`);
     } catch {
       showToast("error", "Network error");
     }
@@ -508,18 +583,28 @@ export default function MediaCard({
       onClick={() => navPath && navigate(`${navPath}/${data.system_id}`)}
     >
       <div className="w-full aspect-[3/4] bg-gray-100 relative overflow-hidden">
-        <PosterBadges type={type} variant={variant} data={data} franchiseDict={franchiseDict} />
+        <PosterBadges
+          type={type}
+          variant={variant}
+          data={data}
+          franchiseDict={franchiseDict}
+        />
         <img
           src={imageUrl}
           alt={title}
           loading="lazy"
           className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
-          onError={(e) => { e.target.src = FALLBACK_SVG; }}
+          onError={(e) => {
+            e.target.src = FALLBACK_SVG;
+          }}
         />
       </div>
 
       <div className="p-3 flex flex-col flex-1 relative z-20 bg-white">
-        <h3 className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight mb-1.5" title={title}>
+        <h3
+          className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight mb-1.5"
+          title={title}
+        >
           {title}
         </h3>
 
@@ -537,10 +622,14 @@ export default function MediaCard({
                     title="Watching status"
                   >
                     {needsExtra && (
-                      <option value={currentStatus} disabled>{currentStatus}</option>
+                      <option value={currentStatus} disabled>
+                        {currentStatus}
+                      </option>
                     )}
                     {FUTURE_WATCHING_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
                     ))}
                   </select>
                   <button
@@ -557,9 +646,16 @@ export default function MediaCard({
         ) : (
           <>
             <LibraryMeta type={type} data={data} />
-            <div className={`mt-auto flex items-center border-t border-gray-100 pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}>
+            <div
+              className={`mt-auto flex items-center border-t border-gray-100 pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
+            >
               {HAS_PROGRESS.has(type) && (
-                <ProgressDisplay type={type} data={data} showVol={showVol} onToggleVol={() => setShowVol((v) => !v)} />
+                <ProgressDisplay
+                  type={type}
+                  data={data}
+                  showVol={showVol}
+                  onToggleVol={() => setShowVol((v) => !v)}
+                />
               )}
               {statusBtn}
             </div>

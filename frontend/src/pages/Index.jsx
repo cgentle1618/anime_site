@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { getRatingWeight } from "../utils/media";
 import DashboardCard from "../components/tracker/DashboardCard";
 import NovelDashboardCard from "../components/tracker/NovelDashboardCard";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
+import { useMediaList } from "../hooks/useMediaList";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -268,50 +271,41 @@ function ReadingSection({
 export default function Index() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
-  const [animeData, setAnimeData] = useState([]);
-  const [tvData, setTvData] = useState([]);
-  const [cartoonData, setCartoonData] = useState([]);
-  const [mangaData, setMangaData] = useState([]);
-  const [novelData, setNovelData] = useState([]);
-  const [franchiseData, setFranchiseData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+  const animeQuery = useMediaList("anime");
+  const franchiseQuery = useMediaList("franchise");
+  const tvQuery = useMediaList("tv-show");
+  const cartoonQuery = useMediaList("cartoon");
+  const mangaQuery = useMediaList("manga");
+  const novelQuery = useMediaList("novel");
+  const animeData = animeQuery.data || [];
+  const franchiseData = franchiseQuery.data || [];
+  const tvData = tvQuery.data || [];
+  const cartoonData = cartoonQuery.data || [];
+  const mangaData = mangaQuery.data || [];
+  const novelData = novelQuery.data || [];
+  const loading =
+    animeQuery.isLoading ||
+    franchiseQuery.isLoading ||
+    tvQuery.isLoading ||
+    cartoonQuery.isLoading ||
+    mangaQuery.isLoading ||
+    novelQuery.isLoading;
+  const error =
+    animeQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    tvQuery.error?.message ||
+    cartoonQuery.error?.message ||
+    mangaQuery.error?.message ||
+    novelQuery.error?.message ||
+    null;
   const [activeSection, setActiveSection] = useState("watching");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [aRes, fRes, tvRes, cRes, mgRes, nvRes] = await Promise.all([
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/tv-shows/", { credentials: "include" }),
-          fetch("/api/cartoon/", { credentials: "include" }),
-          fetch("/api/manga/", { credentials: "include" }),
-          fetch("/api/novel/", { credentials: "include" }),
-        ]);
-        if (
-          !aRes.ok ||
-          !fRes.ok ||
-          !tvRes.ok ||
-          !cRes.ok ||
-          !mgRes.ok ||
-          !nvRes.ok
-        )
-          throw new Error("Failed to load tracking data");
-        setAnimeData(await aRes.json());
-        setFranchiseData(await fRes.json());
-        setTvData(await tvRes.json());
-        setCartoonData(await cRes.json());
-        setMangaData(await mgRes.json());
-        setNovelData(await nvRes.json());
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  function updateCachedList(type, updater) {
+    queryClient.setQueriesData({ queryKey: ["media-list", type] }, (old) =>
+      Array.isArray(old) ? old.map(updater) : old,
+    );
+  }
 
   // Track which section is in view to highlight TOC
   useEffect(() => {
@@ -348,8 +342,8 @@ export default function Index() {
 
   async function handleEpChange(sysId, newVal, prevVal, uiType) {
     if (uiType === "TV Show") {
-      setTvData((prev) =>
-        prev.map((t) => (t.system_id === sysId ? { ...t, ep_fin: newVal } : t)),
+      updateCachedList("tv-show", (t) =>
+        t.system_id === sysId ? { ...t, ep_fin: newVal } : t,
       );
       try {
         const res = await fetch(`/api/tv-shows/${sysId}`, {
@@ -361,16 +355,14 @@ export default function Index() {
         if (!res.ok) throw new Error("Failed to sync");
         showToast("success", "Episodes updated!");
       } catch {
-        setTvData((prev) =>
-          prev.map((t) =>
-            t.system_id === sysId ? { ...t, ep_fin: prevVal } : t,
-          ),
+        updateCachedList("tv-show", (t) =>
+          t.system_id === sysId ? { ...t, ep_fin: prevVal } : t,
         );
         showToast("error", "Network error. Progress reverted.");
       }
     } else if (uiType === "Cartoon") {
-      setCartoonData((prev) =>
-        prev.map((c) => (c.system_id === sysId ? { ...c, ep_fin: newVal } : c)),
+      updateCachedList("cartoon", (c) =>
+        c.system_id === sysId ? { ...c, ep_fin: newVal } : c,
       );
       try {
         const res = await fetch(`/api/cartoon/${sysId}`, {
@@ -382,24 +374,20 @@ export default function Index() {
         if (!res.ok) throw new Error("Failed to sync");
         showToast("success", "Episodes updated!");
       } catch {
-        setCartoonData((prev) =>
-          prev.map((c) =>
-            c.system_id === sysId ? { ...c, ep_fin: prevVal } : c,
-          ),
+        updateCachedList("cartoon", (c) =>
+          c.system_id === sysId ? { ...c, ep_fin: prevVal } : c,
         );
         showToast("error", "Network error. Progress reverted.");
       }
     } else {
-      setAnimeData((prev) =>
-        prev.map((a) =>
-          a.system_id === sysId
-            ? {
-                ...a,
-                ep_fin: newVal,
-                cum_ep_fin: (a.ep_previous || 0) + newVal,
-              }
-            : a,
-        ),
+      updateCachedList("anime", (a) =>
+        a.system_id === sysId
+          ? {
+              ...a,
+              ep_fin: newVal,
+              cum_ep_fin: (a.ep_previous || 0) + newVal,
+            }
+          : a,
       );
       try {
         const res = await fetch(`/api/anime/${sysId}`, {
@@ -411,16 +399,14 @@ export default function Index() {
         if (!res.ok) throw new Error("Failed to sync");
         showToast("success", "Episodes updated!");
       } catch {
-        setAnimeData((prev) =>
-          prev.map((a) =>
-            a.system_id === sysId
-              ? {
-                  ...a,
-                  ep_fin: prevVal,
-                  cum_ep_fin: (a.ep_previous || 0) + prevVal,
-                }
-              : a,
-          ),
+        updateCachedList("anime", (a) =>
+          a.system_id === sysId
+            ? {
+                ...a,
+                ep_fin: prevVal,
+                cum_ep_fin: (a.ep_previous || 0) + prevVal,
+              }
+            : a,
         );
         showToast("error", "Network error. Progress reverted.");
       }
@@ -428,31 +414,21 @@ export default function Index() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <MediaLoadingState isLoading loadingText="Loading dashboard..." />;
   }
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error loading dashboard data.</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <MediaLoadingState
+        error={error}
+        errorTitle="Error loading dashboard data."
+      />
     );
   }
 
   async function handleChChange(sysId, newVal, prevVal) {
-    setMangaData((prev) =>
-      prev.map((m) => (m.system_id === sysId ? { ...m, ch_fin: newVal } : m)),
+    updateCachedList("manga", (m) =>
+      m.system_id === sysId ? { ...m, ch_fin: newVal } : m,
     );
     try {
       const res = await fetch(`/api/manga/${sysId}`, {
@@ -464,10 +440,8 @@ export default function Index() {
       if (!res.ok) throw new Error("Failed to sync");
       showToast("success", "Chapters updated!");
     } catch {
-      setMangaData((prev) =>
-        prev.map((m) =>
-          m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
-        ),
+      updateCachedList("manga", (m) =>
+        m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
       );
       showToast("error", "Network error. Progress reverted.");
     }
@@ -478,8 +452,8 @@ export default function Index() {
     fieldUpdates,
     prevFieldUpdates,
   ) {
-    setNovelData((prev) =>
-      prev.map((n) => (n.system_id === sysId ? { ...n, ...fieldUpdates } : n)),
+    updateCachedList("novel", (n) =>
+      n.system_id === sysId ? { ...n, ...fieldUpdates } : n,
     );
     try {
       const res = await fetch(`/api/novel/${sysId}`, {
@@ -491,10 +465,8 @@ export default function Index() {
       if (!res.ok) throw new Error("Failed to sync");
       showToast("success", "Progress updated!");
     } catch {
-      setNovelData((prev) =>
-        prev.map((n) =>
-          n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
-        ),
+      updateCachedList("novel", (n) =>
+        n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
       );
       showToast("error", "Network error. Progress reverted.");
     }

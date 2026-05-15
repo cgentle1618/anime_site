@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/useToast";
@@ -10,6 +10,10 @@ import ScoreBlock from "../components/info/ScoreBlock";
 import SourcesCard from "../components/info/SourcesCard";
 import MyTrackerCard from "../components/tracker/MyTrackerCard";
 import SeriesModal from "../components/modals/SeriesModal";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
+import { useMediaCacheUpdate } from "../hooks/useMediaCacheUpdate";
+import { useMediaItem } from "../hooks/useMediaItem";
+import { useMediaList } from "../hooks/useMediaList";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -33,49 +37,47 @@ export default function Anime() {
   const { showToast } = useToast();
 
   const [anime, setAnime] = useState(null);
-  const [franchise, setFranchise] = useState(null);
-  const [series, setSeries] = useState(null);
-  const [allAnime, setAllAnime] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const [aRes, fRes, sRes, allRes] = await Promise.all([
-        fetch(`/api/anime/${system_id}`, { credentials: "include" }),
-        fetch("/api/franchise/", { credentials: "include" }),
-        fetch("/api/series/", { credentials: "include" }),
-        fetch("/api/anime/", { credentials: "include" }),
-      ]);
-      if (!aRes.ok) throw new Error("Anime not found");
-      const a = await aRes.json();
-      const allFranchises = await fRes.json();
-      const allSeries = await sRes.json();
-      const all = await allRes.json();
-      setAnime(a);
-      setAllAnime(all);
-      setFranchise(
-        a.franchise_id
-          ? allFranchises.find((f) => f.system_id === a.franchise_id) || null
-          : null,
-      );
-      setSeries(
-        a.series_id
-          ? allSeries.find((s) => s.system_id === a.series_id) || null
-          : null,
-      );
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [system_id]);
+  const animeQuery = useMediaItem("anime", system_id);
+  const franchiseQuery = useMediaList("franchise");
+  const seriesQuery = useMediaList("series");
+  const allAnimeQuery = useMediaList("anime");
+  const { setMediaItem, fetchMediaItem, invalidateMedia } =
+    useMediaCacheUpdate("anime", system_id);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (animeQuery.data) setAnime(animeQuery.data);
+  }, [animeQuery.data]);
+
+  const allAnime = allAnimeQuery.data || [];
+  const allFranchises = franchiseQuery.data || [];
+  const allSeries = seriesQuery.data || [];
+  const franchise = useMemo(
+    () =>
+      anime?.franchise_id
+        ? allFranchises.find((f) => f.system_id === anime.franchise_id) || null
+        : null,
+    [allFranchises, anime?.franchise_id],
+  );
+  const series = useMemo(
+    () =>
+      anime?.series_id
+        ? allSeries.find((s) => s.system_id === anime.series_id) || null
+        : null,
+    [allSeries, anime?.series_id],
+  );
+  const loading =
+    animeQuery.isLoading ||
+    franchiseQuery.isLoading ||
+    seriesQuery.isLoading ||
+    allAnimeQuery.isLoading;
+  const error =
+    animeQuery.error?.message ||
+    franchiseQuery.error?.message ||
+    seriesQuery.error?.message ||
+    allAnimeQuery.error?.message ||
+    null;
 
   async function performUpdate(payload, msg) {
     if (!isAdmin) return;
@@ -89,13 +91,12 @@ export default function Anime() {
       });
       if (!res.ok) throw new Error("Sync failed");
       showToast("success", msg || "Saved");
-      const fresh = await fetch(`/api/anime/${system_id}`, {
-        credentials: "include",
-      });
-      setAnime(await fresh.json());
+      const updated = await res.json();
+      setAnime(updated);
+      setMediaItem(updated);
     } catch {
       showToast("error", "Update failed");
-      load();
+      fetchMediaItem();
     }
   }
 
@@ -109,7 +110,8 @@ export default function Anime() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Autofill failed");
       showToast("success", data.message || "Jikan autofill completed");
-      await load();
+      await invalidateMedia();
+      await fetchMediaItem();
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -118,23 +120,15 @@ export default function Anime() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <i className="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p className="text-gray-500 font-medium">Loading details...</p>
-      </div>
-    );
+    return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
 
   if (error || !anime) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error Loading Anime</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <MediaLoadingState
+        error={error || "Anime not found"}
+        errorTitle="Error Loading Anime"
+      />
     );
   }
 
@@ -266,7 +260,8 @@ export default function Anime() {
                   });
                   if (!res.ok) throw new Error("Request failed");
                   showToast("success", "Marked as Completed!");
-                  await load();
+                  await invalidateMedia();
+                  await fetchMediaItem();
                 } catch {
                   showToast("error", "Update failed");
                 }

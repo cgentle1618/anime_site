@@ -1,97 +1,45 @@
-import { useState, useEffect } from "react";
 import StatsCompletions from "./statistics/StatsCompletions";
+import MediaLoadingState from "../components/layout/MediaLoadingState";
+import { useMediaList } from "../hooks/useMediaList";
 
 export default function Completions() {
-  const [allAnime, setAllAnime] = useState([]);
-  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
-  const [allMovies, setAllMovies] = useState([]);
-  const [allTVShows, setAllTVShows] = useState([]);
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [allManga, setAllManga] = useState([]);
-  const [allNovel, setAllNovel] = useState([]);
-  const [franchiseMap, setFranchiseMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
-          await Promise.all([
-            fetch("/api/franchise/", { credentials: "include" }),
-            fetch("/api/anime/", { credentials: "include" }),
-            fetch("/api/anime-movie/", { credentials: "include" }),
-            fetch("/api/movies/", { credentials: "include" }),
-            fetch("/api/tv-shows/", { credentials: "include" }),
-            fetch("/api/cartoon/", { credentials: "include" }),
-            fetch("/api/manga/", { credentials: "include" }),
-            fetch("/api/novel/", { credentials: "include" }),
-          ]);
-        if (
-          !fRes.ok ||
-          !aRes.ok ||
-          !amRes.ok ||
-          !mRes.ok ||
-          !tvRes.ok ||
-          !cRes.ok ||
-          !mgRes.ok ||
-          !nvRes.ok
-        )
-          throw new Error("Failed to load data.");
-        const [fData, aData, amData, mData, tvData, cData, mgData, nvData] =
-          await Promise.all([
-            fRes.json(),
-            aRes.json(),
-            amRes.json(),
-            mRes.json(),
-            tvRes.json(),
-            cRes.json(),
-            mgRes.json(),
-            nvRes.json(),
-          ]);
-        const fMap = {};
-        fData.forEach((f) => {
-          fMap[String(f.system_id)] = f;
-        });
-        setFranchiseMap(fMap);
-        setAllAnime(aData);
-        setAllAnimeMovies(amData);
-        setAllMovies(mData);
-        setAllTVShows(tvData);
-        setAllCartoons(cData);
-        setAllManga(mgData);
-        setAllNovel(nvData);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  if (loading) {
+  const franchiseQuery = useMediaList("franchise");
+  const animeQuery = useMediaList("anime");
+  const animeMovieQuery = useMediaList("anime-movie");
+  const movieQuery = useMediaList("movie");
+  const tvQuery = useMediaList("tv-show");
+  const cartoonQuery = useMediaList("cartoon");
+  const mangaQuery = useMediaList("manga");
+  const novelQuery = useMediaList("novel");
+  const queries = [
+    franchiseQuery,
+    animeQuery,
+    animeMovieQuery,
+    movieQuery,
+    tvQuery,
+    cartoonQuery,
+    mangaQuery,
+    novelQuery,
+  ];
+  const firstError = queries.find((query) => query.error)?.error;
+  const isLoading = queries.some((query) => query.isLoading);
+  if (isLoading || firstError) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading completions...</p>
-        </div>
-      </div>
+      <MediaLoadingState
+        isLoading={isLoading}
+        error={firstError}
+        loadingText="Loading completions..."
+        errorTitle="Error loading completions."
+      />
     );
   }
 
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error loading completions.</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  const franchiseMap = Object.fromEntries(
+    (franchiseQuery.data || []).map((franchise) => [
+      String(franchise.system_id),
+      franchise,
+    ]),
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -110,13 +58,13 @@ export default function Completions() {
       </div>
 
       <StatsCompletions
-        allAnime={allAnime}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allTVShows={allTVShows}
-        allCartoons={allCartoons}
-        allManga={allManga}
-        allNovel={allNovel}
+        allAnime={animeQuery.data || []}
+        allAnimeMovies={animeMovieQuery.data || []}
+        allMovies={movieQuery.data || []}
+        allTVShows={tvQuery.data || []}
+        allCartoons={cartoonQuery.data || []}
+        allManga={mangaQuery.data || []}
+        allNovel={novelQuery.data || []}
         franchiseMap={franchiseMap}
       />
     </div>
