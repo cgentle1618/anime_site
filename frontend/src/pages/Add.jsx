@@ -16,7 +16,9 @@ import NovelAddTab, { defaultNovel } from "./add-tabs/NovelAddTab";
 import CartoonAddTab, { defaultCartoon } from "./add-tabs/CartoonAddTab";
 import TvShowAddTab, { defaultTvShow } from "./add-tabs/TvShowAddTab";
 import MovieAddTab, { defaultMovie } from "./add-tabs/MovieAddTab";
-import AnimeMovieAddTab, { defaultAnimeMovie } from "./add-tabs/AnimeMovieAddTab";
+import AnimeMovieAddTab, {
+  defaultAnimeMovie,
+} from "./add-tabs/AnimeMovieAddTab";
 import AnimeAddTab, { defaultAnime } from "./add-tabs/AnimeAddTab";
 
 export default function Add() {
@@ -99,19 +101,29 @@ export default function Add() {
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, cRes, mgRes, nvRes] =
-          await Promise.all([
-            fetch("/api/anime/?limit=2000", { credentials: "include" }),
-            fetch("/api/franchise/?limit=2000", { credentials: "include" }),
-            fetch("/api/series/?limit=2000", { credentials: "include" }),
-            fetch("/api/options/", { credentials: "include" }),
-            fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
-            fetch("/api/movies/?limit=2000", { credentials: "include" }),
-            fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
-            fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
-            fetch("/api/manga/?limit=2000", { credentials: "include" }),
-            fetch("/api/novel/?limit=2000", { credentials: "include" }),
-          ]);
+        const [
+          aRes,
+          fRes,
+          sRes,
+          oRes,
+          amRes,
+          mvRes,
+          tvRes,
+          cRes,
+          mgRes,
+          nvRes,
+        ] = await Promise.all([
+          fetch("/api/anime/?limit=2000", { credentials: "include" }),
+          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
+          fetch("/api/series/?limit=2000", { credentials: "include" }),
+          fetch("/api/options/", { credentials: "include" }),
+          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
+          fetch("/api/movies/?limit=2000", { credentials: "include" }),
+          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
+          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
+          fetch("/api/manga/?limit=2000", { credentials: "include" }),
+          fetch("/api/novel/?limit=2000", { credentials: "include" }),
+        ]);
         const [
           anime,
           franchises,
@@ -374,7 +386,6 @@ export default function Add() {
       series_text: s ? getDisplayName(s, "series") : "",
       is_main: movie.is_main || "",
       movie_type: movie.movie_type || "",
-      director: movie.director || "",
     }));
     setMovieFillQuery("");
     setMovieFillOpen(false);
@@ -1568,12 +1579,18 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    const novelNameEachCn = nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
-      ? nvf.novel_name_each_cn.filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
-      : null;
-    const novelNameEachEn = nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
-      ? nvf.novel_name_each_en.filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
-      : null;
+    const novelNameEachCn =
+      nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
+        ? nvf.novel_name_each_cn
+            .filter((e) => e.name.trim())
+            .map((e) => ({ key: e.key, name: e.name.trim() }))
+        : null;
+    const novelNameEachEn =
+      nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
+        ? nvf.novel_name_each_en
+            .filter((e) => e.name.trim())
+            .map((e) => ({ key: e.key, name: e.name.trim() }))
+        : null;
 
     // Auto-create missing system options for author, illustrator, publisher_tw
     {
@@ -1583,11 +1600,17 @@ export default function Add() {
         existingValues[o.category].add(o.option_value);
       }
       const toCreate = [];
-      for (const v of (nvf.author || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+      for (const v of (nvf.author || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         if (!existingValues["Novel Author"]?.has(v))
           toCreate.push({ category: "Novel Author", option_value: v });
       }
-      for (const v of (nvf.illustrator || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+      for (const v of (nvf.illustrator || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         if (!existingValues["Novel Illustrator"]?.has(v))
           toCreate.push({ category: "Novel Illustrator", option_value: v });
       }
@@ -1625,8 +1648,12 @@ export default function Add() {
       serialization_status: nvf.serialization_status || null,
       reading_status: nvf.reading_status || "Might Read",
       progress_display: nvf.progress_display || null,
-      vol_total_original: nvf.vol_total_original !== "" ? parseFloat(nvf.vol_total_original) : null,
-      vol_total_tw: nvf.vol_total_tw !== "" ? parseFloat(nvf.vol_total_tw) : null,
+      vol_total_original:
+        nvf.vol_total_original !== ""
+          ? parseFloat(nvf.vol_total_original)
+          : null,
+      vol_total_tw:
+        nvf.vol_total_tw !== "" ? parseFloat(nvf.vol_total_tw) : null,
       vol_fin: nvf.vol_fin !== "" ? parseFloat(nvf.vol_fin) : 0,
       arc_total: nvf.arc_total !== "" ? parseFloat(nvf.arc_total) : null,
       arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : 0,
@@ -1635,7 +1662,8 @@ export default function Add() {
       my_rating: nvf.my_rating || null,
       mal_rating: nvf.mal_rating !== "" ? parseFloat(nvf.mal_rating) : null,
       mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
-      anilist_rating: nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
+      anilist_rating:
+        nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
       author: nvf.author || null,
       illustrator: nvf.illustrator || null,
       release_year: nvf.release_year !== "" ? parseInt(nvf.release_year) : null,
@@ -1645,8 +1673,14 @@ export default function Add() {
       sequel_id: nvf.sequel_id || null,
       alternative: nvf.alternative || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
-      novel_name_each_cn: novelNameEachCn && Object.keys(novelNameEachCn).length > 0 ? novelNameEachCn : null,
-      novel_name_each_en: novelNameEachEn && Object.keys(novelNameEachEn).length > 0 ? novelNameEachEn : null,
+      novel_name_each_cn:
+        novelNameEachCn && Object.keys(novelNameEachCn).length > 0
+          ? novelNameEachCn
+          : null,
+      novel_name_each_en:
+        novelNameEachEn && Object.keys(novelNameEachEn).length > 0
+          ? novelNameEachEn
+          : null,
       mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
       mal_link: nvf.mal_link || null,
       anilist_link: nvf.anilist_link || null,
