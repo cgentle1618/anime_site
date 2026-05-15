@@ -7,7 +7,7 @@ import {
 } from "../../components/forms/FormField";
 
 const TYPE_TO_ENTRY_TYPES = {
-  ACG: ["anime", "manga", "novel"],
+  ACG: ["anime", "manga"],
   "Anime Movie": ["anime_movie"],
   TV: ["tv_show"],
   Movie: ["movie"],
@@ -70,12 +70,7 @@ export default function FranchiseModifyTab({
     const name = getDisplayName(e, e._type);
     const yr =
       e.release_year ||
-      (
-        e.release_date_jp ||
-        e.release_date_usa ||
-        e.release_date ||
-        ""
-      )
+      (e.release_date_jp || e.release_date_usa || e.release_date || "")
         .toString()
         .slice(0, 4);
     return `${name}${yr ? ` (${yr})` : ""} [${e._type}]`;

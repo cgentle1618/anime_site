@@ -257,16 +257,16 @@ export default function Modify() {
       try {
         const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes, mgRes, nvRes] =
           await Promise.all([
-            fetch("/api/anime/", { credentials: "include" }),
-            fetch("/api/franchise/", { credentials: "include" }),
-            fetch("/api/series/", { credentials: "include" }),
+            fetch("/api/anime/?limit=2000", { credentials: "include" }),
+            fetch("/api/franchise/?limit=2000", { credentials: "include" }),
+            fetch("/api/series/?limit=2000", { credentials: "include" }),
             fetch("/api/options/", { credentials: "include" }),
-            fetch("/api/anime-movie/", { credentials: "include" }),
-            fetch("/api/movies/", { credentials: "include" }),
-            fetch("/api/tv-shows/", { credentials: "include" }),
-            fetch("/api/cartoon/", { credentials: "include" }),
-            fetch("/api/manga/", { credentials: "include" }),
-            fetch("/api/novel/", { credentials: "include" }),
+            fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
+            fetch("/api/movies/?limit=2000", { credentials: "include" }),
+            fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
+            fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
+            fetch("/api/manga/?limit=2000", { credentials: "include" }),
+            fetch("/api/novel/?limit=2000", { credentials: "include" }),
           ]);
         const [
           anime,

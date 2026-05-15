@@ -1,7 +1,7 @@
 import { getCoverUrl, FALLBACK_SVG } from "./media";
 
 const TYPE_TO_ENTRY_TYPES = {
-  ACG: ["anime", "manga", "novel"],
+  ACG: ["anime", "manga"],
   "Anime Movie": ["anime_movie"],
   TV: ["tv_show"],
   Movie: ["movie"],
@@ -31,7 +31,11 @@ export function getEntryYear(entry) {
   return 0;
 }
 
-export function getCoverForSlot(franchise, allEntriesByFranchise, forType = null) {
+export function getCoverForSlot(
+  franchise,
+  allEntriesByFranchise,
+  forType = null,
+) {
   const entries = allEntriesByFranchise[String(franchise.system_id)] || [];
   if (forType && franchise.type_covers?.[forType]) {
     const chosen = entries.find(
