@@ -474,3 +474,66 @@ export function parseTypes(franchiseType) {
     .map((t) => t.trim())
     .filter(Boolean);
 }
+
+// ---------------------------------------------------------------------------
+// Library page shared constants & helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps raw watching_status values to display groups used by library filters.
+ */
+export const WATCHING_STATUS_GROUP = {
+  "Plan to Watch":    "Planned",
+  "Watch When Airs":  "Planned",
+  "Active Watching":  "Watching",
+  "Passive Watching": "Watching",
+  Paused:             "Watching",
+  Completed:          "Completed",
+  "Temp Dropped":     "Dropped",
+  Dropped:            "Dropped",
+  "Won't Watch":      "Dropped",
+  "Might Watch":      "Might Watch",
+};
+
+/**
+ * Maps raw reading_status values to display groups used by library filters.
+ */
+export const READING_STATUS_GROUP = {
+  "Plan to Read":    "Planned",
+  "Active Reading":  "Reading",
+  "Passive Reading": "Reading",
+  Paused:            "Reading",
+  Completed:         "Completed",
+  "Temp Dropped":    "Dropped",
+  Dropped:           "Dropped",
+  "Won't Read":      "Dropped",
+  "Might Read":      "Might Read",
+};
+
+/**
+ * Tailwind class strings for airing_status badge colours.
+ * Use: AIRING_STATUS_CLS[item.airing_status] ?? AIRING_STATUS_CLS._default
+ */
+export const AIRING_STATUS_CLS = {
+  Airing:            "text-green-700 bg-green-100",
+  "Finished Airing": "text-blue-700 bg-blue-100",
+  "Not Yet Aired":   "text-orange-700 bg-orange-100",
+  _default:          "text-gray-500 bg-gray-100",
+};
+
+/**
+ * Returns a human-readable progress string for a novel entry, branching
+ * on the novel's progress_display field.
+ */
+export function getNovelProgress(novel) {
+  switch (novel.progress_display) {
+    case "vol_tw":
+      return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
+    case "vol_original":
+      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL`;
+    case "arc_ch":
+      return `${novel.arc_fin ?? 0}/${novel.arc_total ?? "?"} ARC  ${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} CH`;
+    default:
+      return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
+  }
+}
