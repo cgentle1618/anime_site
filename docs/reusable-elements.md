@@ -29,13 +29,13 @@ Present on every page. Contains:
 
 | Dropdown             | Items                                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ACG                  | Anime Library, Anime Movie Library, Manga Library _(future)_, Novel Library _(future)_, Seiyuu Library _(future)_                                      |
+| ACG                  | Anime Library, Anime Movie Library, Manga Library, Novel Library, Seiyuu Library _(future)_                                                            |
 | Reality ¹            | Franchise Library, TV Show Library (`/library/tv-show`), Movie Library (`/library/movie`)                                                              |
 | Cartoon              | Cartoon Library (`/library/cartoon`)                                                                                                                   |
 | More                 | Statistics, Future Release, Seasonal                                                                                                                   |
 | Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
 
-¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to `FranchiseCartoon.jsx` — they are not Reality Franchise entries.
+¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to the unified `FranchisePage.jsx` (via `Franchise.jsx` wrapper) just like all other franchise types — they are not Reality Franchise entries.
 
 **Other controls:**
 
@@ -125,7 +125,7 @@ Anime Movie Name CN (fallback) · Franchise Name CN (fallback) · Release Date (
 
 ### Movie
 
-Main Title: Movie Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Release Date (fallback: release_date_us → release_date_tw)
+Main Title: Movie Name CN (fallback) · Sub Title: Franchise Name CN (fallback) · Release Date (fallback: release_date_usa → release_date_tw)
 
 ### TV Show
 
@@ -189,7 +189,7 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN
 
 ### TV Show
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID (Note: React code has a redundant legacy check for Airing Type, but TV Shows do not have airing_type in the database; they have Region instead)
 
 ### Cartoon
 
@@ -213,7 +213,7 @@ Poster-style cards used in grid views. Each entry type has multiple type variant
 
 ### Franchise Entry Card
 
-- Poster (cover image of latest belonging entry; fallback to image cover if `cover_anime_id` is null)
+- Poster (cover image of the entry explicitly selected via `cover_entry_id`; if null, falls back to the cover of the most recently released entry in the franchise)
 - Franchise Rating
 - Franchise Name CN (fallback)
 - Franchise Type
@@ -532,8 +532,8 @@ Anime / Anime Movie / Manga / Novel Naming Card
 
 - Entry CN Name
 - Entry EN Name
-- Entry Entry Name JP
-- Entry Entry Name Romaji
+- Entry Name JP
+- Entry Name Romaji
 - Entry Alt Name
 
 ### Movie Naming Card
@@ -959,7 +959,7 @@ Shared components and utilities used across Add and Modify pages.
 
 ### Form Styling Constants (`FormField.jsx`)
 
-`inputCls` and `selectCls` — Tailwind class strings for text inputs and select dropdowns respectively. Exported from `FormField.jsx` and imported wherever consistent form styling is needed.
+`inputCls` and `selectCls` — Tailwind class strings (see actual file for current class values) for text inputs and select dropdowns respectively. Exported from `FormField.jsx` and imported wherever consistent form styling is needed.
 
 ### FormField Components (`FormField.jsx`)
 
