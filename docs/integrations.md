@@ -178,9 +178,9 @@ Same as TMDB: `imdb_tt_id = f"tt{imdb_id:07d}"`
 
 ### Field Mappings (OMDb → Database)
 
-| OMDb field   | DB field      | Model(s)         | Transformation                 |
-| ------------ | ------------- | ---------------- | ------------------------------ |
-| `imdbRating` | `imdb_rating` | movies, tv_shows | String as-is; `"N/A"` → `None` |
+| OMDb field   | DB field      | Model(s)                   | Transformation                 |
+| ------------ | ------------- | -------------------------- | ------------------------------ |
+| `imdbRating` | `imdb_rating` | movies, tv_shows, cartoons | String as-is; `"N/A"` → `None` |
 
 ---
 
@@ -209,8 +209,15 @@ Spreadsheet is identified by `GOOGLE_SHEET_ID` env var. One tab per model:
 | `Franchise`      | `Franchise`    |
 | `Series`         | `Series`       |
 | `Anime`          | `Anime`        |
+| `Anime Movies`   | `Anime Movie`  |
+| `Movies`         | `Movies`       |
+| `TV Shows`       | `TVShows`      |
+| `Cartoons`       | `Cartoons`     |
+| `Manga`          | `Manga`        |
+| `Novel`          | `Novel`        |
+| `Seasonal`       | `Seasonal`     |
 
-Tabs are auto-created (1000 rows × 50 columns) if missing on first access.
+Tabs are auto-created (1000 rows × 50 columns) if missing on first Backup or Pull operation.
 
 ### Backup Flow (DB → Sheets)
 
@@ -242,7 +249,7 @@ Tabs are auto-created (1000 rows × 50 columns) if missing on first access.
 **Service file:** `services/image_manager.py`  
 **Utils:** `utils/gcp_utils.py`
 
-GCS stores anime cover images. Locally, images are saved to `static/covers/` instead.
+GCS stores media entry cover images. Locally, images are saved to `static/covers/` instead.
 
 ### Library
 
