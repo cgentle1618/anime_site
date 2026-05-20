@@ -152,7 +152,8 @@ Field: `franchise.franchise_type` — Default: `null`
 | `null`        | Yes     |
 | `ACG`         |         |
 | `Anime Movie` |         |
-| `TV or Movie` |         |
+| `Movie`       |         |
+| `TV`          |         |
 | `Cartoon`     |         |
 | `Novel`       |         |
 
@@ -290,15 +291,23 @@ Predefined franchise names used as grouping hubs within each `franchise_type`. T
 | 新海誠         |
 | 吉卜力         |
 
-### TV or Movie
+## Movie
 
 | Franchise Name    |
 | ----------------- |
-| 獨立電影 / 影集   |
+| 獨立電影          |
 | Marvel            |
 | Disney            |
 | Christopher Nolan |
 | 周星馳            |
+
+### TV
+
+| Franchise Name |
+| -------------- |
+| 獨立影集       |
+| Marvel         |
+| Disney         |
 
 ---
 
