@@ -45,7 +45,7 @@ Static file mounts:
   - /assets         →  frontend_dist/assets/  (Vite build output)
 
 Router registration order:
-  auth → options → franchise → series → anime → seasonal → data_control → system
+  auth → options → franchise → series → anime → anime_movie → cartoon → movie → tv_show → manga → novel → seasonal → data_control → system
 
 Catch-all route (must be last):
   GET /{full_path:path} → serves frontend_dist/index.html
@@ -121,17 +121,18 @@ Two shared FastAPI dependencies injected via `Depends()`:
 
 ### `data_control.py` — Data Pipeline Orchestrator
 
-Entry points for the five admin-triggered pipelines:
+Entry points for the five admin-triggered pipelines, supporting all media types (Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel):
 
-| Function                                     | Pipeline             | Returns          |
-| -------------------------------------------- | -------------------- | ---------------- |
-| `execute_backup(db)`                         | Backup (DB → Sheets) | dict with counts |
-| `execute_fill_anime(db, request)`            | Fill — anime only    | SSE generator    |
-| `execute_fill_all(db, request)`              | Fill → Backup        | SSE generator    |
-| `execute_replace_single_anime(db, anime_id)` | Replace one entry    | dict             |
-| `execute_replace_anime(db, request)`         | Replace — all anime  | SSE generator    |
-| `execute_replace_all(db, request)`           | Replace → Backup     | SSE generator    |
-| `execute_pull_specific(db, tab_name)`        | Pull one Sheets tab  | dict with counts |
+| Function Prefix / Name                        | Pipeline             | Target Type(s)                                            | Returns          |
+| --------------------------------------------- | -------------------- | --------------------------------------------------------- | ---------------- |
+| `execute_backup(db)`                          | Backup (DB → Sheets) | System Options, Franchise, Series, Anime                  | dict with counts |
+| `execute_fill_{type}(db, request)`            | Fill missing data    | anime, anime_movie, movie, tv_show, cartoon, manga, novel | SSE generator    |
+| `execute_fill_all(db, request)`               | Fill → Backup        | All media types                                           | SSE generator    |
+| `execute_replace_single_{type}(db, entry_id)` | Replace one entry    | anime, anime_movie, movie, tv_show, cartoon, manga, novel | dict             |
+| `execute_replace_{type}(db, request)`         | Replace metadata     | anime, anime_movie, movie, tv_show, cartoon, manga, novel | SSE generator    |
+| `execute_replace_all(db, request)`            | Replace → Backup     | All media types                                           | SSE generator    |
+| `execute_pull_specific(db, tab_name)`         | Pull one Sheets tab  | System Options, Franchise, Series, Anime                  | dict with counts |
+| `execute_pull_all(db)`                        | Pull all Sheets tabs | System Options, Franchise, Series, Anime                  | dict with counts |
 
 SSE generators yield `data: {json}\n\n` messages and check `request.is_disconnected()` for graceful client abort. All pipelines log to `DataControlLog` via `log_data_control()`.
 
@@ -139,42 +140,46 @@ SSE generators yield `data: {json}\n\n` messages and check `request.is_disconnec
 
 Key functions:
 
-**Episode math:**
+**Episode & Reading math:**
 
-- `apply_validate_episode_math()` — sanitizes `ep_total`/`ep_fin`; ensures `ep_fin ≤ ep_total`
+- `apply_validate_episode_math(entry)` — sanitizes `ep_total`/`ep_fin`; ensures `ep_fin ≤ ep_total` (supports Anime, TVShows, Cartoon)
+- `apply_validate_vol_math(manga)` / `apply_validate_ch_math(manga)` — validates manga volumes and chapters
 - `derive_ep_previous_anime(db, franchise_id)` — computes cumulative episode offset for sequential TV/ONA entries within a series
 
 **Watch order & relations:**
 
-- `derive_watch_order_anime(db, franchise_id)` — assigns `watch_order` to eligible entries; groups by series, orders within group by season/part then airing type (TV→ONA→Special→OVA→OAD); only fills `None` fields
-- `derive_prequel_sequel_anime(db, franchise_id)` — links adjacent entries by `watch_order`; sets `prequel_id` / `sequel_id`; only fills `None` fields
+- `derive_watch_order_anime(db, franchise_id)` — assigns `watch_order` to eligible anime entries; groups by series, orders within group by season/part then airing type (TV→ONA→Special→OVA→OAD); only fills `None` fields
+- `derive_watch_order_tv_show(db, franchise_id)` / `derive_watch_order_cartoon(db, franchise_id)` — assigns watch order for TV shows and cartoons
+- `derive_prequel_sequel_{anime|tv_show|cartoon|manga}(db, franchise_id)` — links adjacent entries by `watch_order`; sets `prequel_id` / `sequel_id`; only fills `None` fields
 
-**Master derive:** `derive_related(db)` — calls `derive_watch_order_anime`, `derive_prequel_sequel_anime`, `derive_ep_previous_anime` for every franchise.
+**Master derive:** `derive_related_{anime|tv_show|cartoon|manga}(db)` — calls corresponding watch order, prequel/sequel, and episode previous derivation functions.
 
-**Jikan fill:** `autofill_anime_from_mal(anime, force_replace_ratings)` — fetch MAL data, fill missing fields, download cover image.
+**External API fill:**
+
+- `autofill_{anime|anime_movie|manga|novel}_from_mal(...)` — fetch MAL data via Jikan, fill missing fields, and download cover images.
+- `autofill_{movie|tv_show|cartoon}_from_imdb(...)` — fetch IMDb details via TMDB/OMDb, fill missing fields, and download cover images.
 
 **Season inference:**
 
 - `apply_calculate_seasonal_from_month()` — map `release_month` → `release_season`
-- `derive_season_1_anime()` — if a franchise has exactly one TV entry with no `season_part`, set "Season 1"
+- `derive_season_1_{anime|tv_show|cartoon}()` — if a franchise has exactly one TV entry of this type with no `season_part`, set "Season 1"
 
-**Source flags:** `apply_check_baha()` — sets `source_baha=True` if `baha_link` is present and `airing_status == "Airing"`.
+**Source flags:** `apply_check_baha()` — sets `source_baha=True` if `baha_link` is present (supports Anime, AnimeMovies).
 
-**Duplicate detection:** `find_duplicate_franchises/series/anime/system_options()` — union-find clustering by name similarity, grouped by type or parent ID.
+**Duplicate detection:** `find_duplicate_{franchises|series|anime|anime_movie|movie|tv_show|cartoon|manga|novel|system_options}(db)` — union-find clustering by name similarity.
 
-**Post-processing:** `anime_post_processing(anime, db)` — calls validate_episode_math, check_baha, derive_season_1_anime.
+**Post-processing:** `{type}_post_processing(entry, db)` — applies specific validation math, baha check, and season/status derivations.
 
-**Hierarchy resolution:** `resolve_anime_parent_hierarchy()` — find or create parent Franchise (and optionally Series) by name during Pull.
+**Hierarchy resolution:** `resolve_{type}_parent_hierarchy(...)` — find or create parent Franchise (and optionally Series) by name during Pull.
 
 ### `calculation.py` — Bulk Maintenance
 
 Called by `run_calculate_all(db)` (triggered from Admin page):
 
-1. `run_anime_post_processing(db)` — post-process all anime entries
-2. `run_derive_related(db)` — derive watch order, prequel/sequel, ep_previous for all franchises
-3. `run_sync_anime(db)` — `create_missing_seasonal()` + `sync_seasonal_counts()` + `extract_system_options_from_anime()`
-4. `run_sync_anime_movie(db)` — `extract_system_options_from_anime_movie()`
-5. Cover image utilities: check missing covers, download missing, set fields, delete orphaned files
+1. `run_post_processing(db)` — post-process all media entries (Anime, TV Shows, Cartoons, Manga, Novels, etc.)
+2. `run_derive_related(db)` — derive watch order, prequel/sequel, ep_previous for all applicable media types across all franchises
+3. `run_sync(db)` — triggers type-specific sync functions (`run_sync_anime`, `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_tv_show`, `run_sync_manga`, `run_sync_novel`) to build seasonal configs, counts, and extract system options
+4. Cover image utilities: `bulk_check_cover_image`, `bulk_set_cover_image_fields`, `bulk_delete_orphaned_cover_images`, and `bulk_download_missing_covers`
 
 ### `security.py` — Auth Utilities
 
@@ -215,11 +220,17 @@ All routers follow the **thin router** pattern: validate input, call a service o
 | Router file       | Prefix              | Notes                                                        |
 | ----------------- | ------------------- | ------------------------------------------------------------ |
 | `auth.py`         | `/api/auth`         | Login, logout, `/me` status check                            |
+| `options.py`      | `/api/options`      | System option CRUD                                           |
 | `franchise.py`    | `/api/franchise`    | CRUD; `DELETE` cascades FK nulls and writes `deleted_record` |
 | `series.py`       | `/api/series`       | CRUD                                                         |
 | `anime.py`        | `/api/anime`        | CRUD; supports `franchise_id` query param for filtered list  |
+| `anime_movie.py`  | `/api/anime-movie`  | CRUD                                                         |
+| `cartoon.py`      | `/api/cartoon`      | CRUD                                                         |
+| `movie.py`        | `/api/movies`       | CRUD                                                         |
+| `tv_show.py`      | `/api/tv-shows`     | CRUD                                                         |
+| `manga.py`        | `/api/manga`        | CRUD                                                         |
+| `novel.py`        | `/api/novel`        | CRUD                                                         |
 | `seasonal.py`     | `/api/seasonal`     | Read + partial update; `/current-season` shortcut            |
-| `options.py`      | `/api/options`      | System option CRUD                                           |
 | `data_control.py` | `/api/data-control` | Pipeline triggers; SSE streaming routes                      |
 | `system.py`       | `/api/system`       | Config, logs, deleted records                                |
 

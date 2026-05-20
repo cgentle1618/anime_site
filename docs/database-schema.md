@@ -66,25 +66,25 @@ Core tables and media entry tables follow the same pattern for name fields where
 
 Top-level media franchise entity. Groups related series and individual entries.
 
-| Column                  | Type     | Nullable | Default    | Notes                                                                          |
-| ----------------------- | -------- | -------- | ---------- | ------------------------------------------------------------------------------ |
-| `system_id`             | UUID     | No       | `uuid4()`  | Primary key                                                                    |
-| `franchise_type`        | String   | Yes      | —          | `"ACG"`, `"Anime Movie"`, `"TV or Movie"`, `"Cartoon"`, or null                |
-| `franchise_name_en`     | String   | Yes      | —          |                                                                                |
-| `franchise_name_cn`     | String   | Yes      | —          |                                                                                |
-| `franchise_name_roman`  | String   | Yes      | —          |                                                                                |
-| `franchise_name_jp`     | String   | Yes      | —          |                                                                                |
-| `franchise_name_alt`    | String   | Yes      | —          |                                                                                |
-| `my_rating`             | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                                             |
-| `franchise_expectation` | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                                     |
-| `type_slots`            | JSONB    | Yes      | —          | Dict mapping franchise type → slot (1–9) for 3x3 grids (e.g., `{"ACG": 3, "Movie": 5}`) |
-| `cover_entry_id`        | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover for the Franchise Library page; no FK constraint |
+| Column                  | Type     | Nullable | Default    | Notes                                                                                                                                       |
+| ----------------------- | -------- | -------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `system_id`             | UUID     | No       | `uuid4()`  | Primary key                                                                                                                                 |
+| `franchise_type`        | String   | Yes      | —          | `"ACG"`, `"Anime Movie"`, `"TV or Movie"`, `"Cartoon"`, or null                                                                             |
+| `franchise_name_en`     | String   | Yes      | —          |                                                                                                                                             |
+| `franchise_name_cn`     | String   | Yes      | —          |                                                                                                                                             |
+| `franchise_name_roman`  | String   | Yes      | —          |                                                                                                                                             |
+| `franchise_name_jp`     | String   | Yes      | —          |                                                                                                                                             |
+| `franchise_name_alt`    | String   | Yes      | —          |                                                                                                                                             |
+| `my_rating`             | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                                                                                                          |
+| `franchise_expectation` | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                                                                                                  |
+| `type_slots`            | JSONB    | Yes      | —          | Dict mapping franchise type → slot (1–9) for 3x3 grids (e.g., `{"ACG": 3, "Movie": 5}`)                                                     |
+| `cover_entry_id`        | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover for the Franchise Library page; no FK constraint                                      |
 | `type_covers`           | JSONB    | Yes      | —          | Dict mapping franchise type string → entry UUID; used for per-type covers in 3x3 grids (e.g. `{"ACG": "<uuid>", "TV or Movie": "<uuid>"}` ) |
-| `watch_next_group`      | String   | Yes      | —          | `"12ep"`, `"24ep"`, `"30ep_plus"`, or null                                     |
-| `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                |
-| `remark`                | Text     | Yes      | —          |                                                                                |
-| `created_at`            | DateTime | No       | Taipei now |                                                                                |
-| `updated_at`            | DateTime | No       | Taipei now | Auto-updated on save                                                           |
+| `watch_next_group`      | String   | Yes      | —          | `"12ep"`, `"24ep"`, `"30ep_plus"`, or null                                                                                                  |
+| `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                                                                             |
+| `remark`                | Text     | Yes      | —          |                                                                                                                                             |
+| `created_at`            | DateTime | No       | Taipei now |                                                                                                                                             |
+| `updated_at`            | DateTime | No       | Taipei now | Auto-updated on save                                                                                                                        |
 
 **Constraints:** At least one name field must be non-null.
 
@@ -531,7 +531,6 @@ Western animated TV show entries.
 | `airing_type` | String | Yes      | —       | `"TV"`, `"Movie"`, `"Other"`, null                            |
 
 | `source_official` | String | Yes | — | Name of official streaming source; see system_options |
-| `airing_type` | String | Yes | — | `"TV"`, `"TV重製版"`, `"TV重啟版"`, `"Movie"`, `"Special"`, `"Other"`, null |
 | `airing_status` | String | Yes | — | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null |
 | `watching_status` | String | No | `"Might Watch"` | See options.md for all valid values |
 | `is_main` | String | Yes | — | Whether the entry is main story or spinoff; see system_options |
