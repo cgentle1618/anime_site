@@ -531,7 +531,7 @@ Admin writes use `PATCH /api/novel/:system_id`.
    - Main title: Franchise Name CN (fallback: EN → Alt → Roman → JP)
    - Sub-titles: EN / JP / Romaji / Alt — each hidden if same as main title
    - Badges: My Rating, Franchise Expectation, Watch Next Group (ACG only), To Rewatch (ACG only), Total Entries count
-   - Completion block: `completed / total` across all entry types; watchable entries (anime, anime movies, movies, TV shows, cartoons) use `watching_status === "Completed"`; manga uses `reading_status === "Completed"`
+   - Completion block: `completed / total` across all entry types; watchable entries (anime, anime movies, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) uses `reading_status === "Completed"`
    - Admin controls: Overall Rating select, Expectation select, Watch Next Group select (ACG only), To Rewatch checkbox (ACG only) — all save via `PATCH /api/franchise/:system_id`
 4. Series card: clickable series name badges — opens SeriesModal
 5. Notes & Overview card: remark textarea (admin editable on blur) — saves via `PATCH /api/franchise/:system_id`
@@ -970,7 +970,7 @@ All completed entries, paginated by media type.
 
 **File:** `frontend/src/pages/FutureReleases.jsx`
 
-Upcoming entries by release timeline. No future release page planned for Manga, Novel, or Cartoon.
+Upcoming entries by release timeline. No future release page planned for Manga or Novel.
 
 **Data loaded (on tab switch — lazy):**
 
@@ -1076,9 +1076,9 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 **Main Data Control Action Block:**
 
-- Fill: Fill All / Fill Anime / Fill Anime Movie / Fill Movie — streaming SSE via `/fill/all`, `/fill/anime`, `/fill/anime-movie`, `/fill/movie`
-- Replace: Replace All / Replace Anime / Replace Anime Movie / Replace Movie — streaming SSE via `/replace/all`, `/replace/anime`, `/replace/anime-movie`, `/replace/movie`
-- Pull from Sheets: Pull All / Pull Specific (Anime / Anime Movies / Movie / Franchise / Series / Options) → `POST /api/data-control/pull[/:type]`
+- Fill: Fill All / Fill Anime / Fill Anime Movie / Fill Movie / Fill TV Show / Fill Cartoon / Fill Manga / Fill Novel — streaming SSE via `/fill/all`, `/fill/anime`, `/fill/anime-movie`, `/fill/movie`, `/fill/tv-show`, `/fill/cartoon`, `/fill/manga`, `/fill/novel`
+- Replace: Replace All / Replace Anime / Replace Anime Movie / Replace Movie / Replace TV Show / Replace Cartoon / Replace Manga / Replace Novel — streaming SSE via `/replace/all`, `/replace/anime`, `/replace/anime-movie`, `/replace/movie`, `/replace/tv-show`, `/replace/cartoon`, `/replace/manga`, `/replace/novel`
+- Pull from Sheets: Pull All / Pull Specific (System Options / Franchise / Series / Anime / Anime Movies / Cartoons / Manga / Novel / Movies / TV Shows / Seasonal) → `POST /api/data-control/pull` or `POST /api/data-control/pull/:tab_name`
 - Backup (Push) → `POST /api/data-control/backup`
 
 **Calculate & Fix Block:**
@@ -1247,7 +1247,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Watch Order, Derive Related dropdown
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter, Add Source button (other sources as `{name: link}`)
 - **Notes & Other:** Cover Image File, Remark
-- Duplicate detection modal; Jikan enrichment after submit via `POST /api/data-control/replace/anime/:id`
+- Duplicate detection modal; Jikan enrichment after submit via `POST /api/data-control/replace/manga/:id`
 
 #### Add New Novel Entry Tab
 
@@ -1330,7 +1330,7 @@ Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatic
 - **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
-Writes: `PATCH /api/tv-show/:id`
+Writes: `PATCH /api/tv-shows/:id`
 
 #### Modify Cartoon Entry Tab
 
@@ -1356,7 +1356,7 @@ Writes: `PATCH /api/manga/:id`
 - Search bar (searches all languages including Alt); recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - Recently Modified entries: Novel Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block (grouped by series) — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
-- Form mirrors Add Manga tab, plus System ID (immutable), Entry Name CN with fallback (immutable), **`NovelNotes`** — structured notes editor with 15 sections, and Save Changes Button
+- Form mirrors Add Novel tab, plus System ID (immutable), Entry Name CN with fallback (immutable), **`NovelNotes`** — structured notes editor with 15 sections, and Save Changes Button
 
 Writes: `PATCH /api/novel/:id`
 
@@ -1435,7 +1435,7 @@ Deletes: `DELETE /api/movies/:id`
 - If only entry in series: offer to delete series or keep it (show series name CN with fallback + entry counts per media type)
 - If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
 
-Deletes: `DELETE /api/tv-show/:id`
+Deletes: `DELETE /api/tv-shows/:id`
 
 #### Delete Cartoon Entry Tab
 
