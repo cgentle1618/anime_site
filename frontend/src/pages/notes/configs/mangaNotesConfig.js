@@ -10,6 +10,7 @@ const SECTIONS = [
     label: "神回",
     type: "episode_type_desc",
     typeOptions: null,
+    episodePlaceholder: "Chapter(s), e.g. ch 6",
   },
   { key: "analysis", label: "解析 Analysis", type: "desc_links" },
   { key: "cinematography", label: "分鏡/演出/巧思", type: "desc_links" },

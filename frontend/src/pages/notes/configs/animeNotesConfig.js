@@ -1,7 +1,7 @@
 const SPECIAL_CHANGE_TYPES = ["加長", "變化OP", "變化ED", "特殊OP", "特殊ED"];
 
 const SECTIONS = [
-  { key: "remark", label: "Remark", type: "remark" },
+  { key: "remark", type: "remark" },
   { key: "advantages", label: "優點 Advantages", type: "string_list" },
   { key: "disadvantages", label: "缺點 Disadvantages", type: "string_list" },
   { key: "double_edged", label: "優缺點", type: "string_list" },

@@ -804,14 +804,14 @@ function EpisodeEntrySection({
 
 const emptyEpisodeTypeDesc = () => ({ episode: "", type: "", description: "" });
 
-function EpisodeTypeDescForm({ val, setVal, typeOptions }) {
+function EpisodeTypeDescForm({ val, setVal, typeOptions, episodePlaceholder }) {
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <input
           value={val.episode}
           onChange={(e) => setVal({ ...val, episode: e.target.value })}
-          placeholder="Chapter(s), e.g. ch 6"
+          placeholder={episodePlaceholder ?? "Chapter(s), e.g. ch 6"}
           className={inputCls}
         />
         {typeOptions ? (
@@ -854,6 +854,7 @@ function EpisodeTypeDescSection({
   isAdmin,
   onUpdate,
   typeOptions,
+  episodePlaceholder,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(emptyEpisodeTypeDesc());
@@ -893,6 +894,7 @@ function EpisodeTypeDescSection({
                 val={editVal}
                 setVal={setEditVal}
                 typeOptions={typeOptions}
+                episodePlaceholder={episodePlaceholder}
               />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditIdx(null)} />
             </div>
@@ -939,6 +941,7 @@ function EpisodeTypeDescSection({
             val={draft}
             setVal={setDraft}
             typeOptions={typeOptions}
+            episodePlaceholder={episodePlaceholder}
           />
           <SaveCancel
             onSave={commit}
@@ -961,6 +964,11 @@ function EpisodeTypeDescSection({
 export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
   const [notes, setNotes] = useState(entity.notes ?? {});
 
+  // Sync notes state when the parent re-fetches and provides a fresh entity.
+  useEffect(() => {
+    setNotes(entity.notes ?? {});
+  }, [entity]);
+
   const updateSection = (key, val) => {
     const updated = { ...notes, [key]: val };
     setNotes(updated);
@@ -974,9 +982,9 @@ export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
         return (
           <RemarkSection
             key={sec.key}
-            value={notes.remark}
+            value={notes[sec.key]}
             isAdmin={isAdmin}
-            onChange={(val) => updateSection("remark", val || null)}
+            onChange={(val) => updateSection(sec.key, val || null)}
           />
         );
       case "string_list":
@@ -1046,6 +1054,7 @@ export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
             isAdmin={isAdmin}
             onUpdate={(val) => updateSection(sec.key, val)}
             typeOptions={sec.typeOptions}
+            episodePlaceholder={sec.episodePlaceholder}
           />
         );
       default:
