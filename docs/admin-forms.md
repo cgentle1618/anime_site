@@ -6,6 +6,16 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ## Add Page
 
+### General Field Interactions
+
+**Franchise & Series Autocomplete**
+
+- Both the Franchise and Series fields support searching existing entries via a dropdown menu.
+- **Selection requirement:** To bind an entry to an existing franchise or series, the user must explicitly click/select it from the dropdown.
+- **Typed fallback:** If the user types a name (whether new or matching an existing one) but does not select it from the dropdown, the frontend treats the selection state as `null`. Upon submission, this triggers the Franchise Generation modal or Series Generation modal respectively to create a new franchise/series hub.
+
+---
+
 ### Add Anime Entry Tab
 
 **Prefill from existing entry**
@@ -83,7 +93,7 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ### Add Series Entry Tab
 
-- The Franchise field supports searching existing ACG franchises only (no new franchise creation here).
+- The Franchise field supports searching existing franchises only (no new franchise creation here).
 - A franchise must be chosen before the form can be submitted.
 - On submit: auto-generate `system_id`.
 
@@ -127,7 +137,7 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 **Series Generation modal**
 
-- Series is created using all anime name fields filled in the form (the text typed in the Series field is ignored for name generation).
+- Series is created using all movie name fields filled in the form (the text typed in the Series field is ignored for name generation).
 
 ---
 
@@ -357,7 +367,7 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ### Modify Series Entry Form
 
-- The Franchise field supports searching existing ACG franchises or typing a new name.
+- The Franchise field supports searching existing franchises of any type (ACG, Movie, TV, Cartoon) or typing a new name.
 - A franchise must be chosen before the form can be submitted.
 - On submit: update all fields and refresh `updated_at`.
 
@@ -479,7 +489,7 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 3. Update all fields and refresh `updated_at`.
 4. Call `execute_replace_single_novel` (Replace pipeline for this entry).
 
-**Franchise Generation modal** — same logic as Add (names from novel name fields, type = Novel, expectation default Low).
+**Franchise Generation modal** — same logic as Add (names from novel name fields, franchise_type = Novel, expectation default Low).
 
 **Series Generation modal** — same logic as Add (names from novel name fields).
 
