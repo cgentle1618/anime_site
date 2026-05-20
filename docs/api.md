@@ -18,6 +18,10 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Anime — `/api/anime`](#anime--apianime)
 - [Anime Movie — `/api/anime-movie`](#anime-movie--apianime-movie)
 - [Movie — `/api/movies`](#movie--apimovies)
+- [TV Show — `/api/tv-shows`](#tv-show--apitv-shows)
+- [Cartoon — `/api/cartoon`](#cartoon--apicartoon)
+- [Manga — `/api/manga`](#manga--apimanga)
+- [Novel — `/api/novel`](#novel--apinovel)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
@@ -39,14 +43,14 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 ## Franchise — `/api/franchise`
 
-| Method   | Path           | Auth   | Description                                                                                                            |
-| -------- | -------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`            | Public | List all franchises. Optional query param `search_query` searches across all name fields.                              |
-| `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                        |
-| `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                           |
-| `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                   |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                                                         |
-| `DELETE` | `/{system_id}` | Admin  | Delete a franchise. Linked `series.franchise_id` and `anime.franchise_id` are set to `NULL`. Logs to `deleted_record`. |
+| Method   | Path           | Auth   | Description                                                                                                                                                                   |
+| -------- | -------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`            | Public | List all franchises. Optional query param `search_query` searches across all name fields.                                                                                     |
+| `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                                                                               |
+| `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                                                                                  |
+| `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                                                                                                                |
+| `DELETE` | `/{system_id}` | Admin  | Delete a franchise. Linked series, anime, movies, TV shows, cartoons, manga, and novels `franchise_id` are set to `NULL` via DB constraint cascade. Logs to `deleted_record`. |
 
 **Response model:** `FranchiseResponse`
 
@@ -115,6 +119,70 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 ---
 
+## TV Show — `/api/tv-shows`
+
+| Method   | Path                    | Auth   | Description                                                                                                                    |
+| -------- | ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`    | `/`                     | Public | List all TV shows. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `region`, `search_query`. |
+| `GET`    | `/{tv_show_id}`         | Public | Get a single TV show entry by UUID.                                                                                            |
+| `POST`   | `/`                     | Admin  | Create a TV show entry. Auto-runs `execute_replace_single_tv_show` after creation. Body: `TVShowCreate`.                       |
+| `PUT`    | `/{tv_show_id}`         | Admin  | Full update of a TV show entry. Auto-runs `execute_replace_single_tv_show` after update. Body: `TVShowUpdate`.                 |
+| `PATCH`  | `/{tv_show_id}`         | Admin  | Partial update (e.g. inline ratings). Does not re-run pipeline. Body: raw JSON dict.                                           |
+| `POST`   | `/{system_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                        |
+| `DELETE` | `/{tv_show_id}`         | Admin  | Delete a TV show entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                        |
+
+**Response model:** `TVShowResponse`
+
+---
+
+## Cartoon — `/api/cartoon`
+
+| Method   | Path                    | Auth   | Description                                                                                                                        |
+| -------- | ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`                     | Public | List all cartoons. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `to_rewatch`, `search_query`. |
+| `GET`    | `/{cartoon_id}`         | Public | Get a single cartoon entry by UUID.                                                                                                |
+| `POST`   | `/`                     | Admin  | Create a cartoon entry. Auto-runs `execute_replace_single_cartoon` after creation. Body: `CartoonCreate`.                          |
+| `PUT`    | `/{cartoon_id}`         | Admin  | Full update of a cartoon entry. Auto-runs `execute_replace_single_cartoon` after update. Body: `CartoonUpdate`.                    |
+| `PATCH`  | `/{cartoon_id}`         | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                     |
+| `POST`   | `/{system_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                            |
+| `DELETE` | `/{cartoon_id}`         | Admin  | Delete a cartoon entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                            |
+
+**Response model:** `CartoonResponse`
+
+---
+
+## Manga — `/api/manga`
+
+| Method   | Path                   | Auth   | Description                                                                                                                          |
+| -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`    | `/`                    | Public | List all manga. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
+| `GET`    | `/{manga_id}`          | Public | Get a single manga entry by UUID.                                                                                                    |
+| `POST`   | `/`                    | Admin  | Create a manga entry. Auto-runs `execute_replace_single_manga` after creation. Body: `MangaCreate`.                                  |
+| `PUT`    | `/{manga_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
+| `PATCH`  | `/{manga_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                       |
+| `POST`   | `/{manga_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes/chapters finished, serialization status).                             |
+| `DELETE` | `/{manga_id}`          | Admin  | Delete a manga entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                |
+
+**Response model:** `MangaResponse`
+
+---
+
+## Novel — `/api/novel`
+
+| Method   | Path                   | Auth   | Description                                                                                                                           |
+| -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
+| `GET`    | `/{novel_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
+| `POST`   | `/`                    | Admin  | Create a novel entry. Auto-runs `execute_replace_single_novel` after creation. Body: `NovelCreate`.                                   |
+| `PUT`    | `/{novel_id}`          | Admin  | Full update of a novel entry. Auto-runs `execute_replace_single_novel` after update. Body: `NovelUpdate`.                             |
+| `PATCH`  | `/{novel_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
+| `POST`   | `/{novel_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes finished, serialization status).                                       |
+| `DELETE` | `/{novel_id}`          | Admin  | Delete a novel entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
+
+**Response model:** `NovelResponse`
+
+---
+
 ## Seasonal — `/api/seasonal`
 
 | Method  | Path              | Auth   | Description                                                                                         |
@@ -153,6 +221,10 @@ All endpoints in this router require admin authentication.
 | `POST` | `/fill/anime`       | Fill missing metadata for all anime from Jikan. Streams SSE progress.        |
 | `POST` | `/fill/anime-movie` | Fill missing metadata for all anime movies from Jikan. Streams SSE progress. |
 | `POST` | `/fill/movie`       | Fill missing metadata for all movies from TMDB/OMDb. Streams SSE progress.   |
+| `POST` | `/fill/tv-show`     | Fill missing metadata for all TV shows from TMDB/OMDb. Streams SSE progress. |
+| `POST` | `/fill/cartoon`     | Fill missing metadata for all cartoons from TMDB/OMDb. Streams SSE progress. |
+| `POST` | `/fill/manga`       | Fill missing metadata for all manga from Jikan. Streams SSE progress.        |
+| `POST` | `/fill/novel`       | Fill missing metadata for all novels from Jikan. Streams SSE progress.       |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
 ### Replace
@@ -163,8 +235,16 @@ All endpoints in this router require admin authentication.
 | `POST` | `/replace/anime/{anime_id}`             | Replace metadata for a single anime entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/anime-movie`                  | Replace metadata for all anime movies that have a MAL ID. Streams SSE progress.      |
 | `POST` | `/replace/anime-movie/{anime_movie_id}` | Replace metadata for a single anime movie entry by UUID. Returns JSON.               |
-| `POST` | `/replace/movie`                        | Replace metadata for all movies that have an IMDb ID or link. Streams SSE progress.  |
+| `POST` | `/replace/movie`                        | Replace metadata for all movies that have an IMDb ID. Streams SSE progress.          |
 | `POST` | `/replace/movie/{movie_id}`             | Replace metadata for a single movie entry by UUID. Returns JSON.                     |
+| `POST` | `/replace/tv-show`                      | Replace metadata for all TV shows that have an IMDb ID. Streams SSE progress.        |
+| `POST` | `/replace/tv-show/{tv_show_id}`         | Replace metadata for a single TV show entry by UUID. Returns JSON.                   |
+| `POST` | `/replace/cartoon`                      | Replace metadata for all cartoons that have an IMDb ID. Streams SSE progress.        |
+| `POST` | `/replace/cartoon/{cartoon_id}`         | Replace metadata for a single cartoon entry by UUID. Returns JSON.                   |
+| `POST` | `/replace/manga`                        | Replace metadata for all manga that have a MAL ID. Streams SSE progress.             |
+| `POST` | `/replace/manga/{manga_id}`             | Replace metadata for a single manga entry by UUID. Returns JSON.                     |
+| `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
+| `POST` | `/replace/novel/{novel_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
 ### Backup & Pull
@@ -173,6 +253,9 @@ All endpoints in this router require admin authentication.
 | ------ | ------------------ | --------------------------------------------------------------------------------------------- |
 | `POST` | `/backup`          | Backup entire DB to Google Sheets. Synchronous, returns JSON.                                 |
 | `POST` | `/pull`            | Pull all tabs from Google Sheets (System Options → Franchise → Series → Anime). Returns JSON. |
+| `POST` | `/pull/manga`      | Pull Manga tab from Google Sheets. Returns JSON.                                              |
+| `POST` | `/pull/novel`      | Pull Novel tab from Google Sheets. Returns JSON.                                              |
+| `POST` | `/pull/cartoon`    | Pull Cartoon tab from Google Sheets. Returns JSON.                                            |
 | `POST` | `/pull/{tab_name}` | Pull a single tab by name. Returns JSON.                                                      |
 
 ### Calculate
@@ -182,9 +265,10 @@ All endpoints in this router require admin authentication.
 | `POST`   | `/calculate/all`                     | Run full Calculate All pipeline (post-processing, derive, sync, cover check). Returns JSON. |
 | `GET`    | `/calculate/check-cover-image`       | Report on missing and orphaned cover images. Optional query param `entry_type`.             |
 | `POST`   | `/calculate/set-cover-image-fields`  | Populate `cover_image_file` fields for entries whose file already exists in storage.        |
-| `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images via Jikan. Body: `{system_ids?: string[]}`.                |
+| `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`.                          |
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
+| `GET`    | `/check/remarks`                     | Check all comments and remark fields, acting as the Comments/Remarks Review Queue.          |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
 
