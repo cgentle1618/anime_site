@@ -6,37 +6,41 @@ import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 import Index from "./pages/Index";
+import UnderDevelopment from "./pages/UnderDevelopment";
 import Login from "./pages/Login";
+import Search from "./pages/Search";
+
+import Franchise from "./pages/Franchise";
 import Anime from "./pages/Anime";
 import AnimeMovie from "./pages/AnimeMovie";
-import Franchise from "./pages/Franchise";
-import Search from "./pages/Search";
-import FutureReleases from "./pages/FutureReleases";
-import SeasonalOverall from "./pages/SeasonalOverall";
+import Movie from "./pages/Movie";
+import TV from "./pages/TV";
+import Cartoon from "./pages/Cartoon";
+import Manga from "./pages/Manga";
+import Novel from "./pages/Novel";
 import SeasonalDetail from "./pages/SeasonalDetail";
-import Statistics from "./pages/Statistics";
-import Completions from "./pages/Completions";
+
 import Plan from "./pages/Plan";
+import SeasonalOverall from "./pages/SeasonalOverall";
+import Statistics from "./pages/Statistics";
+import FutureReleases from "./pages/FutureReleases";
+import Completions from "./pages/Completions";
+
+import FranchiseLibrary from "./pages/FranchiseLibrary";
 import LibraryAnime from "./pages/LibraryAnime";
 import LibraryAnimeMovie from "./pages/LibraryAnimeMovie";
-import FranchiseLibrary from "./pages/FranchiseLibrary";
+import LibraryMovie from "./pages/LibraryMovie";
+import LibraryTV from "./pages/LibraryTV";
+import LibraryCartoon from "./pages/LibraryCartoon";
+import LibraryManga from "./pages/LibraryManga";
+import LibraryNovel from "./pages/LibraryNovel";
+
 import Admin from "./pages/Admin";
-import DataHistory from "./pages/DataHistory";
-import ReviewQueue from "./pages/ReviewQueue";
 import Add from "./pages/Add";
 import Modify from "./pages/Modify";
 import Delete from "./pages/Delete";
-import UnderDevelopment from "./pages/UnderDevelopment";
-import Movie from "./pages/Movie";
-import LibraryMovie from "./pages/LibraryMovie";
-import TV from "./pages/TV";
-import LibraryTV from "./pages/LibraryTV";
-import Cartoon from "./pages/Cartoon";
-import LibraryCartoon from "./pages/LibraryCartoon";
-import Manga from "./pages/Manga";
-import LibraryManga from "./pages/LibraryManga";
-import Novel from "./pages/Novel";
-import LibraryNovel from "./pages/LibraryNovel";
+import DataHistory from "./pages/DataHistory";
+import ReviewQueue from "./pages/ReviewQueue";
 
 const queryClient = new QueryClient({
   defaultOptions: {
