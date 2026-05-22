@@ -42,6 +42,8 @@ import Delete from "./pages/Delete";
 import DataHistory from "./pages/DataHistory";
 import ReviewQueue from "./pages/ReviewQueue";
 
+// Initialize TanStack Query client to manage global caching, retries,
+// and server-state synchronization
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
