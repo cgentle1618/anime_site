@@ -1,4 +1,5 @@
-﻿import { Navigate, Outlet, useLocation } from "react-router-dom";
+// Frontend: layout component file for ProtectedRoute.
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function ProtectedRoute() {
@@ -16,6 +17,7 @@ export default function ProtectedRoute() {
     );
   }
 
+  // If the user is not an admin, send them to login and preserve the page they wanted.
   return isAdmin ? (
     <Outlet />
   ) : (
@@ -25,3 +27,4 @@ export default function ProtectedRoute() {
     />
   );
 }
+
