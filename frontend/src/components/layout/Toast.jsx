@@ -1,4 +1,5 @@
-﻿import { useToast } from "../../hooks/useToast";
+// Frontend: layout component file for Toast.
+import { useToast } from "../../hooks/useToast";
 
 const iconMap = {
   success: "fa-check-circle text-emerald-500",
