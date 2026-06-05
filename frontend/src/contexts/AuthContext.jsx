@@ -1,3 +1,4 @@
+// Frontend: authentication context shared across the app.
 import {
   createContext,
   useContext,
@@ -9,12 +10,14 @@ import {
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  // Store the current auth snapshot once so any component can read it.
   const [auth, setAuth] = useState({
     isAdmin: false,
     username: null,
     loading: true,
   });
 
+  // Ask the backend who the current user is. This runs on app startup and on demand.
   const fetchAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "include" });
@@ -34,6 +37,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // Populate auth state as soon as the provider mounts.
     fetchAuth();
   }, [fetchAuth]);
 
@@ -45,5 +49,7 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
+  // Convenience hook so components do not import useContext directly.
   return useContext(AuthContext);
 }
+

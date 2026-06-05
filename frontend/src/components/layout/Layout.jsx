@@ -1,3 +1,4 @@
+// Frontend: layout component file for Layout.
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Nav from "./Nav";

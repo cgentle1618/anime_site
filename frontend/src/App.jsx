@@ -1,3 +1,4 @@
+// Frontend: root React component that wires providers and routes together.
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -42,8 +43,7 @@ import Delete from "./pages/Delete";
 import DataHistory from "./pages/DataHistory";
 import ReviewQueue from "./pages/ReviewQueue";
 
-// Initialize TanStack Query client to manage global caching, retries,
-// and server-state synchronization
+// One shared QueryClient keeps cache behavior consistent across the whole app.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -55,6 +55,7 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
+    // Provider order matters: query cache first, then auth, then UI helpers, then routing.
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
@@ -63,7 +64,7 @@ export default function App() {
           >
             <Routes>
               <Route element={<Layout />}>
-                {/* Public routes */}
+                {/* Pages anyone can visit. */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/search" element={<Search />} />
@@ -106,7 +107,7 @@ export default function App() {
                   element={<UnderDevelopment />}
                 />
 
-                {/* Admin-only routes */}
+                {/* These routes are protected by <ProtectedRoute />. */}
                 <Route element={<ProtectedRoute />}>
                   <Route path="/system" element={<Admin />} />
                   <Route path="/data-history" element={<DataHistory />} />
@@ -123,3 +124,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
