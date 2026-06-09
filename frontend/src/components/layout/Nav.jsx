@@ -1,4 +1,5 @@
-﻿import { useState, useRef, useEffect } from "react";
+// Frontend: layout component file for Nav.
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -161,6 +162,7 @@ export default function Nav() {
         const scope = searchScope;
         const results = [];
 
+        // Search Filter
         if (scope === "all" || scope === "franchise") {
           const limit = scope === "all" ? 3 : 10;
           dataCacheRef.current.franchises
