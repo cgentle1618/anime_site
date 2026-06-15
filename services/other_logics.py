@@ -889,8 +889,8 @@ def check_is_reading_completed(entry: Manga) -> bool:
     - ch_fin == ch_total and ch_total is not None and not 0
     - vol_fin == vol_total and vol_total is not None and not 0
     """
-    if entry.serialization_status in ("完結", "腰斬"):
-        return True
+    if entry.serialization_status not in ("完結", "腰斬"):
+        return False
     ch_total = getattr(entry, "ch_total", None)
     ch_fin = getattr(entry, "ch_fin", None)
     if ch_total is not None and ch_total > 0 and ch_fin == ch_total:
