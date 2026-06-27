@@ -14,7 +14,11 @@ from sqlalchemy.orm import Session
 
 import models
 from dependencies import get_db, SECRET_KEY, ALGORITHM
-from services.security import verify_password, create_access_token
+from services.security import (
+    verify_password,
+    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,12 +61,12 @@ def login_for_access_token(
 
     # 5. Set the secure cookie
     # httponly=True prevents JavaScript (document.cookie) from reading the token
-    # max_age is in seconds (1440 minutes * 60 seconds = 24 hours)
+    # max_age is in seconds (ACCESS_TOKEN_EXPIRE_MINUTES * 60 seconds = X hours)
     response.set_cookie(
         key="access_token",
         value=f"Bearer {access_token}",
         httponly=True,
-        max_age=1440 * 60,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
         secure=is_cloud_run,
     )
