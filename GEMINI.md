@@ -78,3 +78,8 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 - Ask to proceed if the task is token-intensive.
 - If I ask you to do a task, provide git commit message for the changes.
 - If we're implementing or modifying based on current-plan.md, pause and ask for permission to proceed whenever you finish a step or a set of steps. Update current-plan.md for our progress in an individual section. Do not modify the plan itself. Provide git commit message for the changes.
+
+## Note
+
+- I am a beginner learning ReactJS who is also not familiar with JS, HTML, and CSS.
+- When explaining the frontend code, fold the CSS part. For example, show <i className="fas fa-trash-alt w-6 text-center text-red-400 mr-1"></i> as <i className=...></i>
