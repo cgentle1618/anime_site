@@ -1,3 +1,4 @@
+// Frontend: modal component file for FranchiseCreateModal.
 import { useState } from "react";
 import { inputCls, selectCls } from "../forms/FormField";
 
@@ -68,3 +69,4 @@ export default function FranchiseCreateModal({
     </div>
   );
 }
+

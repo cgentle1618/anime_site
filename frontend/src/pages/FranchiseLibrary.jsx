@@ -1,3 +1,4 @@
+// Frontend: page component file for FranchiseLibrary.
 import { useState, useEffect, useMemo } from "react";
 import {
   getCoverUrl,
@@ -421,3 +422,4 @@ export default function FranchiseLibrary() {
     </div>
   );
 }
+

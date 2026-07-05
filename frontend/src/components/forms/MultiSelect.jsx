@@ -1,3 +1,4 @@
+// Frontend: form component file for MultiSelect.
 import { useState, useRef, useEffect } from "react";
 
 // MultiSelect: manage a comma-separated string value using pill UI.
@@ -145,3 +146,4 @@ export default function MultiSelect({
     </div>
   );
 }
+

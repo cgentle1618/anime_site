@@ -1,3 +1,4 @@
+// Frontend: media type metadata and shared constants.
 const BUCKET_NAME = "cg1618-anime-covers";
 
 export function cleanString(str) {
@@ -537,3 +538,4 @@ export function getNovelProgress(novel) {
       return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
   }
 }
+

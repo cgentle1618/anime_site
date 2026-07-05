@@ -1,3 +1,4 @@
+// Frontend: form component file for ComboBox.
 import { useState, useRef, useEffect } from "react";
 
 // ComboBox: search existing items by label, or type a new value (if allowNew).
@@ -170,3 +171,4 @@ export default function ComboBox({
     </div>
   );
 }
+

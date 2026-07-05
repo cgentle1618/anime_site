@@ -1,3 +1,4 @@
+// Frontend: layout component file for LibraryLayout.
 import { useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -376,3 +377,4 @@ export default function LibraryLayout({
     </div>
   );
 }
+

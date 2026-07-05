@@ -1,3 +1,4 @@
+// Frontend: statistics page file for useStatisticsData.
 import { useMemo } from "react";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -108,3 +109,4 @@ export default function useStatisticsData() {
     error: firstError?.message || null,
   };
 }
+

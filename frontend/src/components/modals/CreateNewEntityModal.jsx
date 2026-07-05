@@ -1,3 +1,4 @@
+// Frontend: modal component file for CreateNewEntityModal.
 export default function CreateNewEntityModal({
   entityType,
   text,
@@ -39,3 +40,4 @@ export default function CreateNewEntityModal({
     </div>
   );
 }
+

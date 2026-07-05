@@ -1,3 +1,4 @@
+// Frontend: statistics page file for StatsFranchiseSummary.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { parseTypes } from "../../utils/media";
@@ -370,3 +371,4 @@ export default function StatsFranchiseSummary({
     </>
   );
 }
+

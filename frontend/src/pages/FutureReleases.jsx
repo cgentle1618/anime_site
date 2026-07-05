@@ -1,3 +1,4 @@
+// Frontend: page component file for FutureReleases.
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
@@ -660,3 +661,4 @@ export default function FutureReleases() {
     </div>
   );
 }
+

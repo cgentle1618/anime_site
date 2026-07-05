@@ -1,3 +1,4 @@
+// Frontend: state hook for library page filters and selections.
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cleanString } from "../utils/media";
@@ -177,3 +178,4 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
     handleUpdated,
   };
 }
+

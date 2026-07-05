@@ -1,3 +1,4 @@
+// Frontend: data hook for loading a single media record.
 import { useQuery } from "@tanstack/react-query";
 import { MEDIA_CONFIG } from "../utils/media";
 import { fetchJson } from "./queryUtils";
@@ -22,4 +23,5 @@ export function useMediaItem(type, id, options = {}) {
     ...queryOptions,
   });
 }
+
 

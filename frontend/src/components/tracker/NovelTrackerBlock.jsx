@@ -1,3 +1,4 @@
+// Frontend: tracker component file for NovelTrackerBlock.
 const PROGRESS_DISPLAY_OPTIONS = [
   { value: "", label: "— Default (VOL Original) —" },
   { value: "ch", label: "CH (Chapters)" },
@@ -340,3 +341,4 @@ export default function NovelTrackerBlock({
     </div>
   );
 }
+

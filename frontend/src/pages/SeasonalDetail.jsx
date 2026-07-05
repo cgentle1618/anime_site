@@ -1,3 +1,4 @@
+// Frontend: page component file for SeasonalDetail.
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -375,3 +376,4 @@ export default function SeasonalDetail() {
     </div>
   );
 }
+

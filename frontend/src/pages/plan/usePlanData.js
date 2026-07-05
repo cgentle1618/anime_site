@@ -1,3 +1,4 @@
+// Frontend: plan page file for usePlanData.
 import { useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -9,6 +10,7 @@ export default function usePlanData(reloadKey = 0) {
 
   useEffect(() => {
     if (reloadKey > 0) {
+      // When the plan page triggers a refresh, invalidate every media list query at once.
       queryClient.invalidateQueries({ queryKey: ["media-list"] });
     }
   }, [queryClient, reloadKey]);
@@ -33,6 +35,7 @@ export default function usePlanData(reloadKey = 0) {
 
   const franchiseMap = useMemo(
     () =>
+      // Turn the franchise array into a fast lookup table keyed by system_id.
       Object.fromEntries(
         franchises.map((franchise) => [String(franchise.system_id), franchise]),
       ),
@@ -40,6 +43,7 @@ export default function usePlanData(reloadKey = 0) {
   );
 
   const allEntriesByFranchise = useMemo(() => {
+    // Merge all media types into one array so we can regroup them by franchise id.
     const allEntries = [
       ...allAnime.map((entry) => ({ ...entry, _type: "anime" })),
       ...allAnimeMovies.map((entry) => ({ ...entry, _type: "anime_movie" })),
@@ -53,6 +57,7 @@ export default function usePlanData(reloadKey = 0) {
     allEntries.forEach((entry) => {
       const id = String(entry.franchise_id);
       if (!byFranchise[id]) byFranchise[id] = [];
+      // The grouped object ends up looking like { [franchiseId]: [items...] }.
       byFranchise[id].push(entry);
     });
     return byFranchise;
@@ -93,3 +98,4 @@ export default function usePlanData(reloadKey = 0) {
     error: firstError?.message || null,
   };
 }
+

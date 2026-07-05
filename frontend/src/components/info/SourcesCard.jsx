@@ -1,3 +1,4 @@
+// Frontend: info component file for SourcesCard.
 export default function SourcesCard({
   showBaha,
   bahaLink,
@@ -183,3 +184,4 @@ export default function SourcesCard({
     </div>
   );
 }
+

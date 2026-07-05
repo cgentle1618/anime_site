@@ -1,3 +1,4 @@
+// Frontend: page component file for DataHistory.
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 
@@ -600,3 +601,4 @@ export default function DataHistory() {
     </div>
   );
 }
+

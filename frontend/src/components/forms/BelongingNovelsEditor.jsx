@@ -1,3 +1,4 @@
+// Frontend: form component file for BelongingNovelsEditor.
 const baseCls =
   "border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
 const keyInputCls = baseCls + " w-20 shrink-0";
@@ -85,3 +86,4 @@ export default function BelongingNovelsEditor({ items, onChange, label, placehol
     </div>
   );
 }
+

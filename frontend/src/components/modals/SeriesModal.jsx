@@ -1,3 +1,4 @@
+// Frontend: modal component file for SeriesModal.
 import { Link } from "react-router-dom";
 import { InfoRow } from "../info/InfoCard";
 
@@ -59,3 +60,4 @@ export default function SeriesModal({ series, isAdmin, onClose }) {
     </div>
   );
 }
+

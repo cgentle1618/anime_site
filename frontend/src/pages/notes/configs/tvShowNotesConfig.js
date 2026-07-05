@@ -1,3 +1,4 @@
+// Frontend: notes configuration file for tvShowNotesConfig.
 const SPECIAL_EPISODE_TYPES = [
   "加長",
   "變化OP",
@@ -43,3 +44,4 @@ const SECTIONS = [
 ];
 
 export default SECTIONS;
+

@@ -1,3 +1,4 @@
+// Frontend: notes configuration file for novelNotesConfig.
 const SECTIONS = [
   { key: "remark", type: "remark" },
   { key: "advantages", label: "優點 Advantages", type: "string_list" },
@@ -18,3 +19,4 @@ const SECTIONS = [
 ];
 
 export default SECTIONS;
+

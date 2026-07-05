@@ -1,3 +1,4 @@
+// Frontend: layout component file for MediaLoadingState.
 export default function MediaLoadingState({
   isLoading,
   error,
@@ -28,3 +29,4 @@ export default function MediaLoadingState({
 
   return null;
 }
+

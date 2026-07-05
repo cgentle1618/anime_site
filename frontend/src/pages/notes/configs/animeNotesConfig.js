@@ -1,3 +1,4 @@
+// Frontend: notes configuration file for animeNotesConfig.
 const SPECIAL_CHANGE_TYPES = ["加長", "變化OP", "變化ED", "特殊OP", "特殊ED"];
 
 const SECTIONS = [
@@ -26,3 +27,4 @@ const SECTIONS = [
 ];
 
 export default SECTIONS;
+

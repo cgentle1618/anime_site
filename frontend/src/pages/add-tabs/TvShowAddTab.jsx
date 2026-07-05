@@ -1,3 +1,4 @@
+// Frontend: add tab page file for TvShowAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
   Field,
@@ -526,3 +527,4 @@ export default function TvShowAddTab({
     </div>
   );
 }
+

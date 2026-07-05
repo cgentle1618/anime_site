@@ -1,3 +1,4 @@
+// Frontend: plan page file for PlanToWatchFuture.
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
@@ -218,3 +219,4 @@ export default function PlanToWatchFuture({
     </section>
   );
 }
+

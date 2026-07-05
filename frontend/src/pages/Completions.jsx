@@ -1,3 +1,4 @@
+// Frontend: page component file for Completions.
 import StatsCompletions from "./statistics/StatsCompletions";
 import MediaLoadingState from "../components/layout/MediaLoadingState";
 import { useMediaList } from "../hooks/useMediaList";
@@ -72,3 +73,4 @@ export default function Completions() {
     </div>
   );
 }
+

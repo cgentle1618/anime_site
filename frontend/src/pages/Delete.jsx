@@ -1,3 +1,4 @@
+// Frontend: page component file for Delete.
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../utils/media";
@@ -2013,3 +2014,4 @@ export default function Delete() {
     </div>
   );
 }
+

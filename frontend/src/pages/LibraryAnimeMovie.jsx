@@ -1,3 +1,4 @@
+// Frontend: page component file for LibraryAnimeMovie.
 import LibraryLayout from "../components/layout/LibraryLayout";
 import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
 import {
@@ -279,3 +280,4 @@ export default function LibraryAnimeMovie() {
     />
   );
 }
+

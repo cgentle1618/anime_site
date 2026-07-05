@@ -1,3 +1,4 @@
+// Frontend: chart component file for BarChart.
 export default function BarChart({ items, label }) {
   const max = Math.max(...items.map((d) => d.count), 1);
   const hasData = items.some((d) => d.count > 0);
@@ -39,3 +40,4 @@ export default function BarChart({ items, label }) {
     </div>
   );
 }
+

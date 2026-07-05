@@ -1,3 +1,4 @@
+// Frontend: notes configuration file for movieNotesConfig.
 const SECTIONS = [
   { key: "remark", label: "Remark", type: "remark" },
   { key: "advantages", label: "優點 Advantages", type: "string_list" },
@@ -13,3 +14,4 @@ const SECTIONS = [
 ];
 
 export default SECTIONS;
+

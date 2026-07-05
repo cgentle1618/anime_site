@@ -1,3 +1,4 @@
+// Frontend: add tab page file for MovieAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
   Field,
@@ -15,10 +16,10 @@ export const defaultMovie = () => ({
   franchise_text: "",
   series_id: null,
   series_text: "",
-  airing_status: "Not Yet Aired",
+  airing_status: "Finished Airing",
   watching_status: "Might Watch",
   my_rating: "",
-  movie_type: "",
+  movie_type: "Reality",
   is_main: "本傳",
   length_min: "",
   release_date_usa: "",
@@ -500,3 +501,4 @@ export default function MovieAddTab({
     </div>
   );
 }
+

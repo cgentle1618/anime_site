@@ -1,3 +1,4 @@
+// Frontend: add tab page file for SeriesAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 
@@ -68,3 +69,4 @@ export default function SeriesAddTab({ sf, us, franchiseItems }) {
     </div>
   );
 }
+

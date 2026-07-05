@@ -1,3 +1,4 @@
+// Frontend: modify tab page file for CartoonModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
   Field,
@@ -437,3 +438,4 @@ export default function CartoonModifyTab({
     </>
   );
 }
+

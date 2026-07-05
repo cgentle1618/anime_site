@@ -1,3 +1,4 @@
+// Frontend: modify tab page file for SeriesModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 
@@ -60,3 +61,4 @@ export default function SeriesModifyTab({ sf, us, franchiseItems }) {
     </>
   );
 }
+

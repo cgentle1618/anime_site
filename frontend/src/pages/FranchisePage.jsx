@@ -1,3 +1,4 @@
+// Frontend: page component file for FranchisePage.
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -2094,3 +2095,4 @@ export default function FranchisePage() {
     </div>
   );
 }
+

@@ -1,4 +1,5 @@
-﻿import { useNavigate } from "react-router-dom";
+// Frontend: tracker component file for DashboardCard.
+import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
@@ -295,3 +296,4 @@ export default function DashboardCard({
     </div>
   );
 }
+

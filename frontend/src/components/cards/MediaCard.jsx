@@ -1,3 +1,4 @@
+// Frontend: card component file for MediaCard.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -665,3 +666,4 @@ export default function MediaCard({
     </div>
   );
 }
+

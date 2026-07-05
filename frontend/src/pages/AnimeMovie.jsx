@@ -1,3 +1,4 @@
+// Frontend: page component file for AnimeMovie.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -521,3 +522,4 @@ export default function AnimeMovie() {
     </div>
   );
 }
+

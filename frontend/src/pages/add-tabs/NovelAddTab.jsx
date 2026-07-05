@@ -1,3 +1,4 @@
+// Frontend: add tab page file for NovelAddTab.
 import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -748,3 +749,4 @@ export default function NovelAddTab({
     </div>
   );
 }
+

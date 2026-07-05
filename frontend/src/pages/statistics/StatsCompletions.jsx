@@ -1,3 +1,4 @@
+// Frontend: statistics page file for StatsCompletions.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
@@ -1246,3 +1247,4 @@ export default function StatsCompletions({
     </section>
   );
 }
+

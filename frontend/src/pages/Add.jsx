@@ -1,3 +1,4 @@
+// Frontend: page component file for Add.
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "../hooks/useToast";
 import {
@@ -385,6 +386,7 @@ export default function Add() {
       series_id: movie.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
       is_main: movie.is_main || "",
+      airing_status: movie.airing_status || "Not Yet Aired",
       movie_type: movie.movie_type || "",
     }));
     setMovieFillQuery("");
@@ -404,8 +406,10 @@ export default function Add() {
       franchise_text: f ? getDisplayName(f, "franchise") : "",
       series_id: tvShow.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
+      season_part: tvShow.season_part || "",
       is_main: tvShow.is_main || "",
       region: tvShow.region || "",
+      imdb_link: tvShow.imdb_link || "",
     }));
     setTvFillQuery("");
     setTvFillOpen(false);
@@ -2086,3 +2090,4 @@ export default function Add() {
     </div>
   );
 }
+

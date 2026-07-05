@@ -1,3 +1,4 @@
+// Frontend: page component file for LibraryAnime.
 import { useNavigate } from "react-router-dom";
 import LibraryLayout from "../components/layout/LibraryLayout";
 import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
@@ -308,3 +309,4 @@ export default function LibraryAnime() {
     />
   );
 }
+

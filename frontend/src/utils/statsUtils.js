@@ -1,3 +1,4 @@
+// Frontend: helper functions for statistics calculations.
 import { getCoverUrl, FALLBACK_SVG } from "./media";
 
 const TYPE_TO_ENTRY_TYPES = {
@@ -63,3 +64,4 @@ export function getCoverForSlot(
   withCover.sort((a, b) => getEntryYear(b) - getEntryYear(a));
   return getCoverUrl(withCover[0].cover_image_file);
 }
+

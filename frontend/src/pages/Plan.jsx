@@ -1,3 +1,4 @@
+// Frontend: page component file for Plan.
 import { useState } from "react";
 import usePlanData from "./plan/usePlanData";
 import PlanWatchNext from "./plan/PlanWatchNext";
@@ -87,3 +88,4 @@ export default function Plan() {
     </div>
   );
 }
+

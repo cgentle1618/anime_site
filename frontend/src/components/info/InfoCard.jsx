@@ -1,3 +1,4 @@
+// Frontend: info component file for InfoCard.
 export function InfoRow({ label, value }) {
   return (
     <div>
@@ -40,3 +41,4 @@ export default function InfoCard({ title, icon, fields }) {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+// Frontend: tracker component file for MyTrackerCard.
 export default function MyTrackerCard({
   epFin,
   epTotal,
@@ -172,3 +173,4 @@ export default function MyTrackerCard({
     </div>
   );
 }
+

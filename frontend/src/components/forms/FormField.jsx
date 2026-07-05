@@ -1,3 +1,4 @@
+// Frontend: form component file for FormField.
 export const inputCls =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
 export const selectCls =
@@ -26,3 +27,4 @@ export function SectionHeader({ icon, title }) {
     </div>
   );
 }
+

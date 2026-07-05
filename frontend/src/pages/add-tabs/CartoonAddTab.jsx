@@ -1,3 +1,4 @@
+// Frontend: add tab page file for CartoonAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
   Field,
@@ -535,3 +536,4 @@ export default function CartoonAddTab({
     </div>
   );
 }
+

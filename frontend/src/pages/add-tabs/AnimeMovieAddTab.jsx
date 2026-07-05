@@ -1,3 +1,4 @@
+// Frontend: add tab page file for AnimeMovieAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
@@ -447,3 +448,4 @@ export default function AnimeMovieAddTab({
     </div>
   );
 }
+

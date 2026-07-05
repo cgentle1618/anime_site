@@ -1,4 +1,5 @@
-﻿import { Link } from "react-router-dom";
+// Frontend: card component file for FranchiseCard.
+import { Link } from "react-router-dom";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 
 const RATING_COLORS = {
@@ -72,3 +73,4 @@ export default function FranchiseCard({ franchise, coverUrl }) {
     </Link>
   );
 }
+

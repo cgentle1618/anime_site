@@ -1,3 +1,4 @@
+// Frontend: modify tab page file for NovelModifyTab.
 import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -625,3 +626,4 @@ export default function NovelModifyTab({
     </>
   );
 }
+

@@ -1,3 +1,4 @@
+// Frontend: modify tab page file for Fav3x3ModifyTab.
 import { useState, useMemo, useCallback } from "react";
 import { parseTypes, FALLBACK_SVG } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
@@ -564,3 +565,4 @@ export default function Fav3x3ModifyTab({
     </div>
   );
 }
+

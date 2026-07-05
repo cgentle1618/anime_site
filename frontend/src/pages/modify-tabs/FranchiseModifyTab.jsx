@@ -1,3 +1,4 @@
+// Frontend: modify tab page file for FranchiseModifyTab.
 import { getDisplayName, parseTypes } from "../../utils/media";
 import {
   Field,
@@ -306,3 +307,4 @@ export default function FranchiseModifyTab({
     </>
   );
 }
+

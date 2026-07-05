@@ -1,3 +1,4 @@
+// Frontend: add tab page file for MangaAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
@@ -664,3 +665,4 @@ export default function MangaAddTab({
     </div>
   );
 }
+

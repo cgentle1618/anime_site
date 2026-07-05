@@ -1,3 +1,4 @@
+// Frontend: shared template used by all notes pages.
 import { useState, useEffect } from "react";
 
 const inputCls =
@@ -1073,3 +1074,4 @@ export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
     </div>
   );
 }
+

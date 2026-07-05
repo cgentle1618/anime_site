@@ -1,3 +1,4 @@
+// Frontend: page component file for Admin.
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../hooks/useToast";
@@ -2071,3 +2072,4 @@ export default function Admin() {
     </div>
   );
 }
+

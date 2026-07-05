@@ -1,3 +1,4 @@
+// Frontend: page component file for LibraryNovel.
 import LibraryLayout from "../components/layout/LibraryLayout";
 import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
 import {
@@ -247,3 +248,4 @@ export default function LibraryNovel() {
     />
   );
 }
+

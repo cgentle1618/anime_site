@@ -1,3 +1,4 @@
+// Frontend: helper hook for keeping media query caches in sync.
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { MEDIA_CONFIG } from "../utils/media";
@@ -43,3 +44,4 @@ export function useMediaCacheUpdate(type, id) {
 
   return { setMediaItem, fetchMediaItem, invalidateMedia };
 }
+

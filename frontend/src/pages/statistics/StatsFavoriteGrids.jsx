@@ -1,3 +1,4 @@
+// Frontend: statistics page file for StatsFavoriteGrids.
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, parseTypes } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
@@ -121,3 +122,4 @@ export default function StatsFavoriteGrids({
     </div>
   );
 }
+

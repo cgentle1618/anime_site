@@ -1,3 +1,4 @@
+// Frontend: info component file for ScoreBlock.
 export default function ScoreBlock({
   malScore,
   malRank,
@@ -50,3 +51,4 @@ export default function ScoreBlock({
     </div>
   );
 }
+

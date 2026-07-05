@@ -1,3 +1,4 @@
+// Frontend: page component file for Index.
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
@@ -654,3 +655,4 @@ export default function Index() {
     </div>
   );
 }
+

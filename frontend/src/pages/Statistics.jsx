@@ -1,3 +1,4 @@
+// Frontend: page component file for Statistics.
 import useStatisticsData from "./statistics/useStatisticsData";
 import StatsFavoriteGrids from "./statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "./statistics/StatsFranchiseSummary";
@@ -69,3 +70,4 @@ export default function Statistics() {
     </div>
   );
 }
+

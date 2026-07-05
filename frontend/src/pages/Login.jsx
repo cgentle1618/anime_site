@@ -1,3 +1,4 @@
+// Frontend: page component file for Login.
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -124,3 +125,4 @@ export default function Login() {
     </div>
   );
 }
+

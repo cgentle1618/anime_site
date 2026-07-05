@@ -1,3 +1,4 @@
+// Frontend: unit test file for anime.test.
 /**
  * Unit tests for src/utils/anime.js
  *
@@ -295,3 +296,4 @@ describe("getRatingWeight", () => {
     }
   });
 });
+

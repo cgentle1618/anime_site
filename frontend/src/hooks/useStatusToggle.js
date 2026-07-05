@@ -1,3 +1,4 @@
+// Frontend: helper hook for toggling watch or status values.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MEDIA_CONFIG } from "../utils/media";
 import { fetchJson } from "./queryUtils";
@@ -30,4 +31,5 @@ export function useStatusToggle(type) {
     },
   });
 }
+
 

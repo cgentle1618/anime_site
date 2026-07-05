@@ -1,3 +1,4 @@
+// Frontend: modify tab page file for AnimeModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
@@ -682,3 +683,4 @@ export default function AnimeModifyTab({
     </>
   );
 }
+

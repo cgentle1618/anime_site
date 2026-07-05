@@ -1,3 +1,4 @@
+// Frontend: add tab page file for FranchiseAddTab.
 import { parseTypes } from "../../utils/media";
 import {
   Field,
@@ -132,3 +133,4 @@ export default function FranchiseAddTab({ ff, uf }) {
     </div>
   );
 }
+

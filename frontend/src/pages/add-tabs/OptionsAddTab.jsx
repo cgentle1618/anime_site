@@ -1,3 +1,4 @@
+// Frontend: add tab page file for OptionsAddTab.
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 
 export default function OptionsAddTab({
@@ -76,3 +77,4 @@ export default function OptionsAddTab({
     </div>
   );
 }
+

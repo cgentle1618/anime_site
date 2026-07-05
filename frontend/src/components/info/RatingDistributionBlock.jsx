@@ -1,3 +1,4 @@
+// Frontend: info component file for RatingDistributionBlock.
 import BarChart from "../charts/BarChart";
 
 const MY_RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
@@ -57,3 +58,4 @@ export default function RatingDistributionBlock({ animeData }) {
     </div>
   );
 }
+

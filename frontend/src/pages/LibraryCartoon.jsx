@@ -1,3 +1,4 @@
+// Frontend: page component file for LibraryCartoon.
 import LibraryLayout from "../components/layout/LibraryLayout";
 import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
 import {
@@ -230,3 +231,4 @@ export default function LibraryCartoon() {
     />
   );
 }
+
