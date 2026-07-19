@@ -1,6 +1,7 @@
 // Frontend: page component file for Novel.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
@@ -182,7 +183,7 @@ export default function Novel() {
     if (!isAdmin) return;
     setNovel((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/novel/${system_id}`, {
+      const res = await fetch(endpoints.resource("novel").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -203,7 +204,7 @@ export default function Novel() {
     setAutofilling(true);
     try {
       const res = await fetch(
-        `/api/data-control/replace/novel/${system_id}`,
+        endpoints.dataControl.replaceSingle("novel", system_id),
         {
           method: "POST",
           credentials: "include",
@@ -302,7 +303,7 @@ export default function Novel() {
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(`/api/novel/${system_id}/complete`, {
+                  const res = await fetch(endpoints.resource("novel").complete(system_id), {
                     method: "POST",
                     credentials: "include",
                   });

@@ -1,6 +1,7 @@
 // Frontend: page component file for AnimeMovie.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
@@ -72,7 +73,7 @@ export default function AnimeMovie() {
     if (!isAdmin) return;
     setMovie((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/anime-movie/${system_id}`, {
+      const res = await fetch(endpoints.resource("anime-movie").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -93,7 +94,7 @@ export default function AnimeMovie() {
     setAutofilling(true);
     try {
       const res = await fetch(
-        `/api/data-control/replace/anime-movie/${system_id}`,
+        endpoints.dataControl.replaceSingle("anime-movie", system_id),
         { method: "POST", credentials: "include" },
       );
       const data = await res.json().catch(() => ({}));
@@ -194,7 +195,7 @@ export default function AnimeMovie() {
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(`/api/anime-movie/${system_id}/complete`, {
+                  const res = await fetch(endpoints.resource("anime-movie").complete(system_id), {
                     method: "POST",
                     credentials: "include",
                   });

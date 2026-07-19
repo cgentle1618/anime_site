@@ -1,6 +1,7 @@
 // Frontend: page component file for Cartoon.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
@@ -89,7 +90,7 @@ export default function Cartoon() {
     if (!isAdmin) return;
     setCartoon((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/cartoon/${system_id}`, {
+      const res = await fetch(endpoints.resource("cartoon").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -110,7 +111,7 @@ export default function Cartoon() {
     setAutofilling(true);
     try {
       const res = await fetch(
-        `/api/data-control/replace/cartoon/${system_id}`,
+        endpoints.dataControl.replaceSingle("cartoon", system_id),
         { method: "POST", credentials: "include" },
       );
       const data = await res.json().catch(() => ({}));
@@ -226,7 +227,7 @@ export default function Cartoon() {
                 if (!isAdmin) return;
                 try {
                   const res = await fetch(
-                    `/api/cartoon/${system_id}/complete`,
+                    endpoints.resource("cartoon").complete(system_id),
                     {
                       method: "POST",
                       credentials: "include",

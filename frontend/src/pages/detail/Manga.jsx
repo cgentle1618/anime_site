@@ -1,6 +1,7 @@
 // Frontend: page component file for Manga.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
@@ -360,7 +361,7 @@ export default function Manga() {
     if (!isAdmin) return;
     setManga((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/manga/${system_id}`, {
+      const res = await fetch(endpoints.resource("manga").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -380,7 +381,7 @@ export default function Manga() {
   async function handleAutofill() {
     setAutofilling(true);
     try {
-      const res = await fetch(`/api/data-control/replace/manga/${system_id}`, {
+      const res = await fetch(endpoints.dataControl.replaceSingle("manga", system_id), {
         method: "POST",
         credentials: "include",
       });
@@ -497,7 +498,7 @@ export default function Manga() {
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(`/api/manga/${system_id}/complete`, {
+                  const res = await fetch(endpoints.resource("manga").complete(system_id), {
                     method: "POST",
                     credentials: "include",
                   });

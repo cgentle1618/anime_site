@@ -1,6 +1,7 @@
 // Frontend: page component file for TV.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
@@ -89,7 +90,7 @@ export default function TV() {
     if (!isAdmin) return;
     setShow((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/tv-shows/${system_id}`, {
+      const res = await fetch(endpoints.resource("tv-show").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -110,7 +111,7 @@ export default function TV() {
     setAutofilling(true);
     try {
       const res = await fetch(
-        `/api/data-control/replace/tv-show/${system_id}`,
+        endpoints.dataControl.replaceSingle("tv-show", system_id),
         { method: "POST", credentials: "include" },
       );
       const data = await res.json().catch(() => ({}));
@@ -223,7 +224,7 @@ export default function TV() {
                 if (!isAdmin) return;
                 try {
                   const res = await fetch(
-                    `/api/tv-shows/${system_id}/complete`,
+                    endpoints.resource("tv-show").complete(system_id),
                     {
                       method: "POST",
                       credentials: "include",

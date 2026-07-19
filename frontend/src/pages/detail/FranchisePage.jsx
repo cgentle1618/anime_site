@@ -1,6 +1,8 @@
 // Frontend: page component file for FranchisePage.
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { endpoints } from "../../api/endpoints";
+import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import {
@@ -211,29 +213,29 @@ export default function FranchisePage() {
       try {
         const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
           await Promise.all([
-            fetch(`/api/franchise/${system_id}`, { credentials: "include" }),
-            fetch(`/api/series/?franchise_id=${system_id}`, {
+            fetch(endpoints.resource("franchise").detail(system_id), { credentials: "include" }),
+            fetch(buildUrl(endpoints.resource("series").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/anime/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("anime").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/anime-movie/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("anime-movie").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/movies/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("movie").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/tv-shows/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("tv-show").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/cartoon/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("cartoon").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/manga/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("manga").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
-            fetch(`/api/novel/?franchise_id=${system_id}`, {
+            fetch(buildUrl(endpoints.resource("novel").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
           ]);
@@ -367,7 +369,7 @@ export default function FranchisePage() {
 
   async function saveField(field, value) {
     try {
-      const res = await fetch(`/api/franchise/${system_id}`, {
+      const res = await fetch(endpoints.resource("franchise").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value === "" ? null : value }),
