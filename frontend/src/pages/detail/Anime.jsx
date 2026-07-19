@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard, { InfoRow } from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
@@ -86,7 +87,7 @@ export default function Anime() {
     if (!isAdmin) return;
     setAnime((prev) => ({ ...prev, ...payload }));
     try {
-      const res = await fetch(`/api/anime/${system_id}`, {
+      const res = await fetch(endpoints.resource("anime").patch(system_id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -106,7 +107,7 @@ export default function Anime() {
   async function handleAutofill() {
     setAutofilling(true);
     try {
-      const res = await fetch(`/api/data-control/replace/anime/${system_id}`, {
+      const res = await fetch(endpoints.dataControl.replaceSingle("anime", system_id), {
         method: "POST",
         credentials: "include",
       });
@@ -257,7 +258,7 @@ export default function Anime() {
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
-                  const res = await fetch(`/api/anime/${system_id}/complete`, {
+                  const res = await fetch(endpoints.resource("anime").complete(system_id), {
                     method: "POST",
                     credentials: "include",
                   });
