@@ -90,21 +90,15 @@ export default function Nav() {
   const [backingUp, setBackingUp] = useState(false);
   const searchRef = useRef(null);
   const searchDebounceRef = useRef(null);
-  const dataCacheRef = useRef({
-    loaded: false,
-    franchises: [],
-    anime: [],
-    series: [],
-    animeMovies: [],
-    movies: [],
-    tvShows: [],
-    cartoons: [],
-    mangas: [],
-    novels: [],
-    seasonal: [],
-  });
+  const searchReqIdRef = useRef(0);
+  // Seasonal has no server-side search and is a tiny table, so it is fetched
+  // once and filtered client-side. All other types are searched server-side.
+  const seasonalCacheRef = useRef({ loaded: false, seasonal: [] });
 
-  // Universal search — client-side filtering (case/punctuation/space insensitive)
+  // Universal search — server-side substring search, one request per type.
+  // Each type carries its own display limit so a large table (e.g. anime) can
+  // never truncate or crowd out matches from the smaller ones. Seasonal has no
+  // server-side search and is tiny, so it stays client-side.
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -113,191 +107,71 @@ export default function Nav() {
     }
     clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(async () => {
+      const reqId = ++searchReqIdRef.current;
+      const q = searchQuery.trim();
+      const qClean = cleanString(q);
+      const qParam = encodeURIComponent(q);
+      const scope = searchScope;
+
+      // [endpoint, type, display limit when scope === "all"]
+      const TYPE_JOBS = [
+        ["/api/franchise", "franchise", 3],
+        ["/api/series", "series", 3],
+        ["/api/anime", "anime", 10],
+        ["/api/anime-movie", "anime-movie", 3],
+        ["/api/movies", "movie", 3],
+        ["/api/tv-shows", "tv-show", 3],
+        ["/api/cartoon", "cartoon", 5],
+        ["/api/manga", "manga", 5],
+        ["/api/novel", "novel", 5],
+      ];
+
+      const fetchType = async (endpoint, type, limit) => {
+        try {
+          const res = await fetch(
+            `${endpoint}/?search_query=${qParam}&limit=${limit}`,
+            { credentials: "include" },
+          );
+          if (!res.ok) return [];
+          const rows = await res.json();
+          return rows.map((r) => ({ ...r, type }));
+        } catch {
+          return [];
+        }
+      };
+
       try {
-        if (!dataCacheRef.current.loaded) {
-          const [
-            franRes,
-            animeRes,
-            seriesRes,
-            cartoonRes,
-            seasonalRes,
-            amRes,
-            mvRes,
-            tvRes,
-            mgRes,
-            nvRes,
-          ] = await Promise.all([
-            fetch("/api/franchise/", { credentials: "include" }),
-            fetch("/api/anime/", { credentials: "include" }),
-            fetch("/api/series/", { credentials: "include" }),
-            fetch("/api/cartoon/", { credentials: "include" }),
-            fetch("/api/seasonal/", { credentials: "include" }),
-            fetch("/api/anime-movie/", { credentials: "include" }),
-            fetch("/api/movies/", { credentials: "include" }),
-            fetch("/api/tv-shows/", { credentials: "include" }),
-            fetch("/api/manga/", { credentials: "include" }),
-            fetch("/api/novel/", { credentials: "include" }),
-          ]);
-          dataCacheRef.current.franchises = franRes.ok
-            ? await franRes.json()
-            : [];
-          dataCacheRef.current.anime = animeRes.ok ? await animeRes.json() : [];
-          dataCacheRef.current.series = seriesRes.ok
-            ? await seriesRes.json()
-            : [];
-          dataCacheRef.current.cartoons = cartoonRes.ok
-            ? await cartoonRes.json()
-            : [];
-          dataCacheRef.current.seasonal = seasonalRes.ok
-            ? await seasonalRes.json()
-            : [];
-          dataCacheRef.current.animeMovies = amRes.ok ? await amRes.json() : [];
-          dataCacheRef.current.movies = mvRes.ok ? await mvRes.json() : [];
-          dataCacheRef.current.tvShows = tvRes.ok ? await tvRes.json() : [];
-          dataCacheRef.current.mangas = mgRes.ok ? await mgRes.json() : [];
-          dataCacheRef.current.novels = nvRes.ok ? await nvRes.json() : [];
-          dataCacheRef.current.loaded = true;
-        }
-        const qClean = cleanString(searchQuery);
-        const scope = searchScope;
-        const results = [];
+        const jobs = TYPE_JOBS.filter(
+          ([, type]) => scope === "all" || scope === type,
+        ).map(([endpoint, type, allLimit]) =>
+          fetchType(endpoint, type, scope === "all" ? allLimit : 10),
+        );
+        const results = (await Promise.all(jobs)).flat();
 
-        // Search Filter
-        if (scope === "all" || scope === "franchise") {
-          const limit = scope === "all" ? 3 : 10;
-          dataCacheRef.current.franchises
-            .filter((f) =>
-              [
-                f.franchise_name_cn,
-                f.franchise_name_en,
-                f.franchise_name_roman,
-                f.franchise_name_jp,
-                f.franchise_name_alt,
-              ].some((n) => cleanString(n).includes(qClean)),
-            )
-            .slice(0, limit)
-            .forEach((f) => results.push({ type: "franchise", ...f }));
-        }
-
-        if (scope === "all" || scope === "series") {
-          const limit = scope === "all" ? 3 : 10;
-          dataCacheRef.current.series
-            .filter((s) =>
-              [s.series_name_cn, s.series_name_en, s.series_name_alt].some(
-                (n) => cleanString(n).includes(qClean),
-              ),
-            )
-            .slice(0, limit)
-            .forEach((s) => results.push({ type: "series", ...s }));
-        }
-
-        if (scope === "all" || scope === "anime") {
-          const limit = scope === "all" ? 10 : 10;
-          dataCacheRef.current.anime
-            .filter((a) =>
-              [
-                a.anime_name_cn,
-                a.anime_name_en,
-                a.anime_name_roman,
-                a.anime_name_jp,
-                a.anime_name_alt,
-              ].some((n) => cleanString(n).includes(qClean)),
-            )
-            .slice(0, limit)
-            .forEach((a) => results.push({ type: "anime", ...a }));
-        }
-
-        if (scope === "all" || scope === "anime-movie") {
-          const limit = scope === "all" ? 3 : 10;
-          dataCacheRef.current.animeMovies
-            .filter((m) =>
-              [
-                m.anime_movie_name_cn,
-                m.anime_movie_name_en,
-                m.anime_movie_name_roman,
-                m.anime_movie_name_jp,
-                m.anime_movie_name_alt,
-              ].some((n) => cleanString(n).includes(qClean)),
-            )
-            .slice(0, limit)
-            .forEach((m) => results.push({ type: "anime-movie", ...m }));
-        }
-
-        if (scope === "all" || scope === "movie") {
-          const limit = scope === "all" ? 3 : 10;
-          dataCacheRef.current.movies
-            .filter((m) =>
-              [m.movie_name_cn, m.movie_name_en, m.movie_name_alt].some((n) =>
-                cleanString(n).includes(qClean),
-              ),
-            )
-            .slice(0, limit)
-            .forEach((m) => results.push({ type: "movie", ...m }));
-        }
-
-        if (scope === "all" || scope === "tv-show") {
-          const limit = scope === "all" ? 3 : 10;
-          dataCacheRef.current.tvShows
-            .filter((t) =>
-              [t.tv_name_cn, t.tv_name_en, t.tv_name_alt].some((n) =>
-                cleanString(n).includes(qClean),
-              ),
-            )
-            .slice(0, limit)
-            .forEach((t) => results.push({ type: "tv-show", ...t }));
-        }
-
-        if (scope === "all" || scope === "cartoon") {
-          const limit = scope === "all" ? 5 : 10;
-          dataCacheRef.current.cartoons
-            .filter((c) =>
-              [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some(
-                (n) => cleanString(n).includes(qClean),
-              ),
-            )
-            .slice(0, limit)
-            .forEach((c) => results.push({ type: "cartoon", ...c }));
-        }
-
-        if (scope === "all" || scope === "manga") {
-          const limit = scope === "all" ? 5 : 10;
-          dataCacheRef.current.mangas
-            .filter((m) =>
-              [
-                m.manga_name_cn,
-                m.manga_name_en,
-                m.manga_name_roman,
-                m.manga_name_jp,
-                m.manga_name_alt,
-              ].some((n) => cleanString(n).includes(qClean)),
-            )
-            .slice(0, limit)
-            .forEach((m) => results.push({ type: "manga", ...m }));
-        }
-
-        if (scope === "all" || scope === "novel") {
-          const limit = scope === "all" ? 5 : 10;
-          dataCacheRef.current.novels
-            .filter((n) =>
-              [
-                n.novel_name_cn,
-                n.novel_name_en,
-                n.novel_name_roman,
-                n.novel_name_jp,
-                n.novel_name_alt,
-              ].some((n) => cleanString(n).includes(qClean)),
-            )
-            .slice(0, limit)
-            .forEach((n) => results.push({ ...n, type: "novel" }));
-        }
-
+        // Seasonal: no server-side search; fetch the small table once, cache it,
+        // and filter client-side.
         if (scope === "all" || scope === "seasonal") {
-          const limit = scope === "all" ? 10 : 10;
-          dataCacheRef.current.seasonal
+          if (!seasonalCacheRef.current.loaded) {
+            try {
+              const res = await fetch("/api/seasonal/", {
+                credentials: "include",
+              });
+              seasonalCacheRef.current.seasonal = res.ok
+                ? await res.json()
+                : [];
+            } catch {
+              seasonalCacheRef.current.seasonal = [];
+            }
+            seasonalCacheRef.current.loaded = true;
+          }
+          seasonalCacheRef.current.seasonal
             .filter((s) => cleanString(s.seasonal).includes(qClean))
-            .slice(0, limit)
-            .forEach((s) => results.push({ type: "seasonal", ...s }));
+            .slice(0, 10)
+            .forEach((s) => results.push({ ...s, type: "seasonal" }));
         }
+
+        // A newer keystroke superseded this request while it was in flight.
+        if (reqId !== searchReqIdRef.current) return;
 
         // Exact match floats to top
         results.sort((a, b) => {

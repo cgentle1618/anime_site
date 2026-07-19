@@ -47,6 +47,17 @@ class TestMediaCrud:
         assert r.status_code == 200
         assert any(e["system_id"] == created["system_id"] for e in r.json())
 
+    def test_search_query_filters_by_name(self, admin_client, route, name_field, status_field, model):
+        unique = f"Zephyr{uuid.uuid4().hex[:8]}"
+        created = self._create(admin_client, route, name_field, name=unique).json()
+        # Matching query includes the entry.
+        r = admin_client.get(f"/api/{route}/?search_query={unique}")
+        assert r.status_code == 200
+        assert any(e["system_id"] == created["system_id"] for e in r.json())
+        # Non-matching query excludes it (regression: movies used to ignore search_query).
+        r2 = admin_client.get(f"/api/{route}/?search_query=ZZZNoMatch{uuid.uuid4().hex[:6]}")
+        assert all(e["system_id"] != created["system_id"] for e in r2.json())
+
     def test_patch_updates_field(self, admin_client, route, name_field, status_field, model):
         created = self._create(admin_client, route, name_field).json()
         r = admin_client.patch(f"/api/{route}/{created['system_id']}", json={name_field: "Renamed"})
