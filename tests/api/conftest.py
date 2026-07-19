@@ -10,7 +10,7 @@ Setup: createdb -U postgres anime_site_test  (run once)
 import uuid
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app import models
@@ -26,7 +26,20 @@ from app.main import app
 
 @pytest.fixture(scope="session")
 def test_engine():
+    # Safety guard: never run a destructive schema reset against a non-test DB.
+    db_name = SQLALCHEMY_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0]
+    assert "test" in db_name, f"Refusing to reset non-test database: {db_name!r}"
+
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+    # Start from a guaranteed-clean schema. create_all never ALTERs existing
+    # tables, so stale tables from an earlier run (columns since renamed/dropped
+    # by migrations) would otherwise linger and break tests. A full schema reset
+    # is the only reliable way to rebuild from the current models.
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
