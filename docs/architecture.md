@@ -136,7 +136,13 @@ Entry points for the five admin-triggered pipelines, supporting all media types 
 
 SSE generators yield `data: {json}\n\n` messages and check `request.is_disconnected()` for graceful client abort. All pipelines log to `DataControlLog` via `log_data_control()`.
 
-### `other_logics.py` — Domain Business Logic
+### `domain/` — Domain Business Logic
+
+Split by concern into `app/services/domain/`: `hierarchy.py`, `checking.py`,
+`completion.py`, `derivation.py`, `autofill.py`, `duplicates.py`, `remarks.py`,
+`seasonal.py`, `options_extraction.py`, and `post_processing.py` (orchestration).
+The package `__init__` re-exports every public function, so callers can
+`from app.services.domain import <function>` regardless of its module.
 
 Key functions:
 

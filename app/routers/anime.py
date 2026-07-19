@@ -2,7 +2,7 @@
 routers/anime.py
 Handles all API endpoints related to individual anime entries.
 Strictly acts as a Controller layer: handles routing, schema validation, and HTTP responses.
-All heavy business logic is delegated to services.other_logics.
+All heavy business logic is delegated to services.domain.
 """
 
 import uuid
@@ -19,7 +19,7 @@ from app import models
 from app import schemas
 
 from app.services.integrations.image_manager import delete_cover_image
-from app.services.other_logics import (
+from app.services.domain import (
     apply_completion_timestamp,
     apply_single_replace_anime,
     create_missing_seasonal,

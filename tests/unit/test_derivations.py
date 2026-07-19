@@ -1,5 +1,5 @@
 """
-Unit tests for derivation functions in services/other_logics.py
+Unit tests for derivation functions in app/services/domain/derivation.py
 
 Uses mocked DB sessions (MagicMock with self-referential chaining) so these
 tests run without a real PostgreSQL connection.
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.services.other_logics import (
+from app.services.domain import (
     derive_watch_order_anime,
     derive_ep_previous_anime,
     derive_prequel_sequel_anime,

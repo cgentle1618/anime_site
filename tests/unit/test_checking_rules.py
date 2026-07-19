@@ -1,12 +1,12 @@
 """
-Unit tests for checking rules in services/other_logics.py
+Unit tests for checking rules in app/services/domain/checking.py
 
 Uses SimpleNamespace to create mock Anime objects — no DB required.
 """
 
 import types
 import pytest
-from app.services.other_logics import (
+from app.services.domain import (
     has_missing_values_anime,
     check_is_tv_completed,
     apply_check_baha,

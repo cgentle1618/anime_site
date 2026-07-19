@@ -38,7 +38,7 @@ from app.services.data_control import (
     execute_replace_single_movie,
     execute_replace_single_tv_show,
 )
-from app.services.other_logics import find_all_duplicates, find_all_remarks
+from app.services.domain import find_all_duplicates, find_all_remarks
 from app.services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,

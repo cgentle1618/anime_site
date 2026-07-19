@@ -18,7 +18,7 @@ from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
 
-from app.services.other_logics import resolve_series_parent_hierarchy
+from app.services.domain import resolve_series_parent_hierarchy
 
 from app.utils.data_control_utils import log_deleted_record
 

@@ -107,14 +107,14 @@ Tests for stateless functions with no DB or network dependencies.
 - `verify_password`: correct → `True`; wrong → `False`
 - `create_access_token` + decode: correct payload; expired token raises `JWTError` (via `freezegun`)
 
-### `tests/unit/test_derivations.py` → `app/services/other_logics.py`
+### `tests/unit/test_derivations.py` → `app/services/domain/derivation.py`
 
 - `derive_watch_order_anime`: sequential assignment; null `season_part` skipped; airing type priority (TV before OVA); series grouping
 - `derive_ep_previous_anime`: Season 1 → `0`; Season 2 → `S1.ep_total`; different series isolated
 - `derive_prequel_sequel_anime`: links built; `derive_related=False` skipped; nulls only filled, not overwritten
 - `derive_season_1_anime`: single TV in franchise → `"Season 1"`; multi TV → no change; non-TV → no change
 
-### `tests/unit/test_checking_rules.py` → `app/services/other_logics.py` + `app/utils/utils.py`
+### `tests/unit/test_checking_rules.py` → `app/services/domain/checking.py` + `app/utils/utils.py`
 
 - `has_missing_values_anime`: blank tracked fields → `True`; all filled → `False`; `"Not Yet Aired"` exceptions; `ep_previous` exemptions
 - `check_is_tv_completed`: `ep_fin == ep_total > 0` → `True`; explicit `"Completed"` → `True`; partial → `False`
@@ -275,7 +275,7 @@ Requires real PostgreSQL (use `docker-compose up -d`).
 ### Mutation Testing (mutmut)
 
 ```
-mutmut run --paths-to-mutate=utils/,services/other_logics.py
+mutmut run --paths-to-mutate=app/utils/,app/services/domain/
 mutmut results
 ```
 

@@ -1,7 +1,7 @@
 """
 calculation.py
 On-demand bulk calculate and fix operations.
-Wraps single-entry logic from other_logics.py for bulk application across the DB.
+Wraps single-entry logic from services.domain for bulk application across the DB.
 """
 
 from typing import Optional
@@ -14,7 +14,7 @@ from app.utils.data_control_utils import log_data_control
 from app.models import Anime, AnimeMovies, Cartoon, Manga, Movies, Novel, TVShows
 
 from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
-from app.services.other_logics import (
+from app.services.domain import (
     sync_seasonal_counts,
     create_missing_seasonal,
     extract_system_options_from_anime,
