@@ -41,7 +41,7 @@ Install: `cd frontend && npm install`
 
 ```
 tests/                          ← backend tests
-  conftest.py                   ← in-memory DB, admin/guest client fixtures
+  conftest.py                   ← sets test-DB env vars before any app import
   unit/
     test_utils.py               ← validate_episode_math, extract_mal_id_anime, etc.
     test_jikan_utils.py         ← map_jikan_to_anime_data
@@ -50,9 +50,11 @@ tests/                          ← backend tests
     test_derivations.py         ← derive_watch_order_anime, ep_previous, prequel/sequel
     test_checking_rules.py      ← has_missing_values_anime, check_is_tv_completed
   api/
-    conftest.py                 ← sample DB rows (franchise, series, anime)
+    conftest.py                 ← resets the test DB schema per session; client fixtures + sample rows
     test_auth.py
     test_franchise.py
+    test_complete_endpoints.py  ← /complete mark-completed endpoints
+    test_media_crud.py          ← CRUD smoke tests for the 5 factory-built media routers
     test_series.py              (planned)
     test_anime.py               (planned)
     test_anime_movie.py         (planned)

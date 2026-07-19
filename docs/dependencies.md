@@ -8,6 +8,7 @@
 | ---------------------- | ------------ | ------------------------------------------------------------------------------- |
 | `fastapi`              | 0.110.2      | REST API framework — routing, request/response handling, dependency injection   |
 | `pydantic`             | 2.7.1        | Data validation and serialization for request bodies and response models        |
+| `pydantic-settings`    | 2.14.2       | Centralized environment/config loading (`app/config.py` `Settings`)             |
 | `uvicorn`              | 0.29.0       | ASGI server — runs the FastAPI app                                              |
 | `python-multipart`     | 0.0.9        | Parses `multipart/form-data` — required for `OAuth2PasswordRequestForm` (login) |
 | `sqlalchemy`           | 2.0.23       | ORM and SQL toolkit — all database access                                       |
@@ -20,7 +21,7 @@
 | `google-auth`          | 2.23.3       | Google authentication — service account credentials for Sheets and GCS          |
 | `requests`             | 2.31.0       | HTTP client — Jikan API calls and cover image downloads                         |
 | `google-cloud-storage` | 2.14.0       | Google Cloud Storage client — cover image upload and retrieval                  |
-| `python-dotenv`        | 1.0.0        | Loads `.env` file into environment variables for local development              |
+| `python-dotenv`        | 1.0.0        | Backs pydantic-settings' `.env` file loading for local development              |
 | `pytz`                 | 2023.3.post1 | Timezone utilities — provides Asia/Taipei timezone for `get_taipei_now()`       |
 | `tenacity`             | ≥8.0.0       | Retry decorator — exponential backoff for Jikan API calls                       |
 

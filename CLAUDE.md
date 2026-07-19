@@ -25,7 +25,8 @@ Reference these files in `/docs` for deep technical context (note that the docum
 
 ## Tech Stack
 
-- **Backend**: FastAPI + SQLAlchemy + PostgreSQL
+- **Backend**: FastAPI + SQLAlchemy + PostgreSQL. All backend code lives under the `app/` package (run `uvicorn app.main:app`); services are split into `app/services/{domain,pipelines,integrations}`.
+- **Config**: pydantic-settings — every env var is read once in `app/config.py` (`settings`); see `.env.example`.
 - **Frontend**: React + Vite (SPA); pages call `/api/...` endpoints via native `fetch()`
 - **CSS**: Tailwind CSS v4
 - **Auth**: JWT in HTTP-Only cookie; RBAC via `Depends(get_current_admin)` in `app/dependencies.py`
