@@ -10,7 +10,7 @@ from app.dependencies import get_db, get_current_admin
 from app.models import Anime
 
 
-from app.services.data_control import (
+from app.services.pipelines import (
     execute_backup,
     execute_pull_all,
     execute_pull_specific,

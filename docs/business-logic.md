@@ -22,7 +22,7 @@ All backend logic lives in `services/` and `utils/`. Routers are thin — they v
 
 ## Main Data Control Logic
 
-All pipeline functions live in `app/services/data_control.py`. SSE functions are async generators; non-SSE functions return dicts.
+All pipeline functions live in `app/services/pipelines/` (`backup.py`, `fill.py`, `replace.py`, `pull.py`), re-exported from the package root. SSE functions are async generators; non-SSE functions return dicts.
 
 ---
 

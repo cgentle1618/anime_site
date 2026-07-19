@@ -152,7 +152,7 @@ def parse_series_from_sheet(raw: dict) -> dict:
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(
             raw.get("franchise_id"), UUID
-        ),  # Might be string, handled in data_control
+        ),  # Might be string, handled in the pull pipeline
         "series_name_en": parse_from_sheet(raw.get("series_name_en"), str),
         "series_name_cn": parse_from_sheet(raw.get("series_name_cn"), str),
         "series_name_alt": parse_from_sheet(raw.get("series_name_alt"), str),
@@ -225,7 +225,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
 def parse_anime_movie_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Anime Movies sheet into typed data ready for the Database.
-    franchise_id may be a UUID or a raw string name — handled in data_control.
+    franchise_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
@@ -269,7 +269,7 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
 def parse_movie_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Movies sheet into typed data ready for the Database.
-    franchise_id and series_id may be a UUID or a raw string name — handled in data_control.
+    franchise_id and series_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
@@ -309,7 +309,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
 def parse_tv_show_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the TV Shows sheet into typed data ready for the Database.
-    franchise_id and series_id may be a UUID or a raw string name — handled in data_control.
+    franchise_id and series_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
@@ -350,7 +350,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
 def parse_cartoon_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Cartoon sheet into typed data ready for the Database.
-    franchise_id and series_id may be a UUID or a raw string name — handled in data_control.
+    franchise_id and series_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),

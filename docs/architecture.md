@@ -119,7 +119,10 @@ Two shared FastAPI dependencies injected via `Depends()`:
 
 ## Services Layer (`services/`)
 
-### `data_control.py` — Data Pipeline Orchestrator
+### `pipelines/` — Data Pipeline Orchestrators
+
+Split into `app/services/pipelines/`: `backup.py`, `fill.py`, `replace.py`, `pull.py`
+(re-exported from the package root).
 
 Entry points for the five admin-triggered pipelines, supporting all media types (Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel):
 

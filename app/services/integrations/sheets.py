@@ -116,7 +116,7 @@ def get_google_sheet_tab(tab_name: str) -> gspread.Worksheet:
 
 
 # ==========================================
-# EXTERNAL ACTIONS (Called by data_control.py)
+# EXTERNAL ACTIONS (Called by the pipelines package)
 # ==========================================
 
 
