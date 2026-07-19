@@ -71,6 +71,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 ---
 
+> **Media entry routers.** `movie`, `tv-shows`, `cartoon`, `manga`, and `novel` share a generated router (`make_media_router` + `MEDIA_REGISTRY`, see `app/routers/_factory.py`) and use `/{entry_id}` for single-entry paths. `anime` and `anime-movie` are hand-written and use `/{system_id}`. All seven expose the same CRUD + `/{…}/complete` shape.
+
 ## Anime — `/api/anime`
 
 | Method   | Path           | Auth   | Description                                                                                                    |
@@ -80,6 +82,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `POST`   | `/`            | Admin  | Create an anime entry. Runs episode math and domain rules. Body: `AnimeCreate`.                                |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Runs episode math and domain rules. Body: `AnimeUpdate`.                                          |
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. +1 episode). Auto-marks completed if `ep_fin` reaches `ep_total`. Body: raw JSON dict.    |
+| `POST`   | `/{system_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).             |
 | `DELETE` | `/{system_id}` | Admin  | Delete an anime entry. Cleans up local cover image. Logs to `deleted_record`.                                  |
 
 **Response model:** `AnimeResponse` (includes computed fields `cum_ep_fin`, `cum_ep_total`)
@@ -95,6 +98,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `POST`   | `/`            | Admin  | Create an anime movie entry. Body: `AnimeMovieCreate`.                                     |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Body: `AnimeMovieUpdate`.                                                     |
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. watching status, rating). Body: raw JSON dict.                        |
+| `POST`   | `/{system_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps).                    |
 | `DELETE` | `/{system_id}` | Admin  | Delete an anime movie entry. Cleans up local cover image. Logs to `deleted_record`.        |
 
 **Response model:** `AnimeMovieResponse`
@@ -106,16 +110,16 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Method   | Path                   | Auth   | Description                                                                                                             |
 | -------- | ---------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`                    | Public | List all movie entries. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `movie_type`. |
-| `GET`    | `/{movie_id}`          | Public | Get a single movie entry by UUID.                                                                                       |
+| `GET`    | `/{entry_id}`          | Public | Get a single movie entry by UUID.                                                                                       |
 | `POST`   | `/`                    | Admin  | Create a movie entry. Auto-runs `execute_replace_single_movie` after creation. Body: `MovieCreate`.                     |
-| `PUT`    | `/{movie_id}`          | Admin  | Full update of a movie entry. Auto-runs `execute_replace_single_movie` after update. Body: `MovieUpdate`.               |
-| `PATCH`  | `/{movie_id}`          | Admin  | Partial update (e.g. watching status, rating). Does not re-run pipeline. Body: raw JSON dict.                           |
-| `DELETE` | `/{movie_id}`          | Admin  | Delete a movie entry. Removes cover image from GCS if present. Logs to `deleted_record`.                                |
-| `POST`   | `/{movie_id}/autofill` | Admin  | Run `execute_replace_single_movie` for a single entry (Manual trigger). Returns updated `MovieResponse`.                |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update of a movie entry. Auto-runs `execute_replace_single_movie` after update. Body: `MovieUpdate`.               |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update (e.g. watching status, rating). Does not re-run pipeline. Body: raw JSON dict.                           |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a movie entry. Removes cover image from GCS if present. Logs to `deleted_record`.                                |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps).                                                    |
 
 **Response model:** `MovieResponse`
 
-**IMDb pipeline:** `POST /` and `PUT /{id}` both automatically trigger `execute_replace_single_movie`, which extracts the IMDb ID from `imdb_link`, calls TMDB and OMDb, and fills missing fields (length, director, release dates, imdb_rating, cover image).
+**IMDb pipeline:** `POST /` and `PUT /{entry_id}` both automatically trigger `execute_replace_single_movie`, which extracts the IMDb ID from `imdb_link`, calls TMDB and OMDb, and fills missing fields (length, director, release dates, imdb_rating, cover image).
 
 ---
 
@@ -124,12 +128,12 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Method   | Path                    | Auth   | Description                                                                                                                    |
 | -------- | ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | `GET`    | `/`                     | Public | List all TV shows. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `region`, `search_query`. |
-| `GET`    | `/{tv_show_id}`         | Public | Get a single TV show entry by UUID.                                                                                            |
+| `GET`    | `/{entry_id}`         | Public | Get a single TV show entry by UUID.                                                                                            |
 | `POST`   | `/`                     | Admin  | Create a TV show entry. Auto-runs `execute_replace_single_tv_show` after creation. Body: `TVShowCreate`.                       |
-| `PUT`    | `/{tv_show_id}`         | Admin  | Full update of a TV show entry. Auto-runs `execute_replace_single_tv_show` after update. Body: `TVShowUpdate`.                 |
-| `PATCH`  | `/{tv_show_id}`         | Admin  | Partial update (e.g. inline ratings). Does not re-run pipeline. Body: raw JSON dict.                                           |
-| `POST`   | `/{system_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                        |
-| `DELETE` | `/{tv_show_id}`         | Admin  | Delete a TV show entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                        |
+| `PUT`    | `/{entry_id}`         | Admin  | Full update of a TV show entry. Auto-runs `execute_replace_single_tv_show` after update. Body: `TVShowUpdate`.                 |
+| `PATCH`  | `/{entry_id}`         | Admin  | Partial update (e.g. inline ratings). Does not re-run pipeline. Body: raw JSON dict.                                           |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                        |
+| `DELETE` | `/{entry_id}`         | Admin  | Delete a TV show entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                        |
 
 **Response model:** `TVShowResponse`
 
@@ -140,12 +144,12 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Method   | Path                    | Auth   | Description                                                                                                                        |
 | -------- | ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`                     | Public | List all cartoons. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `to_rewatch`, `search_query`. |
-| `GET`    | `/{cartoon_id}`         | Public | Get a single cartoon entry by UUID.                                                                                                |
+| `GET`    | `/{entry_id}`         | Public | Get a single cartoon entry by UUID.                                                                                                |
 | `POST`   | `/`                     | Admin  | Create a cartoon entry. Auto-runs `execute_replace_single_cartoon` after creation. Body: `CartoonCreate`.                          |
-| `PUT`    | `/{cartoon_id}`         | Admin  | Full update of a cartoon entry. Auto-runs `execute_replace_single_cartoon` after update. Body: `CartoonUpdate`.                    |
-| `PATCH`  | `/{cartoon_id}`         | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                     |
-| `POST`   | `/{system_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                            |
-| `DELETE` | `/{cartoon_id}`         | Admin  | Delete a cartoon entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                            |
+| `PUT`    | `/{entry_id}`         | Admin  | Full update of a cartoon entry. Auto-runs `execute_replace_single_cartoon` after update. Body: `CartoonUpdate`.                    |
+| `PATCH`  | `/{entry_id}`         | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                     |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                            |
+| `DELETE` | `/{entry_id}`         | Admin  | Delete a cartoon entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                            |
 
 **Response model:** `CartoonResponse`
 
@@ -156,12 +160,12 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Method   | Path                   | Auth   | Description                                                                                                                          |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET`    | `/`                    | Public | List all manga. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
-| `GET`    | `/{manga_id}`          | Public | Get a single manga entry by UUID.                                                                                                    |
+| `GET`    | `/{entry_id}`          | Public | Get a single manga entry by UUID.                                                                                                    |
 | `POST`   | `/`                    | Admin  | Create a manga entry. Auto-runs `execute_replace_single_manga` after creation. Body: `MangaCreate`.                                  |
-| `PUT`    | `/{manga_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
-| `PATCH`  | `/{manga_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                       |
-| `POST`   | `/{manga_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes/chapters finished, serialization status).                             |
-| `DELETE` | `/{manga_id}`          | Admin  | Delete a manga entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                       |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes/chapters finished, serialization status).                             |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a manga entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                |
 
 **Response model:** `MangaResponse`
 
@@ -172,12 +176,12 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Method   | Path                   | Auth   | Description                                                                                                                           |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
-| `GET`    | `/{novel_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
+| `GET`    | `/{entry_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
 | `POST`   | `/`                    | Admin  | Create a novel entry. Auto-runs `execute_replace_single_novel` after creation. Body: `NovelCreate`.                                   |
-| `PUT`    | `/{novel_id}`          | Admin  | Full update of a novel entry. Auto-runs `execute_replace_single_novel` after update. Body: `NovelUpdate`.                             |
-| `PATCH`  | `/{novel_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
-| `POST`   | `/{novel_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes finished, serialization status).                                       |
-| `DELETE` | `/{novel_id}`          | Admin  | Delete a novel entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update of a novel entry. Auto-runs `execute_replace_single_novel` after update. Body: `NovelUpdate`.                             |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes finished, serialization status).                                       |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
 
 **Response model:** `NovelResponse`
 
