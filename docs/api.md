@@ -5,7 +5,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 ## Authentication
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
-- **Admin-only endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie, enforced via `Depends(get_current_admin)` in `dependencies.py`.
+- **Admin-only endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie, enforced via `Depends(get_current_admin)` in `app/dependencies.py`.
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 
 ---

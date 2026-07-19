@@ -12,11 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-import models
-import schemas
-from database import get_taipei_now
-from dependencies import get_db, get_current_admin
-from utils.data_control_utils import log_deleted_record
+from app import models
+from app import schemas
+from app.database import get_taipei_now
+from app.dependencies import get_db, get_current_admin
+from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
 

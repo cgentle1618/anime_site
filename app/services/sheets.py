@@ -14,7 +14,7 @@ import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from google.oauth2.service_account import Credentials
 
-from config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

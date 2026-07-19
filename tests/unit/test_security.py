@@ -10,7 +10,7 @@ import jwt
 import pytest
 from freezegun import freeze_time
 
-from services.security import (
+from app.services.security import (
     get_password_hash,
     verify_password,
     create_access_token,

@@ -4,7 +4,7 @@
 
 **Goal:** Replace frontend-side field construction in "Mark Completed" buttons with dedicated `POST /{id}/complete` backend endpoints that call the existing `mark_*_completed` service functions.
 
-**Architecture:** One new endpoint per router (6 total) delegates to the existing `mark_tv_completed`, `mark_movie_completed`, or `mark_reading_completed` functions in `services/other_logics.py`. Frontend buttons become a single `fetch` POST with no payload — no field logic in the UI.
+**Architecture:** One new endpoint per router (6 total) delegates to the existing `mark_tv_completed`, `mark_movie_completed`, or `mark_reading_completed` functions in `app/services/other_logics.py`. Frontend buttons become a single `fetch` POST with no payload — no field logic in the UI.
 
 **Tech Stack:** FastAPI, SQLAlchemy, React (fetch API), pytest (API integration tests with PostgreSQL)
 
@@ -14,12 +14,12 @@
 
 | File | Change |
 |---|---|
-| `routers/anime.py` | Add `POST /{system_id}/complete` |
-| `routers/anime_movie.py` | Add `POST /{system_id}/complete` |
-| `routers/tv_show.py` | Add `POST /{system_id}/complete` |
-| `routers/cartoon.py` | Add `POST /{system_id}/complete` |
-| `routers/movie.py` | Add `POST /{system_id}/complete` |
-| `routers/manga.py` | Add `POST /{manga_id}/complete` |
+| `app/routers/anime.py` | Add `POST /{system_id}/complete` |
+| `app/routers/anime_movie.py` | Add `POST /{system_id}/complete` |
+| `app/routers/tv_show.py` | Add `POST /{system_id}/complete` |
+| `app/routers/cartoon.py` | Add `POST /{system_id}/complete` |
+| `app/routers/movie.py` | Add `POST /{system_id}/complete` |
+| `app/routers/manga.py` | Add `POST /{manga_id}/complete` |
 | `tests/api/test_complete_endpoints.py` | New — API integration tests for all 6 endpoints |
 | `frontend/src/pages/Anime.jsx` | Replace Mark Completed onClick |
 | `frontend/src/pages/AnimeMovie.jsx` | Replace Mark Completed onClick |
@@ -30,14 +30,14 @@
 
 ---
 
-## Task 1: Add `/complete` endpoint to `routers/anime.py`
+## Task 1: Add `/complete` endpoint to `app/routers/anime.py`
 
 **Files:**
-- Modify: `routers/anime.py`
+- Modify: `app/routers/anime.py`
 
 ### Context
 
-`routers/anime.py` already imports from `services.other_logics`. The import block at the top currently reads:
+`app/routers/anime.py` already imports from `services.other_logics`. The import block at the top currently reads:
 
 ```python
 from services.other_logics import (
@@ -52,7 +52,7 @@ The endpoint must be placed after the existing `PATCH /{system_id}` and before `
 
 - [ ] **Step 1: Add `mark_tv_completed` to the import**
 
-In `routers/anime.py`, update the `services.other_logics` import to add `mark_tv_completed`:
+In `app/routers/anime.py`, update the `services.other_logics` import to add `mark_tv_completed`:
 
 ```python
 from services.other_logics import (
@@ -99,18 +99,18 @@ def complete_anime_entry(
 
 ---
 
-## Task 2: Add `/complete` endpoint to `routers/anime_movie.py`
+## Task 2: Add `/complete` endpoint to `app/routers/anime_movie.py`
 
 **Files:**
-- Modify: `routers/anime_movie.py`
+- Modify: `app/routers/anime_movie.py`
 
 ### Context
 
-`routers/anime_movie.py` prefix is `/api/anime-movie`. The existing imports are at the top of the file. The PATCH handler is `patch_anime_movie`. Uses `models.AnimeMovies` (note the plural) and `schemas.AnimeMovieResponse`.
+`app/routers/anime_movie.py` prefix is `/api/anime-movie`. The existing imports are at the top of the file. The PATCH handler is `patch_anime_movie`. Uses `models.AnimeMovies` (note the plural) and `schemas.AnimeMovieResponse`.
 
 - [ ] **Step 1: Add `mark_movie_completed` to imports**
 
-In `routers/anime_movie.py`, find the existing `from services.other_logics import ...` line (or add one if absent). Add `mark_movie_completed`:
+In `app/routers/anime_movie.py`, find the existing `from services.other_logics import ...` line (or add one if absent). Add `mark_movie_completed`:
 
 ```python
 from services.other_logics import mark_movie_completed
@@ -153,18 +153,18 @@ def complete_anime_movie_entry(
 
 ---
 
-## Task 3: Add `/complete` endpoint to `routers/tv_show.py`
+## Task 3: Add `/complete` endpoint to `app/routers/tv_show.py`
 
 **Files:**
-- Modify: `routers/tv_show.py`
+- Modify: `app/routers/tv_show.py`
 
 ### Context
 
-`routers/tv_show.py` prefix is `/api/tv-shows`. Uses `models.TVShows` and `schemas.TVShowResponse`. Path parameter is `system_id`.
+`app/routers/tv_show.py` prefix is `/api/tv-shows`. Uses `models.TVShows` and `schemas.TVShowResponse`. Path parameter is `system_id`.
 
 - [ ] **Step 1: Add `mark_tv_completed` to imports**
 
-In `routers/tv_show.py`, add to or create the `services.other_logics` import:
+In `app/routers/tv_show.py`, add to or create the `services.other_logics` import:
 
 ```python
 from services.other_logics import mark_tv_completed
@@ -207,18 +207,18 @@ def complete_tv_show_entry(
 
 ---
 
-## Task 4: Add `/complete` endpoint to `routers/cartoon.py`
+## Task 4: Add `/complete` endpoint to `app/routers/cartoon.py`
 
 **Files:**
-- Modify: `routers/cartoon.py`
+- Modify: `app/routers/cartoon.py`
 
 ### Context
 
-`routers/cartoon.py` prefix is `/api/cartoon`. Uses `models.Cartoon` and `schemas.CartoonResponse`. Path parameter is `system_id`.
+`app/routers/cartoon.py` prefix is `/api/cartoon`. Uses `models.Cartoon` and `schemas.CartoonResponse`. Path parameter is `system_id`.
 
 - [ ] **Step 1: Add `mark_tv_completed` to imports**
 
-In `routers/cartoon.py`, add to or create the `services.other_logics` import:
+In `app/routers/cartoon.py`, add to or create the `services.other_logics` import:
 
 ```python
 from services.other_logics import mark_tv_completed
@@ -261,18 +261,18 @@ def complete_cartoon_entry(
 
 ---
 
-## Task 5: Add `/complete` endpoint to `routers/movie.py`
+## Task 5: Add `/complete` endpoint to `app/routers/movie.py`
 
 **Files:**
-- Modify: `routers/movie.py`
+- Modify: `app/routers/movie.py`
 
 ### Context
 
-`routers/movie.py` prefix is `/api/movies`. Uses `models.Movies` and `schemas.MovieResponse`. Path parameter is `system_id`.
+`app/routers/movie.py` prefix is `/api/movies`. Uses `models.Movies` and `schemas.MovieResponse`. Path parameter is `system_id`.
 
 - [ ] **Step 1: Add `mark_movie_completed` to imports**
 
-In `routers/movie.py`, add to or create the `services.other_logics` import:
+In `app/routers/movie.py`, add to or create the `services.other_logics` import:
 
 ```python
 from services.other_logics import mark_movie_completed
@@ -315,14 +315,14 @@ def complete_movie_entry(
 
 ---
 
-## Task 6: Add `/complete` endpoint to `routers/manga.py`
+## Task 6: Add `/complete` endpoint to `app/routers/manga.py`
 
 **Files:**
-- Modify: `routers/manga.py`
+- Modify: `app/routers/manga.py`
 
 ### Context
 
-`routers/manga.py` prefix is `/api/manga`. Uses `models.Manga` and `schemas.MangaResponse`. Path parameter is `manga_id` (consistent with other endpoints in this router). The existing import line is:
+`app/routers/manga.py` prefix is `/api/manga`. Uses `models.Manga` and `schemas.MangaResponse`. Path parameter is `manga_id` (consistent with other endpoints in this router). The existing import line is:
 
 ```python
 from services.other_logics import resolve_manga_parent_hierarchy
@@ -330,7 +330,7 @@ from services.other_logics import resolve_manga_parent_hierarchy
 
 - [ ] **Step 1: Add `mark_reading_completed` to imports**
 
-In `routers/manga.py`, update the `services.other_logics` import:
+In `app/routers/manga.py`, update the `services.other_logics` import:
 
 ```python
 from services.other_logics import resolve_manga_parent_hierarchy, mark_reading_completed

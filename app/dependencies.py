@@ -10,8 +10,8 @@ import jwt
 from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from config import settings
-from database import SessionLocal
+from app.config import settings
+from app.database import SessionLocal
 
 # ==========================================
 # SECURITY CONFIGURATION

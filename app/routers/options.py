@@ -10,10 +10,10 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-import models
-import schemas
-from dependencies import get_db, get_current_admin
-from utils.data_control_utils import log_deleted_record
+from app import models
+from app import schemas
+from app.dependencies import get_db, get_current_admin
+from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
 

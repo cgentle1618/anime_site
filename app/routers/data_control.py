@@ -6,11 +6,11 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from dependencies import get_db, get_current_admin
-from models import Anime
+from app.dependencies import get_db, get_current_admin
+from app.models import Anime
 
 
-from services.data_control import (
+from app.services.data_control import (
     execute_backup,
     execute_pull_all,
     execute_pull_specific,
@@ -38,8 +38,8 @@ from services.data_control import (
     execute_replace_single_movie,
     execute_replace_single_tv_show,
 )
-from services.other_logics import find_all_duplicates, find_all_remarks
-from services.calculation import (
+from app.services.other_logics import find_all_duplicates, find_all_remarks
+from app.services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,
     bulk_download_missing_covers,

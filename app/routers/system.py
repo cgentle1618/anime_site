@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from google.cloud import storage
 
-import models
-import schemas
-from dependencies import get_db, get_current_admin
+from app import models
+from app import schemas
+from app.dependencies import get_db, get_current_admin
 
 logger = logging.getLogger(__name__)
 

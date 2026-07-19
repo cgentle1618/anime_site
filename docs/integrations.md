@@ -4,8 +4,8 @@
 
 ## Jikan API (MyAnimeList Metadata)
 
-**Service file:** `services/jikan.py`  
-**Utils file:** `utils/jikan_utils.py`
+**Service file:** `app/services/jikan.py`  
+**Utils file:** `app/utils/jikan_utils.py`
 
 Jikan v4 is a public REST API that mirrors MyAnimeList data. It is used to auto-populate anime metadata fields (Fill pipeline) and to refresh existing entries (Replace pipeline).
 
@@ -72,8 +72,8 @@ Returns full anime metadata including images, external links, and episode count.
 
 ## TMDB API (IMDb Metadata via The Movie Database)
 
-**Service file:** `services/tmdb.py`  
-**Utils file:** `utils/tmdb_utils.py`
+**Service file:** `app/services/tmdb.py`  
+**Utils file:** `app/utils/tmdb_utils.py`
 
 TMDB (The Movie Database) is a free community-built movie/TV database with a generous REST API. It is used to auto-populate metadata for movies, TV shows, and cartoons that have an `imdb_id`, using IMDb ID as the lookup key via TMDB's Find endpoint.
 
@@ -138,8 +138,8 @@ The Find response includes `movie_results` and `tv_results` arrays. The first ma
 
 ## OMDb API (IMDb Rating)
 
-**Service file:** `services/omdb.py`  
-**Utils file:** `utils/omdb_utils.py`
+**Service file:** `app/services/omdb.py`  
+**Utils file:** `app/utils/omdb_utils.py`
 
 OMDb (Open Movie Database) is used solely to fetch `imdb_rating` for movies and TV shows, since TMDB does not expose IMDb ratings. It is always called alongside a TMDB fetch — 3 API calls total per entry.
 
@@ -186,8 +186,8 @@ Same as TMDB: `imdb_tt_id = f"tt{imdb_id:07d}"`
 
 ## Google Sheets (Backup / Pull)
 
-**Service file:** `services/sheets.py`  
-**Utils:** `utils/formatter.py`
+**Service file:** `app/services/sheets.py`  
+**Utils:** `app/utils/formatter.py`
 
 Google Sheets is used as a human-readable backup and as a restore source. Data flows in both directions: DB → Sheets (Backup) and Sheets → DB (Pull).
 
@@ -246,8 +246,8 @@ Tabs are auto-created (1000 rows × 50 columns) if missing on first Backup or Pu
 
 ## Google Cloud Storage (Cover Images)
 
-**Service file:** `services/image_manager.py`  
-**Utils:** `utils/gcp_utils.py`
+**Service file:** `app/services/image_manager.py`  
+**Utils:** `app/utils/gcp_utils.py`
 
 GCS stores media entry cover images. Locally, images are saved to `static/covers/` instead.
 

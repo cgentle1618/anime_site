@@ -17,7 +17,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-from config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

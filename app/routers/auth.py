@@ -11,10 +11,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-import models
-from config import settings
-from dependencies import get_db, SECRET_KEY, ALGORITHM
-from services.security import (
+from app import models
+from app.config import settings
+from app.dependencies import get_db, SECRET_KEY, ALGORITHM
+from app.services.security import (
     verify_password,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,

@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 import bcrypt
 import jwt
 
-from config import settings
+from app.config import settings
 
 # ==========================================
 # JWT CONFIGURATION

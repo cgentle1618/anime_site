@@ -14,8 +14,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from database import get_taipei_now
-from models import (
+from app.database import get_taipei_now
+from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
@@ -29,12 +29,12 @@ from models import (
     SystemOption,
 )
 
-from services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
-from services.imdb import fetch_imdb_data
-from services.tmdb import fetch_tmdb_tv_season_data
-from services.image_manager import download_cover_image
+from app.services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
+from app.services.imdb import fetch_imdb_data
+from app.services.tmdb import fetch_tmdb_tv_season_data
+from app.services.image_manager import download_cover_image
 
-from utils.utils import (
+from app.utils.utils import (
     SEASON_PATTERN,
     PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
@@ -54,14 +54,14 @@ from utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
-from utils.constants import AnimeAiringType, FranchiseType, WatchStatus
-from utils.jikan_utils import (
+from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.utils.jikan_utils import (
     map_jikan_to_anime_data,
     map_jikan_to_anime_movie_data,
     map_jikan_to_manga_data,
     map_jikan_to_novel_data,
 )
-from utils.imdb_utils import (
+from app.utils.imdb_utils import (
     _parse_season_number,
     _derive_tv_season_airing_status,
     map_imdb_to_cartoon_data,

@@ -13,10 +13,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import models
-from database import SQLALCHEMY_DATABASE_URL, Base
-from dependencies import get_db, SECRET_KEY, ALGORITHM
-from services.security import get_password_hash, create_access_token
+from app import models
+from app.database import SQLALCHEMY_DATABASE_URL, Base
+from app.dependencies import get_db, SECRET_KEY, ALGORITHM
+from app.services.security import get_password_hash, create_access_token
 from main import app
 
 

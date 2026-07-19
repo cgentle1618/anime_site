@@ -28,7 +28,7 @@ Reference these files in `/docs` for deep technical context (note that the docum
 - **Backend**: FastAPI + SQLAlchemy + PostgreSQL
 - **Frontend**: React + Vite (SPA); pages call `/api/...` endpoints via native `fetch()`
 - **CSS**: Tailwind CSS v4
-- **Auth**: JWT in HTTP-Only cookie; RBAC via `Depends(get_current_admin)` in `dependencies.py`
+- **Auth**: JWT in HTTP-Only cookie; RBAC via `Depends(get_current_admin)` in `app/dependencies.py`
 - **Migrations**: Alembic
 - **External Services**: Jikan v4 API (MAL metadata), TMDB API (cover/release/director via themoviedb.org), OMDb API (IMDb rating via omdbapi.com), Google Sheets (backup/restore), Google Cloud Storage (cover images)
 - **Deployment**: Docker → GCP Cloud Run + Cloud SQL (PostgreSQL via Unix socket)
@@ -42,8 +42,8 @@ docker-compose up -d
 # Watch Tailwind CSS
 cd frontend && npm run dev
 
-# Run FastAPI dev server
-uvicorn main:app --reload
+# Run FastAPI dev server (backend code lives in the app/ package)
+uvicorn app.main:app --reload
 
 # Database migrations
 alembic upgrade head

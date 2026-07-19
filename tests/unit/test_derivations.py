@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.other_logics import (
+from app.services.other_logics import (
     derive_watch_order_anime,
     derive_ep_previous_anime,
     derive_prequel_sequel_anime,
@@ -74,7 +74,7 @@ def mock_db_returns(anime_list, series_list=None):
         q.first.return_value = return_val[0] if return_val else None
         return q
 
-    from models import Anime, Series
+    from app.models import Anime, Series
 
     def query_side_effect(model):
         if model is Series:

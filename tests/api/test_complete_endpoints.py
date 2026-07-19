@@ -6,7 +6,7 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 
 import uuid
 import pytest
-import models
+from app import models
 
 
 # ---------------------------------------------------------------------------

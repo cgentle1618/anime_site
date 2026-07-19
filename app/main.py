@@ -14,12 +14,12 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
-import database
-from config import settings
-from database import engine
-import models
+from app import database
+from app.config import settings
+from app.database import engine
+from app import models
 
-from routers import (
+from app.routers import (
     auth,
     options,
     franchise,
@@ -35,7 +35,7 @@ from routers import (
     data_control,
     system,
 )
-from services.security import get_password_hash
+from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
 

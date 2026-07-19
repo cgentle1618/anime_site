@@ -8,8 +8,8 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import the exact string from database.py
-from database import SQLALCHEMY_DATABASE_URL
-from models import Base
+from app.database import SQLALCHEMY_DATABASE_URL
+from app.models import Base
 
 config = context.config
 

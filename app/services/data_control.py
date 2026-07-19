@@ -8,11 +8,11 @@ import json
 import logging
 import asyncio
 from fastapi import Request
-from database import get_taipei_now
+from app.database import get_taipei_now
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 
-from models import (
+from app.models import (
     Cartoon,
     Franchise,
     Manga,
@@ -26,7 +26,7 @@ from models import (
     Seasonal,
 )
 
-from utils.formatter import (
+from app.utils.formatter import (
     format_model_for_sheet,
     parse_row_to_dict,
     parse_franchise_from_sheet,
@@ -41,10 +41,10 @@ from utils.formatter import (
     parse_system_option_from_sheet,
     parse_seasonal_from_sheet,
 )
-from utils.data_control_utils import log_data_control
+from app.utils.data_control_utils import log_data_control
 
-from services.sheets import bulk_overwrite_sheet, get_all_raw_rows
-from services.other_logics import (
+from app.services.sheets import bulk_overwrite_sheet, get_all_raw_rows
+from app.services.other_logics import (
     has_missing_values_anime,
     has_missing_values_anime_movie,
     has_missing_values_cartoon,
@@ -85,7 +85,7 @@ from services.other_logics import (
     resolve_movie_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
-from services.calculation import (
+from app.services.calculation import (
     run_sync_anime,
     run_sync_anime_movie,
     run_sync_cartoon,

@@ -8,8 +8,8 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-import models
-from services.security import get_password_hash
+from app import models
+from app.services.security import get_password_hash
 
 
 @pytest.fixture

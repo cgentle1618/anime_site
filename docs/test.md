@@ -86,35 +86,35 @@ e2e/                            (planned — directory does not exist yet)
 
 Tests for stateless functions with no DB or network dependencies.
 
-### `tests/unit/test_utils.py` → `utils/utils.py`
+### `tests/unit/test_utils.py` → `app/utils/utils.py`
 
 - `validate_episode_math`: `ep_fin > ep_total` → clamps; `"?"`, `""`, `None` → `None`; `"1.0"` → `int`
 - `extract_mal_id_anime`: valid MAL URL → ID; invalid → `None`
 - `extract_season_from_title`: season string patterns
 
-### `tests/unit/test_jikan_utils.py` → `utils/jikan_utils.py`
+### `tests/unit/test_jikan_utils.py` → `app/utils/jikan_utils.py`
 
 - `map_jikan_to_anime_data`: full response → correct dict; webp preferred over jpg; type/status/season/date mappings; official/twitter link extraction
 
-### `tests/unit/test_formatter.py` → `utils/formatter.py`
+### `tests/unit/test_formatter.py` → `app/utils/formatter.py`
 
 - `format_model_for_sheet`: Anime/Franchise/Series/Option rows → string list; `None` → `""`
 - `parse_*_from_sheet`: round-trip with format; UUID parsing; date parsing; empty strings → `None`
 
-### `tests/unit/test_security.py` → `services/security.py`
+### `tests/unit/test_security.py` → `app/services/security.py`
 
 - `get_password_hash`: output differs from input; two calls differ (salt)
 - `verify_password`: correct → `True`; wrong → `False`
 - `create_access_token` + decode: correct payload; expired token raises `JWTError` (via `freezegun`)
 
-### `tests/unit/test_derivations.py` → `services/other_logics.py`
+### `tests/unit/test_derivations.py` → `app/services/other_logics.py`
 
 - `derive_watch_order_anime`: sequential assignment; null `season_part` skipped; airing type priority (TV before OVA); series grouping
 - `derive_ep_previous_anime`: Season 1 → `0`; Season 2 → `S1.ep_total`; different series isolated
 - `derive_prequel_sequel_anime`: links built; `derive_related=False` skipped; nulls only filled, not overwritten
 - `derive_season_1_anime`: single TV in franchise → `"Season 1"`; multi TV → no change; non-TV → no change
 
-### `tests/unit/test_checking_rules.py` → `services/other_logics.py` + `utils/utils.py`
+### `tests/unit/test_checking_rules.py` → `app/services/other_logics.py` + `app/utils/utils.py`
 
 - `has_missing_values_anime`: blank tracked fields → `True`; all filled → `False`; `"Not Yet Aired"` exceptions; `ep_previous` exemptions
 - `check_is_tv_completed`: `ep_fin == ep_total > 0` → `True`; explicit `"Completed"` → `True`; partial → `False`
@@ -235,7 +235,7 @@ Verify business logic pipelines with all network calls mocked.
 
 ## Tier 6 — End-to-End Tests (Playwright)
 
-Run against a locally running server with seeded DB (`docker-compose up -d` + `uvicorn main:app`).
+Run against a locally running server with seeded DB (`docker-compose up -d` + `uvicorn app.main:app`).
 
 ### `e2e/browse.spec.js`
 

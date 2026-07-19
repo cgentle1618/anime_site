@@ -5,7 +5,7 @@ Tests the Jikan API JSON → Anime dict transformation logic.
 """
 
 import pytest
-from utils.jikan_utils import (
+from app.utils.jikan_utils import (
     map_jikan_to_anime_data,
     _convert_airing_type,
     _convert_airing_status,

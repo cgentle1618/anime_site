@@ -13,13 +13,13 @@ from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, Qu
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from dependencies import get_db, get_current_admin
-from database import get_taipei_now
-import models
-import schemas
+from app.dependencies import get_db, get_current_admin
+from app.database import get_taipei_now
+from app import models
+from app import schemas
 
-from services.image_manager import delete_cover_image
-from services.other_logics import (
+from app.services.image_manager import delete_cover_image
+from app.services.other_logics import (
     apply_completion_timestamp,
     apply_single_replace_anime,
     create_missing_seasonal,
@@ -28,7 +28,7 @@ from services.other_logics import (
     resolve_anime_parent_hierarchy,
 )
 
-from utils.data_control_utils import log_deleted_record
+from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
 

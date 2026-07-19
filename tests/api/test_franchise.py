@@ -83,7 +83,7 @@ class TestUpdateFranchise:
 
 class TestDeleteFranchise:
     def test_admin_can_delete(self, admin_client, sample_franchise, db_session):
-        import models
+        from app import models
         response = admin_client.delete(f"/api/franchise/{sample_franchise.system_id}")
         assert response.status_code in (200, 204)
 
@@ -92,7 +92,7 @@ class TestDeleteFranchise:
         assert response.status_code == 401
 
     def test_delete_creates_deleted_record(self, admin_client, sample_franchise, db_session):
-        import models
+        from app import models
         admin_client.delete(f"/api/franchise/{sample_franchise.system_id}")
         log = db_session.query(models.DeletedRecord).filter(
             models.DeletedRecord.franchise_cn == sample_franchise.franchise_name_cn

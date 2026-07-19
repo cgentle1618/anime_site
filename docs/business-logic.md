@@ -22,7 +22,7 @@ All backend logic lives in `services/` and `utils/`. Routers are thin — they v
 
 ## Main Data Control Logic
 
-All pipeline functions live in `services/data_control.py`. SSE functions are async generators; non-SSE functions return dicts.
+All pipeline functions live in `app/services/data_control.py`. SSE functions are async generators; non-SSE functions return dicts.
 
 ---
 
@@ -591,7 +591,7 @@ Applies to Manga and Novel entries.
 
 ### Validate Episode Count — `apply_validate_episode_math(anime)` / `validate_episode_math(ep_total, ep_fin)`
 
-`validate_episode_math` in `utils/utils.py` is the core rule; `apply_validate_episode_math` applies it to an Anime/TV Show/Cartoon object and writes changes back if values differ.
+`validate_episode_math` in `app/utils/utils.py` is the core rule; `apply_validate_episode_math` applies it to an Anime/TV Show/Cartoon object and writes changes back if values differ.
 
 **Rules:**
 
@@ -1080,7 +1080,7 @@ The autofill path branches on `airing_type`:
 
 ## MAL Data Helpers
 
-### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `services/jikan.py`
+### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `app/services/jikan.py`
 
 Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
 
@@ -1090,7 +1090,7 @@ Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
 
 ---
 
-### MAL Fetch Manga — `fetch_jikan_manga_novel_data(mal_id)` in `services/jikan.py`
+### MAL Fetch Manga — `fetch_jikan_manga_novel_data(mal_id)` in `app/services/jikan.py`
 
 Fetches `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. If `mal_id` is null, returns `None`.
 
@@ -1098,7 +1098,7 @@ Uses the same `JikanRateLimiter` and retry configuration as `fetch_jikan_anime_d
 
 ---
 
-### MAL Conversion for Manga — `map_jikan_to_manga_data(raw_data)` in `utils/jikan_utils.py`
+### MAL Conversion for Manga — `map_jikan_to_manga_data(raw_data)` in `app/utils/jikan_utils.py`
 
 Transforms raw Jikan manga `data` dict to a flat standardized dict.
 
@@ -1115,7 +1115,7 @@ Transforms raw Jikan manga `data` dict to a flat standardized dict.
 
 ---
 
-### MAL Conversion for Novel — `map_jikan_to_novel_data(raw_data)` in `utils/jikan_utils.py`
+### MAL Conversion for Novel — `map_jikan_to_novel_data(raw_data)` in `app/utils/jikan_utils.py`
 
 Transforms raw Jikan manga `data` dict to a flat standardized dict for novel entries.
 
@@ -1132,7 +1132,7 @@ Transforms raw Jikan manga `data` dict to a flat standardized dict for novel ent
 
 ---
 
-### MAL Conversion for Anime — `map_jikan_to_anime_data(raw_data)` in `utils/jikan_utils.py`
+### MAL Conversion for Anime — `map_jikan_to_anime_data(raw_data)` in `app/utils/jikan_utils.py`
 
 Transforms raw Jikan `data` dict to a flat standardized dict.
 
@@ -1156,7 +1156,7 @@ Transforms raw Jikan `data` dict to a flat standardized dict.
 
 ## IMDb Data Helpers
 
-### IMDb Fetch — `fetch_imdb_data(imdb_id)` in `services/tmdb.py`
+### IMDb Fetch — `fetch_imdb_data(imdb_id)` in `app/services/tmdb.py`
 
 Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_raw": ..., "omdb_raw": ...}`. Either value may be `None` if the respective API call fails.
 
@@ -1170,7 +1170,7 @@ Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_ra
 
 ---
 
-### TMDB Fetch — `fetch_tmdb_data(imdb_id)` in `services/tmdb.py`
+### TMDB Fetch — `fetch_tmdb_data(imdb_id)` in `app/services/tmdb.py`
 
 Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media type, then delegates to `_fetch_movie_details` (movie) or `_fetch_tv_details` (tv show and cartoon).
 
@@ -1183,7 +1183,7 @@ Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?ext
 
 ---
 
-### OMDb Fetch — `fetch_omdb_data(imdb_id)` in `services/omdb.py`
+### OMDb Fetch — `fetch_omdb_data(imdb_id)` in `app/services/omdb.py`
 
 Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com/?i=tt{id}&apikey={key}`.
 
@@ -1192,7 +1192,7 @@ Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com
 
 ---
 
-### IMDb Conversion for Movie — `map_imdb_to_movie_data(tmdb_raw, omdb_raw)` in `utils/tmdb_utils.py`
+### IMDb Conversion for Movie — `map_imdb_to_movie_data(tmdb_raw, omdb_raw)` in `app/utils/tmdb_utils.py`
 
 Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. For Cartoon entries, `director`, `length_min`, and `release_date_usa` from the output are not written to the database (cartoon entries have no such columns).
 
@@ -1204,7 +1204,7 @@ Merges results from both APIs into one flat dict for the Movie model.
 
 ---
 
-### TMDB Conversion for Movie — `map_tmdb_to_movie_data(raw)` in `utils/tmdb_utils.py`
+### TMDB Conversion for Movie — `map_tmdb_to_movie_data(raw)` in `app/utils/tmdb_utils.py`
 
 Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. When used for Cartoon entries, `length_min`, `release_date_usa`, and `director` are present in the output dict but are ignored by `autofill_cartoon_from_imdb` — cartoon entries have no such database columns.
 
@@ -1217,7 +1217,7 @@ Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. When u
 
 ---
 
-### OMDB Conversion for Movie — `map_omdb_to_movie_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for Movie — `map_omdb_to_movie_data(raw)` in `app/utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |
@@ -1227,7 +1227,7 @@ Used for Movie entries and Cartoon entries with `airing_type == "Movie"`. When u
 
 ---
 
-### Parse Season Number — `_parse_season_number(season_part)` in `utils/tmdb_utils.py`
+### Parse Season Number — `_parse_season_number(season_part)` in `app/utils/tmdb_utils.py`
 
 Extracts the season number from the `season_part` string using regex `Season\s+(\d+)`. Defaults to `1` if `season_part` is None or no match is found.
 
@@ -1241,7 +1241,7 @@ Extracts the season number from the `season_part` string using regex `Season\s+(
 
 ---
 
-### TMDB Season Fetch — `fetch_tmdb_tv_season_data(tmdb_id, season_number)` in `services/tmdb.py`
+### TMDB Season Fetch — `fetch_tmdb_tv_season_data(tmdb_id, season_number)` in `app/services/tmdb.py`
 
 Fetches `GET /3/tv/{tmdb_id}/season/{season_number}`. Returns raw season JSON or `None`.
 
@@ -1249,7 +1249,7 @@ Uses the same `TMDbRateLimiter` and `@retry` configuration as `fetch_tmdb_data`.
 
 ---
 
-### TMDB Conversion for TV Show — `map_tmdb_to_tv_show_data(raw)` in `utils/tmdb_utils.py`
+### TMDB Conversion for TV Show — `map_tmdb_to_tv_show_data(raw)` in `app/utils/tmdb_utils.py`
 
 | Output Field      | TMDB Source                                     |
 | ----------------- | ----------------------------------------------- |
@@ -1258,7 +1258,7 @@ Uses the same `TMDbRateLimiter` and `@retry` configuration as `fetch_tmdb_data`.
 
 ---
 
-### TMDB Conversion for TV Season — `map_tmdb_to_tv_show_data(raw)` in `utils/tmdb_utils.py`
+### TMDB Conversion for TV Season — `map_tmdb_to_tv_show_data(raw)` in `app/utils/tmdb_utils.py`
 
 Maps the TMDB Season Details endpoint response. The `_season_air_date` and `_episodes` keys are private — used only for `airing_status` derivation in the autofill function; not written to the database.
 
@@ -1272,7 +1272,7 @@ Maps the TMDB Season Details endpoint response. The `_season_air_date` and `_epi
 
 ---
 
-### IMDb Conversion for TV Show — `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` in `utils/imdb_utils.py`
+### IMDb Conversion for TV Show — `map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)` in `app/utils/imdb_utils.py`
 
 Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
@@ -1293,7 +1293,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### OMDB Conversion for TV Show — `map_omdb_to_tv_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for TV Show — `map_omdb_to_tv_data(raw)` in `app/utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |
@@ -1303,7 +1303,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### TMDB Conversion for Cartoon — `map_tmdb_to_cartoon_data(raw)` in `utils/tmdb_utils.py`
+### TMDB Conversion for Cartoon — `map_tmdb_to_cartoon_data(raw)` in `app/utils/tmdb_utils.py`
 
 | Output Field      | TMDB Source                                     |
 | ----------------- | ----------------------------------------------- |
@@ -1312,7 +1312,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ---
 
-### OMDB Conversion for Cartoon — `map_omdb_to_tv_data(raw)` in `utils/omdb_utils.py`
+### OMDB Conversion for Cartoon — `map_omdb_to_tv_data(raw)` in `app/utils/omdb_utils.py`
 
 | Output Field  | OMDb Source  |
 | ------------- | ------------ |
@@ -1430,7 +1430,7 @@ Upserts `current_season` key in `system_configs`. Value format: `"YYYY SSS"` (e.
 
 ---
 
-### List All Covers — `list_all_cover_images()` in `services/image_manager.py`
+### List All Covers — `list_all_cover_images()` in `app/services/image_manager.py`
 
 Returns all cover image filenames from GCS (Cloud Run) or `static/covers/` (local dev).
 
@@ -1452,7 +1452,7 @@ Re-downloads cover images for entries whose `cover_image_file` is set but the fi
 
 ## Formatters (DB to Sheet)
 
-Located in `utils/formatter.py`.
+Located in `app/utils/formatter.py`.
 
 ### `format_for_sheet(val, expected_type=str)`
 
@@ -1476,7 +1476,7 @@ Iterates `instance.__class__.__table__.columns` in exact DB schema order and cal
 
 ## Parsers (Sheet to Python Types)
 
-Located in `utils/formatter.py`.
+Located in `app/utils/formatter.py`.
 
 ### `parse_row_to_dict(headers, row)`
 

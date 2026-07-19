@@ -112,7 +112,7 @@ Add as a public route (no auth guard), matching Statistics pattern:
 
 ## Verification
 
-1. Start dev server (`uvicorn main:app --reload` + `cd frontend && npm run dev`)
+1. Start dev server (`uvicorn app.main:app --reload` + `cd frontend && npm run dev`)
 2. Navigate to Plan page via nav More → Plan
 3. Verify Watch Next block loads with all 7 tabs, covers display, anime groups by episode count
 4. Verify To Rewatch block loads with all 7 tabs, ratings display

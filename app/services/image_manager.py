@@ -10,7 +10,7 @@ from typing import Optional
 
 import requests
 
-from utils.gcp_utils import get_active_bucket_name, get_gcs_client
+from app.utils.gcp_utils import get_active_bucket_name, get_gcs_client
 
 logger = logging.getLogger(__name__)
 

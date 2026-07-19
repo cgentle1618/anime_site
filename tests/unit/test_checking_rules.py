@@ -6,7 +6,7 @@ Uses SimpleNamespace to create mock Anime objects — no DB required.
 
 import types
 import pytest
-from services.other_logics import (
+from app.services.other_logics import (
     has_missing_values_anime,
     check_is_tv_completed,
     apply_check_baha,

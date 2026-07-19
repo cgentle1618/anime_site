@@ -3,12 +3,12 @@ import logging
 import re
 from typing import Any, Dict, Optional
 
-from utils.omdb_utils import (
+from app.utils.omdb_utils import (
     map_omdb_to_tv_data,
     map_omdb_to_movie_data,
     map_omdb_to_tv_data,
 )
-from utils.tmdb_utils import (
+from app.utils.tmdb_utils import (
     map_tmdb_to_cartoon_data,
     map_tmdb_to_movie_data,
     map_tmdb_to_tv_show_data,

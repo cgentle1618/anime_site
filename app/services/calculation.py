@@ -8,13 +8,13 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from utils.jikan_utils import ALLOWED_AIRING_TYPES
-from utils.data_control_utils import log_data_control
+from app.utils.jikan_utils import ALLOWED_AIRING_TYPES
+from app.utils.data_control_utils import log_data_control
 
-from models import Anime, AnimeMovies, Cartoon, Manga, Movies, Novel, TVShows
+from app.models import Anime, AnimeMovies, Cartoon, Manga, Movies, Novel, TVShows
 
-from services.image_manager import cover_image_exists, list_all_cover_images
-from services.other_logics import (
+from app.services.image_manager import cover_image_exists, list_all_cover_images
+from app.services.other_logics import (
     sync_seasonal_counts,
     create_missing_seasonal,
     extract_system_options_from_anime,
@@ -253,7 +253,7 @@ def bulk_set_cover_image_fields(db: Session) -> dict:
 
 
 def bulk_delete_orphaned_cover_images(db: Session) -> dict:
-    from services.image_manager import delete_cover_image
+    from app.services.image_manager import delete_cover_image
 
     unused_result = bulk_check_unused_cover_images(db)
     orphaned = unused_result["orphaned"]

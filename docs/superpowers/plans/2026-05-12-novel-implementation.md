@@ -15,7 +15,7 @@
 | #   | Gap / Clarification                                                                                 | Decision (confirmed)                                                                                                                                                                                                  |
 | --- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Novel franchise tab needed its own flag independent of `hasACGFull`.                                | **Done in code.** Added `hasNovel = types.includes("Novel") \|\| types.includes("ACG")` in `FranchisePage.jsx`. Manga tab stays `hasACGFull` (ACG only). Novel tab uses `hasNovel`. Docs updated.                     |
-| 2   | No float math validators needed for novel.                                                          | **Dropped.** No `validate_novel_float_math`, no `apply_validate_novel_*_math`, no `novel_post_processing` in this plan. `utils/utils.py` only gets `NOVEL_FIELDS_TO_FILL`.                                            |
+| 2   | No float math validators needed for novel.                                                          | **Dropped.** No `validate_novel_float_math`, no `apply_validate_novel_*_math`, no `novel_post_processing` in this plan. `app/utils/utils.py` only gets `NOVEL_FIELDS_TO_FILL`.                                            |
 | 3   | `has_missing_values_novel` purpose: only for entries that can be filled from MAL.                   | Entries without `mal_link` return `False` from `has_missing_values_novel` — they are not "missing" in any actionable sense. The fill queue gate uses `m.mal_link is not None` (not `m.mal_id`).                       |
 | 4   | `mark_novel_completed` is separate from `mark_reading_completed`.                                   | `mark_novel_completed` is its own function. `mark_reading_completed` is manga-only (will be renamed `mark_manga_completed` in a future cleanup). Not triggered automatically — only via router `POST /:id/complete`.  |
 | 5   | `novel_name_each_cn`/`novel_name_each_en` are used in Novel detail page, Add page, and Modify page. | Include in model/schema and all three pages. Example format: `{"1": "最後帝國", "2": "昇華之井"}`. Rendered/edited via **Belonging Novels Card**. Docs updated in database-schema.md, pages.md, reusable-elements.md. |
@@ -27,17 +27,17 @@
 
 | File                                                | Action | Purpose                                                         |
 | --------------------------------------------------- | ------ | --------------------------------------------------------------- |
-| `models.py`                                         | Modify | Add `Novel` SQLAlchemy class                                    |
-| `schemas.py`                                        | Modify | Add `NovelBase/Create/Update/Response/SheetSync`                |
+| `app/models.py`                                         | Modify | Add `Novel` SQLAlchemy class                                    |
+| `app/schemas.py`                                        | Modify | Add `NovelBase/Create/Update/Response/SheetSync`                |
 | `alembic/versions/`                                 | Create | Migration for `novel` table                                     |
-| `routers/novel.py`                                  | Create | CRUD router                                                     |
-| `main.py`                                           | Modify | Import and register novel router                                |
-| `utils/jikan_utils.py`                              | Modify | Add `map_jikan_to_novel_data`                                   |
-| `utils/formatter.py`                                | Modify | Add `parse_novel_from_sheet`                                    |
-| `utils/utils.py`                                    | Modify | Add `NOVEL_FIELDS_TO_FILL`                                      |
-| `services/other_logics.py`                          | Modify | Add novel logic functions (no post_processing, no validators)   |
-| `services/calculation.py`                           | Modify | Add `run_sync_novel`, update `run_sync`                         |
-| `services/data_control.py`                          | Modify | Add novel pipelines; update fill_all, replace_all, backup, pull |
+| `app/routers/novel.py`                                  | Create | CRUD router                                                     |
+| `app/main.py`                                           | Modify | Import and register novel router                                |
+| `app/utils/jikan_utils.py`                              | Modify | Add `map_jikan_to_novel_data`                                   |
+| `app/utils/formatter.py`                                | Modify | Add `parse_novel_from_sheet`                                    |
+| `app/utils/utils.py`                                    | Modify | Add `NOVEL_FIELDS_TO_FILL`                                      |
+| `app/services/other_logics.py`                          | Modify | Add novel logic functions (no post_processing, no validators)   |
+| `app/services/calculation.py`                           | Modify | Add `run_sync_novel`, update `run_sync`                         |
+| `app/services/data_control.py`                          | Modify | Add novel pipelines; update fill_all, replace_all, backup, pull |
 | `frontend/src/components/NovelCard.jsx`             | Create | Novel entry grid card                                           |
 | `frontend/src/pages/NovelNotes.jsx`                 | Create | Novel structured notes editor (16 sections)                     |
 | `frontend/src/pages/Novel.jsx`                      | Create | Novel detail page (includes Belonging Novels Card)              |
@@ -66,7 +66,7 @@
 
 **Files:**
 
-- Modify: `models.py` (after line 660, before `# SYSTEM & CONFIGURATION MODELS`)
+- Modify: `app/models.py` (after line 660, before `# SYSTEM & CONFIGURATION MODELS`)
 
 - [ ] **Step 1: Add the Novel class to models.py**
 
@@ -168,7 +168,7 @@ class Novel(Base, NameFallbackMixin):
 
 - [ ] **Step 2: Verify JSONB and Integer imports are present**
 
-At the top of `models.py`, confirm (or add) `Integer` in the SQLAlchemy Column imports:
+At the top of `app/models.py`, confirm (or add) `Integer` in the SQLAlchemy Column imports:
 
 ```python
 from sqlalchemy import (
@@ -191,7 +191,7 @@ git commit -m "feat(novel): add Novel SQLAlchemy model"
 
 **Files:**
 
-- Modify: `schemas.py` (after line 617, before `# SYSTEM CONFIG & SEASONAL SCHEMAS`)
+- Modify: `app/schemas.py` (after line 617, before `# SYSTEM CONFIG & SEASONAL SCHEMAS`)
 
 - [ ] **Step 1: Add NovelBase and derived schemas**
 
@@ -344,7 +344,7 @@ git commit -m "feat(novel): add alembic migration for novel table"
 
 **Files:**
 
-- Create: `routers/novel.py`
+- Create: `app/routers/novel.py`
 
 - [ ] **Step 1: Create routers/novel.py**
 
@@ -604,11 +604,11 @@ git commit -m "feat(novel): add novel CRUD router"
 
 **Files:**
 
-- Modify: `main.py`
+- Modify: `app/main.py`
 
 - [ ] **Step 1: Import novel router**
 
-In `main.py` around lines 20–34, add `novel` to the router imports:
+In `app/main.py` around lines 20–34, add `novel` to the router imports:
 
 ```python
 from routers import (
@@ -655,7 +655,7 @@ git commit -m "feat(novel): register novel router in main.py"
 
 **Files:**
 
-- Modify: `utils/jikan_utils.py` (after `map_jikan_to_manga_data`, after line 271)
+- Modify: `app/utils/jikan_utils.py` (after `map_jikan_to_manga_data`, after line 271)
 
 - [ ] **Step 1: Add map_jikan_to_novel_data**
 
@@ -733,7 +733,7 @@ git commit -m "feat(novel): add map_jikan_to_novel_data"
 
 **Files:**
 
-- Modify: `utils/formatter.py` (after `parse_manga_from_sheet`, after line 446)
+- Modify: `app/utils/formatter.py` (after `parse_manga_from_sheet`, after line 446)
 
 - [ ] **Step 1: Add parse_novel_from_sheet**
 
@@ -812,7 +812,7 @@ git commit -m "feat(novel): add parse_novel_from_sheet"
 
 **Files:**
 
-- Modify: `utils/utils.py` (after `MANGA_FIELDS_TO_FILL`, after line 103)
+- Modify: `app/utils/utils.py` (after `MANGA_FIELDS_TO_FILL`, after line 103)
 
 - [ ] **Step 1: Add NOVEL_FIELDS_TO_FILL**
 
@@ -848,7 +848,7 @@ git commit -m "feat(novel): add NOVEL_FIELDS_TO_FILL"
 
 **Files:**
 
-- Modify: `services/other_logics.py`
+- Modify: `app/services/other_logics.py`
 
 All novel functions go in a new `# NOVEL` section. They should be added before the `# SYSTEM & CONFIGURATION MODELS` block equivalent in services. The best insertion point is after `derive_related_manga` (after line 2920) and before `# COMPOSITE LOGICS`.
 
@@ -1164,7 +1164,7 @@ git commit -m "feat(novel): add all novel service functions in other_logics.py"
 
 **Files:**
 
-- Modify: `services/calculation.py`
+- Modify: `app/services/calculation.py`
 
 - [ ] **Step 1: Import Novel functions**
 
@@ -1216,7 +1216,7 @@ git commit -m "feat(novel): add run_sync_novel and update run_sync"
 
 **Files:**
 
-- Modify: `services/data_control.py`
+- Modify: `app/services/data_control.py`
 
 Add the three novel pipeline functions. Insert them after `execute_replace_manga` (after line 1933).
 
@@ -1525,7 +1525,7 @@ git commit -m "feat(novel): add execute_fill_novel, execute_replace_single_novel
 
 **Files:**
 
-- Modify: `services/data_control.py`
+- Modify: `app/services/data_control.py`
 
 - [ ] **Step 1: Update execute_fill_all — add Fill Novel after Fill Manga**
 
@@ -2275,9 +2275,9 @@ git commit -m "feat(novel): update FranchisePage, Search, Statistics, Index, Adm
 ### Task 22: Add `alternative` column to Novel
 
 **Files:**
-- Modify: `models.py` (Novel class)
-- Modify: `schemas.py` (NovelBase)
-- Modify: `utils/formatter.py` (parse_novel_from_sheet)
+- Modify: `app/models.py` (Novel class)
+- Modify: `app/schemas.py` (NovelBase)
+- Modify: `app/utils/formatter.py` (parse_novel_from_sheet)
 - Create: `alembic/versions/<hash>_add_alternative_to_novel.py`
 - Modify: `frontend/src/pages/Novel.jsx`
 - Modify: `frontend/src/pages/Admin.jsx` (Add Novel tab and Modify Novel tab)
@@ -2306,7 +2306,7 @@ alternative: Optional[str] = None
 
 - [ ] **Step 3: Add field to parse_novel_from_sheet**
 
-In `parse_novel_from_sheet` in `utils/formatter.py`, after the `"sequel_id"` entry:
+In `parse_novel_from_sheet` in `app/utils/formatter.py`, after the `"sequel_id"` entry:
 
 ```python
 "alternative": parse_from_sheet(raw.get("alternative"), str),

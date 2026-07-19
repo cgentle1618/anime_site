@@ -5,7 +5,7 @@ Tests pure functions with no DB or network dependencies.
 """
 
 import pytest
-from utils.utils import (
+from app.utils.utils import (
     validate_episode_math,
     extract_mal_id_anime,
     extract_season_from_title,

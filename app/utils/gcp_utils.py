@@ -11,7 +11,7 @@ from typing import Optional
 from google.cloud import storage
 from google.oauth2.service_account import Credentials
 
-from config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

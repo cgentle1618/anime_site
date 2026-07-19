@@ -28,7 +28,7 @@ Long-running pipelines (Fill, Replace) stream progress back as **Server-Sent Eve
 
 ---
 
-## Application Entry Point (`main.py`)
+## Application Entry Point (`app/main.py`)
 
 ```
 FastAPI app created with:
@@ -55,7 +55,7 @@ No CORS middleware is configured — the Vite dev server proxy handles cross-ori
 
 ---
 
-## Database Layer (`database.py`)
+## Database Layer (`app/database.py`)
 
 ### Connection Routing
 
@@ -92,7 +92,7 @@ The database URL is selected at startup based on environment variables:
 
 ---
 
-## Dependency Injection (`dependencies.py`)
+## Dependency Injection (`app/dependencies.py`)
 
 Two shared FastAPI dependencies injected via `Depends()`:
 
@@ -263,7 +263,7 @@ All routers follow the **thin router** pattern: validate input, call a service o
 ```sh
 set -e
 alembic upgrade head     # apply all pending migrations
-exec uvicorn main:app \
+exec uvicorn app.main:app \
   --host 0.0.0.0 \
   --port ${PORT:-8080} \
   --proxy-headers \
@@ -286,7 +286,7 @@ exec uvicorn main:app \
 ```
 docker-compose up -d       # PostgreSQL on port 5432
 cd frontend && npm run dev  # Vite dev server on port 5173 (proxies /api → :8000)
-uvicorn main:app --reload   # FastAPI on port 8000
+uvicorn app.main:app --reload   # FastAPI on port 8000
 ```
 
 `docker-compose.yml` defines a single `postgres:15` service with a named volume (`postgres_anime_data`). The FastAPI server runs outside Docker locally.
@@ -296,6 +296,6 @@ uvicorn main:app --reload   # FastAPI on port 8000
 ## Database Migrations (Alembic)
 
 - Config: `alembic.ini` — `script_location = alembic/`
-- `alembic/env.py` reads the SQLAlchemy engine from `database.py` and supports both online (connected) and offline (SQL file) migration modes.
+- `alembic/env.py` reads the SQLAlchemy engine from `app/database.py` and supports both online (connected) and offline (SQL file) migration modes.
 - Migrations run automatically at container startup via `entrypoint.sh`.
 - To generate a migration: `alembic revision --autogenerate -m "description"`
