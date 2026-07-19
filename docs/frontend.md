@@ -158,11 +158,20 @@ frontend/src/
   contexts/
     AuthContext.jsx               Auth state (isAdmin, username) — checks /api/auth/me on mount
 
+  config/
+    mediaRegistry.js              MEDIA_CONFIG (per-type API endpoint / nav path / status metadata)
+    namingConfigs.js              NAMING_CONFIGS (ordered name fields per type)
+    statusGroups.js               WATCHING/READING_STATUS_GROUP, AIRING_STATUS_CLS
+  lib/
+    covers.js                     getCoverUrl, FALLBACK_SVG
+    naming.js                     getDisplayName, getNamingFields, getSortName, cleanString
+    status.js                     getStatusButtonConfig, getStatusStyle, getNextStatus,
+                                  getReadingButtonConfig, getCardStatusConfig
+    formatters.js                 formatLength, getReleaseFallback, getNovelProgress, getRatingWeight,
+                                  getOptions, parseTypes, isBaha
+    payloads.js                   buildAnimePayload, buildAnimeMoviePayload
   utils/
-    media.js                      Shared helpers: getCoverUrl, getDisplayName, getSortName, isBaha,
-                                  getStatusButtonConfig, getReadingButtonConfig, getCardStatusConfig,
-                                  getRatingWeight, getReleaseFallback, cleanString, formatLength,
-                                  parseTypes, MEDIA_CONFIG, buildAnimePayload, buildAnimeMoviePayload
+    media.js                      Barrel — re-exports the above for existing `../utils/media` imports
     statsUtils.js                 Statistics calculation helpers
 ```
 
@@ -264,7 +273,7 @@ Status/progress mutations go through inline `fetch()` PATCH calls inside card or
 
 ---
 
-## Key Shared Utilities (`utils/media.js`)
+## Key Shared Utilities (`config/`, `lib/`; re-exported via `utils/media.js`)
 
 | Export                              | Purpose                                                            |
 | ----------------------------------- | ------------------------------------------------------------------ |

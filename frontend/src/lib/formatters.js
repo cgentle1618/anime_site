@@ -1,0 +1,62 @@
+// Misc display/data helpers: length, release, progress, ratings, options, type parsing.
+
+export function isBaha(anime) {
+  return (
+    anime.source_baha === true ||
+    String(anime.source_baha).toLowerCase() === "true"
+  );
+}
+
+export function getReleaseFallback(anime) {
+  if (anime.release_season && anime.release_year)
+    return `${anime.release_season} ${anime.release_year}`;
+  if (anime.release_month && anime.release_year)
+    return `${anime.release_month} ${anime.release_year}`;
+  if (anime.release_year) return String(anime.release_year);
+  return "TBA";
+}
+
+const RATING_WEIGHT = { S: 0, "A+": 1, A: 2, B: 3, C: 4, D: 5, E: 6, F: 7 };
+export function getRatingWeight(rating) {
+  return RATING_WEIGHT[rating] !== undefined ? RATING_WEIGHT[rating] : 99;
+}
+
+export function getOptions(allOptions, category) {
+  return allOptions
+    .filter((o) => o.category === category)
+    .map((o) => o.option_value);
+}
+
+export function formatLength(minutes) {
+  if (!minutes) return null;
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs === 0) return `${mins}min`;
+  if (mins === 0) return `${hrs}hr`;
+  return `${hrs}hr ${mins}min`;
+}
+
+export function parseTypes(franchiseType) {
+  if (!franchiseType) return [];
+  return franchiseType
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Returns a human-readable progress string for a novel entry, branching
+ * on the novel's progress_display field.
+ */
+export function getNovelProgress(novel) {
+  switch (novel.progress_display) {
+    case "vol_tw":
+      return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
+    case "vol_original":
+      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL`;
+    case "arc_ch":
+      return `${novel.arc_fin ?? 0}/${novel.arc_total ?? "?"} ARC  ${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} CH`;
+    default:
+      return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
+  }
+}
