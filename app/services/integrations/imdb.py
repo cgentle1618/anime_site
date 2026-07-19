@@ -1,8 +1,8 @@
 import logging
 
 
-from app.services.omdb import fetch_omdb_data
-from app.services.tmdb import fetch_tmdb_data
+from app.services.integrations.omdb import fetch_omdb_data
+from app.services.integrations.tmdb import fetch_tmdb_data
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from app.utils.data_control_utils import log_data_control
 
 from app.models import Anime, AnimeMovies, Cartoon, Manga, Movies, Novel, TVShows
 
-from app.services.image_manager import cover_image_exists, list_all_cover_images
+from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
 from app.services.other_logics import (
     sync_seasonal_counts,
     create_missing_seasonal,
@@ -253,7 +253,7 @@ def bulk_set_cover_image_fields(db: Session) -> dict:
 
 
 def bulk_delete_orphaned_cover_images(db: Session) -> dict:
-    from app.services.image_manager import delete_cover_image
+    from app.services.integrations.image_manager import delete_cover_image
 
     unused_result = bulk_check_unused_cover_images(db)
     orphaned = unused_result["orphaned"]

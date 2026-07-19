@@ -29,10 +29,10 @@ from app.models import (
     SystemOption,
 )
 
-from app.services.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
-from app.services.imdb import fetch_imdb_data
-from app.services.tmdb import fetch_tmdb_tv_season_data
-from app.services.image_manager import download_cover_image
+from app.services.integrations.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
+from app.services.integrations.imdb import fetch_imdb_data
+from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
+from app.services.integrations.image_manager import download_cover_image
 
 from app.utils.utils import (
     SEASON_PATTERN,

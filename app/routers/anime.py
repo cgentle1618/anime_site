@@ -18,7 +18,7 @@ from app.database import get_taipei_now
 from app import models
 from app import schemas
 
-from app.services.image_manager import delete_cover_image
+from app.services.integrations.image_manager import delete_cover_image
 from app.services.other_logics import (
     apply_completion_timestamp,
     apply_single_replace_anime,

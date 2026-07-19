@@ -1080,7 +1080,7 @@ The autofill path branches on `airing_type`:
 
 ## MAL Data Helpers
 
-### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `app/services/jikan.py`
+### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `app/services/integrations/jikan.py`
 
 Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
 
@@ -1090,7 +1090,7 @@ Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
 
 ---
 
-### MAL Fetch Manga — `fetch_jikan_manga_novel_data(mal_id)` in `app/services/jikan.py`
+### MAL Fetch Manga — `fetch_jikan_manga_novel_data(mal_id)` in `app/services/integrations/jikan.py`
 
 Fetches `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. If `mal_id` is null, returns `None`.
 
@@ -1156,7 +1156,7 @@ Transforms raw Jikan `data` dict to a flat standardized dict.
 
 ## IMDb Data Helpers
 
-### IMDb Fetch — `fetch_imdb_data(imdb_id)` in `app/services/tmdb.py`
+### IMDb Fetch — `fetch_imdb_data(imdb_id)` in `app/services/integrations/tmdb.py`
 
 Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_raw": ..., "omdb_raw": ...}`. Either value may be `None` if the respective API call fails.
 
@@ -1170,7 +1170,7 @@ Orchestrates TMDB and OMDb calls for a given IMDb integer ID. Returns `{"tmdb_ra
 
 ---
 
-### TMDB Fetch — `fetch_tmdb_data(imdb_id)` in `app/services/tmdb.py`
+### TMDB Fetch — `fetch_tmdb_data(imdb_id)` in `app/services/integrations/tmdb.py`
 
 Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?external_source=imdb_id` → TMDB ID + media type, then delegates to `_fetch_movie_details` (movie) or `_fetch_tv_details` (tv show and cartoon).
 
@@ -1183,7 +1183,7 @@ Handles movie, tv show, and cartoon entries. Two-step lookup: `/find/{tt_id}?ext
 
 ---
 
-### OMDb Fetch — `fetch_omdb_data(imdb_id)` in `app/services/omdb.py`
+### OMDb Fetch — `fetch_omdb_data(imdb_id)` in `app/services/integrations/omdb.py`
 
 Handles movie, tv show, and cartoon entries. Fetches `GET http://www.omdbapi.com/?i=tt{id}&apikey={key}`.
 
@@ -1241,7 +1241,7 @@ Extracts the season number from the `season_part` string using regex `Season\s+(
 
 ---
 
-### TMDB Season Fetch — `fetch_tmdb_tv_season_data(tmdb_id, season_number)` in `app/services/tmdb.py`
+### TMDB Season Fetch — `fetch_tmdb_tv_season_data(tmdb_id, season_number)` in `app/services/integrations/tmdb.py`
 
 Fetches `GET /3/tv/{tmdb_id}/season/{season_number}`. Returns raw season JSON or `None`.
 
@@ -1430,7 +1430,7 @@ Upserts `current_season` key in `system_configs`. Value format: `"YYYY SSS"` (e.
 
 ---
 
-### List All Covers — `list_all_cover_images()` in `app/services/image_manager.py`
+### List All Covers — `list_all_cover_images()` in `app/services/integrations/image_manager.py`
 
 Returns all cover image filenames from GCS (Cloud Run) or `static/covers/` (local dev).
 

@@ -43,7 +43,7 @@ from app.utils.formatter import (
 )
 from app.utils.data_control_utils import log_data_control
 
-from app.services.sheets import bulk_overwrite_sheet, get_all_raw_rows
+from app.services.integrations.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from app.services.other_logics import (
     has_missing_values_anime,
     has_missing_values_anime_movie,

@@ -17,7 +17,7 @@ from app.database import get_taipei_now
 from app import models
 from app import schemas
 
-from app.services.image_manager import delete_cover_image
+from app.services.integrations.image_manager import delete_cover_image
 from app.services.other_logics import apply_completion_timestamp, mark_tv_completed, resolve_cartoon_parent_hierarchy
 from app.services.data_control import execute_replace_single_cartoon
 from app.utils.data_control_utils import log_deleted_record
