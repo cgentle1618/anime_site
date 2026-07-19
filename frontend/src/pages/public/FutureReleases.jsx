@@ -1,10 +1,10 @@
 // Frontend: page component file for FutureReleases.
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../contexts/AuthContext";
-import MediaCard from "../components/cards/MediaCard";
-import { useApiQuery } from "../hooks/useApiQuery";
-import { useMediaList } from "../hooks/useMediaList";
+import { useAuth } from "../../contexts/AuthContext";
+import MediaCard from "../../components/cards/MediaCard";
+import { useApiQuery } from "../../hooks/useApiQuery";
+import { useMediaList } from "../../hooks/useMediaList";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {

@@ -1,7 +1,7 @@
 // Frontend: page component file for LibraryAnime.
 import { useNavigate } from "react-router-dom";
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   getDisplayName,
   getSortName,
@@ -11,7 +11,7 @@ import {
   getRatingWeight,
   getStatusButtonConfig,
   cleanString,
-} from "../utils/media";
+} from "../../utils/media";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: year * 100 + month-index (anime uses season+month)

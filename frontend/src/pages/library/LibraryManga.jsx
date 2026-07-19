@@ -1,11 +1,11 @@
 // Frontend: page component file for LibraryManga.
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   READING_STATUS_GROUP,
   getRatingWeight,
   getReadingButtonConfig,
-} from "../utils/media";
+} from "../../utils/media";
 
 function getTitle(m)   {
   return m.manga_name_cn || m.manga_name_en || m.manga_name_roman

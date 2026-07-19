@@ -1,10 +1,10 @@
 // Frontend: page component file for Plan.
 import { useState } from "react";
-import usePlanData from "./plan/usePlanData";
-import PlanWatchNext from "./plan/PlanWatchNext";
-import PlanToRewatch from "./plan/PlanToRewatch";
-import PlanToWatchFuture from "./plan/PlanToWatchFuture";
-import MediaLoadingState from "../components/layout/MediaLoadingState";
+import usePlanData from "../plan/usePlanData";
+import PlanWatchNext from "../plan/PlanWatchNext";
+import PlanToRewatch from "../plan/PlanToRewatch";
+import PlanToWatchFuture from "../plan/PlanToWatchFuture";
+import MediaLoadingState from "../../components/layout/MediaLoadingState";
 
 export default function Plan() {
   const [reloadKey, setReloadKey] = useState(0);

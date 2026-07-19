@@ -1,12 +1,12 @@
 // Frontend: page component file for LibraryMovie.
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   WATCHING_STATUS_GROUP,
   AIRING_STATUS_CLS,
   getRatingWeight,
   getStatusButtonConfig,
-} from "../utils/media";
+} from "../../utils/media";
 
 function getTitle(m)   { return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || ""; }
 function getSortKey(m) { return m.movie_name_en || m.movie_name_alt || m.movie_name_cn || ""; }

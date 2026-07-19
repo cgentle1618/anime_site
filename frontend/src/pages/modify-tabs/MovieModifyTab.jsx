@@ -7,7 +7,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
-import MovieNotes from "../MovieNotes";
+import MovieNotes from "../detail/MovieNotes";
 
 export default function MovieModifyTab({
   mmf,

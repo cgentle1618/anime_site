@@ -1,7 +1,7 @@
 // Frontend: page component file for Completions.
-import StatsCompletions from "./statistics/StatsCompletions";
-import MediaLoadingState from "../components/layout/MediaLoadingState";
-import { useMediaList } from "../hooks/useMediaList";
+import StatsCompletions from "../statistics/StatsCompletions";
+import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { useMediaList } from "../../hooks/useMediaList";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 

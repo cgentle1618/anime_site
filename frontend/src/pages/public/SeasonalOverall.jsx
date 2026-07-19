@@ -1,11 +1,11 @@
 // Frontend: page component file for SeasonalOverall.
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
-import { getRatingWeight } from "../utils/media";
-import DashboardCard from "../components/tracker/DashboardCard";
-import RatingDistributionBlock from "../components/info/RatingDistributionBlock";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
+import { getRatingWeight } from "../../utils/media";
+import DashboardCard from "../../components/tracker/DashboardCard";
+import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
 
 const SEASONS = ["WIN", "SPR", "SUM", "FAL"];
 const SEASON_LABELS = {

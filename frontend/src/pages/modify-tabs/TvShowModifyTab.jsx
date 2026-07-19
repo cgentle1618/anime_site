@@ -7,7 +7,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
-import TVShowNotes from "../TVShowNotes";
+import TVShowNotes from "../detail/TVShowNotes";
 
 export default function TvShowModifyTab({
   tvmf,

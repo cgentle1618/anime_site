@@ -7,8 +7,8 @@ import {
   getRatingWeight,
   cleanString,
   parseTypes,
-} from "../utils/media";
-import FranchiseCard from "../components/cards/FranchiseCard";
+} from "../../utils/media";
+import FranchiseCard from "../../components/cards/FranchiseCard";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 

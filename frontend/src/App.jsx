@@ -6,42 +6,42 @@ import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
-import Index from "./pages/Index";
-import UnderDevelopment from "./pages/UnderDevelopment";
-import Login from "./pages/Login";
-import Search from "./pages/Search";
+import Index from "./pages/public/Index";
+import UnderDevelopment from "./pages/public/UnderDevelopment";
+import Login from "./pages/public/Login";
+import Search from "./pages/public/Search";
 
-import Franchise from "./pages/Franchise";
-import Anime from "./pages/Anime";
-import AnimeMovie from "./pages/AnimeMovie";
-import Movie from "./pages/Movie";
-import TV from "./pages/TV";
-import Cartoon from "./pages/Cartoon";
-import Manga from "./pages/Manga";
-import Novel from "./pages/Novel";
-import SeasonalDetail from "./pages/SeasonalDetail";
+import Franchise from "./pages/detail/Franchise";
+import Anime from "./pages/detail/Anime";
+import AnimeMovie from "./pages/detail/AnimeMovie";
+import Movie from "./pages/detail/Movie";
+import TV from "./pages/detail/TV";
+import Cartoon from "./pages/detail/Cartoon";
+import Manga from "./pages/detail/Manga";
+import Novel from "./pages/detail/Novel";
+import SeasonalDetail from "./pages/public/SeasonalDetail";
 
-import Plan from "./pages/Plan";
-import SeasonalOverall from "./pages/SeasonalOverall";
-import Statistics from "./pages/Statistics";
-import FutureReleases from "./pages/FutureReleases";
-import Completions from "./pages/Completions";
+import Plan from "./pages/public/Plan";
+import SeasonalOverall from "./pages/public/SeasonalOverall";
+import Statistics from "./pages/public/Statistics";
+import FutureReleases from "./pages/public/FutureReleases";
+import Completions from "./pages/public/Completions";
 
-import FranchiseLibrary from "./pages/FranchiseLibrary";
-import LibraryAnime from "./pages/LibraryAnime";
-import LibraryAnimeMovie from "./pages/LibraryAnimeMovie";
-import LibraryMovie from "./pages/LibraryMovie";
-import LibraryTV from "./pages/LibraryTV";
-import LibraryCartoon from "./pages/LibraryCartoon";
-import LibraryManga from "./pages/LibraryManga";
-import LibraryNovel from "./pages/LibraryNovel";
+import FranchiseLibrary from "./pages/library/FranchiseLibrary";
+import LibraryAnime from "./pages/library/LibraryAnime";
+import LibraryAnimeMovie from "./pages/library/LibraryAnimeMovie";
+import LibraryMovie from "./pages/library/LibraryMovie";
+import LibraryTV from "./pages/library/LibraryTV";
+import LibraryCartoon from "./pages/library/LibraryCartoon";
+import LibraryManga from "./pages/library/LibraryManga";
+import LibraryNovel from "./pages/library/LibraryNovel";
 
-import Admin from "./pages/Admin";
-import Add from "./pages/Add";
-import Modify from "./pages/Modify";
-import Delete from "./pages/Delete";
-import DataHistory from "./pages/DataHistory";
-import ReviewQueue from "./pages/ReviewQueue";
+import Admin from "./pages/admin/Admin";
+import Add from "./pages/admin/Add";
+import Modify from "./pages/admin/Modify";
+import Delete from "./pages/admin/Delete";
+import DataHistory from "./pages/admin/DataHistory";
+import ReviewQueue from "./pages/admin/ReviewQueue";
 
 // One shared QueryClient keeps cache behavior consistent across the whole app.
 const queryClient = new QueryClient({

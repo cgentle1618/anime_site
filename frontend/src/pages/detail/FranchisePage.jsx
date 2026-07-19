@@ -1,17 +1,17 @@
 // Frontend: page component file for FranchisePage.
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
   getSortName,
   isBaha,
   getRatingWeight,
   parseTypes,
-} from "../utils/media";
-import MediaCard from "../components/cards/MediaCard";
-import SeriesModal from "../components/modals/SeriesModal";
+} from "../../utils/media";
+import MediaCard from "../../components/cards/MediaCard";
+import SeriesModal from "../../components/modals/SeriesModal";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],

@@ -1,32 +1,32 @@
 // Frontend: page component file for Modify.
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
-} from "../utils/media";
-import AnimeMovieNotes from "./AnimeMovieNotes";
-import MovieNotes from "./MovieNotes";
-import TVShowNotes from "./TVShowNotes";
-import CartoonNotes from "./CartoonNotes";
-import MangaNotes from "./MangaNotes";
-import { selectCls } from "../components/forms/FormField";
-import FranchiseCreateModal from "../components/modals/FranchiseCreateModal";
-import CreateNewEntityModal from "../components/modals/CreateNewEntityModal";
-import FranchiseModifyTab from "./modify-tabs/FranchiseModifyTab";
-import SeriesModifyTab from "./modify-tabs/SeriesModifyTab";
-import OptionsModifyTab from "./modify-tabs/OptionsModifyTab";
-import MangaModifyTab from "./modify-tabs/MangaModifyTab";
-import NovelModifyTab from "./modify-tabs/NovelModifyTab";
-import CartoonModifyTab from "./modify-tabs/CartoonModifyTab";
-import TvShowModifyTab from "./modify-tabs/TvShowModifyTab";
-import MovieModifyTab from "./modify-tabs/MovieModifyTab";
-import AnimeMovieModifyTab from "./modify-tabs/AnimeMovieModifyTab";
-import AnimeModifyTab from "./modify-tabs/AnimeModifyTab";
-import Fav3x3ModifyTab from "./modify-tabs/Fav3x3ModifyTab";
+} from "../../utils/media";
+import AnimeMovieNotes from "../detail/AnimeMovieNotes";
+import MovieNotes from "../detail/MovieNotes";
+import TVShowNotes from "../detail/TVShowNotes";
+import CartoonNotes from "../detail/CartoonNotes";
+import MangaNotes from "../detail/MangaNotes";
+import { selectCls } from "../../components/forms/FormField";
+import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
+import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
+import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
+import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
+import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
+import MangaModifyTab from "../modify-tabs/MangaModifyTab";
+import NovelModifyTab from "../modify-tabs/NovelModifyTab";
+import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
+import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
+import MovieModifyTab from "../modify-tabs/MovieModifyTab";
+import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
+import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
+import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };

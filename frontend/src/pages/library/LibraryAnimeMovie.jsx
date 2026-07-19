@@ -1,13 +1,13 @@
 // Frontend: page component file for LibraryAnimeMovie.
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   isBaha,
   WATCHING_STATUS_GROUP,
   AIRING_STATUS_CLS,
   getRatingWeight,
   getStatusButtonConfig,
-} from "../utils/media";
+} from "../../utils/media";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: year * 10000 + month * 100 + day

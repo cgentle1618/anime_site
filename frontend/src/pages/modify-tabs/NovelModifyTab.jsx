@@ -9,7 +9,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
-import NovelNotes from "../NovelNotes";
+import NovelNotes from "../detail/NovelNotes";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
 const SERIALIZATION_STATUSES = [

@@ -1,20 +1,20 @@
 // Frontend: page component file for Anime.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/media";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
+import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
 import AnimeNotes from "./AnimeNotes";
-import InfoCard, { InfoRow } from "../components/info/InfoCard";
-import NamingCard from "../components/info/NamingCard";
-import ScoreBlock from "../components/info/ScoreBlock";
-import SourcesCard from "../components/info/SourcesCard";
-import MyTrackerCard from "../components/tracker/MyTrackerCard";
-import SeriesModal from "../components/modals/SeriesModal";
-import MediaLoadingState from "../components/layout/MediaLoadingState";
-import { useMediaCacheUpdate } from "../hooks/useMediaCacheUpdate";
-import { useMediaItem } from "../hooks/useMediaItem";
-import { useMediaList } from "../hooks/useMediaList";
+import InfoCard, { InfoRow } from "../../components/info/InfoCard";
+import NamingCard from "../../components/info/NamingCard";
+import ScoreBlock from "../../components/info/ScoreBlock";
+import SourcesCard from "../../components/info/SourcesCard";
+import MyTrackerCard from "../../components/tracker/MyTrackerCard";
+import SeriesModal from "../../components/modals/SeriesModal";
+import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
+import { useMediaItem } from "../../hooks/useMediaItem";
+import { useMediaList } from "../../hooks/useMediaList";
 
 const WATCHING_STATUSES = [
   "Might Watch",

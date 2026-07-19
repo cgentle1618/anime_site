@@ -1,18 +1,18 @@
 // Frontend: page component file for AnimeMovie.
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../utils/media";
-import InfoCard from "../components/info/InfoCard";
-import NamingCard from "../components/info/NamingCard";
-import ScoreBlock from "../components/info/ScoreBlock";
-import SourcesCard from "../components/info/SourcesCard";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/useToast";
+import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import InfoCard from "../../components/info/InfoCard";
+import NamingCard from "../../components/info/NamingCard";
+import ScoreBlock from "../../components/info/ScoreBlock";
+import SourcesCard from "../../components/info/SourcesCard";
 import AnimeMovieNotes from "./AnimeMovieNotes";
-import MediaLoadingState from "../components/layout/MediaLoadingState";
-import { useMediaCacheUpdate } from "../hooks/useMediaCacheUpdate";
-import { useMediaItem } from "../hooks/useMediaItem";
-import { useMediaList } from "../hooks/useMediaList";
+import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
+import { useMediaItem } from "../../hooks/useMediaItem";
+import { useMediaList } from "../../hooks/useMediaList";
 
 const WATCHING_STATUSES = [
   "Might Watch",

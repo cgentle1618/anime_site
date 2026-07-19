@@ -1,12 +1,12 @@
 // Frontend: page component file for LibraryCartoon.
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   WATCHING_STATUS_GROUP,
   AIRING_STATUS_CLS,
   getRatingWeight,
   getStatusButtonConfig,
-} from "../utils/media";
+} from "../../utils/media";
 
 function getTitle(c)   { return c.cartoon_name_cn || c.cartoon_name_en || c.cartoon_name_alt || ""; }
 function getSortKey(c) { return c.cartoon_name_en || c.cartoon_name_alt || c.cartoon_name_cn || ""; }

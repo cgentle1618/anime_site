@@ -7,7 +7,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
-import CartoonNotes from "../CartoonNotes";
+import CartoonNotes from "../detail/CartoonNotes";
 
 export default function CartoonModifyTab({
   cmf,

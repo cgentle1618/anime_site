@@ -1,26 +1,26 @@
 // Frontend: page component file for Add.
 import { useState, useEffect, useRef } from "react";
-import { useToast } from "../hooks/useToast";
+import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
-} from "../utils/media";
-import FranchiseCreateModal from "../components/modals/FranchiseCreateModal";
-import CreateNewEntityModal from "../components/modals/CreateNewEntityModal";
-import FranchiseAddTab, { defaultFranchise } from "./add-tabs/FranchiseAddTab";
-import SeriesAddTab, { defaultSeries } from "./add-tabs/SeriesAddTab";
-import OptionsAddTab from "./add-tabs/OptionsAddTab";
-import MangaAddTab, { defaultManga } from "./add-tabs/MangaAddTab";
-import NovelAddTab, { defaultNovel } from "./add-tabs/NovelAddTab";
-import CartoonAddTab, { defaultCartoon } from "./add-tabs/CartoonAddTab";
-import TvShowAddTab, { defaultTvShow } from "./add-tabs/TvShowAddTab";
-import MovieAddTab, { defaultMovie } from "./add-tabs/MovieAddTab";
+} from "../../utils/media";
+import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
+import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
+import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
+import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
+import OptionsAddTab from "../add-tabs/OptionsAddTab";
+import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
+import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
+import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
+import TvShowAddTab, { defaultTvShow } from "../add-tabs/TvShowAddTab";
+import MovieAddTab, { defaultMovie } from "../add-tabs/MovieAddTab";
 import AnimeMovieAddTab, {
   defaultAnimeMovie,
-} from "./add-tabs/AnimeMovieAddTab";
-import AnimeAddTab, { defaultAnime } from "./add-tabs/AnimeAddTab";
+} from "../add-tabs/AnimeMovieAddTab";
+import AnimeAddTab, { defaultAnime } from "../add-tabs/AnimeAddTab";
 
 export default function Add() {
   const { showToast } = useToast();

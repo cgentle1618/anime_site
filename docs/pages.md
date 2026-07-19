@@ -105,7 +105,7 @@ Full card specs are in `reusable-elements.md`.
 
 ### Dashboard (`/`)
 
-**File:** `frontend/src/pages/Index.jsx`
+**File:** `frontend/src/pages/public/Index.jsx`
 
 Current progress page. Shows all actively tracked media.
 
@@ -132,7 +132,7 @@ Current progress page. Shows all actively tracked media.
 
 ### Login (`/login`)
 
-**File:** `frontend/src/pages/Login.jsx`
+**File:** `frontend/src/pages/public/Login.jsx`
 
 Simple username/password form.
 
@@ -146,7 +146,7 @@ On success, calls `refetchAuth()` and navigates to `?next` param or `/system`.
 
 ### Anime Detail (`/anime/:system_id`)
 
-**File:** `frontend/src/pages/Anime.jsx`
+**File:** `frontend/src/pages/detail/Anime.jsx`
 
 Full detail page for a single anime entry.
 
@@ -195,7 +195,7 @@ Full detail page for a single anime entry.
 - Characters & Cast Card (TBD)
 - Music Card (admin editable): OP, ED, Insert/OST dropdowns
 - Remarks — shown when not null
-- **`AnimeNotes`** (`frontend/src/pages/AnimeNotes.jsx`) — structured notes editor with 17 sections; always rendered at the bottom; saves via `PATCH /api/anime/:id` with `notes` field.
+- **`AnimeNotes`** (`frontend/src/pages/detail/AnimeNotes.jsx`) — structured notes editor with 17 sections; always rendered at the bottom; saves via `PATCH /api/anime/:id` with `notes` field.
 
 Admin writes use `PATCH /api/anime/:system_id`.
 
@@ -203,7 +203,7 @@ Admin writes use `PATCH /api/anime/:system_id`.
 
 ### Anime Movie Detail (`/anime-movie/:system_id`)
 
-**File:** `frontend/src/pages/AnimeMovie.jsx`
+**File:** `frontend/src/pages/detail/AnimeMovie.jsx`
 
 Full detail page for a single anime movie entry.
 
@@ -240,13 +240,13 @@ Full detail page for a single anime movie entry.
 - **Production Card** (reusable): Studio, Director
 - Characters & Cast Card (TBD placeholder — "Under Development")
 - Remarks — shown when not null (admin editable via blur)
-- **`AnimeMovieNotes`** (`frontend/src/pages/AnimeMovieNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/anime-movie/:id` with `notes` field.
+- **`AnimeMovieNotes`** (`frontend/src/pages/detail/AnimeMovieNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/anime-movie/:id` with `notes` field.
 
 ---
 
 ### Movie Detail (`/movie/:system_id`)
 
-**File:** `frontend/src/pages/Movie.jsx`
+**File:** `frontend/src/pages/detail/Movie.jsx`
 
 Full detail page for a single movie entry.
 
@@ -289,7 +289,7 @@ Full detail page for a single movie entry.
 - **Movie Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): 本傳/外傳 (is_main), Airing Status, Length, Director, Release Date TW, Release Date USA
 - Remarks — shown when `remark` is not null (admin editable via blur)
-- **`MovieNotes`** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom; saves via `PATCH /api/movies/:id` with `notes` field.
+- **`MovieNotes`** (`frontend/src/pages/detail/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom; saves via `PATCH /api/movies/:id` with `notes` field.
 
 Admin writes use `PATCH /api/movies/:system_id`.
 
@@ -297,7 +297,7 @@ Admin writes use `PATCH /api/movies/:system_id`.
 
 ### TV Show Detail (`/tv-show/:system_id`)
 
-**File:** `frontend/src/pages/TV.jsx`
+**File:** `frontend/src/pages/detail/TV.jsx`
 
 Full detail page for a single TV show entry.
 
@@ -345,7 +345,7 @@ Full detail page for a single TV show entry.
 - **TV Show Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): 本傳/外傳, Season Part, Total Ep, Official Source, Airing Status, Release Date
 - Remarks — shown when not null (admin editable on blur)
-- **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/tv-shows/:id` with `notes` field.
+- **`TVShowNotes`** (`frontend/src/pages/detail/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/tv-shows/:id` with `notes` field.
 
 Admin writes use `PATCH /api/tv-shows/:system_id`.
 
@@ -353,7 +353,7 @@ Admin writes use `PATCH /api/tv-shows/:system_id`.
 
 ### Cartoon Detail (`/cartoon/:system_id`)
 
-**File:** `frontend/src/pages/Cartoon.jsx`
+**File:** `frontend/src/pages/detail/Cartoon.jsx`
 
 Full detail page for a single cartoon entry.
 
@@ -401,7 +401,7 @@ Full detail page for a single cartoon entry.
 - **Cartoon Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): 本傳/外傳, Season Part, Airing Type, Airing Status, Length Per Ep (min), Official Source, Release Date, Total Ep
 - Remarks — shown when not null (admin editable on blur)
-- **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/cartoon/:id` with `notes` field.
+- **`CartoonNotes`** (`frontend/src/pages/detail/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/cartoon/:id` with `notes` field.
 
 Admin writes use `PATCH /api/cartoon/:system_id`.
 
@@ -409,7 +409,7 @@ Admin writes use `PATCH /api/cartoon/:system_id`.
 
 ### Manga Detail
 
-**File:** `frontend/src/pages/Manga.jsx` (TBD)
+**File:** `frontend/src/pages/detail/Manga.jsx` (TBD)
 
 Full detail page for a single manga entry.
 
@@ -441,13 +441,13 @@ Full detail page for a single manga entry.
 - **Information Card** (reusable)
 - **Production Card** (reusable)
 - Remarks — shown when not null
-- **`MangaNotes`** (`frontend/src/pages/MangaNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/manga/:id` with `notes` field.
+- **`MangaNotes`** (`frontend/src/pages/detail/MangaNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/manga/:id` with `notes` field.
 
 ---
 
 ### Novel Detail (`/novel/:system_id`)
 
-**File:** `frontend/src/pages/Novel.jsx`
+**File:** `frontend/src/pages/detail/Novel.jsx`
 
 Full detail page for a single novel entry.
 
@@ -496,7 +496,7 @@ Admin writes use `PATCH /api/novel/:system_id`.
 
 ### Franchise Hub (`/franchise/:system_id`)
 
-**Files:** `frontend/src/pages/Franchise.jsx` (thin wrapper) → `frontend/src/pages/FranchisePage.jsx` (unified hub)
+**Files:** `frontend/src/pages/detail/Franchise.jsx` (thin wrapper) → `frontend/src/pages/detail/FranchisePage.jsx` (unified hub)
 
 `Franchise.jsx` renders `FranchisePage` unconditionally. `FranchisePage` fetches all data and derives which content sections to show from the parsed `franchise_type` field. `franchise_type` may be a comma-separated list (e.g., `"ACG, Cartoon"`), enabling a franchise to span multiple type categories.
 
@@ -607,7 +607,7 @@ Admin writes use `PATCH /api/franchise/:system_id`.
 
 ### Anime Library (`/library/anime`)
 
-**File:** `frontend/src/pages/LibraryAnime.jsx`
+**File:** `frontend/src/pages/library/LibraryAnime.jsx`
 
 Full anime library with client-side filtering via `useMemo`.
 
@@ -634,7 +634,7 @@ Admin: inline quick-status toggle via `PATCH /api/anime/:system_id`.
 
 ### Anime Movie Library (`/library/anime-movie`)
 
-**File:** `frontend/src/pages/LibraryAnimeMovie.jsx`
+**File:** `frontend/src/pages/library/LibraryAnimeMovie.jsx`
 
 **Data loaded:**
 
@@ -656,7 +656,7 @@ Admin: inline quick-status toggle via `PATCH /api/anime/:system_id`.
 
 ### Franchise Library (`/library/franchise`)
 
-**File:** `frontend/src/pages/FranchiseLibrary.jsx`
+**File:** `frontend/src/pages/library/FranchiseLibrary.jsx`
 
 Franchise grid library.
 
@@ -684,7 +684,7 @@ Each entry: **Franchise Entry Card** — navigates to `/franchise/:system_id`.
 
 ### Movie Library (`/library/movie`)
 
-**File:** `frontend/src/pages/LibraryMovie.jsx`
+**File:** `frontend/src/pages/library/LibraryMovie.jsx`
 
 **Data loaded:**
 
@@ -708,7 +708,7 @@ Admin: inline quick-status toggle via `PATCH /api/movies/:system_id`.
 
 ### TV Show Library (`/library/tv-show`)
 
-**File:** `frontend/src/pages/LibraryTV.jsx`
+**File:** `frontend/src/pages/library/LibraryTV.jsx`
 
 **Data loaded:**
 
@@ -732,7 +732,7 @@ Admin: inline status toggle via `PATCH /api/tv-shows/:system_id`.
 
 ### Cartoon Library (`/library/cartoon`)
 
-**File:** `frontend/src/pages/LibraryCartoon.jsx`
+**File:** `frontend/src/pages/library/LibraryCartoon.jsx`
 
 **Data loaded:**
 
@@ -757,7 +757,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ### Manga Library
 
-**File:** `frontend/src/pages/LibraryManga.jsx`
+**File:** `frontend/src/pages/library/LibraryManga.jsx`
 
 **Data loaded:**
 
@@ -779,7 +779,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ### Novel Library (`/library/novel`)
 
-**File:** `frontend/src/pages/LibraryNovel.jsx`
+**File:** `frontend/src/pages/library/LibraryNovel.jsx`
 
 **Data loaded:**
 
@@ -802,7 +802,7 @@ Admin: inline status toggle via `PATCH /api/cartoon/:system_id`.
 
 ### Seasonal Overall (`/seasonal`)
 
-**File:** `frontend/src/pages/SeasonalOverall.jsx`
+**File:** `frontend/src/pages/public/SeasonalOverall.jsx`
 
 Two-tab seasonal view.
 
@@ -838,7 +838,7 @@ Admin: `PATCH /api/seasonal/:id` for rating; `PATCH /api/anime/:id` for episode 
 
 ### Seasonal Detail (`/seasonal/:seasonal_id`)
 
-**File:** `frontend/src/pages/SeasonalDetail.jsx`
+**File:** `frontend/src/pages/public/SeasonalDetail.jsx`
 
 Detailed view for one season.
 
@@ -860,7 +860,7 @@ Admin: `PATCH /api/seasonal/:id` for rating; `PATCH /api/anime/:id` for episode 
 
 ### Plan (`/plan`)
 
-**File:** `frontend/src/pages/Plan.jsx`
+**File:** `frontend/src/pages/public/Plan.jsx`
 
 Planning dashboard for tracking what to watch or read next.
 
@@ -907,7 +907,7 @@ Planning dashboard for tracking what to watch or read next.
 
 ### Statistics (`/statistics`)
 
-**File:** `frontend/src/pages/Statistics.jsx`
+**File:** `frontend/src/pages/public/Statistics.jsx`
 
 Multi-section statistics dashboard.
 
@@ -939,7 +939,7 @@ Multi-section statistics dashboard.
 
 ### Completions (`/completions`)
 
-**File:** `frontend/src/pages/Completions.jsx`
+**File:** `frontend/src/pages/public/Completions.jsx`
 
 All completed entries, paginated by media type.
 
@@ -968,7 +968,7 @@ All completed entries, paginated by media type.
 
 ### Future Releases (`/future-releases`)
 
-**File:** `frontend/src/pages/FutureReleases.jsx`
+**File:** `frontend/src/pages/public/FutureReleases.jsx`
 
 Upcoming entries by release timeline. No future release page planned for Manga or Novel.
 
@@ -1014,7 +1014,7 @@ Upcoming entries by release timeline. No future release page planned for Manga o
 
 ### Search (`/search`)
 
-**File:** `frontend/src/pages/Search.jsx`
+**File:** `frontend/src/pages/public/Search.jsx`
 
 Reads `?q` and `?scope` query params. Client-side filtering over full data fetched upfront.
 
@@ -1051,7 +1051,7 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 
 ### Under Development (`/under-development`)
 
-**File:** `frontend/src/pages/UnderDevelopment.jsx`
+**File:** `frontend/src/pages/public/UnderDevelopment.jsx`
 
 Placeholder page with under-construction notice and Go Back button.
 
@@ -1065,7 +1065,7 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 ### System Admin (`/system`)
 
-**File:** `frontend/src/pages/Admin.jsx`
+**File:** `frontend/src/pages/admin/Admin.jsx`
 
 **Navigation buttons:** Data History / Review Queue / New Entry (Add) / Edit Entry (Modify) / Delete Entry (Delete)
 
@@ -1107,7 +1107,7 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 
 ### Data History (`/data-history`)
 
-**File:** `frontend/src/pages/DataHistory.jsx`
+**File:** `frontend/src/pages/admin/DataHistory.jsx`
 
 **Refresh Button**
 
@@ -1142,7 +1142,7 @@ All sourced from `GET /api/anime/`, `GET /api/franchise/`, `GET /api/series/`, `
 
 ### Review Queue (`/review-queue`)
 
-**File:** `frontend/src/pages/ReviewQueue.jsx`
+**File:** `frontend/src/pages/admin/ReviewQueue.jsx`
 
 Admin review queue for entries requiring attention.
 
@@ -1166,7 +1166,7 @@ Admin review queue for entries requiring attention.
 
 ### Add (`/add`)
 
-**File:** `frontend/src/pages/Add.jsx`
+**File:** `frontend/src/pages/admin/Add.jsx`
 
 Multi-tab form for creating new records. Shows most recently added entry at top.
 
@@ -1265,7 +1265,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 
 ### Modify (`/modify`)
 
-**File:** `frontend/src/pages/Modify.jsx`
+**File:** `frontend/src/pages/admin/Modify.jsx`
 
 Search-then-edit pattern. Shows most recently modified entry at top. Supports `?id=:uuid` deep-link.
 
@@ -1317,7 +1317,7 @@ Writes: `PATCH /api/options/:id`
 - After selecting: Other Entries in franchise block (grouped by series) — show Movie Name CN with fallback; hidden for 獨立電影, 影集, Disney, Marvel franchises
 - Full edit form — same fields as Add Movie tab (includes Series ComboBox + auto-create modal)
 - Franchise ComboBox filtered to `franchise_type = "TV or Movie"`
-- **`MovieNotes`** (`frontend/src/pages/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom.
+- **`MovieNotes`** (`frontend/src/pages/detail/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatically)
@@ -1327,7 +1327,7 @@ Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatic
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback (hidden for 獨立電影/影集, Disney, Marvel franchises), Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- **`TVShowNotes`** (`frontend/src/pages/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
+- **`TVShowNotes`** (`frontend/src/pages/detail/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/tv-shows/:id`
@@ -1337,7 +1337,7 @@ Writes: `PATCH /api/tv-shows/:id`
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- **`CartoonNotes`** (`frontend/src/pages/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
+- **`CartoonNotes`** (`frontend/src/pages/detail/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/cartoon/:id`
@@ -1377,7 +1377,7 @@ Writes: `PATCH /api/novel/:id`
 
 ### Delete (`/delete`)
 
-**File:** `frontend/src/pages/Delete.jsx`
+**File:** `frontend/src/pages/admin/Delete.jsx`
 
 Search-then-delete pattern. Shows most recently deleted entry at top.
 

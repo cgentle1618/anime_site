@@ -8,7 +8,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getOptions } from "../../utils/media";
-import AnimeMovieNotes from "../AnimeMovieNotes";
+import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 
 export default function AnimeMovieModifyTab({
   amf,

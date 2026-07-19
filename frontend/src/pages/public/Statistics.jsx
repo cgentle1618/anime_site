@@ -1,8 +1,8 @@
 // Frontend: page component file for Statistics.
-import useStatisticsData from "./statistics/useStatisticsData";
-import StatsFavoriteGrids from "./statistics/StatsFavoriteGrids";
-import StatsFranchiseSummary from "./statistics/StatsFranchiseSummary";
-import MediaLoadingState from "../components/layout/MediaLoadingState";
+import useStatisticsData from "../statistics/useStatisticsData";
+import StatsFavoriteGrids from "../statistics/StatsFavoriteGrids";
+import StatsFranchiseSummary from "../statistics/StatsFranchiseSummary";
+import MediaLoadingState from "../../components/layout/MediaLoadingState";
 
 export default function Statistics() {
   const {

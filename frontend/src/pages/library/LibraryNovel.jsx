@@ -1,12 +1,12 @@
 // Frontend: page component file for LibraryNovel.
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   READING_STATUS_GROUP,
   getRatingWeight,
   getReadingButtonConfig,
   getNovelProgress,
-} from "../utils/media";
+} from "../../utils/media";
 
 function getTitle(n)   {
   return n.novel_name_cn || n.novel_name_en || n.novel_name_roman

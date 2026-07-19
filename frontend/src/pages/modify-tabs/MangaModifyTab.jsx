@@ -8,7 +8,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
-import MangaNotes from "../MangaNotes";
+import MangaNotes from "../detail/MangaNotes";
 
 export default function MangaModifyTab({
   cmgf,

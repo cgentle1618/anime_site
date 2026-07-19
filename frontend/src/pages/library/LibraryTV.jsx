@@ -1,12 +1,12 @@
 // Frontend: page component file for LibraryTV.
-import LibraryLayout from "../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../hooks/useMediaList";
+import LibraryLayout from "../../components/layout/LibraryLayout";
+import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   WATCHING_STATUS_GROUP,
   AIRING_STATUS_CLS,
   getRatingWeight,
   getStatusButtonConfig,
-} from "../utils/media";
+} from "../../utils/media";
 
 function getTitle(s)   { return s.tv_name_cn || s.tv_name_en || s.tv_name_alt || ""; }
 function getSortKey(s) { return s.tv_name_en || s.tv_name_alt || s.tv_name_cn || ""; }

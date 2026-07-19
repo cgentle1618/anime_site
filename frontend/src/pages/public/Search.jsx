@@ -1,12 +1,12 @@
 // Frontend: page component file for Search.
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import MediaCard from "../components/cards/MediaCard";
-import { cleanString } from "../utils/media";
-import MediaLoadingState from "../components/layout/MediaLoadingState";
-import { useApiQuery } from "../hooks/useApiQuery";
-import { useMediaList } from "../hooks/useMediaList";
+import { useAuth } from "../../contexts/AuthContext";
+import MediaCard from "../../components/cards/MediaCard";
+import { cleanString } from "../../utils/media";
+import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { useApiQuery } from "../../hooks/useApiQuery";
+import { useMediaList } from "../../hooks/useMediaList";
 
 function getFranchiseTitles(f) {
   const raw = [
