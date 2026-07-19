@@ -17,7 +17,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db, SECRET_KEY, ALGORITHM
 from app.services.security import get_password_hash, create_access_token
-from main import app
+from app.main import app
 
 
 # ---------------------------------------------------------------------------

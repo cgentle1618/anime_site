@@ -1,0 +1,74 @@
+"""Movie request/response schemas."""
+
+from datetime import datetime
+from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+
+
+class MovieBase(BaseModel):
+    franchise_id: Optional[UUID] = None
+    series_id: Optional[UUID] = None
+
+    movie_name_en: Optional[str] = None
+    movie_name_cn: Optional[str] = None
+    movie_name_alt: Optional[str] = None
+
+    airing_status: Optional[str] = None
+    watching_status: str = "Might Watch"
+    my_rating: Optional[str] = None
+    imdb_rating: Optional[str] = None
+    movie_type: Optional[str] = None
+    is_main: Optional[str] = None
+
+    length_min: Optional[int] = None
+    release_date_usa: Optional[str] = None
+    release_date_tw: Optional[str] = None
+    director: Optional[str] = None
+
+    derive_related: Optional[bool] = None
+    prequel_id: Optional[UUID] = None
+    sequel_id: Optional[UUID] = None
+    watch_order: Optional[float] = None
+
+    imdb_id: Optional[str] = None
+    imdb_link: Optional[str] = None
+
+    source_other: Optional[dict] = None
+
+    watch_next: Optional[bool] = None
+    to_rewatch: Optional[bool] = None
+    remark: Optional[str] = None
+    notes: Optional[dict] = None
+    cover_image_file: Optional[str] = None
+    completed_at: Optional[datetime] = None
+
+
+class MovieCreate(MovieBase):
+    pass
+
+
+class MovieUpdate(MovieBase):
+    pass
+
+
+class MovieResponse(MovieBase):
+    system_id: UUID
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def display_name(self) -> str:
+        for val in (self.movie_name_cn, self.movie_name_en, self.movie_name_alt):
+            if val and str(val).strip():
+                return str(val).strip()
+        return ""
+
+
+class MovieSheetSync(MovieCreate):
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
