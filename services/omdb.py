@@ -6,11 +6,9 @@ Used solely to retrieve IMDb rating, which TMDB does not provide.
 """
 
 import logging
-import os
 import time
 from typing import Any, Dict, Optional
 
-from dotenv import load_dotenv
 import requests
 from tenacity import (
     retry,
@@ -19,8 +17,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-
-load_dotenv()
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +76,7 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
     if not imdb_id:
         return None
 
-    api_key = os.getenv("OMDB_API_KEY")
+    api_key = settings.omdb_api_key
     if not api_key:
         logger.error("OMDB_API_KEY environment variable is not set.")
         return None

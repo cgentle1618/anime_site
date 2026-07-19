@@ -7,17 +7,14 @@ Contains zero database logic or data parsing to ensure strict separation of conc
 
 import json
 import logging
-import os
 import time
 from typing import Any, Callable, List
 
 import gspread
-from dotenv import load_dotenv
 from gspread.exceptions import APIError, WorksheetNotFound
 from google.oauth2.service_account import Credentials
 
-# Explicitly load environment variables
-load_dotenv()
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +66,7 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
     ]
 
     # 1. Identity Resolution
-    creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    creds_json = settings.google_credentials_json
     try:
         if creds_json:
             creds_dict = json.loads(creds_json)
@@ -89,7 +86,7 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
 
     # 2. Spreadsheet Targeting
     # Supports both naming conventions used in deployment history
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+    sheet_id = settings.google_sheet_id
     if not sheet_id:
         logger.error("GOOGLE_SHEET_ID environment variable is missing.")
         raise ValueError("GOOGLE_SHEET_ID must be set in environment variables.")

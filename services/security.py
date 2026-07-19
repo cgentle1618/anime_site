@@ -4,22 +4,20 @@ Provides cryptographic utilities for the application.
 Handles password hashing via bcrypt and session management via JWT.
 """
 
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import bcrypt
 import jwt
-from dotenv import load_dotenv
 
-load_dotenv()
+from config import settings
 
 # ==========================================
 # JWT CONFIGURATION
 # ==========================================
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_secret_key_change_me_in_prod")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+SECRET_KEY = settings.jwt_secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 
 # ==========================================

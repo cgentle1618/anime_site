@@ -6,11 +6,9 @@ Uses IMDb ID as the entry point via TMDB's Find endpoint.
 """
 
 import logging
-import os
 import time
 from typing import Any, Dict, Optional, Tuple
 
-from dotenv import load_dotenv
 import requests
 from tenacity import (
     retry,
@@ -19,7 +17,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-load_dotenv()
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +59,7 @@ class RateLimitExceeded(Exception):
 
 
 def _get_api_key() -> Optional[str]:
-    api_key = os.getenv("TMDB_API_KEY")
+    api_key = settings.tmdb_api_key
     if not api_key:
         logger.error("TMDB_API_KEY environment variable is not set.")
     return api_key

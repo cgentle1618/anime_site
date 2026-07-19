@@ -4,7 +4,6 @@ Handles the generation and destruction of secure authentication sessions.
 Uses JWTs stored in HTTP-Only cookies to protect against XSS attacks.
 """
 
-import os
 import logging
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
@@ -13,6 +12,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 import models
+from config import settings
 from dependencies import get_db, SECRET_KEY, ALGORITHM
 from services.security import (
     verify_password,
@@ -57,7 +57,7 @@ def login_for_access_token(
 
     # 4. Smart Security Hardening (HTTPS Detection)
     # If running in Cloud Run, K_SERVICE is populated.
-    is_cloud_run = os.getenv("K_SERVICE") is not None
+    is_cloud_run = settings.is_cloud_run
 
     # 5. Set the secure cookie
     # httponly=True prevents JavaScript (document.cookie) from reading the token

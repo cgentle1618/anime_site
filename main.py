@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
 import database
+from config import settings
 from database import engine
 import models
 
@@ -54,6 +55,9 @@ async def lifespan(app: FastAPI):
     Executes startup logic (e.g., seeding the admin user) before receiving requests,
     and handles safe shutdown logic upon termination.
     """
+    # Fail fast in production if critical secrets are left at insecure defaults.
+    settings.validate_production()
+
     db = database.SessionLocal()
     try:
         admin_user = (
@@ -61,7 +65,7 @@ async def lifespan(app: FastAPI):
         )
 
         if not admin_user:
-            admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
+            admin_pass = settings.admin_password
             print("🚀 [System] No admin detected. Seeding master account...")
 
             hashed_pwd = get_password_hash(admin_pass)

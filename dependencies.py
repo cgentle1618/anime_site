@@ -4,20 +4,20 @@ Contains reusable FastAPI dependencies used across different routers.
 Centralizes database session management and security middleware.
 """
 
-import os
 from typing import Any, Dict, Generator
 
 import jwt
 from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from config import settings
 from database import SessionLocal
 
 # ==========================================
 # SECURITY CONFIGURATION
 # ==========================================
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_secret_key_change_me_in_prod")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+SECRET_KEY = settings.jwt_secret_key
+ALGORITHM = settings.algorithm
 
 
 # ==========================================
