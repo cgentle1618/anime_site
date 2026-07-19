@@ -698,10 +698,9 @@ Applicable for manga and novel entries. Returns `True` if any one of these condi
 
 ### Check Baha — `apply_check_baha(anime)`
 
-Sets `source_baha = True` if all three conditions hold:
+Sets `source_baha = True` if both conditions hold:
 
 - `baha_link` is set.
-- `airing_status == "Airing"`.
 - `source_baha` is currently `None` (does not overwrite existing `True` or `False`).
 
 ---

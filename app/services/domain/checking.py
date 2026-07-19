@@ -208,10 +208,6 @@ def has_missing_values_novel(novel: Novel) -> bool:
 
 
 def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
-    """Sets source_baha=True if baha_link is present and airing_status is 'Airing'."""
-    if (
-        entry.baha_link
-        and entry.airing_status == "Airing"
-        and entry.source_baha is None
-    ):
+    """Sets source_baha=True if baha_link is present (and source_baha not already set)."""
+    if entry.baha_link and entry.source_baha is None:
         entry.source_baha = True

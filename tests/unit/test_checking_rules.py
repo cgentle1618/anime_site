@@ -162,14 +162,14 @@ class TestApplyCheckBaha:
         apply_check_baha(anime)
         assert anime.source_baha is True
 
-    def test_does_not_set_when_not_airing(self):
+    def test_sets_source_baha_true_regardless_of_airing_status(self):
         anime = make_anime(
             baha_link="https://ani.gamer.com.tw/123",
             airing_status="Finished Airing",
             source_baha=None,
         )
         apply_check_baha(anime)
-        assert anime.source_baha is None
+        assert anime.source_baha is True
 
     def test_does_not_set_when_no_link(self):
         anime = make_anime(baha_link=None, airing_status="Airing", source_baha=None)
