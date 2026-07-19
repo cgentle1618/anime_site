@@ -145,8 +145,13 @@ frontend/src/
     charts/
       BarChart.jsx                Reusable horizontal bar chart
 
+  api/
+    client.js                     fetchJson / buildUrl / jsonBody — the only place that calls fetch()
+    endpoints.js                  Centralized URL builders (single source of API URL truth)
+    mutations/
+      useMediaMutation.js         useCreate/Update/Patch/Complete/DeleteMedia hooks (by type)
   hooks/
-    queryUtils.js                 Fetch wrappers and URL builders for TanStack Query
+    queryUtils.js                 Barrel — re-exports fetchJson/buildUrl from api/client
     useApiQuery.js                Custom query hook wrapping useQuery
     useLibraryState.js            State and filtering logic for media library views
     useMediaCacheUpdate.js        Mutations helper for inline updates in TanStack Query cache
