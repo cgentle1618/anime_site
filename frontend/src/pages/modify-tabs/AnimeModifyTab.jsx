@@ -366,6 +366,7 @@ export default function AnimeModifyTab({
             value={af.studio}
             onChange={(v) => ua("studio", v)}
             placeholder="Select studio..."
+            limit={null}
           />
         </Field>
         <Field label="Distributor TW">
@@ -374,6 +375,7 @@ export default function AnimeModifyTab({
             value={af.distributor_tw}
             onChange={(v) => ua("distributor_tw", v)}
             placeholder="Select distributor..."
+            limit={null}
           />
         </Field>
         <Field label="Director">
@@ -382,6 +384,7 @@ export default function AnimeModifyTab({
             value={af.director}
             onChange={(v) => ua("director", v)}
             placeholder="Select director..."
+            limit={null}
           />
         </Field>
         <Field label="Producer">
@@ -390,6 +393,7 @@ export default function AnimeModifyTab({
             value={af.producer}
             onChange={(v) => ua("producer", v)}
             placeholder="Select producer..."
+            limit={null}
           />
         </Field>
         <Field label="Music / Composer">
@@ -398,6 +402,7 @@ export default function AnimeModifyTab({
             value={af.music}
             onChange={(v) => ua("music", v)}
             placeholder="Select composer..."
+            limit={null}
           />
         </Field>
       </div>
