@@ -7,11 +7,14 @@ import { useState, useRef, useEffect } from "react";
 //   value: string             — current comma-separated selected values (e.g. "A-1 Pictures, Toei")
 //   onChange(newValue: string)— called with updated comma-separated string
 //   placeholder: string
+//   limit: number | null      — max entries to show in the dropdown (default 10;
+//                                pass null to show every available option)
 export default function MultiSelect({
   options = [],
   value = "",
   onChange,
   placeholder = "Select...",
+  limit = 10,
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -44,11 +47,10 @@ export default function MultiSelect({
   }
 
   const available = options.filter((o) => !selected.includes(o));
+  const cap = (arr) => (limit == null ? arr : arr.slice(0, limit));
   const filtered = query
-    ? available
-        .filter((o) => cleanStr(o).includes(cleanStr(query)))
-        .slice(0, 10)
-    : available.slice(0, 10);
+    ? cap(available.filter((o) => cleanStr(o).includes(cleanStr(query))))
+    : cap(available);
 
   function addValue(val) {
     const next = [...selected, val];

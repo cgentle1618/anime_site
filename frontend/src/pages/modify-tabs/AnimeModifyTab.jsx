@@ -293,6 +293,7 @@ export default function AnimeModifyTab({
             value={af.genre_main}
             onChange={(v) => ua("genre_main", v)}
             placeholder="Select genres..."
+            limit={null}
           />
         </Field>
         <Field label="Genre Sub">
@@ -301,6 +302,7 @@ export default function AnimeModifyTab({
             value={af.genre_sub}
             onChange={(v) => ua("genre_sub", v)}
             placeholder="Select sub-genres..."
+            limit={null}
           />
         </Field>
       </div>
