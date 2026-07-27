@@ -53,3 +53,59 @@ button:disabled,
     font-weight: 700;
   }
 }
+
+/*
+ * Responsive-display shim.
+ *
+ * Tailwind v4 emits its utilities inside `@layer utilities`, with the base
+ * `.hidden { display: none }` and the responsive `md:flex` / `lg:grid` /
+ * `lg:table-cell` etc. all in that one layer. On some Chromium builds the
+ * responsive (media-nested) rules fail to override the earlier `.hidden`,
+ * leaving every `hidden md:flex` / `hidden lg:block` element stuck at
+ * `display: none` — this hid the whole nav bar and the dashboard sidebar.
+ *
+ * Re-declaring the responsive display utilities OUTSIDE any @layer makes them
+ * unlayered, and unlayered rules always beat layered ones, so they reliably
+ * win over `.hidden` regardless of the browser quirk. Breakpoints match the
+ * Tailwind v4 defaults (sm 40rem, md 48rem, lg 64rem, xl 80rem) and are
+ * ordered ascending so larger breakpoints still override smaller ones.
+ *
+ * Keep this list in sync with the responsive display utilities the app uses
+ * (see `grep -rohE '(sm|md|lg|xl):(flex|block|grid|table-cell|hidden|...)'`).
+ */
+@media (min-width: 40rem) {
+  .sm\:flex { display: flex; }
+  .sm\:inline-flex { display: inline-flex; }
+  .sm\:block { display: block; }
+  .sm\:inline-block { display: inline-block; }
+  .sm\:grid { display: grid; }
+  .sm\:table-cell { display: table-cell; }
+  .sm\:hidden { display: none; }
+}
+@media (min-width: 48rem) {
+  .md\:flex { display: flex; }
+  .md\:inline-flex { display: inline-flex; }
+  .md\:block { display: block; }
+  .md\:inline-block { display: inline-block; }
+  .md\:grid { display: grid; }
+  .md\:table-cell { display: table-cell; }
+  .md\:hidden { display: none; }
+}
+@media (min-width: 64rem) {
+  .lg\:flex { display: flex; }
+  .lg\:inline-flex { display: inline-flex; }
+  .lg\:block { display: block; }
+  .lg\:inline-block { display: inline-block; }
+  .lg\:grid { display: grid; }
+  .lg\:table-cell { display: table-cell; }
+  .lg\:hidden { display: none; }
+}
+@media (min-width: 80rem) {
+  .xl\:flex { display: flex; }
+  .xl\:inline-flex { display: inline-flex; }
+  .xl\:block { display: block; }
+  .xl\:inline-block { display: inline-block; }
+  .xl\:grid { display: grid; }
+  .xl\:table-cell { display: table-cell; }
+  .xl\:hidden { display: none; }
+}
