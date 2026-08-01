@@ -400,6 +400,13 @@ export default function TvShowModifyTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes" />
+      <Field label="Cover Image File" hint="e.g. 5114.jpg">
+        <input
+          className={inputCls}
+          value={tvmf.cover_image_file || ""}
+          onChange={(e) => utv("cover_image_file", e.target.value)}
+        />
+      </Field>
       <Field label="Remark">
         <textarea
           className={inputCls}

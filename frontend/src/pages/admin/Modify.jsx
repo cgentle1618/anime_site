@@ -478,6 +478,7 @@ export default function Modify() {
         name,
         url: url || "",
       })),
+      cover_image_file: t.cover_image_file || "",
       remark: t.remark || "",
       notes: t.notes || {},
     };
@@ -1256,6 +1257,7 @@ export default function Modify() {
           : null,
       watch_next: tvmf.watch_next ?? null,
       to_rewatch: tvmf.to_rewatch ?? false,
+      cover_image_file: tvmf.cover_image_file || null,
       remark: tvmf.remark || null,
       notes: Object.keys(tvmf.notes || {}).length > 0 ? tvmf.notes : null,
     };
