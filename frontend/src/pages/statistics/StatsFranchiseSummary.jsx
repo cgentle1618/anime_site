@@ -69,8 +69,8 @@ function RatingDistributionCard({ title, subtitle, rows, total }) {
           return (
             <div key={label} className="flex items-center gap-3">
               <span
-                className={`w-10 text-right text-sm font-black shrink-0 ${
-                  dim ? "text-gray-400" : "text-gray-700"
+                className={`w-16 text-right font-black shrink-0 ${
+                  dim ? "text-xs text-gray-400" : "text-sm text-gray-700"
                 }`}
               >
                 {label}
@@ -107,9 +107,13 @@ export default function StatsFranchiseSummary({
 }) {
   const [seasonalPage, setSeasonalPage] = useState(0);
 
-  // Anime entry rating distribution (replaces old ACG franchise distribution)
+  // Anime (ACG) franchise rating distribution — counts franchises, not entries
+  const animeFranchises = franchises.filter((f) => {
+    const types = parseTypes(f.franchise_type);
+    return types.includes("ACG") || types.includes("Anime");
+  });
   const { rows: animeRows, ratedCount: animeRatedCount } =
-    computeRatingRows(allAnime);
+    computeRatingRows(animeFranchises);
 
   // MAL rating distribution (all anime)
   const malRatingRows = MAL_BUCKETS.map((b) => ({
