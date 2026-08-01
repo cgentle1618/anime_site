@@ -115,43 +115,96 @@ function LinkPill({ url }) {
 
 function RemarkSection({ value, isAdmin, onChange }) {
   const [draft, setDraft] = useState(value || "");
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     setDraft(value || "");
   }, [value]);
 
+  // Close the fullscreen overlay with Escape.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e) => e.key === "Escape" && setFullscreen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen]);
+
   const dirty = draft !== (value || "");
+  const textareaCls =
+    inputCls + (isAdmin ? "" : " bg-gray-50 text-gray-600 cursor-default");
+
+  const saveBtn = (
+    <button
+      type="button"
+      onClick={() => onChange(draft || null)}
+      disabled={!dirty}
+      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    >
+      Save
+    </button>
+  );
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5">
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
         <h4 className="font-bold text-sm text-gray-800">Remark</h4>
+        <button
+          type="button"
+          onClick={() => setFullscreen(true)}
+          title="Open fullscreen"
+          className={btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"}
+        >
+          <i className="fas fa-expand text-[10px]"></i> Fullscreen
+        </button>
       </div>
       <div className="p-3 flex flex-col gap-2">
         <textarea
           value={draft}
           disabled={!isAdmin}
           onChange={(e) => isAdmin && setDraft(e.target.value)}
-          rows={4}
+          rows={10}
           placeholder="General remarks..."
-          className={
-            inputCls +
-            (isAdmin ? "" : " bg-gray-50 text-gray-600 cursor-default")
-          }
+          className={textareaCls + " resize-y"}
         />
-        {isAdmin && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => onChange(draft || null)}
-              disabled={!dirty}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Save
-            </button>
-          </div>
-        )}
+        {isAdmin && <div className="flex justify-end">{saveBtn}</div>}
       </div>
+
+      {fullscreen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setFullscreen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shrink-0">
+              <h4 className="font-bold text-sm text-gray-800">Remark</h4>
+              <button
+                type="button"
+                onClick={() => setFullscreen(false)}
+                title="Exit fullscreen"
+                className={
+                  btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }
+              >
+                <i className="fas fa-compress text-[10px]"></i> Close
+              </button>
+            </div>
+            <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
+              <textarea
+                value={draft}
+                disabled={!isAdmin}
+                onChange={(e) => isAdmin && setDraft(e.target.value)}
+                placeholder="General remarks..."
+                autoFocus
+                className={textareaCls + " flex-1 resize-none"}
+              />
+              {isAdmin && <div className="flex justify-end">{saveBtn}</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
