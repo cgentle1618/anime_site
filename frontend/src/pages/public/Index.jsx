@@ -24,13 +24,13 @@ const RATING_WEIGHT = {
 
 const TOC_ITEMS = [
   { id: "schedule", label: "Schedule", icon: "fa-calendar-week", level: 1 },
+  { id: "schedule-watch", label: "My Watch", icon: "fa-user-clock", level: 2 },
   {
     id: "schedule-broadcast",
     label: "Broadcast",
     icon: "fa-satellite-dish",
     level: 2,
   },
-  { id: "schedule-watch", label: "My Watch", icon: "fa-user-clock", level: 2 },
   { id: "watching", label: "Watching", icon: "fa-eye", level: 1 },
   { id: "watching-active", label: "Active", icon: "fa-play-circle", level: 2 },
   { id: "watching-passive", label: "Passive", icon: "fa-headphones", level: 2 },
@@ -324,8 +324,8 @@ export default function Index() {
     if (loading) return;
     const ids = [
       "schedule",
-      "schedule-broadcast",
       "schedule-watch",
+      "schedule-broadcast",
       "watching",
       "watching-active",
       "watching-passive",
@@ -587,6 +587,15 @@ export default function Index() {
             </div>
             <div className="pt-8 space-y-12">
               <WeeklySchedule
+                id="schedule-watch"
+                title="My Watch Schedule"
+                icon="fa-user-clock"
+                subtitle="Airing · by my watch day"
+                dayField="my_watch_day"
+                items={watchSchedule}
+                emptyText="No airing entries have a watch day set."
+              />
+              <WeeklySchedule
                 id="schedule-broadcast"
                 title="Broadcast Schedule"
                 icon="fa-satellite-dish"
@@ -595,15 +604,6 @@ export default function Index() {
                 timeField="broadcast_time"
                 items={broadcastSchedule}
                 emptyText="No airing entries have a broadcast day set."
-              />
-              <WeeklySchedule
-                id="schedule-watch"
-                title="My Watch Schedule"
-                icon="fa-user-clock"
-                subtitle="Airing · by my watch day"
-                dayField="my_watch_day"
-                items={watchSchedule}
-                emptyText="No airing entries have a watch day set."
               />
             </div>
           </div>

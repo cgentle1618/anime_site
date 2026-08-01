@@ -118,8 +118,8 @@ Current progress page. Shows all actively tracked media.
 
 **Schedule division** (topmost) — two weekly Sunday→Saturday schedules rendered by `WeeklySchedule.jsx`. Column order comes from `SCHEDULE_DAYS` (`frontend/src/config/weekdays.js`), which is Sunday-first so the index matches `Date.getDay()`; today's column is highlighted. Day columns are fixed-width and scroll horizontally so titles have room.
 
-- **Broadcast Schedule**: entries where `airing_status === "Airing"` and `broadcast_day` is set, bucketed by `broadcast_day`. Shows `broadcast_time` (trimmed to `HH:MM`) above the name, sorted by time ascending with missing times last.
-- **My Watch Schedule**: entries where `airing_status === "Airing"` and `my_watch_day` is set, bucketed by `my_watch_day`. Name only, sorted alphabetically.
+- **My Watch Schedule** (first): entries where `airing_status === "Airing"` and `my_watch_day` is set, bucketed by `my_watch_day`. Name only, sorted alphabetically.
+- **Broadcast Schedule** (second): entries where `airing_status === "Airing"` and `broadcast_day` is set, bucketed by `broadcast_day`. Shows `broadcast_time` (trimmed to `HH:MM`) above the name, sorted by time ascending with missing times last.
 - Entries show the display name (CN priority, via `getDisplayName`) and link to the entry's detail page. Each entry carries a `_media_type` tag (a `MEDIA_CONFIG` key) that resolves both the name prefix and the detail route, so other media types can join by being appended to `scheduleSources` in `Index.jsx`. Anime is the only source today.
 - `WeeklySchedule` props: `dayField` selects the bucketing column, and the optional `timeField` turns on the time display and time-based sort.
 
