@@ -149,6 +149,7 @@ export default function Novel() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
+  const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("novel", system_id);
 
   useEffect(() => {

@@ -53,6 +53,7 @@ export default function Movie() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMoviesQuery = useMediaList("movie", LIST_OPTIONS);
+  const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("movie", system_id);
 
   useEffect(() => {
