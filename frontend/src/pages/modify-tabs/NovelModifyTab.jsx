@@ -225,7 +225,7 @@ export default function NovelModifyTab({
         <Field label="Reading Status">
           <select
             className={selectCls}
-            value={cnvf.reading_status || "Might Read"}
+            value={cnvf.reading_status}
             onChange={(e) => unv("reading_status", e.target.value)}
           >
             {[

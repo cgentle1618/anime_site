@@ -27,6 +27,10 @@ import MovieModifyTab from "../modify-tabs/MovieModifyTab";
 import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
+import {
+  fetchFormDefaults,
+  resolveDefaults,
+} from "../../hooks/useFormDefaults";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -38,7 +42,7 @@ function parseSeasonPart(sp) {
   };
 }
 
-function animeToForm(anime, allFranchises, allSeries) {
+function animeToForm(anime, allFranchises, allSeries, defaults) {
   const { season_num, part_num } = parseSeasonPart(anime.season_part);
   const f = allFranchises.find((x) => x.system_id === anime.franchise_id);
   const s = allSeries.find((x) => x.system_id === anime.series_id);
@@ -56,7 +60,7 @@ function animeToForm(anime, allFranchises, allSeries) {
     part_num,
     airing_type: anime.airing_type || "",
     airing_status: anime.airing_status || "",
-    watching_status: anime.watching_status || "Might Watch",
+    watching_status: anime.watching_status || defaults.watching_status,
     is_main: anime.is_main || "",
     ep_previous: anime.ep_previous ?? "",
     ep_total: anime.ep_total ?? "",
@@ -153,7 +157,7 @@ function seriesToForm(s, allFranchises) {
   };
 }
 
-function movieToForm(movie, allFranchises) {
+function movieToForm(movie, allFranchises, defaults) {
   const f = allFranchises.find((x) => x.system_id === movie.franchise_id);
   return {
     anime_movie_name_en: movie.anime_movie_name_en || "",
@@ -164,7 +168,7 @@ function movieToForm(movie, allFranchises) {
     franchise_id: movie.franchise_id || null,
     franchise_text: f ? getDisplayName(f, "franchise") : "",
     airing_status: movie.airing_status || "",
-    watching_status: movie.watching_status || "Might Watch",
+    watching_status: movie.watching_status || defaults.watching_status,
     my_rating: movie.my_rating || "",
     mal_rating: movie.mal_rating ?? "",
     mal_rank: movie.mal_rank || "",
@@ -247,6 +251,12 @@ export default function Modify() {
   const [cnvf, setCnvf] = useState({});
   const [optValue, setOptValue] = useState("");
 
+  // Admin-configured form defaults, used to fill in fields a saved entry left
+  // NULL. Held in a ref rather than state because the deep-link path opens an
+  // editor from inside the load effect, before a state update would flush.
+  const formDefaultsRef = useRef({});
+  const md = (type) => resolveDefaults(type, formDefaultsRef.current);
+
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
@@ -273,6 +283,8 @@ export default function Modify() {
             fetch("/api/manga/?limit=2000", { credentials: "include" }),
             fetch("/api/novel/?limit=2000", { credentials: "include" }),
           ]);
+        // Guarded separately: on failure every form falls back to its built-ins.
+        formDefaultsRef.current = await fetchFormDefaults();
         const [
           anime,
           franchises,
@@ -406,7 +418,7 @@ export default function Modify() {
       series_id: m.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
       airing_status: m.airing_status || "",
-      watching_status: m.watching_status || "Might Watch",
+      watching_status: m.watching_status || md("movie").watching_status,
       my_rating: m.my_rating || "",
       is_main: m.is_main || "",
       movie_type: m.movie_type || "",
@@ -455,7 +467,7 @@ export default function Modify() {
       source_official: t.source_official || "",
       is_main: t.is_main || "",
       airing_status: t.airing_status || "",
-      watching_status: t.watching_status || "Might Watch",
+      watching_status: t.watching_status || md("tv-show").watching_status,
       ep_total: t.ep_total ?? "",
       ep_fin: t.ep_fin ?? "",
       my_rating: t.my_rating || "",
@@ -500,7 +512,7 @@ export default function Modify() {
       season_part: c.season_part || "",
       airing_type: c.airing_type || "",
       airing_status: c.airing_status || "",
-      watching_status: c.watching_status || "Might Watch",
+      watching_status: c.watching_status || md("cartoon").watching_status,
       is_main: c.is_main || "",
       ep_total: c.ep_total ?? "",
       ep_fin: c.ep_fin ?? "",
@@ -551,7 +563,7 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       region: m.region || "",
       serialization_status: m.serialization_status || "",
-      reading_status: m.reading_status || "Might Read",
+      reading_status: m.reading_status || md("manga").reading_status,
       is_main: m.is_main || "",
       vol_total: m.vol_total ?? "",
       vol_fin: m.vol_fin ?? "",
@@ -617,7 +629,7 @@ export default function Modify() {
       version: n.version || "",
       is_main: n.is_main || "",
       serialization_status: n.serialization_status || "",
-      reading_status: n.reading_status || "Might Read",
+      reading_status: n.reading_status || md("novel").reading_status,
       progress_display: n.progress_display || "",
       vol_total_original: n.vol_total_original ?? "",
       vol_total_tw: n.vol_total_tw ?? "",
@@ -661,10 +673,10 @@ export default function Modify() {
   function openEditorWith(item, type, franchises, series) {
     setEditingItem(item);
     setEditingType(type);
-    if (type === "anime") setAf(animeToForm(item, franchises, series));
+    if (type === "anime") setAf(animeToForm(item, franchises, series, md("anime")));
     else if (type === "franchise") setFf(franchiseToForm(item));
     else if (type === "series") setSf(seriesToForm(item, franchises));
-    else if (type === "anime-movie") setAmf(movieToForm(item, franchises));
+    else if (type === "anime-movie") setAmf(movieToForm(item, franchises, md("anime-movie")));
     else if (type === "movie")
       setMmf(liveMovieToForm(item, franchises, series));
     else if (type === "tv-show")
@@ -809,7 +821,7 @@ export default function Modify() {
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
     setEditingItem(updated);
-    setAf(animeToForm(updated, allFranchises, allSeries));
+    setAf(animeToForm(updated, allFranchises, allSeries, md("anime")));
     await fetch(`/api/data-control/replace/anime/${updated.system_id}`, {
       method: "POST",
       credentials: "include",
@@ -997,7 +1009,7 @@ export default function Modify() {
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     setEditingItem(updated);
-    setAmf(movieToForm(updated, allFranchises));
+    setAmf(movieToForm(updated, allFranchises, md("anime-movie")));
     await fetch(`/api/data-control/replace/anime-movie/${updated.system_id}`, {
       method: "POST",
       credentials: "include",
@@ -1088,7 +1100,8 @@ export default function Modify() {
       series_id: seriesId || null,
       is_main: mmf.is_main || null,
       airing_status: mmf.airing_status || null,
-      watching_status: mmf.watching_status || "Might Watch",
+      watching_status:
+        mmf.watching_status || md("movie").watching_status,
       my_rating: mmf.my_rating || null,
       movie_type: mmf.movie_type || null,
       length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
@@ -1229,7 +1242,8 @@ export default function Modify() {
       source_official: tvmf.source_official || null,
       is_main: tvmf.is_main || null,
       airing_status: tvmf.airing_status || null,
-      watching_status: tvmf.watching_status || "Might Watch",
+      watching_status:
+        tvmf.watching_status || md("tv-show").watching_status,
       ep_total: tvmf.ep_total !== "" ? parseInt(tvmf.ep_total) : null,
       ep_fin: tvmf.ep_fin !== "" ? parseInt(tvmf.ep_fin) : null,
       my_rating: tvmf.my_rating || null,
@@ -1368,7 +1382,8 @@ export default function Modify() {
       season_part: cmf.season_part || null,
       airing_type: cmf.airing_type || null,
       airing_status: cmf.airing_status || null,
-      watching_status: cmf.watching_status || "Might Watch",
+      watching_status:
+        cmf.watching_status || md("cartoon").watching_status,
       is_main: cmf.is_main || null,
       ep_total: cmf.ep_total !== "" ? parseInt(cmf.ep_total) : null,
       ep_fin: cmf.ep_fin !== "" ? parseInt(cmf.ep_fin) : null,
@@ -1517,7 +1532,8 @@ export default function Modify() {
       series_id: seriesId || null,
       region: cmgf.region || null,
       serialization_status: cmgf.serialization_status || null,
-      reading_status: cmgf.reading_status || "Might Read",
+      reading_status:
+        cmgf.reading_status || md("manga").reading_status,
       is_main: cmgf.is_main || null,
       vol_total: cmgf.vol_total !== "" ? parseInt(cmgf.vol_total) : null,
       vol_fin: cmgf.vol_fin !== "" ? parseInt(cmgf.vol_fin) : null,
@@ -1724,7 +1740,8 @@ export default function Modify() {
       version: cnvf.version || null,
       is_main: cnvf.is_main || null,
       serialization_status: cnvf.serialization_status || null,
-      reading_status: cnvf.reading_status || "Might Read",
+      reading_status:
+        cnvf.reading_status || md("novel").reading_status,
       progress_display: cnvf.progress_display || null,
       vol_total_original: cnvf.vol_total_original !== "" ? parseFloat(cnvf.vol_total_original) : null,
       vol_total_tw: cnvf.vol_total_tw !== "" ? parseFloat(cnvf.vol_total_tw) : null,

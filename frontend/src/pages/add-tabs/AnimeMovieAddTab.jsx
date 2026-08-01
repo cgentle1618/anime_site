@@ -7,50 +7,87 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getOptions } from "../../utils/media";
+import { getDisplayName, getOptions } from "../../utils/media";
+import {
+  AIRING_STATUSES,
+  MY_RATINGS,
+  WATCHING_STATUSES,
+} from "../../config/fieldOptions";
 
-export const defaultAnimeMovie = () => ({
-  anime_movie_name_en: "",
-  anime_movie_name_cn: "",
-  anime_movie_name_roman: "",
-  anime_movie_name_jp: "",
-  anime_movie_name_alt: "",
-  franchise_id: null,
-  franchise_text: "",
-  airing_status: "Not Yet Aired",
-  watching_status: "Might Watch",
-  my_rating: "",
-  mal_rating: "",
-  mal_rank: "",
-  anilist_rating: "",
-  release_date_jp: "",
-  release_date_tw: "",
-  length_min: "",
-  studio: "",
-  director: "",
-  mal_id: "",
-  mal_link: "",
-  anilist_link: "",
-  official_link: "",
-  twitter_link: "",
-  source_baha: "",
-  baha_link: "",
-  source_netflix: "",
-  source_other: [],
-  watch_next: false,
-  to_rewatch: false,
-  cover_image_file: "",
-  remark: "",
-});
+export { defaultAnimeMovie } from "../../config/formFactories";
 
 export default function AnimeMovieAddTab({
   amf,
   uam,
+  amFillQuery,
+  setAmFillQuery,
+  amFillOpen,
+  setAmFillOpen,
+  amFillRef,
+  amFillResults,
+  applyAnimeMovieAutofill,
+  allFranchises,
   franchiseItems,
   allOptions,
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+      {/* Auto-fill search */}
+      <div ref={amFillRef} className="relative mb-4">
+        <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+          <i className="fas fa-magic text-brand text-sm"></i>
+          <input
+            type="text"
+            value={amFillQuery}
+            onChange={(e) => {
+              setAmFillQuery(e.target.value);
+              setAmFillOpen(true);
+            }}
+            onFocus={() => setAmFillOpen(true)}
+            placeholder="Auto-fill from existing entry — type a name to search..."
+            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+            autoComplete="off"
+          />
+          {amFillQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setAmFillQuery("");
+                setAmFillOpen(false);
+              }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <i className="fas fa-times text-xs"></i>
+            </button>
+          )}
+        </div>
+        {amFillOpen && amFillResults.length > 0 && (
+          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+            {amFillResults.map((m) => {
+              const f = allFranchises.find(
+                (x) => x.system_id === m.franchise_id,
+              );
+              return (
+                <button
+                  key={m.system_id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyAnimeMovieAutofill(m)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                >
+                  <div className="text-sm font-bold text-gray-800">
+                    {m.anime_movie_name_cn || m.anime_movie_name_en}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {f ? getDisplayName(f, "franchise") : "Standalone"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <SectionHeader icon="fa-film" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox
@@ -125,7 +162,7 @@ export default function AnimeMovieAddTab({
             onChange={(e) => uam("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -138,18 +175,7 @@ export default function AnimeMovieAddTab({
             value={amf.watching_status}
             onChange={(e) => uam("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -163,7 +189,7 @@ export default function AnimeMovieAddTab({
             onChange={(e) => uam("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

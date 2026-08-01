@@ -7,38 +7,15 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
+import {
+  AIRING_STATUSES,
+  IS_MAIN,
+  MY_RATINGS,
+  TV_REGIONS,
+  WATCHING_STATUSES,
+} from "../../config/fieldOptions";
 
-export const defaultTvShow = () => ({
-  tv_name_en: "",
-  tv_name_cn: "",
-  tv_name_alt: "",
-  franchise_id: null,
-  franchise_text: "",
-  series_id: null,
-  series_text: "",
-  season_part: "Season 1",
-  region: "歐美劇",
-  source_official: "",
-  is_main: "",
-  airing_status: "Not Yet Aired",
-  watching_status: "Might Watch",
-  ep_total: "",
-  ep_fin: "",
-  my_rating: "",
-  imdb_rating: "",
-  release_date: "",
-  prequel_id: null,
-  sequel_id: null,
-  watch_order: "",
-  derive_related: "",
-  imdb_id: "",
-  imdb_link: "",
-  source_other: [],
-  watch_next: false,
-  to_rewatch: false,
-  cover_image_file: "",
-  remark: "",
-});
+export { defaultTvShow } from "../../config/formFactories";
 
 export default function TvShowAddTab({
   tvf,
@@ -219,7 +196,7 @@ export default function TvShowAddTab({
             onChange={(e) => utf("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -232,18 +209,7 @@ export default function TvShowAddTab({
             value={tvf.watching_status}
             onChange={(e) => utf("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -257,7 +223,7 @@ export default function TvShowAddTab({
             onChange={(e) => utf("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -291,7 +257,7 @@ export default function TvShowAddTab({
             onChange={(e) => utf("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -345,7 +311,7 @@ export default function TvShowAddTab({
             onChange={(e) => utf("region", e.target.value)}
           >
             <option value="">—</option>
-            {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map((v) => (
+            {TV_REGIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

@@ -6,18 +6,13 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import {
+  FRANCHISE_EXPECTATIONS,
+  FRANCHISE_TYPES,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
-export const defaultFranchise = () => ({
-  franchise_name_en: "",
-  franchise_name_cn: "",
-  franchise_name_roman: "",
-  franchise_name_jp: "",
-  franchise_name_alt: "",
-  franchise_type: "",
-  my_rating: "",
-  franchise_expectation: "",
-  remark: "",
-});
+export { defaultFranchise } from "../../config/formFactories";
 
 export default function FranchiseAddTab({ ff, uf }) {
   return (
@@ -66,7 +61,7 @@ export default function FranchiseAddTab({ ff, uf }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
-            {["ACG", "Anime Movie", "TV", "Movie", "Cartoon", "Novel"].map(
+            {FRANCHISE_TYPES.map(
               (v) => {
                 const types = parseTypes(ff.franchise_type);
                 const checked = types.includes(v);
@@ -100,7 +95,7 @@ export default function FranchiseAddTab({ ff, uf }) {
             onChange={(e) => uf("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -114,7 +109,7 @@ export default function FranchiseAddTab({ ff, uf }) {
             onChange={(e) => uf("franchise_expectation", e.target.value)}
           >
             <option value="">—</option>
-            {["Highest", "High", "Medium", "Low"].map((v) => (
+            {FRANCHISE_EXPECTATIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

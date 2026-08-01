@@ -180,7 +180,7 @@ export default function MangaModifyTab({
         <Field label="Reading Status">
           <select
             className={selectCls}
-            value={cmgf.reading_status || "Might Read"}
+            value={cmgf.reading_status}
             onChange={(e) => umg("reading_status", e.target.value)}
           >
             {[

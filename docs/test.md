@@ -1,6 +1,11 @@
 # Testing Strategy
 
-> **Status (as of 2026-04-27):** Tiers 1 and part of Tier 3 are implemented. Tiers 4–7 and most of Tier 3 are planned but not yet written. See the directory layout below — files marked _(planned)_ do not exist yet.
+> **Status (as of 2026-08-01):** Tiers 1, part of Tier 2, and part of Tier 3 are implemented. Tiers 4–7 and the rest of Tier 3 are planned but not yet written. See the directory layout below — files marked _(planned)_ do not exist yet.
+>
+> Two failures predate the current work and are unrelated to it:
+> `tests/unit/test_jikan_utils.py::test_full_response_mapped_correctly` (expects
+> `release_year == "2023"`, gets `None`) and `frontend/src/utils/anime.test.js`
+> (imports `./anime.js`, which does not exist — the utilities moved to `lib/`).
 
 This document is the canonical reference for the CG1618 Media Tracker test suite. Tests are organized in a pyramid from fast, isolated unit tests up through full end-to-end flows.
 
@@ -55,6 +60,7 @@ tests/                          ← backend tests
     test_franchise.py
     test_complete_endpoints.py  ← /complete mark-completed endpoints
     test_media_crud.py          ← CRUD smoke tests for the 5 factory-built media routers
+    test_form_defaults.py       ← /api/form-defaults auth, upsert, validation, reset
     test_series.py              (planned)
     test_anime.py               (planned)
     test_anime_movie.py         (planned)
@@ -69,6 +75,9 @@ tests/                          ← backend tests
 
 frontend/src/
   utils/anime.test.js           ← getDisplayName, getNextStatus, getCoverUrl, etc.  (planned)
+  lib/autofill.test.js          ← buildAutofillPatch parity with the old per-type handlers
+  hooks/useFormDefaults.test.js ← resolveDefaults / coerceToShape / autofillFields
+  api/endpoints.test.js         ← endpoint URL builders
   components/
     AnimeCard.test.jsx          (planned)
     ProtectedRoute.test.jsx     (planned)
@@ -129,6 +138,26 @@ Tests for pure utility functions in `frontend/src/utils/anime.js`.
 
 **Setup**: `vitest.config.js` with `environment: "jsdom"`; `src/test-setup.js` imports `@testing-library/jest-dom`.
 
+### `frontend/src/lib/autofill.test.js`
+
+Pins the refactor that replaced six hardcoded `applyXAutofill` functions in `Add.jsx` with
+one registry-driven helper. Each expected object is the literal output of the function it
+replaced, so a behavior change fails the test rather than shipping silently.
+
+- Per-type parity: anime, cartoon, manga, novel, tv-show, movie field sets
+- Franchise/series `_id` + display-name `_text` resolved together
+- `derive_related` boolean → `"true"` / `"false"` / `""`
+- Movie `airing_status` falls back to the configured default (was a pinned literal)
+- Configured `[]` copies nothing; unknown keys ignored; boolean flags coerced
+
+### `frontend/src/hooks/useFormDefaults.test.js`
+
+- `resolveDefaults` with no config deep-equals the factory output
+- Overrides apply field-by-field; untouched fields keep built-ins
+- Stale stored keys dropped; key set always matches the factory
+- Coercion: `12` → `"12"`, `"yes"` → `true`, `null` → `""`, FK fields stay `null`
+- `autofillFields`: `null` → built-in set, `[]` → empty, list → list
+
 ### `frontend/src/utils/anime.test.js`
 
 - `getDisplayName`: CN → EN → Alt → Roman → JP fallback chain; all null → `""`
@@ -175,6 +204,20 @@ Test the full HTTP request → response cycle with an in-memory SQLite DB. No ex
 - `PATCH` +1 reaching `ep_total` → `watching_status` auto-set to `"Completed"`
 - `GET ?airing_season=WIN+2025` → filtered results
 - All responses include `cum_ep_fin` and `cum_ep_total`
+
+### `tests/api/test_form_defaults.py`
+
+- Auth matrix: every method → `401` for a guest (reads are admin-only here, unlike announcements)
+- Unconfigured type → `200` with an empty payload, never `404`
+- `PUT` → `GET` round-trips; storage stays sparse (only overridden keys persisted)
+- `PUT` twice → upsert, a single `system_configs` row
+- `autofill: []` preserved as "copy nothing" (not collapsed to null/built-in)
+- Validation: unknown media type → `400`; nested-object value, non-string list item,
+  bad key format, and >200 keys → `422`; >32 KB payload → `400`
+- `DELETE` removes the row and is idempotent
+- A row with unparseable JSON reads as unconfigured, never a `500`
+- `form_defaults:` keys do not leak into `GET /api/announcements/` — both features share
+  `system_configs`, so this guards the one real risk of that decision
 
 ### Other routers
 

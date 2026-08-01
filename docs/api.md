@@ -25,6 +25,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
+- [Form Defaults — `/api/form-defaults`](#form-defaults--apiform-defaults)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
 - [System — `/api/system`](#system--apisystem)
 
@@ -229,6 +230,53 @@ Dashboard "Announcement & Notes" board. Each note is one `system_configs` row ke
 
 Titles travel in the body or query string, never the path — free-text titles may contain `/`.
 Empty titles/bodies and titles over 120 chars are rejected with 400.
+
+---
+
+## Form Defaults — `/api/form-defaults`
+
+Backs the admin **Form Defaults** page (`/defaults`). Per media type it stores the
+initial value of each Add-form field and which fields auto-fill copies. Like
+announcements, it reuses `system_configs` — one row per media type, keyed
+`form_defaults:<media_type>`, with a JSON blob as `config_value`. No dedicated table.
+
+`media_type` is one of the nine `MEDIA_CONFIG` slugs (`anime`, `anime-movie`, `movie`,
+`tv-show`, `cartoon`, `manga`, `novel`, `franchise`, `series`); anything else is 400.
+
+| Method   | Path            | Auth  | Description                                                                     |
+| -------- | --------------- | ----- | ------------------------------------------------------------------------------- |
+| `GET`    | `/`             | Admin | All configured types, keyed by media type. Unconfigured types are omitted.       |
+| `GET`    | `/{media_type}` | Admin | One type. Unconfigured returns **200 with an empty payload**, never 404.         |
+| `PUT`    | `/{media_type}` | Admin | Full-replacement upsert. Body: `FormDefaultsPayload`.                            |
+| `DELETE` | `/{media_type}` | Admin | Reset to built-in values (deletes the row). Idempotent — missing row still 200.  |
+
+**Response model:** `FormDefaultsResponse` (`FormDefaultsPayload` + `media_type`)
+
+**Payload shape:**
+
+```json
+{
+  "version": 1,
+  "defaults": { "watching_status": "Plan to Watch", "ep_total": "12" },
+  "autofill": ["anime_name_en", "franchise_id", "studio"]
+}
+```
+
+- `defaults` is **sparse** — only fields the admin overrode. An absent key means "use the
+  frontend's built-in factory value", which is what makes per-field revert a key deletion.
+- `autofill` is **null-or-complete**. `null`/omitted → use the built-in field set; `[]`
+  genuinely means "copy nothing". The two are not interchangeable.
+- Values mirror **frontend form-state** types, not DB column types — numbers are stored as
+  strings, checkboxes as booleans.
+
+**Validation.** Shape and size only: value types limited to string/number/bool/null/string-list,
+≤200 keys, keys matching `^[a-z0-9_]+$` and ≤64 chars, serialized JSON ≤32 KB. The router
+deliberately does **not** mirror the ~280 form field names — that list lives in
+`frontend/src/config/formFactories.js`, and duplicating it in Python would guarantee drift.
+The frontend's `resolveDefaults()` drops stored keys it no longer recognizes on read.
+
+Unlike announcements, reads are admin-only: there is no guest surface for form config.
+A row whose JSON fails to parse is logged and treated as unconfigured, never a 500.
 
 **Response model:** `AnnouncementResponse` (`{title, body}`)
 

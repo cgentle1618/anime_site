@@ -17,6 +17,7 @@ Design-level components used across multiple pages. Items marked _(future)_ are 
 - [Icons](#icons)
 - [Rating Distribution Block](#rating-distribution-block)
 - [Entry Detail Elements](#entry-detail-elements)
+- [Form Configuration](#form-configuration)
 - [Other](#other)
 
 ---
@@ -1000,6 +1001,75 @@ buildAnimePayload(af, { franchiseId, seriesId, notes } = {}) → object
 
 - `franchiseId` / `seriesId` — resolved entity IDs (may be newly created); override `af.franchise_id` / `af.series_id` when provided.
 - `notes` — defaults to `null`; Modify page passes the structured notes object.
+
+---
+
+## Form Configuration
+
+The shared machinery behind the Add / Modify forms and the `/defaults` page. See
+[admin-forms.md](admin-forms.md#where-defaults-come-from) for how these fit together.
+
+### `config/formFactories.js`
+
+The nine `defaultX()` blank-form factories (`defaultAnime`, `defaultMovie`, …), plus
+`FORM_FACTORIES` keyed by media-type slug. These are the **built-in baseline** for every
+form field. They live in `config/` rather than in the add-tab components so the registry
+can derive field keys from them without importing page JSX; each add-tab re-exports its
+own factory, so existing imports still work.
+
+### `config/fieldOptions.js`
+
+The canonical dropdown vocabularies (`AIRING_STATUSES`, `WATCHING_STATUSES`,
+`READING_STATUSES`, `IS_MAIN`, `MY_RATINGS`, the region/type/serialization lists, …),
+previously duplicated as inline literals across every add-tab and modify-tab. The
+`/defaults` selects must offer exactly the values the Add form can display, which is why
+these had to be centralized. Add-tabs import from here; modify-tabs still hold copies.
+
+### `config/formFields/`
+
+`fieldMeta.js` — hand-authored presentation metadata (`label`, `control`, `options` /
+`optionsCategory`, `group`, `defaultable`, `autofillable`, `lookup`, `coerce`), split into
+`COMMON_FIELD_META` (fields shared across types) and `TYPE_FIELD_META` (per-type). Also
+exports `BUILTIN_AUTOFILL` (the default auto-fill field set per type) and `GROUP_ORDER`.
+
+`index.js` — `getFieldRegistry(type)` (all visible fields, in factory order),
+`getFieldMap(type)` (same, keyed), `getFieldGroups(type)` (bucketed into sections),
+plus `humanize()` and `inferControl()`. Keys always come from the factory, so they cannot
+be mistyped, and metadata pointing at a nonexistent field warns in dev.
+
+### `hooks/useFormDefaults.js`
+
+```js
+resolveDefaults(type, config) → form object   // built-ins + sparse overrides
+autofillFields(type, config)  → string[]      // configured list, or the built-in set
+coerceToShape(builtIn, value) → value         // match the factory value's type
+fetchFormDefaults()           → Promise<obj>  // never throws; {} on failure
+```
+
+`resolveDefaults` is also the sanitization layer — it drops stored keys that no longer
+exist on the form, so the backend can validate shape without mirroring ~280 field names.
+
+### `lib/autofill.js`
+
+```js
+buildAutofillPatch(source, type, fieldKeys, { allFranchises, allSeries, defaults })
+  → partial form object
+```
+
+Drives all seven Add-tab auto-fill searches. Handles franchise/series `_id` + `_text`
+pair resolution, boolean→tristate coercion for `derive_related`, boolean/array coercion,
+and the `autofillFallback: "default"` marker (currently only Movie's `airing_status`).
+
+### `components/forms/DefaultValueControl.jsx`
+
+Renders one field's default-value editor on `/defaults`, switching on the registry's
+`control`. `value === undefined` means "not overridden" and shows the built-in as ghost
+text. Also exports `describeBuiltIn(field)` for that ghost label.
+
+### `config/adminTabs.js`
+
+`ADMIN_TABS` (the ten Add tabs), `FORM_TABS` (the nine backed by a form factory), and
+`withVerb(tabs, verb)`. Shared by Add and Form Defaults so their tab lists can't drift.
 
 ---
 

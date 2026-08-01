@@ -149,7 +149,7 @@ export default function CartoonModifyTab({
         <Field label="Watching Status">
           <select
             className={selectCls}
-            value={cmf.watching_status || "Might Watch"}
+            value={cmf.watching_status}
             onChange={(e) => uc("watching_status", e.target.value)}
           >
             {[

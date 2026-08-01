@@ -1,10 +1,23 @@
 """System-support schemas (options, config, seasonal, logs, deleted records)."""
 
+import re
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+
+MAX_FIELD_COUNT = 200
+MAX_FIELD_KEY_LENGTH = 64
+_FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def _check_field_key(key: str) -> None:
+    """Rejects form-field keys that could not have come from a form factory."""
+    if len(key) > MAX_FIELD_KEY_LENGTH:
+        raise ValueError(f"Field key '{key[:20]}...' is too long.")
+    if not _FIELD_KEY_RE.match(key):
+        raise ValueError(f"Invalid field key '{key}'.")
 
 
 class SystemOptionBase(BaseModel):
@@ -49,6 +62,54 @@ class AnnouncementUpdate(AnnouncementBase):
 
 class AnnouncementResponse(AnnouncementBase):
     pass
+
+
+class FormDefaultsPayload(BaseModel):
+    """Admin-configured Add/Modify form behavior for one media type.
+
+    Stored in system_configs as 'form_defaults:<media_type>'. `defaults` is a
+    SPARSE per-field override map — an absent key means "use the frontend's
+    built-in factory value". `autofill` is null-or-complete: null means "use the
+    built-in autofill field list", while [] genuinely means "copy nothing".
+
+    Values mirror FRONTEND FORM-STATE types, not DB column types (numbers are
+    stored as strings, multi-selects as string lists). Field keys are validated
+    for shape only — the authoritative key list lives in the JS form factories,
+    and the frontend drops keys it does not recognize on read.
+    """
+
+    version: int = 1
+    defaults: Dict[str, Any] = {}
+    autofill: Optional[List[str]] = None
+
+    @field_validator("defaults")
+    @classmethod
+    def _check_defaults(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        if len(v) > MAX_FIELD_COUNT:
+            raise ValueError(f"Cannot configure more than {MAX_FIELD_COUNT} fields.")
+        for key, value in v.items():
+            _check_field_key(key)
+            if isinstance(value, list):
+                if not all(isinstance(item, str) for item in value):
+                    raise ValueError(f"List value for '{key}' must contain only strings.")
+            elif not isinstance(value, (str, int, float, bool)) and value is not None:
+                raise ValueError(f"Unsupported value type for field '{key}'.")
+        return v
+
+    @field_validator("autofill")
+    @classmethod
+    def _check_autofill(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        if len(v) > MAX_FIELD_COUNT:
+            raise ValueError(f"Cannot autofill more than {MAX_FIELD_COUNT} fields.")
+        for key in v:
+            _check_field_key(key)
+        return v
+
+
+class FormDefaultsResponse(FormDefaultsPayload):
+    media_type: str
 
 
 class SeasonalBase(BaseModel):

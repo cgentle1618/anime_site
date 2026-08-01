@@ -2,14 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 
-export const defaultSeries = () => ({
-  franchise_id: null,
-  franchise_text: "",
-  series_name_en: "",
-  series_name_cn: "",
-  series_name_alt: "",
-  remark: "",
-});
+export { defaultSeries } from "../../config/formFactories";
 
 export default function SeriesAddTab({ sf, us, franchiseItems }) {
   return (

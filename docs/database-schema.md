@@ -853,9 +853,19 @@ Persistent global application settings stored as key-value pairs.
 
 **Known keys:**
 
-| Key              | Example Value | Purpose                                      |
-| ---------------- | ------------- | -------------------------------------------- |
-| `current_season` | `"2025 SPR"`  | Drives current-season highlighting in the UI |
+| Key                          | Example Value                    | Purpose                                                          |
+| ---------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| `current_season`             | `"2025 SPR"`                     | Drives current-season highlighting in the UI                     |
+| `announcement:<title>`       | the note body                    | One dashboard announcement per row (`/api/announcements`)        |
+| `form_defaults:<media_type>` | JSON `{version, defaults, autofill}` | Add-form defaults + auto-fill field set (`/api/form-defaults`) |
+
+Two features namespace themselves with a key prefix rather than taking their own
+table. Anything scanning this table with `LIKE` must use its own prefix — a bare
+scan will pick up rows belonging to the other features.
+
+`form_defaults:<media_type>` holds a **sparse** override map: only fields the admin
+actually changed are present, so the frontend's built-in factory values remain the
+baseline. See [api.md](api.md#form-defaults--apiform-defaults) for the payload shape.
 
 ---
 

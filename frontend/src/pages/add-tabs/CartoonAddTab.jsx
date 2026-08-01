@@ -7,39 +7,15 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
+import {
+  AIRING_STATUSES,
+  CARTOON_AIRING_TYPES,
+  IS_MAIN,
+  MY_RATINGS,
+  WATCHING_STATUSES,
+} from "../../config/fieldOptions";
 
-export const defaultCartoon = () => ({
-  cartoon_name_en: "",
-  cartoon_name_cn: "",
-  cartoon_name_alt: "",
-  franchise_id: null,
-  franchise_text: "",
-  series_id: null,
-  series_text: "",
-  season_part: "",
-  airing_type: "TV",
-  airing_status: "Not Yet Aired",
-  watching_status: "Might Watch",
-  is_main: "本傳",
-  ep_total: "",
-  ep_fin: "",
-  my_rating: "",
-  imdb_rating: "",
-  length_ep_min: "",
-  source_official: "",
-  release_date: "",
-  prequel_id: null,
-  sequel_id: null,
-  watch_order: "",
-  derive_related: "",
-  imdb_id: "",
-  imdb_link: "",
-  source_other: [],
-  watch_next: false,
-  to_rewatch: false,
-  cover_image_file: "",
-  remark: "",
-});
+export { defaultCartoon } from "../../config/formFactories";
 
 export default function CartoonAddTab({
   cf,
@@ -220,7 +196,7 @@ export default function CartoonAddTab({
             onChange={(e) => uc("airing_type", e.target.value)}
           >
             <option value="">—</option>
-            {["TV", "Movie", "OVA", "Special"].map((v) => (
+            {CARTOON_AIRING_TYPES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -234,7 +210,7 @@ export default function CartoonAddTab({
             onChange={(e) => uc("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -247,18 +223,7 @@ export default function CartoonAddTab({
             value={cf.watching_status}
             onChange={(e) => uc("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -274,7 +239,7 @@ export default function CartoonAddTab({
             onChange={(e) => uc("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -308,7 +273,7 @@ export default function CartoonAddTab({
             onChange={(e) => uc("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

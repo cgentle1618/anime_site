@@ -38,6 +38,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/add`                    | `Add`                                              | Admin only |
 | `/modify`                 | `Modify`                                           | Admin only |
 | `/delete`                 | `Delete`                                           | Admin only |
+| `/defaults`               | `FormDefaults`                                     | Admin only |
 
 Admin routes are wrapped by `ProtectedRoute`, which redirects unauthenticated users to `/login?next=<path>`.
 
@@ -63,7 +64,7 @@ Shell rendered for every route. Contains:
   - Reality _(franchise_type="TV or Movie" only)_ → Franchise Library, TV Show Library, Movie Library
   - Cartoon → Cartoon Library
   - More → Plan, Statistics, Completions, Future Release, Seasonal
-  - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry
+  - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry, Form Defaults (/defaults)
 - **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
 - **Login / Logout button**
@@ -1180,7 +1181,12 @@ Admin review queue for entries requiring attention.
 
 Multi-tab form for creating new records. Shows most recently added entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`, `/api/form-defaults/`
+
+The per-field defaults noted below are the **built-in** values from
+`frontend/src/config/formFactories.js`. Any of them can be overridden per media type
+on [Form Defaults](#form-defaults-defaults); what a tab actually opens with is the
+factory value with the admin's overrides layered on top.
 
 #### Add New Anime Entry Tab (default)
 
@@ -1473,6 +1479,43 @@ Deletes: `DELETE /api/manga/:id`
 - If only entry in franchise: offer to delete franchise or keep it (show franchise name CN with fallback + entry counts per media type)
 
 Deletes: `DELETE /api/novel/:id`
+
+---
+
+### Form Defaults (`/defaults`)
+
+**File:** `frontend/src/pages/admin/FormDefaults.jsx`
+
+Configures what the Add form starts with, and what auto-fill copies, per media type.
+Nine tabs (every Add tab except System Options), all rendered by a **single** generic
+component — `pages/defaults-tabs/DefaultsTab.jsx` — because the layout is driven by the
+field registry rather than hand-written per-type markup.
+
+**Data loaded:** `GET /api/form-defaults/`, `GET /api/options/`
+
+Each tab lists every field of that media type's form, grouped into sections
+(Names, Relations, Classification, Status, Progress, …), with three columns per row:
+
+| Column          | Behavior                                                                                     |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| Label + key     | Human label from the registry, plus the raw field key underneath                              |
+| Default value   | The same control type the Add form uses. Un-overridden fields show `built-in: <value>` ghost text; a `↺` button appears once a field is overridden and clears it |
+| Auto-fill       | Checkbox controlling whether auto-fill copies this field. Per-section select-all / none       |
+
+**Footer (sticky):** count of overridden and auto-filled fields, an unsaved-changes
+indicator, **Reset tab to built-in** (`DELETE`, behind a confirm), and **Save** (`PUT`,
+disabled unless dirty). Unsaved tabs are marked with an amber dot in the tab bar.
+
+**Behavior notes:**
+
+- Drafts are held per tab, so switching tabs never discards edits. A `beforeunload`
+  guard fires while anything is unsaved.
+- Only overridden fields are saved — the stored payload is sparse.
+- Fields with no meaningful default (`franchise_id`, `series_id`, `source_other`,
+  `cover_image_file`, the per-volume novel name lists) show "No default for this field"
+  but still expose the auto-fill checkbox where that makes sense.
+- Saving while `/add` is already open does not hot-update it; Add re-reads the config on
+  its next mount.
 
 ---
 

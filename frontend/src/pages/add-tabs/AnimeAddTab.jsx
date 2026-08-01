@@ -9,66 +9,19 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, getOptions } from "../../utils/media";
 import { WEEKDAYS } from "../../config/weekdays";
+import {
+  AIRING_STATUSES,
+  ANIME_AIRING_TYPES,
+  IS_MAIN,
+  MY_RATINGS,
+  PART_NUMS,
+  RELEASE_MONTHS,
+  RELEASE_SEASONS,
+  SEASON_NUMS,
+  WATCHING_STATUSES,
+} from "../../config/fieldOptions";
 
-export const defaultAnime = () => ({
-  anime_name_en: "",
-  anime_name_cn: "",
-  anime_name_roman: "",
-  anime_name_jp: "",
-  anime_name_alt: "",
-  franchise_id: null,
-  franchise_text: "",
-  series_id: null,
-  series_text: "",
-  season_num: "",
-  part_num: "",
-  airing_type: "",
-  airing_status: "Not Yet Aired",
-  watching_status: "Might Watch",
-  is_main: "本傳",
-  ep_previous: "",
-  ep_total: "",
-  ep_fin: "",
-  ep_special: "",
-  my_rating: "",
-  mal_rating: "",
-  mal_rank: "",
-  anilist_rating: "",
-  release_season: "",
-  release_month: "",
-  release_year: "",
-  broadcast_day: "",
-  broadcast_time: "",
-  my_watch_day: "",
-  genre_main: "",
-  genre_sub: "",
-  studio: "",
-  director: "",
-  producer: "",
-  music: "",
-  distributor_tw: "",
-  prequel_id: null,
-  sequel_id: null,
-  alternative: "",
-  is_main_entry: false,
-  watch_order: "",
-  derive_related: "",
-  mal_id: "",
-  mal_link: "",
-  anilist_link: "",
-  official_link: "",
-  twitter_link: "",
-  source_baha: "",
-  baha_link: "",
-  source_netflix: "",
-  source_other: [],
-  op: "",
-  ed: "",
-  insert_ost: "",
-  seiyuu: "",
-  cover_image_file: "",
-  remark: "",
-});
+export { defaultAnime } from "../../config/formFactories";
 
 export default function AnimeAddTab({
   af,
@@ -244,7 +197,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("season_num", e.target.value)}
           >
             <option value="">—</option>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+            {SEASON_NUMS.map((n) => (
               <option key={n} value={n}>
                 Season {n}
               </option>
@@ -258,7 +211,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("part_num", e.target.value)}
           >
             <option value="">—</option>
-            {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
+            {PART_NUMS.map((n) => (
               <option key={n} value={n}>
                 Part {n}
               </option>
@@ -276,7 +229,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -289,18 +242,7 @@ export default function AnimeAddTab({
             value={af.watching_status}
             onChange={(e) => ua("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -314,7 +256,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -443,7 +385,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("airing_type", e.target.value)}
           >
             <option value="">—</option>
-            {["TV", "Movie", "ONA", "OVA", "OAD", "Special", "Other"].map(
+            {ANIME_AIRING_TYPES.map(
               (v) => (
                 <option key={v} value={v}>
                   {v}
@@ -459,7 +401,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -495,7 +437,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("release_season", e.target.value)}
           >
             <option value="">—</option>
-            {["WIN", "SPR", "SUM", "FAL"].map((v) => (
+            {RELEASE_SEASONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -509,20 +451,7 @@ export default function AnimeAddTab({
             onChange={(e) => ua("release_month", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "JAN",
-              "FEB",
-              "MAR",
-              "APR",
-              "MAY",
-              "JUN",
-              "JUL",
-              "AUG",
-              "SEP",
-              "OCT",
-              "NOV",
-              "DEC",
-            ].map((v) => (
+            {RELEASE_MONTHS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

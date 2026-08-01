@@ -4,6 +4,87 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 
 ---
 
+## Where Defaults Come From
+
+Every Add-form field has a **built-in** blank value defined in
+`frontend/src/config/formFactories.js` (one `defaultX()` factory per media type). An
+admin can override any of them per media type on the [Form Defaults](#form-defaults-page)
+page; overrides are stored sparsely, so a field the admin never touched keeps its
+built-in value forever.
+
+The resolution chain, in `frontend/src/hooks/useFormDefaults.js`:
+
+```
+defaultX()  →  overlay config.defaults  →  coerceToShape  →  form state
+ (built-in)     (only overridden keys)     (match the factory value's type)
+```
+
+**Governing rule: configured defaults apply to newly created entries and as
+fallbacks for NULL values. Changing a default never rewrites an existing row.**
+`/defaults` is a form-behavior setting, not a bulk-edit tool.
+
+Three places consume the resolved values:
+
+1. **Add** seeds all nine forms from them at mount, and resets to them after each
+   successful submit. Because the page renders a spinner until its bulk load
+   resolves, the form's first paint already has the configured values — there is no
+   flash and no risk of clobbering something the admin typed.
+2. **Add / Modify submit** uses them as the last-resort fallback if the admin blanks
+   a status select (`watching_status || <resolved default>`).
+3. **Modify's entity→form mappers** use them when a saved entry has a NULL status, so
+   the editor shows the configured default rather than an empty select. Modify holds
+   the config in a **ref**, not state, because the deep-link path (`/modify?id=…`)
+   opens an editor from inside the load effect, before a state update would flush.
+
+If the `/api/form-defaults/` fetch fails, it resolves to `{}` and every form falls
+back to its built-ins — behavior identical to before the feature existed. The fetch is
+guarded separately from the rest of the bulk load for exactly this reason.
+
+---
+
+## Auto-Fill From Existing Entry
+
+Each Add tab has a search bar that copies fields from an existing entry into the form.
+One shared helper — `frontend/src/lib/autofill.js` `buildAutofillPatch()` — drives all
+seven, replacing what used to be six near-duplicate functions with divergent hardcoded
+field lists.
+
+- **Which fields are copied** comes from the admin's configuration, falling back to
+  `BUILTIN_AUTOFILL` in `config/formFields/fieldMeta.js` (the historical per-type sets,
+  preserved verbatim). A configured `[]` genuinely means "copy nothing".
+- **The patch is merged**, not assigned: `setX(p => ({...p, ...patch}))`, so fields
+  outside the list keep whatever the form already had.
+- **Franchise / series** resolve their `_id` and display-name `_text` fields together
+  from one registry entry — copying the id alone would leave the ComboBox blank.
+- **`derive_related`** is a real boolean in the DB but a `"true"`/`"false"`/`""` select
+  in the form, so it is coerced on the way in.
+- **Movie's `airing_status`** falls back to the configured default when the source entry
+  has none. (It previously pinned a literal `"Not Yet Aired"`, which contradicted the
+  Movie tab's own `"Finished Airing"` default.)
+- Auto-fill copies the source entry's **title verbatim**, so the duplicate-name check on
+  submit will fire unless the admin edits the name first.
+
+---
+
+## Form Defaults Page
+
+`/defaults` — admin only. See [pages.md](pages.md#form-defaults-defaults) for the UI and
+[api.md](api.md#form-defaults--apiform-defaults) for the stored payload.
+
+The field list is **derived**, not hand-written: `config/formFields/index.js`
+`getFieldRegistry(type)` walks `Object.keys(defaultX())` and merges in presentation
+metadata from `fieldMeta.js`. A field with no metadata still appears, with a humanized
+label and a control inferred from its blank value. This means a field added to a form
+shows up on `/defaults` automatically, and a metadata entry whose field no longer exists
+is dropped with a dev-mode warning — drift is impossible in either direction.
+
+Fields marked `defaultable: false` (`franchise_id`, `series_id`, `source_other`,
+`cover_image_file`, `novel_name_each_*`) accept no default: they are entity pickers or
+repeatable sub-record editors where a fixed starting value is meaningless. Most still
+expose the auto-fill checkbox.
+
+---
+
 ## Add Page
 
 ### General Field Interactions
@@ -59,6 +140,10 @@ This document describes the frontend interaction logic for the Add, Modify, and 
 ---
 
 ### Add Anime Movie Entry Tab
+
+**Auto-fill** — searches existing anime movies by any of the five name fields and copies
+names, franchise, studio, and director. (This tab had no auto-fill before; it was the
+only media type missing one.)
 
 **Franchise field**
 

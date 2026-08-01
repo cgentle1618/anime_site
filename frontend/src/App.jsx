@@ -40,6 +40,7 @@ import Admin from "./pages/admin/Admin";
 import Add from "./pages/admin/Add";
 import Modify from "./pages/admin/Modify";
 import Delete from "./pages/admin/Delete";
+import FormDefaults from "./pages/admin/FormDefaults";
 import DataHistory from "./pages/admin/DataHistory";
 import ReviewQueue from "./pages/admin/ReviewQueue";
 
@@ -115,6 +116,7 @@ export default function App() {
                   <Route path="/add" element={<Add />} />
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
+                  <Route path="/defaults" element={<FormDefaults />} />
                 </Route>
               </Route>
             </Routes>

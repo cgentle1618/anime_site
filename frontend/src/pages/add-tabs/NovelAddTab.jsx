@@ -9,74 +9,17 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
+import {
+  IS_MAIN,
+  MY_RATINGS,
+  NOVEL_REGIONS,
+  NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
+  NOVEL_TYPES,
+  PROGRESS_DISPLAY_OPTIONS,
+  READING_STATUSES,
+} from "../../config/fieldOptions";
 
-const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
-const SERIALIZATION_STATUSES = [
-  "連載中",
-  "連載中 (不穩定)",
-  "連載中 (有生之年)",
-  "停更",
-  "完結",
-  "腰斬",
-  "可能更多",
-  "未出",
-];
-const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL Original) —" },
-  { value: "ch", label: "CH (Chapters)" },
-  { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
-  { value: "vol_original", label: "VOL Original" },
-  { value: "arc_ch", label: "ARC + CH" },
-];
-
-export const defaultNovel = () => ({
-  novel_name_cn: "",
-  novel_name_en: "",
-  novel_name_roman: "",
-  novel_name_jp: "",
-  novel_name_alt: "",
-  franchise_id: null,
-  franchise_text: "",
-  series_id: null,
-  series_text: "",
-  region: "",
-  type: "",
-  version: "",
-  is_main: "本傳",
-  serialization_status: "",
-  reading_status: "Might Read",
-  progress_display: "",
-  vol_total_original: "",
-  vol_total_tw: "",
-  vol_fin: "",
-  arc_total: "",
-  arc_fin: "",
-  ch_total: "",
-  ch_fin: "",
-  my_rating: "",
-  mal_rating: "",
-  mal_rank: "",
-  anilist_rating: "",
-  author: "",
-  illustrator: "",
-  release_year: "",
-  end_year: "",
-  publisher_tw: "",
-  prequel_id: null,
-  sequel_id: null,
-  alternative: "",
-  read_order: "",
-  novel_name_each_cn: [],
-  novel_name_each_en: [],
-  mal_id: "",
-  mal_link: "",
-  anilist_link: "",
-  source_other: [],
-  read_next: false,
-  to_reread: false,
-  cover_image_file: "",
-  remark: "",
-});
+export { defaultNovel } from "../../config/formFactories";
 
 export default function NovelAddTab({
   nvf,
@@ -279,7 +222,7 @@ export default function NovelAddTab({
             onChange={(e) => unv("region", e.target.value)}
           >
             <option value="">—</option>
-            {["JP", "CN", "TW", "KR", "Western"].map((v) => (
+            {NOVEL_REGIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -307,7 +250,7 @@ export default function NovelAddTab({
             onChange={(e) => unv("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -346,17 +289,7 @@ export default function NovelAddTab({
             value={nvf.reading_status}
             onChange={(e) => unv("reading_status", e.target.value)}
           >
-            {[
-              "Might Read",
-              "Plan to Read",
-              "Active Reading",
-              "Passive Reading",
-              "Paused",
-              "Completed",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Read",
-            ].map((v) => (
+            {READING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -370,7 +303,7 @@ export default function NovelAddTab({
             onChange={(e) => unv("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

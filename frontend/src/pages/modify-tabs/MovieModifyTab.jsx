@@ -126,7 +126,7 @@ export default function MovieModifyTab({
         <Field label="Watching Status">
           <select
             className={selectCls}
-            value={mmf.watching_status || "Might Watch"}
+            value={mmf.watching_status}
             onChange={(e) => umm("watching_status", e.target.value)}
           >
             {[

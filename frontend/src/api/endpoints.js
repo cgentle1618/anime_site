@@ -56,6 +56,13 @@ export const endpoints = {
     remove: (title) => `/api/announcements/?title=${encodeURIComponent(title)}`,
   },
 
+  formDefaults: {
+    list: () => "/api/form-defaults/",
+    detail: (type) => `/api/form-defaults/${type}`,
+    update: (type) => `/api/form-defaults/${type}`,
+    reset: (type) => `/api/form-defaults/${type}`,
+  },
+
   system: {
     currentSeason: () => "/api/system/config/current_season",
     logs: () => "/api/system/logs",

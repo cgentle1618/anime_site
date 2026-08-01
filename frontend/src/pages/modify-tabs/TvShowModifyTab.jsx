@@ -147,7 +147,7 @@ export default function TvShowModifyTab({
         <Field label="Watching Status">
           <select
             className={selectCls}
-            value={tvmf.watching_status || "Might Watch"}
+            value={tvmf.watching_status}
             onChange={(e) => utv("watching_status", e.target.value)}
           >
             {[

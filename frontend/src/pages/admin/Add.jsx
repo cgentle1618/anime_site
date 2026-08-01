@@ -21,6 +21,13 @@ import AnimeMovieAddTab, {
   defaultAnimeMovie,
 } from "../add-tabs/AnimeMovieAddTab";
 import AnimeAddTab, { defaultAnime } from "../add-tabs/AnimeAddTab";
+import {
+  autofillFields,
+  fetchFormDefaults,
+  resolveDefaults,
+} from "../../hooks/useFormDefaults";
+import { buildAutofillPatch } from "../../lib/autofill";
+import { ADMIN_TABS, withVerb } from "../../config/adminTabs";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -35,6 +42,8 @@ export default function Add() {
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
+  // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
+  const [formDefaults, setFormDefaults] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -50,6 +59,11 @@ export default function Add() {
   const [cartoonFillQuery, setCartoonFillQuery] = useState("");
   const [cartoonFillOpen, setCartoonFillOpen] = useState(false);
   const cartoonFillRef = useRef(null);
+
+  // Anime Movie auto-fill search
+  const [amFillQuery, setAmFillQuery] = useState("");
+  const [amFillOpen, setAmFillOpen] = useState(false);
+  const amFillRef = useRef(null);
 
   // Movie auto-fill search
   const [movieFillQuery, setMovieFillQuery] = useState("");
@@ -99,6 +113,9 @@ export default function Add() {
   const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
 
+  // A blank form for `type` with the admin's configured defaults applied.
+  const freshForm = (type) => resolveDefaults(type, formDefaults);
+
   useEffect(() => {
     async function load() {
       try {
@@ -125,6 +142,9 @@ export default function Add() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
         ]);
+        // Guarded separately: a form-defaults failure must not break the page,
+        // it just means every form falls back to its built-in values.
+        const fd = await fetchFormDefaults();
         const [
           anime,
           franchises,
@@ -158,6 +178,20 @@ export default function Add() {
         setAllCartoons(cartoons);
         setAllMangas(mangas);
         setAllNovels(novels);
+
+        // Seed every form from the configured defaults. Safe to do here rather
+        // than in the useState initializers: the page renders a spinner until
+        // dataLoading flips, so the first paint of the form already has these.
+        setFormDefaults(fd);
+        setAf(resolveDefaults("anime", fd));
+        setAmf(resolveDefaults("anime-movie", fd));
+        setMf(resolveDefaults("movie", fd));
+        setTvf(resolveDefaults("tv-show", fd));
+        setCf(resolveDefaults("cartoon", fd));
+        setMgf(resolveDefaults("manga", fd));
+        setNvf(resolveDefaults("novel", fd));
+        setFf(resolveDefaults("franchise", fd));
+        setSf(resolveDefaults("series", fd));
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -180,6 +214,15 @@ export default function Add() {
     function handleClick(e) {
       if (cartoonFillRef.current && !cartoonFillRef.current.contains(e.target))
         setCartoonFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (amFillRef.current && !amFillRef.current.contains(e.target))
+        setAmFillOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -232,6 +275,20 @@ export default function Add() {
             a.anime_name_jp,
             a.anime_name_alt,
           ].some((n) => n && cleanString(n).includes(cleanString(fillQuery))),
+        )
+        .slice(0, 10)
+    : [];
+
+  const amFillResults = amFillQuery
+    ? allAnimeMovies
+        .filter((m) =>
+          [
+            m.anime_movie_name_en,
+            m.anime_movie_name_cn,
+            m.anime_movie_name_roman,
+            m.anime_movie_name_jp,
+            m.anime_movie_name_alt,
+          ].some((n) => n && cleanString(n).includes(cleanString(amFillQuery))),
         )
         .slice(0, 10)
     : [];
@@ -299,147 +356,58 @@ export default function Add() {
         .slice(0, 10)
     : [];
 
-  function applyCartoonAutofill(cartoon) {
-    const f = allFranchises.find((x) => x.system_id === cartoon.franchise_id);
-    const s = allSeries.find((x) => x.system_id === cartoon.series_id);
-    setCf((p) => ({
-      ...p,
-      cartoon_name_en: cartoon.cartoon_name_en || "",
-      cartoon_name_cn: cartoon.cartoon_name_cn || "",
-      cartoon_name_alt: cartoon.cartoon_name_alt || "",
-      franchise_id: cartoon.franchise_id || null,
-      franchise_text: f ? getDisplayName(f, "franchise") : "",
-      series_id: cartoon.series_id || null,
-      series_text: s ? getDisplayName(s, "series") : "",
-      airing_type: cartoon.airing_type || "",
-      is_main: cartoon.is_main || "",
-      source_official: cartoon.source_official || "",
-      season_part: cartoon.season_part || "",
-      derive_related:
-        cartoon.derive_related === true
-          ? "true"
-          : cartoon.derive_related === false
-            ? "false"
-            : "",
-      imdb_link: cartoon.imdb_link || "",
-    }));
-    setCartoonFillQuery("");
-    setCartoonFillOpen(false);
+  // One auto-fill handler per tab. Which fields get copied comes from the
+  // admin's /defaults configuration, falling back to the built-in field sets.
+  const makeApply = (setter, type, setQuery, setOpen) => (item) => {
+    const patch = buildAutofillPatch(
+      item,
+      type,
+      autofillFields(type, formDefaults),
+      { allFranchises, allSeries, defaults: freshForm(type) },
+    );
+    setter((p) => ({ ...p, ...patch }));
+    setQuery("");
+    setOpen(false);
     showToast("success", "Auto-filled fields from existing entry.");
-  }
+  };
 
-  function applyMangaAutofill(manga) {
-    const f = allFranchises.find((x) => x.system_id === manga.franchise_id);
-    const s = allSeries.find((x) => x.system_id === manga.series_id);
-    setMgf((p) => ({
-      ...p,
-      manga_name_cn: manga.manga_name_cn || "",
-      manga_name_en: manga.manga_name_en || "",
-      manga_name_roman: manga.manga_name_roman || "",
-      manga_name_jp: manga.manga_name_jp || "",
-      manga_name_alt: manga.manga_name_alt || "",
-      franchise_id: manga.franchise_id || null,
-      franchise_text: f ? getDisplayName(f, "franchise") : "",
-      series_id: manga.series_id || null,
-      series_text: s ? getDisplayName(s, "series") : "",
-      region: manga.region || "",
-      is_main: manga.is_main || "",
-    }));
-    setMangaFillQuery("");
-    setMangaFillOpen(false);
-    showToast("success", "Auto-filled fields from existing entry.");
-  }
-
-  function applyNovelAutofill(novel) {
-    const f = allFranchises.find((x) => x.system_id === novel.franchise_id);
-    const s = allSeries.find((x) => x.system_id === novel.series_id);
-    setNvf((p) => ({
-      ...p,
-      novel_name_cn: novel.novel_name_cn || "",
-      novel_name_en: novel.novel_name_en || "",
-      novel_name_roman: novel.novel_name_roman || "",
-      novel_name_jp: novel.novel_name_jp || "",
-      novel_name_alt: novel.novel_name_alt || "",
-      franchise_id: novel.franchise_id || null,
-      franchise_text: f ? getDisplayName(f, "franchise") : "",
-      series_id: novel.series_id || null,
-      series_text: s ? getDisplayName(s, "series") : "",
-      region: novel.region || "",
-      type: novel.type || "",
-      is_main: novel.is_main || "",
-    }));
-    setNovelFillQuery("");
-    setNovelFillOpen(false);
-    showToast("success", "Auto-filled fields from existing entry.");
-  }
-
-  function applyMovieAutofill(movie) {
-    const f = allFranchises.find((x) => x.system_id === movie.franchise_id);
-    const s = allSeries.find((x) => x.system_id === movie.series_id);
-    setMf((p) => ({
-      ...p,
-      movie_name_en: movie.movie_name_en || "",
-      movie_name_cn: movie.movie_name_cn || "",
-      movie_name_alt: movie.movie_name_alt || "",
-      franchise_id: movie.franchise_id || null,
-      franchise_text: f ? getDisplayName(f, "franchise") : "",
-      series_id: movie.series_id || null,
-      series_text: s ? getDisplayName(s, "series") : "",
-      is_main: movie.is_main || "",
-      airing_status: movie.airing_status || "Not Yet Aired",
-      movie_type: movie.movie_type || "",
-    }));
-    setMovieFillQuery("");
-    setMovieFillOpen(false);
-    showToast("success", "Auto-filled fields from existing entry.");
-  }
-
-  function applyTvShowAutofill(tvShow) {
-    const f = allFranchises.find((x) => x.system_id === tvShow.franchise_id);
-    const s = allSeries.find((x) => x.system_id === tvShow.series_id);
-    setTvf((p) => ({
-      ...p,
-      tv_name_en: tvShow.tv_name_en || "",
-      tv_name_cn: tvShow.tv_name_cn || "",
-      tv_name_alt: tvShow.tv_name_alt || "",
-      franchise_id: tvShow.franchise_id || null,
-      franchise_text: f ? getDisplayName(f, "franchise") : "",
-      series_id: tvShow.series_id || null,
-      series_text: s ? getDisplayName(s, "series") : "",
-      season_part: tvShow.season_part || "",
-      is_main: tvShow.is_main || "",
-      region: tvShow.region || "",
-      imdb_link: tvShow.imdb_link || "",
-    }));
-    setTvFillQuery("");
-    setTvFillOpen(false);
-    showToast("success", "Auto-filled fields from existing entry.");
-  }
-
-  function applyAutofill(anime) {
-    const f = allFranchises.find((x) => x.system_id === anime.franchise_id);
-    const s = allSeries.find((x) => x.system_id === anime.series_id);
-    setAf((p) => ({
-      ...p,
-      anime_name_en: anime.anime_name_en || "",
-      anime_name_cn: anime.anime_name_cn || "",
-      anime_name_roman: anime.anime_name_roman || "",
-      anime_name_jp: anime.anime_name_jp || "",
-      anime_name_alt: anime.anime_name_alt || "",
-      franchise_id: anime.franchise_id || null,
-      franchise_text: f ? getDisplayName(f, "franchise") : "",
-      series_id: anime.series_id || null,
-      series_text: s ? getDisplayName(s, "series") : "",
-      airing_type: anime.airing_type || "",
-      is_main: anime.is_main || "",
-      genre_main: anime.genre_main || "",
-      genre_sub: anime.genre_sub || "",
-      studio: anime.studio || "",
-    }));
-    setFillQuery("");
-    setFillOpen(false);
-    showToast("success", "Auto-filled fields from existing entry.");
-  }
+  const applyAutofill = makeApply(setAf, "anime", setFillQuery, setFillOpen);
+  const applyAnimeMovieAutofill = makeApply(
+    setAmf,
+    "anime-movie",
+    setAmFillQuery,
+    setAmFillOpen,
+  );
+  const applyCartoonAutofill = makeApply(
+    setCf,
+    "cartoon",
+    setCartoonFillQuery,
+    setCartoonFillOpen,
+  );
+  const applyMangaAutofill = makeApply(
+    setMgf,
+    "manga",
+    setMangaFillQuery,
+    setMangaFillOpen,
+  );
+  const applyNovelAutofill = makeApply(
+    setNvf,
+    "novel",
+    setNovelFillQuery,
+    setNovelFillOpen,
+  );
+  const applyMovieAutofill = makeApply(
+    setMf,
+    "movie",
+    setMovieFillQuery,
+    setMovieFillOpen,
+  );
+  const applyTvShowAutofill = makeApply(
+    setTvf,
+    "tv-show",
+    setTvFillQuery,
+    setTvFillOpen,
+  );
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -612,7 +580,7 @@ export default function Add() {
     window.scrollTo(0, 0);
     showToast("success", "Entry appended and enriched successfully.");
     setLastAdded(created.anime_name_en || created.anime_name_cn || "New Entry");
-    setAf(defaultAnime());
+    setAf(freshForm("anime"));
     setAllAnime((prev) => [...prev, created]);
   }
 
@@ -652,7 +620,7 @@ export default function Add() {
           created.franchise_name_en ||
           "New Franchise",
       );
-      setFf(defaultFranchise());
+      setFf(freshForm("franchise"));
       setAllFranchises((prev) => [...prev, created]);
     } else {
       showToast("error", "Failed to create franchise");
@@ -688,7 +656,7 @@ export default function Add() {
       setLastAdded(
         created.series_name_cn || created.series_name_en || "New Series",
       );
-      setSf(defaultSeries());
+      setSf(freshForm("series"));
       setAllSeries((prev) => [...prev, created]);
     } else {
       showToast("error", "Failed to create series");
@@ -841,7 +809,7 @@ export default function Add() {
         created.anime_movie_name_cn ||
         "New Anime Movie",
     );
-    setAmf(defaultAnimeMovie());
+    setAmf(freshForm("anime-movie"));
     setAllAnimeMovies((prev) => [...prev, created]);
   }
 
@@ -957,7 +925,8 @@ export default function Add() {
       series_id: seriesId || null,
       is_main: mf.is_main || null,
       airing_status: mf.airing_status || null,
-      watching_status: mf.watching_status || "Might Watch",
+      watching_status:
+        mf.watching_status || freshForm("movie").watching_status,
       my_rating: mf.my_rating || null,
       movie_type: mf.movie_type || null,
       length_min: mf.length_min !== "" ? parseInt(mf.length_min) : null,
@@ -1007,7 +976,7 @@ export default function Add() {
     window.scrollTo(0, 0);
     showToast("success", "Movie appended and enriched successfully.");
     setLastAdded(created.movie_name_en || created.movie_name_cn || "New Movie");
-    setMf(defaultMovie());
+    setMf(freshForm("movie"));
     setAllMovies((prev) => [...prev, created]);
   }
 
@@ -1126,7 +1095,8 @@ export default function Add() {
       source_official: tvf.source_official || null,
       is_main: tvf.is_main || null,
       airing_status: tvf.airing_status || null,
-      watching_status: tvf.watching_status || "Might Watch",
+      watching_status:
+        tvf.watching_status || freshForm("tv-show").watching_status,
       ep_total: tvf.ep_total !== "" ? parseInt(tvf.ep_total) : null,
       ep_fin: tvf.ep_fin !== "" ? parseInt(tvf.ep_fin) : null,
       my_rating: tvf.my_rating || null,
@@ -1175,7 +1145,7 @@ export default function Add() {
     window.scrollTo(0, 0);
     showToast("success", "TV Show appended and enriched successfully.");
     setLastAdded(created.tv_name_cn || created.tv_name_en || "New TV Show");
-    setTvf(defaultTvShow());
+    setTvf(freshForm("tv-show"));
     setAllTvShows((prev) => [...prev, created]);
   }
 
@@ -1273,7 +1243,8 @@ export default function Add() {
       season_part: cf.season_part || null,
       airing_type: cf.airing_type || null,
       airing_status: cf.airing_status || null,
-      watching_status: cf.watching_status || "Might Watch",
+      watching_status:
+        cf.watching_status || freshForm("cartoon").watching_status,
       is_main: cf.is_main || null,
       ep_total: cf.ep_total !== "" ? parseInt(cf.ep_total) : null,
       ep_fin: cf.ep_fin !== "" ? parseInt(cf.ep_fin) : null,
@@ -1328,7 +1299,7 @@ export default function Add() {
     setLastAdded(
       created.cartoon_name_cn || created.cartoon_name_en || "New Cartoon",
     );
-    setCf(defaultCartoon());
+    setCf(freshForm("cartoon"));
     setAllCartoons((prev) => [...prev, created]);
   }
 
@@ -1429,7 +1400,8 @@ export default function Add() {
       series_id: seriesId || null,
       region: mgf.region || null,
       serialization_status: mgf.serialization_status || null,
-      reading_status: mgf.reading_status || "Might Read",
+      reading_status:
+        mgf.reading_status || freshForm("manga").reading_status,
       is_main: mgf.is_main || null,
       vol_total: mgf.vol_total !== "" ? parseInt(mgf.vol_total) : null,
       vol_fin: mgf.vol_fin !== "" ? parseInt(mgf.vol_fin) : 0,
@@ -1492,7 +1464,7 @@ export default function Add() {
     window.scrollTo(0, 0);
     showToast("success", "Manga appended successfully.");
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
-    setMgf(defaultManga());
+    setMgf(freshForm("manga"));
     setAllMangas((prev) => [...prev, created]);
   }
 
@@ -1650,7 +1622,8 @@ export default function Add() {
       version: nvf.version || null,
       is_main: nvf.is_main || null,
       serialization_status: nvf.serialization_status || null,
-      reading_status: nvf.reading_status || "Might Read",
+      reading_status:
+        nvf.reading_status || freshForm("novel").reading_status,
       progress_display: nvf.progress_display || null,
       vol_total_original:
         nvf.vol_total_original !== ""
@@ -1720,7 +1693,7 @@ export default function Add() {
     window.scrollTo(0, 0);
     showToast("success", "Novel appended successfully.");
     setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
-    setNvf(defaultNovel());
+    setNvf(freshForm("novel"));
     setAllNovels((prev) => [...prev, created]);
   }
 
@@ -1823,18 +1796,7 @@ export default function Add() {
     );
   }
 
-  const tabDefs = [
-    { key: "anime", icon: "fa-tv", label: "Add Anime Entry" },
-    { key: "anime-movie", icon: "fa-film", label: "Add Anime Movie" },
-    { key: "movie", icon: "fa-ticket-alt", label: "Add Movie" },
-    { key: "tv-show", icon: "fa-video", label: "Add TV Show" },
-    { key: "cartoon", icon: "fa-paint-brush", label: "Add Cartoon" },
-    { key: "manga", icon: "fa-book", label: "Add Manga Entry" },
-    { key: "novel", icon: "fa-book-open", label: "Add Novel Entry" },
-    { key: "franchise", icon: "fa-sitemap", label: "Add Franchise" },
-    { key: "series", icon: "fa-layer-group", label: "Add Series" },
-    { key: "options", icon: "fa-cog", label: "Add System Option" },
-  ];
+  const tabDefs = withVerb(ADMIN_TABS, "Add");
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1903,6 +1865,14 @@ export default function Add() {
           <AnimeMovieAddTab
             amf={amf}
             uam={uam}
+            amFillQuery={amFillQuery}
+            setAmFillQuery={setAmFillQuery}
+            amFillOpen={amFillOpen}
+            setAmFillOpen={setAmFillOpen}
+            amFillRef={amFillRef}
+            amFillResults={amFillResults}
+            applyAnimeMovieAutofill={applyAnimeMovieAutofill}
+            allFranchises={allFranchises}
             franchiseItems={franchiseItems}
             allOptions={allOptions}
           />

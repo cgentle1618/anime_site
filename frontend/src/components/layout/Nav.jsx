@@ -503,6 +503,13 @@ export default function Nav() {
                         <i className="fas fa-trash-alt w-6 text-center text-red-400 mr-1"></i>
                         Delete Entry
                       </Link>
+                      <Link
+                        to="/defaults"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 transition"
+                      >
+                        <i className="fas fa-sliders-h w-6 text-center text-blue-400 mr-1"></i>
+                        Form Defaults
+                      </Link>
                     </>
                   }
                 />
@@ -867,6 +874,13 @@ export default function Nav() {
                       className="block py-2 text-sm font-bold text-gray-700 hover:text-red-600"
                     >
                       Delete Entry
+                    </Link>
+                    <Link
+                      to="/defaults"
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-2 text-sm font-bold text-gray-700 hover:text-blue-600"
+                    >
+                      Form Defaults
                     </Link>
                   </div>
                 </details>

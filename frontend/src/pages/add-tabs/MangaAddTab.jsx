@@ -8,50 +8,15 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes, getOptions } from "../../utils/media";
+import {
+  IS_MAIN,
+  MANGA_REGIONS,
+  MANGA_SERIALIZATION_STATUSES,
+  MY_RATINGS,
+  READING_STATUSES,
+} from "../../config/fieldOptions";
 
-export const defaultManga = () => ({
-  manga_name_cn: "",
-  manga_name_en: "",
-  manga_name_roman: "",
-  manga_name_jp: "",
-  manga_name_alt: "",
-  franchise_id: null,
-  franchise_text: "",
-  series_id: null,
-  series_text: "",
-  region: "",
-  serialization_status: "",
-  reading_status: "Might Read",
-  is_main: "本傳",
-  vol_total: "",
-  vol_fin: "",
-  vol_fin_page: "",
-  ch_total: "",
-  ch_fin: "",
-  my_rating: "",
-  mal_rating: "",
-  mal_rank: "",
-  anilist_rating: "",
-  author_plot: "",
-  author_draw: "",
-  release_year: "",
-  end_year: "",
-  anime_studio: "",
-  serialization_platform: "",
-  publisher_tw: "",
-  derive_related: "",
-  prequel_id: null,
-  sequel_id: null,
-  watch_order: "",
-  mal_id: "",
-  mal_link: "",
-  anilist_link: "",
-  source_other: [],
-  read_next: false,
-  to_reread: false,
-  cover_image_file: "",
-  remark: "",
-});
+export { defaultManga } from "../../config/formFactories";
 
 export default function MangaAddTab({
   mgf,
@@ -252,7 +217,7 @@ export default function MangaAddTab({
             onChange={(e) => umg("region", e.target.value)}
           >
             <option value="">—</option>
-            {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
+            {MANGA_REGIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -266,7 +231,7 @@ export default function MangaAddTab({
             onChange={(e) => umg("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -284,7 +249,7 @@ export default function MangaAddTab({
             onChange={(e) => umg("serialization_status", e.target.value)}
           >
             <option value="">—</option>
-            {["連載中", "停更", "腰斬", "完結"].map((v) => (
+            {MANGA_SERIALIZATION_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -297,17 +262,7 @@ export default function MangaAddTab({
             value={mgf.reading_status}
             onChange={(e) => umg("reading_status", e.target.value)}
           >
-            {[
-              "Might Read",
-              "Plan to Read",
-              "Active Reading",
-              "Passive Reading",
-              "Paused",
-              "Completed",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Read",
-            ].map((v) => (
+            {READING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -321,7 +276,7 @@ export default function MangaAddTab({
             onChange={(e) => umg("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
