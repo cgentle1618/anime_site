@@ -30,8 +30,32 @@ function toDraft(type, stored) {
   };
 }
 
+/** Builds a full draft map — one entry per tab — from a server config. */
+function seedDrafts(config) {
+  return Object.fromEntries(
+    FORM_TABS.map((tab) => [tab.key, toDraft(tab.key, config?.[tab.key])]),
+  );
+}
+
 function sameDraft(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Reads a JSON response, falling back if the body isn't JSON at all.
+ *
+ * A backend that predates a route still answers 200 — the SPA catch-all in
+ * app/main.py serves index.html — so an unparseable body is a realistic
+ * failure, not a theoretical one. Treat it as "nothing configured" so the page
+ * still renders the built-ins instead of dying.
+ */
+async function readJson(res, fallback) {
+  if (!res.ok) return fallback;
+  try {
+    return await res.json();
+  } catch {
+    return fallback;
+  }
 }
 
 export default function FormDefaults() {
@@ -54,19 +78,20 @@ export default function FormDefaults() {
           fetch(endpoints.formDefaults.list(), { credentials: "include" }),
           fetch(endpoints.options.list(), { credentials: "include" }),
         ]);
-        const config = fdRes.ok ? await fdRes.json() : {};
-        const options = optRes.ok ? await optRes.json() : [];
+        const config = await readJson(fdRes, {});
+        const options = await readJson(optRes, []);
 
-        const nextSaved = {};
-        const nextDrafts = {};
-        for (const tab of FORM_TABS) {
-          nextSaved[tab.key] = toDraft(tab.key, config[tab.key]);
-          nextDrafts[tab.key] = toDraft(tab.key, config[tab.key]);
+        setSaved(seedDrafts(config));
+        setDrafts(seedDrafts(config));
+        setAllOptions(Array.isArray(options) ? options : []);
+
+        if (!fdRes.ok) {
+          showToast("error", "Could not load saved defaults — showing built-ins.");
         }
-        setSaved(nextSaved);
-        setDrafts(nextDrafts);
-        setAllOptions(options);
       } catch {
+        // Still seed from the built-ins so the page stays usable.
+        setSaved(seedDrafts({}));
+        setDrafts(seedDrafts({}));
         showToast("error", "Failed to load form defaults.");
       } finally {
         setLoading(false);
@@ -94,7 +119,8 @@ export default function FormDefaults() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirtyTabs.length]);
 
-  const draft = drafts[activeTab];
+  // Never undefined: an unseeded tab still renders its built-ins.
+  const draft = drafts[activeTab] ?? emptyDraft(activeTab);
   const isDirty = dirtyTabs.includes(activeTab);
 
   function patchDraft(fn) {
