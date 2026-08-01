@@ -8,12 +8,13 @@ export function useStatusToggle(type) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, value, field }) => {
+    mutationFn: ({ id, value, field, fields }) => {
       const { apiEndpoint, statusField } = MEDIA_CONFIG[type];
+      const body = fields || { [field || statusField]: value };
       return fetchJson(`${apiEndpoint}/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field || statusField]: value }),
+        body: JSON.stringify(body),
       });
     },
     onSuccess: (updated, variables) => {

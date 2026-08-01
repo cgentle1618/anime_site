@@ -481,7 +481,19 @@ The + button is visible and editable to admin only.
 
 ## Mark as Airing Button
 
-Sets the entry's `airing_status` to "Airing".
+Sets the entry's `airing_status` to "Airing" (Anime, TV Show, Cartoon) or "Finished Airing" (Anime Movie, Movie).
+
+For Anime, TV Show, and Cartoon the button also moves the watching status along, based on its current value:
+
+| Current watching status         | Behavior                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Watch When Airs                 | Set to "Active Watching" together with the airing status — no confirmation                                     |
+| Plan to Watch                   | Confirmation modal offering Active Watching / Passive Watching / No Change (cancellable, aborts the whole edit) |
+| Anything else                   | Only `airing_status` is changed — no confirmation                                                              |
+
+Anime Movie and Movie never prompt and never touch the watching status.
+
+Both fields are sent in a single `PATCH` to the entry's endpoint.
 
 ---
 

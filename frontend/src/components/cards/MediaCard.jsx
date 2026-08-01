@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
+import MarkAiringModal from "../modals/MarkAiringModal";
 import {
   getDisplayName,
   getCoverUrl,
@@ -486,6 +487,9 @@ function FutureMeta({ type, data }) {
   return null;
 }
 
+// Types whose bolt action also offers to move the watching status along.
+const BOLT_PROMPTS_WATCHING = new Set(["anime", "tv-show", "cartoon"]);
+
 const HAS_PROGRESS = new Set(["anime", "tv-show", "cartoon", "manga", "novel"]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
 
@@ -502,6 +506,7 @@ export default function MediaCard({
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [showVol, setShowVol] = useState(false);
+  const [showAiringPrompt, setShowAiringPrompt] = useState(false);
   const statusMutation = useStatusToggle(type);
 
   const config = MEDIA_CONFIG[type];
@@ -545,20 +550,42 @@ export default function MediaCard({
     }
   }
 
-  async function handleBoltAction(e) {
-    e.stopPropagation();
+  async function applyBoltAction(watchingStatus) {
     const airingStatus = BOLT_AIRING_STATUS[type];
+    const fields = { airing_status: airingStatus };
+    if (watchingStatus) fields[statusField] = watchingStatus;
     try {
       const updated = await statusMutation.mutateAsync({
         id: data.system_id,
-        field: "airing_status",
-        value: airingStatus,
+        fields,
       });
       onUpdated?.(updated);
-      showToast("success", `${title} marked as ${airingStatus}`);
+      showToast(
+        "success",
+        watchingStatus
+          ? `${title} marked as ${airingStatus} · ${watchingStatus}`
+          : `${title} marked as ${airingStatus}`,
+      );
     } catch {
       showToast("error", "Network error");
     }
+  }
+
+  function handleBoltAction(e) {
+    e.stopPropagation();
+    if (!BOLT_PROMPTS_WATCHING.has(type)) {
+      applyBoltAction(null);
+      return;
+    }
+    if (currentStatus === "Watch When Airs") {
+      applyBoltAction("Active Watching");
+      return;
+    }
+    if (currentStatus === "Plan to Watch") {
+      setShowAiringPrompt(true);
+      return;
+    }
+    applyBoltAction(null);
   }
 
   const statusBtn = showAdmin ? (
@@ -663,6 +690,19 @@ export default function MediaCard({
           </>
         )}
       </div>
+
+      {showAiringPrompt && (
+        <MarkAiringModal
+          title={title}
+          airingStatus={BOLT_AIRING_STATUS[type]}
+          currentStatus={currentStatus}
+          onSelect={(watchingStatus) => {
+            setShowAiringPrompt(false);
+            applyBoltAction(watchingStatus);
+          }}
+          onCancel={() => setShowAiringPrompt(false)}
+        />
+      )}
     </div>
   );
 }
