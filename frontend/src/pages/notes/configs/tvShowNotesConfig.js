@@ -18,6 +18,7 @@ const SECTIONS = [
   { key: "double_edged", label: "優缺點", type: "string_list" },
   { key: "public_reviews", label: "大眾評價 Public Reviews", type: "string_list" },
   { key: "personal_reviews", label: "我的評價 Personal Reviews", type: "string_list" },
+  { key: "episode_comments", label: "各集評論 Episode Comments", type: "episode_comment" },
   {
     key: "highlight_episodes",
     label: "神回/神片段",

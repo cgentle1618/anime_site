@@ -854,6 +854,127 @@ function EpisodeEntrySection({
   );
 }
 
+// ─── Episode Comment Section (object map: {"ep 1": "comment"}) ───────────────
+
+const emptyEpisodeComment = () => ({ episode: "", comment: "" });
+
+function EpisodeCommentForm({ val, setVal }) {
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={val.episode}
+        onChange={(e) => setVal({ ...val, episode: e.target.value })}
+        placeholder="Episode, e.g. ep 1"
+        className={inputCls}
+      />
+      <textarea
+        value={val.comment}
+        onChange={(e) => setVal({ ...val, comment: e.target.value })}
+        rows={2}
+        placeholder="Comment"
+        className={inputCls}
+      />
+    </div>
+  );
+}
+
+function EpisodeCommentSection({ sectionKey, label, items, isAdmin, onUpdate }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState(emptyEpisodeComment());
+  const [editKey, setEditKey] = useState(null);
+  const [editVal, setEditVal] = useState(emptyEpisodeComment());
+
+  // Stored as an object map; entries keep insertion order for display.
+  const entries = Object.entries(items || {});
+
+  // Rebuild the map from entries so renaming an episode keeps its position.
+  const fromEntries = (pairs) =>
+    pairs.reduce((acc, [k, v]) => {
+      acc[k] = v;
+      return acc;
+    }, {});
+
+  const commit = () => {
+    const ep = draft.episode.trim();
+    if (!ep) return;
+    const next = entries.filter(([k]) => k !== ep);
+    next.push([ep, draft.comment.trim()]);
+    onUpdate(fromEntries(next));
+    setDraft(emptyEpisodeComment());
+    setAdding(false);
+  };
+  const saveEdit = () => {
+    const ep = editVal.episode.trim();
+    if (!ep) return;
+    const next = entries.map(([k, v]) =>
+      k === editKey ? [ep, editVal.comment.trim()] : [k, v],
+    );
+    onUpdate(fromEntries(next));
+    setEditKey(null);
+  };
+  const remove = (key) => onUpdate(fromEntries(entries.filter(([k]) => k !== key)));
+
+  return (
+    <SectionCard
+      label={label}
+      sectionKey={sectionKey}
+      count={entries.length}
+      isAdmin={isAdmin}
+      onAdd={() => setAdding(true)}
+    >
+      {entries.map(([ep, comment]) => (
+        <div
+          key={ep}
+          className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
+        >
+          {editKey === ep ? (
+            <div>
+              <EpisodeCommentForm val={editVal} setVal={setEditVal} />
+              <SaveCancel onSave={saveEdit} onCancel={() => setEditKey(null)} />
+            </div>
+          ) : (
+            <div className="flex gap-2 items-start">
+              <div className="flex-1 space-y-1">
+                <span className="text-[11px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded">
+                  {ep}
+                </span>
+                {comment && (
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                    {comment}
+                  </p>
+                )}
+              </div>
+              <ItemActions
+                isAdmin={isAdmin}
+                onEdit={() => {
+                  setEditKey(ep);
+                  setEditVal({ episode: ep, comment: comment || "" });
+                }}
+                onDelete={() => remove(ep)}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+      {adding && (
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+          <EpisodeCommentForm val={draft} setVal={setDraft} />
+          <SaveCancel
+            onSave={commit}
+            onCancel={() => {
+              setDraft(emptyEpisodeComment());
+              setAdding(false);
+            }}
+          />
+        </div>
+      )}
+      {!entries.length && !adding && (
+        <p className="text-xs text-gray-400 italic">No entries.</p>
+      )}
+    </SectionCard>
+  );
+}
+
 // ─── Episode Type + Description Section (Manga/TV/Cartoon) ───────────────────
 
 const emptyEpisodeTypeDesc = () => ({ episode: "", type: "", description: "" });
@@ -1096,6 +1217,17 @@ export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
             isAdmin={isAdmin}
             onUpdate={(val) => updateSection(sec.key, val)}
             typeDropdown={sec.typeDropdown}
+          />
+        );
+      case "episode_comment":
+        return (
+          <EpisodeCommentSection
+            key={sec.key}
+            sectionKey={sec.key}
+            label={sec.label}
+            items={items}
+            isAdmin={isAdmin}
+            onUpdate={(val) => updateSection(sec.key, val)}
           />
         );
       case "episode_type_desc":

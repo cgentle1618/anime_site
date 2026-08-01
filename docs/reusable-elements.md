@@ -788,6 +788,7 @@ The information is broken down into multiple fields from the `notes` JSONB colum
 - 優缺點 (similar to double-edged sword)
 - 大眾評價 Public Reviews
 - 我的評價 Personal Reviews
+- 各集評論 Episode Comments
 - 神回/神片段 Highlights
 - 解析 Analysis
 - 分鏡/演出/巧思
@@ -848,6 +849,7 @@ Used on: Movie Detail page, Modify Movie tab.
 - 優缺點 (similar to double-edged sword)
 - 大眾評價 Public Reviews
 - 我的評價 Personal Reviews
+- 各集評論 Episode Comments
 - 神回/神片段
 - 解析 Analysis
 - Resources
@@ -865,6 +867,7 @@ Used on: TV Show Detail page, Modify TV Show tab.
 - 優缺點 (similar to double-edged sword)
 - 大眾評價 Public Reviews
 - 我的評價 Personal Reviews
+- 各集評論 Episode Comments
 - 神回/神片段 Highlights
 - 解析 Analysis
 - Resources
@@ -917,6 +920,9 @@ Used on: Novel Detail page, Modify Novel tab.
 
 Here is the description for all sub fields in notes:
 
+- Remark
+  - single text value (`notes.remark`)
+  - 10-row textarea, vertically resizable; a "Fullscreen" button in the section header opens the same draft in a fullscreen overlay (dismiss via Close, backdrop click, or Escape). Both views share one draft and one Save button.
 - 優點:
   - list of items
 - 缺點:
@@ -927,6 +933,10 @@ Here is the description for all sub fields in notes:
   - list of items
 - 我的評價
   - list of items
+- 各集評論
+  - dictionary of episode → comment ({"ep 1": "ep 1 comment"})
+  - Anime, TV Show, and Cartoon only; placed directly after 我的評價
+  - Entries display in insertion order. Renaming an episode keeps its position; adding an episode key that already exists overwrites it instead of duplicating.
 - 神回/神片段
   - list of lists ([episode(s), type, description])
 - 解析

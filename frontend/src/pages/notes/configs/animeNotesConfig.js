@@ -8,6 +8,7 @@ const SECTIONS = [
   { key: "double_edged", label: "優缺點", type: "string_list" },
   { key: "public_reviews", label: "大眾評價 Public Reviews", type: "string_list" },
   { key: "personal_reviews", label: "我的評價 Personal Reviews", type: "string_list" },
+  { key: "episode_comments", label: "各集評論 Episode Comments", type: "episode_comment" },
   { key: "highlights", label: "神回／神片段 Highlights", type: "episode_entry" },
   { key: "analysis", label: "解析 Analysis", type: "desc_links" },
   { key: "cinematography", label: "分鏡／演出／巧思", type: "desc_links" },
