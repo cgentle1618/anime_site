@@ -6,7 +6,7 @@ SQLAlchemy models and Google Sheets.
 
 import json
 from typing import Any, List, Dict
-from datetime import datetime
+from datetime import datetime, time
 from uuid import UUID
 
 # ==========================================
@@ -109,6 +109,12 @@ def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
             return datetime.fromisoformat(val_str_clean)
         except ValueError:
             return None
+    elif expected_type == time:
+        try:
+            # Sheets may render a time cell as "23:00", "23:00:00" or "23:00:00.000"
+            return time.fromisoformat(val_str)
+        except ValueError:
+            return None
     elif expected_type == UUID:
         try:
             return UUID(val_str)
@@ -186,6 +192,9 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "release_month": parse_from_sheet(raw.get("release_month"), str),
         "release_season": parse_from_sheet(raw.get("release_season"), str),
         "release_year": parse_from_sheet(raw.get("release_year"), str),
+        "broadcast_day": parse_from_sheet(raw.get("broadcast_day"), str),
+        "broadcast_time": parse_from_sheet(raw.get("broadcast_time"), time),
+        "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
         "producer": parse_from_sheet(raw.get("producer"), str),

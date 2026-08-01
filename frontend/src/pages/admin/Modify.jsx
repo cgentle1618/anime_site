@@ -69,6 +69,10 @@ function animeToForm(anime, allFranchises, allSeries) {
     release_season: anime.release_season || "",
     release_month: anime.release_month || "",
     release_year: anime.release_year || "",
+    broadcast_day: anime.broadcast_day || "",
+    // API returns "23:00:00"; <input type="time"> wants "HH:MM".
+    broadcast_time: (anime.broadcast_time || "").slice(0, 5),
+    my_watch_day: anime.my_watch_day || "",
     genre_main: anime.genre_main || "",
     genre_sub: anime.genre_sub || "",
     studio: anime.studio || "",

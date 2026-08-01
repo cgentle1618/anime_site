@@ -8,6 +8,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getOptions } from "../../utils/media";
+import { WEEKDAYS } from "../../config/weekdays";
 import AnimeNotes from "../detail/AnimeNotes";
 
 export default function AnimeModifyTab({
@@ -181,6 +182,44 @@ export default function AnimeModifyTab({
           >
             <option value="">—</option>
             {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Field label="Broadcast Day">
+          <select
+            className={selectCls}
+            value={af.broadcast_day}
+            onChange={(e) => ua("broadcast_day", e.target.value)}
+          >
+            <option value="">—</option>
+            {WEEKDAYS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Broadcast Time">
+          <input
+            className={inputCls}
+            type="time"
+            value={af.broadcast_time}
+            onChange={(e) => ua("broadcast_time", e.target.value)}
+          />
+        </Field>
+        <Field label="My Watch Day">
+          <select
+            className={selectCls}
+            value={af.my_watch_day}
+            onChange={(e) => ua("my_watch_day", e.target.value)}
+          >
+            <option value="">—</option>
+            {WEEKDAYS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

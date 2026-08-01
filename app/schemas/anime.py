@@ -1,6 +1,6 @@
 """Anime request/response schemas."""
 
-from datetime import datetime
+from datetime import datetime, time
 from typing import List, Optional
 from uuid import UUID
 
@@ -42,6 +42,10 @@ class AnimeBase(BaseModel):
     release_month: Optional[str] = None
     release_season: Optional[str] = None
     release_year: Optional[str] = None
+
+    broadcast_day: Optional[str] = None
+    broadcast_time: Optional[time] = None
+    my_watch_day: Optional[str] = None
 
     studio: Optional[str] = None
     director: Optional[str] = None

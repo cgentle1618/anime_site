@@ -12,6 +12,7 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 - [Reading Status](#reading-status)
 - [Airing Type](#airing-type)
 - [Airing Status](#airing-status)
+- [Day of Week](#day-of-week)
 - [Franchise Type](#franchise-type)
 - [My Rating](#my-rating)
 - [Franchise Expectation](#franchise-expectation)
@@ -140,6 +141,27 @@ Field: `anime.airing_status` — Default: `Not Yet Aired`
 | `Not Yet Aired`   | Yes     |
 | `Airing`          |         |
 | `Finished Airing` |         |
+
+---
+
+## Day of Week
+
+Fields: `anime.broadcast_day`, `anime.my_watch_day` — Default: `null`
+
+Stored as plain strings; the closed value list lives in `frontend/src/config/weekdays.js` (`WEEKDAYS`) and drives both dropdowns in the Anime Add/Modify forms. There is no backend enum or validator.
+
+| Value       | Default |
+| ----------- | ------- |
+| `null`      | Yes     |
+| `Monday`    |         |
+| `Tuesday`   |         |
+| `Wednesday` |         |
+| `Thursday`  |         |
+| `Friday`    |         |
+| `Saturday`  |         |
+| `Sunday`    |         |
+
+Related field `anime.broadcast_time` is a Postgres `TIME` column (no timezone), exchanged over the API as `"HH:MM:SS"`.
 
 ---
 

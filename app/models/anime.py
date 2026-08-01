@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Time,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -72,6 +73,10 @@ class Anime(Base, NameFallbackMixin):
     release_month = Column(String, nullable=True)
     release_season = Column(String, nullable=True)
     release_year = Column(String, nullable=True)
+
+    broadcast_day = Column(String, nullable=True)
+    broadcast_time = Column(Time, nullable=True)
+    my_watch_day = Column(String, nullable=True)
 
     studio = Column(String, nullable=True)
     director = Column(String, nullable=True)

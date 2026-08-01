@@ -183,6 +183,14 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 | `release_season` | String | Yes      | `"WIN"` / `"SPR"` / `"SUM"` / `"FAL"` |
 | `release_year`   | String | Yes      | e.g. `"2024"`                         |
 
+#### Broadcast Schedule
+
+| Column           | Type   | Nullable | Notes                                                        |
+| ---------------- | ------ | -------- | ------------------------------------------------------------ |
+| `broadcast_day`  | String | Yes      | Weekday a new episode updates, e.g. `"Tuesday"`               |
+| `broadcast_time` | Time   | Yes      | Time a new episode updates, e.g. `23:00`; no timezone stored |
+| `my_watch_day`   | String | Yes      | Weekday I plan to watch the episode, e.g. `"Saturday"`        |
+
 #### Production
 
 | Column           | Type   | Nullable | Notes                             |
