@@ -9,27 +9,45 @@ function getTodayName() {
   return SCHEDULE_DAYS[new Date().getDay()];
 }
 
+/** "23:00:00" -> "23:00". Returns "" for null/blank. */
+function formatTime(value) {
+  if (!value) return "";
+  return String(value).slice(0, 5);
+}
+
 /**
  * A single entry chip. Entries carry `_media_type` (a MEDIA_CONFIG key), which
  * resolves both the display-name prefix and the detail route — so new media
  * types work here as soon as they are added to the schedule source list.
  */
-function ScheduleEntry({ item }) {
+function ScheduleEntry({ item, timeField }) {
   const name = getDisplayName(item, item._media_type);
   const navPath = MEDIA_CONFIG[item._media_type]?.navPath;
+  const time = timeField ? formatTime(item[timeField]) : "";
   const cls =
-    "block px-2.5 py-1.5 rounded-lg text-sm font-bold text-gray-700 bg-gray-50 border border-gray-200 break-words leading-tight";
+    "block px-2.5 py-1.5 rounded-lg text-sm font-bold text-gray-700 bg-gray-50 border border-gray-200 leading-tight";
 
-  if (!navPath) return <li className={cls}>{name}</li>;
+  const body = (
+    <>
+      {time && (
+        <span className="block text-[11px] font-black text-brand/80 tabular-nums">
+          {time}
+        </span>
+      )}
+      <span className="block">{name}</span>
+    </>
+  );
+
+  if (!navPath) return <li className={cls}>{body}</li>;
 
   return (
     <li>
       <Link
         to={`${navPath}/${item.system_id}`}
-        title={name}
+        title={time ? `${time} · ${name}` : name}
         className={`${cls} hover:bg-brand/10 hover:border-brand/30 hover:text-brand transition-colors`}
       >
-        {name}
+        {body}
       </Link>
     </li>
   );
@@ -38,6 +56,8 @@ function ScheduleEntry({ item }) {
 /**
  * Groups `items` into Sunday–Saturday columns by `dayField`.
  * Entries whose day value is not a recognized weekday are skipped.
+ * When `timeField` is given, entries show that time and sort by it
+ * (missing times last); otherwise they sort by display name.
  */
 export default function WeeklySchedule({
   id,
@@ -45,6 +65,7 @@ export default function WeeklySchedule({
   icon,
   subtitle,
   dayField,
+  timeField,
   items,
   emptyText = "Nothing scheduled right now.",
 }) {
@@ -55,12 +76,20 @@ export default function WeeklySchedule({
     const day = item[dayField];
     if (byDay[day]) byDay[day].push(item);
   });
+  const byName = (a, b) =>
+    getDisplayName(a, a._media_type).localeCompare(
+      getDisplayName(b, b._media_type),
+    );
   SCHEDULE_DAYS.forEach((d) =>
-    byDay[d].sort((a, b) =>
-      getDisplayName(a, a._media_type).localeCompare(
-        getDisplayName(b, b._media_type),
-      ),
-    ),
+    byDay[d].sort((a, b) => {
+      if (timeField) {
+        // Zero-padded HH:MM sorts chronologically as text; blanks go last.
+        const tA = formatTime(a[timeField]) || "99:99";
+        const tB = formatTime(b[timeField]) || "99:99";
+        if (tA !== tB) return tA.localeCompare(tB);
+      }
+      return byName(a, b);
+    }),
   );
 
   const total = SCHEDULE_DAYS.reduce((sum, d) => sum + byDay[d].length, 0);
@@ -92,14 +121,16 @@ export default function WeeklySchedule({
           </p>
         </div>
       ) : (
-        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        // Day columns scroll horizontally so titles get a readable width
+        // instead of being squeezed into a 7-across grid.
+        <div className="pt-4 flex gap-3 overflow-x-auto pb-3 -mx-1 px-1">
           {SCHEDULE_DAYS.map((day) => {
             const dayItems = byDay[day];
             const isToday = day === today;
             return (
               <div
                 key={day}
-                className={`rounded-xl border p-3 ${
+                className={`w-64 shrink-0 rounded-xl border p-3 ${
                   isToday
                     ? "bg-brand/5 border-brand/30"
                     : "bg-white border-gray-200"
@@ -124,7 +155,11 @@ export default function WeeklySchedule({
                 ) : (
                   <ul className="space-y-1.5">
                     {dayItems.map((item) => (
-                      <ScheduleEntry key={item.system_id} item={item} />
+                      <ScheduleEntry
+                        key={item.system_id}
+                        item={item}
+                        timeField={timeField}
+                      />
                     ))}
                   </ul>
                 )}

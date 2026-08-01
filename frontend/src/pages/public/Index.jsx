@@ -24,6 +24,12 @@ const RATING_WEIGHT = {
 
 const TOC_ITEMS = [
   { id: "schedule", label: "Schedule", icon: "fa-calendar-week", level: 1 },
+  {
+    id: "schedule-broadcast",
+    label: "Broadcast",
+    icon: "fa-satellite-dish",
+    level: 2,
+  },
   { id: "schedule-watch", label: "My Watch", icon: "fa-user-clock", level: 2 },
   { id: "watching", label: "Watching", icon: "fa-eye", level: 1 },
   { id: "watching-active", label: "Active", icon: "fa-play-circle", level: 2 },
@@ -318,6 +324,7 @@ export default function Index() {
     if (loading) return;
     const ids = [
       "schedule",
+      "schedule-broadcast",
       "schedule-watch",
       "watching",
       "watching-active",
@@ -493,6 +500,9 @@ export default function Index() {
     ...a,
     _media_type: "anime",
   }));
+  const broadcastSchedule = scheduleSources.filter(
+    (item) => item.airing_status === "Airing" && item.broadcast_day,
+  );
   const watchSchedule = scheduleSources.filter(
     (item) => item.airing_status === "Airing" && item.my_watch_day,
   );
@@ -572,10 +582,20 @@ export default function Index() {
                 </p>
               </div>
               <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
-                {watchSchedule.length} Scheduled
+                {broadcastSchedule.length + watchSchedule.length} Scheduled
               </span>
             </div>
             <div className="pt-8 space-y-12">
+              <WeeklySchedule
+                id="schedule-broadcast"
+                title="Broadcast Schedule"
+                icon="fa-satellite-dish"
+                subtitle="Airing · by broadcast day"
+                dayField="broadcast_day"
+                timeField="broadcast_time"
+                items={broadcastSchedule}
+                emptyText="No airing entries have a broadcast day set."
+              />
               <WeeklySchedule
                 id="schedule-watch"
                 title="My Watch Schedule"
