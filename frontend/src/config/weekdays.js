@@ -12,3 +12,17 @@ export const WEEKDAYS = [
   "Saturday",
   "Sunday",
 ];
+
+/**
+ * Column order for the dashboard weekly schedule.
+ * Sunday-first so the index lines up with Date.prototype.getDay().
+ */
+export const SCHEDULE_DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];

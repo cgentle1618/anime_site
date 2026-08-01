@@ -116,6 +116,12 @@ Current progress page. Shows all actively tracked media.
 - `GET /api/tv-shows/`
 - `GET /api/cartoon/`
 
+**Schedule division** (topmost) — weekly Sunday→Saturday grid rendered by `WeeklySchedule.jsx`. Column order comes from `SCHEDULE_DAYS` (`frontend/src/config/weekdays.js`), which is Sunday-first so the index matches `Date.getDay()`; today's column is highlighted.
+
+- **My Watch Schedule** sub-section: entries where `airing_status === "Airing"` and `my_watch_day` is set, bucketed by `my_watch_day`.
+- Entries show the display name (CN priority, via `getDisplayName`) and link to the entry's detail page. Each entry carries a `_media_type` tag (a `MEDIA_CONFIG` key) that resolves both the name prefix and the detail route, so other media types can join the schedule by being appended to `scheduleSources` in `Index.jsx`. Anime is the only source today.
+- A second **Broadcast Schedule** sub-section (bucketed by `broadcast_day`, with `broadcast_time`) is planned; `WeeklySchedule` already takes the day field as a `dayField` prop.
+
 **Watching division** (Anime · TV Show · Cartoon) — three sub-sections: Active Watching / Passive Watching / Paused.
 
 - All entries sorted globally by franchise name (CN → EN fallback) then `watch_order`, then divided by `watching_status`.

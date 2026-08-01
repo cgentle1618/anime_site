@@ -6,6 +6,7 @@ import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
+import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaList } from "../../hooks/useMediaList";
 
@@ -22,6 +23,8 @@ const RATING_WEIGHT = {
 };
 
 const TOC_ITEMS = [
+  { id: "schedule", label: "Schedule", icon: "fa-calendar-week", level: 1 },
+  { id: "schedule-watch", label: "My Watch", icon: "fa-user-clock", level: 2 },
   { id: "watching", label: "Watching", icon: "fa-eye", level: 1 },
   { id: "watching-active", label: "Active", icon: "fa-play-circle", level: 2 },
   { id: "watching-passive", label: "Passive", icon: "fa-headphones", level: 2 },
@@ -302,7 +305,7 @@ export default function Index() {
     mangaQuery.error?.message ||
     novelQuery.error?.message ||
     null;
-  const [activeSection, setActiveSection] = useState("watching");
+  const [activeSection, setActiveSection] = useState("schedule");
 
   function updateCachedList(type, updater) {
     queryClient.setQueriesData({ queryKey: ["media-list", type] }, (old) =>
@@ -314,6 +317,8 @@ export default function Index() {
   useEffect(() => {
     if (loading) return;
     const ids = [
+      "schedule",
+      "schedule-watch",
       "watching",
       "watching-active",
       "watching-passive",
@@ -481,6 +486,17 @@ export default function Index() {
   const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
   const novelTagged = novelData.map((n) => ({ ...n, _ui_type: "Novel" }));
 
+  // Weekly schedule sources. `_media_type` is a MEDIA_CONFIG key, which the
+  // schedule uses for display names and detail links. Append other media types
+  // here once they carry broadcast/watch day fields.
+  const scheduleSources = animeTagged.map((a) => ({
+    ...a,
+    _media_type: "anime",
+  }));
+  const watchSchedule = scheduleSources.filter(
+    (item) => item.airing_status === "Airing" && item.my_watch_day,
+  );
+
   const sorted = [...animeTagged, ...tvTagged, ...cartoonTagged].sort(
     (a, b) => {
       const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
@@ -541,6 +557,37 @@ export default function Index() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
+          {/* Schedule Division */}
+          <div id="schedule">
+            <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-calendar-week text-brand text-lg"></i>
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                  Weekly Schedule
+                </h1>
+                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                  Sunday · Saturday
+                </p>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+                {watchSchedule.length} Scheduled
+              </span>
+            </div>
+            <div className="pt-8 space-y-12">
+              <WeeklySchedule
+                id="schedule-watch"
+                title="My Watch Schedule"
+                icon="fa-user-clock"
+                subtitle="Airing · by my watch day"
+                dayField="my_watch_day"
+                items={watchSchedule}
+                emptyText="No airing entries have a watch day set."
+              />
+            </div>
+          </div>
+
           {/* Watching Division */}
           <div id="watching">
             <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
