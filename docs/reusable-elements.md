@@ -1013,3 +1013,11 @@ Each entry displays the series name CN with fallback and is clickable. On click,
 - Series name EN
 - Series name Alt
 - Series remark (if not null)
+
+### Announcement Board
+
+**Files:** `frontend/src/components/info/AnnouncementBoard.jsx`, `frontend/src/components/modals/AnnouncementModal.jsx`
+
+Used by the Dashboard's Announcement division. `AnnouncementBoard` takes `announcements` (`[{title, body}]`) and renders one card per note using the `InfoCard` shell treatment — grey header bar with a `fa-bullhorn` icon and the title, body as plain `whitespace-pre-wrap` text clamped to `max-h-40`. Each header carries an expand button that opens `AnnouncementModal` — a fullscreen (`95vw × 90vh`) panel showing the whole body, closed by the X, the Close button, a backdrop click, or `Escape`.
+
+With an empty list the board renders the dashed "No Announcement & Notes" empty state instead of a grid.

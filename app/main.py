@@ -34,6 +34,7 @@ from app.routers import (
     seasonal,
     data_control,
     system,
+    announcements,
 )
 from app.services.security import get_password_hash
 
@@ -137,6 +138,8 @@ app.include_router(tv_show.router)
 app.include_router(manga.router)
 app.include_router(novel.router)
 app.include_router(seasonal.router)
+
+app.include_router(announcements.router)
 
 app.include_router(data_control.router)
 app.include_router(system.router)

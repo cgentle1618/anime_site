@@ -115,8 +115,11 @@ Current progress page. Shows all actively tracked media.
 - `GET /api/franchise/`
 - `GET /api/tv-shows/`
 - `GET /api/cartoon/`
+- `GET /api/announcements/`
 
-**Schedule division** (topmost) — two weekly Sunday→Saturday schedules rendered by `WeeklySchedule.jsx`. Column order comes from `SCHEDULE_DAYS` (`frontend/src/config/weekdays.js`), which is Sunday-first so the index matches `Date.getDay()`; today's column is highlighted. Day columns are fixed-width and scroll horizontally so titles have room.
+**Announcement division** (topmost) — the "Announcement & Notes" board, rendered by `AnnouncementBoard.jsx`. Notes come from `GET /api/announcements/` (public) and are stored as `announcement:<title>` rows in `system_configs`; admins manage them from the Admin page (`/system`). The query is deliberately excluded from the page's combined loading/error state so a failed board never blocks the dashboard. Each note card clamps its body and has an expand button that opens `AnnouncementModal.jsx` fullscreen. With no notes the division still renders, showing a dashed "No Announcement & Notes" empty state and a `0 Posted` count.
+
+**Schedule division** — two weekly Sunday→Saturday schedules rendered by `WeeklySchedule.jsx`. Column order comes from `SCHEDULE_DAYS` (`frontend/src/config/weekdays.js`), which is Sunday-first so the index matches `Date.getDay()`; today's column is highlighted. Day columns are fixed-width and scroll horizontally so titles have room.
 
 - **My Watch Schedule** (first): entries where `airing_status === "Airing"` and `my_watch_day` is set, bucketed by `my_watch_day`. Name only, sorted alphabetically.
 - **Broadcast Schedule** (second): entries where `airing_status === "Airing"` and `broadcast_day` is set, bucketed by `broadcast_day`. Shows `broadcast_time` (trimmed to `HH:MM`) above the name, sorted by time ascending with missing times last.

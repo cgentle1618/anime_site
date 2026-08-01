@@ -8,7 +8,10 @@ import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
+import { useApiQuery } from "../../hooks/useApiQuery";
+import { endpoints } from "../../api/endpoints";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -23,6 +26,7 @@ const RATING_WEIGHT = {
 };
 
 const TOC_ITEMS = [
+  { id: "announcements", label: "Announcements", icon: "fa-bullhorn", level: 1 },
   { id: "schedule", label: "Schedule", icon: "fa-calendar-week", level: 1 },
   { id: "schedule-watch", label: "My Watch", icon: "fa-user-clock", level: 2 },
   {
@@ -290,6 +294,13 @@ export default function Index() {
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  // Announcements are intentionally kept out of the combined loading/error state
+  // below — a failed board must never block the rest of the dashboard.
+  const announcementQuery = useApiQuery(
+    ["announcements"],
+    endpoints.announcements.list(),
+  );
+  const announcements = announcementQuery.data || [];
   const animeData = animeQuery.data || [];
   const franchiseData = franchiseQuery.data || [];
   const tvData = tvQuery.data || [];
@@ -311,7 +322,7 @@ export default function Index() {
     mangaQuery.error?.message ||
     novelQuery.error?.message ||
     null;
-  const [activeSection, setActiveSection] = useState("schedule");
+  const [activeSection, setActiveSection] = useState("announcements");
 
   function updateCachedList(type, updater) {
     queryClient.setQueriesData({ queryKey: ["media-list", type] }, (old) =>
@@ -323,6 +334,7 @@ export default function Index() {
   useEffect(() => {
     if (loading) return;
     const ids = [
+      "announcements",
       "schedule",
       "schedule-watch",
       "schedule-broadcast",
@@ -567,6 +579,27 @@ export default function Index() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
+          {/* Announcement Division */}
+          <div id="announcements">
+            <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-bullhorn text-brand text-lg"></i>
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                  Announcement &amp; Notes
+                </h1>
+                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                  Pinned to the top of the dashboard
+                </p>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+                {announcements.length} Posted
+              </span>
+            </div>
+            <AnnouncementBoard announcements={announcements} />
+          </div>
+
           {/* Schedule Division */}
           <div id="schedule">
             <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">

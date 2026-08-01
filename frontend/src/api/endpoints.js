@@ -49,6 +49,13 @@ export const endpoints = {
     update: (id) => `/api/seasonal/${id}`,
   },
 
+  announcements: {
+    list: () => "/api/announcements/",
+    create: () => "/api/announcements/",
+    update: () => "/api/announcements/",
+    remove: (title) => `/api/announcements/?title=${encodeURIComponent(title)}`,
+  },
+
   system: {
     currentSeason: () => "/api/system/config/current_season",
     logs: () => "/api/system/logs",

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
+import { endpoints } from "../../api/endpoints";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -1467,6 +1468,14 @@ export default function Admin() {
   const [coverSetting, setCoverSetting] = useState(false);
   const [coverDeleting, setCoverDeleting] = useState(false);
 
+  // Announcement & Notes state
+  const [announcements, setAnnouncements] = useState([]);
+  const [annTitle, setAnnTitle] = useState("");
+  const [annBody, setAnnBody] = useState("");
+  const [annEditing, setAnnEditing] = useState(null); // original title, or null when adding
+  const [annSaving, setAnnSaving] = useState(false);
+  const [annConfirmDelete, setAnnConfirmDelete] = useState(null);
+
   const loadSeason = useCallback(async () => {
     try {
       const res = await fetch("/api/system/config/current_season", {
@@ -1490,10 +1499,98 @@ export default function Admin() {
     }
   }, []);
 
+  const loadAnnouncements = useCallback(async () => {
+    try {
+      const res = await fetch(endpoints.announcements.list(), {
+        credentials: "include",
+      });
+      if (res.ok) setAnnouncements(await res.json());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     loadSeason();
     loadLogs();
-  }, [loadSeason, loadLogs]);
+    loadAnnouncements();
+  }, [loadSeason, loadLogs, loadAnnouncements]);
+
+  function resetAnnouncementForm() {
+    setAnnEditing(null);
+    setAnnTitle("");
+    setAnnBody("");
+  }
+
+  function startEditAnnouncement(item) {
+    setAnnEditing(item.title);
+    setAnnTitle(item.title);
+    setAnnBody(item.body);
+    setAnnConfirmDelete(null);
+  }
+
+  async function handleSaveAnnouncement() {
+    if (!annTitle.trim() || !annBody.trim()) {
+      showToast("warning", "Please fill in both the title and the note.");
+      return;
+    }
+    setAnnSaving(true);
+    try {
+      const editing = annEditing !== null;
+      const res = await fetch(
+        editing ? endpoints.announcements.update() : endpoints.announcements.create(),
+        {
+          method: editing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            editing
+              ? {
+                  original_title: annEditing,
+                  title: annTitle.trim(),
+                  body: annBody.trim(),
+                }
+              : { title: annTitle.trim(), body: annBody.trim() },
+          ),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to save announcement");
+      }
+      resetAnnouncementForm();
+      await loadAnnouncements();
+      showToast("success", editing ? "Announcement updated!" : "Announcement added!");
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setAnnSaving(false);
+    }
+  }
+
+  async function handleDeleteAnnouncement(title) {
+    // Two-step inline confirmation — the first click arms, the second deletes.
+    if (annConfirmDelete !== title) {
+      setAnnConfirmDelete(title);
+      return;
+    }
+    setAnnConfirmDelete(null);
+    try {
+      const res = await fetch(endpoints.announcements.remove(title), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to delete announcement");
+      }
+      if (annEditing === title) resetAnnouncementForm();
+      await loadAnnouncements();
+      showToast("success", `Announcement '${title}' deleted.`);
+    } catch (e) {
+      showToast("error", e.message);
+    }
+  }
 
   async function handleSetSeason() {
     if (!seasonCode || !seasonYear) {
@@ -2062,7 +2159,121 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* 4. Data Control Log */}
+      {/* 4. Announcement & Notes */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
+          <i className="fas fa-bullhorn text-brand mr-2"></i> Announcement &amp;
+          Notes
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Existing notes */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Posted ({announcements.length})
+            </p>
+            {announcements.length === 0 ? (
+              <div className="flex items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+                <p className="text-gray-400 font-medium italic text-sm">
+                  No Announcement &amp; Notes
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {announcements.map((item) => (
+                  <div
+                    key={item.title}
+                    className={`rounded-xl border px-3 py-2.5 transition ${
+                      annEditing === item.title
+                        ? "border-brand/50 bg-brand/5"
+                        : "border-gray-200 bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-gray-800 truncate">
+                        {item.title}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => startEditAnnouncement(item)}
+                          className="text-xs font-bold text-gray-500 hover:text-brand bg-white border border-gray-200 rounded-lg px-2 py-1 transition"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAnnouncement(item.title)}
+                          onBlur={() => setAnnConfirmDelete(null)}
+                          className={`text-xs font-bold rounded-lg px-2 py-1 border transition ${
+                            annConfirmDelete === item.title
+                              ? "bg-red-600 text-white border-red-600"
+                              : "bg-white text-gray-500 hover:text-red-600 border-gray-200"
+                          }`}
+                        >
+                          {annConfirmDelete === item.title ? (
+                            "Confirm?"
+                          ) : (
+                            <i className="fas fa-trash"></i>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">
+                      {item.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add / edit form */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              {annEditing !== null ? `Editing "${annEditing}"` : "New Note"}
+            </p>
+            <input
+              type="text"
+              value={annTitle}
+              onChange={(e) => setAnnTitle(e.target.value)}
+              placeholder="Title"
+              maxLength={120}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+            />
+            <textarea
+              value={annBody}
+              onChange={(e) => setAnnBody(e.target.value)}
+              rows={6}
+              placeholder="Write the announcement or note. Line breaks are preserved."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveAnnouncement}
+                disabled={annSaving}
+                className="flex-1 bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-bold transition disabled:opacity-60"
+              >
+                {annSaving ? (
+                  <i className="fas fa-circle-notch fa-spin"></i>
+                ) : annEditing !== null ? (
+                  "Save Changes"
+                ) : (
+                  "Add Announcement"
+                )}
+              </button>
+              {annEditing !== null && (
+                <button
+                  onClick={resetAnnouncementForm}
+                  className="px-5 bg-white border border-gray-300 rounded-lg py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Data Control Log */}
       <LogsTable
         logs={logs}
         onRefresh={() => {

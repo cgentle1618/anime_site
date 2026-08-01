@@ -30,6 +30,27 @@ class SystemConfigResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AnnouncementBase(BaseModel):
+    """Dashboard announcement note, stored in system_configs as 'announcement:<title>'."""
+
+    title: str
+    body: str
+
+
+class AnnouncementCreate(AnnouncementBase):
+    pass
+
+
+class AnnouncementUpdate(AnnouncementBase):
+    """Update payload — original_title identifies the row, title may rename it."""
+
+    original_title: str
+
+
+class AnnouncementResponse(AnnouncementBase):
+    pass
+
+
 class SeasonalBase(BaseModel):
     seasonal: str
     my_rating: Optional[str] = None

@@ -24,6 +24,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Novel — `/api/novel`](#novel--apinovel)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
+- [Announcements — `/api/announcements`](#announcements--apiannouncements)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
 - [System — `/api/system`](#system--apisystem)
 
@@ -211,6 +212,25 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `DELETE` | `/{option_id}` | Admin  | Delete an option by integer ID. Logs to `deleted_record`.                  |
 
 **Response model:** `SystemOptionResponse`
+
+---
+
+## Announcements — `/api/announcements`
+
+Dashboard "Announcement & Notes" board. Each note is one `system_configs` row keyed
+`announcement:<title>`, with the note body as `config_value` — no dedicated table.
+
+| Method   | Path | Auth   | Description                                                                                     |
+| -------- | ---- | ------ | ----------------------------------------------------------------------------------------------- |
+| `GET`    | `/`  | Public | List all announcements in creation order (`system_configs.id`).                                 |
+| `POST`   | `/`  | Admin  | Add a note. Body: `AnnouncementCreate` (`{title, body}`). 409 if the title exists.               |
+| `PUT`    | `/`  | Admin  | Update / rename. Body: `AnnouncementUpdate` (`{original_title, title, body}`). 404 / 409.        |
+| `DELETE` | `/`  | Admin  | Delete by `?title=` query param. 404 if missing.                                                 |
+
+Titles travel in the body or query string, never the path — free-text titles may contain `/`.
+Empty titles/bodies and titles over 120 chars are rejected with 400.
+
+**Response model:** `AnnouncementResponse` (`{title, body}`)
 
 ---
 
