@@ -476,6 +476,11 @@ export default function Nav() {
                     <NavLink to="/meme" icon="fas fa-face-grin-squint">
                       Memes
                     </NavLink>
+                    {isAdmin && (
+                      <NavLink to="/watch-orders" icon="fas fa-list-ol">
+                        Watch Orders
+                      </NavLink>
+                    )}
                   </>
                 }
               />
@@ -533,13 +538,6 @@ export default function Nav() {
                       >
                         <i className="fas fa-sliders-h w-6 text-center text-blue-400 mr-1"></i>
                         Form Defaults
-                      </Link>
-                      <Link
-                        to="/watch-orders"
-                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 transition"
-                      >
-                        <i className="fas fa-list-ol w-6 text-center text-blue-400 mr-1"></i>
-                        Watch Orders
                       </Link>
                     </>
                   }
@@ -868,6 +866,15 @@ export default function Nav() {
                 >
                   Seasonal
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/watch-orders"
+                    onClick={() => setMobileOpen(false)}
+                    className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                  >
+                    Watch Orders
+                  </Link>
+                )}
               </div>
             </details>
 
@@ -933,13 +940,6 @@ export default function Nav() {
                       className="block py-2 text-sm font-bold text-gray-700 hover:text-blue-600"
                     >
                       Form Defaults
-                    </Link>
-                    <Link
-                      to="/watch-orders"
-                      onClick={() => setMobileOpen(false)}
-                      className="block py-2 text-sm font-bold text-gray-700 hover:text-blue-600"
-                    >
-                      Watch Orders
                     </Link>
                   </div>
                 </details>
