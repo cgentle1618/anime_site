@@ -81,15 +81,27 @@ export function mediaScope(mediaTypes) {
  * title so it reads before the name rather than competing with the other
  * badges below it.
  */
-export function MediaScopeLine({ mediaTypes, className = "" }) {
+export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
   const scope = mediaScope(mediaTypes);
   if (!scope) return null;
 
+  const tone = scope.cross ? "text-sky-600" : "text-gray-500";
+
+  // Compact form for a row subtitle, where the per-type chips would not fit.
+  if (short) {
+    return (
+      <span
+        className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-wide ${tone} ${className}`}
+      >
+        <i className={`fas ${scope.icon}`}></i>
+        {scope.short}
+      </span>
+    );
+  }
+
   return (
     <p
-      className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${
-        scope.cross ? "text-sky-600" : "text-gray-500"
-      } ${className}`}
+      className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${tone} ${className}`}
     >
       <i className={`fas ${scope.icon}`}></i>
       {scope.cross ? (

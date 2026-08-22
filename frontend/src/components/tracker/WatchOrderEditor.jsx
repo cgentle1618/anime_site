@@ -446,6 +446,17 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/*
+        The editor has no title for the scope to lead, so it leads the panel
+        instead - a band above the fields rather than a line floating between
+        the checkboxes and the picker.
+      */}
+      {list.media_types?.length > 0 && (
+        <div className="-mx-4 -mt-4 px-4 py-2 border-b border-gray-100 bg-gray-50/70 rounded-t-xl">
+          <MediaScopeLine mediaTypes={list.media_types} />
+        </div>
+      )}
+
       {/* Order metadata */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
@@ -528,8 +539,6 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           Most recommended
         </label>
       </div>
-
-      <MediaScopeLine mediaTypes={list.media_types} />
 
       <EntryPicker candidates={candidates} onAdd={addItem} disabled={busy} />
 

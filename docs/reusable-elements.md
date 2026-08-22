@@ -1145,9 +1145,13 @@ same here as everywhere else. It returns null for an empty order.
 icon-led line meant to sit **directly above an order's title**, so what kind of
 order it is registers before the name instead of competing with the Custom /
 Most recommended badges below it. Cross-type renders blue with one chip per
-type; single-type renders grey. Used by the standalone page, the
-franchise/collection section and the editor; the admin list uses the shorter
-`mediaScope().short` in its subtitle.
+type; single-type renders grey. `short` renders the compact one-line form
+("Anime only") for a row subtitle, where the per-type chips would not fit.
+
+Used by the standalone page and the franchise/collection section above the
+order name; by the editor as a tinted band across the top of the panel, since
+a form has no title for it to lead; and by the admin list rows in `short` form
+on their own line, rather than buried in the grey subtitle.
 
 `specialLabel()` is exported from this file and
 reused by the editor's step rows and its entry picker, where a special often
