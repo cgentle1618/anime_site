@@ -1125,7 +1125,9 @@ entry's watch/read status pill, and the per-step note, linking to the entry's
 detail page via `MEDIA_CONFIG[media_type].navPath`. Anime carrying an
 `ep_special` also get an `Ep. Special 14.5` badge — the episode number the
 special sits at, not a count. `specialLabel()` is exported from this file and
-reused by the editor; it tests `!= null`, since `0` (第零集) is a real value a
+reused by the editor's step rows and its entry picker, where a special often
+shares its parent's title and the number is the only thing telling two rows
+apart; it tests `!= null`, since `0` (第零集) is a real value a
 truthiness check would silently drop. Status colors come from
 `getCardStatusConfig(type, status)` rather than `getStatusStyle` — reading
 statuses have no entry in the watching style map. A "Hide optional" toggle

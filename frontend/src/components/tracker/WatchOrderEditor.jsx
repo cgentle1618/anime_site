@@ -224,6 +224,15 @@ function EntryPicker({ candidates, onAdd, disabled }) {
                 <span className="text-sm font-bold text-gray-800 truncate">
                   {c.display_name}
                 </span>
+                {/*
+                  Specials often share their parent's title, so the episode
+                  number is the only thing telling two rows apart here.
+                */}
+                {specialLabel(c) && (
+                  <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
+                    {specialLabel(c)}
+                  </span>
+                )}
                 <span className="ml-auto text-[10px] font-black text-gray-400 whitespace-nowrap">
                   {TYPE_LABELS[c.media_type]}
                 </span>
