@@ -35,6 +35,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/statistics`             | `Statistics`                                       | Public     |
 | `/completions`            | `Completions`                                      | Public     |
 | `/quote`                  | `Quotes`                                           | Public     |
+| `/meme`                   | `Memes`                                            | Public     |
 | `/under-development`      | `UnderDevelopment`                                 | Public     |
 | `/system`                 | `Admin`                                            | Admin only |
 | `/data-history`           | `DataHistory`                                      | Admin only |
@@ -1174,6 +1175,33 @@ disappearing, so the dangling row stays visible and fixable.
 **Images are local-only.** `getQuoteImageUrl` returns `null` off localhost
 because Cloud Run's filesystem is ephemeral, so both the image and its copy
 button are absent in production.
+
+---
+
+### Memes (`/meme`)
+
+Every meme in the library, grouped by its owner — a media entry, or a whole
+series, franchise or collection.
+
+**Loads:** `GET /api/meme/grouped`. Shares its shell with `/quote` —
+`components/layout/GroupedEntryPage.jsx` renders the header, filter bar, and
+per-entry cards for both; only the row component and the filters differ.
+
+**Filter bar:** owner type (a ten-value select, split into Media Entry and
+Grouping Tier groups), Favorites, and a text search over the meme's lines. No
+General or tag filters — a meme has neither field.
+
+**Owner headers:** entry owners show their cover; tier owners have no cover
+column, so they show an icon tile (sitemap / layers / boxes) plus a label pill
+naming the kind. A series owner renders as plain text rather than a link, since
+Series has no page.
+
+**Body:** the image first when set (a meme has at most one, so its position is
+not stored), then its text. A meme whose text is also a quote carries a badge
+showing the quote's speaker.
+
+**Per-meme actions:** copy text (all lines joined), copy image (local only), and
+— for admins — favorite toggle, inline edit, delete.
 
 ---
 

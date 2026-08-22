@@ -22,6 +22,7 @@ import {
 import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import { MemeSection } from "../notes/NotesTemplate";
 
 const RATING_COLORS = {
   S: "bg-yellow-400 text-yellow-900",
@@ -345,6 +346,18 @@ export default function CollectionPage() {
           Watch Order
         </h2>
         <WatchOrderSection collectionId={system_id} />
+
+        {/* Likewise a section, and owned by the collection itself. */}
+        <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
+          Memes
+        </h2>
+        <MemeSection
+          sectionKey="memes"
+          label="梗／迷因 Memes"
+          ownerType="collection"
+          ownerId={system_id}
+          isAdmin={isAdmin}
+        />
       </div>
     </div>
   );

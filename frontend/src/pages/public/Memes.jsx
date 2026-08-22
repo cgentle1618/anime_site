@@ -1,20 +1,15 @@
-// Frontend: page component file for Quotes — every quote in the library,
-// grouped by the media entry it came from. Memes live on /meme; the two share
-// GroupedEntryPage and differ only in their row and filters.
+// Frontend: page component file for Memes — every meme in the library, grouped
+// by the media entry it came from. Shares GroupedEntryPage with /quote.
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import GroupedEntryPage, {
-  MEDIA_TYPE_FILTERS,
   Pill,
   Toggle,
   controlCls,
 } from "../../components/layout/GroupedEntryPage";
-import QuoteForm, {
-  emptyQuote,
-  toQuotePayload,
-} from "../../components/forms/QuoteForm";
+import { OWNER_TYPE_OPTIONS } from "../../components/forms/MemeOwnerPicker";
+import MemeForm, { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -26,18 +21,18 @@ import {
   copyTextToClipboard,
 } from "../../lib/clipboardImage";
 
-function QuoteRow({ quote, isAdmin, onChanged }) {
+function MemeRow({ meme, isAdmin, onChanged }) {
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(emptyQuote());
+  const [draft, setDraft] = useState(emptyMeme());
   const [busy, setBusy] = useState(false);
 
-  const imageUrl = getQuoteImageUrl(quote.image_file);
+  const imageUrl = getQuoteImageUrl(meme.image_file);
 
   const patch = async (body) => {
     setBusy(true);
     try {
-      await fetchJson(endpoints.quotes.patch(quote.system_id), {
+      await fetchJson(endpoints.memes.patch(meme.system_id), {
         method: "PATCH",
         ...jsonBody(body),
       });
@@ -52,13 +47,13 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
   const saveEdit = async () => {
     setBusy(true);
     try {
-      await fetchJson(endpoints.quotes.patch(quote.system_id), {
+      await fetchJson(endpoints.memes.patch(meme.system_id), {
         method: "PATCH",
-        ...jsonBody(toQuotePayload(draft)),
+        ...jsonBody(toMemePayload(draft)),
       });
       setEditing(false);
       await onChanged();
-      showToast("success", "Quote updated.");
+      showToast("success", "Meme updated.");
     } catch (err) {
       showToast("error", err.message || "Update failed.");
     } finally {
@@ -69,11 +64,11 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
   const remove = async () => {
     setBusy(true);
     try {
-      await fetchJson(endpoints.quotes.remove(quote.system_id), {
+      await fetchJson(endpoints.memes.remove(meme.system_id), {
         method: "DELETE",
       });
       await onChanged();
-      showToast("success", "Quote deleted.");
+      showToast("success", "Meme deleted.");
     } catch (err) {
       showToast("error", err.message || "Delete failed.");
     } finally {
@@ -87,14 +82,19 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
   };
 
   const copyText = async () => {
-    const res = await copyTextToClipboard(quote.text);
+    const res = await copyTextToClipboard(meme.text);
     showToast(res.ok ? "success" : "error", res.ok ? "Text copied." : res.error);
   };
 
   if (editing) {
     return (
       <div className="border border-brand/30 rounded-lg p-3 bg-brand/5">
-        <QuoteForm val={draft} setVal={setDraft} />
+        <MemeForm
+          val={draft}
+          setVal={setDraft}
+          ownerType={meme.owner_type}
+          ownerId={meme.owner_id}
+        />
         <div className="flex gap-2 mt-3">
           <button
             onClick={saveEdit}
@@ -118,48 +118,46 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
     <div className="group border border-gray-100 rounded-lg p-3 bg-gray-50/70 hover:bg-gray-50 transition">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          {quote.text && (
-            <p className="text-base text-gray-800 italic whitespace-pre-wrap leading-relaxed">
-              “{quote.text}”
-            </p>
+          {/* The image has no stored position — a meme has at most one, and it
+              always leads. */}
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt=""
+              className="mb-2 max-h-64 rounded-lg border border-gray-200"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
           )}
-          {quote.translation && (
-            <p className="mt-1 text-xs text-gray-500 whitespace-pre-wrap">
-              {quote.translation}
+
+          {meme.text && (
+            <p className="text-base text-gray-800 whitespace-pre-wrap leading-relaxed">
+              {meme.text}
+              {/* quote_id is a real FK with ON DELETE SET NULL, so a deleted
+                  quote simply unlinks — there is no dangling state to render. */}
+              {meme.quote_id && (
+                <span className="ml-2 align-middle">
+                  <Pill tone="brand">
+                    <i className="fas fa-quote-left" />
+                    {meme.quote_speaker || "quote"}
+                  </Pill>
+                </span>
+              )}
             </p>
           )}
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400 font-medium">
-            {quote.speaker && (
-              <span className="text-gray-500">— {quote.speaker}</span>
-            )}
-            {quote.original_source && (
-              <span>quoting {quote.original_source}</span>
-            )}
-            {quote.episode && <span>{quote.episode}</span>}
-            {quote.language && <span>{quote.language}</span>}
-            {quote.is_general && <Pill tone="brand">general</Pill>}
-            {quote.is_favorite && (
+            {meme.episode && <span>{meme.episode}</span>}
+            {meme.is_favorite && (
               <Pill tone="amber">
                 <i className="fas fa-star" />
               </Pill>
             )}
-            {quote.needs_review && <Pill tone="amber">needs review</Pill>}
-            {/* Derived server-side: this quote is also a line of a meme. */}
-            {quote.meme_id && (
-              <Link to="/meme" className="hover:underline">
-                <Pill tone="violet">
-                  <i className="fas fa-face-grin-squint" />
-                  in a meme
-                </Pill>
-              </Link>
-            )}
-            {(quote.tags || []).map((t) => (
-              <Pill key={t}>{t}</Pill>
-            ))}
-            {quote.link && (
+            {meme.remark && <span className="italic">{meme.remark}</span>}
+            {meme.link && (
               <a
-                href={quote.link}
+                href={meme.link}
                 target="_blank"
                 rel="noreferrer"
                 className="text-brand hover:underline"
@@ -169,23 +167,10 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
               </a>
             )}
           </div>
-
-          {imageUrl && (
-            <div className="mt-2">
-              <img
-                src={imageUrl}
-                alt=""
-                className="max-h-56 rounded-lg border border-gray-200"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-            </div>
-          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-          {quote.text && (
+          {meme.text && (
             <button
               onClick={copyText}
               title="Copy text"
@@ -206,11 +191,11 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
           {isAdmin && (
             <>
               <button
-                onClick={() => patch({ is_favorite: !quote.is_favorite })}
+                onClick={() => patch({ is_favorite: !meme.is_favorite })}
                 disabled={busy}
                 title="Toggle favorite"
                 className={`h-7 w-7 rounded-lg hover:bg-white ${
-                  quote.is_favorite
+                  meme.is_favorite
                     ? "text-amber-500"
                     : "text-gray-400 hover:text-amber-500"
                 }`}
@@ -219,7 +204,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
               </button>
               <button
                 onClick={() => {
-                  setDraft(emptyQuote(quote));
+                  setDraft(emptyMeme(meme));
                   setEditing(true);
                 }}
                 title="Edit"
@@ -243,71 +228,73 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
   );
 }
 
-export default function Quotes() {
+export default function Memes() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
 
-  const [mediaType, setMediaType] = useState("");
-  const [generalOnly, setGeneralOnly] = useState(false);
+  const [ownerType, setOwnerType] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [reviewOnly, setReviewOnly] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Filtering server-side keeps the grouped shape and the entry headers intact;
-  // narrowing in the browser would leave empty groups behind.
   const params = useMemo(() => {
     const p = {};
-    if (mediaType) p.media_type = mediaType;
-    if (generalOnly) p.is_general = true;
+    if (ownerType) p.owner_type = ownerType;
     if (favoritesOnly) p.is_favorite = true;
-    if (reviewOnly) p.needs_review = true;
     if (search.trim()) p.search_query = search.trim();
     return p;
-  }, [mediaType, generalOnly, favoritesOnly, reviewOnly, search]);
+  }, [ownerType, favoritesOnly, search]);
 
   const { data, isLoading, error } = useApiQuery(
-    ["quotes-grouped"],
-    endpoints.quotes.grouped(),
+    ["memes-grouped"],
+    endpoints.memes.grouped(),
     { params },
   );
 
   const refetch = () =>
-    queryClient.invalidateQueries({ queryKey: ["quotes-grouped"] });
+    queryClient.invalidateQueries({ queryKey: ["memes-grouped"] });
 
   return (
     <GroupedEntryPage
-      icon="fa-quote-left"
-      title="Quotes"
-      subtitle="Memorable lines, grouped by where they came from"
+      icon="fa-face-grin-squint"
+      title="Memes"
+      subtitle="Jokes and running gags, grouped by the entry or franchise they belong to"
       groups={data || []}
       isLoading={isLoading}
       error={error}
-      itemsKey="quotes"
-      noun="quote"
-      renderRow={(q) => (
-        <QuoteRow
-          key={q.system_id}
-          quote={q}
+      itemsKey="memes"
+      noun="meme"
+      renderRow={(m) => (
+        <MemeRow
+          key={m.system_id}
+          meme={m}
           isAdmin={isAdmin}
           onChanged={refetch}
         />
       )}
       filters={
         <>
+          {/* Ten owner types, grouped so the tiers read as a distinct kind. */}
           <select
-            value={mediaType}
-            onChange={(e) => setMediaType(e.target.value)}
+            value={ownerType}
+            onChange={(e) => setOwnerType(e.target.value)}
             className={controlCls}
           >
-            {MEDIA_TYPE_FILTERS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
+            <option value="">All owners</option>
+            <optgroup label="Media Entry">
+              {OWNER_TYPE_OPTIONS.filter((o) => !o.tier).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Grouping Tier">
+              {OWNER_TYPE_OPTIONS.filter((o) => o.tier).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </optgroup>
           </select>
-          <Toggle active={generalOnly} onClick={() => setGeneralOnly((v) => !v)}>
-            General
-          </Toggle>
           <Toggle
             active={favoritesOnly}
             onClick={() => setFavoritesOnly((v) => !v)}
@@ -315,15 +302,10 @@ export default function Quotes() {
             <i className="fas fa-star mr-1" />
             Favorites
           </Toggle>
-          {isAdmin && (
-            <Toggle active={reviewOnly} onClick={() => setReviewOnly((v) => !v)}>
-              Needs review
-            </Toggle>
-          )}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search text, speaker, source..."
+            placeholder="Search meme text..."
             className={`${controlCls} flex-1 min-w-[180px]`}
           />
         </>

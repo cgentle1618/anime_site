@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict
 class QuoteBase(BaseModel):
     media_type: Optional[str] = None
     entry_id: Optional[UUID] = None
-    kind: Optional[str] = "quote"
     text: Optional[str] = None
     translation: Optional[str] = None
     language: Optional[str] = None
@@ -59,6 +58,11 @@ class QuoteResolved(QuoteResponse):
     cover_image_file: Optional[str] = None
     franchise_id: Optional[UUID] = None
     entry_nav_path: Optional[str] = None
+
+    # Set when this quote is also a meme's text. Derived by reverse lookup on
+    # meme.quote_id rather than stored here, so there is no second copy to keep
+    # in sync when a meme is edited or deleted.
+    meme_id: Optional[UUID] = None
 
 
 class QuoteGroup(BaseModel):

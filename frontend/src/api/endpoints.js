@@ -103,6 +103,18 @@ export const endpoints = {
     remove: (id) => `/api/quote/${id}`,
   },
 
+  memes: {
+    list: (qs = "") => `/api/meme/${qs ? `?${qs}` : ""}`,
+    grouped: (qs = "") => `/api/meme/grouped${qs ? `?${qs}` : ""}`,
+    byOwner: (ownerType, ownerId) =>
+      `/api/meme/?owner_type=${ownerType}&owner_id=${ownerId}`,
+    detail: (id) => `/api/meme/${id}`,
+    create: () => "/api/meme/",
+    update: (id) => `/api/meme/${id}`,
+    patch: (id) => `/api/meme/${id}`,
+    remove: (id) => `/api/meme/${id}`,
+  },
+
   dataControl: {
     fill: (type) => `/api/data-control/fill/${type}`,
     fillAll: () => "/api/data-control/fill/all",

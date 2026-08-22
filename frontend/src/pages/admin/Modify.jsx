@@ -29,6 +29,7 @@ import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
+import MemeManageTab from "../modify-tabs/MemeManageTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import {
@@ -2655,6 +2656,9 @@ export default function Modify() {
 
       {/* ═══ QUOTE TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "quote" && <QuoteManageTab mode="modify" />}
+
+      {/* ═══ MEME TAB — bypasses search/edit pattern ═══ */}
+      {activeTab === "meme" && <MemeManageTab mode="modify" />}
 
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (

@@ -5,6 +5,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
+import MemeManageTab from "../modify-tabs/MemeManageTab";
 
 
 function getClean(str) {
@@ -591,6 +592,9 @@ export default function Delete() {
 
       {/* QUOTE TAB — bypasses the per-type search/confirm pattern */}
       {tab === "quote" && <QuoteManageTab mode="delete" />}
+
+      {/* MEME TAB — bypasses the per-type search/confirm pattern */}
+      {tab === "meme" && <MemeManageTab mode="delete" />}
 
       {/* ANIME TAB */}
       {tab === "anime" && (

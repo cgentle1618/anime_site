@@ -24,6 +24,7 @@ from app.models import (
     WatchOrderList,
     WatchOrderItem,
     Quote,
+    Meme,
 )
 
 from app.utils.formatter import (
@@ -44,6 +45,7 @@ from app.utils.formatter import (
     parse_watch_order_list_from_sheet,
     parse_watch_order_item_from_sheet,
     parse_quote_from_sheet,
+    parse_meme_from_sheet,
 )
 from app.utils.data_control_utils import log_data_control
 
@@ -124,6 +126,7 @@ def execute_pull_specific(
         "Watch Order List": WatchOrderList,
         "Watch Order Item": WatchOrderItem,
         "Quote": Quote,
+        "Meme": Meme,
     }
 
     PARSER_MAP = {
@@ -142,6 +145,7 @@ def execute_pull_specific(
         "Watch Order List": parse_watch_order_list_from_sheet,
         "Watch Order Item": parse_watch_order_item_from_sheet,
         "Quote": parse_quote_from_sheet,
+        "Meme": parse_meme_from_sheet,
     }
 
     if tab_name not in MODEL_MAP:
@@ -384,6 +388,23 @@ def execute_pull_specific(
                             WatchOrderList.list_name == name,
                             WatchOrderList.franchise_id == owner_franchise,
                             WatchOrderList.collection_id == owner_collection,
+                        )
+                        .first()
+                    )
+            elif tab_name == "Meme":
+                # An id-less row is matched on the owner plus its text, so
+                # re-importing the same sheet updates rather than duplicating.
+                # Memes have no name of their own to match on.
+                m_owner_type = clean_header_dict.get("owner_type")
+                m_owner_id = clean_header_dict.get("owner_id")
+                m_text = clean_header_dict.get("text")
+                if m_owner_type and m_owner_id and m_text:
+                    existing_record = (
+                        db.query(Meme)
+                        .filter(
+                            Meme.owner_type == m_owner_type,
+                            Meme.owner_id == m_owner_id,
+                            Meme.text == m_text,
                         )
                         .first()
                     )
@@ -638,6 +659,8 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Watch Order Item",
         # Quotes point at media rows the same FK-less way items do.
         "Quote",
+        # Memes name quotes, so they restore after them.
+        "Meme",
         "Seasonal",
     ]
 

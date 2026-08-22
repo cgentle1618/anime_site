@@ -1,13 +1,10 @@
 // Frontend: the one quote field set, shared by the entry Notes section, the
 // admin Quote tab, and the inline editor on the Quote page.
-import { inputCls, selectCls } from "./FormField";
+import { inputCls } from "./FormField";
 import { getQuoteImageUrl } from "../../lib/covers";
-
-export const KINDS = ["quote", "meme"];
 
 export function emptyQuote(overrides = {}) {
   return {
-    kind: "quote",
     text: "",
     translation: "",
     language: "",
@@ -32,7 +29,6 @@ export function toQuotePayload(val, extra = {}) {
     return t === "" ? null : t;
   };
   return {
-    kind: val.kind || "quote",
     text: clean(val.text),
     translation: clean(val.translation),
     language: clean(val.language),
@@ -85,29 +81,14 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Row label="Kind">
-          <select
-            value={val.kind || "quote"}
-            onChange={(e) => set("kind", e.target.value)}
-            className={selectCls}
-          >
-            {KINDS.map((k) => (
-              <option key={k} value={k}>
-                {k === "quote" ? "Quote" : "Meme"}
-              </option>
-            ))}
-          </select>
-        </Row>
-        <Row label="Language" hint="Language of the text below">
-          <input
-            value={val.language || ""}
-            onChange={(e) => set("language", e.target.value)}
-            placeholder="JP / CN / EN"
-            className={inputCls}
-          />
-        </Row>
-      </div>
+      <Row label="Language" hint="Language of the text below">
+        <input
+          value={val.language || ""}
+          onChange={(e) => set("language", e.target.value)}
+          placeholder="JP / CN / EN"
+          className={inputCls}
+        />
+      </Row>
 
       <Row label="Text">
         <textarea

@@ -16,10 +16,15 @@ import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
+import MemeAddTab from "../add-tabs/MemeAddTab";
 import {
   emptyQuote,
   toQuotePayload,
 } from "../../components/forms/QuoteForm";
+import {
+  emptyMeme,
+  toMemePayload,
+} from "../../components/forms/MemeForm";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
@@ -117,6 +122,8 @@ export default function Add() {
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
   const uq = (patch) => setQf((prev) => ({ ...prev, ...patch }));
+  const [memf, setMemf] = useState(emptyMeme({ owner_type: "", owner_id: null }));
+  const umeme = (patch) => setMemf((prev) => ({ ...prev, ...patch }));
 
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
@@ -450,6 +457,7 @@ export default function Add() {
       else if (activeTab === "manga") await submitManga();
       else if (activeTab === "novel") await submitNovel();
       else if (activeTab === "quote") await submitQuote();
+      else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
@@ -758,6 +766,34 @@ export default function Add() {
       setQf(emptyQuote({ media_type: qf.media_type, entry_id: qf.entry_id }));
     } catch (err) {
       showToast("error", err.message || "Failed to append quote.");
+    }
+  }
+
+  async function submitMeme() {
+    if (!memf.owner_type || !memf.owner_id) {
+      showToast("warning", "An owner must be selected.");
+      return;
+    }
+    if (!memf.text?.trim() && !memf.image_file?.trim()) {
+      showToast("warning", "A meme needs text or an image.");
+      return;
+    }
+    try {
+      await fetchJson(endpoints.memes.create(), {
+        method: "POST",
+        ...jsonBody(
+          toMemePayload(memf, {
+            owner_type: memf.owner_type,
+            owner_id: memf.owner_id,
+          }),
+        ),
+      });
+      showToast("success", "Meme appended.");
+      setLastAdded(memf.text?.trim() || memf.image_file);
+      // Keep the entry selected: memes are usually added several at a time.
+      setMemf(emptyMeme({ owner_type: memf.owner_type, owner_id: memf.owner_id }));
+    } catch (err) {
+      showToast("error", err.message || "Failed to append meme.");
     }
   }
 
@@ -2083,6 +2119,9 @@ export default function Add() {
 
         {/* ═══ QUOTE TAB ═══ */}
         {activeTab === "quote" && <QuoteAddTab qf={qf} uq={uq} />}
+
+        {/* ═══ MEME TAB ═══ */}
+        {activeTab === "meme" && <MemeAddTab mf={memf} um={umeme} />}
 
         {/* ═══ OPTIONS TAB ═══ */}
         {activeTab === "options" && (

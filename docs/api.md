@@ -248,8 +248,15 @@ year is 1 January, a month and year the 1st of that month, so a year-only manga
 ties with a 1 January release rather than sorting just ahead of it, and the two
 are separated by name. Entries with no parseable date at all sink to the bottom.
 
-A release order is refused for an owner with fewer than **2** entries — a
-franchise holding a single movie, TV series or novel has nothing to order.
+There are two built-in kinds: `release` (cross-type) and `release-anime`
+(anime only). Both are available to a franchise or a series; a collection gets
+the cross-type one only. A series-owned order cannot contain anime movies —
+`anime_movies` has no `series_id` column.
+
+A built-in order is refused when the scope holds fewer than **2** entries — a
+franchise that is a single movie, TV series or novel has nothing to order —
+and when the franchise belongs to a collection with `no_built_in_orders` set
+(迪士尼, whose members are unrelated standalone works).
 
 **Single-winner flags.** `is_default` (opens first) and `is_most_recommended`
 (the one to follow) are independent, and each is limited to one list per owner:
@@ -284,7 +291,7 @@ write is admin-only.
 
 | Method   | Path            | Auth   | Description                                                                                                                                                                                    |
 | -------- | --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`             | Public | List quotes. Optional params: `media_type`, `entry_id`, `kind`, `is_general`, `is_favorite`, `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
+| `GET`    | `/`             | Public | List quotes. Optional params: `media_type`, `entry_id`, `is_general`, `is_favorite`, `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
 | `GET`    | `/grouped`      | Public | The Quote page feed: quotes bucketed by entry, each bucket carrying its resolved entry header. Same filters minus `entry_id`. Named entries sort first; unresolvable ones sink to the bottom.    |
 | `GET`    | `/{quote_id}`   | Public | One quote with its entry's display data.                                                                                                                                                        |
 | `POST`   | `/`             | Admin  | Create. Body: `QuoteCreate`. 400 on an unknown `media_type`.                                                                                                                                    |
@@ -293,7 +300,8 @@ write is admin-only.
 | `DELETE` | `/{quote_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Quote". `image_file` is left alone — quote images are hand-managed local files.                                                                        |
 
 **Response models:** `QuoteResponse`, `QuoteResolved` (adds `missing`,
-`entry_display_name`, `cover_image_file`, `franchise_id`, `entry_nav_path`),
+`entry_display_name`, `cover_image_file`, `franchise_id`, `entry_nav_path`, and
+a derived `meme_id` when the quote is also a line of a meme),
 `QuoteGroup` (an entry header plus its `quotes`).
 
 **Entry resolution.** `quote` stores only `(media_type, entry_id)` — no foreign
@@ -304,6 +312,42 @@ never one per quote. A quote whose entry no longer exists comes back with
 
 `search_query` searches `text`, `translation`, `speaker`, and `original_source`.
 `tag` uses JSONB containment against the `tags` list.
+
+---
+
+## Meme — `/api/meme`
+
+Jokes, catchphrases and running gags attached to a media entry. A sibling of
+Quote with its own shape: one text, one image, or one of each.
+Reads are public; every write is admin-only.
+
+| Method   | Path           | Auth   | Description                                                                                                                                       |
+| -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`            | Public | List memes. Optional params: `owner_type`, `owner_id`, `is_favorite`, `search_query` (matches `text`), `limit` (≤2000), `offset`.                   |
+| `GET`    | `/grouped`     | Public | The Meme page feed: memes bucketed by owner, each bucket carrying its resolved owner header. Named owners sort first; unresolvable ones last.       |
+| `GET`    | `/{meme_id}`   | Public | One meme with its entry and linked-quote data resolved.                                                                                            |
+| `POST`   | `/`            | Admin  | Create. Body: `MemeCreate`. 400 on an unknown `owner_type`, an unknown `quote_id`, or a quote already claimed by another meme.                      |
+| `PUT`    | `/{meme_id}`   | Admin  | Full update, same validation.                                                                                                                      |
+| `PATCH`  | `/{meme_id}`   | Admin  | Partial update. Body: raw JSON dict.                                                                                                               |
+| `DELETE` | `/{meme_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Meme". **Linked quotes are not deleted** — a quote stands on its own.                                     |
+
+**Response models:** `MemeResponse`, `MemeResolved` (adds the resolved owner
+fields — `owner_display_name`, `owner_label`, `owner_is_tier`, `owner_nav_path`
+— plus `quote_speaker` / `quote_translation` when the text is also a quote),
+`MemeGroup` (an owner header plus its `memes`).
+
+**Resolution.** `meme` stores only `(owner_type, owner_id)`, resolved through
+`app/utils/media_resolver.py` against **`OWNER_TABLES`** — the seven media
+tables plus Series, Franchise and Collection — one query per table present.
+Quote and watch-order pass the narrower default map, so they keep rejecting a
+tier. `quote_id` is hydrated in a single batched query for the whole response,
+so the page can show whose line it is without fetching per meme.
+
+Because `quote_id` is a real FK with `ON DELETE SET NULL` and `UNIQUE`, there is
+no dangling-quote state to represent: deleting a quote simply unlinks it.
+
+Quotes are entry-only, so a tier-owned meme has no quotes of its own to link;
+the frontend hides the quote-link control in that case.
 
 ---
 

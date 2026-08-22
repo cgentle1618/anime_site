@@ -433,6 +433,30 @@ factories, and it is excluded from `FORM_TABS` so it never appears on
 
 ---
 
+### Add Meme Tab
+
+Like Quote and System Option, Meme is not a media entry, so it keeps its own
+form state in `Add.jsx` (`memf` / `umeme` — `mf` was already taken by the Movie
+form) and is excluded from `FORM_TABS`, so it never appears on `/defaults`.
+
+- **Owner picker** — `components/forms/MemeOwnerPicker.jsx`, not the quote's
+  entry picker: a meme's owner may be a media entry *or* a series, franchise or
+  collection, so the type select offers ten options split into Media Entry and
+  Grouping Tier optgroups. `useMediaList` already covers all ten keys.
+- **Content** (`components/forms/MemeForm.jsx`) — one text field and one image
+  field; a meme is text-only, image-only, or both. The text offers a quote link:
+  pick one of that entry's existing quotes, or hit **+ New quote** to create one
+  from the text (flagged `needs_review`) and link it in one step.
+- **Image** — a single filename field, not a line type, since a meme has at most
+  one image. Hidden off localhost like every other quote/meme image control.
+- **Validation:** an owner must be selected, and the meme needs text or an image.
+- The quote-link control is hidden when the owner is a tier — quotes are
+  entry-only, so there would be nothing to offer.
+- After a successful append the form resets but keeps the selected entry.
+- Submits: `POST /api/meme/`
+
+---
+
 ## Modify Page
 
 
@@ -646,6 +670,19 @@ and a text search narrow a flat list, and each row expands into `QuoteForm`.
 
 ---
 
+### Modify Meme Tab
+
+Bypasses the search-then-edit pattern, as the Quote tab does. Renders
+`pages/modify-tabs/MemeManageTab.jsx` with `mode="modify"`: the entry picker and
+a text search narrow a flat list, and each row expands into `MemeForm`.
+
+- Rows show the image, the text (marked when it is also a quote), the episode,
+  the owner kind when it is a tier, and which owner it belongs to — or "unlinked
+  owner" when dangling.
+- Submits: `PATCH /api/meme/:id`
+
+---
+
 ## Delete Page
 
 - When any entry is deleted, its associated cover image is removed from GCS if one exists.
@@ -661,6 +698,17 @@ button swaps to Confirm / Cancel.
   with the text as the name and the source entry as the franchise column.
 - Unlike media entries, **no image is removed** — quote images are hand-managed
   local files under `static/quotes/`, so cleaning them up is the admin's call.
+
+### Delete Meme Tab
+
+The same `MemeManageTab` with `mode="delete"` — two-step inline confirm, no
+modal.
+
+- Deletes: `DELETE /api/meme/:id`, logged to `deleted_record` as type "Meme"
+  with the text (or the image filename) as the name and the owner as the
+  franchise column.
+- **Linked quotes are not deleted** — a quote stands on its own, and the meme
+  only ever pointed at it. No image is removed either.
 
 ### Delete Movie Entry Tab
 

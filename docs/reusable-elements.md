@@ -33,7 +33,7 @@ Present on every page. Contains:
 | ACG                  | Anime Library, Anime Movie Library, Manga Library, Novel Library, Seiyuu Library _(future)_                                                            |
 | Reality ¹            | Franchise Library, TV Show Library (`/library/tv-show`), Movie Library (`/library/movie`)                                                              |
 | Cartoon              | Cartoon Library (`/library/cartoon`)                                                                                                                   |
-| More                 | Plan, Seasonal, Statistics, Future Release, Completions, Quotes                                                                                        |
+| More                 | Plan, Seasonal, Statistics, Future Release, Completions, Quotes, Memes                                                                                 |
 | Admin _(admin only)_ | Control Center (/system), Data History (/data-history), Review Queue (/review-queue), Add Entry (/add), Modify Entry (/modify), Delete Entry (/delete) |
 
 ¹ "Reality" is a nav grouping label only. **Reality Franchise** (franchise_type = "TV or Movie") covers Movies and TV Shows. Cartoon franchises use franchise_type = "Cartoon" and route to the unified `FranchisePage.jsx` (via `Franchise.jsx` wrapper) just like all other franchise types — they are not Reality Franchise entries.
@@ -825,12 +825,13 @@ The information is broken down into multiple fields from the `notes` JSONB colum
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: Anime Detail page, Modify Anime tab.
 
-**Quote section (`type: "quote"`) — the one API-backed notes section.**
-Every other section is a slice of the entry's `notes` JSONB column and saves via
+**Quote and Meme sections (`type: "quote"` / `"meme"`) — the two API-backed
+notes sections.** Every other section is a slice of the entry's `notes` JSONB column and saves via
 `NotesTemplate`'s `updateSection` / `onSave`. Quotes moved out of `notes` into
 the `quote` table, so `QuoteSection` talks to `/api/quote` directly and never
 calls `updateSection`. It therefore needs the entry reference rather than a
@@ -839,6 +840,15 @@ notes slice, which is why `NotesTemplate` takes a `mediaType` prop and each
 `"anime-movie"`, `"tv-show"`, ...). Field editing uses the shared
 `components/forms/QuoteForm.jsx`, the same form the admin Quote tab and the
 Quote page's inline editor render.
+
+The Meme section works identically against `/api/meme`, rendering
+`components/forms/MemeForm.jsx`. It is owner-generic (`ownerType`/`ownerId`
+rather than a media type), so the same component also renders on the
+**Franchise hub's Memes tab** and the **Collection hub's Memes section** — a
+running gag often belongs to the franchise rather than to one episode. A meme's text may name the Quote it also
+is, so such a quote appears in **both** sections — under Quotes with its speaker
+and translation, and inside its meme under Memes. The Quotes section marks it
+with an "in a meme" badge, derived from the `meme_id` the API returns.
 
 **Anime Movie Notes Card** — `frontend/src/pages/AnimeMovieNotes.jsx`
 
@@ -856,7 +866,8 @@ Quote page's inline editor render.
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: Anime Movie Detail page, Modify Anime Movie tab.
 
@@ -874,7 +885,8 @@ Stores data in `movies.notes` JSONB column.
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: Movie Detail page, Modify Movie tab.
 
@@ -892,7 +904,8 @@ Used on: Movie Detail page, Modify Movie tab.
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: TV Show Detail page, Modify TV Show tab.
 
@@ -910,7 +923,8 @@ Used on: TV Show Detail page, Modify TV Show tab.
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: Cartoon Detail page, Modify Cartoon tab.
 
@@ -930,7 +944,8 @@ Used on: Cartoon Detail page, Modify Cartoon tab.
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: Manga Detail page, Modify Manga tab.
 
@@ -951,7 +966,8 @@ Used on: Manga Detail page, Modify Manga tab.
 - Resources
 - Unread
 - Questions
-- 名言/梗/迷因 Quotes & Memes (section type `quote` — API-backed, see below)
+- 名言 Quotes (section type `quote` — API-backed, see below)
+- 梗/迷因 Memes (section type `meme` — API-backed, see below)
 
 Used on: Novel Detail page, Modify Novel tab.
 

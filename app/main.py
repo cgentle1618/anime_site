@@ -34,6 +34,7 @@ from app.routers import (
     novel,
     watch_order,
     quote,
+    meme,
     seasonal,
     data_control,
     system,
@@ -147,6 +148,7 @@ app.include_router(manga.router)
 app.include_router(novel.router)
 app.include_router(watch_order.router)
 app.include_router(quote.router)
+app.include_router(meme.router)
 app.include_router(seasonal.router)
 
 app.include_router(announcements.router)

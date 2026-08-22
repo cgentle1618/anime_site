@@ -1,8 +1,8 @@
 """
 routers/quote.py
-Handles all operations for Quotes (memorable lines and memes drawn from media
-entries). Includes public reads for the Quote page and secure administrative
-CRUD lifecycle.
+Handles all operations for Quotes (memorable lines drawn from media entries).
+Includes public reads for the Quote page and secure administrative CRUD
+lifecycle. Memes are a sibling tier with their own router (routers/meme.py).
 
 Quotes reference an entry with a (media_type, entry_id) pair rather than a
 foreign key, so every read resolves that pair through
@@ -38,7 +38,6 @@ def _apply_filters(
     query,
     media_type: Optional[str],
     entry_id: Optional[str],
-    kind: Optional[str],
     is_general: Optional[bool],
     is_favorite: Optional[bool],
     needs_review: Optional[bool],
@@ -50,8 +49,6 @@ def _apply_filters(
         query = query.filter(models.Quote.media_type == media_type)
     if entry_id:
         query = query.filter(models.Quote.entry_id == entry_id)
-    if kind:
-        query = query.filter(models.Quote.kind == kind)
     if is_general is not None:
         query = query.filter(models.Quote.is_general.is_(is_general))
     if is_favorite is not None:
@@ -81,13 +78,33 @@ def _get_or_404(db: Session, quote_id: str) -> models.Quote:
     return db_quote
 
 
+def _meme_membership(db: Session, quote_ids: list) -> dict:
+    """
+    quote id -> the meme that names it, for the quotes given.
+
+    Derived rather than stored on the quote: meme.quote_id is the single source
+    of truth, and it is a unique indexed column, so this is one lookup rather
+    than the JSONB scan it needed while the link lived inside a content list.
+    """
+    if not quote_ids:
+        return {}
+    rows = (
+        db.query(models.Meme.quote_id, models.Meme.system_id)
+        .filter(models.Meme.quote_id.in_(list(quote_ids)))
+        .all()
+    )
+    return {str(quote_id): meme_id for quote_id, meme_id in rows}
+
+
 def _resolved(db: Session, db_quote: models.Quote) -> schemas.QuoteResolved:
     """Wraps one quote with its referenced entry's display data."""
     resolved = resolve_entries(db, [(db_quote.media_type, db_quote.entry_id)])
     ref = entry_ref_for(resolved, db_quote.media_type, db_quote.entry_id)
+    membership = _meme_membership(db, [db_quote.system_id])
     return schemas.QuoteResolved(
         **schemas.QuoteResponse.model_validate(db_quote).model_dump(),
         **ref.as_dict(),
+        meme_id=membership.get(str(db_quote.system_id)),
     )
 
 
@@ -107,7 +124,6 @@ def _validate_media_type(media_type: Optional[str]) -> None:
 def get_all_quotes(
     media_type: Optional[str] = None,
     entry_id: Optional[str] = None,
-    kind: Optional[str] = None,
     is_general: Optional[bool] = None,
     is_favorite: Optional[bool] = None,
     needs_review: Optional[bool] = None,
@@ -126,7 +142,6 @@ def get_all_quotes(
         db.query(models.Quote),
         media_type,
         entry_id,
-        kind,
         is_general,
         is_favorite,
         needs_review,
@@ -139,10 +154,12 @@ def get_all_quotes(
     )
 
     resolved = resolve_entries(db, [(q.media_type, q.entry_id) for q in quotes])
+    membership = _meme_membership(db, [q.system_id for q in quotes])
     return [
         schemas.QuoteResolved(
             **schemas.QuoteResponse.model_validate(q).model_dump(),
             **entry_ref_for(resolved, q.media_type, q.entry_id).as_dict(),
+            meme_id=membership.get(str(q.system_id)),
         )
         for q in quotes
     ]
@@ -155,7 +172,6 @@ def get_all_quotes(
 )
 def get_quotes_grouped(
     media_type: Optional[str] = None,
-    kind: Optional[str] = None,
     is_general: Optional[bool] = None,
     is_favorite: Optional[bool] = None,
     needs_review: Optional[bool] = None,
@@ -175,7 +191,6 @@ def get_quotes_grouped(
         db.query(models.Quote),
         media_type,
         None,
-        kind,
         is_general,
         is_favorite,
         needs_review,

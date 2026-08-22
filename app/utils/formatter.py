@@ -667,7 +667,6 @@ def parse_quote_from_sheet(raw: dict) -> dict:
         # name-resolution step for it in Pull, so an unparseable cell becomes
         # None and the quote shows up on the page as unlinked.
         "entry_id": _uuid_or_none(raw.get("entry_id")),
-        "kind": parse_from_sheet(raw.get("kind"), str),
         "text": parse_from_sheet(raw.get("text"), str),
         "translation": parse_from_sheet(raw.get("translation"), str),
         "language": parse_from_sheet(raw.get("language"), str),
@@ -680,6 +679,34 @@ def parse_quote_from_sheet(raw: dict) -> dict:
         "is_general": parse_from_sheet(raw.get("is_general"), bool),
         "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
         "needs_review": parse_from_sheet(raw.get("needs_review"), bool),
+        "sort_index": parse_from_sheet(raw.get("sort_index"), float),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_meme_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Meme sheet into typed data ready for the
+    Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "owner_type": parse_from_sheet(raw.get("owner_type"), str),
+        # owner_id has no foreign key - it points at whichever of the ten owner
+        # tables owner_type names - and there is no name-resolution step for it
+        # in Pull, so an unparseable cell becomes None and the meme shows up on
+        # the page as unlinked.
+        "owner_id": _uuid_or_none(raw.get("owner_id")),
+        "text": parse_from_sheet(raw.get("text"), str),
+        "image_file": parse_from_sheet(raw.get("image_file"), str),
+        # A real foreign key with a UNIQUE constraint, so a junk cell must not
+        # reach the database - coerce anything unparseable to None.
+        "quote_id": _uuid_or_none(raw.get("quote_id")),
+        "episode": parse_from_sheet(raw.get("episode"), str),
+        "link": parse_from_sheet(raw.get("link"), str),
+        "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),

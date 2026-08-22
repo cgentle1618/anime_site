@@ -24,6 +24,7 @@ from app.models import (
     WatchOrderList,
     WatchOrderItem,
     Quote,
+    Meme,
 )
 
 from app.utils.formatter import (
@@ -215,6 +216,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         quote_headers = [c.name for c in Quote.__table__.columns]
         quote_matrix = [quote_headers] + [format_model_for_sheet(q) for q in quotes]
         bulk_overwrite_sheet("Quote", quote_matrix)
+
+        # Memes are written after Quotes: a meme content line may name the
+        # Quote it also is, so on restore those quotes must already exist.
+        memes = db.query(Meme).all()
+        meme_headers = [c.name for c in Meme.__table__.columns]
+        meme_matrix = [meme_headers] + [format_model_for_sheet(m) for m in memes]
+        bulk_overwrite_sheet("Meme", meme_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")

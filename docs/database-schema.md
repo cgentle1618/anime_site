@@ -920,10 +920,10 @@ One step of a guide.
 
 ---
 
-## Quote Table
+## Quote & Meme Tables
 
-Memorable lines and memes drawn from media entries. Replaces the `quotes_memes`
-list that used to live inside each entry's `notes` JSONB column: a JSONB list
+Two sibling tiers drawn from media entries. Together they replace the
+`quotes_memes` list that used to live inside each entry's `notes` JSONB column: a JSONB list
 could not be filtered, sorted, or searched across the library, which is exactly
 what the Quote page needs.
 
@@ -934,7 +934,6 @@ what the Quote page needs.
 | `system_id`       | UUID     | No       | PK, indexed                                                                  |
 | `media_type`      | String   | Yes      | `anime` / `anime-movie` / `movie` / `tv-show` / `cartoon` / `manga` / `novel`, indexed |
 | `entry_id`        | UUID     | Yes      | **No FK** — points at whichever media table `media_type` names, indexed      |
-| `kind`            | String   | Yes      | `quote` or `meme`; defaults to `"quote"`                                      |
 | `text`            | Text     | Yes      | The line, in its original language                                            |
 | `translation`     | Text     | Yes      | Translated version                                                            |
 | `language`        | String   | Yes      | Language of `text`                                                            |
@@ -952,8 +951,6 @@ what the Quote page needs.
 | `created_at`      | DateTime | Yes      | Auto-set on create                                                            |
 | `updated_at`      | DateTime | Yes      | Auto-updated on save                                                          |
 
-**Check constraint `ck_quote_kind`:** `kind IN ('quote', 'meme')`.
-
 - `entry_id` carries no foreign key for the same reason `watch_order_item` does
   not: no single FK spans seven tables. A deleted entry leaves a dangling quote,
   which read-time resolution flags `missing: true` rather than dropping.
@@ -970,6 +967,74 @@ the same revision: each `notes.quotes_memes` item becomes a row
 `notes`. The old second field was in practice used for the speaker far more
 often than for a URL, so a non-URL value is imported as `speaker`, not `link`.
 `downgrade()` folds the rows back into `notes` before dropping the table.
+
+---
+
+### `meme`
+
+A sibling of `quote`, not a variant of it. A quote is one line carrying a
+speaker, translation, language and original source; a meme is one text, one
+image, or one of each, and carries none of that. A meme can be a single word.
+
+**A meme's owner is wider than a quote's.** A quote is said in a specific work,
+so it is always tied to one media entry. A running gag often spans a whole
+franchise instead, so a meme's owner may be a media entry *or* a series,
+franchise, or collection — ten `owner_type` values against the quote's seven.
+That is why the pair is named `owner_*` rather than `media_type`/`entry_id`.
+
+| Column        | Type     | Nullable | Notes                                                                        |
+| ------------- | -------- | -------- | ---------------------------------------------------------------------------- |
+| `system_id`   | UUID     | No       | PK, indexed                                                                  |
+| `owner_type`  | String   | Yes      | **Ten** values: the seven media types plus `series` / `franchise` / `collection`, indexed |
+| `owner_id`    | UUID     | Yes      | **No FK** — points at whichever of the ten tables `owner_type` names, indexed |
+| `text`        | Text     | Yes      | The meme itself — one text, never a list. Can be a single word               |
+| `image_file`  | String   | Yes      | Bare filename under `static/quotes/`. **At most one**, local only            |
+| `quote_id`    | UUID     | Yes      | FK → `quote.system_id`, `ON DELETE SET NULL`, **UNIQUE**, indexed            |
+| `episode`     | String   | Yes      | Free text                                                                     |
+| `link`        | String   | Yes      | Optional URL                                                                  |
+| `is_favorite` | Boolean  | Yes      | Star flag                                                                     |
+| `sort_index`  | Float    | Yes      | Manual ordering within one entry                                              |
+| `remark`      | Text     | Yes      | Free-form note                                                                |
+| `created_at`  | DateTime | Yes      | Auto-set on create                                                            |
+| `updated_at`  | DateTime | Yes      | Auto-updated on save                                                          |
+
+A meme is **one text and/or one image** — text-only, image-only, or both. Three
+plain columns, no list:
+
+- **`quote_id` marks the text as also being a Quote** — there is no separate
+  flag. A meme need not link a quote at all.
+- **Both meme/quote rules are database constraints**, because the link is a real
+  column rather than a value inside JSONB:
+  - `ON DELETE SET NULL` — deleting a quote nulls the link and leaves the meme's
+    text intact, rather than leaving a dangling id the reader has to flag.
+  - `UNIQUE` — a quote belongs to at most one meme. Postgres permits many NULLs,
+    so any number of memes may link none.
+  The router only pre-checks these to return a helpful 400 naming the meme that
+  already owns the quote; the constraints are the actual guarantee.
+- **At most one image**, guaranteed by there being a single column. Its position
+  is not stored — it always renders above the text.
+- Resolution goes through `OWNER_TABLES` in `app/utils/media_resolver.py`,
+  which is `MEDIA_TABLES` plus the three tiers. Passing the map in is what
+  keeps the wider set out of `quote` and `watch_order_item`, which must stay
+  entry-only. Series has no page of its own, so a series-owned meme resolves
+  to a name but no link; the tiers have no cover column either, so the UI
+  badges them with an icon instead.
+- Quote membership is exposed on the quote side as a derived `meme_id` on
+  `QuoteResolved`, computed by reverse lookup — there is no column to keep in
+  sync.
+
+**Migration `w6x7y8z9a0b1`** creates this table and drops `quote.kind` plus its
+`ck_quote_kind` constraint. No data moved: every existing row was `kind='quote'`.
+
+**Migration `y8z9a0b1c2d3`** renames `media_type`/`entry_id` to
+`owner_type`/`owner_id` (and their indexes) to widen the owner. Its downgrade
+deletes tier-owned memes, which have no representation in the entry-only shape.
+
+**Migration `z9a0b1c2d3e4`** collapses the `content` JSONB list into the plain
+`text` and `quote_id` columns, then adds the FK and UNIQUE constraints the list
+shape made impossible. Existing rows were single-line; the upgrade joins any
+multi-line row with newlines rather than losing text, and the downgrade folds
+the text back into a one-element list.
 
 ---
 

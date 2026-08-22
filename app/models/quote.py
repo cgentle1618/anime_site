@@ -3,7 +3,6 @@
 import uuid
 from sqlalchemy import (
     Boolean,
-    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -23,6 +22,10 @@ class Quote(Base):
     `notes` JSONB column. A JSONB list could not be filtered, sorted, or
     searched across the library, which is exactly what the Quote page needs.
 
+    Memes are not stored here. They are a sibling tier with their own table and
+    a different shape (see app/models/meme.py); a Meme's content line points
+    back at the Quote it also is, when it is one.
+
     `entry_id` is deliberately FK-less: it points at whichever of the seven
     media tables `media_type` names, and no single foreign key can span them.
     A deleted entry therefore leaves a dangling quote, which
@@ -33,13 +36,6 @@ class Quote(Base):
     """
 
     __tablename__ = "quote"
-    __table_args__ = (
-        CheckConstraint(
-            "kind IN ('quote', 'meme')",
-            name="ck_quote_kind",
-        ),
-    )
-
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
@@ -47,7 +43,6 @@ class Quote(Base):
     # --- Linkage ---
     media_type = Column(String, nullable=True, index=True)
     entry_id = Column(UUID(as_uuid=True), nullable=True, index=True)
-    kind = Column(String, default="quote", nullable=True)
 
     # --- Content ---
     text = Column(Text, nullable=True)
@@ -75,7 +70,7 @@ class Quote(Base):
     is_general = Column(Boolean, default=False, nullable=True)
     is_favorite = Column(Boolean, default=False, nullable=True)
     # Set on every row imported from the old notes.quotes_memes lists, which
-    # carried no speaker, kind, or episode to import.
+    # carried no speaker or episode to import.
     needs_review = Column(Boolean, default=False, nullable=True)
 
     # --- Misc ---

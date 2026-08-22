@@ -131,12 +131,32 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
             text = (getattr(entry, "text", None) or "").strip()
             name_cn = (text[:80] + "...") if len(text) > 80 else (text or None)
             name_en = getattr(entry, "speaker", None)
-            category = getattr(entry, "kind", None)
             ref = MEDIA_TABLES.get(getattr(entry, "media_type", None) or "")
             if ref and getattr(entry, "entry_id", None):
                 src = (
                     db.query(ref.model)
                     .filter(ref.model.system_id == entry.entry_id)
+                    .first()
+                )
+                if src:
+                    franchise_cn = src.display_name
+
+        elif entry_type == "Meme":
+            # A meme has no name of its own, so its text stands in for one -
+            # or the image filename when it is image-only.
+            from app.utils.media_resolver import OWNER_TABLES
+
+            body = (getattr(entry, "text", None) or "").strip()
+            name_cn = (body[:80] + "...") if len(body) > 80 else (body or None)
+            if not name_cn and getattr(entry, "image_file", None):
+                name_cn = f"(image: {entry.image_file})"
+            # The owner may be an entry or a whole tier, so resolve through
+            # OWNER_TABLES rather than the entry-only map.
+            ref = OWNER_TABLES.get(getattr(entry, "owner_type", None) or "")
+            if ref and getattr(entry, "owner_id", None):
+                src = (
+                    db.query(ref.model)
+                    .filter(ref.model.system_id == entry.owner_id)
                     .first()
                 )
                 if src:
