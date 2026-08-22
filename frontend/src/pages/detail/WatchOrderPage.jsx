@@ -9,7 +9,9 @@ import { Link, useParams } from "react-router-dom";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
-import WatchOrderGuide from "../../components/tracker/WatchOrderGuide";
+import WatchOrderGuide, {
+  mediaScope,
+} from "../../components/tracker/WatchOrderGuide";
 import { getDisplayName } from "../../utils/media";
 
 export default function WatchOrderPage() {
@@ -114,6 +116,17 @@ export default function WatchOrderPage() {
           {list.list_type && (
             <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
               {list.list_type}
+            </span>
+          )}
+          {mediaScope(list.media_types) && (
+            <span
+              className={`text-[11px] font-black px-2 py-0.5 rounded-full border ${
+                mediaScope(list.media_types).cross
+                  ? "bg-sky-50 text-sky-600 border-sky-200"
+                  : "bg-gray-100 text-gray-500 border-gray-200"
+              }`}
+            >
+              {mediaScope(list.media_types).full}
             </span>
           )}
           {list.is_most_recommended && (

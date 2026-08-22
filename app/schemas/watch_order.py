@@ -86,6 +86,9 @@ class WatchOrderListUpdate(WatchOrderListBase):
 class WatchOrderListResponse(WatchOrderListBase):
     system_id: UUID
     item_count: int = 0
+    # Distinct media types among the items, in a fixed order. One entry means a
+    # single-type order; several mean a cross-type one. Derived, not stored.
+    media_types: List[str] = []
     # Nullable in the database, and a blank Google Sheets cell parses to None
     # on Pull, so one timestamp-less row must not fail the whole list endpoint.
     created_at: Optional[datetime] = None

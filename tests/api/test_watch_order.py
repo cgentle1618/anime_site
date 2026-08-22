@@ -204,6 +204,87 @@ class TestGetWatchOrderDetail:
         assert items[0]["display_name"] is None
 
 
+class TestMediaScope:
+    """
+    media_types says whether an order is single-type or cross-type. Derived
+    from the items, never stored, so it cannot fall out of step with them.
+    """
+
+    def test_empty_order_has_no_types(self, client, sample_list):
+        rows = client.get("/api/watch-order/lists").json()
+        assert rows[0]["media_types"] == []
+
+    def test_single_type_order(self, client, db_session, sample_list, sample_anime):
+        db_session.add_all(
+            [
+                models.WatchOrderItem(
+                    system_id=uuid.uuid4(),
+                    list_id=sample_list.system_id,
+                    position=float(i),
+                    media_type="anime",
+                    entry_id=sample_anime.system_id,
+                )
+                for i in (1, 2)
+            ]
+        )
+        db_session.flush()
+
+        rows = client.get("/api/watch-order/lists").json()
+        assert rows[0]["media_types"] == ["anime"]
+        assert rows[0]["item_count"] == 2
+
+    def test_cross_type_order(self, client, sample_list, sample_items):
+        """sample_items mixes anime and anime-movie."""
+        rows = client.get("/api/watch-order/lists").json()
+        assert rows[0]["media_types"] == ["anime", "anime-movie"]
+
+    def test_order_is_canonical_not_insertion_order(
+        self, client, db_session, sample_list, sample_anime, sample_anime_movie
+    ):
+        """The movie is added first, but anime still leads the list."""
+        db_session.add_all(
+            [
+                models.WatchOrderItem(
+                    system_id=uuid.uuid4(),
+                    list_id=sample_list.system_id,
+                    position=1.0,
+                    media_type="anime-movie",
+                    entry_id=sample_anime_movie.system_id,
+                ),
+                models.WatchOrderItem(
+                    system_id=uuid.uuid4(),
+                    list_id=sample_list.system_id,
+                    position=2.0,
+                    media_type="anime",
+                    entry_id=sample_anime.system_id,
+                ),
+            ]
+        )
+        db_session.flush()
+
+        rows = client.get("/api/watch-order/lists").json()
+        assert rows[0]["media_types"] == ["anime", "anime-movie"]
+
+    def test_detail_endpoint_agrees_with_the_listing(
+        self, client, sample_list, sample_items
+    ):
+        listed = client.get("/api/watch-order/lists").json()[0]
+        detail = client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()
+        assert detail["media_types"] == listed["media_types"]
+        assert detail["item_count"] == listed["item_count"]
+
+    def test_removing_the_last_item_of_a_type_narrows_the_scope(
+        self, admin_client, sample_list, sample_items
+    ):
+        movie_step = next(i for i in sample_items if i.media_type == "anime-movie")
+        admin_client.delete(f"/api/watch-order/items/{movie_step.system_id}")
+
+        rows = admin_client.get("/api/watch-order/lists").json()
+        assert rows[0]["media_types"] == ["anime"]
+
+
 class TestCandidates:
     def test_franchise_candidates_span_media_types(
         self, client, sample_franchise, sample_anime, sample_anime_movie

@@ -237,7 +237,14 @@ setting either on create, `PUT`, or `PATCH` clears it on the owner's other
 lists. Listing sorts most-recommended first, then default, then `sort_index`,
 then name.
 
-**Response models:** `WatchOrderListResponse` (adds a computed `item_count`),
+**Derived scope.** Every list response carries `media_types` — the distinct
+media types among its steps, in a fixed canonical order (anime, anime-movie,
+movie, tv-show, cartoon, manga, novel). One entry means a single-type order,
+several mean a cross-type one, and an empty list has none yet. It is computed
+from the items rather than stored, so it cannot drift from them; the listing
+endpoint gets it and `item_count` for every row in one grouped query.
+
+**Response models:** `WatchOrderListResponse` (adds computed `item_count` and `media_types`),
 `WatchOrderListDetailResponse` (adds `items`), `WatchOrderItemResponse`,
 `WatchOrderCandidate`.
 

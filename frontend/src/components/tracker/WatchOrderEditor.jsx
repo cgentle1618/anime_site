@@ -9,7 +9,7 @@ import { buildUrl, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
-import { specialLabel } from "./WatchOrderGuide";
+import { mediaScope, specialLabel } from "./WatchOrderGuide";
 
 const LIST_TYPES = ["Custom", "Chronological", "Release", "Recommended"];
 
@@ -528,6 +528,13 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           Most recommended
         </label>
       </div>
+
+      {mediaScope(list.media_types) && (
+        <p className="text-[11px] font-bold text-gray-400">
+          <i className="fas fa-layer-group mr-1.5"></i>
+          {mediaScope(list.media_types).full}
+        </p>
+      )}
 
       <EntryPicker candidates={candidates} onAdd={addItem} disabled={busy} />
 

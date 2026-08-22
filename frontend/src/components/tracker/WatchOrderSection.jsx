@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
-import WatchOrderGuide from "./WatchOrderGuide";
+import WatchOrderGuide, { mediaScope } from "./WatchOrderGuide";
 
 export default function WatchOrderSection({ franchiseId, collectionId }) {
   const { isAdmin } = useAuth();
@@ -105,6 +105,9 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
                 {l.list_name || "Untitled Order"}
                 {l.is_most_recommended ? " (most recommended)" : ""} —{" "}
                 {l.item_count} steps
+                {mediaScope(l.media_types)
+                  ? ` · ${mediaScope(l.media_types).short}`
+                  : ""}
               </option>
             ))}
           </select>
@@ -120,6 +123,9 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
             )}
             <span className="ml-2 text-xs font-bold text-gray-400">
               {lists[0].item_count} steps
+              {mediaScope(lists[0].media_types)
+                ? ` · ${mediaScope(lists[0].media_types).short}`
+                : ""}
             </span>
           </span>
         )}

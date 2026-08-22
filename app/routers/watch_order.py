@@ -11,7 +11,7 @@ which is untouched by this router.
 
 import logging
 import uuid
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -22,6 +22,7 @@ from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.services.domain.watch_order import (
+    MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,
     entry_exists,
     list_candidate_entries,
@@ -96,13 +97,48 @@ def _next_position(db: Session, list_id) -> float:
     return float(highest) + 1.0 if highest is not None else 1.0
 
 
-def _with_count(db: Session, db_list: models.WatchOrderList) -> dict:
-    """Serializes a list plus its item_count, which is not a column."""
-    count = (
-        db.query(func.count(models.WatchOrderItem.system_id))
-        .filter(models.WatchOrderItem.list_id == db_list.system_id)
-        .scalar()
+def _ordered_types(media_types) -> List[str]:
+    """
+    Distinct media types in a fixed order, so a list's scope reads the same on
+    every surface instead of shifting with insertion order.
+    """
+    return [t for t in MEDIA_TYPE_MODELS if t in media_types]
+
+
+def _summarize(db: Session, list_ids: List[Any]) -> dict:
+    """
+    Item count and distinct media types for many lists in ONE grouped query.
+
+    Both are derived rather than stored: whether an order is single-type or
+    cross-type is simply what its items are, and a column would have to be kept
+    in step with every add and remove.
+    """
+    if not list_ids:
+        return {}
+
+    rows = (
+        db.query(
+            models.WatchOrderItem.list_id,
+            models.WatchOrderItem.media_type,
+            func.count(models.WatchOrderItem.system_id),
+        )
+        .filter(models.WatchOrderItem.list_id.in_(list_ids))
+        .group_by(models.WatchOrderItem.list_id, models.WatchOrderItem.media_type)
+        .all()
     )
+
+    summary: dict = {}
+    for list_id, media_type, count in rows:
+        bucket = summary.setdefault(list_id, {"item_count": 0, "media_types": set()})
+        bucket["item_count"] += count
+        if media_type:
+            bucket["media_types"].add(media_type)
+    return summary
+
+
+def _serialize(db_list: models.WatchOrderList, summary: dict = None) -> dict:
+    """Serializes a list plus item_count and media_types, neither a column."""
+    summary = summary or {"item_count": 0, "media_types": set()}
     return {
         "system_id": db_list.system_id,
         "franchise_id": db_list.franchise_id,
@@ -113,10 +149,17 @@ def _with_count(db: Session, db_list: models.WatchOrderList) -> dict:
         "is_most_recommended": db_list.is_most_recommended,
         "sort_index": db_list.sort_index,
         "remark": db_list.remark,
-        "item_count": count or 0,
+        "item_count": summary["item_count"],
+        "media_types": _ordered_types(summary["media_types"]),
         "created_at": db_list.created_at,
         "updated_at": db_list.updated_at,
     }
+
+
+def _with_count(db: Session, db_list: models.WatchOrderList) -> dict:
+    """Single-list convenience wrapper around _serialize."""
+    summary = _summarize(db, [db_list.system_id]).get(db_list.system_id)
+    return _serialize(db_list, summary)
 
 
 # Flags that at most one list per owner may carry. is_default decides which
@@ -199,7 +242,9 @@ def get_watch_order_lists(
         .offset(offset)
         .all()
     )
-    return [_with_count(db, row) for row in rows]
+    # One grouped query for all of them - _with_count per row would be an N+1.
+    summaries = _summarize(db, [row.system_id for row in rows])
+    return [_serialize(row, summaries.get(row.system_id)) for row in rows]
 
 
 @router.get(
@@ -218,7 +263,13 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
         .all()
     )
 
-    payload = _with_count(db, db_list)
+    payload = _serialize(
+        db_list,
+        {
+            "item_count": len(items),
+            "media_types": {i.media_type for i in items if i.media_type},
+        },
+    )
     payload["items"] = resolve_items(db, items)
     return payload
 

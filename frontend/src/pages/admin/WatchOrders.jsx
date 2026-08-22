@@ -12,6 +12,7 @@ import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
 import ComboBox from "../../components/forms/ComboBox";
 import WatchOrderEditor from "../../components/tracker/WatchOrderEditor";
+import { mediaScope } from "../../components/tracker/WatchOrderGuide";
 
 function NewOrderForm({ owners, onCreate, busy }) {
   // Franchise first: nearly every order belongs to one, and a collection-wide
@@ -312,6 +313,9 @@ export default function WatchOrders() {
                               <i className="fas fa-star text-amber-400 mr-1"></i>
                             )}
                             {l.item_count} steps
+                            {mediaScope(l.media_types)
+                              ? ` · ${mediaScope(l.media_types).short}`
+                              : ""}
                             {l.is_default ? " · default" : ""}
                             {l.is_most_recommended ? " · most recommended" : ""}
                           </span>

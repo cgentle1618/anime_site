@@ -35,6 +35,27 @@ function rangeLabel(item) {
 }
 
 /**
+ * Describes an order's scope from the media types its steps use.
+ *
+ * `short` is for tight spots (a <select> option, a list subtitle); `full`
+ * names the types and is used where there is room. Returns null for an empty
+ * order, which has no scope to describe yet.
+ */
+export function mediaScope(mediaTypes) {
+  const types = mediaTypes || [];
+  if (types.length === 0) return null;
+  const names = types.map((t) => TYPE_LABELS[t] || t);
+  if (types.length === 1) {
+    return { short: `${names[0]} only`, full: `${names[0]} only`, cross: false };
+  }
+  return {
+    short: "Cross-type",
+    full: `Cross-type · ${names.join(" · ")}`,
+    cross: true,
+  };
+}
+
+/**
  * "Ep. Special 0", "Ep. Special 14.5" — the episode number a special sits at,
  * not a count. 0 is a real value, so this tests for null rather than falsiness.
  * Anime is the only type with the column.

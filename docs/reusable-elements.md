@@ -1124,7 +1124,14 @@ Each step shows a position badge, poster, title, an episode-range label
 entry's watch/read status pill, and the per-step note, linking to the entry's
 detail page via `MEDIA_CONFIG[media_type].navPath`. Anime carrying an
 `ep_special` also get an `Ep. Special 14.5` badge — the episode number the
-special sits at, not a count. `specialLabel()` is exported from this file and
+special sits at, not a count. `mediaScope(mediaTypes)` is also exported here and describes an order's scope
+from its steps: `{short, full, cross}`, where `short` ("Anime only",
+"Cross-type") suits a `<select>` option or a list subtitle and `full`
+("Cross-type · Anime · Manga") is used where there is room. It returns null for
+an empty order. The section selector, the standalone page, the admin list and
+the editor all render from it, so the wording cannot drift between them.
+
+`specialLabel()` is exported from this file and
 reused by the editor's step rows and its entry picker, where a special often
 shares its parent's title and the number is the only thing telling two rows
 apart; it tests `!= null`, since `0` (第零集) is a real value a
