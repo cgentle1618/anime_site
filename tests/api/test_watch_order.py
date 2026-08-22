@@ -431,6 +431,28 @@ class TestCreateWatchOrderList:
         )
         assert response.status_code == 400
 
+    def test_type_chosen_at_creation_is_kept(self, admin_client, sample_franchise):
+        """The create form now picks the type up front, not only the editor."""
+        data = admin_client.post(
+            "/api/watch-order/lists",
+            json={
+                "franchise_id": str(sample_franchise.system_id),
+                "list_name": "By release",
+                "list_type": "Release",
+            },
+        ).json()
+        assert data["list_type"] == "Release"
+
+    def test_type_defaults_to_custom(self, admin_client, sample_franchise):
+        data = admin_client.post(
+            "/api/watch-order/lists",
+            json={
+                "franchise_id": str(sample_franchise.system_id),
+                "list_name": "No type given",
+            },
+        ).json()
+        assert data["list_type"] == "Custom"
+
     def test_create_persists_every_field(self, admin_client, sample_franchise):
         payload = {
             "franchise_id": str(sample_franchise.system_id),

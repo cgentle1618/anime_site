@@ -1639,7 +1639,8 @@ and `/api/collection/` for the owner names used by the grouping headers and the
 new-order picker.
 
 **Left pane:** a search box over order and owner names, a "New order" form
-(owner dropdown split into Franchises / Collections, plus a name), then every
+(owner tier toggle — Franchise by default — a typeahead over that tier's
+names, an order name, and the order type), then every
 order grouped by owner. Each row opens the editor, links out to the public
 page, or deletes the order behind a confirm.
 

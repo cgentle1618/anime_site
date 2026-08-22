@@ -11,7 +11,9 @@ import { buildUrl, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
 import ComboBox from "../../components/forms/ComboBox";
-import WatchOrderEditor from "../../components/tracker/WatchOrderEditor";
+import WatchOrderEditor, {
+  LIST_TYPES,
+} from "../../components/tracker/WatchOrderEditor";
 import { MediaScopeLine } from "../../components/tracker/WatchOrderGuide";
 
 function NewOrderForm({ owners, onCreate, busy }) {
@@ -20,6 +22,9 @@ function NewOrderForm({ owners, onCreate, busy }) {
   const [ownerType, setOwnerType] = useState("franchise");
   const [ownerId, setOwnerId] = useState(null);
   const [name, setName] = useState("");
+  // Matches the column default, so creating without touching this behaves the
+  // way it did before the field existed.
+  const [listType, setListType] = useState("Custom");
 
   // ComboBox matches on searchText when present, so every name variant is
   // typeable, not just the one displayed.
@@ -54,11 +59,13 @@ function NewOrderForm({ owners, onCreate, busy }) {
     if (!ownerId || !name.trim()) return;
     onCreate({
       list_name: name.trim(),
+      list_type: listType,
       ...(ownerType === "franchise"
         ? { franchise_id: ownerId }
         : { collection_id: ownerId }),
     });
     setName("");
+    setListType("Custom");
   }
 
   return (
@@ -109,6 +116,20 @@ function NewOrderForm({ owners, onCreate, busy }) {
         placeholder="Order name, e.g. Chronological"
         className="border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
       />
+
+      <select
+        value={listType}
+        onChange={(e) => setListType(e.target.value)}
+        aria-label="Order type"
+        className="border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+      >
+        {LIST_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
+
       <button
         type="submit"
         disabled={busy || !ownerId || !name.trim()}

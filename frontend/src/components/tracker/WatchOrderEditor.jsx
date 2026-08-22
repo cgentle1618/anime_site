@@ -11,7 +11,14 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { MediaScopeLine, specialLabel } from "./WatchOrderGuide";
 
-const LIST_TYPES = ["Custom", "Chronological", "Release", "Recommended"];
+// Exported so the create form on /watch-orders offers exactly the same
+// choices the editor does.
+export const LIST_TYPES = [
+  "Custom",
+  "Chronological",
+  "Release",
+  "Recommended",
+];
 
 const TYPE_LABELS = {
   anime: "Anime",
