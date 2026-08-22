@@ -12,12 +12,18 @@ import { getDisplayName } from "./naming";
  * @param source     the existing entry the admin picked
  * @param type       media type slug
  * @param fieldKeys  which fields to copy (from autofillFields())
- * @param ctx        { allFranchises, allSeries } for resolving entity names,
+ * @param ctx        { allFranchises, allSeries, allCollections } for resolving
+ *                   entity names,
  *                   plus { defaults } for fields that fall back rather than blank
  * @returns a partial form object to spread over current form state
  */
 export function buildAutofillPatch(source, type, fieldKeys, ctx = {}) {
-  const { allFranchises = [], allSeries = [], defaults = {} } = ctx;
+  const {
+    allFranchises = [],
+    allSeries = [],
+    allCollections = [],
+    defaults = {},
+  } = ctx;
   const byKey = getFieldMap(type);
   const patch = {};
 
@@ -37,6 +43,14 @@ export function buildAutofillPatch(source, type, fieldKeys, ctx = {}) {
       const s = allSeries.find((x) => x.system_id === source.series_id);
       patch.series_id = source.series_id || null;
       patch.series_text = s ? getDisplayName(s, "series") : "";
+      continue;
+    }
+    if (meta.lookup === "collection") {
+      const c = allCollections.find(
+        (x) => x.system_id === source.collection_id,
+      );
+      patch.collection_id = source.collection_id || null;
+      patch.collection_text = c ? getDisplayName(c, "collection") : "";
       continue;
     }
 

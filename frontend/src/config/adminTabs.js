@@ -10,6 +10,7 @@ export const ADMIN_TABS = [
   { key: "cartoon", icon: "fa-paint-brush", label: "Cartoon" },
   { key: "manga", icon: "fa-book", label: "Manga Entry" },
   { key: "novel", icon: "fa-book-open", label: "Novel Entry" },
+  { key: "collection", icon: "fa-boxes-stacked", label: "Collection" },
   { key: "franchise", icon: "fa-sitemap", label: "Franchise" },
   { key: "series", icon: "fa-layer-group", label: "Series" },
   { key: "options", icon: "fa-cog", label: "System Option" },

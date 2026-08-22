@@ -56,6 +56,14 @@ const TRISTATE_OPTIONS = [
 export const COMMON_FIELD_META = {
   // ---- Relations -------------------------------------------------------
   // Entity pickers: no meaningful default, but very useful to auto-fill.
+  collection_id: {
+    label: "Collection",
+    control: "none",
+    lookup: "collection",
+    pairText: "collection_text",
+    defaultable: false,
+    group: "Relations",
+  },
   franchise_id: {
     label: "Franchise",
     control: "none",
@@ -72,6 +80,7 @@ export const COMMON_FIELD_META = {
     defaultable: false,
     group: "Relations",
   },
+  collection_text: { hidden: true },
   franchise_text: { hidden: true },
   series_text: { hidden: true },
   // Derived by the prequel/sequel pipeline — never a default, never copied.
@@ -505,6 +514,20 @@ export const TYPE_FIELD_META = {
       control: "tags",
       optionsCategory: "Novel Publisher TW",
       group: "Credits",
+    },
+  },
+
+  collection: {
+    collection_name_en: { label: "Name (EN)", group: "Names" },
+    collection_name_cn: { label: "Name (CN)", group: "Names" },
+    collection_name_roman: { label: "Name (Romaji)", group: "Names" },
+    collection_name_jp: { label: "Name (JP)", group: "Names" },
+    collection_name_alt: { label: "Name (Alt)", group: "Names" },
+    collection_expectation: {
+      label: "Expectation",
+      control: "select",
+      options: FRANCHISE_EXPECTATIONS,
+      group: "Status",
     },
   },
 

@@ -32,6 +32,13 @@ export const NAMING_CONFIGS = {
     "novel_name_jp",
     "novel_name_alt",
   ],
+  collection: [
+    "collection_name_cn",
+    "collection_name_en",
+    "collection_name_roman",
+    "collection_name_jp",
+    "collection_name_alt",
+  ],
   franchise: [
     "franchise_name_cn",
     "franchise_name_en",

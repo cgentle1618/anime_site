@@ -292,7 +292,20 @@ export const defaultNovel = () => ({
   remark: "",
 });
 
+export const defaultCollection = () => ({
+  collection_name_en: "",
+  collection_name_cn: "",
+  collection_name_roman: "",
+  collection_name_jp: "",
+  collection_name_alt: "",
+  my_rating: "",
+  collection_expectation: "",
+  remark: "",
+});
+
 export const defaultFranchise = () => ({
+  collection_id: null,
+  collection_text: "",
   franchise_name_en: "",
   franchise_name_cn: "",
   franchise_name_roman: "",
@@ -322,6 +335,7 @@ export const FORM_FACTORIES = {
   cartoon: defaultCartoon,
   manga: defaultManga,
   novel: defaultNovel,
+  collection: defaultCollection,
   franchise: defaultFranchise,
   series: defaultSeries,
 };

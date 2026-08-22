@@ -266,3 +266,44 @@ describe("buildAutofillPatch — configured behavior", () => {
     ).toEqual({ watch_next: true });
   });
 });
+
+describe("buildAutofillPatch — collection lookup", () => {
+  const COLLECTIONS = [
+    {
+      system_id: "c1",
+      collection_name_cn: "漫威",
+      collection_name_en: "Marvel",
+    },
+  ];
+
+  it("resolves the collection id and its display text together", () => {
+    const patch = buildAutofillPatch(
+      { collection_id: "c1" },
+      "franchise",
+      ["collection_id"],
+      { ...ctx, allCollections: COLLECTIONS },
+    );
+    expect(patch).toEqual({ collection_id: "c1", collection_text: "漫威" });
+  });
+
+  it("blanks the text when the collection is unknown", () => {
+    const patch = buildAutofillPatch(
+      { collection_id: "missing" },
+      "franchise",
+      ["collection_id"],
+      { ...ctx, allCollections: COLLECTIONS },
+    );
+    expect(patch).toEqual({
+      collection_id: "missing",
+      collection_text: "",
+    });
+  });
+
+  it("nulls an absent collection rather than leaving it undefined", () => {
+    const patch = buildAutofillPatch({}, "franchise", ["collection_id"], {
+      ...ctx,
+      allCollections: COLLECTIONS,
+    });
+    expect(patch).toEqual({ collection_id: null, collection_text: "" });
+  });
+});
