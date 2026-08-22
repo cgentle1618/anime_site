@@ -315,13 +315,22 @@ export default function WatchOrders() {
                             short
                             className="mt-0.5"
                           />
-                          <span className="block text-[10px] font-bold text-gray-400">
-                            {l.is_most_recommended && (
-                              <i className="fas fa-star text-amber-400 mr-1"></i>
+                          <span className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {l.list_type && (
+                              /* Same pill the standalone page uses, so the
+                                 type is recognisable as the same thing. */
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
+                                {l.list_type}
+                              </span>
                             )}
-                            {l.item_count} steps
-                            {l.is_default ? " · default" : ""}
-                            {l.is_most_recommended ? " · most recommended" : ""}
+                            <span className="text-[10px] font-bold text-gray-400">
+                              {l.is_most_recommended && (
+                                <i className="fas fa-star text-amber-400 mr-1"></i>
+                              )}
+                              {l.item_count} steps
+                              {l.is_default ? " · default" : ""}
+                              {l.is_most_recommended ? " · most recommended" : ""}
+                            </span>
                           </span>
                         </button>
                         <Link
