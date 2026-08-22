@@ -75,6 +75,19 @@ def _safe_json(val: Any) -> Any:
         return None
 
 
+def _uuid_or_none(val: Any) -> Any:
+    """
+    Strict UUID parse for columns that have no name-resolution fallback.
+
+    parse_from_sheet(..., UUID) deliberately returns the raw string when a cell is
+    not a valid UUID, so the service layer can resolve names like "Tokyo Ghoul".
+    For plain UUID pointer columns that string would reach the database and raise,
+    so coerce anything unparseable to None instead.
+    """
+    parsed = parse_from_sheet(val, UUID)
+    return parsed if isinstance(parsed, UUID) else None
+
+
 def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
     """
     Converts a string from Google Sheets to the expected Python type based on SQLAlchemy column type.
@@ -131,7 +144,7 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Franchise sheet into typed data ready for the Database.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_type": parse_from_sheet(raw.get("franchise_type"), str),
         "franchise_name_en": parse_from_sheet(raw.get("franchise_name_en"), str),
@@ -143,6 +156,48 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_expectation": parse_from_sheet(
             raw.get("franchise_expectation"), str
         ),
+        # These five were previously omitted, so every Pull of the Franchise tab
+        # silently wiped them from the database.
+        "cover_entry_id": _uuid_or_none(raw.get("cover_entry_id")),
+        "type_covers": _safe_json(raw.get("type_covers")),
+        "type_slots": _safe_json(raw.get("type_slots")),
+        "watch_next_group": parse_from_sheet(raw.get("watch_next_group"), str),
+        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+    # Only surface collection_id when the sheet actually has that column.
+    # Including it unconditionally would set collection_id=None on every franchise
+    # whenever a Franchise tab predating the Collection tier is pulled.
+    # Note: this may be a UUID *or* a raw string name, which pull.py resolves.
+    if "collection_id" in raw:
+        parsed["collection_id"] = parse_from_sheet(raw.get("collection_id"), UUID)
+
+    return parsed
+
+
+def parse_collection_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Collection sheet into typed data ready for the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "collection_name_en": parse_from_sheet(raw.get("collection_name_en"), str),
+        "collection_name_cn": parse_from_sheet(raw.get("collection_name_cn"), str),
+        "collection_name_roman": parse_from_sheet(
+            raw.get("collection_name_roman"), str
+        ),
+        "collection_name_jp": parse_from_sheet(raw.get("collection_name_jp"), str),
+        "collection_name_alt": parse_from_sheet(raw.get("collection_name_alt"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "collection_expectation": parse_from_sheet(
+            raw.get("collection_expectation"), str
+        ),
+        # Must be a real UUID: unlike franchise_id/series_id there is no
+        # name-resolution step for this column, so a junk cell would hit the DB.
+        "cover_franchise_id": _uuid_or_none(raw.get("cover_franchise_id")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

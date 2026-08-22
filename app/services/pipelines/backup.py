@@ -10,6 +10,7 @@ from sqlalchemy import or_, text
 
 from app.models import (
     Cartoon,
+    Collection,
     Franchise,
     Manga,
     Novel,
@@ -25,6 +26,7 @@ from app.models import (
 from app.utils.formatter import (
     format_model_for_sheet,
     parse_row_to_dict,
+    parse_collection_from_sheet,
     parse_franchise_from_sheet,
     parse_series_from_sheet,
     parse_anime_from_sheet,
@@ -112,6 +114,14 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(o) for o in seasonals
         ]
         bulk_overwrite_sheet("Seasonal", seasonal_matrix)
+
+        # Collection is written before Franchise so the FK parent exists first.
+        collections = db.query(Collection).all()
+        collection_headers = [c.name for c in Collection.__table__.columns]
+        collection_matrix = [collection_headers] + [
+            format_model_for_sheet(c) for c in collections
+        ]
+        bulk_overwrite_sheet("Collection", collection_matrix)
 
         franchises = db.query(Franchise).all()
         franchise_headers = [c.name for c in Franchise.__table__.columns]

@@ -10,6 +10,7 @@ from sqlalchemy import or_, text
 
 from app.models import (
     Cartoon,
+    Collection,
     Franchise,
     Manga,
     Novel,
@@ -25,6 +26,7 @@ from app.models import (
 from app.utils.formatter import (
     format_model_for_sheet,
     parse_row_to_dict,
+    parse_collection_from_sheet,
     parse_franchise_from_sheet,
     parse_series_from_sheet,
     parse_anime_from_sheet,
@@ -101,6 +103,7 @@ def execute_pull_specific(
     Tracks exact rows added vs updated for logging.
     """
     MODEL_MAP = {
+        "Collection": Collection,
         "Franchise": Franchise,
         "Series": Series,
         "Anime": Anime,
@@ -115,6 +118,7 @@ def execute_pull_specific(
     }
 
     PARSER_MAP = {
+        "Collection": parse_collection_from_sheet,
         "Franchise": parse_franchise_from_sheet,
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
@@ -261,6 +265,34 @@ def execute_pull_specific(
                     )
                     continue
 
+        if "collection_id" in clean_header_dict and isinstance(
+            clean_header_dict["collection_id"], str
+        ):
+            cname = clean_header_dict["collection_id"].strip()
+            resolved = None
+            if cname:
+                resolved = (
+                    db.query(Collection)
+                    .filter(
+                        or_(
+                            Collection.collection_name_en == cname,
+                            Collection.collection_name_cn == cname,
+                            Collection.collection_name_roman == cname,
+                            Collection.collection_name_jp == cname,
+                            Collection.collection_name_alt == cname,
+                        )
+                    )
+                    .first()
+                )
+                if not resolved:
+                    logger.warning(
+                        f"Could not resolve collection FK for: {cname}. "
+                        "Leaving franchise uncollected."
+                    )
+            # Deliberately does NOT skip the row: Collection is an optional tier,
+            # so an unknown name must not drop an otherwise valid franchise.
+            clean_header_dict["collection_id"] = resolved.system_id if resolved else None
+
         if "series_id" in clean_header_dict and isinstance(
             clean_header_dict["series_id"], str
         ):
@@ -308,6 +340,21 @@ def execute_pull_specific(
                             or_(
                                 Franchise.franchise_name_en == name,
                                 Franchise.franchise_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Collection":
+                name = clean_header_dict.get(
+                    "collection_name_en"
+                ) or clean_header_dict.get("collection_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(Collection)
+                        .filter(
+                            or_(
+                                Collection.collection_name_en == name,
+                                Collection.collection_name_cn == name,
                             )
                         )
                         .first()
@@ -530,6 +577,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
 
     tabs_in_order = [
         "System Options",
+        "Collection",
         "Franchise",
         "Series",
         "Anime",
