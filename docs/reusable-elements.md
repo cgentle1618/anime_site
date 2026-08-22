@@ -424,6 +424,20 @@ Within each section:
 
 ---
 
+## Cover Resolution (`lib/covers.js`)
+
+Shared cover-image helpers. `getCoverUrl` / `FALLBACK_SVG` were already here; the grouping-tier resolvers were extracted from `FranchiseLibrary.jsx` so the Collection library reuses the identical fallback rules rather than duplicating them.
+
+| Export                | Purpose                                                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `getCoverUrl(file)`   | Local `/static/covers/` path or the GCS bucket URL; placeholder for missing/`"N/A"`.                                             |
+| `FALLBACK_SVG`        | Inline "No Image" placeholder.                                                                                                   |
+| `getEntryYear(entry)` | Best-effort release year, used to prefer the newest entry as a cover.                                                            |
+| `getFranchiseCover(franchise, entriesDict, entriesByFranchise)`   | `cover_entry_id` → newest member entry with a cover → newest member by convention filename → placeholder. |
+| `getCollectionCover(collection, memberFranchises, entriesDict, entriesByFranchise)` | `cover_franchise_id` (resolved through `getFranchiseCover`) → first member franchise yielding a real cover → placeholder. |
+
+---
+
 ## Franchise Detail Elements
 
 Reusable elements used on the Franchise Detail page.

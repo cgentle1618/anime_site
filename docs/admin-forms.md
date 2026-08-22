@@ -170,8 +170,18 @@ only media type missing one.)
 
 ---
 
+### Add Collection Entry Tab
+
+- Fields: five multilingual names, `my_rating`, `collection_expectation`, `remark`. There is deliberately **no** type field.
+- The cover is not set here — it is chosen on the Modify tab from the collection's member franchises.
+- On submit: auto-generate `system_id`, `created_at`, `updated_at`.
+
+---
+
 ### Add Franchise Entry Tab
 
+- A **Collection** picker sits at the top of "Other Information". It is **select-existing-only** (no `allowNew`): unlike the Franchise picker on media forms, typing a new name does *not* auto-create a collection. Collections are created deliberately on the Collection tab. Leaving it blank is normal — most franchises have no collection.
+- Binds `collection_id` / `collection_text` using the usual `_id`/`_text` pairing; a typed-but-unselected value submits as `null`.
 - On submit: auto-generate `system_id`, `created_at`, `updated_at`.
 
 ---
@@ -403,6 +413,17 @@ only media type missing one.)
 ---
 
 ## Modify Page
+
+
+### Modify Collection Tab
+
+- Same fields as the Add tab, plus a **Main Cover** select listing only the collection's **member franchises** (not every entry beneath them), with `— Auto (from first member) —` as the blank option. If no franchises are assigned yet, a hint says to assign one from the Franchise tab first.
+- Saves via `PATCH /api/collection/{id}`.
+- Reachable from the Collection hub's Quick Edit link (`/modify?id=<collection uuid>`).
+
+### Modify Franchise Tab
+
+- Gains the same select-existing-only **Collection** picker as the Add tab; the current collection is prefilled into `collection_text`.
 
 ### Modify Anime Entry Form
 

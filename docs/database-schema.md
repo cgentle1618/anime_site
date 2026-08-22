@@ -5,6 +5,7 @@
 - [Hierarchy Overview](#hierarchy-overview)
 - [Naming Conventions](#naming-conventions)
 - [Core Tables](#core-tables)
+  - [collection](#collection)
   - [franchise](#franchise)
   - [series](#series)
 - [Media Entry Tables](#media-entry-tables)
@@ -29,13 +30,16 @@
 ## Hierarchy Overview
 
 ```
-franchise  (top-level hub)
-  └── series  (optional grouping layer within a franchise)
-        └── single media entry  (granular entry — anime, anime_movies, movies, tv_shows, cartoons, manga, novel)
+collection  (optional umbrella above franchise — e.g. Marvel, Type-Moon)
+  └── franchise  (top-level hub)
+        └── series  (optional grouping layer within a franchise)
+              └── single media entry  (granular entry — anime, anime_movies, movies, tv_shows, cartoons, manga, novel)
 ```
 
 - A media entry (e.g. `anime`, `movies`) always belongs to a `franchise` directly via `franchise_id`.
 - A `series` is an optional intermediate grouping; `series_id` may be null on media entries.
+- A `collection` is an optional umbrella grouping several distinct franchises under one IP or creator; `collection_id` may be null on `franchise`, and most franchises have none. **No media table references a collection** — media reaches it only through `franchise.collection_id`.
+- Collection is deliberately inert: it takes no part in watch-order/prequel-sequel derivation, duplicate detection, or statistics.
 - `franchise`, `series`, and all media entry tables use UUID primary keys. `seasonal`, `system_options`, `system_configs`, `users`, `data_control_logs`, and `deleted_record` use integer or string PKs.
 
 ---
@@ -62,6 +66,33 @@ Core tables and media entry tables follow the same pattern for name fields where
 
 ## Core Tables
 
+### `collection`
+
+Optional umbrella tier above Franchise. Groups several distinct franchises that share an IP or creator (e.g. "Marvel" over MCU / X-Men / Spider-Man; "Type-Moon" over Fate/stay night / Tsukihime / Kara no Kyoukai).
+
+| Column                   | Type     | Nullable | Default    | Notes                                                                                          |
+| ------------------------ | -------- | -------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| `system_id`              | UUID     | No       | `uuid4()`  | Primary key                                                                                    |
+| `collection_name_en`     | String   | Yes      | —          |                                                                                                |
+| `collection_name_cn`     | String   | Yes      | —          |                                                                                                |
+| `collection_name_roman`  | String   | Yes      | —          |                                                                                                |
+| `collection_name_jp`     | String   | Yes      | —          |                                                                                                |
+| `collection_name_alt`    | String   | Yes      | —          |                                                                                                |
+| `my_rating`              | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                                                             |
+| `collection_expectation` | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                                                     |
+| `cover_franchise_id`     | UUID     | Yes      | —          | FK → `franchise.system_id` (`ON DELETE SET NULL`). The cover is a **member franchise**, whose own cover logic then resolves the image. Falls back to the first member with a cover. |
+| `remark`                 | Text     | Yes      | —          |                                                                                                |
+| `created_at`             | DateTime | Yes      | Taipei now |                                                                                                |
+| `updated_at`             | DateTime | Yes      | Taipei now | Auto-updated on save                                                                           |
+
+**Note:** There is deliberately no `collection_type`, and no roll-up/computed statistics.
+
+**Relationships:** `franchises[]` (one-to-many, via `franchise.collection_id`), `cover_franchise` (many-to-one)
+
+**Circular FK:** `collection.cover_franchise_id` → `franchise` and `franchise.collection_id` → `collection` form a cycle. Both are nullable, and the SQLAlchemy column uses `use_alter=True` so `create_all`/`drop_all` can order the DDL. The Alembic migration creates both tables before adding either constraint.
+
+---
+
 ### `franchise`
 
 Top-level media franchise entity. Groups related series and individual entries.
@@ -83,12 +114,13 @@ Top-level media franchise entity. Groups related series and individual entries.
 | `watch_next_group`      | String   | Yes      | —          | `"12ep"`, `"24ep"`, `"30ep_plus"`, or null                                                                                                  |
 | `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                                                                             |
 | `remark`                | Text     | Yes      | —          |                                                                                                                                             |
+| `collection_id`         | UUID     | Yes      | —          | FK → `collection.system_id` (`ON DELETE SET NULL`). Optional umbrella tier; null for most franchises. Deleting a collection leaves members intact and uncollected. |
 | `created_at`            | DateTime | No       | Taipei now |                                                                                                                                             |
 | `updated_at`            | DateTime | No       | Taipei now | Auto-updated on save                                                                                                                        |
 
 **Constraints:** At least one name field must be non-null.
 
-**Relationships:** `series[]` (one-to-many)
+**Relationships:** `series[]` (one-to-many), `collection` (many-to-one, optional)
 
 ---
 

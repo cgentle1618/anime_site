@@ -13,12 +13,14 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/search`                 | `Search`                                           | Public     |
 | `/library/anime`          | `LibraryAnime`                                     | Public     |
 | `/library/anime-movie`    | `LibraryAnimeMovie`                                | Public     |
+| `/library/collection`     | `CollectionLibrary`                                | Public     |
 | `/library/franchise`      | `FranchiseLibrary`                                 | Public     |
 | `/library/movie`          | `LibraryMovie`                                     | Public     |
 | `/future-releases`        | `FutureReleases`                                   | Public     |
 | `/anime/:system_id`       | `Anime`                                            | Public     |
 | `/anime-movie/:system_id` | `AnimeMovie`                                       | Public     |
 | `/movie/:system_id`       | `Movie`                                            | Public     |
+| `/collection/:system_id`  | `Collection` → `CollectionPage` (umbrella hub)     | Public     |
 | `/franchise/:system_id`   | `Franchise` → `FranchisePage` (unified tabbed hub) | Public     |
 | `/tv-show/:system_id`     | `TV`                                               | Public     |
 | `/library/tv-show`        | `LibraryTV`                                        | Public     |
@@ -61,11 +63,11 @@ Shell rendered for every route. Contains:
 - **Logo** — navigates to dashboard (`/`)
 - **Page navigation dropdowns:**
   - ACG → Anime, Anime Movie, Manga, Novel (dev), Seiyuu (dev)
-  - Reality _(franchise_type="TV or Movie" only)_ → Franchise Library, TV Show Library, Movie Library
+  - Reality _(franchise_type="TV or Movie" only)_ → Collection Library, Franchise Library, TV Show Library, Movie Library
   - Cartoon → Cartoon Library
   - More → Plan, Statistics, Completions, Future Release, Seasonal
   - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry, Form Defaults (/defaults)
-- **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
+- **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Collection, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
 - **Login / Logout button**
 
@@ -662,6 +664,40 @@ Admin: inline quick-status toggle via `PATCH /api/anime/:system_id`.
 **Grid view** — each entry: **Anime Movie Entry Card 1**
 
 **Table view** — columns: Franchise Name (fallback), Anime Movie Name CN, Anime Movie Name EN (fallback: Roman), Airing Status, My Rating, MAL Rating, Studio, Director, Bahamut icon, + button (admin only), Watch Next (admin only), To Rewatch (admin only)
+
+---
+
+### Collection Library (`/library/collection`)
+
+**File:** `frontend/src/pages/library/CollectionLibrary.jsx`
+
+Grid library of Collections — the optional umbrella tier above Franchise (Marvel, Type-Moon, …). Simpler than the Franchise Library: there is **no type filter**, because a collection has no type, and no table view.
+
+**Data loaded:** `/api/collection/`, `/api/franchise/` (to group members and count them), plus all seven media lists (needed only to resolve cover images).
+
+**Cover rule:** `cover_franchise_id` names a *member franchise*, whose own cover logic then resolves the image; otherwise the first member franchise (by sort name) that yields a real cover; otherwise the placeholder. Implemented by `getCollectionCover` in `frontend/src/lib/covers.js`.
+
+**Card:** `CollectionCard.jsx` — rating badge, member count badge, display name, "N franchises", expectation badge. Links to `/collection/:system_id`.
+
+**Toolbar:** search across all five name fields; sort by Title / My Rating / Expectation.
+
+> The Franchise Library is deliberately unaffected by this page — it stays flat and complete, listing every franchise whether or not it belongs to a collection.
+
+---
+
+### Collection Hub (`/collection/:system_id`)
+
+**File:** `frontend/src/pages/detail/CollectionPage.jsx` (wrapped by `detail/Collection.jsx`)
+
+Lists the franchises belonging to one collection. Intentionally far simpler than the Franchise Hub — a collection groups franchises, not media entries, so there are no per-type tabs, status filters, or statistics.
+
+**Data loaded:** `/api/collection/{id}`, `/api/franchise/?collection_id={id}` (members), plus the seven media lists for member cover resolution.
+
+**Layout:** breadcrumb → hero (title, alternative names, rating + expectation badges, member count, remark) → member grid.
+
+**Admin controls:** inline `my_rating` and `collection_expectation` selects and a remark textarea, all saving via `PATCH /api/collection/{id}`; plus a Quick Edit link to `/modify?id=`.
+
+**Members** are rendered with the existing `FranchiseCard`, so clicking one lands on the unchanged `/franchise/:system_id`.
 
 ---
 

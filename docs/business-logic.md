@@ -36,7 +36,8 @@ Overwrites all Google Sheets tabs with the current database state.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
 4. Bulk overwrite each tab in this order:
-   - System Options → System Configs → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Seasonal
+   - System Options → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel
+   - Collection is written before Franchise because `franchise.collection_id` references it.
 5. Log result to `DataControlLog`.
 
 Tab names match model table names. Column order in the sheet is guaranteed to match DB schema order (see `format_model_for_sheet`).
@@ -331,7 +332,11 @@ Replaces metadata for all novel entries that have a `mal_id` or `mal_link`.
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all tabs in strict dependency order: **System Options → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel**. This order is required to satisfy foreign key constraints.
+Pulls all tabs in strict dependency order: **System Options → Collection → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel**. This order is required to satisfy foreign key constraints — Collection precedes Franchise because `franchise.collection_id` points at it.
+
+**Collection FK resolution differs deliberately.** Like `franchise_id`/`series_id`, a `collection_id` cell may hold either a UUID or a collection *name*. But where an unresolvable franchise or series name causes the whole row to be **skipped**, an unresolvable collection name only sets `collection_id = NULL` and logs a warning — the franchise still imports. Collection is an optional tier, so an unknown umbrella name must never drop an otherwise valid franchise.
+
+**Inert-pull safeguard.** `parse_franchise_from_sheet` emits the `collection_id` key *only* when the incoming sheet row actually has that column. Emitting it unconditionally would set `collection_id = None` on every franchise whenever someone pulls a Franchise tab whose header row predates the Collection tier — a silent wipe.
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
@@ -1500,7 +1505,11 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 ### Tab-specific parsers
 
-`parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_tv_show_from_sheet`, `parse_cartoon_from_sheet`, `parse_manga_from_sheet`, `parse_novel_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+`parse_collection_from_sheet`, `parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_tv_show_from_sheet`, `parse_cartoon_from_sheet`, `parse_manga_from_sheet`, `parse_novel_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+
+`_uuid_or_none` is used for plain UUID pointer columns that have **no** name-resolution step (`franchise.cover_entry_id`, `collection.cover_franchise_id`). `parse_from_sheet(..., UUID)` deliberately returns the raw *string* for an invalid UUID so the service layer can resolve names; for these columns that string would reach the database and raise, so it is coerced to `None`.
+
+> **Fixed:** `parse_franchise_from_sheet` previously omitted `cover_entry_id`, `type_covers`, `type_slots`, `watch_next_group`, and `to_rewatch`, so every Pull of the Franchise tab silently wiped those five columns. All five are now parsed (`_safe_json` for the two JSONB fields).
 
 **`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
 

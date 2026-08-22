@@ -13,6 +13,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 ## Table of Contents
 
 - [Auth — `/api/auth`](#auth--apiauth)
+- [Collection — `/api/collection`](#collection--apicollection)
 - [Franchise — `/api/franchise`](#franchise--apifranchise)
 - [Series — `/api/series`](#series--apiseries)
 - [Anime — `/api/anime`](#anime--apianime)
@@ -43,11 +44,30 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 ---
 
+## Collection — `/api/collection`
+
+The optional umbrella tier above Franchise (e.g. Marvel, Type-Moon).
+
+| Method   | Path           | Auth   | Description                                                                                                                                    |
+| -------- | -------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`            | Public | List all collections. Optional query params: `search_query` (searches all five name fields), `limit` (≤2000), `offset`.                         |
+| `GET`    | `/{system_id}` | Public | Get a single collection by UUID.                                                                                                               |
+| `POST`   | `/`            | Admin  | Create a collection. Body: `CollectionCreate`.                                                                                                 |
+| `PUT`    | `/{system_id}` | Admin  | Full update. Body: `CollectionUpdate`.                                                                                                         |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update (used by inline hub edits). Body: raw JSON dict.                                                                                |
+| `DELETE` | `/{system_id}` | Admin  | Delete a collection. **Member franchises are NOT deleted** — their `collection_id` is set to `NULL` via the DB constraint. Logs to `deleted_record`. |
+
+**Response model:** `CollectionResponse` (`created_at`/`updated_at` are optional, since a Pull can produce rows without them)
+
+To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
+
+---
+
 ## Franchise — `/api/franchise`
 
 | Method   | Path           | Auth   | Description                                                                                                                                                                   |
 | -------- | -------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`            | Public | List all franchises. Optional query param `search_query` searches across all name fields.                                                                                     |
+| `GET`    | `/`            | Public | List all franchises. Optional query params: `collection_id` (UUID — filters to one collection's members), `search_query` (searches across all name fields), `limit`, `offset`. |
 | `GET`    | `/{system_id}` | Public | Get a single franchise by UUID.                                                                                                                                               |
 | `POST`   | `/`            | Admin  | Create a franchise. Body: `FranchiseCreate`.                                                                                                                                  |
 | `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
