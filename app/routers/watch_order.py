@@ -63,16 +63,19 @@ def _get_item_or_404(db: Session, item_id: str) -> models.WatchOrderItem:
     return db_item
 
 
-def _validate_owner(franchise_id, collection_id) -> None:
+def _validate_owner(franchise_id, collection_id, series_id=None) -> None:
     """
     Mirrors the ck_watch_order_list_single_owner check constraint.
 
     Caught here so a bad payload returns 400 instead of a 500 from the database.
     """
-    if bool(franchise_id) == bool(collection_id):
+    if sum(1 for owner in (franchise_id, collection_id, series_id) if owner) != 1:
         raise HTTPException(
             status_code=400,
-            detail="A watch order must belong to exactly one franchise or collection.",
+            detail=(
+                "A watch order must belong to exactly one franchise, "
+                "collection or series."
+            ),
         )
 
 
@@ -89,6 +92,14 @@ def _validate_entry(db: Session, media_type, entry_id) -> None:
 
 
 RELEASE_SOURCE = "release"
+RELEASE_ANIME_SOURCE = "release-anime"
+
+# The built-in orders, by auto_source. Each says how it is named and which
+# media types it draws on; None means every type.
+BUILT_IN_KINDS = {
+    RELEASE_SOURCE: {"name": "Release Order", "media_types": None},
+    RELEASE_ANIME_SOURCE: {"name": "Release Order (Anime)", "media_types": ["anime"]},
+}
 
 # A franchise holding a single work - one movie, one TV series, one novel - has
 # nothing to put in an order. Below this, a release order is just noise.
@@ -99,12 +110,24 @@ def _owner_franchise_ids(db: Session, db_list: models.WatchOrderList) -> List[An
     """The franchises whose entries a generated list draws on."""
     if db_list.franchise_id:
         return [db_list.franchise_id]
+    if db_list.series_id:
+        return []
     return [
         row[0]
         for row in db.query(models.Franchise.system_id)
         .filter(models.Franchise.collection_id == db_list.collection_id)
         .all()
     ]
+
+
+def _generated_scope(db: Session, db_list: models.WatchOrderList) -> dict:
+    """The arguments build_release_items needs for one generated list."""
+    kind = BUILT_IN_KINDS.get(db_list.auto_source, BUILT_IN_KINDS[RELEASE_SOURCE])
+    return {
+        "franchise_ids": _owner_franchise_ids(db, db_list),
+        "series_ids": [db_list.series_id] if db_list.series_id else None,
+        "media_types": kind["media_types"],
+    }
 
 
 def _reject_if_generated(db_list: models.WatchOrderList) -> None:
@@ -173,14 +196,14 @@ def _summarize(db: Session, list_ids: List[Any]) -> dict:
 
 def _summarize_generated(db: Session, auto_lists: List[Any]) -> dict:
     """
-    Item count and media types for generated lists, batched.
+    Item count and media types for built-in lists, batched.
 
-    A generated list has no watch_order_item rows, so _summarize returns zero
-    for it. Counting per list would mean seven queries each - with a release
-    order per franchise that is thousands. Instead every owner is resolved to
-    franchise ids once, then each media table is grouped by franchise_id in a
-    single query, so a page costs seven queries regardless of how many
-    generated lists it holds.
+    A built-in list has no watch_order_item rows, so _summarize returns zero for
+    it. Counting per list would mean a query per media type each - with one per
+    franchise and series that is thousands. Instead every owner is resolved
+    once, then each media table is grouped by franchise_id and by series_id in
+    a single query, so a page costs a fixed number of queries however many
+    built-in lists it holds.
     """
     if not auto_lists:
         return {}
@@ -197,40 +220,59 @@ def _summarize_generated(db: Session, auto_lists: List[Any]) -> dict:
         ):
             members.setdefault(cid, []).append(fid)
 
-    owners = {
-        l.system_id: (
-            [l.franchise_id] if l.franchise_id else members.get(l.collection_id, [])
-        )
-        for l in auto_lists
-    }
+    franchise_scope = {}
+    series_scope = {}
+    for l in auto_lists:
+        if l.series_id:
+            series_scope[l.system_id] = [l.series_id]
+        elif l.franchise_id:
+            franchise_scope[l.system_id] = [l.franchise_id]
+        else:
+            franchise_scope[l.system_id] = members.get(l.collection_id, [])
 
-    every_franchise = {fid for ids in owners.values() for fid in ids}
-    if not every_franchise:
-        return {
-            l.system_id: {"item_count": 0, "media_types": set()} for l in auto_lists
-        }
+    every_franchise = {fid for ids in franchise_scope.values() for fid in ids}
+    every_series = {sid for ids in series_scope.values() for sid in ids}
 
-    # franchise_id -> {media_type: count}, one query per media type.
-    per_franchise: dict = {}
+    # (franchise_id | series_id) -> {media_type: count}
+    by_franchise: dict = {}
+    by_series: dict = {}
     for media_type, model in MEDIA_TYPE_MODELS.items():
-        rows = (
-            db.query(model.franchise_id, func.count(model.system_id))
-            .filter(model.franchise_id.in_(list(every_franchise)))
-            .group_by(model.franchise_id)
-            .all()
-        )
-        for franchise_id, count in rows:
-            per_franchise.setdefault(franchise_id, {})[media_type] = count
+        if every_franchise:
+            for franchise_id, count in (
+                db.query(model.franchise_id, func.count(model.system_id))
+                .filter(model.franchise_id.in_(list(every_franchise)))
+                .group_by(model.franchise_id)
+                .all()
+            ):
+                by_franchise.setdefault(franchise_id, {})[media_type] = count
+        # anime_movies has no series_id, so it never appears in a series scope.
+        if every_series and hasattr(model, "series_id"):
+            for series_key, count in (
+                db.query(model.series_id, func.count(model.system_id))
+                .filter(model.series_id.in_(list(every_series)))
+                .group_by(model.series_id)
+                .all()
+            ):
+                by_series.setdefault(series_key, {})[media_type] = count
 
     summary = {}
-    for list_id, franchise_ids in owners.items():
+    for l in auto_lists:
+        wanted = BUILT_IN_KINDS.get(l.auto_source, {}).get("media_types")
+        source_counts = (
+            [by_series.get(k, {}) for k in series_scope.get(l.system_id, [])]
+            if l.system_id in series_scope
+            else [by_franchise.get(k, {}) for k in franchise_scope.get(l.system_id, [])]
+        )
+
         count = 0
         types = set()
-        for franchise_id in franchise_ids:
-            for media_type, n in per_franchise.get(franchise_id, {}).items():
+        for counts in source_counts:
+            for media_type, n in counts.items():
+                if wanted is not None and media_type not in wanted:
+                    continue
                 count += n
                 types.add(media_type)
-        summary[list_id] = {"item_count": count, "media_types": types}
+        summary[l.system_id] = {"item_count": count, "media_types": types}
     return summary
 
 
@@ -241,6 +283,7 @@ def _serialize(db_list: models.WatchOrderList, summary: dict = None) -> dict:
         "system_id": db_list.system_id,
         "franchise_id": db_list.franchise_id,
         "collection_id": db_list.collection_id,
+        "series_id": db_list.series_id,
         "list_name": db_list.list_name,
         "list_type": db_list.list_type,
         "is_default": db_list.is_default,
@@ -311,6 +354,7 @@ def _enforce_single_winners(db: Session, db_list: models.WatchOrderList) -> None
 def get_watch_order_lists(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
     search_query: Optional[str] = None,
     auto: Optional[str] = Query(
         default=None,
@@ -332,6 +376,8 @@ def get_watch_order_lists(
         query = query.filter(models.WatchOrderList.franchise_id == franchise_id)
     if collection_id:
         query = query.filter(models.WatchOrderList.collection_id == collection_id)
+    if series_id:
+        query = query.filter(models.WatchOrderList.series_id == series_id)
     if search_query:
         query = query.filter(
             models.WatchOrderList.list_name.ilike(f"%{search_query}%")
@@ -371,10 +417,16 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
     """Retrieves one watch order with its items resolved to display data."""
     db_list = _get_list_or_404(db, system_id)
 
-    if db_list.auto_source == RELEASE_SOURCE:
+    # Any built-in kind, not just the cross-type one.
+    if db_list.auto_source in BUILT_IN_KINDS:
         # Generated on read, so entries added since last time are simply there.
+        scope = _generated_scope(db, db_list)
         resolved = build_release_items(
-            db, _owner_franchise_ids(db, db_list), db_list.system_id
+            db,
+            scope["franchise_ids"],
+            db_list.system_id,
+            series_ids=scope["series_ids"],
+            media_types=scope["media_types"],
         )
     else:
         items = (
@@ -448,7 +500,7 @@ def create_watch_order_list(
     admin: dict = Depends(get_current_admin),
 ):
     """Creates a new watch order owned by one franchise or one collection."""
-    _validate_owner(payload.franchise_id, payload.collection_id)
+    _validate_owner(payload.franchise_id, payload.collection_id, payload.series_id)
 
     try:
         # Build from the validated payload rather than field-by-field, so newly
@@ -476,42 +528,86 @@ def create_watch_order_list(
         )
 
 
-def _count_owner_entries(db: Session, franchise_ids: List[Any]) -> int:
-    """How many media entries the owner holds, across every type."""
-    if not franchise_ids:
-        return 0
+def _count_owner_entries(
+    db: Session,
+    franchise_ids: List[Any],
+    series_ids: List[Any] = None,
+    media_types: List[str] = None,
+) -> int:
+    """How many entries the owner holds within the given scope."""
+    wanted = media_types or list(MEDIA_TYPE_MODELS)
     total = 0
-    for model in MEDIA_TYPE_MODELS.values():
+    for media_type, model in MEDIA_TYPE_MODELS.items():
+        if media_type not in wanted:
+            continue
+        if series_ids is not None:
+            if not hasattr(model, "series_id") or not series_ids:
+                continue
+            column = model.series_id
+            values = series_ids
+        else:
+            if not franchise_ids:
+                continue
+            column = model.franchise_id
+            values = franchise_ids
         total += (
-            db.query(func.count(model.system_id))
-            .filter(model.franchise_id.in_(franchise_ids))
-            .scalar()
+            db.query(func.count(model.system_id)).filter(column.in_(values)).scalar()
             or 0
         )
     return total
 
 
-def _existing_release_list(db: Session, franchise_id, collection_id):
-    """The owner's generated release order, if it already has one."""
+def _collection_blocks_built_ins(db: Session, franchise_id) -> bool:
+    """
+    True when the franchise sits under a collection that opts out.
+
+    Umbrellas like 迪士尼 group unrelated standalone works, so a release order
+    over one of their members is meaningless.
+    """
+    row = (
+        db.query(models.Collection.no_built_in_orders)
+        .join(
+            models.Franchise,
+            models.Franchise.collection_id == models.Collection.system_id,
+        )
+        .filter(models.Franchise.system_id == franchise_id)
+        .first()
+    )
+    return bool(row and row[0])
+
+
+def _existing_release_list(
+    db: Session, franchise_id, collection_id, series_id=None, source=RELEASE_SOURCE
+):
+    """The owner's built-in order of this kind, if it already has one."""
     query = db.query(models.WatchOrderList).filter(
-        models.WatchOrderList.auto_source == RELEASE_SOURCE
+        models.WatchOrderList.auto_source == source
     )
     if franchise_id:
         query = query.filter(models.WatchOrderList.franchise_id == franchise_id)
+    elif series_id:
+        query = query.filter(models.WatchOrderList.series_id == series_id)
     else:
         query = query.filter(models.WatchOrderList.collection_id == collection_id)
     return query.first()
 
 
-def _create_release_list(db: Session, franchise_id=None, collection_id=None):
-    """Creates the generated release order for one owner. No items are stored."""
+def _create_release_list(
+    db: Session,
+    franchise_id=None,
+    collection_id=None,
+    series_id=None,
+    source=RELEASE_SOURCE,
+):
+    """Creates one built-in order. No items are stored; the steps are computed."""
     return models.WatchOrderList(
         system_id=uuid.uuid4(),
         franchise_id=franchise_id,
         collection_id=collection_id,
-        list_name="Release Order",
+        series_id=series_id,
+        list_name=BUILT_IN_KINDS[source]["name"],
         list_type="Release",
-        auto_source=RELEASE_SOURCE,
+        auto_source=source,
         is_default=False,
         is_most_recommended=False,
         created_at=get_taipei_now(),
@@ -522,94 +618,168 @@ def _create_release_list(db: Session, franchise_id=None, collection_id=None):
 @router.post(
     "/lists/release",
     response_model=schemas.WatchOrderListResponse,
-    summary="Create Generated Release Order",
+    summary="Create Built-in Order",
 )
 def create_release_list(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
+    anime_only: bool = False,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
     """
-    Gives one owner a release order whose steps are generated on read.
+    Gives one owner a built-in order whose steps are generated on read.
 
-    Idempotent: an owner that already has one gets that one back, so the button
-    cannot produce duplicates.
+    `anime_only` selects the anime-only variant instead of the cross-type one.
+    Idempotent per kind: an owner that already has that kind gets it back, so
+    the button cannot produce duplicates.
     """
-    _validate_owner(franchise_id, collection_id)
+    _validate_owner(franchise_id, collection_id, series_id)
 
-    existing = _existing_release_list(db, franchise_id, collection_id)
+    source = RELEASE_ANIME_SOURCE if anime_only else RELEASE_SOURCE
+
+    existing = _existing_release_list(
+        db, franchise_id, collection_id, series_id, source
+    )
     if existing:
         return _with_count(db, existing)
 
-    if franchise_id:
-        franchise_ids = [franchise_id]
-    else:
-        franchise_ids = [
-            row[0]
-            for row in db.query(models.Franchise.system_id)
-            .filter(models.Franchise.collection_id == collection_id)
-            .all()
-        ]
-    if _count_owner_entries(db, franchise_ids) < MIN_ENTRIES_FOR_RELEASE:
+    if franchise_id and _collection_blocks_built_ins(db, franchise_id):
         raise HTTPException(
             status_code=400,
             detail=(
-                "A release order needs at least "
-                f"{MIN_ENTRIES_FOR_RELEASE} entries. A single work - one movie, "
-                "one TV series, one novel - has nothing to order."
+                "This franchise belongs to a collection that opts out of "
+                "built-in orders."
             ),
         )
 
-    new_list = _create_release_list(db, franchise_id, collection_id)
+    if series_id:
+        franchise_ids, series_ids = [], [series_id]
+    elif franchise_id:
+        franchise_ids, series_ids = [franchise_id], None
+    else:
+        franchise_ids, series_ids = (
+            [
+                row[0]
+                for row in db.query(models.Franchise.system_id)
+                .filter(models.Franchise.collection_id == collection_id)
+                .all()
+            ],
+            None,
+        )
+
+    count = _count_owner_entries(
+        db, franchise_ids, series_ids, BUILT_IN_KINDS[source]["media_types"]
+    )
+    if count < MIN_ENTRIES_FOR_RELEASE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"A built-in order needs at least {MIN_ENTRIES_FOR_RELEASE} "
+                "entries in scope. A single work has nothing to order."
+            ),
+        )
+
+    new_list = _create_release_list(
+        db, franchise_id, collection_id, series_id, source
+    )
     db.add(new_list)
     db.commit()
     db.refresh(new_list)
     return _with_count(db, new_list)
 
 
-@router.post("/lists/release/backfill", summary="Backfill Release Orders")
+@router.post("/lists/release/backfill", summary="Backfill Built-in Orders")
 def backfill_release_lists(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
     """
-    Gives every franchise and collection a release order, skipping any that
-    already has one. Safe to re-run, and it never touches hand-built lists.
+    Gives every franchise, series and collection its built-in orders, skipping
+    owners that already have them. Safe to re-run, and hand-built lists are
+    never touched.
 
-    Only owners with entries to order are given one - a release order over an
-    empty franchise would be noise.
+    Skipped: owners with fewer than MIN_ENTRIES_FOR_RELEASE entries in scope,
+    and franchises under a collection that opts out.
     """
     owned = {
-        (row.franchise_id, row.collection_id)
+        (row.franchise_id, row.collection_id, row.series_id, row.auto_source)
         for row in db.query(models.WatchOrderList)
-        .filter(models.WatchOrderList.auto_source == RELEASE_SOURCE)
+        .filter(models.WatchOrderList.auto_source.isnot(None))
         .all()
     }
 
     created = 0
     skipped_too_small = 0
+    skipped_opted_out = 0
 
-    # Entries per franchise, in one grouped query per media type.
-    per_franchise: dict = {}
-    for model in MEDIA_TYPE_MODELS.values():
+    # Entries per franchise and per series, split by media type, in one grouped
+    # query per table rather than per owner.
+    by_franchise: dict = {}
+    by_series: dict = {}
+    for media_type, model in MEDIA_TYPE_MODELS.items():
         for franchise_id, count in (
             db.query(model.franchise_id, func.count(model.system_id))
             .group_by(model.franchise_id)
             .all()
         ):
             if franchise_id is not None:
-                per_franchise[franchise_id] = per_franchise.get(franchise_id, 0) + count
+                bucket = by_franchise.setdefault(franchise_id, {})
+                bucket[media_type] = bucket.get(media_type, 0) + count
 
-    for franchise_id, count in per_franchise.items():
-        if (franchise_id, None) in owned:
-            continue
-        if count < MIN_ENTRIES_FOR_RELEASE:
-            skipped_too_small += 1
-            continue
-        db.add(_create_release_list(db, franchise_id=franchise_id))
-        created += 1
+        if hasattr(model, "series_id"):
+            for series_key, count in (
+                db.query(model.series_id, func.count(model.system_id))
+                .group_by(model.series_id)
+                .all()
+            ):
+                if series_key is not None:
+                    bucket = by_series.setdefault(series_key, {})
+                    bucket[media_type] = bucket.get(media_type, 0) + count
 
+    # Franchises whose collection opts out.
+    blocked = {
+        row[0]
+        for row in db.query(models.Franchise.system_id)
+        .join(
+            models.Collection,
+            models.Franchise.collection_id == models.Collection.system_id,
+        )
+        .filter(models.Collection.no_built_in_orders.is_(True))
+        .all()
+    }
+
+    def scoped_count(counts: dict, source: str) -> int:
+        wanted = BUILT_IN_KINDS[source]["media_types"]
+        if wanted is None:
+            return sum(counts.values())
+        return sum(counts.get(t, 0) for t in wanted)
+
+    for source in BUILT_IN_KINDS:
+        for franchise_id, counts in by_franchise.items():
+            if (franchise_id, None, None, source) in owned:
+                continue
+            if franchise_id in blocked:
+                skipped_opted_out += 1
+                continue
+            if scoped_count(counts, source) < MIN_ENTRIES_FOR_RELEASE:
+                skipped_too_small += 1
+                continue
+            db.add(_create_release_list(db, franchise_id=franchise_id, source=source))
+            created += 1
+
+        for series_key, counts in by_series.items():
+            if (None, None, series_key, source) in owned:
+                continue
+            if scoped_count(counts, source) < MIN_ENTRIES_FOR_RELEASE:
+                skipped_too_small += 1
+                continue
+            db.add(_create_release_list(db, series_id=series_key, source=source))
+            created += 1
+
+    # Collections get the cross-type order only; an anime-only order across an
+    # umbrella has not been asked for.
     members_by_collection: dict = {}
     for fid, cid in (
         db.query(models.Franchise.system_id, models.Franchise.collection_id)
@@ -618,12 +788,17 @@ def backfill_release_lists(
     ):
         members_by_collection.setdefault(cid, []).append(fid)
 
-    for row in db.query(models.Collection.system_id).all():
-        collection_id = row[0]
-        if (None, collection_id) in owned:
+    for row in db.query(
+        models.Collection.system_id, models.Collection.no_built_in_orders
+    ).all():
+        collection_id, opted_out = row
+        if (None, collection_id, None, RELEASE_SOURCE) in owned:
+            continue
+        if opted_out:
+            skipped_opted_out += 1
             continue
         total = sum(
-            per_franchise.get(fid, 0)
+            sum(by_franchise.get(fid, {}).values())
             for fid in members_by_collection.get(collection_id, [])
         )
         if total < MIN_ENTRIES_FOR_RELEASE:
@@ -637,6 +812,7 @@ def backfill_release_lists(
         "status": "success",
         "created": created,
         "skipped_too_small": skipped_too_small,
+        "skipped_opted_out": skipped_opted_out,
     }
 
 
@@ -658,7 +834,7 @@ def update_watch_order_list(
     for key, value in update_data.items():
         setattr(db_list, key, value)
 
-    _validate_owner(db_list.franchise_id, db_list.collection_id)
+    _validate_owner(db_list.franchise_id, db_list.collection_id, db_list.series_id)
     _enforce_single_winners(db, db_list)
 
     db_list.updated_at = get_taipei_now()
@@ -685,7 +861,7 @@ def patch_watch_order_list(
         if hasattr(db_list, key):
             setattr(db_list, key, value)
 
-    _validate_owner(db_list.franchise_id, db_list.collection_id)
+    _validate_owner(db_list.franchise_id, db_list.collection_id, db_list.series_id)
     _enforce_single_winners(db, db_list)
 
     db_list.updated_at = get_taipei_now()

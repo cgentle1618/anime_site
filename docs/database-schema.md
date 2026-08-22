@@ -87,6 +87,8 @@ Optional umbrella tier above Franchise. Groups several distinct franchises that 
 | `remark`                 | Text     | Yes      | —          |                                                                                                |
 | `created_at`             | DateTime | Yes      | Taipei now |                                                                                                |
 | `updated_at`             | DateTime | Yes      | Taipei now | Auto-updated on save                                                                           |
+| `no_built_in_orders` | Boolean | Yes | Opts every member franchise out of built-in watch orders. Set for 迪士尼, whose members are unrelated standalone works |
+
 
 **Note:** There is deliberately no `collection_type`, and no roll-up/computed statistics.
 
@@ -860,11 +862,12 @@ One named order, owned by exactly one franchise or one collection.
 | `system_id`     | UUID     | No       | PK, indexed                                                              |
 | `franchise_id`  | UUID     | Yes      | FK → `franchise.system_id`, `ON DELETE CASCADE`, indexed                 |
 | `collection_id` | UUID     | Yes      | FK → `collection.system_id`, `ON DELETE CASCADE`, indexed                |
+| `series_id`     | UUID     | Yes      | FK → `series.system_id`, `ON DELETE CASCADE`, indexed                    |
 | `list_name`     | String   | Yes      | e.g. "Chronological", "Release Order"                                    |
 | `list_type`     | String   | Yes      | Custom / Chronological / Release / Recommended; defaults to `"Custom"`   |
 | `is_default`    | Boolean  | Yes      | The order shown first; the API clears the flag on the owner's other rows |
 | `is_most_recommended` | Boolean | Yes | The single order to follow. Independent of `is_default` and also cleared on the owner's other rows |
-| `auto_source`   | String   | Yes      | `NULL` for a hand-built list. `"release"` means the steps are generated from release dates on every read and no `watch_order_item` rows exist |
+| `auto_source`   | String   | Yes      | `NULL` for a hand-built list. `"release"` (cross-type) and `"release-anime"` (anime only) are the **built-in** kinds: steps generated from release dates on every read, no `watch_order_item` rows |
 | `sort_index`    | Float    | Yes      | Ordering of several orders within one owner                             |
 | `remark`        | Text     | Yes      | The note describing how to read this order                              |
 | `created_at`    | DateTime | Yes      | Auto-set on create                                                      |
@@ -882,10 +885,14 @@ from the owner's entries each time it is read, so an entry added later appears
 without anyone regenerating anything. The item endpoints refuse to write to
 such a list; its name, type, note and flags remain ordinary editable columns.
 
-**Check constraint `ck_watch_order_list_single_owner`:**
-`(franchise_id IS NULL) <> (collection_id IS NULL)` — exactly one owner. CASCADE
-rather than SET NULL, because a nulled owner would leave a row the constraint
-forbids.
+**Check constraint `ck_watch_order_list_single_owner`:** exactly one of
+`franchise_id`, `collection_id`, `series_id` is set (a CASE-sum, since a plain
+`<>` only expresses two columns). CASCADE rather than SET NULL, because a
+nulled owner would leave a row the constraint forbids.
+
+A series-owned order cannot contain anime movies: `anime_movies` is the one
+media table without a `series_id` column, so those entries cannot be attributed
+to a series at all.
 
 ### `watch_order_item`
 

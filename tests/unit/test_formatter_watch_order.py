@@ -25,6 +25,7 @@ class TestWatchOrderListParser:
             "system_id",
             "franchise_id",
             "collection_id",
+            "series_id",
             "list_name",
             "list_type",
             "is_default",
@@ -43,6 +44,7 @@ class TestWatchOrderListParser:
                 "system_id": str(list_id),
                 "franchise_id": str(franchise_id),
                 "collection_id": "",
+                "series_id": "",
                 "list_name": "Chronological",
                 "list_type": "Chronological",
                 "is_default": "TRUE",
@@ -57,6 +59,7 @@ class TestWatchOrderListParser:
         assert parsed["system_id"] == list_id
         assert parsed["franchise_id"] == franchise_id
         assert parsed["collection_id"] is None
+        assert parsed["series_id"] is None
         assert parsed["list_name"] == "Chronological"
         assert parsed["is_default"] is True
         assert parsed["is_most_recommended"] is True

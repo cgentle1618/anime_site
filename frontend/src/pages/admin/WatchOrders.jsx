@@ -149,8 +149,8 @@ export default function WatchOrders() {
   const [collections, setCollections] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState("");
-  // Generated release orders exist for nearly every owner, so showing them by
-  // default would bury the hand-built ones this page is really for.
+  // Built-in orders exist for nearly every owner, so showing them by default
+  // would bury the hand-built ones this page is really for.
   const [showGenerated, setShowGenerated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -253,8 +253,9 @@ export default function WatchOrders() {
   async function backfillRelease() {
     if (
       !window.confirm(
-        "Give every franchise and collection a release order? Owners that " +
-          "already have one are skipped, and hand-built orders are untouched."
+        "Give every franchise, series and collection its built-in orders? " +
+          "Owners that already have them are skipped, and hand-built orders " +
+          "are untouched."
       )
     )
       return;
@@ -268,7 +269,7 @@ export default function WatchOrders() {
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();
       await loadLists();
-      showToast("success", `Created ${data.created} release orders.`);
+      showToast("success", `Created ${data.created} built-in orders.`);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -338,16 +339,16 @@ export default function WatchOrders() {
                 onChange={(e) => setShowGenerated(e.target.checked)}
                 className="accent-brand"
               />
-              Show generated
+              Show built-in
             </label>
             <button
               type="button"
               onClick={backfillRelease}
               disabled={busy}
-              title="Give every franchise and collection a release order"
+              title="Give every franchise, series and collection its built-in orders"
               className="text-[11px] font-bold text-gray-500 hover:text-brand disabled:opacity-40"
             >
-              <i className="fas fa-wand-magic-sparkles mr-1"></i>Backfill release
+              <i className="fas fa-wand-magic-sparkles mr-1"></i>Backfill built-in
               orders
             </button>
           </div>
@@ -401,11 +402,11 @@ export default function WatchOrders() {
                           <span className="flex flex-wrap items-center gap-1.5 mt-0.5">
                             {l.auto_source && (
                               <span
-                                title="Steps generated from release dates"
+                                title="Built in: steps generated from release dates"
                                 className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200"
                               >
                                 <i className="fas fa-wand-magic-sparkles mr-1"></i>
-                                Generated
+                                Built-in
                               </span>
                             )}
                             {l.list_type && (

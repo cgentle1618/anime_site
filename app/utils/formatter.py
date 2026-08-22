@@ -152,6 +152,7 @@ def parse_watch_order_list_from_sheet(raw: dict) -> dict:
         # would otherwise reach the DB and violate the single-owner check.
         "franchise_id": _uuid_or_none(raw.get("franchise_id")),
         "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
         "list_name": parse_from_sheet(raw.get("list_name"), str),
         "list_type": parse_from_sheet(raw.get("list_type"), str),
         "is_default": parse_from_sheet(raw.get("is_default"), bool),
@@ -231,7 +232,7 @@ def parse_collection_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Collection sheet into typed data ready for the Database.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "collection_name_en": parse_from_sheet(raw.get("collection_name_en"), str),
         "collection_name_cn": parse_from_sheet(raw.get("collection_name_cn"), str),
@@ -251,6 +252,16 @@ def parse_collection_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+
+    # Emitted only when the sheet actually has the column. Emitting it always
+    # would set no_built_in_orders = None on every collection whenever a
+    # Collection tab predating the flag is pulled - the same silent wipe the
+    # franchise collection_id safeguard exists to prevent.
+    if "no_built_in_orders" in raw:
+        parsed["no_built_in_orders"] = parse_from_sheet(
+            raw.get("no_built_in_orders"), bool
+        )
+    return parsed
 
 
 def parse_series_from_sheet(raw: dict) -> dict:

@@ -596,6 +596,264 @@ class TestSingleWorkFranchisesGetNoOrder:
         assert second["created"] == 0
 
 
+class TestAnimeOnlyBuiltIn:
+    """The anime-only variant sits alongside the cross-type one."""
+
+    @pytest.fixture
+    def mixed_franchise(self, db_session, sample_franchise, sample_anime):
+        """Two anime and a manga, so the two kinds differ in size."""
+        db_session.add_all(
+            [
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    anime_name_en="Second Anime",
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                    release_year="2005",
+                ),
+                models.Manga(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    manga_name_en="A Manga",
+                    reading_status="Might Read",
+                    release_year="2003",
+                ),
+            ]
+        )
+        db_session.flush()
+        return sample_franchise
+
+    def test_both_kinds_can_coexist(self, admin_client, mixed_franchise):
+        cross = admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={mixed_franchise.system_id}"
+        ).json()
+        anime = admin_client.post(
+            "/api/watch-order/lists/release"
+            f"?franchise_id={mixed_franchise.system_id}&anime_only=true"
+        ).json()
+
+        assert cross["system_id"] != anime["system_id"]
+        assert cross["auto_source"] == "release"
+        assert anime["auto_source"] == "release-anime"
+
+    def test_anime_only_excludes_other_types(self, admin_client, mixed_franchise):
+        created = admin_client.post(
+            "/api/watch-order/lists/release"
+            f"?franchise_id={mixed_franchise.system_id}&anime_only=true"
+        ).json()
+        detail = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()
+
+        assert detail["media_types"] == ["anime"]
+        assert {i["media_type"] for i in detail["items"]} == {"anime"}
+
+    def test_cross_type_keeps_everything(self, admin_client, mixed_franchise):
+        created = admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={mixed_franchise.system_id}"
+        ).json()
+        detail = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()
+        assert set(detail["media_types"]) == {"anime", "manga"}
+
+    def test_listing_counts_each_kind_separately(
+        self, admin_client, client, mixed_franchise
+    ):
+        admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={mixed_franchise.system_id}"
+        )
+        admin_client.post(
+            "/api/watch-order/lists/release"
+            f"?franchise_id={mixed_franchise.system_id}&anime_only=true"
+        )
+        rows = client.get("/api/watch-order/lists?auto=only").json()
+        by_source = {r["auto_source"]: r for r in rows}
+        assert by_source["release"]["item_count"] == 3
+        assert by_source["release-anime"]["item_count"] == 2
+
+    def test_anime_only_refused_without_enough_anime(
+        self, admin_client, db_session, sample_franchise, sample_anime
+    ):
+        """One anime plus two manga is enough cross-type, not anime-only."""
+        db_session.add_all(
+            [
+                models.Manga(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    manga_name_en=f"Manga {n}",
+                    reading_status="Might Read",
+                )
+                for n in (1, 2)
+            ]
+        )
+        db_session.flush()
+
+        assert (
+            admin_client.post(
+                f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+            ).status_code
+            in (200, 201)
+        )
+        assert (
+            admin_client.post(
+                "/api/watch-order/lists/release"
+                f"?franchise_id={sample_franchise.system_id}&anime_only=true"
+            ).status_code
+            == 400
+        )
+
+
+class TestSeriesOwnedBuiltIn:
+    """Series are the middle tier and get built-in orders of their own."""
+
+    @pytest.fixture
+    def stocked_series(self, db_session, sample_franchise, sample_series):
+        db_session.add_all(
+            [
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    series_id=sample_series.system_id,
+                    anime_name_en=f"Series Anime {n}",
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                    release_year=year,
+                )
+                for n, year in ((1, "2010"), (2, "2012"))
+            ]
+        )
+        db_session.flush()
+        return sample_series
+
+    def test_series_can_own_an_order(self, admin_client, stocked_series):
+        created = admin_client.post(
+            f"/api/watch-order/lists/release?series_id={stocked_series.system_id}"
+        ).json()
+        assert created["series_id"] == str(stocked_series.system_id)
+        assert created["franchise_id"] is None
+        assert created["collection_id"] is None
+
+    def test_steps_are_scoped_to_the_series(
+        self, admin_client, db_session, sample_franchise, stocked_series
+    ):
+        """An entry in the same franchise but no series must not appear."""
+        db_session.add(
+            models.Anime(
+                system_id=uuid.uuid4(),
+                franchise_id=sample_franchise.system_id,
+                anime_name_en="Outside The Series",
+                airing_type="TV",
+                watching_status="Might Watch",
+                release_year="2011",
+            )
+        )
+        db_session.flush()
+
+        created = admin_client.post(
+            f"/api/watch-order/lists/release?series_id={stocked_series.system_id}"
+        ).json()
+        detail = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()
+
+        names = [i["display_name"] for i in detail["items"]]
+        assert "Outside The Series" not in names
+        assert len(names) == 2
+
+    def test_listing_filters_by_series(self, admin_client, client, stocked_series):
+        admin_client.post(
+            f"/api/watch-order/lists/release?series_id={stocked_series.system_id}"
+        )
+        rows = client.get(
+            f"/api/watch-order/lists?series_id={stocked_series.system_id}"
+        ).json()
+        assert len(rows) == 1
+
+    def test_two_owners_still_rejected(
+        self, admin_client, sample_franchise, stocked_series
+    ):
+        response = admin_client.post(
+            "/api/watch-order/lists/release"
+            f"?franchise_id={sample_franchise.system_id}"
+            f"&series_id={stocked_series.system_id}"
+        )
+        assert response.status_code == 400
+
+    def test_series_anime_only_variant(self, admin_client, stocked_series):
+        created = admin_client.post(
+            "/api/watch-order/lists/release"
+            f"?series_id={stocked_series.system_id}&anime_only=true"
+        ).json()
+        assert created["auto_source"] == "release-anime"
+        assert created["item_count"] == 2
+
+
+class TestCollectionOptOut:
+    """A collection can opt its members out of built-in orders entirely."""
+
+    @pytest.fixture
+    def opted_out(self, db_session, sample_collection, sample_collected_franchise):
+        sample_collection.no_built_in_orders = True
+        db_session.add_all(
+            [
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_collected_franchise.system_id,
+                    anime_name_en=f"Disney-ish {n}",
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                    release_year="200%d" % n,
+                )
+                for n in (1, 2)
+            ]
+        )
+        db_session.flush()
+        return sample_collected_franchise
+
+    def test_member_franchise_is_refused(self, admin_client, opted_out):
+        response = admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={opted_out.system_id}"
+        )
+        assert response.status_code == 400
+        assert "opts out" in response.json()["detail"]
+
+    def test_backfill_skips_and_reports_them(self, admin_client, opted_out):
+        data = admin_client.post("/api/watch-order/lists/release/backfill").json()
+        assert data["skipped_opted_out"] >= 1
+
+    def test_backfill_creates_nothing_for_that_franchise(
+        self, admin_client, client, opted_out
+    ):
+        admin_client.post("/api/watch-order/lists/release/backfill")
+        rows = client.get("/api/watch-order/lists?auto=only").json()
+        assert all(r["franchise_id"] != str(opted_out.system_id) for r in rows)
+
+    def test_a_normal_collection_still_gets_one(
+        self, admin_client, client, db_session, sample_collection,
+        sample_collected_franchise,
+    ):
+        sample_collection.no_built_in_orders = False
+        db_session.add_all(
+            [
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_collected_franchise.system_id,
+                    anime_name_en=f"Fine {n}",
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                )
+                for n in (1, 2)
+            ]
+        )
+        db_session.flush()
+
+        admin_client.post("/api/watch-order/lists/release/backfill")
+        rows = client.get("/api/watch-order/lists?auto=only").json()
+        assert any(r["collection_id"] == str(sample_collection.system_id) for r in rows)
+
+
 class TestCandidates:
     def test_franchise_candidates_span_media_types(
         self, client, sample_franchise, sample_anime, sample_anime_movie

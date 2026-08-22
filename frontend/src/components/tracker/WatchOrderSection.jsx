@@ -78,12 +78,13 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
     );
   }
 
-  async function createRelease() {
+  async function createRelease(animeOnly = false) {
     try {
       const res = await fetch(
         buildUrl(endpoints.watchOrder.createRelease(), {
           franchise_id: franchiseId,
           collection_id: collectionId,
+          anime_only: animeOnly ? "true" : undefined,
         }),
         { method: "POST", credentials: "include" }
       );
@@ -94,13 +95,14 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
       const created = await res.json();
       loadLists();
       setSelectedId(created.system_id);
-      showToast("success", "Release order added.");
+      showToast("success", "Built-in order added.");
     } catch (e) {
       showToast("error", e.message);
     }
   }
 
   const hasRelease = lists.some((l) => l.auto_source === "release");
+  const hasAnimeRelease = lists.some((l) => l.auto_source === "release-anime");
 
   if (!lists.length) {
     return (
@@ -111,10 +113,10 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
           <div className="flex items-center justify-center gap-3 mt-3">
             <button
               type="button"
-              onClick={createRelease}
+              onClick={() => createRelease(false)}
               className="text-sm font-bold text-brand hover:underline"
             >
-              Add release order
+              Add built-in order
             </button>
             <Link
               to="/watch-orders"
@@ -180,10 +182,21 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
           {isAdmin && !hasRelease && (
             <button
               type="button"
-              onClick={createRelease}
+              onClick={() => createRelease(false)}
               className="text-xs font-bold text-gray-500 hover:text-brand whitespace-nowrap"
             >
-              <i className="fas fa-wand-magic-sparkles mr-1"></i>Add release order
+              <i className="fas fa-wand-magic-sparkles mr-1"></i>Add built-in
+            </button>
+          )}
+          {/* Only offered for a franchise: an anime-only order over a
+              collection has not been asked for. */}
+          {isAdmin && franchiseId && !hasAnimeRelease && (
+            <button
+              type="button"
+              onClick={() => createRelease(true)}
+              className="text-xs font-bold text-gray-500 hover:text-brand whitespace-nowrap"
+            >
+              <i className="fas fa-tv mr-1"></i>Add built-in (anime)
             </button>
           )}
           {isAdmin && (

@@ -36,7 +36,9 @@ class WatchOrderList(Base):
         # and a doubly-owned one would show up in two places with no rule for
         # which entries are eligible.
         CheckConstraint(
-            "(franchise_id IS NULL) <> (collection_id IS NULL)",
+            "(CASE WHEN franchise_id IS NULL THEN 0 ELSE 1 END"
+            " + CASE WHEN collection_id IS NULL THEN 0 ELSE 1 END"
+            " + CASE WHEN series_id IS NULL THEN 0 ELSE 1 END) = 1",
             name="ck_watch_order_list_single_owner",
         ),
     )
@@ -55,6 +57,14 @@ class WatchOrderList(Base):
     collection_id = Column(
         UUID(as_uuid=True),
         ForeignKey("collection.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # The middle tier. Note anime_movies carries no series_id, so a
+    # series-owned cross-type order cannot contain anime movies.
+    series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("series.system_id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -85,6 +95,7 @@ class WatchOrderList(Base):
     )
     franchise = relationship("Franchise", foreign_keys=[franchise_id])
     collection = relationship("Collection", foreign_keys=[collection_id])
+    series = relationship("Series", foreign_keys=[series_id])
 
     @property
     def display_name(self) -> str:

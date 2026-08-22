@@ -143,7 +143,10 @@ def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
 
 
 def list_candidate_entries(
-    db: Session, franchise_ids: List[UUID]
+    db: Session,
+    franchise_ids: List[UUID],
+    series_ids: List[UUID] = None,
+    media_types: List[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Every entry belonging to the given franchises, flattened across the seven
@@ -152,17 +155,30 @@ def list_candidate_entries(
     Backs the admin editor's entry picker. A collection-owned order spans
     several franchises, so doing this client-side would mean one request per
     franchise per media type - seven queries total is cheaper by far.
+
+    `series_ids` narrows to the middle tier instead. Note anime_movies has no
+    series_id column, so that type is simply absent from a series-scoped
+    result - there is no way to attribute an anime movie to a series today.
+    `media_types` restricts which tables are scanned at all, which is how the
+    anime-only built-in order is produced.
     """
-    if not franchise_ids:
+    if series_ids is None and not franchise_ids:
         return []
+    if series_ids is not None and not series_ids:
+        return []
+
+    wanted = media_types or list(MEDIA_TYPE_MODELS)
 
     candidates: List[Dict[str, Any]] = []
     for media_type, model in MEDIA_TYPE_MODELS.items():
-        rows = (
-            db.query(model)
-            .filter(model.franchise_id.in_(franchise_ids))
-            .all()
-        )
+        if media_type not in wanted:
+            continue
+        if series_ids is not None:
+            if not hasattr(model, "series_id"):
+                continue
+            rows = db.query(model).filter(model.series_id.in_(series_ids)).all()
+        else:
+            rows = db.query(model).filter(model.franchise_id.in_(franchise_ids)).all()
         for row in rows:
             total = (
                 getattr(row, _TOTAL_FIELDS[media_type], None)
@@ -284,15 +300,21 @@ def release_sort_key(entry: Any, media_type: str) -> tuple:
 
 
 def build_release_items(
-    db: Session, franchise_ids: List[UUID], list_id: UUID = None
+    db: Session,
+    franchise_ids: List[UUID],
+    list_id: UUID = None,
+    series_ids: List[UUID] = None,
+    media_types: List[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Every entry of those franchises as an ordered release-order step list.
+    Those entries as an ordered release-order step list.
 
     Computed on read rather than stored, so entries added later appear without
     anyone regenerating anything. Undated entries sort to the bottom by name.
     """
-    candidates = list_candidate_entries(db, franchise_ids)
+    candidates = list_candidate_entries(
+        db, franchise_ids, series_ids=series_ids, media_types=media_types
+    )
 
     # Sorted on the key list_candidate_entries already computed - no second
     # pass over the media tables.

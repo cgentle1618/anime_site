@@ -109,8 +109,23 @@ class TestParseCollectionFromSheet:
         assert parsed["cover_franchise_id"] is None
 
     def test_keys_match_model_columns(self):
+        """
+        no_built_in_orders is emitted only when the sheet has that column, the
+        same safeguard franchise.collection_id uses, so a row supplying every
+        column is what must round-trip completely.
+        """
         from app.models import Collection
 
-        assert set(parse_collection_from_sheet({}).keys()) == {
-            c.name for c in Collection.__table__.columns
-        }
+        columns = {c.name for c in Collection.__table__.columns}
+        assert set(parse_collection_from_sheet({c: "" for c in columns})) == columns
+
+    def test_absent_no_built_in_orders_column_omits_the_key(self):
+        """
+        Emitting it unconditionally would set the flag to None on every
+        collection whenever a Collection tab predating it is pulled.
+        """
+        assert "no_built_in_orders" not in parse_collection_from_sheet({})
+
+    def test_present_no_built_in_orders_column_is_parsed(self):
+        parsed = parse_collection_from_sheet({"no_built_in_orders": "TRUE"})
+        assert parsed["no_built_in_orders"] is True

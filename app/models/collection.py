@@ -2,6 +2,7 @@
 
 import uuid
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -60,6 +61,9 @@ class Collection(Base, NameFallbackMixin):
         ),
         nullable=True,
     )
+    # Umbrellas like 迪士尼 group unrelated standalone works, where a
+    # built-in release order across the members would be meaningless.
+    no_built_in_orders = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)

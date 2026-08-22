@@ -16,6 +16,7 @@ class CollectionBase(BaseModel):
     my_rating: Optional[str] = None
     collection_expectation: Optional[str] = "Low"
     cover_franchise_id: Optional[UUID] = None
+    no_built_in_orders: Optional[bool] = False
     remark: Optional[str] = None
 
 

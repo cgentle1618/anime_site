@@ -67,6 +67,7 @@ class WatchOrderItemResolved(WatchOrderItemResponse):
 class WatchOrderListBase(BaseModel):
     franchise_id: Optional[UUID] = None
     collection_id: Optional[UUID] = None
+    series_id: Optional[UUID] = None
     list_name: Optional[str] = None
     list_type: Optional[str] = "Custom"
     is_default: Optional[bool] = False

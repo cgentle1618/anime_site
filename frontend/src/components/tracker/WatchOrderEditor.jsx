@@ -452,7 +452,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
     );
   }
 
-  const isGenerated = Boolean(list?.auto_source);
+  const isBuiltIn = Boolean(list?.auto_source);
 
   if (loading || !list) {
     return (
@@ -559,10 +559,10 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       </div>
 
       {/*
-        A generated list has no stored steps to add to or reorder, so the
+        A built-in list has no stored steps to add to or reorder, so the
         controls are replaced by an explanation rather than left to fail.
       */}
-      {isGenerated ? (
+      {isBuiltIn ? (
         <p className="text-xs font-medium text-gray-500 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
           <i className="fas fa-wand-magic-sparkles text-sky-500 mr-1.5"></i>
           These steps are generated from release dates and refresh on their own
@@ -584,13 +584,13 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
               key={item.system_id}
               item={item}
               index={i + 1}
-              readOnly={isGenerated}
+              readOnly={isBuiltIn}
               isFirst={i === 0}
               isLast={i === list.items.length - 1}
               onPatch={patchItem}
               onRemove={removeItem}
               onMove={moveItem}
-              dragHandlers={isGenerated ? {} : {
+              dragHandlers={isBuiltIn ? {} : {
                 onDragStart: () => {
                   dragIndex.current = i;
                 },
