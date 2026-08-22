@@ -74,9 +74,22 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 - Remark column is different from remark field in notes column. The prior is of data type Text. The later is an user-defined sub-field of JSONB notes column.
 - Reality franchise is referring to franchise with type as "TV or Movie".
 
+## Concurrent Claude Code Sessions
+
+- Multiple Claude Code sessions may be running at the same time in this same local directory and on the same git branch. Assume you are not the only agent editing the working tree.
+- Two sessions can touch the same file for different features. Example: session 1 works on feature A and edits `file1`; session 2 works on feature B and also edits `file1`. `git status`/`git diff` for `file1` then contains a mix of both features' changes — what looks like one change set is really "2 commits" worth of work.
+- Consequences to respect:
+  - Never assume uncommitted changes in a file were made by you. Unfamiliar edits are probably another session's in-progress work, not a bug or leftover cruft.
+  - Do not revert, clean up, or "fix" changes you did not make, and do not run `git checkout --`, `git restore`, `git stash`, or `git reset` on shared files.
+  - Do not use `git add -A` / `git commit -a`. Stage only the specific files (ideally the specific hunks) belonging to the task you were asked to do.
+  - Before committing, re-read the diff of the files you intend to stage and confirm every hunk belongs to your feature. If a file contains mixed changes, say so and ask how to proceed rather than committing the mix.
+  - A file may change under you between reads. If an edit fails to match, re-read the file instead of forcing the change.
+
 ## Rule
 
 - Ask to proceed if the task is token-intensive.
+- Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
 - Whenever files are changed, provide a git commit message for the changes.
 - If I ask you to do a task, provide git commit message for the changes.
+- Never commit or push automatically right after finishing a task. When a finished task is worth committing, show the proposed commit message and ask whether I want to commit. Only commit (and push) after I approve.
 - If we're implementing or modifying based on current-plan.md, pause and ask for permission to proceed whenever you finish a step or a set of steps. Update current-plan.md for our progress in an individual section. Do not modify the plan itself. Provide git commit message for the changes.
