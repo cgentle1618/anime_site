@@ -69,6 +69,7 @@ def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
     return {
         "missing": False,
         "display_name": entry.display_name,
+        "release_display": release_display(entry, media_type),
         "cover_image_file": entry.cover_image_file,
         "franchise_id": entry.franchise_id,
         "status": getattr(entry, _STATUS_FIELDS[media_type], None),
@@ -84,6 +85,7 @@ def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
 _MISSING_PAYLOAD = {
     "missing": True,
     "display_name": None,
+    "release_display": None,
     "cover_image_file": None,
     "franchise_id": None,
     "status": None,
@@ -195,6 +197,13 @@ def list_candidate_entries(
                     # API response by the response model.
                     "release_key": release_sort_key(row, media_type),
                     "display_name": row.display_name,
+                    # Human-readable, at whatever precision the entry stores.
+                    "release_display": release_display(row, media_type),
+                    # Every title the entry answers to, lowercased. The picker
+                    # filters client-side, and display_name is only ever one of
+                    # these - searching "cowboy bebop" must find an entry
+                    # displayed under its Chinese title.
+                    "search_names": sorted(row.get_all_names()),
                     "cover_image_file": row.cover_image_file,
                     "franchise_id": row.franchise_id,
                     # Same shape the resolver returns, so the admin editor can
@@ -299,6 +308,46 @@ def release_sort_key(entry: Any, media_type: str) -> tuple:
     return _UNDATED
 
 
+def release_display(entry: Any, media_type: str) -> Optional[str]:
+    """
+    The entry's release date as stored, for showing next to a step.
+
+    Deliberately NOT derived from release_sort_key: that key invents missing
+    precision ("2020" becomes 2020-01-01) so entries can be ordered against one
+    another. Displaying that invented day would claim a precision the entry
+    does not have, so the raw cell is shown instead - "2018-09-01", "NOV 2025"
+    and "2023" are all already readable. Returns None when nothing is stored.
+    """
+    # Anime keeps year and month in separate columns; the rest hold one value.
+    if media_type == "anime":
+        year = _clean_release_text(getattr(entry, "release_year", None))
+        if not year:
+            return None
+        month = _clean_release_text(getattr(entry, "release_month", None))
+        return f"{month.upper()} {year}" if month else year
+
+    for field in _RELEASE_FIELDS.get(media_type, ()):
+        text = _clean_release_text(getattr(entry, field, None))
+        if text:
+            return text
+    return None
+
+
+def _clean_release_text(value: Any) -> Optional[str]:
+    """Trims a release cell, and renders a numeric year as "2018", not "2018.0"."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    # release_year is Float on some tables, so str() yields "2018.0".
+    try:
+        number = float(text)
+    except ValueError:
+        return text
+    return str(int(number)) if number.is_integer() else text
+
+
 def build_release_items(
     db: Session,
     franchise_ids: List[UUID],
@@ -342,6 +391,7 @@ def build_release_items(
                 "updated_at": None,
                 "missing": False,
                 "display_name": c["display_name"],
+                "release_display": c["release_display"],
                 "cover_image_file": c["cover_image_file"],
                 "franchise_id": c["franchise_id"],
                 "status": c["status"],

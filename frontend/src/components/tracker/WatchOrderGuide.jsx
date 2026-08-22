@@ -211,6 +211,11 @@ function StepRow({ item, index, roomy }) {
           <span className="text-[11px] font-bold text-gray-400">
             {TYPE_LABELS[item.media_type] || item.media_type}
           </span>
+          {item.release_display && (
+            <span className="text-[11px] font-medium text-gray-400">
+              {item.release_display}
+            </span>
+          )}
           {item.total_episodes != null && (
             <span className="text-[11px] font-medium text-gray-400">
               {item.total_episodes} total

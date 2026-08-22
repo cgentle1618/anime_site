@@ -96,6 +96,7 @@ function ItemRow({
               </p>
               <p className="text-[11px] font-bold text-gray-400">
                 {TYPE_LABELS[item.media_type] || item.media_type}
+                {item.release_display && ` · ${item.release_display}`}
                 {item.total_episodes != null && ` · ${item.total_episodes} total`}
                 {specialLabel(item) && ` · ${specialLabel(item)}`}
               </p>
@@ -194,7 +195,16 @@ function EntryPicker({ candidates, onAdd, disabled }) {
     const q = query.trim().toLowerCase();
     return candidates
       .filter((c) => !type || c.media_type === type)
-      .filter((c) => !q || (c.display_name || "").toLowerCase().includes(q))
+      // search_names carries every title the entry answers to, already
+      // lowercased by the backend. display_name is one of them, but an entry
+      // saved before the field existed may arrive without it, so the displayed
+      // name is still checked on its own.
+      .filter(
+        (c) =>
+          !q ||
+          (c.display_name || "").toLowerCase().includes(q) ||
+          (c.search_names || []).some((n) => n.includes(q))
+      )
       .slice(0, 40);
   }, [candidates, query, type]);
 
@@ -205,7 +215,7 @@ function EntryPicker({ candidates, onAdd, disabled }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search entries to add…"
+          placeholder="Search entries to add — any language…"
           className="flex-1 min-w-[12rem] border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <select
@@ -247,6 +257,16 @@ function EntryPicker({ candidates, onAdd, disabled }) {
                 {specialLabel(c) && (
                   <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
                     {specialLabel(c)}
+                  </span>
+                )}
+                {/*
+                  Two entries in a franchise often share a title beyond the
+                  season number, so the release date is what tells them apart
+                  at a glance - and it is the thing being ordered by.
+                */}
+                {c.release_display && (
+                  <span className="shrink-0 text-[10px] font-bold text-gray-400 whitespace-nowrap">
+                    {c.release_display}
                   </span>
                 )}
                 <span className="ml-auto text-[10px] font-black text-gray-400 whitespace-nowrap">
@@ -358,6 +378,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         ...created,
         missing: false,
         display_name: candidate.display_name,
+        release_display: candidate.release_display ?? null,
         cover_image_file: candidate.cover_image_file,
         franchise_id: candidate.franchise_id,
         status: candidate.status ?? null,

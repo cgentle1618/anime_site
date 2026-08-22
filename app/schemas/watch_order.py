@@ -50,6 +50,9 @@ class WatchOrderItemResolved(WatchOrderItemResponse):
 
     missing: bool = False
     display_name: Optional[str] = None
+    # The entry's release date as stored, at whatever precision it carries:
+    # "2018-09-01", "NOV 2025" or "2023". None when the entry has no date.
+    release_display: Optional[str] = None
     cover_image_file: Optional[str] = None
     franchise_id: Optional[UUID] = None
     status: Optional[str] = None
@@ -115,6 +118,10 @@ class WatchOrderCandidate(BaseModel):
     media_type: str
     entry_id: UUID
     display_name: Optional[str] = None
+    release_display: Optional[str] = None
+    # Every title the entry answers to, lowercased, so the picker can match a
+    # query against any language and not only the displayed name.
+    search_names: List[str] = []
     cover_image_file: Optional[str] = None
     franchise_id: Optional[UUID] = None
     status: Optional[str] = None
