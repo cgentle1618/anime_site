@@ -15,3 +15,92 @@ export function getCoverUrl(coverFile) {
     ? `/static/covers/${coverFile}`
     : `https://storage.googleapis.com/${BUCKET_NAME}/${coverFile}`;
 }
+
+// ---------------------------------------------------------------------------
+// Grouping-tier cover resolution (Franchise, Collection)
+//
+// Extracted verbatim from FranchiseLibrary.jsx so the Collection library can
+// reuse the exact same fallback rules instead of duplicating them.
+// ---------------------------------------------------------------------------
+
+/** Best-effort release year, used to prefer the newest entry as a cover. */
+export function getEntryYear(entry) {
+  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
+  const d =
+    entry.release_date_jp ||
+    entry.release_date_tw ||
+    entry.release_date_usa ||
+    entry.release_date;
+  if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
+  return 0;
+}
+
+/**
+ * Resolve a franchise's cover:
+ *   1. its explicitly chosen cover_entry_id
+ *   2. else the newest member entry that has a cover image
+ *   3. else the newest member entry by convention filename
+ *   4. else the placeholder
+ */
+export function getFranchiseCover(
+  franchise,
+  allEntriesDict,
+  allEntriesByFranchise,
+) {
+  if (franchise.cover_entry_id) {
+    const coverEntry = allEntriesDict[franchise.cover_entry_id];
+    if (coverEntry) {
+      const file =
+        coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A"
+          ? coverEntry.cover_image_file
+          : `${coverEntry.system_id}.jpg`;
+      return getCoverUrl(file);
+    }
+  }
+  const entries = allEntriesByFranchise[franchise.system_id] || [];
+  const withCovers = entries.filter(
+    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
+  );
+  if (withCovers.length > 0) {
+    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
+    return getCoverUrl(withCovers[0].cover_image_file);
+  }
+  if (entries.length > 0) {
+    const sorted = [...entries].sort(
+      (a, b) => getEntryYear(b) - getEntryYear(a),
+    );
+    return getCoverUrl(`${sorted[0].system_id}.jpg`);
+  }
+  return FALLBACK_SVG;
+}
+
+/**
+ * Resolve a collection's cover by delegating to a member franchise:
+ *   1. its chosen cover_franchise_id, resolved via getFranchiseCover
+ *   2. else the first member franchise (by name) that yields a real cover
+ *   3. else the placeholder
+ */
+export function getCollectionCover(
+  collection,
+  memberFranchises,
+  allEntriesDict,
+  allEntriesByFranchise,
+) {
+  const resolve = (f) =>
+    getFranchiseCover(f, allEntriesDict, allEntriesByFranchise);
+
+  if (collection.cover_franchise_id) {
+    const chosen = memberFranchises.find(
+      (f) => f.system_id === collection.cover_franchise_id,
+    );
+    if (chosen) {
+      const url = resolve(chosen);
+      if (url !== FALLBACK_SVG) return url;
+    }
+  }
+  for (const f of memberFranchises) {
+    const url = resolve(f);
+    if (url !== FALLBACK_SVG) return url;
+  }
+  return FALLBACK_SVG;
+}

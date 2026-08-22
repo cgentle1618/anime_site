@@ -126,6 +126,7 @@ export default function FranchisePage() {
 
   // ── data ──────────────────────────────────────────────────────────────────
   const [franchise, setFranchise] = useState(null);
+  const [parentCollection, setParentCollection] = useState(null);
   const [seriesList, setSeriesList] = useState([]);
   const [animeList, setAnimeList] = useState([]);
   const [animeMovieList, setAnimeMovieList] = useState([]);
@@ -366,6 +367,29 @@ export default function FranchisePage() {
       setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
     [],
   );
+
+  // Optional parent tier: resolve the collection name for the breadcrumb.
+  useEffect(() => {
+    const cid = franchise?.collection_id;
+    if (!cid) {
+      setParentCollection(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(endpoints.resource("collection").detail(cid), {
+      credentials: "include",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c) => {
+        if (!cancelled) setParentCollection(c);
+      })
+      .catch(() => {
+        if (!cancelled) setParentCollection(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [franchise?.collection_id]);
 
   async function saveField(field, value) {
     try {
@@ -906,6 +930,18 @@ export default function FranchisePage() {
           <i className="fas fa-sitemap mr-1"></i>Franchise Library
         </Link>
         <span>/</span>
+        {parentCollection && (
+          <>
+            <Link
+              to={`/collection/${parentCollection.system_id}`}
+              className="hover:text-brand font-medium"
+            >
+              <i className="fas fa-boxes-stacked mr-1"></i>
+              {getDisplayName(parentCollection, "collection")}
+            </Link>
+            <span>/</span>
+          </>
+        )}
         <span className="font-bold text-gray-800 truncate">{mainTitle}</span>
       </nav>
 

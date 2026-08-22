@@ -7,6 +7,7 @@ import { cleanString } from "../../utils/media";
 
 const SCOPES = [
   { key: "all", label: "All" },
+  { key: "collection", label: "Collection" },
   { key: "franchise", label: "Franchise" },
   { key: "series", label: "Series" },
   { key: "anime", label: "Anime" },
@@ -20,6 +21,7 @@ const SCOPES = [
 ];
 
 const TYPE_BADGE = {
+  collection: { label: "COLLECT", cls: "bg-fuchsia-50 text-fuchsia-600" },
   franchise: { label: "FRAN", cls: "bg-brand/10 text-brand" },
   series: { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
   anime: { label: "ANIME", cls: "bg-gray-100 text-gray-500" },
@@ -115,6 +117,7 @@ export default function Nav() {
 
       // [endpoint, type, display limit when scope === "all"]
       const TYPE_JOBS = [
+        ["/api/collection", "collection", 3],
         ["/api/franchise", "franchise", 3],
         ["/api/series", "series", 3],
         ["/api/anime", "anime", 10],
@@ -268,6 +271,14 @@ export default function Nav() {
   }
 
   function getDisplayName(item) {
+    if (item.type === "collection")
+      return (
+        item.collection_name_cn ||
+        item.collection_name_en ||
+        item.collection_name_roman ||
+        item.collection_name_jp ||
+        "—"
+      );
     if (item.type === "franchise")
       return (
         item.franchise_name_cn ||
@@ -333,7 +344,8 @@ export default function Nav() {
   function handleResultClick(item) {
     setShowResults(false);
     setSearchQuery("");
-    if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
+    if (item.type === "collection") navigate(`/collection/${item.system_id}`);
+    else if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
     else if (item.type === "series")
       navigate(`/franchise/${item.franchise_id}`);
     else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
@@ -416,6 +428,12 @@ export default function Nav() {
                 label="Reality"
                 items={
                   <>
+                    <NavLink
+                      to="/library/collection"
+                      icon="fas fa-boxes-stacked"
+                    >
+                      Collection
+                    </NavLink>
                     <NavLink to="/library/franchise" icon="fas fa-layer-group">
                       Franchise
                     </NavLink>
@@ -738,6 +756,13 @@ export default function Nav() {
                 </span>
               </summary>
               <div className="pl-12 pr-3 py-1 space-y-1 border-l-2 border-gray-100 ml-6 mb-2">
+                <Link
+                  to="/library/collection"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Collection Library
+                </Link>
                 <Link
                   to="/library/franchise"
                   onClick={() => setMobileOpen(false)}

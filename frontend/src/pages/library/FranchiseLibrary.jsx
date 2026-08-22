@@ -1,13 +1,12 @@
 // Frontend: page component file for FranchiseLibrary.
 import { useState, useEffect, useMemo } from "react";
 import {
-  getCoverUrl,
-  FALLBACK_SVG,
   getSortName,
   getRatingWeight,
   cleanString,
   parseTypes,
 } from "../../utils/media";
+import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
@@ -29,42 +28,6 @@ function getFilterCategories(franchise, animeSet, mangaSet) {
   if (types.includes("Cartoon")) cats.push("Cartoon");
   if (cats.length === 0) cats.push("Other");
   return cats;
-}
-
-function getEntryYear(entry) {
-  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
-  const d =
-    entry.release_date_jp ||
-    entry.release_date_tw ||
-    entry.release_date_usa ||
-    entry.release_date;
-  if (d) return parseInt(String(d).slice(0, 4), 10) || 0;
-  return 0;
-}
-
-function getFranchiseCover(franchise, allEntriesDict, allEntriesByFranchise) {
-  if (franchise.cover_entry_id) {
-    const coverEntry = allEntriesDict[franchise.cover_entry_id];
-    if (coverEntry) {
-      const file = coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A"
-        ? coverEntry.cover_image_file
-        : `${coverEntry.system_id}.jpg`;
-      return getCoverUrl(file);
-    }
-  }
-  const entries = allEntriesByFranchise[franchise.system_id] || [];
-  const withCovers = entries.filter(
-    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
-  );
-  if (withCovers.length > 0) {
-    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
-    return getCoverUrl(withCovers[0].cover_image_file);
-  }
-  if (entries.length > 0) {
-    const sorted = [...entries].sort((a, b) => getEntryYear(b) - getEntryYear(a));
-    return getCoverUrl(`${sorted[0].system_id}.jpg`);
-  }
-  return FALLBACK_SVG;
 }
 
 const EMPTY_FILTERS = { franchiseType: new Set() };

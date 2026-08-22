@@ -11,6 +11,7 @@ import UnderDevelopment from "./pages/public/UnderDevelopment";
 import Login from "./pages/public/Login";
 import Search from "./pages/public/Search";
 
+import Collection from "./pages/detail/Collection";
 import Franchise from "./pages/detail/Franchise";
 import Anime from "./pages/detail/Anime";
 import AnimeMovie from "./pages/detail/AnimeMovie";
@@ -27,6 +28,7 @@ import Statistics from "./pages/public/Statistics";
 import FutureReleases from "./pages/public/FutureReleases";
 import Completions from "./pages/public/Completions";
 
+import CollectionLibrary from "./pages/library/CollectionLibrary";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
 import LibraryAnime from "./pages/library/LibraryAnime";
 import LibraryAnimeMovie from "./pages/library/LibraryAnimeMovie";
@@ -75,6 +77,10 @@ export default function App() {
                   element={<LibraryAnimeMovie />}
                 />
                 <Route
+                  path="/library/collection"
+                  element={<CollectionLibrary />}
+                />
+                <Route
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
@@ -94,6 +100,7 @@ export default function App() {
                 <Route path="/library/manga" element={<LibraryManga />} />
                 <Route path="/novel/:system_id" element={<Novel />} />
                 <Route path="/library/novel" element={<LibraryNovel />} />
+                <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
