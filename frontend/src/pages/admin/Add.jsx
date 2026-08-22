@@ -30,7 +30,8 @@ import {
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
-import { ADMIN_TABS, withVerb } from "../../config/adminTabs";
+import { ADMIN_TABS } from "../../config/adminTabs";
+import AdminTabBar from "../../components/layout/AdminTabBar";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -1866,8 +1867,6 @@ export default function Add() {
     );
   }
 
-  const tabDefs = withVerb(ADMIN_TABS, "Add");
-
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -1897,18 +1896,11 @@ export default function Add() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
-        {tabDefs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-all ${activeTab === t.key ? "bg-white text-brand shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <i className={`fas ${t.icon}`}></i>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <AdminTabBar
+        tabs={ADMIN_TABS}
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+      />
 
       <form onSubmit={handleSubmit}>
         {/* ═══ ANIME TAB ═══ */}

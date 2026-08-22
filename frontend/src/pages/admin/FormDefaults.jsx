@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { FORM_TABS } from "../../config/adminTabs";
+import AdminTabBar from "../../components/layout/AdminTabBar";
 import { BUILTIN_AUTOFILL, getFieldRegistry } from "../../config/formFields";
 import DefaultsTab from "../defaults-tabs/DefaultsTab";
 
@@ -246,21 +247,16 @@ export default function FormDefaults() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
-        {FORM_TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-all ${activeTab === t.key ? "bg-white text-brand shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <i className={`fas ${t.icon}`}></i>
-            {t.label}
-            {dirtyTabs.includes(t.key) && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-            )}
-          </button>
-        ))}
-      </div>
+      <AdminTabBar
+        tabs={FORM_TABS}
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+        renderBadge={(t) =>
+          dirtyTabs.includes(t.key) ? (
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          ) : null
+        }
+      />
 
       <DefaultsTab
         type={activeTab}

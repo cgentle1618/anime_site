@@ -2,20 +2,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import { ADMIN_TABS } from "../../config/adminTabs";
+import AdminTabBar from "../../components/layout/AdminTabBar";
 
-const TABS = [
-  "anime",
-  "anime-movie",
-  "movie",
-  "tv-show",
-  "cartoon",
-  "manga",
-  "novel",
-  "collection",
-  "franchise",
-  "series",
-  "options",
-];
 
 function getClean(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -581,29 +570,23 @@ export default function Delete() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => {
-              setTab(t);
-              setSelectedAnime(null);
-              setSelectedAnimeMovie(null);
-              setSelectedMovie(null);
-              setSelectedTvShow(null);
-              setSelectedCartoon(null);
-              setSelectedManga(null);
-              setSelectedNovel(null);
-              setSelectedFranchise(null);
-              setSelectedSeries(null);
-              setSelectedOption(null);
-            }}
-            className={`px-5 py-3 text-sm font-bold capitalize whitespace-nowrap border-b-2 -mb-px transition-colors ${tab === t ? "border-red-500 text-red-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
+      <AdminTabBar
+        tabs={ADMIN_TABS}
+        activeTab={tab}
+        onSelect={(key) => {
+          setTab(key);
+          setSelectedAnime(null);
+          setSelectedAnimeMovie(null);
+          setSelectedMovie(null);
+          setSelectedTvShow(null);
+          setSelectedCartoon(null);
+          setSelectedManga(null);
+          setSelectedNovel(null);
+          setSelectedFranchise(null);
+          setSelectedSeries(null);
+          setSelectedOption(null);
+        }}
+      />
 
       {/* ANIME TAB */}
       {tab === "anime" && (

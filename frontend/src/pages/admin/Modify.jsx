@@ -28,6 +28,8 @@ import MovieModifyTab from "../modify-tabs/MovieModifyTab";
 import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
 import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
+import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
+import AdminTabBar from "../../components/layout/AdminTabBar";
 import {
   fetchFormDefaults,
   resolveDefaults,
@@ -2617,19 +2619,7 @@ export default function Modify() {
     );
   })();
 
-  const tabDefs = [
-    { key: "anime", icon: "fa-tv", label: "Modify Anime Entry" },
-    { key: "anime-movie", icon: "fa-film", label: "Modify Anime Movie" },
-    { key: "movie", icon: "fa-ticket-alt", label: "Modify Movie" },
-    { key: "tv-show", icon: "fa-video", label: "Modify TV Show" },
-    { key: "cartoon", icon: "fa-paint-brush", label: "Modify Cartoon" },
-    { key: "manga", icon: "fa-book", label: "Modify Manga" },
-    { key: "novel", icon: "fa-book-open", label: "Modify Novel" },
-    { key: "franchise", icon: "fa-sitemap", label: "Modify Franchise" },
-    { key: "series", icon: "fa-layer-group", label: "Modify Series" },
-    { key: "options", icon: "fa-cog", label: "Modify System Option" },
-    { key: "fav3x3", icon: "fa-th", label: "Modify Fav 3×3" },
-  ];
+  const tabDefs = [...ADMIN_TABS, FAV3X3_TAB];
 
   if (dataLoading)
     return (
@@ -2653,21 +2643,14 @@ export default function Modify() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
-        {tabDefs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => {
-              setActiveTab(t.key);
-              if (!editorOpen) setSearchQuery("");
-            }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-all ${activeTab === t.key ? "bg-white text-brand shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <i className={`fas ${t.icon}`}></i>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <AdminTabBar
+        tabs={tabDefs}
+        activeTab={activeTab}
+        onSelect={(key) => {
+          setActiveTab(key);
+          if (!editorOpen) setSearchQuery("");
+        }}
+      />
 
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
