@@ -149,16 +149,24 @@ export default function WatchOrders() {
   const [collections, setCollections] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState("");
+  // Generated release orders exist for nearly every owner, so showing them by
+  // default would bury the hand-built ones this page is really for.
+  const [showGenerated, setShowGenerated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const loadLists = useCallback(
     () =>
-      fetch(endpoints.watchOrder.lists(), { credentials: "include" })
+      fetch(
+        buildUrl(endpoints.watchOrder.lists(), {
+          auto: showGenerated ? undefined : "exclude",
+        }),
+        { credentials: "include" }
+      )
         .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
         .then(setLists)
         .catch(() => showToast("error", "Could not load watch orders.")),
-    [showToast]
+    [showToast, showGenerated]
   );
 
   useEffect(() => {
@@ -181,6 +189,12 @@ export default function WatchOrders() {
         .then(setCollections),
     ]).finally(() => setLoading(false));
   }, [loadLists]);
+
+  // Flipping the toggle re-queries rather than filtering locally, so the
+  // hidden generated lists are never fetched in the first place.
+  useEffect(() => {
+    loadLists();
+  }, [showGenerated, loadLists]);
 
   const ownerName = useCallback(
     (list) => {
@@ -229,6 +243,32 @@ export default function WatchOrders() {
       await loadLists();
       setSelectedId(created.system_id);
       showToast("success", "Watch order created.");
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function backfillRelease() {
+    if (
+      !window.confirm(
+        "Give every franchise and collection a release order? Owners that " +
+          "already have one are skipped, and hand-built orders are untouched."
+      )
+    )
+      return;
+
+    setBusy(true);
+    try {
+      const res = await fetch(endpoints.watchOrder.backfillRelease(), {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();
+      await loadLists();
+      showToast("success", `Created ${data.created} release orders.`);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -290,6 +330,28 @@ export default function WatchOrders() {
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           />
 
+          <div className="flex items-center justify-between gap-2">
+            <label className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-500 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showGenerated}
+                onChange={(e) => setShowGenerated(e.target.checked)}
+                className="accent-brand"
+              />
+              Show generated
+            </label>
+            <button
+              type="button"
+              onClick={backfillRelease}
+              disabled={busy}
+              title="Give every franchise and collection a release order"
+              className="text-[11px] font-bold text-gray-500 hover:text-brand disabled:opacity-40"
+            >
+              <i className="fas fa-wand-magic-sparkles mr-1"></i>Backfill release
+              orders
+            </button>
+          </div>
+
           <NewOrderForm
             owners={{ franchises, collections }}
             onCreate={createList}
@@ -337,6 +399,15 @@ export default function WatchOrders() {
                             className="mt-0.5"
                           />
                           <span className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {l.auto_source && (
+                              <span
+                                title="Steps generated from release dates"
+                                className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200"
+                              >
+                                <i className="fas fa-wand-magic-sparkles mr-1"></i>
+                                Generated
+                              </span>
+                            )}
                             {l.list_type && (
                               /* Same pill the standalone page uses, so the
                                  type is recognisable as the same thing. */

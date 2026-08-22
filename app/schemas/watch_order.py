@@ -71,6 +71,8 @@ class WatchOrderListBase(BaseModel):
     list_type: Optional[str] = "Custom"
     is_default: Optional[bool] = False
     is_most_recommended: Optional[bool] = False
+    # None for a hand-built list; "release" for one whose steps are generated.
+    auto_source: Optional[str] = None
     sort_index: Optional[float] = None
     remark: Optional[str] = None
 

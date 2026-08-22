@@ -71,6 +71,8 @@ export const endpoints = {
     removeItem: (itemId) => `/api/watch-order/items/${itemId}`,
     reorder: (listId) => `/api/watch-order/lists/${listId}/reorder`,
     candidates: () => "/api/watch-order/candidates",
+    createRelease: () => "/api/watch-order/lists/release",
+    backfillRelease: () => "/api/watch-order/lists/release/backfill",
   },
 
   formDefaults: {

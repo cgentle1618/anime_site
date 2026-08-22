@@ -1638,7 +1638,10 @@ Where watch orders are built. The Franchise and Collection pages only read them.
 and `/api/collection/` for the owner names used by the grouping headers and the
 new-order picker.
 
-**Left pane:** a search box over order and owner names, a "New order" form
+**Left pane:** generated release orders are hidden behind a **Show generated**
+checkbox — with one per franchise they would otherwise bury the hand-built
+orders this page exists for — and a **Backfill release orders** action creates
+them for every owner that lacks one. A search box over order and owner names, a "New order" form
 (owner tier toggle — Franchise by default — a typeahead over that tier's
 names, an order name, and the order type), then every
 order grouped by owner. Each row opens the editor, links out to the public

@@ -39,6 +39,7 @@ function ItemRow({
   isFirst,
   isLast,
   dragHandlers,
+  readOnly = false,
 }) {
   // Episode inputs are held locally so typing doesn't fire a request per
   // keystroke; the value is committed on blur.
@@ -60,14 +61,16 @@ function ItemRow({
 
   return (
     <li
-      draggable
+      draggable={!readOnly}
       {...dragHandlers}
       className={`flex flex-col gap-2 p-3 rounded-xl border bg-white ${
         item.missing ? "border-dashed border-red-200" : "border-gray-200"
       }`}
     >
       <div className="flex items-center gap-3">
-        <i className="fas fa-grip-vertical text-gray-300 cursor-grab"></i>
+        {!readOnly && (
+          <i className="fas fa-grip-vertical text-gray-300 cursor-grab"></i>
+        )}
         <span className="w-7 h-7 shrink-0 rounded-full bg-brand/10 text-brand text-xs font-black flex items-center justify-center">
           {index}
         </span>
@@ -100,7 +103,7 @@ function ItemRow({
           </>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className={`flex items-center gap-1 ${readOnly ? "hidden" : ""}`}>
           <button
             type="button"
             onClick={() => onMove(index - 1, index - 2)}
@@ -130,7 +133,11 @@ function ItemRow({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 pl-10">
+      <div
+        className={`flex flex-wrap items-center gap-2 pl-10 ${
+          readOnly ? "hidden" : ""
+        }`}
+      >
         <input
           type="number"
           value={epStart}
@@ -165,14 +172,16 @@ function ItemRow({
         </label>
       </div>
 
-      <input
-        type="text"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        onBlur={() => commit("note", note)}
-        placeholder="Note for this step…"
-        className="ml-10 border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-      />
+      {!readOnly && (
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={() => commit("note", note)}
+          placeholder="Note for this step…"
+          className="ml-10 border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+        />
+      )}
     </li>
   );
 }
@@ -443,6 +452,8 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
     );
   }
 
+  const isGenerated = Boolean(list?.auto_source);
+
   if (loading || !list) {
     return (
       <div className="py-16 text-center text-gray-400">
@@ -547,7 +558,20 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         </label>
       </div>
 
-      <EntryPicker candidates={candidates} onAdd={addItem} disabled={busy} />
+      {/*
+        A generated list has no stored steps to add to or reorder, so the
+        controls are replaced by an explanation rather than left to fail.
+      */}
+      {isGenerated ? (
+        <p className="text-xs font-medium text-gray-500 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <i className="fas fa-wand-magic-sparkles text-sky-500 mr-1.5"></i>
+          These steps are generated from release dates and refresh on their own
+          as entries are added. The name, type, note and flags above are still
+          yours to edit.
+        </p>
+      ) : (
+        <EntryPicker candidates={candidates} onAdd={addItem} disabled={busy} />
+      )}
 
       {list.items.length === 0 ? (
         <p className="text-center py-8 text-sm font-medium text-gray-400">
@@ -560,12 +584,13 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
               key={item.system_id}
               item={item}
               index={i + 1}
+              readOnly={isGenerated}
               isFirst={i === 0}
               isLast={i === list.items.length - 1}
               onPatch={patchItem}
               onRemove={removeItem}
               onMove={moveItem}
-              dragHandlers={{
+              dragHandlers={isGenerated ? {} : {
                 onDragStart: () => {
                   dragIndex.current = i;
                 },

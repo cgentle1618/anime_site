@@ -864,6 +864,7 @@ One named order, owned by exactly one franchise or one collection.
 | `list_type`     | String   | Yes      | Custom / Chronological / Release / Recommended; defaults to `"Custom"`   |
 | `is_default`    | Boolean  | Yes      | The order shown first; the API clears the flag on the owner's other rows |
 | `is_most_recommended` | Boolean | Yes | The single order to follow. Independent of `is_default` and also cleared on the owner's other rows |
+| `auto_source`   | String   | Yes      | `NULL` for a hand-built list. `"release"` means the steps are generated from release dates on every read and no `watch_order_item` rows exist |
 | `sort_index`    | Float    | Yes      | Ordering of several orders within one owner                             |
 | `remark`        | Text     | Yes      | The note describing how to read this order                              |
 | `created_at`    | DateTime | Yes      | Auto-set on create                                                      |
@@ -875,6 +876,11 @@ one to actually follow — and it need not be the one that opens first (Release
 order can open first while Chronological is the endorsed one). Both are
 one-per-owner, enforced in the router rather than by a constraint, since
 "at most one true per owner" is not expressible as a plain `CHECK`.
+
+A list with `auto_source` set stores no items at all: its steps are computed
+from the owner's entries each time it is read, so an entry added later appears
+without anyone regenerating anything. The item endpoints refuse to write to
+such a list; its name, type, note and flags remain ordinary editable columns.
 
 **Check constraint `ck_watch_order_list_single_owner`:**
 `(franchise_id IS NULL) <> (collection_id IS NULL)` — exactly one owner. CASCADE

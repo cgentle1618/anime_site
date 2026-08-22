@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
+import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import WatchOrderGuide, {
@@ -15,6 +16,7 @@ import WatchOrderGuide, {
 
 export default function WatchOrderSection({ franchiseId, collectionId }) {
   const { isAdmin } = useAuth();
+  const { showToast } = useToast();
 
   const [lists, setLists] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -76,18 +78,48 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
     );
   }
 
+  async function createRelease() {
+    try {
+      const res = await fetch(
+        buildUrl(endpoints.watchOrder.createRelease(), {
+          franchise_id: franchiseId,
+          collection_id: collectionId,
+        }),
+        { method: "POST", credentials: "include" }
+      );
+      if (!res.ok) throw new Error(res.statusText);
+      const created = await res.json();
+      loadLists();
+      setSelectedId(created.system_id);
+      showToast("success", "Release order added.");
+    } catch (e) {
+      showToast("error", e.message);
+    }
+  }
+
+  const hasRelease = lists.some((l) => l.auto_source === "release");
+
   if (!lists.length) {
     return (
       <div className="text-center py-12 text-gray-400">
         <i className="fas fa-list-ol text-3xl mb-3"></i>
         <p className="font-medium">No watch order has been written yet.</p>
         {isAdmin && (
-          <Link
-            to="/watch-orders"
-            className="inline-block mt-3 text-sm font-bold text-brand hover:underline"
-          >
-            Create one
-          </Link>
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <button
+              type="button"
+              onClick={createRelease}
+              className="text-sm font-bold text-brand hover:underline"
+            >
+              Add release order
+            </button>
+            <Link
+              to="/watch-orders"
+              className="text-sm font-bold text-gray-500 hover:underline"
+            >
+              Build one by hand
+            </Link>
+          </div>
         )}
       </div>
     );
@@ -141,6 +173,15 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
             >
               Open full page <i className="fas fa-arrow-up-right-from-square ml-1"></i>
             </Link>
+          )}
+          {isAdmin && !hasRelease && (
+            <button
+              type="button"
+              onClick={createRelease}
+              className="text-xs font-bold text-gray-500 hover:text-brand whitespace-nowrap"
+            >
+              <i className="fas fa-wand-magic-sparkles mr-1"></i>Add release order
+            </button>
           )}
           {isAdmin && (
             <Link

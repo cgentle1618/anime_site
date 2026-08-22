@@ -222,6 +222,8 @@ per-entry `watch_order` Float column, which this router never touches.
 | `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data.                                                                                             |
 | `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the seven media tables, in the resolver's shape (`display_name`, `cover_image_file`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. |
 | `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
+| `POST`   | `/lists/release`              | Admin  | Give one owner a generated release order (`franchise_id` or `collection_id`). Idempotent — an owner that already has one gets that one back.        |
+| `POST`   | `/lists/release/backfill`     | Admin  | Give every franchise and collection a release order, skipping owners that already have one and those with no entries. Safe to re-run.               |
 | `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`.                                                                                                         |
 | `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict.                                                                                                |
 | `DELETE` | `/lists/{system_id}`          | Admin  | Delete an order. Items cascade; the media entries are untouched. Logs to `deleted_record` as type "Watch Order".                                    |
@@ -230,6 +232,20 @@ per-entry `watch_order` Float column, which this router never touches.
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
 | `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N. Body: `WatchOrderReorder` (`item_ids`). 400 unless the payload names every item of the list exactly once.               |
+
+**Generated release orders.** A list with `auto_source = "release"` has no
+`watch_order_item` rows: `GET /lists/{id}` computes its steps from the entries'
+release dates each time, so entries added later appear on their own. Every item
+endpoint (add, update, delete, reorder) returns 400 for such a list, while the
+list's own name, type, note and flags stay editable. `GET /lists` accepts
+`auto=exclude` / `auto=only`, since one generated list per owner would
+otherwise bury the hand-built ones in any cross-owner view.
+
+Ordering prefers the most precise date each type stores — `release_date_jp`,
+then other date columns, then `release_year` + `release_month`, then a bare
+year — and entries with no parseable date sort to the bottom by name. Precision
+is capped by the coarsest member: a manga carrying only a year cannot be placed
+accurately against a movie with a full date.
 
 **Single-winner flags.** `is_default` (opens first) and `is_most_recommended`
 (the one to follow) are independent, and each is limited to one list per owner:

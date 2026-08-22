@@ -29,6 +29,7 @@ class TestWatchOrderListParser:
             "list_type",
             "is_default",
             "is_most_recommended",
+            "auto_source",
             "sort_index",
             "remark",
             "created_at",
@@ -46,6 +47,7 @@ class TestWatchOrderListParser:
                 "list_type": "Chronological",
                 "is_default": "TRUE",
                 "is_most_recommended": "TRUE",
+                "auto_source": "",
                 "sort_index": "2.5",
                 "remark": "start here",
                 "created_at": "2026-08-22T10:00:00",
@@ -58,6 +60,7 @@ class TestWatchOrderListParser:
         assert parsed["list_name"] == "Chronological"
         assert parsed["is_default"] is True
         assert parsed["is_most_recommended"] is True
+        assert parsed["auto_source"] is None
         assert parsed["sort_index"] == 2.5
         assert parsed["remark"] == "start here"
         assert parsed["created_at"] == datetime(2026, 8, 22, 10, 0, 0)

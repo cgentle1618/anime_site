@@ -285,6 +285,240 @@ class TestMediaScope:
         assert rows[0]["media_types"] == ["anime"]
 
 
+class TestReleaseOrder:
+    """
+    A generated release order stores the list row but not its steps: they are
+    computed from release dates on every read, so entries added later appear on
+    their own and nothing may be written against them.
+    """
+
+    def _create(self, admin_client, franchise):
+        return admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={franchise.system_id}"
+        ).json()
+
+    def test_created_list_is_marked_generated(self, admin_client, sample_franchise):
+        data = self._create(admin_client, sample_franchise)
+        assert data["auto_source"] == "release"
+        assert data["list_type"] == "Release"
+
+    def test_creation_is_idempotent(self, admin_client, sample_franchise):
+        first = self._create(admin_client, sample_franchise)
+        second = self._create(admin_client, sample_franchise)
+        assert first["system_id"] == second["system_id"]
+
+    def test_guest_cannot_create(self, client, sample_franchise):
+        response = client.post(
+            f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+        )
+        assert response.status_code == 401
+
+    def test_steps_are_generated_without_stored_items(
+        self, admin_client, db_session, sample_franchise, sample_anime
+    ):
+        created = self._create(admin_client, sample_franchise)
+        detail = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()
+
+        assert detail["item_count"] >= 1
+        assert any(i["display_name"] == "Test Anime" for i in detail["items"])
+        # Nothing was written to the item table.
+        assert (
+            db_session.query(models.WatchOrderItem)
+            .filter(models.WatchOrderItem.list_id == created["system_id"])
+            .count()
+            == 0
+        )
+
+    def test_a_later_entry_appears_on_its_own(
+        self, admin_client, db_session, sample_franchise, sample_anime
+    ):
+        created = self._create(admin_client, sample_franchise)
+        before = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()["item_count"]
+
+        db_session.add(
+            models.Anime(
+                system_id=uuid.uuid4(),
+                franchise_id=sample_franchise.system_id,
+                anime_name_en="Added Later",
+                airing_type="TV",
+                watching_status="Might Watch",
+                release_year="2030",
+            )
+        )
+        db_session.flush()
+
+        after = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()
+        assert after["item_count"] == before + 1
+        assert any(i["display_name"] == "Added Later" for i in after["items"])
+
+    def test_steps_are_ordered_by_release_date(
+        self, admin_client, db_session, sample_franchise
+    ):
+        for name, year, month in [
+            ("Third", "2020", "MAR"),
+            ("First", "2001", "JAN"),
+            ("Second", "2020", "JAN"),
+        ]:
+            db_session.add(
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    anime_name_en=name,
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                    release_year=year,
+                    release_month=month,
+                )
+            )
+        db_session.flush()
+
+        created = self._create(admin_client, sample_franchise)
+        items = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()["items"]
+        assert [i["display_name"] for i in items] == ["First", "Second", "Third"]
+
+    def test_undated_entries_sink_to_the_bottom(
+        self, admin_client, db_session, sample_franchise
+    ):
+        db_session.add_all(
+            [
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    anime_name_en="No date",
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                ),
+                models.Anime(
+                    system_id=uuid.uuid4(),
+                    franchise_id=sample_franchise.system_id,
+                    anime_name_en="Dated",
+                    airing_type="TV",
+                    watching_status="Might Watch",
+                    release_year="1999",
+                ),
+            ]
+        )
+        db_session.flush()
+
+        created = self._create(admin_client, sample_franchise)
+        names = [
+            i["display_name"]
+            for i in admin_client.get(
+                f"/api/watch-order/lists/{created['system_id']}"
+            ).json()["items"]
+        ]
+        assert names.index("Dated") < names.index("No date")
+
+    def test_listing_reports_the_generated_step_count(
+        self, admin_client, client, sample_franchise, sample_anime
+    ):
+        """
+        Regression: the listing counted stored items, so a generated list showed
+        "0 steps" in the selector while its steps rendered fine below.
+        """
+        created = self._create(admin_client, sample_franchise)
+        detail = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()
+
+        listed = next(
+            r
+            for r in client.get("/api/watch-order/lists").json()
+            if r["system_id"] == created["system_id"]
+        )
+        assert listed["item_count"] == detail["item_count"]
+        assert listed["item_count"] > 0
+        assert listed["media_types"] == detail["media_types"]
+
+    def test_create_response_already_reports_the_count(
+        self, admin_client, sample_franchise, sample_anime
+    ):
+        created = self._create(admin_client, sample_franchise)
+        assert created["item_count"] > 0
+        assert created["media_types"] == ["anime"]
+
+    def test_positions_are_renumbered_from_one(
+        self, admin_client, sample_franchise, sample_anime
+    ):
+        created = self._create(admin_client, sample_franchise)
+        items = admin_client.get(
+            f"/api/watch-order/lists/{created['system_id']}"
+        ).json()["items"]
+        assert [i["position"] for i in items] == [
+            float(n) for n in range(1, len(items) + 1)
+        ]
+
+
+class TestGeneratedListIsReadOnly:
+    """Steps are generated, so every item write must be refused."""
+
+    @pytest.fixture
+    def release_list(self, admin_client, sample_franchise, sample_anime):
+        return admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+        ).json()
+
+    def test_cannot_add_a_step(self, admin_client, release_list, sample_anime):
+        response = admin_client.post(
+            f"/api/watch-order/lists/{release_list['system_id']}/items",
+            json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+        )
+        assert response.status_code == 400
+
+    def test_cannot_reorder(self, admin_client, release_list):
+        response = admin_client.put(
+            f"/api/watch-order/lists/{release_list['system_id']}/reorder",
+            json={"item_ids": []},
+        )
+        assert response.status_code == 400
+
+    def test_note_and_flags_remain_editable(self, admin_client, release_list):
+        """These are what the admin actually edits; only steps are off limits."""
+        response = admin_client.patch(
+            f"/api/watch-order/lists/{release_list['system_id']}",
+            json={"remark": "the canonical order", "is_most_recommended": True},
+        )
+        assert response.status_code == 200
+        assert response.json()["remark"] == "the canonical order"
+        assert response.json()["is_most_recommended"] is True
+
+    def test_can_be_deleted(self, admin_client, release_list):
+        response = admin_client.delete(
+            f"/api/watch-order/lists/{release_list['system_id']}"
+        )
+        assert response.status_code == 200
+
+
+class TestAutoFilter:
+    """Generated lists must not bury hand-built ones in cross-owner views."""
+
+    @pytest.fixture
+    def both(self, admin_client, sample_franchise, sample_list, sample_anime):
+        admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+        )
+        return True
+
+    def test_default_returns_both(self, client, both):
+        assert len(client.get("/api/watch-order/lists").json()) == 2
+
+    def test_exclude_hides_generated(self, client, both):
+        rows = client.get("/api/watch-order/lists?auto=exclude").json()
+        assert [r["auto_source"] for r in rows] == [None]
+
+    def test_only_shows_generated(self, client, both):
+        rows = client.get("/api/watch-order/lists?auto=only").json()
+        assert [r["auto_source"] for r in rows] == ["release"]
+
+
 class TestCandidates:
     def test_franchise_candidates_span_media_types(
         self, client, sample_franchise, sample_anime, sample_anime_movie

@@ -66,6 +66,10 @@ class WatchOrderList(Base):
     # (list_type == "Recommended"); this marks the single one to follow, and
     # it need not be the one that opens first.
     is_most_recommended = Column(Boolean, default=False, nullable=True)
+    # NULL for an ordinary list. "release" means the steps are generated from
+    # the entries' release dates on every read - there are no watch_order_item
+    # rows behind them, and the item endpoints refuse to write to such a list.
+    auto_source = Column(String, nullable=True)
     sort_index = Column(Float, nullable=True)
     remark = Column(Text, nullable=True)
 

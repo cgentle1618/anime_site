@@ -15,6 +15,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.utils.utils import MONTH_MAP
+
 from app.models import (
     Anime,
     AnimeMovies,
@@ -171,6 +173,11 @@ def list_candidate_entries(
                 {
                     "media_type": media_type,
                     "entry_id": row.system_id,
+                    # Computed here, where the row is already loaded, so
+                    # build_release_items never has to re-fetch entries. Not
+                    # part of WatchOrderCandidate, so it is dropped from the
+                    # API response by the response model.
+                    "release_key": release_sort_key(row, media_type),
                     "display_name": row.display_name,
                     "cover_image_file": row.cover_image_file,
                     "franchise_id": row.franchise_id,
@@ -184,6 +191,137 @@ def list_candidate_entries(
 
     candidates.sort(key=lambda c: (c["media_type"], (c["display_name"] or "")))
     return candidates
+
+
+# Where each media type keeps its release date, most precise field first. The
+# columns are heterogeneous by design of the existing schema: some hold an ISO
+# date, some "NOV 2025", some a bare year, and anime splits year and month
+# across two columns.
+_RELEASE_FIELDS = {
+    "anime": ("release_year", "release_month"),
+    "anime-movie": ("release_date_jp", "release_date_tw"),
+    "movie": ("release_date_usa", "release_date_tw"),
+    "tv-show": ("release_date",),
+    "cartoon": ("release_date",),
+    "manga": ("release_year",),
+    "novel": ("release_year",),
+}
+
+# Sorts after every real date, so undated entries land at the bottom.
+_UNDATED = (9999, 99, 99)
+
+
+def _parse_release_value(value: Any) -> Optional[tuple]:
+    """
+    Turns one release cell into a (year, month, day) tuple, or None.
+
+    Tolerates every format the media tables actually contain:
+    "2018-09-01", "NOV 2025", "2023", and a bare integer year.
+    """
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    # "2018-09-01" / "2018-09" / "2018"
+    if "-" in text:
+        parts = text.split("-")
+        try:
+            year = int(parts[0])
+        except ValueError:
+            return None
+        month = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+        day = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        return (year, month, day)
+
+    # "NOV 2025"
+    pieces = text.split()
+    if len(pieces) == 2 and pieces[0].upper() in MONTH_MAP:
+        try:
+            return (int(pieces[1]), int(MONTH_MAP[pieces[0].upper()]), 0)
+        except ValueError:
+            return None
+
+    # A bare year, string or int.
+    try:
+        return (int(float(text)), 0, 0)
+    except ValueError:
+        return None
+
+
+def release_sort_key(entry: Any, media_type: str) -> tuple:
+    """
+    (year, month, day) for an entry, or _UNDATED when nothing parses.
+
+    Precision is limited by whatever the entry stores: a manga carrying only a
+    year cannot be placed accurately against a movie with a full date, so
+    entries sharing a year sort together and are then broken by name.
+    """
+    fields = _RELEASE_FIELDS.get(media_type, ())
+
+    # Anime keeps year and month apart; the rest hold a single value.
+    if media_type == "anime":
+        year = _parse_release_value(getattr(entry, "release_year", None))
+        if year is None:
+            return _UNDATED
+        raw_month = getattr(entry, "release_month", None)
+        month = MONTH_MAP.get(str(raw_month).strip().upper()) if raw_month else None
+        return (year[0], int(month) if month else 0, 0)
+
+    for field in fields:
+        parsed = _parse_release_value(getattr(entry, field, None))
+        if parsed is not None:
+            return parsed
+    return _UNDATED
+
+
+def build_release_items(
+    db: Session, franchise_ids: List[UUID], list_id: UUID = None
+) -> List[Dict[str, Any]]:
+    """
+    Every entry of those franchises as an ordered release-order step list.
+
+    Computed on read rather than stored, so entries added later appear without
+    anyone regenerating anything. Undated entries sort to the bottom by name.
+    """
+    candidates = list_candidate_entries(db, franchise_ids)
+
+    # Sorted on the key list_candidate_entries already computed - no second
+    # pass over the media tables.
+    candidates.sort(key=lambda c: (c["release_key"], c["display_name"] or ""))
+
+    items = []
+    for index, c in enumerate(candidates, start=1):
+        items.append(
+            {
+                # Synthetic, stable within one response. These steps have no
+                # watch_order_item rows behind them, so nothing may be written
+                # back against these ids.
+                "system_id": c["entry_id"],
+                # The step really does belong to this list, even though no
+                # watch_order_item row backs it.
+                "list_id": list_id,
+                "position": float(index),
+                "media_type": c["media_type"],
+                "entry_id": c["entry_id"],
+                "ep_start": None,
+                "ep_end": None,
+                "is_optional": False,
+                "note": None,
+                "created_at": None,
+                "updated_at": None,
+                "missing": False,
+                "display_name": c["display_name"],
+                "cover_image_file": c["cover_image_file"],
+                "franchise_id": c["franchise_id"],
+                "status": c["status"],
+                "total_episodes": c["total_episodes"],
+                "ep_special": c["ep_special"],
+            }
+        )
+    return items
 
 
 def entry_exists(db: Session, media_type: str, entry_id: UUID) -> bool:

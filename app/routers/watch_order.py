@@ -23,6 +23,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
+    build_release_items,
     VALID_WATCH_ORDER_MEDIA_TYPES,
     entry_exists,
     list_candidate_entries,
@@ -87,6 +88,36 @@ def _validate_entry(db: Session, media_type, entry_id) -> None:
         )
 
 
+RELEASE_SOURCE = "release"
+
+
+def _owner_franchise_ids(db: Session, db_list: models.WatchOrderList) -> List[Any]:
+    """The franchises whose entries a generated list draws on."""
+    if db_list.franchise_id:
+        return [db_list.franchise_id]
+    return [
+        row[0]
+        for row in db.query(models.Franchise.system_id)
+        .filter(models.Franchise.collection_id == db_list.collection_id)
+        .all()
+    ]
+
+
+def _reject_if_generated(db_list: models.WatchOrderList) -> None:
+    """
+    Steps of a generated list have no rows behind them, so there is nothing to
+    add to, edit, reorder or delete. Refused here rather than failing obscurely.
+    """
+    if db_list.auto_source:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "This order's steps are generated from release dates and cannot "
+                "be edited. Its name, type, note and flags still can."
+            ),
+        )
+
+
 def _next_position(db: Session, list_id) -> float:
     """One past the list's current highest position, so new items append."""
     highest = (
@@ -136,6 +167,69 @@ def _summarize(db: Session, list_ids: List[Any]) -> dict:
     return summary
 
 
+def _summarize_generated(db: Session, auto_lists: List[Any]) -> dict:
+    """
+    Item count and media types for generated lists, batched.
+
+    A generated list has no watch_order_item rows, so _summarize returns zero
+    for it. Counting per list would mean seven queries each - with a release
+    order per franchise that is thousands. Instead every owner is resolved to
+    franchise ids once, then each media table is grouped by franchise_id in a
+    single query, so a page costs seven queries regardless of how many
+    generated lists it holds.
+    """
+    if not auto_lists:
+        return {}
+
+    # Collection-owned lists span their member franchises; resolve them all in
+    # one query rather than one per list.
+    collection_ids = [l.collection_id for l in auto_lists if l.collection_id]
+    members: dict = {}
+    if collection_ids:
+        for fid, cid in (
+            db.query(models.Franchise.system_id, models.Franchise.collection_id)
+            .filter(models.Franchise.collection_id.in_(collection_ids))
+            .all()
+        ):
+            members.setdefault(cid, []).append(fid)
+
+    owners = {
+        l.system_id: (
+            [l.franchise_id] if l.franchise_id else members.get(l.collection_id, [])
+        )
+        for l in auto_lists
+    }
+
+    every_franchise = {fid for ids in owners.values() for fid in ids}
+    if not every_franchise:
+        return {
+            l.system_id: {"item_count": 0, "media_types": set()} for l in auto_lists
+        }
+
+    # franchise_id -> {media_type: count}, one query per media type.
+    per_franchise: dict = {}
+    for media_type, model in MEDIA_TYPE_MODELS.items():
+        rows = (
+            db.query(model.franchise_id, func.count(model.system_id))
+            .filter(model.franchise_id.in_(list(every_franchise)))
+            .group_by(model.franchise_id)
+            .all()
+        )
+        for franchise_id, count in rows:
+            per_franchise.setdefault(franchise_id, {})[media_type] = count
+
+    summary = {}
+    for list_id, franchise_ids in owners.items():
+        count = 0
+        types = set()
+        for franchise_id in franchise_ids:
+            for media_type, n in per_franchise.get(franchise_id, {}).items():
+                count += n
+                types.add(media_type)
+        summary[list_id] = {"item_count": count, "media_types": types}
+    return summary
+
+
 def _serialize(db_list: models.WatchOrderList, summary: dict = None) -> dict:
     """Serializes a list plus item_count and media_types, neither a column."""
     summary = summary or {"item_count": 0, "media_types": set()}
@@ -147,6 +241,7 @@ def _serialize(db_list: models.WatchOrderList, summary: dict = None) -> dict:
         "list_type": db_list.list_type,
         "is_default": db_list.is_default,
         "is_most_recommended": db_list.is_most_recommended,
+        "auto_source": db_list.auto_source,
         "sort_index": db_list.sort_index,
         "remark": db_list.remark,
         "item_count": summary["item_count"],
@@ -158,7 +253,10 @@ def _serialize(db_list: models.WatchOrderList, summary: dict = None) -> dict:
 
 def _with_count(db: Session, db_list: models.WatchOrderList) -> dict:
     """Single-list convenience wrapper around _serialize."""
-    summary = _summarize(db, [db_list.system_id]).get(db_list.system_id)
+    if db_list.auto_source:
+        summary = _summarize_generated(db, [db_list]).get(db_list.system_id)
+    else:
+        summary = _summarize(db, [db_list.system_id]).get(db_list.system_id)
     return _serialize(db_list, summary)
 
 
@@ -210,6 +308,10 @@ def get_watch_order_lists(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
     search_query: Optional[str] = None,
+    auto: Optional[str] = Query(
+        default=None,
+        description="'exclude' hides generated lists, 'only' shows just them.",
+    ),
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -230,6 +332,12 @@ def get_watch_order_lists(
         query = query.filter(
             models.WatchOrderList.list_name.ilike(f"%{search_query}%")
         )
+    # Backfilling one generated list per owner would otherwise bury the
+    # hand-built ones in any view that lists orders across owners.
+    if auto == "exclude":
+        query = query.filter(models.WatchOrderList.auto_source.is_(None))
+    elif auto == "only":
+        query = query.filter(models.WatchOrderList.auto_source.isnot(None))
 
     rows = (
         query.order_by(
@@ -242,8 +350,11 @@ def get_watch_order_lists(
         .offset(offset)
         .all()
     )
-    # One grouped query for all of them - _with_count per row would be an N+1.
-    summaries = _summarize(db, [row.system_id for row in rows])
+    # One grouped query for the stored lists, one batch for the generated ones.
+    stored = [row for row in rows if not row.auto_source]
+    generated = [row for row in rows if row.auto_source]
+    summaries = _summarize(db, [row.system_id for row in stored])
+    summaries.update(_summarize_generated(db, generated))
     return [_serialize(row, summaries.get(row.system_id)) for row in rows]
 
 
@@ -256,21 +367,28 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
     """Retrieves one watch order with its items resolved to display data."""
     db_list = _get_list_or_404(db, system_id)
 
-    items = (
-        db.query(models.WatchOrderItem)
-        .filter(models.WatchOrderItem.list_id == db_list.system_id)
-        .order_by(models.WatchOrderItem.position.asc().nullslast())
-        .all()
-    )
+    if db_list.auto_source == RELEASE_SOURCE:
+        # Generated on read, so entries added since last time are simply there.
+        resolved = build_release_items(
+            db, _owner_franchise_ids(db, db_list), db_list.system_id
+        )
+    else:
+        items = (
+            db.query(models.WatchOrderItem)
+            .filter(models.WatchOrderItem.list_id == db_list.system_id)
+            .order_by(models.WatchOrderItem.position.asc().nullslast())
+            .all()
+        )
+        resolved = resolve_items(db, items)
 
     payload = _serialize(
         db_list,
         {
-            "item_count": len(items),
-            "media_types": {i.media_type for i in items if i.media_type},
+            "item_count": len(resolved),
+            "media_types": {i["media_type"] for i in resolved if i["media_type"]},
         },
     )
-    payload["items"] = resolve_items(db, items)
+    payload["items"] = resolved
     return payload
 
 
@@ -352,6 +470,118 @@ def create_watch_order_list(
         raise HTTPException(
             status_code=500, detail=f"Database Insertion Error: {str(e)}"
         )
+
+
+def _existing_release_list(db: Session, franchise_id, collection_id):
+    """The owner's generated release order, if it already has one."""
+    query = db.query(models.WatchOrderList).filter(
+        models.WatchOrderList.auto_source == RELEASE_SOURCE
+    )
+    if franchise_id:
+        query = query.filter(models.WatchOrderList.franchise_id == franchise_id)
+    else:
+        query = query.filter(models.WatchOrderList.collection_id == collection_id)
+    return query.first()
+
+
+def _create_release_list(db: Session, franchise_id=None, collection_id=None):
+    """Creates the generated release order for one owner. No items are stored."""
+    return models.WatchOrderList(
+        system_id=uuid.uuid4(),
+        franchise_id=franchise_id,
+        collection_id=collection_id,
+        list_name="Release Order",
+        list_type="Release",
+        auto_source=RELEASE_SOURCE,
+        is_default=False,
+        is_most_recommended=False,
+        created_at=get_taipei_now(),
+        updated_at=get_taipei_now(),
+    )
+
+
+@router.post(
+    "/lists/release",
+    response_model=schemas.WatchOrderListResponse,
+    summary="Create Generated Release Order",
+)
+def create_release_list(
+    franchise_id: Optional[str] = None,
+    collection_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Gives one owner a release order whose steps are generated on read.
+
+    Idempotent: an owner that already has one gets that one back, so the button
+    cannot produce duplicates.
+    """
+    _validate_owner(franchise_id, collection_id)
+
+    existing = _existing_release_list(db, franchise_id, collection_id)
+    if existing:
+        return _with_count(db, existing)
+
+    new_list = _create_release_list(db, franchise_id, collection_id)
+    db.add(new_list)
+    db.commit()
+    db.refresh(new_list)
+    return _with_count(db, new_list)
+
+
+@router.post("/lists/release/backfill", summary="Backfill Release Orders")
+def backfill_release_lists(
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Gives every franchise and collection a release order, skipping any that
+    already has one. Safe to re-run, and it never touches hand-built lists.
+
+    Only owners with entries to order are given one - a release order over an
+    empty franchise would be noise.
+    """
+    owned = {
+        (row.franchise_id, row.collection_id)
+        for row in db.query(models.WatchOrderList)
+        .filter(models.WatchOrderList.auto_source == RELEASE_SOURCE)
+        .all()
+    }
+
+    created = 0
+
+    franchises_with_entries = set()
+    for model in MEDIA_TYPE_MODELS.values():
+        franchises_with_entries.update(
+            row[0]
+            for row in db.query(model.franchise_id).distinct().all()
+            if row[0] is not None
+        )
+
+    for franchise_id in franchises_with_entries:
+        if (franchise_id, None) in owned:
+            continue
+        db.add(_create_release_list(db, franchise_id=franchise_id))
+        created += 1
+
+    for row in db.query(models.Collection.system_id).all():
+        collection_id = row[0]
+        if (None, collection_id) in owned:
+            continue
+        # A collection with no member franchises has nothing to order.
+        members = (
+            db.query(models.Franchise.system_id)
+            .filter(models.Franchise.collection_id == collection_id)
+            .first()
+        )
+        if not members:
+            continue
+        db.add(_create_release_list(db, collection_id=collection_id))
+        created += 1
+
+    db.commit()
+    return {"status": "success", "created": created}
 
 
 @router.put(
@@ -451,6 +681,7 @@ def create_watch_order_item(
     (A ep 1-10 -> B -> A ep 11-12) is expressed.
     """
     db_list = _get_list_or_404(db, system_id)
+    _reject_if_generated(db_list)
     _validate_entry(db, payload.media_type, payload.entry_id)
 
     data = payload.model_dump(exclude_unset=True)
@@ -483,6 +714,7 @@ def update_watch_order_item(
 ):
     """Fully updates one step of a watch order."""
     db_item = _get_item_or_404(db, item_id)
+    _reject_if_generated(db_item.parent_list)
 
     update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -509,6 +741,7 @@ def patch_watch_order_item(
 ):
     """Partially updates a step (episode range, optional flag, note)."""
     db_item = _get_item_or_404(db, item_id)
+    _reject_if_generated(db_item.parent_list)
 
     for key, value in payload.items():
         if hasattr(db_item, key):
@@ -530,6 +763,7 @@ def delete_watch_order_item(
 ):
     """Removes one step from a watch order. The media entry is not touched."""
     db_item = _get_item_or_404(db, item_id)
+    _reject_if_generated(db_item.parent_list)
     db.delete(db_item)
     db.commit()
     return {"status": "success", "message": "Watch order item deleted successfully."}
@@ -553,6 +787,7 @@ def reorder_watch_order_items(
     list exactly once - a partial payload would silently leave stale positions.
     """
     db_list = _get_list_or_404(db, system_id)
+    _reject_if_generated(db_list)
 
     items = (
         db.query(models.WatchOrderItem)
