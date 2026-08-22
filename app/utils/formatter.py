@@ -140,6 +140,51 @@ def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
         return val_str
 
 
+def parse_watch_order_list_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Watch Order List sheet into typed data
+    ready for the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        # Owner columns are strict UUIDs: unlike the media tabs there is no
+        # name-resolution step for them in the Pull pipeline, so a junk cell
+        # would otherwise reach the DB and violate the single-owner check.
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "list_name": parse_from_sheet(raw.get("list_name"), str),
+        "list_type": parse_from_sheet(raw.get("list_type"), str),
+        "is_default": parse_from_sheet(raw.get("is_default"), bool),
+        "sort_index": parse_from_sheet(raw.get("sort_index"), float),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_watch_order_item_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Watch Order Item sheet into typed data
+    ready for the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "list_id": _uuid_or_none(raw.get("list_id")),
+        "position": parse_from_sheet(raw.get("position"), float),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        # entry_id has no foreign key - it points at whichever media table
+        # media_type names - so an unparseable cell becomes None and the row
+        # shows up in the guide as a missing step.
+        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "ep_start": parse_from_sheet(raw.get("ep_start"), int),
+        "ep_end": parse_from_sheet(raw.get("ep_end"), int),
+        "is_optional": parse_from_sheet(raw.get("is_optional"), bool),
+        "note": parse_from_sheet(raw.get("note"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_franchise_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Franchise sheet into typed data ready for the Database.

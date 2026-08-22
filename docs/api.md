@@ -23,6 +23,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Cartoon — `/api/cartoon`](#cartoon--apicartoon)
 - [Manga — `/api/manga`](#manga--apimanga)
 - [Novel — `/api/novel`](#novel--apinovel)
+- [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
@@ -206,6 +207,40 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
 
 **Response model:** `NovelResponse`
+
+---
+
+## Watch Order — `/api/watch-order`
+
+Named, ordered, cross-media-type viewing guides owned by a franchise or a
+collection. Reads are public; every write is admin-only. Unrelated to the
+per-entry `watch_order` Float column, which this router never touches.
+
+| Method   | Path                          | Auth   | Description                                                                                                                                        |
+| -------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `search_query`, `limit` (≤2000), `offset`. Sorted default-first. |
+| `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data.                                                                                             |
+| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the seven media tables. Exactly one of `franchise_id` / `collection_id` required. |
+| `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
+| `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`.                                                                                                         |
+| `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict.                                                                                                |
+| `DELETE` | `/lists/{system_id}`          | Admin  | Delete an order. Items cascade; the media entries are untouched. Logs to `deleted_record` as type "Watch Order".                                    |
+| `POST`   | `/lists/{system_id}/items`    | Admin  | Add a step. Appends unless `position` is given. Body: `WatchOrderItemCreate`. 400 on an unknown media type or a nonexistent entry.                  |
+| `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `WatchOrderItemUpdate`.                                                                                             |
+| `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
+| `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
+| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N. Body: `WatchOrderReorder` (`item_ids`). 400 unless the payload names every item of the list exactly once.               |
+
+**Response models:** `WatchOrderListResponse` (adds a computed `item_count`),
+`WatchOrderListDetailResponse` (adds `items`), `WatchOrderItemResponse`,
+`WatchOrderCandidate`.
+
+**Item resolution.** `watch_order_item` stores only `(media_type, entry_id)` —
+no foreign key spans seven tables — so the detail endpoint enriches each item
+with `display_name`, `cover_image_file`, `franchise_id`, `status` and
+`total_episodes` via `app/services/domain/watch_order.py`. That runs one query
+per media type present, never one per item. An item whose entry no longer
+exists comes back with `missing: true` rather than being dropped.
 
 ---
 

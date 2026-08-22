@@ -21,6 +21,8 @@ from app.models import (
     TVShows,
     SystemOption,
     Seasonal,
+    WatchOrderList,
+    WatchOrderItem,
 )
 
 from app.utils.formatter import (
@@ -183,6 +185,27 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(n) for n in novel_entries
         ]
         bulk_overwrite_sheet("Novel", novel_matrix)
+
+        # Watch orders are written last: their items point at rows in every
+        # media tab above, so dumping them afterwards keeps the sheet readable
+        # in the same order Pull restores it.
+        watch_order_lists = db.query(WatchOrderList).all()
+        watch_order_list_headers = [
+            c.name for c in WatchOrderList.__table__.columns
+        ]
+        watch_order_list_matrix = [watch_order_list_headers] + [
+            format_model_for_sheet(w) for w in watch_order_lists
+        ]
+        bulk_overwrite_sheet("Watch Order List", watch_order_list_matrix)
+
+        watch_order_items = db.query(WatchOrderItem).all()
+        watch_order_item_headers = [
+            c.name for c in WatchOrderItem.__table__.columns
+        ]
+        watch_order_item_matrix = [watch_order_item_headers] + [
+            format_model_for_sheet(w) for w in watch_order_items
+        ]
+        bulk_overwrite_sheet("Watch Order Item", watch_order_item_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")

@@ -14,6 +14,7 @@ import {
 } from "../../utils/media";
 import MediaCard from "../../components/cards/MediaCard";
 import SeriesModal from "../../components/modals/SeriesModal";
+import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -304,6 +305,9 @@ export default function FranchisePage() {
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
+      // Always offered: the section itself reports whether an order exists,
+      // and an admin needs the entry point precisely when there is none yet.
+      "Watch Order",
     ].filter(Boolean);
   }, [
     franchise,
@@ -1188,9 +1192,11 @@ export default function FranchisePage() {
               }`}
             >
               {tab}
-              <span className="ml-1.5 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">
-                {getTabCount(tab)}
-              </span>
+              {tab !== "Watch Order" && (
+                <span className="ml-1.5 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">
+                  {getTabCount(tab)}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -2110,6 +2116,31 @@ export default function FranchisePage() {
             )}
           </div>
         )}
+
+      {/* ── Watch Order tab content ──────────────────────────────────────── */}
+      {(activeTab === "Watch Order" ||
+        (tabs.length === 1 && tabs[0] === "Watch Order")) && (
+        <div>
+          {/*
+            Not SectionHeader: that renders an "N entries" pill, and the orders
+            are fetched inside WatchOrderSection, so no count exists here yet.
+          */}
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-list-ol text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Watch Order
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Ordered viewing guide across every media type
+              </p>
+            </div>
+          </div>
+          <WatchOrderSection franchiseId={system_id} />
+        </div>
+      )}
 
       {/* No content at all */}
       {tabs.length === 0 && !loading && (

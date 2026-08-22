@@ -22,6 +22,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/movie/:system_id`       | `Movie`                                            | Public     |
 | `/collection/:system_id`  | `Collection` → `CollectionPage` (umbrella hub)     | Public     |
 | `/franchise/:system_id`   | `Franchise` → `FranchisePage` (unified tabbed hub) | Public     |
+| `/watch-order/:system_id` | `WatchOrder` → `WatchOrderPage`                    | Public     |
 | `/tv-show/:system_id`     | `TV`                                               | Public     |
 | `/library/tv-show`        | `LibraryTV`                                        | Public     |
 | `/cartoon/:system_id`     | `Cartoon`                                          | Public     |
@@ -41,6 +42,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/modify`                 | `Modify`                                           | Admin only |
 | `/delete`                 | `Delete`                                           | Admin only |
 | `/defaults`               | `FormDefaults`                                     | Admin only |
+| `/watch-orders`           | `WatchOrders`                                      | Admin only |
 
 Admin routes are wrapped by `ProtectedRoute`, which redirects unauthenticated users to `/login?next=<path>`.
 
@@ -523,6 +525,13 @@ Admin writes use `PATCH /api/novel/:system_id`.
 | `hasTvMovie` | `"TV or Movie"`                      | Movies tab, TV Shows tab    |
 | `hasCartoon` | `"Cartoon"`                          | Cartoons tab                |
 
+A **Watch Order** tab is always present, regardless of type flags: the tab body
+(`components/tracker/WatchOrderSection.jsx`) loads the franchise's orders itself
+and reports when there are none, which is exactly when an admin needs the entry
+point. It renders the read-only `<WatchOrderGuide>` with a selector across
+orders, an "Open full page" link to `/watch-order/:id`, and, for admins, an
+"Edit" link to `/watch-orders`. Editing is never embedded here.
+
 **Data loaded** (all in parallel on mount):
 
 - `GET /api/franchise/:system_id`
@@ -698,6 +707,37 @@ Lists the franchises belonging to one collection. Intentionally far simpler than
 **Admin controls:** inline `my_rating` and `collection_expectation` selects and a remark textarea, all saving via `PATCH /api/collection/{id}`; plus a Quick Edit link to `/modify?id=`.
 
 **Members** are rendered with the existing `FranchiseCard`, so clicking one lands on the unchanged `/franchise/:system_id`.
+
+**Watch Order** appears as a section below the member grid rather than a tab —
+this page has no tab bar — rendered by the same `WatchOrderSection` the
+Franchise Hub uses, scoped by `collection_id`.
+
+---
+
+### Watch Order (`/watch-order/:system_id`)
+
+**File:** `frontend/src/pages/detail/WatchOrderPage.jsx` (wrapped by `detail/WatchOrder.jsx`)
+
+The shareable full-page view of one watch order — the same guide the Franchise
+and Collection pages embed, given more room.
+
+**Data loaded:** `GET /api/watch-order/lists/{id}` (items already resolved to
+display data), then, once that lands, the owner via `/api/franchise/{id}` or
+`/api/collection/{id}` and the owner's other orders via
+`/api/watch-order/lists?franchise_id=` — both after the guide rather than
+blocking it.
+
+**Layout:** back-link to the owner → title with `list_type` and Default badges
+and a step count → `<WatchOrderGuide roomy>` → "Other orders for …" links.
+
+**Steps** show a position badge, poster, title, episode-range label (`Ep 1–10`),
+an Optional badge, the media type, the entry's watch/read status, and the
+per-step note; each links to the entry's detail page. A "Hide optional" toggle
+appears when any step is optional, and hiding renumbers the visible rows rather
+than leaving gaps. A step whose entry was deleted renders as a muted
+"Entry no longer exists" row instead of disappearing.
+
+Admins get an "Edit this order" link to `/watch-orders`; nothing on this page writes.
 
 ---
 
@@ -1552,6 +1592,37 @@ disabled unless dirty). Unsaved tabs are marked with an amber dot in the tab bar
   but still expose the auto-fill checkbox where that makes sense.
 - Saving while `/add` is already open does not hot-update it; Add re-reads the config on
   its next mount.
+
+---
+
+### Watch Orders (`/watch-orders`)
+
+**File:** `frontend/src/pages/admin/WatchOrders.jsx`
+
+Where watch orders are built. The Franchise and Collection pages only read them.
+
+**Data loaded:** `GET /api/watch-order/lists` (all orders), `/api/franchise/`
+and `/api/collection/` for the owner names used by the grouping headers and the
+new-order picker.
+
+**Left pane:** a search box over order and owner names, a "New order" form
+(owner dropdown split into Franchises / Collections, plus a name), then every
+order grouped by owner. Each row opens the editor, links out to the public
+page, or deletes the order behind a confirm.
+
+**Right pane:** `components/tracker/WatchOrderEditor.jsx` for the selected order:
+
+- Name, type (Custom / Chronological / Release / Recommended), note, and a
+  "Show this order first" checkbox — each saving via `PATCH /lists/{id}`.
+- An entry picker fed by `GET /api/watch-order/candidates`, one request covering
+  every media type of the owner (a collection resolves to its member franchises
+  first). The same entry may be added repeatedly — that is how a split run is
+  written.
+- Per-step episode range, Optional checkbox, and note. Text and number inputs
+  commit on blur, not per keystroke.
+- Reorder by drag or by up/down buttons; both commit through
+  `PUT /lists/{id}/reorder`, which renumbers positions 1..N. The reorder is
+  applied locally first so a dragged row does not snap back mid-request.
 
 ---
 

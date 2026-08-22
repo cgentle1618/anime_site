@@ -54,6 +54,8 @@ tests/                          ← backend tests
     test_security.py            ← hashing, JWT sign/verify/expiry
     test_derivations.py         ← derive_watch_order_anime, ep_previous, prequel/sequel
     test_checking_rules.py      ← has_missing_values_anime, check_is_tv_completed
+    test_formatter_watch_order.py ← Watch Order List/Item sheet parsers
+    test_watch_order_resolver.py  ← resolve_items batching, missing entries
   api/
     conftest.py                 ← resets the test DB schema per session; client fixtures + sample rows
     test_auth.py
@@ -61,6 +63,7 @@ tests/                          ← backend tests
     test_complete_endpoints.py  ← /complete mark-completed endpoints
     test_media_crud.py          ← CRUD smoke tests for the 5 factory-built media routers
     test_form_defaults.py       ← /api/form-defaults auth, upsert, validation, reset
+    test_watch_order.py         ← /api/watch-order CRUD, owner constraint, reorder
     test_series.py              (planned)
     test_anime.py               (planned)
     test_anime_movie.py         (planned)

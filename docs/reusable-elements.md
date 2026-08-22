@@ -1109,6 +1109,49 @@ text. Also exports `describeBuiltIn(field)` for that ghost label.
 
 ---
 
+## Watch Order Elements
+
+### `WatchOrderGuide` (`components/tracker/WatchOrderGuide.jsx`)
+
+Read-only renderer for one watch order's steps, used at two densities: compact
+inside the Franchise / Collection page, and `roomy` on `/watch-order/:id`.
+Guests see it too, so nothing in it writes.
+
+**Props:** `list` (a `WatchOrderListDetailResponse`), `roomy` (bool).
+
+Each step shows a position badge, poster, title, an episode-range label
+(`Ep 1–10`, `Ch 1–40` for manga/novel), an Optional badge, the media type, the
+entry's watch/read status pill, and the per-step note, linking to the entry's
+detail page via `MEDIA_CONFIG[media_type].navPath`. Status colors come from
+`getCardStatusConfig(type, status)` rather than `getStatusStyle` — reading
+statuses have no entry in the watching style map. A "Hide optional" toggle
+appears when any step is optional, and numbering follows the *visible* rows, so
+hiding leaves no gaps. A step whose entry was deleted (`missing: true`) renders
+as a muted "Entry no longer exists" row.
+
+### `WatchOrderSection` (`components/tracker/WatchOrderSection.jsx`)
+
+The Watch Order tab body for a Franchise or Collection page. Takes exactly one
+of `franchiseId` / `collectionId`, loads that owner's orders
+(`GET /api/watch-order/lists?...`), offers a selector when there is more than
+one, and hands the selected order to `WatchOrderGuide`. Also renders the
+"Open full page" link and, for admins, an "Edit" link to `/watch-orders`.
+
+### `WatchOrderEditor` (`components/tracker/WatchOrderEditor.jsx`)
+
+Admin editor for one order, used by `/watch-orders`. Takes `listId` and an
+optional `onListChanged` callback. Deliberately does **not** reuse
+`WatchOrderGuide`: an editable row needs inputs where the guide needs links.
+
+Covers order metadata (name, type, note, default flag), an entry picker fed by
+`GET /api/watch-order/candidates`, per-step episode range / optional flag /
+note, and reordering by drag or up/down buttons. Text and number inputs commit
+on blur, not per keystroke; reorder commits the full id sequence through
+`PUT /lists/{id}/reorder` and is applied locally first so a dragged row does not
+snap back mid-request.
+
+---
+
 ## Other
 
 ### Series Information Pop Up Entry

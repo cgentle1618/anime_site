@@ -16,6 +16,9 @@
   - [cartoons](#cartoons)
   - [manga](#manga)
   - [novel](#novel)
+- [Watch Order Tables](#watch-order-tables)
+  - [watch_order_list](#watch_order_list)
+  - [watch_order_item](#watch_order_item)
 - [System & Configuration Tables](#system--configuration-tables)
   - [system_options](#system_options)
   - [system_configs](#system_configs)
@@ -836,6 +839,63 @@ Light novel and book entries.
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+---
+
+## Watch Order Tables
+
+Named, ordered, cross-media-type viewing guides. Distinct from the per-entry
+`watch_order` Float column on `anime` / `tv_shows` / `cartoons` / `movies` /
+`manga`, which numbers entries inside a single table and still drives
+prequel/sequel derivation and the sort dropdowns. These tables exist because
+that column cannot span media types, cannot hold more than one order per
+franchise, and cannot express a guide that splits an entry.
+
+### `watch_order_list`
+
+One named order, owned by exactly one franchise or one collection.
+
+| Column          | Type     | Nullable | Notes                                                                    |
+| --------------- | -------- | -------- | ------------------------------------------------------------------------ |
+| `system_id`     | UUID     | No       | PK, indexed                                                              |
+| `franchise_id`  | UUID     | Yes      | FK → `franchise.system_id`, `ON DELETE CASCADE`, indexed                 |
+| `collection_id` | UUID     | Yes      | FK → `collection.system_id`, `ON DELETE CASCADE`, indexed                |
+| `list_name`     | String   | Yes      | e.g. "Chronological", "Release Order"                                    |
+| `list_type`     | String   | Yes      | Custom / Chronological / Release / Recommended; defaults to `"Custom"`   |
+| `is_default`    | Boolean  | Yes      | The order shown first; the API clears the flag on the owner's other rows |
+| `sort_index`    | Float    | Yes      | Ordering of several orders within one owner                             |
+| `remark`        | Text     | Yes      | The note describing how to read this order                              |
+| `created_at`    | DateTime | Yes      | Auto-set on create                                                      |
+| `updated_at`    | DateTime | Yes      | Auto-updated on save                                                    |
+
+**Check constraint `ck_watch_order_list_single_owner`:**
+`(franchise_id IS NULL) <> (collection_id IS NULL)` — exactly one owner. CASCADE
+rather than SET NULL, because a nulled owner would leave a row the constraint
+forbids.
+
+### `watch_order_item`
+
+One step of a guide.
+
+| Column        | Type     | Nullable | Notes                                                                     |
+| ------------- | -------- | -------- | ------------------------------------------------------------------------- |
+| `system_id`   | UUID     | No       | PK, indexed                                                               |
+| `list_id`     | UUID     | No       | FK → `watch_order_list.system_id`, `ON DELETE CASCADE`, indexed           |
+| `position`    | Float    | Yes      | `1.0`, `1.5`, `2.0` — a float, so an item slots in without renumbering    |
+| `media_type`  | String   | Yes      | `anime` / `anime-movie` / `movie` / `tv-show` / `cartoon` / `manga` / `novel` |
+| `entry_id`    | UUID     | Yes      | **No FK** — points at whichever media table `media_type` names, indexed   |
+| `ep_start`    | Integer  | Yes      | Both null = the whole entry                                              |
+| `ep_end`      | Integer  | Yes      | —                                                                         |
+| `is_optional` | Boolean  | Yes      | Skippable/filler; the guide dims it and offers a "hide optional" toggle   |
+| `note`        | Text     | Yes      | Per-step note                                                             |
+| `created_at`  | DateTime | Yes      | Auto-set on create                                                        |
+| `updated_at`  | DateTime | Yes      | Auto-updated on save                                                      |
+
+- The same `entry_id` may appear at several positions in one list. That is how a
+  split run is written: *entry A ep 1–10 → entry B → entry A ep 11–12*.
+- No foreign key can span seven tables, so deleting a media entry leaves a
+  dangling item. Resolution flags it `missing: true` at read time instead of
+  dropping it, so the admin can see and remove the broken step.
 
 ---
 

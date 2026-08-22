@@ -7,7 +7,7 @@ import logging
 from typing import Any
 from sqlalchemy.orm import Session
 
-from app.models import Franchise, Series, DataControlLog, DeletedRecord
+from app.models import Collection, Franchise, Series, DataControlLog, DeletedRecord
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,27 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
             name_cn = _cn(entry, "collection")
             if _has_cn(entry, "collection"):
                 name_en = _en(entry, "collection")
+
+        elif entry_type == "Watch Order":
+            # A watch order has one plain name, and belongs to either a
+            # franchise or a collection - never both.
+            name_cn = getattr(entry, "list_name", None)
+            category = getattr(entry, "list_type", None)
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+                franchise_type = getattr(f, "franchise_type", None)
+            elif getattr(entry, "collection_id", None):
+                c = (
+                    db.query(Collection)
+                    .filter(Collection.system_id == entry.collection_id)
+                    .first()
+                )
+                franchise_cn = _cn(c, "collection")
 
         elif entry_type == "Franchise":
             name_cn = _cn(entry, "franchise")

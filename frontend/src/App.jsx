@@ -20,6 +20,7 @@ import TV from "./pages/detail/TV";
 import Cartoon from "./pages/detail/Cartoon";
 import Manga from "./pages/detail/Manga";
 import Novel from "./pages/detail/Novel";
+import WatchOrder from "./pages/detail/WatchOrder";
 import SeasonalDetail from "./pages/public/SeasonalDetail";
 
 import Plan from "./pages/public/Plan";
@@ -45,6 +46,7 @@ import Delete from "./pages/admin/Delete";
 import FormDefaults from "./pages/admin/FormDefaults";
 import DataHistory from "./pages/admin/DataHistory";
 import ReviewQueue from "./pages/admin/ReviewQueue";
+import WatchOrders from "./pages/admin/WatchOrders";
 
 // One shared QueryClient keeps cache behavior consistent across the whole app.
 const queryClient = new QueryClient({
@@ -102,6 +104,7 @@ export default function App() {
                 <Route path="/library/novel" element={<LibraryNovel />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
+                <Route path="/watch-order/:system_id" element={<WatchOrder />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
                   path="/seasonal/:seasonal_id"
@@ -124,6 +127,7 @@ export default function App() {
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
                   <Route path="/defaults" element={<FormDefaults />} />
+                  <Route path="/watch-orders" element={<WatchOrders />} />
                 </Route>
               </Route>
             </Routes>

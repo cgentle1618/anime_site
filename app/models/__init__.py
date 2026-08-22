@@ -14,6 +14,7 @@ from app.models.tv_show import TVShows
 from app.models.cartoon import Cartoon
 from app.models.manga import Manga
 from app.models.novel import Novel
+from app.models.watch_order import WatchOrderList, WatchOrderItem
 from app.models.system import (
     SystemOption,
     SystemConfigs,
@@ -37,6 +38,8 @@ __all__ = [
     "Cartoon",
     "Manga",
     "Novel",
+    "WatchOrderList",
+    "WatchOrderItem",
     "SystemOption",
     "SystemConfigs",
     "Seasonal",

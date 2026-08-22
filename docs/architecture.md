@@ -214,6 +214,14 @@ Key functions:
 
 **Master derive:** `derive_related_{anime|tv_show|cartoon|manga}(db)` — calls corresponding watch order, prequel/sequel, and episode previous derivation functions.
 
+**Watch order guides (`domain/watch_order.py`)** — a separate concern from the
+`watch_order` Float column above, which these functions never touch:
+
+- `MEDIA_TYPE_MODELS` — media-type slug → model, mirroring `frontend/src/config/mediaRegistry.js`
+- `resolve_items(db, items)` — enriches `watch_order_item` rows with the referenced entry's display data; one query per media type present, never one per item. Items whose `entry_id` no longer resolves come back `missing=True` instead of being dropped
+- `list_candidate_entries(db, franchise_ids)` — every entry of those franchises flattened across the seven media tables; backs the admin editor's entry picker
+- `entry_exists(db, media_type, entry_id)` / `get_entry_franchise_id(...)` — single-entry lookups used to validate items on write
+
 **External API fill:**
 
 - `autofill_{anime|anime_movie|manga|novel}_from_mal(...)` — fetch MAL data via Jikan, fill missing fields, and download cover images.
@@ -299,6 +307,7 @@ would only obscure them.
 | `tv_show.py`      | `/api/tv-shows`     | CRUD                                                         |
 | `manga.py`        | `/api/manga`        | CRUD                                                         |
 | `novel.py`        | `/api/novel`        | CRUD                                                         |
+| `watch_order.py`  | `/api/watch-order`  | Order + item CRUD, reorder, entry candidates; public reads   |
 | `seasonal.py`     | `/api/seasonal`     | Read + partial update; `/current-season` shortcut            |
 | `data_control.py` | `/api/data-control` | Pipeline triggers; SSE streaming routes                      |
 | `system.py`       | `/api/system`       | Config, logs, deleted records                                |

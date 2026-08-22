@@ -56,6 +56,23 @@ export const endpoints = {
     remove: (title) => `/api/announcements/?title=${encodeURIComponent(title)}`,
   },
 
+  // Watch orders don't fit the resource() CRUD shape: lists and their items
+  // live under one prefix, and reorder is its own verb.
+  watchOrder: {
+    lists: () => "/api/watch-order/lists",
+    list: (id) => `/api/watch-order/lists/${id}`,
+    createList: () => "/api/watch-order/lists",
+    updateList: (id) => `/api/watch-order/lists/${id}`,
+    patchList: (id) => `/api/watch-order/lists/${id}`,
+    removeList: (id) => `/api/watch-order/lists/${id}`,
+    createItem: (listId) => `/api/watch-order/lists/${listId}/items`,
+    updateItem: (itemId) => `/api/watch-order/items/${itemId}`,
+    patchItem: (itemId) => `/api/watch-order/items/${itemId}`,
+    removeItem: (itemId) => `/api/watch-order/items/${itemId}`,
+    reorder: (listId) => `/api/watch-order/lists/${listId}/reorder`,
+    candidates: () => "/api/watch-order/candidates",
+  },
+
   formDefaults: {
     list: () => "/api/form-defaults/",
     detail: (type) => `/api/form-defaults/${type}`,

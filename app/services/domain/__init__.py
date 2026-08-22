@@ -15,6 +15,15 @@ from app.services.domain.hierarchy import (
     resolve_novel_parent_hierarchy,
 )
 
+from app.services.domain.watch_order import (
+    MEDIA_TYPE_MODELS,
+    VALID_WATCH_ORDER_MEDIA_TYPES,
+    resolve_items,
+    list_candidate_entries,
+    entry_exists,
+    get_entry_franchise_id,
+)
+
 from app.services.domain.checking import (
     apply_validate_episode_math,
     apply_validate_vol_math,
@@ -165,6 +174,12 @@ __all__ = [
     "apply_extract_imdb_id",
     "apply_extract_season_from_title",
     "apply_calculate_seasonal_from_month",
+    "MEDIA_TYPE_MODELS",
+    "VALID_WATCH_ORDER_MEDIA_TYPES",
+    "resolve_items",
+    "list_candidate_entries",
+    "entry_exists",
+    "get_entry_franchise_id",
     "derive_watch_order_anime",
     "derive_watch_order_tv_show",
     "derive_watch_order_cartoon",

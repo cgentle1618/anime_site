@@ -94,6 +94,22 @@ from app.schemas.novel import (
     NovelResponse,
     NovelSheetSync,
 )
+from app.schemas.watch_order import (
+    WatchOrderItemBase,
+    WatchOrderItemCreate,
+    WatchOrderItemUpdate,
+    WatchOrderItemResponse,
+    WatchOrderItemResolved,
+    WatchOrderListBase,
+    WatchOrderListCreate,
+    WatchOrderListUpdate,
+    WatchOrderListResponse,
+    WatchOrderListDetailResponse,
+    WatchOrderReorder,
+    WatchOrderCandidate,
+    WatchOrderListSheetSync,
+    WatchOrderItemSheetSync,
+)
 
 __all__ = [
     "Token",
@@ -166,4 +182,18 @@ __all__ = [
     "NovelUpdate",
     "NovelResponse",
     "NovelSheetSync",
+    "WatchOrderItemBase",
+    "WatchOrderItemCreate",
+    "WatchOrderItemUpdate",
+    "WatchOrderItemResponse",
+    "WatchOrderItemResolved",
+    "WatchOrderListBase",
+    "WatchOrderListCreate",
+    "WatchOrderListUpdate",
+    "WatchOrderListResponse",
+    "WatchOrderListDetailResponse",
+    "WatchOrderReorder",
+    "WatchOrderCandidate",
+    "WatchOrderListSheetSync",
+    "WatchOrderItemSheetSync",
 ]

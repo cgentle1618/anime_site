@@ -21,6 +21,7 @@ import {
 } from "../../config/fieldOptions";
 import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
+import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 
 const RATING_COLORS = {
   S: "bg-yellow-400 text-yellow-900",
@@ -335,6 +336,15 @@ export default function CollectionPage() {
             ))}
           </div>
         )}
+
+        {/*
+          A section rather than a tab: this page has no tab bar, since a
+          collection groups franchises instead of media entries.
+        */}
+        <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
+          Watch Order
+        </h2>
+        <WatchOrderSection collectionId={system_id} />
       </div>
     </div>
   );

@@ -21,6 +21,8 @@ from app.models import (
     TVShows,
     SystemOption,
     Seasonal,
+    WatchOrderList,
+    WatchOrderItem,
 )
 
 from app.utils.formatter import (
@@ -38,6 +40,8 @@ from app.utils.formatter import (
     parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
     parse_seasonal_from_sheet,
+    parse_watch_order_list_from_sheet,
+    parse_watch_order_item_from_sheet,
 )
 from app.utils.data_control_utils import log_data_control
 
@@ -115,6 +119,8 @@ def execute_pull_specific(
         "TV Shows": TVShows,
         "System Options": SystemOption,
         "Seasonal": Seasonal,
+        "Watch Order List": WatchOrderList,
+        "Watch Order Item": WatchOrderItem,
     }
 
     PARSER_MAP = {
@@ -130,6 +136,8 @@ def execute_pull_specific(
         "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
         "Seasonal": parse_seasonal_from_sheet,
+        "Watch Order List": parse_watch_order_list_from_sheet,
+        "Watch Order Item": parse_watch_order_item_from_sheet,
     }
 
     if tab_name not in MODEL_MAP:
@@ -356,6 +364,22 @@ def execute_pull_specific(
                                 Collection.collection_name_en == name,
                                 Collection.collection_name_cn == name,
                             )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Watch Order List":
+                # An id-less row is matched on owner + name. Items have no
+                # natural key at all, so an id-less item row always inserts.
+                name = clean_header_dict.get("list_name")
+                owner_franchise = clean_header_dict.get("franchise_id")
+                owner_collection = clean_header_dict.get("collection_id")
+                if name and (owner_franchise or owner_collection):
+                    existing_record = (
+                        db.query(WatchOrderList)
+                        .filter(
+                            WatchOrderList.list_name == name,
+                            WatchOrderList.franchise_id == owner_franchise,
+                            WatchOrderList.collection_id == owner_collection,
                         )
                         .first()
                     )
@@ -587,6 +611,10 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Cartoons",
         "Manga",
         "Novel",
+        # Lists before Items (FK parent first), and both after every media tab
+        # so a freshly restored guide points at rows that already exist.
+        "Watch Order List",
+        "Watch Order Item",
         "Seasonal",
     ]
 
