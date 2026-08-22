@@ -1136,11 +1136,18 @@ entry's watch/read status pill, and the per-step note, linking to the entry's
 detail page via `MEDIA_CONFIG[media_type].navPath`. Anime carrying an
 `ep_special` also get an `Ep. Special 14.5` badge — the episode number the
 special sits at, not a count. `mediaScope(mediaTypes)` is also exported here and describes an order's scope
-from its steps: `{short, full, cross}`, where `short` ("Anime only",
-"Cross-type") suits a `<select>` option or a list subtitle and `full`
-("Cross-type · Anime · Manga") is used where there is room. It returns null for
-an empty order. The section selector, the standalone page, the admin list and
-the editor all render from it, so the wording cannot drift between them.
+from its steps: `{short, full, cross, icon, chips}`, where `short` ("Anime
+only", "Cross-type") suits a `<select>` option or a list subtitle. Icons come
+from `ADMIN_TABS` rather than a second hand-kept map, so a media type looks the
+same here as everywhere else. It returns null for an empty order.
+
+`<MediaScopeLine mediaTypes={...} />` renders that scope as its own uppercase,
+icon-led line meant to sit **directly above an order's title**, so what kind of
+order it is registers before the name instead of competing with the Custom /
+Most recommended badges below it. Cross-type renders blue with one chip per
+type; single-type renders grey. Used by the standalone page, the
+franchise/collection section and the editor; the admin list uses the shorter
+`mediaScope().short` in its subtitle.
 
 `specialLabel()` is exported from this file and
 reused by the editor's step rows and its entry picker, where a special often

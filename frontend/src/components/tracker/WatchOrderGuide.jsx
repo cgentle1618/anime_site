@@ -6,6 +6,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { ADMIN_TABS } from "../../config/adminTabs";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { getCardStatusConfig } from "../../lib/status";
@@ -41,18 +42,72 @@ function rangeLabel(item) {
  * names the types and is used where there is room. Returns null for an empty
  * order, which has no scope to describe yet.
  */
+// Icons come from the admin tab registry rather than a second hand-kept map,
+// so a media type looks the same here as everywhere else in the app.
+const TYPE_ICONS = Object.fromEntries(ADMIN_TABS.map((t) => [t.key, t.icon]));
+
 export function mediaScope(mediaTypes) {
   const types = mediaTypes || [];
   if (types.length === 0) return null;
-  const names = types.map((t) => TYPE_LABELS[t] || t);
+
+  const chips = types.map((t) => ({
+    slug: t,
+    label: TYPE_LABELS[t] || t,
+    icon: TYPE_ICONS[t] || "fa-circle",
+  }));
+
   if (types.length === 1) {
-    return { short: `${names[0]} only`, full: `${names[0]} only`, cross: false };
+    return {
+      cross: false,
+      icon: chips[0].icon,
+      short: `${chips[0].label} only`,
+      full: `${chips[0].label} only`,
+      chips,
+    };
   }
   return {
-    short: "Cross-type",
-    full: `Cross-type · ${names.join(" · ")}`,
     cross: true,
+    // Reads as "several stacked types"; exists in both FontAwesome 5 and 6,
+    // which this project mixes.
+    icon: "fa-layer-group",
+    short: "Cross-type",
+    full: `Cross-type · ${chips.map((c) => c.label).join(" · ")}`,
+    chips,
   };
+}
+
+/**
+ * The scope rendered as its own line, meant to sit directly above an order's
+ * title so it reads before the name rather than competing with the other
+ * badges below it.
+ */
+export function MediaScopeLine({ mediaTypes, className = "" }) {
+  const scope = mediaScope(mediaTypes);
+  if (!scope) return null;
+
+  return (
+    <p
+      className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${
+        scope.cross ? "text-sky-600" : "text-gray-500"
+      } ${className}`}
+    >
+      <i className={`fas ${scope.icon}`}></i>
+      {scope.cross ? (
+        <>
+          Cross-type
+          <span className="text-gray-300">·</span>
+          {scope.chips.map((c) => (
+            <span key={c.slug} className="flex items-center gap-1 text-gray-500">
+              <i className={`fas ${c.icon} text-[10px]`}></i>
+              {c.label}
+            </span>
+          ))}
+        </>
+      ) : (
+        scope.full
+      )}
+    </p>
+  );
 }
 
 /**

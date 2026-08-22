@@ -10,7 +10,7 @@ import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import WatchOrderGuide, {
-  mediaScope,
+  MediaScopeLine,
 } from "../../components/tracker/WatchOrderGuide";
 import { getDisplayName } from "../../utils/media";
 
@@ -109,24 +109,21 @@ export default function WatchOrderPage() {
           </Link>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-            {list.list_name || "Untitled Order"}
-          </h1>
+        {/*
+          Scope leads: it sits on its own line above the title, so what kind of
+          order this is registers before the name. The remaining badges drop
+          below the title rather than competing with it.
+        */}
+        <MediaScopeLine mediaTypes={list.media_types} className="mt-2" />
+
+        <h1 className="text-3xl font-black text-gray-900 tracking-tight mt-0.5">
+          {list.list_name || "Untitled Order"}
+        </h1>
+
+        <div className="flex flex-wrap items-center gap-2 mt-1.5">
           {list.list_type && (
             <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
               {list.list_type}
-            </span>
-          )}
-          {mediaScope(list.media_types) && (
-            <span
-              className={`text-[11px] font-black px-2 py-0.5 rounded-full border ${
-                mediaScope(list.media_types).cross
-                  ? "bg-sky-50 text-sky-600 border-sky-200"
-                  : "bg-gray-100 text-gray-500 border-gray-200"
-              }`}
-            >
-              {mediaScope(list.media_types).full}
             </span>
           )}
           {list.is_most_recommended && (
