@@ -82,6 +82,26 @@ def sample_items(db_session, sample_list, sample_anime, sample_anime_movie):
     return items
 
 
+@pytest.fixture
+def orderable_franchise(db_session, sample_franchise, sample_anime):
+    """
+    sample_franchise plus a second entry. A release order is refused below two
+    entries, so every test that creates one needs this rather than a lone anime.
+    """
+    db_session.add(
+        models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Second Entry",
+            airing_type="TV",
+            watching_status="Might Watch",
+            release_year="2005",
+        )
+    )
+    db_session.flush()
+    return sample_franchise
+
+
 # ---------------------------------------------------------------------------
 # Reads
 # ---------------------------------------------------------------------------
@@ -297,14 +317,14 @@ class TestReleaseOrder:
             f"/api/watch-order/lists/release?franchise_id={franchise.system_id}"
         ).json()
 
-    def test_created_list_is_marked_generated(self, admin_client, sample_franchise):
-        data = self._create(admin_client, sample_franchise)
+    def test_created_list_is_marked_generated(self, admin_client, orderable_franchise):
+        data = self._create(admin_client, orderable_franchise)
         assert data["auto_source"] == "release"
         assert data["list_type"] == "Release"
 
-    def test_creation_is_idempotent(self, admin_client, sample_franchise):
-        first = self._create(admin_client, sample_franchise)
-        second = self._create(admin_client, sample_franchise)
+    def test_creation_is_idempotent(self, admin_client, orderable_franchise):
+        first = self._create(admin_client, orderable_franchise)
+        second = self._create(admin_client, orderable_franchise)
         assert first["system_id"] == second["system_id"]
 
     def test_guest_cannot_create(self, client, sample_franchise):
@@ -314,9 +334,9 @@ class TestReleaseOrder:
         assert response.status_code == 401
 
     def test_steps_are_generated_without_stored_items(
-        self, admin_client, db_session, sample_franchise, sample_anime
+        self, admin_client, db_session, orderable_franchise
     ):
-        created = self._create(admin_client, sample_franchise)
+        created = self._create(admin_client, orderable_franchise)
         detail = admin_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
@@ -332,9 +352,9 @@ class TestReleaseOrder:
         )
 
     def test_a_later_entry_appears_on_its_own(
-        self, admin_client, db_session, sample_franchise, sample_anime
+        self, admin_client, db_session, orderable_franchise
     ):
-        created = self._create(admin_client, sample_franchise)
+        created = self._create(admin_client, orderable_franchise)
         before = admin_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()["item_count"]
@@ -342,7 +362,7 @@ class TestReleaseOrder:
         db_session.add(
             models.Anime(
                 system_id=uuid.uuid4(),
-                franchise_id=sample_franchise.system_id,
+                franchise_id=orderable_franchise.system_id,
                 anime_name_en="Added Later",
                 airing_type="TV",
                 watching_status="Might Watch",
@@ -418,13 +438,13 @@ class TestReleaseOrder:
         assert names.index("Dated") < names.index("No date")
 
     def test_listing_reports_the_generated_step_count(
-        self, admin_client, client, sample_franchise, sample_anime
+        self, admin_client, client, orderable_franchise
     ):
         """
         Regression: the listing counted stored items, so a generated list showed
         "0 steps" in the selector while its steps rendered fine below.
         """
-        created = self._create(admin_client, sample_franchise)
+        created = self._create(admin_client, orderable_franchise)
         detail = admin_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()
@@ -439,16 +459,16 @@ class TestReleaseOrder:
         assert listed["media_types"] == detail["media_types"]
 
     def test_create_response_already_reports_the_count(
-        self, admin_client, sample_franchise, sample_anime
+        self, admin_client, orderable_franchise
     ):
-        created = self._create(admin_client, sample_franchise)
+        created = self._create(admin_client, orderable_franchise)
         assert created["item_count"] > 0
         assert created["media_types"] == ["anime"]
 
     def test_positions_are_renumbered_from_one(
-        self, admin_client, sample_franchise, sample_anime
+        self, admin_client, orderable_franchise
     ):
-        created = self._create(admin_client, sample_franchise)
+        created = self._create(admin_client, orderable_franchise)
         items = admin_client.get(
             f"/api/watch-order/lists/{created['system_id']}"
         ).json()["items"]
@@ -461,9 +481,9 @@ class TestGeneratedListIsReadOnly:
     """Steps are generated, so every item write must be refused."""
 
     @pytest.fixture
-    def release_list(self, admin_client, sample_franchise, sample_anime):
+    def release_list(self, admin_client, orderable_franchise):
         return admin_client.post(
-            f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+            f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
         ).json()
 
     def test_cannot_add_a_step(self, admin_client, release_list, sample_anime):
@@ -501,9 +521,9 @@ class TestAutoFilter:
     """Generated lists must not bury hand-built ones in cross-owner views."""
 
     @pytest.fixture
-    def both(self, admin_client, sample_franchise, sample_list, sample_anime):
+    def both(self, admin_client, orderable_franchise, sample_list):
         admin_client.post(
-            f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+            f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
         )
         return True
 
@@ -517,6 +537,63 @@ class TestAutoFilter:
     def test_only_shows_generated(self, client, both):
         rows = client.get("/api/watch-order/lists?auto=only").json()
         assert [r["auto_source"] for r in rows] == ["release"]
+
+
+class TestSingleWorkFranchisesGetNoOrder:
+    """
+    A franchise holding one work - a single movie, TV series or novel - has
+    nothing to order, so it is refused rather than given an order of one step.
+    """
+
+    def test_single_entry_franchise_is_refused(
+        self, admin_client, sample_franchise, sample_anime
+    ):
+        response = admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={sample_franchise.system_id}"
+        )
+        assert response.status_code == 400
+        assert "at least" in response.json()["detail"]
+
+    def test_empty_franchise_is_refused(self, admin_client, db_session):
+        bare = models.Franchise(
+            system_id=uuid.uuid4(),
+            franchise_type="Movie",
+            franchise_name_en="Standalone Movie",
+        )
+        db_session.add(bare)
+        db_session.flush()
+
+        response = admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={bare.system_id}"
+        )
+        assert response.status_code == 400
+
+    def test_two_entries_are_enough(self, admin_client, orderable_franchise):
+        response = admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
+        )
+        assert response.status_code in (200, 201)
+
+    def test_backfill_skips_them_and_reports_it(
+        self, admin_client, sample_franchise, sample_anime
+    ):
+        data = admin_client.post("/api/watch-order/lists/release/backfill").json()
+        assert data["skipped_too_small"] >= 1
+
+    def test_backfill_creates_for_big_enough_owners(
+        self, admin_client, client, orderable_franchise
+    ):
+        admin_client.post("/api/watch-order/lists/release/backfill")
+        rows = client.get("/api/watch-order/lists?auto=only").json()
+        assert any(
+            r["franchise_id"] == str(orderable_franchise.system_id) for r in rows
+        )
+
+    def test_backfill_is_repeatable(self, admin_client, orderable_franchise):
+        first = admin_client.post("/api/watch-order/lists/release/backfill").json()
+        second = admin_client.post("/api/watch-order/lists/release/backfill").json()
+        assert first["created"] >= 1
+        assert second["created"] == 0
 
 
 class TestCandidates:

@@ -90,6 +90,10 @@ def _validate_entry(db: Session, media_type, entry_id) -> None:
 
 RELEASE_SOURCE = "release"
 
+# A franchise holding a single work - one movie, one TV series, one novel - has
+# nothing to put in an order. Below this, a release order is just noise.
+MIN_ENTRIES_FOR_RELEASE = 2
+
 
 def _owner_franchise_ids(db: Session, db_list: models.WatchOrderList) -> List[Any]:
     """The franchises whose entries a generated list draws on."""
@@ -472,6 +476,21 @@ def create_watch_order_list(
         )
 
 
+def _count_owner_entries(db: Session, franchise_ids: List[Any]) -> int:
+    """How many media entries the owner holds, across every type."""
+    if not franchise_ids:
+        return 0
+    total = 0
+    for model in MEDIA_TYPE_MODELS.values():
+        total += (
+            db.query(func.count(model.system_id))
+            .filter(model.franchise_id.in_(franchise_ids))
+            .scalar()
+            or 0
+        )
+    return total
+
+
 def _existing_release_list(db: Session, franchise_id, collection_id):
     """The owner's generated release order, if it already has one."""
     query = db.query(models.WatchOrderList).filter(
@@ -523,6 +542,25 @@ def create_release_list(
     if existing:
         return _with_count(db, existing)
 
+    if franchise_id:
+        franchise_ids = [franchise_id]
+    else:
+        franchise_ids = [
+            row[0]
+            for row in db.query(models.Franchise.system_id)
+            .filter(models.Franchise.collection_id == collection_id)
+            .all()
+        ]
+    if _count_owner_entries(db, franchise_ids) < MIN_ENTRIES_FOR_RELEASE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A release order needs at least "
+                f"{MIN_ENTRIES_FOR_RELEASE} entries. A single work - one movie, "
+                "one TV series, one novel - has nothing to order."
+            ),
+        )
+
     new_list = _create_release_list(db, franchise_id, collection_id)
     db.add(new_list)
     db.commit()
@@ -550,38 +588,56 @@ def backfill_release_lists(
     }
 
     created = 0
+    skipped_too_small = 0
 
-    franchises_with_entries = set()
+    # Entries per franchise, in one grouped query per media type.
+    per_franchise: dict = {}
     for model in MEDIA_TYPE_MODELS.values():
-        franchises_with_entries.update(
-            row[0]
-            for row in db.query(model.franchise_id).distinct().all()
-            if row[0] is not None
-        )
+        for franchise_id, count in (
+            db.query(model.franchise_id, func.count(model.system_id))
+            .group_by(model.franchise_id)
+            .all()
+        ):
+            if franchise_id is not None:
+                per_franchise[franchise_id] = per_franchise.get(franchise_id, 0) + count
 
-    for franchise_id in franchises_with_entries:
+    for franchise_id, count in per_franchise.items():
         if (franchise_id, None) in owned:
+            continue
+        if count < MIN_ENTRIES_FOR_RELEASE:
+            skipped_too_small += 1
             continue
         db.add(_create_release_list(db, franchise_id=franchise_id))
         created += 1
+
+    members_by_collection: dict = {}
+    for fid, cid in (
+        db.query(models.Franchise.system_id, models.Franchise.collection_id)
+        .filter(models.Franchise.collection_id.isnot(None))
+        .all()
+    ):
+        members_by_collection.setdefault(cid, []).append(fid)
 
     for row in db.query(models.Collection.system_id).all():
         collection_id = row[0]
         if (None, collection_id) in owned:
             continue
-        # A collection with no member franchises has nothing to order.
-        members = (
-            db.query(models.Franchise.system_id)
-            .filter(models.Franchise.collection_id == collection_id)
-            .first()
+        total = sum(
+            per_franchise.get(fid, 0)
+            for fid in members_by_collection.get(collection_id, [])
         )
-        if not members:
+        if total < MIN_ENTRIES_FOR_RELEASE:
+            skipped_too_small += 1
             continue
         db.add(_create_release_list(db, collection_id=collection_id))
         created += 1
 
     db.commit()
-    return {"status": "success", "created": created}
+    return {
+        "status": "success",
+        "created": created,
+        "skipped_too_small": skipped_too_small,
+    }
 
 
 @router.put(

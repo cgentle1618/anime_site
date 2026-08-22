@@ -215,6 +215,11 @@ def _parse_release_value(value: Any) -> Optional[tuple]:
     """
     Turns one release cell into a (year, month, day) tuple, or None.
 
+    Missing precision resolves to the FIRST of the period: a bare year is
+    1 January, a month and year the 1st of that month. So a manga carrying only
+    "2020" sits exactly where a 2020-01-01 release does rather than just before
+    it, and the two are then separated by name.
+
     Tolerates every format the media tables actually contain:
     "2018-09-01", "NOV 2025", "2023", and a bare integer year.
     """
@@ -232,21 +237,21 @@ def _parse_release_value(value: Any) -> Optional[tuple]:
             year = int(parts[0])
         except ValueError:
             return None
-        month = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-        day = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        month = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 1
+        day = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
         return (year, month, day)
 
     # "NOV 2025"
     pieces = text.split()
     if len(pieces) == 2 and pieces[0].upper() in MONTH_MAP:
         try:
-            return (int(pieces[1]), int(MONTH_MAP[pieces[0].upper()]), 0)
+            return (int(pieces[1]), int(MONTH_MAP[pieces[0].upper()]), 1)
         except ValueError:
             return None
 
     # A bare year, string or int.
     try:
-        return (int(float(text)), 0, 0)
+        return (int(float(text)), 1, 1)
     except ValueError:
         return None
 
@@ -268,7 +273,8 @@ def release_sort_key(entry: Any, media_type: str) -> tuple:
             return _UNDATED
         raw_month = getattr(entry, "release_month", None)
         month = MONTH_MAP.get(str(raw_month).strip().upper()) if raw_month else None
-        return (year[0], int(month) if month else 0, 0)
+        # No month means the 1st of January, same "first of the period" rule.
+        return (year[0], int(month) if month else 1, 1)
 
     for field in fields:
         parsed = _parse_release_value(getattr(entry, field, None))

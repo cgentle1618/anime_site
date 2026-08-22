@@ -87,7 +87,10 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
         }),
         { method: "POST", credentials: "include" }
       );
-      if (!res.ok) throw new Error(res.statusText);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.detail || res.statusText);
+      }
       const created = await res.json();
       loadLists();
       setSelectedId(created.system_id);

@@ -14,6 +14,8 @@ import pytest
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,
+    _parse_release_value,
+    release_sort_key,
     resolve_items,
 )
 
@@ -316,3 +318,43 @@ class TestMissingEntries:
 
         assert [r["missing"] for r in results] == [False, True]
         assert results[0]["display_name"] == "here"
+
+
+class TestPartialDatesAreFirstOfPeriod:
+    """
+    A date missing precision means the FIRST of that period: a bare year is
+    1 January, a month and year the 1st of that month. Without this a
+    year-only manga sorted just before a 1 January release rather than with it.
+    """
+
+    def test_bare_year_is_january_first(self):
+        assert _parse_release_value("2020") == (2020, 1, 1)
+
+    def test_integer_year_is_january_first(self):
+        assert _parse_release_value(2020) == (2020, 1, 1)
+
+    def test_month_and_year_is_the_first(self):
+        assert _parse_release_value("NOV 2025") == (2025, 11, 1)
+
+    def test_iso_year_month_is_the_first(self):
+        assert _parse_release_value("2018-09") == (2018, 9, 1)
+
+    def test_full_date_is_untouched(self):
+        assert _parse_release_value("2018-09-01") == (2018, 9, 1)
+        assert _parse_release_value("2018-09-20") == (2018, 9, 20)
+
+    def test_year_only_ties_with_january_first(self):
+        """The point of the rule: the two are equal, then broken by name."""
+        assert _parse_release_value("2020") == _parse_release_value("2020-01-01")
+
+    def test_anime_without_a_month_is_january_first(self):
+        entry = SimpleNamespace(release_year="2026", release_month=None)
+        assert release_sort_key(entry, "anime") == (2026, 1, 1)
+
+    def test_anime_with_a_month_is_the_first_of_it(self):
+        entry = SimpleNamespace(release_year="2026", release_month="JUL")
+        assert release_sort_key(entry, "anime") == (2026, 7, 1)
+
+    def test_unparseable_still_sinks(self):
+        entry = SimpleNamespace(release_year=None, release_month=None)
+        assert release_sort_key(entry, "anime") == (9999, 99, 99)
