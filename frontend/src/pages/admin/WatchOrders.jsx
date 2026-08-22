@@ -7,22 +7,55 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
-import { jsonBody } from "../../api/client";
+import { buildUrl, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
+import ComboBox from "../../components/forms/ComboBox";
 import WatchOrderEditor from "../../components/tracker/WatchOrderEditor";
 
 function NewOrderForm({ owners, onCreate, busy }) {
-  const [ownerKey, setOwnerKey] = useState("");
+  // Franchise first: nearly every order belongs to one, and a collection-wide
+  // order is the rarer case.
+  const [ownerType, setOwnerType] = useState("franchise");
+  const [ownerId, setOwnerId] = useState(null);
   const [name, setName] = useState("");
+
+  // ComboBox matches on searchText when present, so every name variant is
+  // typeable, not just the one displayed.
+  const items = useMemo(() => {
+    const source =
+      ownerType === "franchise" ? owners.franchises : owners.collections;
+    const prefix = ownerType === "franchise" ? "franchise" : "collection";
+    return source.map((o) => ({
+      id: o.system_id,
+      label: getDisplayName(o, ownerType),
+      searchText: [
+        o[`${prefix}_name_cn`],
+        o[`${prefix}_name_en`],
+        o[`${prefix}_name_alt`],
+        o[`${prefix}_name_roman`],
+        o[`${prefix}_name_jp`],
+      ]
+        .filter(Boolean)
+        .join(" "),
+    }));
+  }, [owners, ownerType]);
+
+  function switchType(type) {
+    if (type === ownerType) return;
+    setOwnerType(type);
+    // The previous pick belongs to the other tier and cannot carry over.
+    setOwnerId(null);
+  }
 
   function submit(e) {
     e.preventDefault();
-    if (!ownerKey || !name.trim()) return;
-    const [type, id] = ownerKey.split(":");
+    if (!ownerId || !name.trim()) return;
     onCreate({
       list_name: name.trim(),
-      ...(type === "franchise" ? { franchise_id: id } : { collection_id: id }),
+      ...(ownerType === "franchise"
+        ? { franchise_id: ownerId }
+        : { collection_id: ownerId }),
     });
     setName("");
   }
@@ -35,27 +68,39 @@ function NewOrderForm({ owners, onCreate, busy }) {
       <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
         New order
       </p>
-      <select
-        value={ownerKey}
-        onChange={(e) => setOwnerKey(e.target.value)}
-        className="border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
-      >
-        <option value="">Choose an owner…</option>
-        <optgroup label="Franchises">
-          {owners.franchises.map((f) => (
-            <option key={f.system_id} value={`franchise:${f.system_id}`}>
-              {getDisplayName(f, "franchise")}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Collections">
-          {owners.collections.map((c) => (
-            <option key={c.system_id} value={`collection:${c.system_id}`}>
-              {getDisplayName(c, "collection")}
-            </option>
-          ))}
-        </optgroup>
-      </select>
+
+      <div className="flex gap-1 p-0.5 rounded-lg bg-gray-200/70">
+        {[
+          ["franchise", "Franchise"],
+          ["collection", "Collection"],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => switchType(value)}
+            className={`flex-1 rounded-md px-2 py-1.5 text-xs font-black transition-colors ${
+              ownerType === value
+                ? "bg-white text-brand shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <ComboBox
+        items={items}
+        selectedId={ownerId}
+        onSelect={(id) => setOwnerId(id)}
+        onClear={() => setOwnerId(null)}
+        placeholder={
+          ownerType === "franchise"
+            ? "Search franchises…"
+            : "Search collections…"
+        }
+      />
+
       <input
         type="text"
         value={name}
@@ -65,7 +110,7 @@ function NewOrderForm({ owners, onCreate, busy }) {
       />
       <button
         type="submit"
-        disabled={busy || !ownerKey || !name.trim()}
+        disabled={busy || !ownerId || !name.trim()}
         className="bg-brand text-white rounded-lg px-3 py-2 text-xs font-black disabled:opacity-40"
       >
         <i className="fas fa-plus mr-1"></i>Create
@@ -97,12 +142,19 @@ export default function WatchOrders() {
   useEffect(() => {
     // Owner names come from the franchise and collection lists, which the
     // grouping headers and the new-order picker both need.
+    // limit=2000 (the endpoint's ceiling), not the default 500: there are
+    // already ~600 franchises, and a truncated list would silently hide owners
+    // from the picker and render their orders as "Unknown franchise".
     Promise.all([
       loadLists(),
-      fetch(endpoints.resource("franchise").list(), { credentials: "include" })
+      fetch(buildUrl(endpoints.resource("franchise").list(), { limit: 2000 }), {
+        credentials: "include",
+      })
         .then((r) => (r.ok ? r.json() : []))
         .then(setFranchises),
-      fetch(endpoints.resource("collection").list(), { credentials: "include" })
+      fetch(buildUrl(endpoints.resource("collection").list(), { limit: 2000 }), {
+        credentials: "include",
+      })
         .then((r) => (r.ok ? r.json() : []))
         .then(setCollections),
     ]).finally(() => setLoading(false));
