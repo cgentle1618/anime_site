@@ -292,45 +292,96 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
     }
   }
 
+  /*
+   * Every handler below folds the server's response into local state instead of
+   * calling loadList(). Refetching flipped `loading` back on, which replaced
+   * the whole editor with a one-line spinner - the page collapsed, the browser
+   * scrolled to the top, and the entry picker lost whatever was typed in it.
+   * loadList() now runs only on mount and to recover from a failed write.
+   */
+
   async function patchList(patch) {
     try {
-      await send(endpoints.watchOrder.patchList(listId), "PATCH", patch);
-      loadList();
+      const res = await send(
+        endpoints.watchOrder.patchList(listId),
+        "PATCH",
+        patch
+      );
+      const updated = await res.json();
+      // The response carries no items, so keep the ones already in hand.
+      setList((prev) => ({ ...prev, ...updated, items: prev.items }));
       onListChanged?.();
     } catch (e) {
       showToast("error", e.message);
+      loadList();
     }
   }
 
   async function addItem(candidate) {
     try {
-      await send(endpoints.watchOrder.createItem(listId), "POST", {
+      const res = await send(endpoints.watchOrder.createItem(listId), "POST", {
         media_type: candidate.media_type,
         entry_id: candidate.entry_id,
       });
-      loadList();
+      const created = await res.json();
+      // The create response holds no display data, but the picked candidate
+      // does - and in the same shape the resolver returns - so the new row can
+      // be appended fully formed rather than fetched back.
+      const resolved = {
+        ...created,
+        missing: false,
+        display_name: candidate.display_name,
+        cover_image_file: candidate.cover_image_file,
+        franchise_id: candidate.franchise_id,
+        status: candidate.status ?? null,
+        total_episodes: candidate.total_episodes ?? null,
+      };
+      setList((prev) => ({
+        ...prev,
+        items: [...prev.items, resolved],
+        item_count: (prev.item_count ?? prev.items.length) + 1,
+      }));
       onListChanged?.();
     } catch (e) {
       showToast("error", e.message);
+      loadList();
     }
   }
 
   async function patchItem(itemId, patch) {
     try {
-      await send(endpoints.watchOrder.patchItem(itemId), "PATCH", patch);
-      loadList();
+      const res = await send(
+        endpoints.watchOrder.patchItem(itemId),
+        "PATCH",
+        patch
+      );
+      const updated = await res.json();
+      setList((prev) => ({
+        ...prev,
+        items: prev.items.map((i) =>
+          // The response omits the resolved display fields entirely, so
+          // spreading it over the old item leaves them intact.
+          i.system_id === itemId ? { ...i, ...updated } : i
+        ),
+      }));
     } catch (e) {
       showToast("error", e.message);
+      loadList();
     }
   }
 
   async function removeItem(itemId) {
     try {
       await send(endpoints.watchOrder.removeItem(itemId), "DELETE");
-      loadList();
+      setList((prev) => ({
+        ...prev,
+        items: prev.items.filter((i) => i.system_id !== itemId),
+        item_count: Math.max((prev.item_count ?? prev.items.length) - 1, 0),
+      }));
       onListChanged?.();
     } catch (e) {
       showToast("error", e.message);
+      loadList();
     }
   }
 

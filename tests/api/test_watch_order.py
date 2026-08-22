@@ -204,6 +204,23 @@ class TestCandidates:
         ).json()
         assert [c["display_name"] for c in data] == ["Collected Anime"]
 
+    def test_candidate_carries_the_fields_a_row_needs(
+        self, client, sample_franchise, sample_anime
+    ):
+        """
+        The editor appends a picked candidate straight into its local list, so
+        the payload must match the resolver's shape - a missing field would
+        render the new row blank until a reload.
+        """
+        data = client.get(
+            f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
+        ).json()
+        anime = next(c for c in data if c["media_type"] == "anime")
+        assert anime["display_name"] == "Test Anime"
+        assert anime["status"] == "Completed"
+        assert anime["total_episodes"] == 12
+        assert anime["franchise_id"] == str(sample_franchise.system_id)
+
     def test_candidates_exclude_other_franchises(
         self, client, sample_anime, sample_franchise
     ):

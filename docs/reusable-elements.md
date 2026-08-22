@@ -1150,6 +1150,15 @@ on blur, not per keystroke; reorder commits the full id sequence through
 `PUT /lists/{id}/reorder` and is applied locally first so a dragged row does not
 snap back mid-request.
 
+**Every write folds the response into local state rather than refetching.** An
+earlier version called `loadList()` after each mutation, which flipped `loading`
+back on and replaced the whole editor with a one-line spinner — the page
+collapsed, the browser jumped to the top, and the entry picker lost whatever was
+typed in it. `loadList()` now runs only on mount and to recover from a failed
+write. This is why `WatchOrderCandidate` carries `status` and `total_episodes`:
+the create response holds no display data, so a newly added row is assembled
+from the picked candidate, which is already in the resolver's shape.
+
 ---
 
 ## Other

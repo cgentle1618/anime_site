@@ -169,6 +169,9 @@ def list_candidate_entries(
                     "display_name": row.display_name,
                     "cover_image_file": row.cover_image_file,
                     "franchise_id": row.franchise_id,
+                    # Same shape the resolver returns, so the admin editor can
+                    # append a picked entry to its local list without refetching.
+                    "status": getattr(row, _STATUS_FIELDS[media_type], None),
                     "total_episodes": int(total) if total is not None else None,
                 }
             )

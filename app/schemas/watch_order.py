@@ -107,6 +107,7 @@ class WatchOrderCandidate(BaseModel):
     display_name: Optional[str] = None
     cover_image_file: Optional[str] = None
     franchise_id: Optional[UUID] = None
+    status: Optional[str] = None
     total_episodes: Optional[int] = None
 
 
