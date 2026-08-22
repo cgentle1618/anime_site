@@ -96,6 +96,11 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
             name_cn = getattr(entry, "option_value", None)
             category = getattr(entry, "category", None)
 
+        elif entry_type == "Collection":
+            name_cn = _cn(entry, "collection")
+            if _has_cn(entry, "collection"):
+                name_en = _en(entry, "collection")
+
         elif entry_type == "Franchise":
             name_cn = _cn(entry, "franchise")
             if _has_cn(entry, "franchise"):

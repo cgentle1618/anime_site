@@ -22,6 +22,7 @@ from app import models
 from app.routers import (
     auth,
     options,
+    collection,
     franchise,
     series,
     anime,
@@ -129,6 +130,7 @@ if FRONTEND_DIST.exists():
 app.include_router(auth.router)
 
 app.include_router(options.router)
+app.include_router(collection.router)
 app.include_router(franchise.router)
 app.include_router(series.router)
 app.include_router(anime.router)

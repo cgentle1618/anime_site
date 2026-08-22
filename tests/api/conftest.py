@@ -113,6 +113,32 @@ def admin_client(db_session):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
+def sample_collection(db_session):
+    c = models.Collection(
+        system_id=uuid.uuid4(),
+        collection_name_en="Test Collection",
+        collection_name_cn="測試合集",
+    )
+    db_session.add(c)
+    db_session.flush()
+    return c
+
+
+@pytest.fixture
+def sample_collected_franchise(db_session, sample_collection):
+    """A franchise that belongs to sample_collection."""
+    f = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_type="Anime",
+        franchise_name_en="Collected Franchise",
+        collection_id=sample_collection.system_id,
+    )
+    db_session.add(f)
+    db_session.flush()
+    return f
+
+
+@pytest.fixture
 def sample_franchise(db_session):
     f = models.Franchise(
         system_id=uuid.uuid4(),

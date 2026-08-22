@@ -32,6 +32,7 @@ router = APIRouter(prefix="/api/franchise", tags=["Franchise Management"])
     "/", response_model=List[schemas.FranchiseResponse], summary="Get All Franchises"
 )
 def get_all_franchises(
+    collection_id: Optional[str] = None,
     search_query: Optional[str] = None,
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
@@ -39,10 +40,15 @@ def get_all_franchises(
 ):
     """
     Retrieves all high-level Franchises from the database.
-    If 'search_query' is provided, it intelligently searches across EN, CN, roman, JP, and Alt names.
+    - If 'collection_id' is provided, filters strictly to that parent collection.
+      Used by the Collection hub to list its member franchises.
+    - If 'search_query' is provided, it intelligently searches across EN, CN, roman, JP, and Alt names.
     Used by the frontend to populate autocomplete search dropdowns.
     """
     query = db.query(models.Franchise)
+
+    if collection_id:
+        query = query.filter(models.Franchise.collection_id == collection_id)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -89,18 +95,14 @@ def create_franchise(
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
     try:
+        # Build from the validated payload rather than field-by-field. The previous
+        # explicit form silently dropped cover_entry_id, type_covers, type_slots,
+        # watch_next_group and to_rewatch on every create.
         # Explicitly assign UUID and Timestamps in Python to bypass missing database default constraints
+        data = payload.model_dump(exclude_unset=True)
         new_franchise = models.Franchise(
+            **data,
             system_id=uuid.uuid4(),
-            franchise_type=payload.franchise_type,
-            franchise_name_en=payload.franchise_name_en,
-            franchise_name_cn=payload.franchise_name_cn,
-            franchise_name_roman=payload.franchise_name_roman,
-            franchise_name_jp=payload.franchise_name_jp,
-            franchise_name_alt=payload.franchise_name_alt,
-            my_rating=payload.my_rating,
-            franchise_expectation=payload.franchise_expectation,
-            remark=payload.remark,
             created_at=get_taipei_now(),
             updated_at=get_taipei_now(),
         )
@@ -136,7 +138,7 @@ def update_franchise(
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
-    update_data = payload.dict(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
 

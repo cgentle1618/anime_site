@@ -26,6 +26,13 @@ from app.schemas.system import (
     DataControlLogResponse,
     DeletedRecordResponse,
 )
+from app.schemas.collection import (
+    CollectionBase,
+    CollectionCreate,
+    CollectionUpdate,
+    CollectionResponse,
+    CollectionSheetSync,
+)
 from app.schemas.franchise import (
     FranchiseBase,
     FranchiseCreate,
@@ -109,6 +116,11 @@ __all__ = [
     "CurrentSeasonUpdate",
     "DataControlLogResponse",
     "DeletedRecordResponse",
+    "CollectionBase",
+    "CollectionCreate",
+    "CollectionUpdate",
+    "CollectionResponse",
+    "CollectionSheetSync",
     "FranchiseBase",
     "FranchiseCreate",
     "FranchiseUpdate",

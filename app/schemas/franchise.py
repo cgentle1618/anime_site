@@ -22,6 +22,7 @@ class FranchiseBase(BaseModel):
     watch_next_group: Optional[str] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
+    collection_id: Optional[UUID] = None
 
 
 class FranchiseCreate(FranchiseBase):
