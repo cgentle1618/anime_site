@@ -145,6 +145,36 @@ class TestGetWatchOrderDetail:
         assert (anime_steps[0]["ep_start"], anime_steps[0]["ep_end"]) == (1, 10)
         assert (anime_steps[1]["ep_start"], anime_steps[1]["ep_end"]) == (11, 12)
 
+    def test_ep_special_is_resolved_onto_the_step(
+        self, client, db_session, sample_franchise, sample_list
+    ):
+        """ep_special 0 is a real episode number, not an absent value."""
+        anime = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Episode Zero",
+            airing_type="Special",
+            watching_status="Completed",
+            ep_special=0,
+        )
+        db_session.add(anime)
+        db_session.flush()
+        db_session.add(
+            models.WatchOrderItem(
+                system_id=uuid.uuid4(),
+                list_id=sample_list.system_id,
+                position=1.0,
+                media_type="anime",
+                entry_id=anime.system_id,
+            )
+        )
+        db_session.flush()
+
+        items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
+            "items"
+        ]
+        assert items[0]["ep_special"] == 0
+
     def test_optional_flag_and_note_survive(self, client, sample_list, sample_items):
         items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
             "items"
@@ -220,6 +250,27 @@ class TestCandidates:
         assert anime["status"] == "Completed"
         assert anime["total_episodes"] == 12
         assert anime["franchise_id"] == str(sample_franchise.system_id)
+
+    def test_candidate_carries_ep_special(
+        self, client, db_session, sample_franchise
+    ):
+        db_session.add(
+            models.Anime(
+                system_id=uuid.uuid4(),
+                franchise_id=sample_franchise.system_id,
+                anime_name_en="Special Episode",
+                airing_type="Special",
+                watching_status="Completed",
+                ep_special=14.5,
+            )
+        )
+        db_session.flush()
+
+        data = client.get(
+            f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
+        ).json()
+        special = next(c for c in data if c["display_name"] == "Special Episode")
+        assert special["ep_special"] == 14.5
 
     def test_candidates_exclude_other_franchises(
         self, client, sample_anime, sample_franchise

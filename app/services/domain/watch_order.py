@@ -72,6 +72,10 @@ def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
         "status": getattr(entry, _STATUS_FIELDS[media_type], None),
         # Float on novel, Integer elsewhere; the schema wants an int.
         "total_episodes": int(total) if total is not None else None,
+        # Anime only - the episode number a special sits at (0, 14.5), not a
+        # count. Left as a float: 14.5 is the point of the field. Every other
+        # media type simply has no such column.
+        "ep_special": getattr(entry, "ep_special", None),
     }
 
 
@@ -82,6 +86,7 @@ _MISSING_PAYLOAD = {
     "franchise_id": None,
     "status": None,
     "total_episodes": None,
+    "ep_special": None,
 }
 
 
@@ -173,6 +178,7 @@ def list_candidate_entries(
                     # append a picked entry to its local list without refetching.
                     "status": getattr(row, _STATUS_FIELDS[media_type], None),
                     "total_episodes": int(total) if total is not None else None,
+                    "ep_special": getattr(row, "ep_special", None),
                 }
             )
 

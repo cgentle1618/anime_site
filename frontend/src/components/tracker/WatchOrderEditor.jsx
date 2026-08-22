@@ -9,6 +9,7 @@ import { buildUrl, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { specialLabel } from "./WatchOrderGuide";
 
 const LIST_TYPES = ["Custom", "Chronological", "Release", "Recommended"];
 
@@ -86,6 +87,7 @@ function ItemRow({
               <p className="text-[11px] font-bold text-gray-400">
                 {TYPE_LABELS[item.media_type] || item.media_type}
                 {item.total_episodes != null && ` · ${item.total_episodes} total`}
+                {specialLabel(item) && ` · ${specialLabel(item)}`}
               </p>
             </div>
           </>
@@ -335,6 +337,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         franchise_id: candidate.franchise_id,
         status: candidate.status ?? null,
         total_episodes: candidate.total_episodes ?? null,
+        ep_special: candidate.ep_special ?? null,
       };
       setList((prev) => ({
         ...prev,

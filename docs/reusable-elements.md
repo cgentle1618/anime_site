@@ -1122,7 +1122,11 @@ Guests see it too, so nothing in it writes.
 Each step shows a position badge, poster, title, an episode-range label
 (`Ep 1–10`, `Ch 1–40` for manga/novel), an Optional badge, the media type, the
 entry's watch/read status pill, and the per-step note, linking to the entry's
-detail page via `MEDIA_CONFIG[media_type].navPath`. Status colors come from
+detail page via `MEDIA_CONFIG[media_type].navPath`. Anime carrying an
+`ep_special` also get an `Ep. Special 14.5` badge — the episode number the
+special sits at, not a count. `specialLabel()` is exported from this file and
+reused by the editor; it tests `!= null`, since `0` (第零集) is a real value a
+truthiness check would silently drop. Status colors come from
 `getCardStatusConfig(type, status)` rather than `getStatusStyle` — reading
 statuses have no entry in the watching style map. A "Hide optional" toggle
 appears when any step is optional, and numbering follows the *visible* rows, so

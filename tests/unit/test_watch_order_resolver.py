@@ -62,7 +62,7 @@ def make_item(media_type, entry_id, **overrides):
     return SimpleNamespace(**data)
 
 
-def make_anime(entry_id, name="Some Anime", ep_total=12):
+def make_anime(entry_id, name="Some Anime", ep_total=12, ep_special=None):
     return SimpleNamespace(
         system_id=entry_id,
         display_name=name,
@@ -70,6 +70,7 @@ def make_anime(entry_id, name="Some Anime", ep_total=12):
         franchise_id=uuid.uuid4(),
         watching_status="Completed",
         ep_total=ep_total,
+        ep_special=ep_special,
     )
 
 
@@ -240,6 +241,44 @@ class TestResolveItems:
             "second",
             "third",
         ]
+
+
+class TestEpSpecial:
+    """
+    ep_special is the episode number a special sits at (0, 14.5), not a count,
+    and only anime has the column.
+    """
+
+    def _resolve(self, entry, entry_id, media_type="anime"):
+        db = FakeSession({MEDIA_TYPE_MODELS[media_type]: [entry]})
+        return resolve_items(db, [make_item(media_type, entry_id)])[0]
+
+    def test_value_is_surfaced(self):
+        entry_id = uuid.uuid4()
+        result = self._resolve(make_anime(entry_id, ep_special=14.5), entry_id)
+        assert result["ep_special"] == 14.5
+
+    def test_zero_survives(self):
+        """A falsiness check would drop episode 0, which is a real value."""
+        entry_id = uuid.uuid4()
+        result = self._resolve(make_anime(entry_id, ep_special=0), entry_id)
+        assert result["ep_special"] == 0
+        assert result["ep_special"] is not None
+
+    def test_absent_value_is_none(self):
+        entry_id = uuid.uuid4()
+        result = self._resolve(make_anime(entry_id), entry_id)
+        assert result["ep_special"] is None
+
+    def test_types_without_the_column_report_none(self):
+        entry_id = uuid.uuid4()
+        result = self._resolve(make_manga(entry_id), entry_id, "manga")
+        assert result["ep_special"] is None
+
+    def test_missing_item_reports_none(self):
+        db = FakeSession({MEDIA_TYPE_MODELS["anime"]: []})
+        result = resolve_items(db, [make_item("anime", uuid.uuid4())])[0]
+        assert result["ep_special"] is None
 
 
 class TestMissingEntries:

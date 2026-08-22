@@ -220,7 +220,7 @@ per-entry `watch_order` Float column, which this router never touches.
 | -------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `search_query`, `limit` (≤2000), `offset`. Sorted default-first. |
 | `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data.                                                                                             |
-| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the seven media tables, in the resolver's shape (`display_name`, `cover_image_file`, `franchise_id`, `status`, `total_episodes`). Exactly one of `franchise_id` / `collection_id` required. |
+| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the seven media tables, in the resolver's shape (`display_name`, `cover_image_file`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. |
 | `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
 | `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`.                                                                                                         |
 | `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict.                                                                                                |
@@ -237,8 +237,8 @@ per-entry `watch_order` Float column, which this router never touches.
 
 **Item resolution.** `watch_order_item` stores only `(media_type, entry_id)` —
 no foreign key spans seven tables — so the detail endpoint enriches each item
-with `display_name`, `cover_image_file`, `franchise_id`, `status` and
-`total_episodes` via `app/services/domain/watch_order.py`. That runs one query
+with `display_name`, `cover_image_file`, `franchise_id`, `status`,
+`total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
 per media type present, never one per item. An item whose entry no longer
 exists comes back with `missing: true` rather than being dropped.
 

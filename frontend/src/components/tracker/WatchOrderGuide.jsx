@@ -34,6 +34,16 @@ function rangeLabel(item) {
     : `${unit} up to ${item.ep_end}`;
 }
 
+/**
+ * "Ep. Special 0", "Ep. Special 14.5" — the episode number a special sits at,
+ * not a count. 0 is a real value, so this tests for null rather than falsiness.
+ * Anime is the only type with the column.
+ */
+export function specialLabel(item) {
+  if (item.ep_special == null) return null;
+  return `Ep. Special ${item.ep_special}`;
+}
+
 function entryPath(item) {
   const navPath = MEDIA_CONFIG[item.media_type]?.navPath;
   return navPath ? `${navPath}/${item.entry_id}` : null;
@@ -41,6 +51,7 @@ function entryPath(item) {
 
 function StepRow({ item, index, roomy }) {
   const label = rangeLabel(item);
+  const special = specialLabel(item);
   const path = entryPath(item);
   // getCardStatusConfig, not getStatusStyle: reading statuses ("Active
   // Reading", "Might Read") have no entry in the watching style map and would
@@ -115,6 +126,11 @@ function StepRow({ item, index, roomy }) {
           {item.total_episodes != null && (
             <span className="text-[11px] font-medium text-gray-400">
               {item.total_episodes} total
+            </span>
+          )}
+          {special && (
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
+              {special}
             </span>
           )}
           {statusStyle && (
