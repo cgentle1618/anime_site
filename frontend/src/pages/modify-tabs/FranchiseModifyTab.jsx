@@ -6,6 +6,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ComboBox from "../../components/forms/ComboBox";
 
 const TYPE_TO_ENTRY_TYPES = {
   ACG: ["anime", "manga"],
@@ -37,6 +38,7 @@ export default function FranchiseModifyTab({
   allCartoons,
   allMangas,
   allNovels,
+  collectionItems,
   editingItem,
 }) {
   const franchiseId = editingItem?.system_id;
@@ -119,6 +121,26 @@ export default function FranchiseModifyTab({
       </div>
       <SectionHeader icon="fa-info-circle" title="Other Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Collection">
+          <ComboBox
+            items={collectionItems || []}
+            selectedId={ff.collection_id}
+            inputText={ff.collection_text}
+            onSelect={(id, label) => {
+              uf("collection_id", id);
+              uf("collection_text", label);
+            }}
+            onType={(text) => {
+              uf("collection_text", text);
+              uf("collection_id", null);
+            }}
+            onClear={() => {
+              uf("collection_id", null);
+              uf("collection_text", "");
+            }}
+            placeholder="Search collection (optional)..."
+          />
+        </Field>
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
             {["ACG", "Anime Movie", "TV", "Movie", "Cartoon", "Novel"].map(

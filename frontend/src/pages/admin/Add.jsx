@@ -9,6 +9,9 @@ import {
 } from "../../utils/media";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
+import CollectionAddTab, {
+  defaultCollection,
+} from "../add-tabs/CollectionAddTab";
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
@@ -33,6 +36,7 @@ export default function Add() {
   const { showToast } = useToast();
 
   const [allAnime, setAllAnime] = useState([]);
+  const [allCollections, setAllCollections] = useState([]);
   const [allFranchises, setAllFranchises] = useState([]);
   const [allSeries, setAllSeries] = useState([]);
   const [allOptions, setAllOptions] = useState([]);
@@ -92,6 +96,7 @@ export default function Add() {
 
   // Forms
   const [af, setAf] = useState(defaultAnime());
+  const [colf, setColf] = useState(defaultCollection());
   const [ff, setFf] = useState(defaultFranchise());
   const [sf, setSf] = useState(defaultSeries());
   const [amf, setAmf] = useState(defaultAnimeMovie());
@@ -104,6 +109,7 @@ export default function Add() {
   const [optValues, setOptValues] = useState([""]);
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
   const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
@@ -121,6 +127,7 @@ export default function Add() {
       try {
         const [
           aRes,
+          colRes,
           fRes,
           sRes,
           oRes,
@@ -132,6 +139,7 @@ export default function Add() {
           nvRes,
         ] = await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
+          fetch("/api/collection/?limit=2000", { credentials: "include" }),
           fetch("/api/franchise/?limit=2000", { credentials: "include" }),
           fetch("/api/series/?limit=2000", { credentials: "include" }),
           fetch("/api/options/", { credentials: "include" }),
@@ -147,6 +155,7 @@ export default function Add() {
         const fd = await fetchFormDefaults();
         const [
           anime,
+          collections,
           franchises,
           series,
           options,
@@ -158,6 +167,7 @@ export default function Add() {
           novels,
         ] = await Promise.all([
           aRes.json(),
+          colRes.json(),
           fRes.json(),
           sRes.json(),
           oRes.json(),
@@ -169,6 +179,7 @@ export default function Add() {
           nvRes.json(),
         ]);
         setAllAnime(anime);
+        setAllCollections(collections);
         setAllFranchises(franchises);
         setAllSeries(series);
         setAllOptions(options);
@@ -190,6 +201,7 @@ export default function Add() {
         setCf(resolveDefaults("cartoon", fd));
         setMgf(resolveDefaults("manga", fd));
         setNvf(resolveDefaults("novel", fd));
+        setColf(resolveDefaults("collection", fd));
         setFf(resolveDefaults("franchise", fd));
         setSf(resolveDefaults("series", fd));
       } catch {
@@ -363,7 +375,7 @@ export default function Add() {
       item,
       type,
       autofillFields(type, formDefaults),
-      { allFranchises, allSeries, defaults: freshForm(type) },
+      { allFranchises, allSeries, allCollections, defaults: freshForm(type) },
     );
     setter((p) => ({ ...p, ...patch }));
     setQuery("");
@@ -415,6 +427,7 @@ export default function Add() {
     setSubmitting(true);
     try {
       if (activeTab === "anime") await submitAnime();
+      else if (activeTab === "collection") await submitCollection();
       else if (activeTab === "franchise") await submitFranchise();
       else if (activeTab === "series") await submitSeries();
       else if (activeTab === "anime-movie") await submitAnimeMovie();
@@ -584,6 +597,48 @@ export default function Add() {
     setAllAnime((prev) => [...prev, created]);
   }
 
+  async function submitCollection() {
+    if (
+      !colf.collection_name_en &&
+      !colf.collection_name_cn &&
+      !colf.collection_name_roman &&
+      !colf.collection_name_jp &&
+      !colf.collection_name_alt
+    ) {
+      showToast("warning", "At least one Collection Name must be provided.");
+      return;
+    }
+    const res = await fetch("/api/collection/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection_name_en: colf.collection_name_en || null,
+        collection_name_cn: colf.collection_name_cn || null,
+        collection_name_roman: colf.collection_name_roman || null,
+        collection_name_jp: colf.collection_name_jp || null,
+        collection_name_alt: colf.collection_name_alt || null,
+        my_rating: colf.my_rating || null,
+        collection_expectation: colf.collection_expectation || null,
+        remark: colf.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      window.scrollTo(0, 0);
+      showToast("success", "Collection appended successfully.");
+      setLastAdded(
+        created.collection_name_cn ||
+          created.collection_name_en ||
+          "New Collection",
+      );
+      setColf(freshForm("collection"));
+      setAllCollections((prev) => [...prev, created]);
+    } else {
+      showToast("error", "Failed to create collection");
+    }
+  }
+
   async function submitFranchise() {
     if (
       !ff.franchise_name_en &&
@@ -605,6 +660,7 @@ export default function Add() {
         franchise_name_jp: ff.franchise_name_jp || null,
         franchise_name_alt: ff.franchise_name_alt || null,
         franchise_type: ff.franchise_type || null,
+        collection_id: ff.collection_id || null,
         my_rating: ff.my_rating || null,
         franchise_expectation: ff.franchise_expectation || null,
         remark: ff.remark || null,
@@ -1697,6 +1753,20 @@ export default function Add() {
     setAllNovels((prev) => [...prev, created]);
   }
 
+  const collectionItems = allCollections.map((c) => ({
+    id: c.system_id,
+    label: getDisplayName(c, "collection"),
+    searchText: [
+      c.collection_name_cn,
+      c.collection_name_en,
+      c.collection_name_jp,
+      c.collection_name_roman,
+      c.collection_name_alt,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
     label: getDisplayName(f, "franchise"),
@@ -1966,7 +2036,12 @@ export default function Add() {
         )}
 
         {/* ═══ FRANCHISE TAB ═══ */}
-        {activeTab === "franchise" && <FranchiseAddTab ff={ff} uf={uf} />}
+        {activeTab === "collection" && (
+          <CollectionAddTab cf={colf} uf={ucol} />
+        )}
+        {activeTab === "franchise" && (
+          <FranchiseAddTab ff={ff} uf={uf} collectionItems={collectionItems} />
+        )}
 
         {/* ═══ SERIES TAB ═══ */}
         {activeTab === "series" && (

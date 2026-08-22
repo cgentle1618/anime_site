@@ -16,6 +16,7 @@ import MangaNotes from "../detail/MangaNotes";
 import { selectCls } from "../../components/forms/FormField";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
+import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
 import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
 import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
 import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
@@ -126,8 +127,25 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
   };
 }
 
-function franchiseToForm(f) {
+function collectionToForm(c) {
   return {
+    collection_name_en: c.collection_name_en || "",
+    collection_name_cn: c.collection_name_cn || "",
+    collection_name_roman: c.collection_name_roman || "",
+    collection_name_jp: c.collection_name_jp || "",
+    collection_name_alt: c.collection_name_alt || "",
+    my_rating: c.my_rating || "",
+    collection_expectation: c.collection_expectation || "",
+    cover_franchise_id: c.cover_franchise_id ?? null,
+    remark: c.remark || "",
+  };
+}
+
+function franchiseToForm(f, allCollections = []) {
+  const c = allCollections.find((x) => x.system_id === f.collection_id);
+  return {
+    collection_id: f.collection_id ?? null,
+    collection_text: c ? getDisplayName(c, "collection") : "",
     franchise_name_en: f.franchise_name_en || "",
     franchise_name_cn: f.franchise_name_cn || "",
     franchise_name_roman: f.franchise_name_roman || "",
@@ -215,6 +233,7 @@ export default function Modify() {
   const [searchParams] = useSearchParams();
 
   const [allAnime, setAllAnime] = useState([]);
+  const [allCollections, setAllCollections] = useState([]);
   const [allFranchises, setAllFranchises] = useState([]);
   const [allSeries, setAllSeries] = useState([]);
   const [allOptions, setAllOptions] = useState([]);
@@ -241,6 +260,7 @@ export default function Modify() {
   const [franchiseCreateModal, setFranchiseCreateModal] = useState(null);
 
   const [af, setAf] = useState({});
+  const [colf, setColf] = useState({});
   const [ff, setFf] = useState({});
   const [sf, setSf] = useState({});
   const [amf, setAmf] = useState({});
@@ -258,6 +278,7 @@ export default function Modify() {
   const md = (type) => resolveDefaults(type, formDefaultsRef.current);
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
   const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
@@ -270,9 +291,22 @@ export default function Modify() {
   useEffect(() => {
     async function load() {
       try {
-        const [aRes, fRes, sRes, oRes, amRes, mvRes, tvRes, ctRes, mgRes, nvRes] =
+        const [
+          aRes,
+          colRes,
+          fRes,
+          sRes,
+          oRes,
+          amRes,
+          mvRes,
+          tvRes,
+          ctRes,
+          mgRes,
+          nvRes,
+        ] =
           await Promise.all([
             fetch("/api/anime/?limit=2000", { credentials: "include" }),
+            fetch("/api/collection/?limit=2000", { credentials: "include" }),
             fetch("/api/franchise/?limit=2000", { credentials: "include" }),
             fetch("/api/series/?limit=2000", { credentials: "include" }),
             fetch("/api/options/", { credentials: "include" }),
@@ -287,6 +321,7 @@ export default function Modify() {
         formDefaultsRef.current = await fetchFormDefaults();
         const [
           anime,
+          collections,
           franchises,
           series,
           options,
@@ -298,6 +333,7 @@ export default function Modify() {
           novels,
         ] = await Promise.all([
           aRes.json(),
+          colRes.json(),
           fRes.json(),
           sRes.json(),
           oRes.json(),
@@ -309,6 +345,7 @@ export default function Modify() {
           nvRes.json(),
         ]);
         setAllAnime(anime);
+        setAllCollections(collections);
         setAllFranchises(franchises);
         setAllSeries(series);
         setAllOptions(options);
@@ -367,9 +404,15 @@ export default function Modify() {
             openEditorWith(a, "anime", franchises, series);
             return;
           }
+          const col = collections.find((x) => x.system_id === urlId);
+          if (col) {
+            openEditorWith(col, "collection", franchises, series, collections);
+            setActiveTab("collection");
+            return;
+          }
           const f = franchises.find((x) => x.system_id === urlId);
           if (f) {
-            openEditorWith(f, "franchise", franchises, series);
+            openEditorWith(f, "franchise", franchises, series, collections);
             setActiveTab("franchise");
             return;
           }
@@ -670,11 +713,18 @@ export default function Modify() {
     };
   }
 
-  function openEditorWith(item, type, franchises, series) {
+  function openEditorWith(
+    item,
+    type,
+    franchises,
+    series,
+    collections = allCollections,
+  ) {
     setEditingItem(item);
     setEditingType(type);
     if (type === "anime") setAf(animeToForm(item, franchises, series, md("anime")));
-    else if (type === "franchise") setFf(franchiseToForm(item));
+    else if (type === "collection") setColf(collectionToForm(item));
+    else if (type === "franchise") setFf(franchiseToForm(item, collections));
     else if (type === "series") setSf(seriesToForm(item, franchises));
     else if (type === "anime-movie") setAmf(movieToForm(item, franchises, md("anime-movie")));
     else if (type === "movie")
@@ -706,6 +756,7 @@ export default function Modify() {
     setSubmitting(true);
     try {
       if (editingType === "anime") await saveAnime();
+      else if (editingType === "collection") await saveCollection();
       else if (editingType === "franchise") await saveFranchise();
       else if (editingType === "series") await saveSeries();
       else if (editingType === "anime-movie") await saveAnimeMovie();
@@ -830,6 +881,34 @@ export default function Modify() {
     showToast("success", "Update and enrichment successful.");
   }
 
+  async function saveCollection() {
+    const res = await fetch(`/api/collection/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection_name_en: colf.collection_name_en || null,
+        collection_name_cn: colf.collection_name_cn || null,
+        collection_name_roman: colf.collection_name_roman || null,
+        collection_name_jp: colf.collection_name_jp || null,
+        collection_name_alt: colf.collection_name_alt || null,
+        my_rating: colf.my_rating || null,
+        collection_expectation: colf.collection_expectation || null,
+        cover_franchise_id: colf.cover_franchise_id || null,
+        remark: colf.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setAllCollections((prev) =>
+        prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+      );
+      setEditingItem(updated);
+      window.scrollTo(0, 0);
+      showToast("success", "Update successful.");
+    } else showToast("error", "Update failed");
+  }
+
   async function saveFranchise() {
     const res = await fetch(`/api/franchise/${editingItem.system_id}`, {
       method: "PATCH",
@@ -841,6 +920,7 @@ export default function Modify() {
         franchise_name_jp: ff.franchise_name_jp || null,
         franchise_name_alt: ff.franchise_name_alt || null,
         franchise_type: ff.franchise_type || null,
+        collection_id: ff.collection_id || null,
         my_rating: ff.my_rating || null,
         franchise_expectation: ff.franchise_expectation || null,
         cover_entry_id: ff.cover_entry_id || null,
@@ -1809,6 +1889,8 @@ export default function Modify() {
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
+    if (type === "collection")
+      return item.collection_name_cn || item.collection_name_en || "Unknown";
     if (type === "franchise")
       return item.franchise_name_cn || item.franchise_name_en || "Unknown";
     if (type === "series")
@@ -1862,6 +1944,18 @@ export default function Modify() {
             a.anime_name_roman,
             a.anime_name_jp,
             a.anime_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "collection")
+      return allCollections
+        .filter((c) =>
+          [
+            c.collection_name_en,
+            c.collection_name_cn,
+            c.collection_name_roman,
+            c.collection_name_jp,
+            c.collection_name_alt,
           ].some((n) => n && cleanString(n).includes(q)),
         )
         .slice(0, 10);
@@ -1958,6 +2052,8 @@ export default function Modify() {
     const sort = (a, b) =>
       new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
     if (activeTab === "anime") return [...allAnime].sort(sort).slice(0, 12);
+    if (activeTab === "collection")
+      return [...allCollections].sort(sort).slice(0, 12);
     if (activeTab === "franchise")
       return [...allFranchises].sort(sort).slice(0, 12);
     if (activeTab === "series") return [...allSeries].sort(sort).slice(0, 12);
@@ -2142,6 +2238,20 @@ export default function Modify() {
       </div>
     );
   })();
+
+  const collectionItems = allCollections.map((c) => ({
+    id: c.system_id,
+    label: getDisplayName(c, "collection"),
+    searchText: [
+      c.collection_name_cn,
+      c.collection_name_en,
+      c.collection_name_jp,
+      c.collection_name_roman,
+      c.collection_name_alt,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  }));
 
   const franchiseItems = allFranchises.map((f) => ({
     id: f.system_id,
@@ -2773,11 +2883,22 @@ export default function Modify() {
               />
             )}
 
+            {/* ── COLLECTION EDITOR ── */}
+            {editingType === "collection" && (
+              <CollectionModifyTab
+                cf={colf}
+                uf={ucol}
+                allFranchises={allFranchises}
+                editingItem={editingItem}
+              />
+            )}
+
             {/* ── FRANCHISE EDITOR ── */}
             {editingType === "franchise" && (
               <FranchiseModifyTab
                 ff={ff}
                 uf={uf}
+                collectionItems={collectionItems}
                 allAnime={allAnime}
                 allAnimeMovies={allAnimeMovies}
                 allMovies={allMovies}

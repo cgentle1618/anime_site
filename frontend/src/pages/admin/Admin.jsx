@@ -2052,6 +2052,7 @@ export default function Admin() {
                   <option value="Cartoons">Cartoon</option>
                   <option value="Manga">Manga</option>
                   <option value="Novel">Novel</option>
+                  <option value="Collection">Collection</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
                   <option value="System Options">Options</option>

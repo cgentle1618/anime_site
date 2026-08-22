@@ -11,6 +11,7 @@ const TABS = [
   "cartoon",
   "manga",
   "novel",
+  "collection",
   "franchise",
   "series",
   "options",
@@ -69,6 +70,13 @@ function getDisplayTitle(item, type) {
       item.novel_name_roman ||
       item.novel_name_jp ||
       item.novel_name_alt ||
+      "Unknown"
+    );
+  if (type === "collection")
+    return (
+      item.collection_name_cn ||
+      item.collection_name_en ||
+      item.collection_name_roman ||
       "Unknown"
     );
   if (type === "franchise")
@@ -159,6 +167,7 @@ export default function Delete() {
     cartoon: [],
     manga: [],
     novel: [],
+    collection: [],
     franchise: [],
     series: [],
     options: [],
@@ -185,9 +194,22 @@ export default function Delete() {
 
   const loadDb = useCallback(async () => {
     try {
-      const [aRes, fRes, sRes, oRes, amRes, mRes, tvRes, ctRes, mgRes, nvRes] =
+      const [
+        aRes,
+        colRes,
+        fRes,
+        sRes,
+        oRes,
+        amRes,
+        mRes,
+        tvRes,
+        ctRes,
+        mgRes,
+        nvRes,
+      ] =
         await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
+          fetch("/api/collection/", { credentials: "include" }),
           fetch("/api/franchise/", { credentials: "include" }),
           fetch("/api/series/", { credentials: "include" }),
           fetch("/api/options/", { credentials: "include" }),
@@ -198,8 +220,9 @@ export default function Delete() {
           fetch("/api/manga/", { credentials: "include" }),
           fetch("/api/novel/", { credentials: "include" }),
         ]);
-      const [a, f, s, o, am, mv, tv, ct, mg, nv] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv] = await Promise.all([
         aRes.json(),
+        colRes.json(),
         fRes.json(),
         sRes.json(),
         oRes.json(),
@@ -218,6 +241,7 @@ export default function Delete() {
         cartoon: ct,
         manga: mg,
         novel: nv,
+        collection: col,
         franchise: f,
         series: s,
         options: o,
@@ -1534,6 +1558,25 @@ export default function Delete() {
             </div>
 
             <div className="space-y-3 mb-5">
+              {/* Collections never cascade: members simply become uncollected. */}
+              {modal.type === "collection" && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  <div className="text-xs font-bold text-blue-800">
+                    <i className="fas fa-info-circle mr-1"></i> Member
+                    franchises are NOT deleted
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1">
+                    {
+                      db.franchise.filter(
+                        (f) => f.collection_id === modal.item.system_id,
+                      ).length
+                    }{" "}
+                    franchise(s) will simply become uncollected. Their entries
+                    are untouched.
+                  </div>
+                </div>
+              )}
+
               {/* Cascade option for franchise */}
               {modal.type === "franchise" &&
                 (db.series.filter(

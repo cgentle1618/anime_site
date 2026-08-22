@@ -6,6 +6,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ComboBox from "../../components/forms/ComboBox";
 import {
   FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
@@ -14,7 +15,7 @@ import {
 
 export { defaultFranchise } from "../../config/formFactories";
 
-export default function FranchiseAddTab({ ff, uf }) {
+export default function FranchiseAddTab({ ff, uf, collectionItems }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-sitemap" title="Titles & Naming" />
@@ -59,6 +60,26 @@ export default function FranchiseAddTab({ ff, uf }) {
 
       <SectionHeader icon="fa-info-circle" title="Other Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Collection">
+          <ComboBox
+            items={collectionItems || []}
+            selectedId={ff.collection_id}
+            inputText={ff.collection_text}
+            onSelect={(id, label) => {
+              uf("collection_id", id);
+              uf("collection_text", label);
+            }}
+            onType={(text) => {
+              uf("collection_text", text);
+              uf("collection_id", null);
+            }}
+            onClear={() => {
+              uf("collection_id", null);
+              uf("collection_text", "");
+            }}
+            placeholder="Search collection (optional)..."
+          />
+        </Field>
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
             {FRANCHISE_TYPES.map(
