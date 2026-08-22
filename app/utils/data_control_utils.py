@@ -122,6 +122,26 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 )
                 franchise_cn = _cn(c, "collection")
 
+        elif entry_type == "Quote":
+            # A quote has no name of its own, so the text stands in for one.
+            # The entry it came from is resolved through media_resolver, since
+            # entry_id is FK-less and may point at any of the seven tables.
+            from app.utils.media_resolver import MEDIA_TABLES
+
+            text = (getattr(entry, "text", None) or "").strip()
+            name_cn = (text[:80] + "...") if len(text) > 80 else (text or None)
+            name_en = getattr(entry, "speaker", None)
+            category = getattr(entry, "kind", None)
+            ref = MEDIA_TABLES.get(getattr(entry, "media_type", None) or "")
+            if ref and getattr(entry, "entry_id", None):
+                src = (
+                    db.query(ref.model)
+                    .filter(ref.model.system_id == entry.entry_id)
+                    .first()
+                )
+                if src:
+                    franchise_cn = src.display_name
+
         elif entry_type == "Franchise":
             name_cn = _cn(entry, "franchise")
             if _has_cn(entry, "franchise"):

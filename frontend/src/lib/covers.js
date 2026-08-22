@@ -6,14 +6,28 @@ const FALLBACK_SVG = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://ww
 
 export { FALLBACK_SVG };
 
+export function isLocalHost() {
+  return (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+  );
+}
+
 export function getCoverUrl(coverFile) {
   if (!coverFile || coverFile === "N/A") return FALLBACK_SVG;
-  const isLocal =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
-  return isLocal
+  return isLocalHost()
     ? `/static/covers/${coverFile}`
     : `https://storage.googleapis.com/${BUCKET_NAME}/${coverFile}`;
+}
+
+// Quote images live on local disk under static/quotes/, not in the bucket.
+// Cloud Run's filesystem is ephemeral, so anything uploaded there would vanish
+// on restart - returning null off localhost is what hides every image control
+// in production. Callers just check for null.
+export function getQuoteImageUrl(imageFile) {
+  if (!imageFile || imageFile === "N/A") return null;
+  if (!isLocalHost()) return null;
+  return `/static/quotes/${imageFile}`;
 }
 
 // ---------------------------------------------------------------------------

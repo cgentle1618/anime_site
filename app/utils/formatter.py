@@ -640,3 +640,36 @@ def parse_seasonal_from_sheet(raw: dict) -> dict:
         "entry_watching": parse_from_sheet(raw.get("entry_watching"), int),
         "entry_dropped": parse_from_sheet(raw.get("entry_dropped"), int),
     }
+
+
+def parse_quote_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Quote sheet into typed data ready for the
+    Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        # entry_id has no foreign key - it points at whichever media table
+        # media_type names - and unlike the media tabs there is no
+        # name-resolution step for it in Pull, so an unparseable cell becomes
+        # None and the quote shows up on the page as unlinked.
+        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "kind": parse_from_sheet(raw.get("kind"), str),
+        "text": parse_from_sheet(raw.get("text"), str),
+        "translation": parse_from_sheet(raw.get("translation"), str),
+        "language": parse_from_sheet(raw.get("language"), str),
+        "speaker": parse_from_sheet(raw.get("speaker"), str),
+        "original_source": parse_from_sheet(raw.get("original_source"), str),
+        "episode": parse_from_sheet(raw.get("episode"), str),
+        "link": parse_from_sheet(raw.get("link"), str),
+        "image_file": parse_from_sheet(raw.get("image_file"), str),
+        "tags": _safe_json(raw.get("tags")),
+        "is_general": parse_from_sheet(raw.get("is_general"), bool),
+        "is_favorite": parse_from_sheet(raw.get("is_favorite"), bool),
+        "needs_review": parse_from_sheet(raw.get("needs_review"), bool),
+        "sort_index": parse_from_sheet(raw.get("sort_index"), float),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }

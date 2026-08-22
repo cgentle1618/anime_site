@@ -28,6 +28,7 @@ import SeasonalOverall from "./pages/public/SeasonalOverall";
 import Statistics from "./pages/public/Statistics";
 import FutureReleases from "./pages/public/FutureReleases";
 import Completions from "./pages/public/Completions";
+import Quotes from "./pages/public/Quotes";
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
@@ -112,6 +113,7 @@ export default function App() {
                 />
                 <Route path="/statistics" element={<Statistics />} />
                 <Route path="/completions" element={<Completions />} />
+                <Route path="/quote" element={<Quotes />} />
                 <Route path="/plan" element={<Plan />} />
                 <Route
                   path="/under-development"

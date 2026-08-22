@@ -257,6 +257,36 @@ exists comes back with `missing: true` rather than being dropped.
 
 ---
 
+## Quote — `/api/quote`
+
+Memorable lines and memes attached to a media entry. Reads are public; every
+write is admin-only.
+
+| Method   | Path            | Auth   | Description                                                                                                                                                                                    |
+| -------- | --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`             | Public | List quotes. Optional params: `media_type`, `entry_id`, `kind`, `is_general`, `is_favorite`, `needs_review`, `tag`, `search_query`, `limit` (≤2000), `offset`. Newest first.                     |
+| `GET`    | `/grouped`      | Public | The Quote page feed: quotes bucketed by entry, each bucket carrying its resolved entry header. Same filters minus `entry_id`. Named entries sort first; unresolvable ones sink to the bottom.    |
+| `GET`    | `/{quote_id}`   | Public | One quote with its entry's display data.                                                                                                                                                        |
+| `POST`   | `/`             | Admin  | Create. Body: `QuoteCreate`. 400 on an unknown `media_type`.                                                                                                                                    |
+| `PUT`    | `/{quote_id}`   | Admin  | Full update. Body: `QuoteUpdate`.                                                                                                                                                               |
+| `PATCH`  | `/{quote_id}`   | Admin  | Partial update (inline edits, favorite toggle). Body: raw JSON dict.                                                                                                                            |
+| `DELETE` | `/{quote_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Quote". `image_file` is left alone — quote images are hand-managed local files.                                                                        |
+
+**Response models:** `QuoteResponse`, `QuoteResolved` (adds `missing`,
+`entry_display_name`, `cover_image_file`, `franchise_id`, `entry_nav_path`),
+`QuoteGroup` (an entry header plus its `quotes`).
+
+**Entry resolution.** `quote` stores only `(media_type, entry_id)` — no foreign
+key spans seven tables — so every read enriches rows through
+`app/utils/media_resolver.py`. That issues one query per media type present,
+never one per quote. A quote whose entry no longer exists comes back with
+`missing: true` rather than being dropped, so the dangling row stays fixable.
+
+`search_query` searches `text`, `translation`, `speaker`, and `original_source`.
+`tag` uses JSONB containment against the `tags` list.
+
+---
+
 ## Seasonal — `/api/seasonal`
 
 | Method  | Path              | Auth   | Description                                                                                         |

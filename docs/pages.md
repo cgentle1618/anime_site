@@ -34,6 +34,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/plan`                   | `Plan`                                             | Public     |
 | `/statistics`             | `Statistics`                                       | Public     |
 | `/completions`            | `Completions`                                      | Public     |
+| `/quote`                  | `Quotes`                                           | Public     |
 | `/under-development`      | `UnderDevelopment`                                 | Public     |
 | `/system`                 | `Admin`                                            | Admin only |
 | `/data-history`           | `DataHistory`                                      | Admin only |
@@ -1141,6 +1142,38 @@ Reads `?q` and `?scope` query params. Client-side filtering over full data fetch
 **File:** `frontend/src/pages/public/UnderDevelopment.jsx`
 
 Placeholder page with under-construction notice and Go Back button.
+
+---
+
+### Quotes (`/quote`)
+
+Every quote and meme in the library, grouped by the media entry it came from.
+
+**Loads:** `GET /api/quote/grouped` through `useApiQuery`, with the filter state
+passed as query params — filtering happens server-side so the grouped shape and
+each group's entry header stay intact (narrowing in the browser would leave
+empty groups behind).
+
+**Filter bar:** kind (all / quotes / memes), media type, General, Favorites,
+Needs review (admin only), and a text search over the quote text, translation,
+speaker, and original source.
+
+**Body:** one card per entry — cover thumbnail plus a `display_name` linking to
+that entry's detail page — followed by its quotes. Each quote row shows the text
+large and italic, then a muted meta line: speaker, "quoting …" when
+`original_source` is set, episode, language, kind/general/favorite/needs-review
+badges, tags, and a link pill.
+
+**Per-quote actions:** copy text (everyone), copy image (local only, when
+`image_file` is set), and — for admins — favorite toggle, inline edit, delete.
+
+**Missing entries:** a group whose `entry_id` no longer resolves renders under a
+muted "Unlinked / deleted entry" header at the bottom of the list rather than
+disappearing, so the dangling row stays visible and fixable.
+
+**Images are local-only.** `getQuoteImageUrl` returns `null` off localhost
+because Cloud Run's filesystem is ephemeral, so both the image and its copy
+button are absent in production.
 
 ---
 

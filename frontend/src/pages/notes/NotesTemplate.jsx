@@ -1,5 +1,14 @@
 // Frontend: shared template used by all notes pages.
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import QuoteForm, {
+  emptyQuote,
+  toQuotePayload,
+} from "../../components/forms/QuoteForm";
+import { endpoints } from "../../api/endpoints";
+import { fetchJson, jsonBody } from "../../api/client";
+import { getQuoteImageUrl } from "../../lib/covers";
 
 const inputCls =
   "w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
@@ -577,113 +586,190 @@ function NameLinkSection({ sectionKey, label, items, isAdmin, onUpdate }) {
   );
 }
 
-// ─── Quote / Meme Section ─────────────────────────────────────────────────────
+// ─── Quote Section (API-backed) ─────────────────────────────
+//
+// The odd one out: quotes no longer live in the notes JSONB column, so this
+// section talks to /api/quote directly instead of going through updateSection.
+// Every other section on the page still writes one notes object.
 
-const emptyQuoteMeme = () => ({ description: "", link: "" });
+function QuoteSection({ sectionKey, label, mediaType, entryId, isAdmin }) {
+  const queryClient = useQueryClient();
+  const queryKey = ["quotes-by-entry", mediaType, entryId];
 
-function QuoteMemeForm({ val, setVal }) {
-  return (
-    <div className="space-y-1.5">
-      <textarea
-        value={val.description}
-        onChange={(e) => setVal({ ...val, description: e.target.value })}
-        rows={2}
-        placeholder="Quote / meme (optional)"
-        className={inputCls}
-      />
-      <input
-        value={val.link}
-        onChange={(e) => setVal({ ...val, link: e.target.value })}
-        placeholder="Link (optional)"
-        className={inputCls}
-      />
-    </div>
-  );
-}
+  const { data: items = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchJson(endpoints.quotes.byEntry(mediaType, entryId)),
+    enabled: !!mediaType && !!entryId,
+    staleTime: 30_000,
+  });
 
-function QuoteMemeSection({ sectionKey, label, items, isAdmin, onUpdate }) {
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState(emptyQuoteMeme());
-  const [editIdx, setEditIdx] = useState(null);
-  const [editVal, setEditVal] = useState(emptyQuoteMeme());
+  const [draft, setDraft] = useState(emptyQuote());
+  const [editId, setEditId] = useState(null);
+  const [editVal, setEditVal] = useState(emptyQuote());
+  const [busy, setBusy] = useState(false);
 
-  const commit = () => {
-    if (!draft.description?.trim() && !draft.link?.trim()) return;
-    onUpdate([
-      ...(items || []),
-      { description: draft.description.trim(), link: draft.link.trim() },
-    ]);
-    setDraft(emptyQuoteMeme());
-    setAdding(false);
+  // The Quote page reads a different cache key, so both are invalidated.
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey });
+    queryClient.invalidateQueries({ queryKey: ["quotes-grouped"] });
   };
-  const saveEdit = () => {
-    const next = [...items];
-    next[editIdx] = {
-      description: editVal.description.trim(),
-      link: editVal.link.trim(),
-    };
-    onUpdate(next);
-    setEditIdx(null);
+
+  const commit = async () => {
+    if (!draft.text?.trim() && !draft.image_file?.trim()) return;
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.quotes.create(), {
+        method: "POST",
+        ...jsonBody(
+          toQuotePayload(draft, {
+            media_type: mediaType,
+            entry_id: entryId,
+            sort_index: (items.length || 0) + 1,
+          }),
+        ),
+      });
+      setDraft(emptyQuote());
+      setAdding(false);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
   };
-  const remove = (i) => onUpdate((items || []).filter((_, idx) => idx !== i));
+
+  const saveEdit = async () => {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.quotes.patch(editId), {
+        method: "PATCH",
+        ...jsonBody(toQuotePayload(editVal)),
+      });
+      setEditId(null);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id) => {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.quotes.remove(id), { method: "DELETE" });
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <SectionCard
       label={label}
       sectionKey={sectionKey}
-      count={(items || []).length}
+      count={items.length}
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {(items || []).map((item, i) => (
-        <div
-          key={i}
-          className="border border-gray-100 rounded-lg p-2 bg-gray-50"
-        >
-          {editIdx === i ? (
-            <div>
-              <QuoteMemeForm val={editVal} setVal={setEditVal} />
-              <SaveCancel onSave={saveEdit} onCancel={() => setEditIdx(null)} />
-            </div>
-          ) : (
-            <div className="flex gap-2 items-start">
-              <div className="flex-1 space-y-1">
-                {item.description && (
-                  <p className="text-sm text-gray-800 italic whitespace-pre-wrap">
-                    "{item.description}"
-                  </p>
-                )}
-                {item.link && <LinkPill url={item.link} />}
+      {items.map((item) => {
+        const imageUrl = getQuoteImageUrl(item.image_file);
+        return (
+          <div
+            key={item.system_id}
+            className="border border-gray-100 rounded-lg p-2 bg-gray-50"
+          >
+            {editId === item.system_id ? (
+              <div>
+                <QuoteForm val={editVal} setVal={setEditVal} />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
               </div>
-              <ItemActions
-                isAdmin={isAdmin}
-                onEdit={() => {
-                  setEditIdx(i);
-                  setEditVal({
-                    description: item.description || "",
-                    link: item.link || "",
-                  });
-                }}
-                onDelete={() => remove(i)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            ) : (
+              <div className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1">
+                  {item.text && (
+                    <p className="text-sm text-gray-800 italic whitespace-pre-wrap">
+                      "{item.text}"
+                    </p>
+                  )}
+                  {item.translation && (
+                    <p className="text-xs text-gray-500 whitespace-pre-wrap">
+                      {item.translation}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-400 font-medium">
+                    {item.speaker && (
+                      <span className="text-gray-500">— {item.speaker}</span>
+                    )}
+                    {item.original_source && (
+                      <span>quoting {item.original_source}</span>
+                    )}
+                    {item.episode && <span>{item.episode}</span>}
+                    {item.kind === "meme" && (
+                      <span className="rounded-full bg-violet-100 text-violet-700 px-1.5 py-0.5 font-bold">
+                        meme
+                      </span>
+                    )}
+                    {item.is_general && (
+                      <span className="rounded-full bg-brand/10 text-brand px-1.5 py-0.5 font-bold">
+                        general
+                      </span>
+                    )}
+                    {item.is_favorite && (
+                      <i className="fas fa-star text-amber-500" />
+                    )}
+                    {item.needs_review && (
+                      <span className="rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 font-bold">
+                        needs review
+                      </span>
+                    )}
+                    {(item.tags || []).map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full bg-gray-100 text-gray-600 px-1.5 py-0.5 font-bold"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt=""
+                      className="mt-1 max-h-40 rounded-lg border border-gray-200"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
+                  {item.link && <LinkPill url={item.link} />}
+                </div>
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(item.system_id);
+                    setEditVal(emptyQuote(item));
+                  }}
+                  onDelete={() => remove(item.system_id)}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
       {adding && (
         <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
-          <QuoteMemeForm val={draft} setVal={setDraft} />
+          <QuoteForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
             onCancel={() => {
-              setDraft(emptyQuoteMeme());
+              setDraft(emptyQuote());
               setAdding(false);
             }}
           />
         </div>
       )}
-      {!(items || []).length && !adding && (
-        <p className="text-xs text-gray-400 italic">No entries.</p>
+      {!items.length && !adding && (
+        <p className="text-xs text-gray-400 italic">
+          {isLoading ? "Loading..." : "No entries."}
+        </p>
       )}
     </SectionCard>
   );
@@ -1136,7 +1222,13 @@ function EpisodeTypeDescSection({
 
 // ─── Root Template ────────────────────────────────────────────────────────────
 
-export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
+export default function NotesTemplate({
+  entity,
+  isAdmin,
+  onSave,
+  sections,
+  mediaType,
+}) {
   const [notes, setNotes] = useState(entity.notes ?? {});
 
   // Sync notes state when the parent re-fetches and provides a fresh entity.
@@ -1196,15 +1288,17 @@ export default function NotesTemplate({ entity, isAdmin, onSave, sections }) {
             onUpdate={(val) => updateSection(sec.key, val)}
           />
         );
-      case "quote_meme":
+      case "quote":
+        // Quotes live in their own table, so this section gets the entry
+        // reference instead of a slice of the notes object.
         return (
-          <QuoteMemeSection
+          <QuoteSection
             key={sec.key}
             sectionKey={sec.key}
             label={sec.label}
-            items={items}
+            mediaType={mediaType}
+            entryId={entity.system_id}
             isAdmin={isAdmin}
-            onUpdate={(val) => updateSection(sec.key, val)}
           />
         );
       case "episode_entry":

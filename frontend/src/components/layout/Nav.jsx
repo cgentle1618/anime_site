@@ -470,6 +470,9 @@ export default function Nav() {
                     <NavLink to="/completions" icon="fas fa-history">
                       Completions
                     </NavLink>
+                    <NavLink to="/quote" icon="fas fa-quote-left">
+                      Quotes
+                    </NavLink>
                   </>
                 }
               />
@@ -833,6 +836,13 @@ export default function Nav() {
                   className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
                   Completions
+                </Link>
+                <Link
+                  to="/quote"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Quotes
                 </Link>
                 <Link
                   to="/future-releases"

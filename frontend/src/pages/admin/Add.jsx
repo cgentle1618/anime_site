@@ -15,6 +15,13 @@ import CollectionAddTab, {
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
+import QuoteAddTab from "../add-tabs/QuoteAddTab";
+import {
+  emptyQuote,
+  toQuotePayload,
+} from "../../components/forms/QuoteForm";
+import { endpoints } from "../../api/endpoints";
+import { fetchJson, jsonBody } from "../../api/client";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
@@ -106,6 +113,11 @@ export default function Add() {
   const [cf, setCf] = useState(defaultCartoon());
   const [mgf, setMgf] = useState(defaultManga());
   const [nvf, setNvf] = useState(defaultNovel());
+  // Quote is not a media entry, so like System Options it keeps its own
+  // form state instead of going through the media form factories.
+  const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
+  const uq = (patch) => setQf((prev) => ({ ...prev, ...patch }));
+
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
 
@@ -437,6 +449,7 @@ export default function Add() {
       else if (activeTab === "cartoon") await submitCartoon();
       else if (activeTab === "manga") await submitManga();
       else if (activeTab === "novel") await submitNovel();
+      else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
@@ -717,6 +730,34 @@ export default function Add() {
       setAllSeries((prev) => [...prev, created]);
     } else {
       showToast("error", "Failed to create series");
+    }
+  }
+
+  async function submitQuote() {
+    if (!qf.media_type || !qf.entry_id) {
+      showToast("warning", "A media entry must be selected.");
+      return;
+    }
+    if (!qf.text?.trim() && !qf.image_file?.trim()) {
+      showToast("warning", "A quote needs text or an image.");
+      return;
+    }
+    try {
+      await fetchJson(endpoints.quotes.create(), {
+        method: "POST",
+        ...jsonBody(
+          toQuotePayload(qf, {
+            media_type: qf.media_type,
+            entry_id: qf.entry_id,
+          }),
+        ),
+      });
+      showToast("success", "Quote appended.");
+      setLastAdded(qf.text?.trim() || qf.image_file);
+      // Keep the entry selected: quotes are usually added several at a time.
+      setQf(emptyQuote({ media_type: qf.media_type, entry_id: qf.entry_id }));
+    } catch (err) {
+      showToast("error", err.message || "Failed to append quote.");
     }
   }
 
@@ -2039,6 +2080,9 @@ export default function Add() {
         {activeTab === "series" && (
           <SeriesAddTab sf={sf} us={us} franchiseItems={franchiseItems} />
         )}
+
+        {/* ═══ QUOTE TAB ═══ */}
+        {activeTab === "quote" && <QuoteAddTab qf={qf} uq={uq} />}
 
         {/* ═══ OPTIONS TAB ═══ */}
         {activeTab === "options" && (

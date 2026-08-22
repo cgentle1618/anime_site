@@ -89,6 +89,18 @@ export const endpoints = {
     testBucket: () => "/api/system/test-bucket",
   },
 
+  quotes: {
+    list: (qs = "") => `/api/quote/${qs ? `?${qs}` : ""}`,
+    grouped: (qs = "") => `/api/quote/grouped${qs ? `?${qs}` : ""}`,
+    byEntry: (mediaType, entryId) =>
+      `/api/quote/?media_type=${mediaType}&entry_id=${entryId}`,
+    detail: (id) => `/api/quote/${id}`,
+    create: () => "/api/quote/",
+    update: (id) => `/api/quote/${id}`,
+    patch: (id) => `/api/quote/${id}`,
+    remove: (id) => `/api/quote/${id}`,
+  },
+
   dataControl: {
     fill: (type) => `/api/data-control/fill/${type}`,
     fillAll: () => "/api/data-control/fill/all",

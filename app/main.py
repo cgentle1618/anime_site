@@ -33,6 +33,7 @@ from app.routers import (
     manga,
     novel,
     watch_order,
+    quote,
     seasonal,
     data_control,
     system,
@@ -48,6 +49,9 @@ logger = logging.getLogger(__name__)
 # ==========================================
 
 os.makedirs("static/covers", exist_ok=True)
+# Quote images are local-only for now; Cloud Run's filesystem is ephemeral,
+# so the frontend hides image controls off localhost.
+os.makedirs("static/quotes", exist_ok=True)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -142,6 +146,7 @@ app.include_router(tv_show.router)
 app.include_router(manga.router)
 app.include_router(novel.router)
 app.include_router(watch_order.router)
+app.include_router(quote.router)
 app.include_router(seasonal.router)
 
 app.include_router(announcements.router)

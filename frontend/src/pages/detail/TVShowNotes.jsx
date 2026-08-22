@@ -3,6 +3,6 @@ import NotesTemplate from "../notes/NotesTemplate";
 import SECTIONS from "../notes/configs/tvShowNotesConfig";
 
 export default function TVShowNotes({ show, isAdmin, onSave }) {
-  return <NotesTemplate entity={show} isAdmin={isAdmin} onSave={onSave} sections={SECTIONS} />;
+  return <NotesTemplate entity={show} isAdmin={isAdmin} onSave={onSave} sections={SECTIONS} mediaType="tv-show" />;
 }
 

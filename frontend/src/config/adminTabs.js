@@ -52,6 +52,12 @@ export const ADMIN_TABS = [
     label: "Series",
   },
   {
+    key: "quote",
+    group: "structure",
+    icon: "fa-quote-left",
+    label: "Quote",
+  },
+  {
     key: "options",
     group: "structure",
     icon: "fa-cog",
@@ -59,8 +65,13 @@ export const ADMIN_TABS = [
   },
 ];
 
-/** Tabs backed by a form factory — everything but System Options. */
-export const FORM_TABS = ADMIN_TABS.filter((t) => t.key !== "options");
+/**
+ * Tabs backed by a form factory — everything but System Options and Quote.
+ * Neither is a media entry, so neither has default field values to edit.
+ */
+export const FORM_TABS = ADMIN_TABS.filter(
+  (t) => t.key !== "options" && t.key !== "quote",
+);
 
 /** The Fav 3x3 grid editor — only the Modify page offers it. */
 export const FAV3X3_TAB = {

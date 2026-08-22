@@ -412,6 +412,27 @@ only media type missing one.)
 
 ---
 
+### Add Quote Tab
+
+Quote is not a media entry, so — like the System Option tab — it keeps its own
+form state in `Add.jsx` (`qf` / `uq`) instead of going through the media form
+factories, and it is excluded from `FORM_TABS` so it never appears on
+`/defaults`.
+
+- **Entry picker** (`components/forms/QuoteEntryPicker.jsx`) — a media-type
+  select plus a `ComboBox` of that type's entries. Changing the type clears the
+  entry in the same update, since the old selection no longer applies. Only the
+  chosen type's list is fetched, so the page does not load all seven libraries.
+- **Fields** come from the shared `components/forms/QuoteForm.jsx`, the same
+  form used by the entry Notes section and the Quote page's inline editor.
+- **Validation:** an entry must be selected, and the quote needs either text or
+  an image file.
+- After a successful append the form resets **but keeps the selected entry** —
+  quotes are usually added several at a time for one work.
+- Submits: `POST /api/quote/`
+
+---
+
 ## Modify Page
 
 
@@ -610,9 +631,36 @@ Remark, 優點, 缺點, 優缺點, 大眾評價, 我的評價, 神片段, 解析
 
 ---
 
+### Modify Quote Tab
+
+Bypasses the search-then-edit pattern the media tabs use: a quote has no cover,
+names, or hierarchy to search on. Renders
+`pages/modify-tabs/QuoteManageTab.jsx` with `mode="modify"` — the entry picker
+and a text search narrow a flat list, and each row expands into `QuoteForm`.
+
+- Filters: media type + entry (optional), plus a search over text, translation,
+  speaker, and original source.
+- Rows show the quote text, speaker, episode, review flag, and which entry it
+  belongs to — or "unlinked entry" when the reference is dangling.
+- Submits: `PATCH /api/quote/:id`
+
+---
+
 ## Delete Page
 
 - When any entry is deleted, its associated cover image is removed from GCS if one exists.
+
+### Delete Quote Tab
+
+The same `QuoteManageTab` component with `mode="delete"` — one component rather
+than two near-identical ones, since the two pages differ only in what the row
+button does. Delete is a two-step inline confirm (no modal): the row's Delete
+button swaps to Confirm / Cancel.
+
+- Deletes: `DELETE /api/quote/:id`, logged to `deleted_record` as type "Quote"
+  with the text as the name and the source entry as the franchise column.
+- Unlike media entries, **no image is removed** — quote images are hand-managed
+  local files under `static/quotes/`, so cleaning them up is the admin's call.
 
 ### Delete Movie Entry Tab
 

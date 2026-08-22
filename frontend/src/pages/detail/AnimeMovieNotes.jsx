@@ -3,6 +3,6 @@ import NotesTemplate from "../notes/NotesTemplate";
 import SECTIONS from "../notes/configs/animeMovieNotesConfig";
 
 export default function AnimeMovieNotes({ movie, isAdmin, onSave }) {
-  return <NotesTemplate entity={movie} isAdmin={isAdmin} onSave={onSave} sections={SECTIONS} />;
+  return <NotesTemplate entity={movie} isAdmin={isAdmin} onSave={onSave} sections={SECTIONS} mediaType="anime-movie" />;
 }
 

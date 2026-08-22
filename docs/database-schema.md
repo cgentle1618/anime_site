@@ -907,6 +907,59 @@ One step of a guide.
 
 ---
 
+## Quote Table
+
+Memorable lines and memes drawn from media entries. Replaces the `quotes_memes`
+list that used to live inside each entry's `notes` JSONB column: a JSONB list
+could not be filtered, sorted, or searched across the library, which is exactly
+what the Quote page needs.
+
+### `quote`
+
+| Column            | Type     | Nullable | Notes                                                                        |
+| ----------------- | -------- | -------- | ---------------------------------------------------------------------------- |
+| `system_id`       | UUID     | No       | PK, indexed                                                                  |
+| `media_type`      | String   | Yes      | `anime` / `anime-movie` / `movie` / `tv-show` / `cartoon` / `manga` / `novel`, indexed |
+| `entry_id`        | UUID     | Yes      | **No FK** — points at whichever media table `media_type` names, indexed      |
+| `kind`            | String   | Yes      | `quote` or `meme`; defaults to `"quote"`                                      |
+| `text`            | Text     | Yes      | The line, in its original language                                            |
+| `translation`     | Text     | Yes      | Translated version                                                            |
+| `language`        | String   | Yes      | Language of `text`                                                            |
+| `speaker`         | String   | Yes      | Character or person who says it                                               |
+| `original_source` | String   | Yes      | What the speaker is quoting *from*, when they are themselves quoting          |
+| `episode`         | String   | Yes      | Free text, so `"S2E4"`, `"Ch. 12"` and `"Vol. 3"` all fit one column          |
+| `link`            | String   | Yes      | Optional URL                                                                  |
+| `image_file`      | String   | Yes      | Bare filename under `static/quotes/`. **Local only** — see below              |
+| `tags`            | JSONB    | Yes      | List of strings, drives the Quote page tag filter                             |
+| `is_general`      | Boolean  | Yes      | The line works in any conversation ("hi") rather than one scenario            |
+| `is_favorite`     | Boolean  | Yes      | Star flag                                                                     |
+| `needs_review`    | Boolean  | Yes      | Set on every row imported from the old `notes.quotes_memes` lists             |
+| `sort_index`      | Float    | Yes      | Manual ordering within one entry                                              |
+| `remark`          | Text     | Yes      | Free-form note                                                                |
+| `created_at`      | DateTime | Yes      | Auto-set on create                                                            |
+| `updated_at`      | DateTime | Yes      | Auto-updated on save                                                          |
+
+**Check constraint `ck_quote_kind`:** `kind IN ('quote', 'meme')`.
+
+- `entry_id` carries no foreign key for the same reason `watch_order_item` does
+  not: no single FK spans seven tables. A deleted entry leaves a dangling quote,
+  which read-time resolution flags `missing: true` rather than dropping.
+- `media_type` uses the **hyphenated** spelling (`anime-movie`, `tv-show`),
+  matching `watch_order_item`. Note this differs from `MEDIA_REGISTRY`'s
+  underscore keys, which name router configs rather than column data.
+- `image_file` is resolved to `/static/quotes/<file>` and only on localhost.
+  Cloud Run's filesystem is ephemeral, so the frontend hides every image control
+  in production (`getQuoteImageUrl` returns `null` off localhost).
+
+**Migration `u4v5w6x7y8z9`** creates the table and moves the existing data in
+the same revision: each `notes.quotes_memes` item becomes a row
+(`description` → `text`, `needs_review = true`), then the key is stripped from
+`notes`. The old second field was in practice used for the speaker far more
+often than for a URL, so a non-URL value is imported as `speaker`, not `link`.
+`downgrade()` folds the rows back into `notes` before dropping the table.
+
+---
+
 ## System & Configuration Tables
 
 ### `system_options`

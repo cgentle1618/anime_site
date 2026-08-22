@@ -36,7 +36,7 @@ Overwrites all Google Sheets tabs with the current database state.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
 4. Bulk overwrite each tab in this order:
-   - System Options → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → **Watch Order List** → **Watch Order Item**
+   - System Options → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → **Watch Order List** → **Watch Order Item** → **Quote**
    - Collection is written before Franchise because `franchise.collection_id` references it.
    - The two Watch Order tabs are written last: their items point at rows in every media tab above, so dumping them afterwards keeps the sheet in the same order Pull restores it.
 5. Log result to `DataControlLog`.
@@ -333,7 +333,7 @@ Replaces metadata for all novel entries that have a `mal_id` or `mal_link`.
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all tabs in strict dependency order: **System Options → Collection → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Watch Order List → Watch Order Item → Seasonal**. This order is required to satisfy foreign key constraints — Collection precedes Franchise because `franchise.collection_id` points at it.
+Pulls all tabs in strict dependency order: **System Options → Collection → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Watch Order List → Watch Order Item → Quote → Seasonal**. This order is required to satisfy foreign key constraints — Collection precedes Franchise because `franchise.collection_id` points at it.
 
 **Collection FK resolution differs deliberately.** Like `franchise_id`/`series_id`, a `collection_id` cell may hold either a UUID or a collection *name*. But where an unresolvable franchise or series name causes the whole row to be **skipped**, an unresolvable collection name only sets `collection_id = NULL` and logs a warning — the franchise still imports. Collection is an optional tier, so an unknown umbrella name must never drop an otherwise valid franchise.
 
@@ -341,7 +341,7 @@ Pulls all tabs in strict dependency order: **System Options → Collection → F
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Watch Order List"`, `"Watch Order Item"`, `"Seasonal"`, `"System Options"`.
+Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Watch Order List"`, `"Watch Order Item"`, `"Quote"`, `"Seasonal"`, `"System Options"`.
 
 **Steps:**
 
@@ -359,7 +359,7 @@ Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`,
 **Returns:** `{status, processed, rows_added, rows_updated}`
 
 **Watch Order tabs.** Both owner columns on Watch Order List, and `list_id` /
-`entry_id` on Watch Order Item, are parsed as strict UUIDs — there is no
+`entry_id` on Watch Order Item and on Quote, are parsed as strict UUIDs — there is no
 name-resolution step for them, so a junk cell becomes `NULL` rather than
 reaching the database. An id-less Watch Order List row is matched on owner +
 `list_name`; an id-less Watch Order Item row has no natural key at all and

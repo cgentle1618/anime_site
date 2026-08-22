@@ -24,7 +24,7 @@ const SECTIONS = [
   { key: "resources", label: "Resources", type: "name_link" },
   { key: "unread", label: "Unread", type: "name_link" },
   { key: "questions", label: "Questions", type: "string_list" },
-  { key: "quotes_memes", label: "名言／梗／迷因 Quotes & Memes", type: "quote_meme" },
+  { key: "quotes_memes", label: "名言／梗／迷因 Quotes & Memes", type: "quote" },
 ];
 
 export default SECTIONS;

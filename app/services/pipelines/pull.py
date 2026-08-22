@@ -23,6 +23,7 @@ from app.models import (
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
+    Quote,
 )
 
 from app.utils.formatter import (
@@ -42,6 +43,7 @@ from app.utils.formatter import (
     parse_seasonal_from_sheet,
     parse_watch_order_list_from_sheet,
     parse_watch_order_item_from_sheet,
+    parse_quote_from_sheet,
 )
 from app.utils.data_control_utils import log_data_control
 
@@ -121,6 +123,7 @@ def execute_pull_specific(
         "Seasonal": Seasonal,
         "Watch Order List": WatchOrderList,
         "Watch Order Item": WatchOrderItem,
+        "Quote": Quote,
     }
 
     PARSER_MAP = {
@@ -138,6 +141,7 @@ def execute_pull_specific(
         "Seasonal": parse_seasonal_from_sheet,
         "Watch Order List": parse_watch_order_list_from_sheet,
         "Watch Order Item": parse_watch_order_item_from_sheet,
+        "Quote": parse_quote_from_sheet,
     }
 
     if tab_name not in MODEL_MAP:
@@ -383,6 +387,23 @@ def execute_pull_specific(
                         )
                         .first()
                     )
+            elif tab_name == "Quote":
+                # An id-less row is matched on the entry it belongs to plus its
+                # text, so re-importing the same sheet updates rather than
+                # duplicating. Quotes have no name of their own to match on.
+                q_media_type = clean_header_dict.get("media_type")
+                q_entry_id = clean_header_dict.get("entry_id")
+                q_text = clean_header_dict.get("text")
+                if q_media_type and q_entry_id and q_text:
+                    existing_record = (
+                        db.query(Quote)
+                        .filter(
+                            Quote.media_type == q_media_type,
+                            Quote.entry_id == q_entry_id,
+                            Quote.text == q_text,
+                        )
+                        .first()
+                    )
             elif tab_name == "Series":
                 name = clean_header_dict.get("series_name_en") or clean_header_dict.get(
                     "series_name_cn"
@@ -615,6 +636,8 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         # so a freshly restored guide points at rows that already exist.
         "Watch Order List",
         "Watch Order Item",
+        # Quotes point at media rows the same FK-less way items do.
+        "Quote",
         "Seasonal",
     ]
 

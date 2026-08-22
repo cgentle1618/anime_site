@@ -23,6 +23,7 @@ from app.models import (
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
+    Quote,
 )
 
 from app.utils.formatter import (
@@ -206,6 +207,14 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(w) for w in watch_order_items
         ]
         bulk_overwrite_sheet("Watch Order Item", watch_order_item_matrix)
+
+        # Quotes are written after every media tab: each row points at an entry
+        # via a FK-less (media_type, entry_id) pair, so on restore those rows
+        # must already exist.
+        quotes = db.query(Quote).all()
+        quote_headers = [c.name for c in Quote.__table__.columns]
+        quote_matrix = [quote_headers] + [format_model_for_sheet(q) for q in quotes]
+        bulk_overwrite_sheet("Quote", quote_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
