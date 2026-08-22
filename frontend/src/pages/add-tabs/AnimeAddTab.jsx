@@ -9,6 +9,7 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, getOptions } from "../../utils/media";
 import { WEEKDAYS } from "../../config/weekdays";
+import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
@@ -280,12 +281,18 @@ export default function AnimeAddTab({
           </select>
         </Field>
         <Field label="Broadcast Time">
-          <input
-            className={inputCls}
-            type="time"
+          <select
+            className={selectCls}
             value={af.broadcast_time}
             onChange={(e) => ua("broadcast_time", e.target.value)}
-          />
+          >
+            <option value="">—</option>
+            {broadcastTimeOptions(af.broadcast_time).map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="My Watch Day">
           <select
