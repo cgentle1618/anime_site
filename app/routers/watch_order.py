@@ -110,6 +110,7 @@ def _with_count(db: Session, db_list: models.WatchOrderList) -> dict:
         "list_name": db_list.list_name,
         "list_type": db_list.list_type,
         "is_default": db_list.is_default,
+        "is_most_recommended": db_list.is_most_recommended,
         "sort_index": db_list.sort_index,
         "remark": db_list.remark,
         "item_count": count or 0,
@@ -118,11 +119,20 @@ def _with_count(db: Session, db_list: models.WatchOrderList) -> dict:
     }
 
 
-def _clear_other_defaults(db: Session, db_list: models.WatchOrderList) -> None:
-    """Only one list per owner may be the default one shown first."""
+# Flags that at most one list per owner may carry. is_default decides which
+# order opens first; is_most_recommended marks the single one to follow when
+# several are recommended. They are independent and may sit on different lists.
+_SINGLE_WINNER_FLAGS = ("is_default", "is_most_recommended")
+
+
+def _clear_other_winners(
+    db: Session, db_list: models.WatchOrderList, flag: str
+) -> None:
+    """Strips `flag` from the owner's other lists, leaving this one holding it."""
+    column = getattr(models.WatchOrderList, flag)
     query = db.query(models.WatchOrderList).filter(
         models.WatchOrderList.system_id != db_list.system_id,
-        models.WatchOrderList.is_default.is_(True),
+        column.is_(True),
     )
     if db_list.franchise_id:
         query = query.filter(
@@ -133,7 +143,14 @@ def _clear_other_defaults(db: Session, db_list: models.WatchOrderList) -> None:
             models.WatchOrderList.collection_id == db_list.collection_id
         )
     for sibling in query.all():
-        sibling.is_default = False
+        setattr(sibling, flag, False)
+
+
+def _enforce_single_winners(db: Session, db_list: models.WatchOrderList) -> None:
+    """Applies the one-per-owner rule for every single-winner flag this list sets."""
+    for flag in _SINGLE_WINNER_FLAGS:
+        if getattr(db_list, flag):
+            _clear_other_winners(db, db_list, flag)
 
 
 # ==========================================
@@ -173,6 +190,7 @@ def get_watch_order_lists(
 
     rows = (
         query.order_by(
+            models.WatchOrderList.is_most_recommended.desc().nullslast(),
             models.WatchOrderList.is_default.desc().nullslast(),
             models.WatchOrderList.sort_index.asc().nullslast(),
             models.WatchOrderList.list_name.asc(),
@@ -272,8 +290,7 @@ def create_watch_order_list(
         db.add(new_list)
         db.flush()
 
-        if new_list.is_default:
-            _clear_other_defaults(db, new_list)
+        _enforce_single_winners(db, new_list)
 
         db.commit()
         db.refresh(new_list)
@@ -305,8 +322,7 @@ def update_watch_order_list(
         setattr(db_list, key, value)
 
     _validate_owner(db_list.franchise_id, db_list.collection_id)
-    if db_list.is_default:
-        _clear_other_defaults(db, db_list)
+    _enforce_single_winners(db, db_list)
 
     db_list.updated_at = get_taipei_now()
     db.commit()
@@ -333,8 +349,7 @@ def patch_watch_order_list(
             setattr(db_list, key, value)
 
     _validate_owner(db_list.franchise_id, db_list.collection_id)
-    if db_list.is_default:
-        _clear_other_defaults(db, db_list)
+    _enforce_single_winners(db, db_list)
 
     db_list.updated_at = get_taipei_now()
     db.commit()

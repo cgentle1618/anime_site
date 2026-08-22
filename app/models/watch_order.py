@@ -62,6 +62,10 @@ class WatchOrderList(Base):
     list_name = Column(String, nullable=True)
     list_type = Column(String, default="Custom", nullable=True)
     is_default = Column(Boolean, default=False, nullable=True)
+    # Separate from is_default on purpose. Several lists can be recommended
+    # (list_type == "Recommended"); this marks the single one to follow, and
+    # it need not be the one that opens first.
+    is_most_recommended = Column(Boolean, default=False, nullable=True)
     sort_index = Column(Float, nullable=True)
     remark = Column(Text, nullable=True)
 

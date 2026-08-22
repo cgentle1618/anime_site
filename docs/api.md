@@ -231,6 +231,12 @@ per-entry `watch_order` Float column, which this router never touches.
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
 | `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N. Body: `WatchOrderReorder` (`item_ids`). 400 unless the payload names every item of the list exactly once.               |
 
+**Single-winner flags.** `is_default` (opens first) and `is_most_recommended`
+(the one to follow) are independent, and each is limited to one list per owner:
+setting either on create, `PUT`, or `PATCH` clears it on the owner's other
+lists. Listing sorts most-recommended first, then default, then `sort_index`,
+then name.
+
 **Response models:** `WatchOrderListResponse` (adds a computed `item_count`),
 `WatchOrderListDetailResponse` (adds `items`), `WatchOrderItemResponse`,
 `WatchOrderCandidate`.

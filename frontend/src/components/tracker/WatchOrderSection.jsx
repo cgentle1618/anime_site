@@ -31,8 +31,8 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
       .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
       .then((data) => {
         setLists(data);
-        // The backend already sorts default-first, so the head of the list is
-        // the one to open.
+        // The backend sorts most-recommended first, then default, so the head
+        // of the list is the one to open.
         setSelectedId((current) =>
           current && data.some((l) => l.system_id === current)
             ? current
@@ -101,8 +101,10 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
           >
             {lists.map((l) => (
               <option key={l.system_id} value={l.system_id}>
+                {l.is_most_recommended ? "★ " : ""}
                 {l.list_name || "Untitled Order"}
-                {l.is_default ? " (default)" : ""} — {l.item_count} steps
+                {l.is_most_recommended ? " (most recommended)" : ""} —{" "}
+                {l.item_count} steps
               </option>
             ))}
           </select>
@@ -111,6 +113,11 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
         {lists.length === 1 && (
           <span className="text-sm font-black text-gray-900">
             {lists[0].list_name || "Untitled Order"}
+            {lists[0].is_most_recommended && (
+              <span className="ml-2 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
+                <i className="fas fa-star mr-1"></i>Most recommended
+              </span>
+            )}
             <span className="ml-2 text-xs font-bold text-gray-400">
               {lists[0].item_count} steps
             </span>

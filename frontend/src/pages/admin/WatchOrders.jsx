@@ -308,8 +308,12 @@ export default function WatchOrders() {
                             {l.list_name || "Untitled Order"}
                           </span>
                           <span className="block text-[10px] font-bold text-gray-400">
+                            {l.is_most_recommended && (
+                              <i className="fas fa-star text-amber-400 mr-1"></i>
+                            )}
                             {l.item_count} steps
                             {l.is_default ? " · default" : ""}
+                            {l.is_most_recommended ? " · most recommended" : ""}
                           </span>
                         </button>
                         <Link

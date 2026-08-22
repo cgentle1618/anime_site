@@ -863,10 +863,18 @@ One named order, owned by exactly one franchise or one collection.
 | `list_name`     | String   | Yes      | e.g. "Chronological", "Release Order"                                    |
 | `list_type`     | String   | Yes      | Custom / Chronological / Release / Recommended; defaults to `"Custom"`   |
 | `is_default`    | Boolean  | Yes      | The order shown first; the API clears the flag on the owner's other rows |
+| `is_most_recommended` | Boolean | Yes | The single order to follow. Independent of `is_default` and also cleared on the owner's other rows |
 | `sort_index`    | Float    | Yes      | Ordering of several orders within one owner                             |
 | `remark`        | Text     | Yes      | The note describing how to read this order                              |
 | `created_at`    | DateTime | Yes      | Auto-set on create                                                      |
 | `updated_at`    | DateTime | Yes      | Auto-updated on save                                                    |
+
+`is_default` and `is_most_recommended` are separate on purpose: `list_type` may
+mark several orders as "Recommended", so a further flag is needed to name the
+one to actually follow — and it need not be the one that opens first (Release
+order can open first while Chronological is the endorsed one). Both are
+one-per-owner, enforced in the router rather than by a constraint, since
+"at most one true per owner" is not expressible as a plain `CHECK`.
 
 **Check constraint `ck_watch_order_list_single_owner`:**
 `(franchise_id IS NULL) <> (collection_id IS NULL)` — exactly one owner. CASCADE

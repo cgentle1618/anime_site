@@ -70,6 +70,7 @@ class WatchOrderListBase(BaseModel):
     list_name: Optional[str] = None
     list_type: Optional[str] = "Custom"
     is_default: Optional[bool] = False
+    is_most_recommended: Optional[bool] = False
     sort_index: Optional[float] = None
     remark: Optional[str] = None
 

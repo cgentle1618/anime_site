@@ -116,6 +116,11 @@ export default function WatchOrderPage() {
               {list.list_type}
             </span>
           )}
+          {list.is_most_recommended && (
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+              <i className="fas fa-star mr-1"></i>Most recommended
+            </span>
+          )}
           {list.is_default && (
             <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
               Default

@@ -155,6 +155,9 @@ def parse_watch_order_list_from_sheet(raw: dict) -> dict:
         "list_name": parse_from_sheet(raw.get("list_name"), str),
         "list_type": parse_from_sheet(raw.get("list_type"), str),
         "is_default": parse_from_sheet(raw.get("is_default"), bool),
+        "is_most_recommended": parse_from_sheet(
+            raw.get("is_most_recommended"), bool
+        ),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),

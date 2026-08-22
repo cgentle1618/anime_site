@@ -381,6 +381,111 @@ class TestCreateWatchOrderList:
         assert [r["is_default"] for r in rows].count(True) == 1
 
 
+class TestMostRecommended:
+    """
+    Independent of is_default: several orders can be recommended, and this
+    marks the single one to follow.
+    """
+
+    def _make(self, admin_client, franchise, name, **flags):
+        return admin_client.post(
+            "/api/watch-order/lists",
+            json={
+                "franchise_id": str(franchise.system_id),
+                "list_name": name,
+                **flags,
+            },
+        ).json()
+
+    def test_flag_persists(self, admin_client, sample_franchise):
+        data = self._make(
+            admin_client, sample_franchise, "Chrono", is_most_recommended=True
+        )
+        assert data["is_most_recommended"] is True
+
+    def test_defaults_to_false(self, admin_client, sample_franchise):
+        data = self._make(admin_client, sample_franchise, "Plain")
+        assert data["is_most_recommended"] is False
+
+    def test_only_one_per_owner(self, admin_client, client, sample_franchise):
+        self._make(admin_client, sample_franchise, "First", is_most_recommended=True)
+        self._make(admin_client, sample_franchise, "Second", is_most_recommended=True)
+
+        rows = client.get(
+            f"/api/watch-order/lists?franchise_id={sample_franchise.system_id}"
+        ).json()
+        winners = [r for r in rows if r["is_most_recommended"]]
+        assert len(winners) == 1
+        assert winners[0]["list_name"] == "Second"
+
+    def test_another_owner_keeps_its_own(
+        self, admin_client, client, sample_franchise, sample_collection
+    ):
+        """The rule is per owner, not global."""
+        self._make(admin_client, sample_franchise, "Franchise one", is_most_recommended=True)
+        admin_client.post(
+            "/api/watch-order/lists",
+            json={
+                "collection_id": str(sample_collection.system_id),
+                "list_name": "Collection one",
+                "is_most_recommended": True,
+            },
+        )
+        rows = client.get("/api/watch-order/lists").json()
+        assert len([r for r in rows if r["is_most_recommended"]]) == 2
+
+    def test_independent_of_is_default(
+        self, admin_client, client, sample_franchise
+    ):
+        """Release opens first while Chronological is the endorsed one."""
+        self._make(admin_client, sample_franchise, "Release", is_default=True)
+        self._make(
+            admin_client, sample_franchise, "Chronological", is_most_recommended=True
+        )
+
+        rows = client.get(
+            f"/api/watch-order/lists?franchise_id={sample_franchise.system_id}"
+        ).json()
+        by_name = {r["list_name"]: r for r in rows}
+        assert by_name["Release"]["is_default"] is True
+        assert by_name["Release"]["is_most_recommended"] is False
+        assert by_name["Chronological"]["is_most_recommended"] is True
+        assert by_name["Chronological"]["is_default"] is False
+
+    def test_most_recommended_sorts_ahead_of_default(
+        self, admin_client, client, sample_franchise
+    ):
+        self._make(admin_client, sample_franchise, "Release", is_default=True)
+        self._make(
+            admin_client, sample_franchise, "Chronological", is_most_recommended=True
+        )
+
+        rows = client.get(
+            f"/api/watch-order/lists?franchise_id={sample_franchise.system_id}"
+        ).json()
+        assert rows[0]["list_name"] == "Chronological"
+
+    def test_patch_can_move_the_flag(
+        self, admin_client, client, sample_franchise
+    ):
+        first = self._make(
+            admin_client, sample_franchise, "First", is_most_recommended=True
+        )
+        second = self._make(admin_client, sample_franchise, "Second")
+
+        admin_client.patch(
+            f"/api/watch-order/lists/{second['system_id']}",
+            json={"is_most_recommended": True},
+        )
+
+        rows = client.get(
+            f"/api/watch-order/lists?franchise_id={sample_franchise.system_id}"
+        ).json()
+        by_id = {r["system_id"]: r for r in rows}
+        assert by_id[second["system_id"]]["is_most_recommended"] is True
+        assert by_id[first["system_id"]]["is_most_recommended"] is False
+
+
 class TestUpdateWatchOrderList:
     def test_admin_can_patch(self, admin_client, sample_list):
         response = admin_client.patch(

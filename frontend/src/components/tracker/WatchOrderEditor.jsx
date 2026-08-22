@@ -499,15 +499,35 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         </div>
       </div>
 
-      <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={!!list.is_default}
-          onChange={(e) => patchList({ is_default: e.target.checked })}
-          className="accent-brand"
-        />
-        Show this order first
-      </label>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={!!list.is_default}
+            onChange={(e) => patchList({ is_default: e.target.checked })}
+            className="accent-brand"
+          />
+          Show this order first
+        </label>
+
+        {/*
+          Independent of the flag above: several orders can be recommended, and
+          this marks the single one to actually follow. Setting it clears the
+          flag on the owner's other orders.
+        */}
+        <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={!!list.is_most_recommended}
+            onChange={(e) =>
+              patchList({ is_most_recommended: e.target.checked })
+            }
+            className="accent-amber-500"
+          />
+          <i className="fas fa-star text-amber-400 text-[10px]"></i>
+          Most recommended
+        </label>
+      </div>
 
       <EntryPicker candidates={candidates} onAdd={addItem} disabled={busy} />
 
