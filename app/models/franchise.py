@@ -50,12 +50,23 @@ class Franchise(Base, NameFallbackMixin):
     watch_next_group = Column(String, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
+    # Optional umbrella tier. SET NULL keeps deleting a Collection non-destructive:
+    # member franchises survive and simply become uncollected.
+    collection_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("collection.system_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     # Relationships
     series = relationship("Series", back_populates="franchise")
+    collection = relationship(
+        "Collection", back_populates="franchises", foreign_keys=[collection_id]
+    )
     animes = relationship(
         "Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]"
     )
