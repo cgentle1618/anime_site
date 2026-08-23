@@ -1056,10 +1056,10 @@ admin `/relations` page; this component never writes.
 
 ### `WatchOrderSection` (`components/tracker/WatchOrderSection.jsx`)
 
-The Watch Order tab body for a Franchise or Collection page. Takes exactly one
-of `franchiseId` / `collectionId`, loads that owner's orders
-(`GET /api/watch-order/lists?...`), offers a selector when there is more than
-one, and hands the selected order to `WatchOrderGuide`. Also renders the
+The Watch Order tab body for a Franchise, Series, or Collection page. Takes
+exactly one of `franchiseId` / `seriesId` / `collectionId`, loads that owner's
+orders (`GET /api/watch-order/lists?...`), offers a selector when there is more
+than one, and hands the selected order to `WatchOrderGuide`. Also renders the
 "Open full page" link and, for admins, an "Edit" link to `/watch-orders`.
 
 ### `WatchOrderEditor` (`components/tracker/WatchOrderEditor.jsx`)

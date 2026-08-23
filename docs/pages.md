@@ -22,6 +22,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/movie/:system_id`       | `Movie`                                            | Public     |
 | `/collection/:system_id`  | `Collection` → `CollectionPage` (umbrella hub)     | Public     |
 | `/franchise/:system_id`   | `Franchise` → `FranchisePage` (unified tabbed hub) | Public     |
+| `/series/:system_id`      | `Series` → `SeriesPage` (unified tabbed hub)       | Public     |
 | `/watch-order/:system_id` | `WatchOrder` → `WatchOrderPage`                    | Public     |
 | `/tv-show/:system_id`     | `TV`                                               | Public     |
 | `/library/tv-show`        | `LibraryTV`                                        | Public     |
@@ -562,7 +563,7 @@ orders, an "Open full page" link to `/watch-order/:id`, and, for admins, an
    - Completion block: `completed / total` across all entry types; watchable entries (anime, anime movies, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) uses `reading_status === "Completed"`
    - Admin controls: Overall Rating select, Expectation select, Watch Next Group select (ACG only), To Rewatch checkbox (ACG only) — all save via `PATCH /api/franchise/:system_id`
    - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur via `PATCH /api/franchise/:system_id`); hidden for guests when empty. When the text overflows the three rows a "Show all" button opens `RemarkModal`. Same treatment as the Collection Hub.
-4. Series card: clickable series name badges — opens SeriesModal
+4. Series card: clickable series name badges — links to `/series/:system_id`
 5. Tab bar, in two labelled groups (see below)
 6. Tab content sections (one rendered at a time)
 
@@ -637,6 +638,54 @@ Default active tab: first tab in the above order that has entries; the Extras ta
 - Cards: **Cartoon Entry Card 2** (`CartoonCard.jsx`)
 
 Admin writes use `PATCH /api/franchise/:system_id`.
+
+---
+
+### Series Hub (`/series/:system_id`)
+
+**Files:** `frontend/src/pages/detail/Series.jsx` (thin wrapper) → `frontend/src/pages/detail/SeriesPage.jsx` (unified hub)
+
+`Series.jsx` renders `SeriesPage` unconditionally, mirroring `Franchise.jsx`. Series has no type field, so unlike the Franchise Hub, media tabs are gated purely on whether each entry list is non-empty — there are no type flags to derive.
+
+**Data loaded** (one `Promise.all` on mount):
+
+- `GET /api/series/:system_id`
+- `GET /api/franchise/:franchise_id` for the parent franchise badge — skipped when `franchise_id` is null
+- `GET /api/anime/?series_id=:system_id`
+- `GET /api/movies/?series_id=:system_id`
+- `GET /api/tv-shows/?series_id=:system_id`
+- `GET /api/cartoon/?series_id=:system_id`
+- `GET /api/manga/?series_id=:system_id`
+- `GET /api/novel/?series_id=:system_id`
+
+Six entry lists, not seven: `anime_movies` has no `series_id` column, so an anime movie can only ever be reached through its franchise, never through a series.
+
+**Layout:**
+
+1. Breadcrumb → `/library/franchise` → parent franchise (when present) → series name
+2. Admin toolbar: Quick Edit button → `/modify?id=:system_id`
+3. Hero card:
+   - "Series" tag (no type badge — series has no type)
+   - Main title: Series Name CN (fallback: EN → Alt → Roman → JP)
+   - Sub-titles: EN / JP / Romaji / Alt — each hidden if same as main title
+   - Badges: My Rating, Series Expectation, parent Franchise (links to `/franchise/:id`, shown only when `franchise_id` is set), To Rewatch, Total Entries count
+   - Completion block: `completed / total` across all six entry types; watchable entries (anime, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) use `reading_status === "Completed"`
+   - Admin controls: Overall Rating select, Expectation select, To Rewatch checkbox — all save via `PATCH /api/series/:system_id`
+   - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur); hidden for guests when empty. A "Show all" button opens `RemarkModal` when the text overflows the three rows. Same treatment as the Franchise Hub.
+   - No Watch Next Group control — that column does not exist on `series`.
+4. Tab bar, in two labelled groups (see below)
+5. Tab content sections (one rendered at a time)
+
+**Tabs:** media tabs appear only when their entry list is non-empty (no type flags to combine with, unlike Franchise); Watch Order and Notes are always offered.
+
+| Group  | Tabs                                                     | Notes                                                                                                    |
+| ------ | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Media  | Anime, Manga, Novel, Movies, TV Shows, Cartoons            | Shown only when its list is non-empty; each carries an entry count pill. No Anime Movies tab — anime movies have no `series_id`. Group is omitted when the series has no entries. |
+| Extras | Watch Order, Notes                                         | Always present, no count pill. Watch Order renders `components/tracker/WatchOrderSection.jsx` with `seriesId={system_id}`. Notes renders `SeriesNotes`, which resolves owners via `TIER_TABLES`. |
+
+Sort, filter, and card behavior per media tab mirror the Franchise Hub's tabs exactly, with one omission: the per-tab "Group by Series" toggle is dropped everywhere, since it is meaningless inside a single series.
+
+Admin writes use `PATCH /api/series/:system_id`.
 
 ---
 

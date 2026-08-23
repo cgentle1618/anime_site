@@ -217,6 +217,11 @@ only media type missing one.)
 
 ### Add Series Entry Tab
 
+Three sections, mirroring Franchise's layout:
+
+- **Titles & Naming:** Parent Franchise (ComboBox), Series Name EN, then a 2-col grid: CN / roman / JP / Alt.
+- **Other Information:** My Rating, Expectation (2-col) — same option lists as Franchise (`S`/`A+`/`A`/`B`/`C`/`D`/`E`/`F`; `Highest`/`High`/`Medium`/`Low`, default Low).
+- **Cover Images:** To Rewatch, Remark. **No Main Cover control here** — a series that does not exist yet has no entries to pick a cover from; that field lives on the Modify tab only.
 - The Franchise field supports searching existing franchises only (no new franchise creation here).
 - A franchise must be chosen before the form can be submitted.
 - On submit: auto-generate `system_id`.
@@ -311,7 +316,7 @@ only media type missing one.)
 
 **Prefill from existing entry**
 
-- A search box allows typing to find an existing cartoon entry. Selecting one prefills: Franchise, Series, all Cartoon Name fields (CN/EN/Alt), Airing Type, Main / Spinoff, Source Official, Season Part, Derive Related, IMDb Link.
+- A search box allows typing to find an existing cartoon entry. Selecting one prefills: Franchise, Series, all Cartoon Name fields (CN/EN/Alt), Airing Type, Main / Spinoff, Source Official, Season Part, IMDb Link.
 
 **Franchise field**
 
@@ -547,8 +552,14 @@ form) and is excluded from `FORM_TABS`, so it never appears on `/defaults`.
 
 ### Modify Series Entry Form
 
+Same three sections as the Add tab, plus a Main Cover control:
+
+- **Titles & Naming:** Parent Franchise (ComboBox, `allowNew`), Series Name EN, then a 2-col grid: CN / roman / JP / Alt.
+- **Other Information:** My Rating, Expectation (2-col).
+- **Cover Images:** Main Cover, To Rewatch, Remark.
 - The Franchise field supports searching existing franchises of any type (ACG, Movie, TV, Cartoon) or typing a new name.
 - A franchise must be chosen before the form can be submitted.
+- **Main Cover** appears here, not on Add, because only an existing series has entries to choose from. The dropdown builds a combined list from `allAnime` / `allMovies` / `allTvShows` / `allCartoons` / `allMangas` / `allNovels`, filtered to `series_id === editingItem.system_id`, tagged with `_type`, sorted newest-first. `allAnimeMovies` is excluded — `anime_movies` has no `series_id` column, so no anime movie can ever belong to a series. Blank option is `— Auto (latest with cover) —`.
 - On submit: update all fields and refresh `updated_at`.
 
 ---

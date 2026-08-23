@@ -89,10 +89,12 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `GET`    | `/{system_id}` | Public | Get a single series by UUID.                                                       |
 | `POST`   | `/`            | Admin  | Create a series. Resolves or auto-creates parent franchise. Body: `SeriesCreate`.  |
 | `PUT`    | `/{system_id}` | Admin  | Full update. Resolves hierarchy changes. Body: `SeriesUpdate`.                     |
-| `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict.                                               |
+| `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                     |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
-**Response model:** `SeriesResponse`
+**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `my_rating`, `series_expectation` (default `"Low"`), `cover_entry_id`, `to_rewatch`, `remark`.
+
+**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`.
 
 ---
 

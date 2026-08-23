@@ -132,7 +132,6 @@ frontend/src/
       BelongingNovelsEditor.jsx   Editor for grouping novels under a franchise/series
 
     modals/
-      SeriesModal.jsx             Series detail popup
       FranchiseCreateModal.jsx    Create-franchise inline modal
       CreateNewEntityModal.jsx    Generic create-entity modal (used in Add flow)
 

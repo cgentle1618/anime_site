@@ -66,7 +66,7 @@ Core tables and media entry tables follow the same pattern for name fields where
 
 **`display_name` fallback order** (via `NameFallbackMixin`): CN → EN → Alt → roman → JP
 
-`series`, `movies`, `tv_shows`, and `cartoons` only have CN / EN / Alt (no roman or JP fields).
+`movies`, `tv_shows`, and `cartoons` only have CN / EN / Alt (no roman or JP fields).
 
 ---
 
@@ -138,20 +138,30 @@ Top-level media franchise entity. Groups related series and individual entries.
 
 Optional intermediate grouping layer within a franchise.
 
-| Column            | Type   | Nullable | Default   | Notes                                |
-| ----------------- | ------ | -------- | --------- | ------------------------------------ |
-| `system_id`       | UUID   | No       | `uuid4()` | Primary key                          |
-| `franchise_id`    | UUID   | Yes      | —         | FK -> `franchise.system_id` SET NULL |
-| `series_name_en`  | String | Yes      | —         |                                      |
-| `series_name_cn`  | String | Yes      | —         |                                      |
-| `series_name_alt` | String | Yes      | —         |                                      |
-| `remark`          | Text   | Yes      | —         |                                      |
+| Column                 | Type     | Nullable | Default    | Notes                                                          |
+| ---------------------- | -------- | -------- | ---------- | --------------------------------------------------------------- |
+| `system_id`            | UUID     | No       | `uuid4()`  | Primary key                                                    |
+| `franchise_id`         | UUID     | Yes      | —          | FK -> `franchise.system_id` SET NULL                           |
+| `series_name_en`       | String   | Yes      | —          |                                                                 |
+| `series_name_cn`       | String   | Yes      | —          |                                                                 |
+| `series_name_roman`    | String   | Yes      | —          |                                                                 |
+| `series_name_jp`       | String   | Yes      | —          |                                                                 |
+| `series_name_alt`      | String   | Yes      | —          |                                                                 |
+| `my_rating`            | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                              |
+| `series_expectation`   | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                      |
+| `cover_entry_id`       | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover; no FK constraint |
+| `to_rewatch`           | Boolean  | Yes      | `False`    |                                                                 |
+| `remark`               | Text     | Yes      | —          |                                                                 |
+| `created_at`           | DateTime | No       | Taipei now |                                                                 |
+| `updated_at`           | DateTime | No       | Taipei now | Auto-updated on save                                           |
 
-**Constraints:** At least one name field must be non-null. No `created_at` or `updated_at`.
+**Column order matters:** `format_model_for_sheet` iterates `__table__.columns`, so the model's declaration order *is* the Google Sheets column order for the Series tab. Reordering model columns needs no migration — physical DB order is unaffected.
+
+**Constraints:** At least one name field must be non-null.
 
 **Relationships:** `franchise` (many-to-one), `animes[]` (one-to-many)
 
-**Note:** Series has no `roman` or `jp` name fields. `display_name` fallback: CN → EN → Alt.
+**Note:** `display_name` fallback: CN → EN → Alt → roman → JP.
 
 ---
 
