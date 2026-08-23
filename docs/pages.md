@@ -212,7 +212,7 @@ Full detail page for a single anime entry.
 - Characters & Cast Card (TBD)
 - Music Card (admin editable): OP, ED, Insert/OST dropdowns
 - Remarks — shown when not null
-- **`AnimeNotes`** (`frontend/src/pages/detail/AnimeNotes.jsx`) — structured notes editor with 17 sections; always rendered at the bottom; saves via `PATCH /api/anime/:id` with `notes` field.
+- **`AnimeNotes`** (`frontend/src/pages/detail/AnimeNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
 Admin writes use `PATCH /api/anime/:system_id`.
 
@@ -257,7 +257,7 @@ Full detail page for a single anime movie entry.
 - **Production Card** (reusable): Studio, Director
 - Characters & Cast Card (TBD placeholder — "Under Development")
 - Remarks — shown when not null (admin editable via blur)
-- **`AnimeMovieNotes`** (`frontend/src/pages/detail/AnimeMovieNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/anime-movie/:id` with `notes` field.
+- **`AnimeMovieNotes`** (`frontend/src/pages/detail/AnimeMovieNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
 ---
 
@@ -306,7 +306,7 @@ Full detail page for a single movie entry.
 - **Movie Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): 本傳/外傳 (is_main), Airing Status, Length, Director, Release Date TW, Release Date USA
 - Remarks — shown when `remark` is not null (admin editable via blur)
-- **`MovieNotes`** (`frontend/src/pages/detail/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom; saves via `PATCH /api/movies/:id` with `notes` field.
+- **`MovieNotes`** (`frontend/src/pages/detail/MovieNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
 Admin writes use `PATCH /api/movies/:system_id`.
 
@@ -362,7 +362,7 @@ Full detail page for a single TV show entry.
 - **TV Show Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): 本傳/外傳, Season Part, Total Ep, Official Source, Airing Status, Release Date
 - Remarks — shown when not null (admin editable on blur)
-- **`TVShowNotes`** (`frontend/src/pages/detail/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/tv-shows/:id` with `notes` field.
+- **`TVShowNotes`** (`frontend/src/pages/detail/TVShowNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
 Admin writes use `PATCH /api/tv-shows/:system_id`.
 
@@ -418,7 +418,7 @@ Full detail page for a single cartoon entry.
 - **Cartoon Naming Card** (reusable): CN, EN, Alt
 - **Information Card** (reusable): 本傳/外傳, Season Part, Airing Type, Airing Status, Length Per Ep (min), Official Source, Release Date, Total Ep
 - Remarks — shown when not null (admin editable on blur)
-- **`CartoonNotes`** (`frontend/src/pages/detail/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom; saves via `PATCH /api/cartoon/:id` with `notes` field.
+- **`CartoonNotes`** (`frontend/src/pages/detail/CartoonNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
 Admin writes use `PATCH /api/cartoon/:system_id`.
 
@@ -458,7 +458,7 @@ Full detail page for a single manga entry.
 - **Information Card** (reusable)
 - **Production Card** (reusable)
 - Remarks — shown when not null
-- **`MangaNotes`** (`frontend/src/pages/detail/MangaNotes.jsx`) — structured notes editor with 15 sections; always rendered at the bottom; saves via `PATCH /api/manga/:id` with `notes` field.
+- **`MangaNotes`** (`frontend/src/pages/detail/MangaNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
 ---
 
@@ -505,7 +505,10 @@ Full detail page for a single novel entry.
 - **Production Card** (reusable)
 - Remarks — shown when `remark` is not null
 - **Belonging Novels Card** (reusable) — editable for admin only; renders `novel_name_each_cn` and `novel_name_each_en`
-- **Notes Card** (reusable) — editable for admin only
+- **`NovelNotes`** (`frontend/src/pages/detail/NovelNotes.jsx`) — the notes tab, a thin
+  wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come
+  from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row
+  via `/api/notes` rather than re-saving the whole entry.
 
 Admin writes use `PATCH /api/novel/:system_id`.
 
@@ -581,7 +584,7 @@ Default active tab: first tab in the above order that has entries; the Extras ta
 | Group  | Tabs                                                       | Notes                                                                        |
 | ------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Media  | Anime, Anime Movies, Manga, Novel, Movies, TV Shows, Cartoons | Picks which entries the list below shows; each carries an entry count pill. Group is omitted when the franchise has no entries. |
-| Extras | Watch Order, Memes, Notes                                  | Material owned by the franchise itself, not an entry filter; always present, no count pill. |
+| Extras | Watch Order, Notes                                         | Material owned by the franchise itself, not an entry filter; always present, no count pill. Memes are a section *inside* Notes — the registry gives `memes` to every owner, so they are not a tab of their own. |
 
 **Anime tab:**
 
@@ -720,6 +723,11 @@ Lists the franchises belonging to one collection. Intentionally far simpler than
 **Watch Order** appears as a section below the member grid rather than a tab —
 this page has no tab bar — rendered by the same `WatchOrderSection` the
 Franchise Hub uses, scoped by `collection_id`.
+
+**Notes** follow it as another section, rendered by `CollectionNotes` over the
+shared `NotesTemplate` with `ownerType="collection"`. Memes live inside it: the
+registry gives `memes` to all ten owners, so the notes section renders them
+alongside the rest rather than the page mounting a second copy.
 
 ---
 
@@ -1439,7 +1447,7 @@ Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit butt
 - Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
 - Recently Modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
-- Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeNotes`** — structured notes editor with 17 sections.
+- Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeNotes`** — the shared notes tab (see the detail page).
 
 Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/replace/anime/:id`
 
@@ -1447,7 +1455,7 @@ Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/rep
 
 - Search bar; recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block, then full edit form
-- Form mirrors Add Anime Movie tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeMovieNotes`** — structured notes editor with 15 sections.
+- Form mirrors Add Anime Movie tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeMovieNotes`** — the shared notes tab (see the detail page).
 
 Writes: `PATCH /api/anime-movie/:id`
 
@@ -1478,7 +1486,7 @@ Writes: `PATCH /api/options/:id`
 - After selecting: Other Entries in franchise block (grouped by series) — show Movie Name CN with fallback; hidden for 獨立電影, 影集, Disney, Marvel franchises
 - Full edit form — same fields as Add Movie tab (includes Series ComboBox + auto-create modal)
 - Franchise ComboBox filtered to `franchise_type = "TV or Movie"`
-- **`MovieNotes`** (`frontend/src/pages/detail/MovieNotes.jsx`) — structured notes editor with 11 sections; always rendered at the bottom.
+- **`MovieNotes`** (`frontend/src/pages/detail/MovieNotes.jsx`) — the shared notes tab (see the detail page); always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatically)
@@ -1488,7 +1496,7 @@ Writes: `PUT /api/movies/:id` (triggers `execute_replace_single_movie` automatic
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback (hidden for 獨立電影/影集, Disney, Marvel franchises), Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- **`TVShowNotes`** (`frontend/src/pages/detail/TVShowNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
+- **`TVShowNotes`** (`frontend/src/pages/detail/TVShowNotes.jsx`) — the shared notes tab (see the detail page); always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/tv-shows/:id`
@@ -1498,7 +1506,7 @@ Writes: `PATCH /api/tv-shows/:id`
 - Search bar; recently modified entries: Airing Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block grouped by series — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
 - Form sections: Titles & Naming, Status & Progress, Classification & Production, Relational & Timeline, Source & Links, Notes & Other (Cover Image + Remark)
-- **`CartoonNotes`** (`frontend/src/pages/detail/CartoonNotes.jsx`) — structured notes editor with 12 sections; always rendered at the bottom.
+- **`CartoonNotes`** (`frontend/src/pages/detail/CartoonNotes.jsx`) — the shared notes tab (see the detail page); always rendered at the bottom.
 - Save Changes Button
 
 Writes: `PATCH /api/cartoon/:id`
@@ -1508,7 +1516,7 @@ Writes: `PATCH /api/cartoon/:id`
 - Search bar (Franchise + Series + Entry names); results grouped by franchise/series, shown as Search Suggestion
 - Recently Modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
-- Form mirrors Add Manga tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`MangaNotes`** — structured notes editor with 15 sections.
+- Form mirrors Add Manga tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`MangaNotes`** — the shared notes tab (see the detail page).
 
 Writes: `PATCH /api/manga/:id`
 
@@ -1517,7 +1525,7 @@ Writes: `PATCH /api/manga/:id`
 - Search bar (searches all languages including Alt); recently modified entries: Entry Name CN with fallback, Franchise Name CN with fallback
 - Recently Modified entries: Novel Type, Entry Name CN with fallback, Franchise Name CN with fallback
 - After selecting: System ID (immutable), Other Entries in franchise block (grouped by series) — show entry name CN with fallback, Entry Name CN with fallback (immutable), then full edit form
-- Form mirrors Add Novel tab, plus System ID (immutable), Entry Name CN with fallback (immutable), **`NovelNotes`** — structured notes editor with 15 sections, and Save Changes Button
+- Form mirrors Add Novel tab, plus System ID (immutable), Entry Name CN with fallback (immutable), **`NovelNotes`** — the shared notes tab (see the detail page), and Save Changes Button
 
 Writes: `PATCH /api/novel/:id`
 

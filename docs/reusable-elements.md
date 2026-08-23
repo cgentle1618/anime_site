@@ -178,31 +178,31 @@ Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Amount of each
 
 ### Anime
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Watching Status Tags · Remark field in notes column · System ID
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Airing Type · Watching Status Tags · Remark field · System ID
 
 ### Anime Movie
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Airing Status · Watching Status Tags · Remark field in notes column · System ID
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Airing Status · Watching Status Tags · Remark field · System ID
 
 ### Movie
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Movie Type · Airing Status · Watching Status Tags · Remark field in notes column · System ID
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Movie Type · Airing Status · Watching Status Tags · Remark field · System ID
 
 ### TV Show
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID (Note: React code has a redundant legacy check for Airing Type, but TV Shows do not have airing_type in the database; they have Region instead)
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field · System ID (Note: React code has a redundant legacy check for Airing Type, but TV Shows do not have airing_type in the database; they have Region instead)
 
 ### Cartoon
 
-Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field in notes column · System ID
+Name CN · Name EN · Name Alt · Franchise Name CN (fallback) · Series Name CN (fallback) · Season Part · Airing Status · Watching Status Tags · Remark field · System ID
 
 ### Manga
 
-Name CN (fallback) · Name EN (fallback) · Name JP (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Manga Region · Reading Status · Remark field in notes column · System ID
+Name CN (fallback) · Name EN (fallback) · Name JP (fallback) · Name Alt (fallback) · Franchise Name CN (fallback) · Series Name CN (fallback) · Manga Region · Reading Status · Remark field · System ID
 
 ### Novel
 
-Novel Name CN with fallback · Novel Name EN with fallback · Novel Name JP with fallback · Novel Name Alt with fallback · Franchise Name CN with fallback · Series Name CN with fallback · Novel Region · Novel Type · Reading Status · Remark field in notes column · System ID
+Novel Name CN with fallback · Novel Name EN with fallback · Novel Name JP with fallback · Novel Name Alt with fallback · Franchise Name CN with fallback · Series Name CN with fallback · Novel Region · Novel Type · Reading Status · Remark field · System ID
 
 ---
 
@@ -802,218 +802,62 @@ Novel Production Card
 
 - Author, Illustrator, Novel Publisher TW
 
-### Notes Card
+### Notes Page (`pages/notes/NotesTemplate.jsx`)
 
-The information is broken down into multiple fields from the `notes` JSONB column in the database. Each notes card is a self-contained component that manages its own section state and saves via a callback.
+Structured commentary on any owner. One shared component renders it for all ten
+owner types; `pages/detail/*Notes.jsx` are thin wrappers that pass
+`ownerType` / `ownerId` / `isAdmin` and nothing else.
 
-**Anime Notes Card** — `frontend/src/pages/AnimeNotes.jsx`
+**The backend owns the section list.** `NotesTemplate` fetches
+`GET /api/notes/sections?owner_type=…` once on mount and renders whatever comes
+back, in the order it comes back. The frontend names no section keys and hard-codes
+no labels, so the backend can add, drop, relabel or reorder a section — or change
+manga's "神回" and `Chapter(s), e.g. ch 6` wording — with no frontend change.
+Rows come from `GET /api/notes?owner_type=…&owner_id=…`; each edit writes a single
+row through `/api/notes` rather than re-saving the whole entry, which is the point
+of the table replacing the old per-entry `notes` JSONB blob.
 
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 各集評論 Episode Comments
-- 神回/神片段 Highlights
-- 解析 Analysis
-- 分鏡/演出/巧思
-- Foreshadowing
-- 對稱 Symmetry
-- 特殊變動 Special Changes
-- 改編 Adaptation
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
+**Four shape components**, picked by the `shape` the registry reports:
 
-Used on: Anime Detail page, Modify Anime tab.
+| Shape          | Component                  | Renders                                                          |
+| -------------- | -------------------------- | ----------------------------------------------------------------- |
+| `text`         | `TextSection.jsx`          | A list of plain-text items. A `singleton` section (Remark) renders one textarea instead, with a fullscreen overlay sharing the same draft. |
+| `text_links`   | `TextLinksSection.jsx`     | Items of description + any number of links, plus an optional episode input shown when the section declares an `episode_placeholder`. |
+| `episode_text` | `EpisodeTextSection.jsx`   | Episode-anchored items: episode + content, plus a kind dropdown where the section declares `kinds`. |
+| `name_links`   | `NameLinksSection.jsx`     | Named links (Resources, Unread) — a title plus any number of URLs. |
 
-**Quote and Meme sections (`type: "quote"` / `"meme"`) — the two API-backed
-notes sections.** Every other section is a slice of the entry's `notes` JSONB column and saves via
-`NotesTemplate`'s `updateSection` / `onSave`. Quotes moved out of `notes` into
-the `quote` table, so `QuoteSection` talks to `/api/quote` directly and never
-calls `updateSection`. It therefore needs the entry reference rather than a
-notes slice, which is why `NotesTemplate` takes a `mediaType` prop and each
-`pages/detail/*Notes.jsx` wrapper passes its own type (`"anime"`,
-`"anime-movie"`, `"tv-show"`, ...). Field editing uses the shared
-`components/forms/QuoteForm.jsx`, the same form the admin Quote tab and the
-Quote page's inline editor render.
+Each shape reads only registry-supplied props (`label`, `kinds`,
+`episode_placeholder`, `singleton`, `desc_required`), so a new section of an
+existing shape costs one backend registry entry and no frontend work.
 
-The Meme section works identically against `/api/meme`, rendering
-`components/forms/MemeForm.jsx`. It is owner-generic (`ownerType`/`ownerId`
-rather than a media type), so the same component also renders on the
-**Franchise hub's Memes tab** and the **Collection hub's Memes section** — a
-running gag often belongs to the franchise rather than to one episode. A meme's text may name the Quote it also
-is, so such a quote appears in **both** sections — under Quotes with its speaker
-and translation, and inside its meme under Memes. The Quotes section marks it
-with an "in a meme" badge, derived from the `meme_id` the API returns.
+**`external` sections are the one documented exception.** `quotes` and `memes`
+are backed by their own tables, endpoints and long-lived components, so they
+cannot be rendered generically. `EXTERNAL_SHAPES` in `NotesTemplate.jsx` maps
+those two keys to `QuoteSection.jsx` (`/api/quote`, editing via the shared
+`components/forms/QuoteForm.jsx`) and `MemeSection.jsx` (`/api/meme`, via
+`MemeForm.jsx`). Keying off the section *key* rather than minting a shape per
+section keeps the exception to that one map: the registry still decides whether
+the section exists, where it sits and what it is called, and an external key
+with no component degrades to `null`.
 
-**Anime Movie Notes Card** — `frontend/src/pages/AnimeMovieNotes.jsx`
+- **Quotes are entry-only**; **memes span all ten owners**, because a running gag
+  often belongs to a franchise rather than to one episode. The franchise and
+  collection pages therefore do *not* mount `MemeSection` themselves — the
+  registry gives them `memes`, so the notes section already renders it. Mounting
+  it separately is what produced two copies under two different labels.
+- A meme's text may name the Quote it also is, so such a quote appears in **both**
+  sections — under Quotes with its speaker and translation, and inside its meme
+  under Memes. The Quotes section marks it with an "in a meme" badge, derived
+  from the `meme_id` the API returns.
 
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 解析 Analysis
-- 分鏡/演出/巧思
-- Foreshadowing
-- 對稱 Symmetry
-- 改編 Adaptation
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
-
-Used on: Anime Movie Detail page, Modify Anime Movie tab.
-
-**Movie Notes Card** — `frontend/src/pages/MovieNotes.jsx`
-
-Stores data in `movies.notes` JSONB column.
-
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 解析 Analysis
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
-
-Used on: Movie Detail page, Modify Movie tab.
-
-**TV Show Notes Card** — `frontend/src/pages/TVShowNotes.jsx`
-
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 各集評論 Episode Comments
-- 神回/神片段
-- 解析 Analysis
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
-
-Used on: TV Show Detail page, Modify TV Show tab.
-
-**Cartoon Notes Card** — `frontend/src/pages/CartoonNotes.jsx`
-
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 各集評論 Episode Comments
-- 神回/神片段 Highlights
-- 解析 Analysis
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
-
-Used on: Cartoon Detail page, Modify Cartoon tab.
-
-**Manga Notes Card** — `frontend/src/pages/MangaNotes.jsx`
-
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 神回
-- 解析 Analysis
-- 分鏡/演出/巧思
-- Foreshadowing
-- 對稱 Symmetry
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
-
-Used on: Manga Detail page, Modify Manga tab.
-
-**Novel Notes Card** — `frontend/src/pages/NovelNotes.jsx`
-
-- Remark
-- 優點 Advantages
-- 缺點 Disadvantages
-- 優缺點 (similar to double-edged sword)
-- 大眾評價 Public Reviews
-- 我的評價 Personal Reviews
-- 神片段 Highlights
-- 解析 Analysis
-- 巧思
-- Foreshadowing
-- 對稱 Symmetry
-- 改編 Adaptation
-- Resources
-- Unread
-- Questions
-- 名言 Quotes (section type `quote` — API-backed, see below)
-- 梗/迷因 Memes (section type `meme` — API-backed, see below)
-
-Used on: Novel Detail page, Modify Novel tab.
-
-Here is the description for all sub fields in notes:
-
-- Remark
-  - single text value (`notes.remark`)
-  - 10-row textarea, vertically resizable; a "Fullscreen" button in the section header opens the same draft in a fullscreen overlay (dismiss via Close, backdrop click, or Escape). Both views share one draft and one Save button.
-- 優點:
-  - list of items
-- 缺點:
-  - list of items
-- 優缺點
-  - list of items
-- 大眾評價
-  - list of items
-- 我的評價
-  - list of items
-- 各集評論
-  - dictionary of episode → comment ({"ep 1": "ep 1 comment"})
-  - Anime, TV Show, and Cartoon only; placed directly after 我的評價
-  - Entries display in insertion order. Renaming an episode keeps its position; adding an episode key that already exists overwrites it instead of duplicating.
-- 神回/神片段
-  - list of lists ([episode(s), type, description])
-- 解析
-  - list of dictionaries ({description(optional): links})
-- 分鏡/演出/巧思
-  - list of dictionaries ({description(optional): links})
-- Foreshadowing
-  - list of dictionaries ({description(optional): links})
-- 對稱
-  - list of dictionaries ({description(optional): links})
-- 特殊變動 (加長/ OP,ED)
-  - list of lists ([episode(s), type, description])
-  - There will be dropdown for type
-  - e.g. [ep 6, 變化ED, 聲優表 (男女主名字)]
-- 改編
-  - list of dictionaries ({description: links(optional)})
-- Resources
-  - list of dictionaries ([name(optional): link])
-- Unread:
-  - list of dictionaries ([name(optional): link])
-- Questions
-  - list of items
-- 名言/梗/迷因
-  - list of dictionaries ({description: link(optional)})
+**Which sections an owner gets** is a property of the registry
+(`app/utils/note_sections.py`), not of this page — see `options.md` for the
+vocabulary and `database-schema.md` for the `note` table. Broadly: every owner
+has Remark, Public/Personal Reviews, Analysis, Resources, Unread, Questions and
+Memes; entries and the series/franchise tiers add Advantages, Disadvantages,
+優缺點, Foreshadowing, Symmetry and Adaptation; the episode-anchored sections
+(Episode Comments, Highlights, OP/ED 變動, 加長) belong to the serialized types
+only, and Quotes to media entries only.
 
 ---
 

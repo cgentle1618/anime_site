@@ -19,6 +19,8 @@
 - [Watch Order Tables](#watch-order-tables)
   - [watch_order_list](#watch_order_list)
   - [watch_order_item](#watch_order_item)
+- [Note Table](#note-table)
+  - [note](#note)
 - [System & Configuration Tables](#system--configuration-tables)
   - [system_options](#system_options)
   - [system_configs](#system_configs)
@@ -285,7 +287,6 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -370,7 +371,6 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -451,7 +451,6 @@ Live-action and animated movie entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -538,7 +537,6 @@ Live-action and scripted TV show entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -626,7 +624,6 @@ Western animated TV show entries.
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -730,7 +727,6 @@ Manga, manhwa, and manhua entries.
 | `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -836,7 +832,6 @@ Light novel and book entries.
 | `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | —                                           |
 | `remark`           | Text     | Yes      | Temporary free-form notes                   |
-| `notes`            | JSONB    | Yes      | Structured notes (key-value)                |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
@@ -1035,6 +1030,69 @@ deletes tier-owned memes, which have no representation in the entry-only shape.
 shape made impossible. Existing rows were single-line; the upgrade joins any
 multi-line row with newlines rather than losing text, and the downgrade folds
 the text back into a one-element list.
+
+---
+
+## Note Table
+
+### `note`
+
+One row is **one item** of structured commentary: one bullet, one linked
+resource, one episode comment. Replaces the `notes` JSONB column that used to
+sit on each of the seven media tables — a blob could not be validated, queried
+across the library, or edited a bullet at a time, and its shape lived in seven
+frontend config files rather than in the backend.
+
+**Its owner is as wide as `meme`'s.** Notes were entry-only as JSONB; the table
+extends them to the three grouping tiers, so an owner may be a media entry *or*
+a series, franchise, or collection — the same ten `owner_type` values.
+
+| Column       | Type     | Nullable | Notes                                                                        |
+| ------------ | -------- | -------- | ---------------------------------------------------------------------------- |
+| `system_id`  | UUID     | No       | PK, indexed                                                                  |
+| `owner_type` | String   | Yes      | **Ten** values: the seven media types plus `series` / `franchise` / `collection`, indexed |
+| `owner_id`   | UUID     | Yes      | **No FK** — points at whichever of the ten tables `owner_type` names, indexed |
+| `section`    | String   | Yes      | Names an entry in `NOTE_SECTIONS`; that entry declares the shape, indexed    |
+| `episode`    | String   | Yes      | Free text, so `"ep 3"`, `"ep 3-5"` and `"ch 12"` all fit one column          |
+| `kind`       | String   | Yes      | Only populated where the section declares `kinds`                            |
+| `title`      | String   | Yes      | The name half of a `name_links` item                                          |
+| `content`    | Text     | Yes      | The body text                                                                 |
+| `links`      | JSONB    | Yes      | List of URLs — a list even where the old shape held one                      |
+| `sort_index` | Float    | Yes      | Manual ordering within one `(owner, section)`                                |
+| `created_at` | DateTime | Yes      | Auto-set on create                                                            |
+| `updated_at` | DateTime | Yes      | Auto-updated on save                                                          |
+
+- **The section registry is the schema.** `app/utils/note_sections.py` declares
+  each section's shape, label, applicable owners, dropdown values and ordering.
+  The columns above are the union of every shape; columns a shape does not name
+  stay null. This is one table on purpose: adding a section costs a registry
+  entry and no migration, and adding a new *shape* costs one nullable column.
+- **Four stored shapes**, plus one that is not stored: `text` (content),
+  `text_links` (content, links, optional episode), `episode_text` (episode,
+  content, and kind where declared), and `name_links` (title, links).
+  `external` sections — `quotes` and `memes` — are backed by their own tables
+  and never by a `note` row; the registry lists them so the page can render
+  them in order alongside the rest.
+- `owner_id` carries no foreign key for the same reason `meme.owner_id` does
+  not: no single FK spans ten tables. A deleted owner leaves rows that
+  `app/utils/media_resolver.py` flags as missing rather than silently dropping.
+- `owner_type` uses the **hyphenated** spelling (`anime-movie`, `tv-show`),
+  matching `meme` and `watch_order_item`.
+- Index `ix_note_owner_section` on `(owner_type, owner_id, section)` covers the
+  only read path the notes page uses.
+- Column declaration order is also the Google Sheets column order, because
+  `format_model_for_sheet` walks `__table__.columns` in declaration order.
+- Deleting a note is audited through `log_deleted_record(db, note, "Note")`,
+  which stands a truncated `content` in for the name a note does not have.
+
+**Migration `note_add_table`** creates the table and its index. No data moves.
+
+**Migration `note_backfill_rows`** converts the existing JSONB blobs into rows,
+leaving the `notes` columns in place so the change is reversible.
+
+**Migration `note_drop_jsonb`** drops the seven `notes` columns once nothing
+reads them. It is the point of no return, and is applied deliberately rather
+than as part of a routine `upgrade head`.
 
 ---
 

@@ -23,6 +23,7 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 - [Region (Manga)](#region-manga)
 - [Serialization Status](#serialization-status)
 - [Watch Order Step Importance](#watch-order-step-importance)
+- [Note Section Kinds](#note-section-kinds)
 - [Franchise — Special Entries](#franchise--special-entries)
 - [Fields to Fill by Entry Type](#fields-to-fill-by-entry-type)
 
@@ -314,6 +315,52 @@ whole restore.
 
 Generated (built-in) orders have no `watch_order_item` rows behind them, so
 every step of one is `Normal`.
+
+---
+
+## Note Section Kinds
+
+Field: `note.kind` — Default: `null`
+
+A dropdown only where the section declares one. `kinds` is a property of the
+section in `app/utils/note_sections.py`, and the API rejects a value the
+section does not list, so this vocabulary is enforced rather than advisory.
+Only two sections carry kinds.
+
+### `op_ed_changes` (OP/ED 變動)
+
+Anime, TV Show and Cartoon. Which OP/ED a given episode did something unusual with.
+
+| Value     | Default | Notes                          |
+| --------- | ------- | ------------------------------ |
+| `變化OP`  |         | The OP changed for this episode |
+| `變化ED`  |         | The ED changed for this episode |
+| `無OP`    |         | No OP this episode              |
+| `無ED`    |         | No ED this episode              |
+| `特殊OP`  |         | A one-off special OP            |
+| `特殊ED`  |         | A one-off special ED            |
+
+### `highlights` (神回/神片段)
+
+Anime only. The stored data distinguishes a great episode from a great arc, so
+this section keeps a dropdown even though its siblings (`highlight_episodes`,
+`highlight_passages`) do not.
+
+| Value    | Default | Notes                        |
+| -------- | ------- | ---------------------------- |
+| `神回`   |         | A standout single episode    |
+| `神篇章` |         | A standout arc               |
+
+### Retired: `回顧` and `其他`
+
+The old `特殊變動` list mixed several unrelated ideas under one "type" field.
+The notes restructure split it into `op_ed_changes` and `extended_episodes`
+(加長). `回顧` (recap) and `其他` (other) belong to neither, so they are **not**
+in either vocabulary and cannot be entered.
+
+They were not silently dropped: the `note_backfill_rows` migration logs every
+row carrying one, with its owner id and content, and leaves it for manual
+placement.
 
 ---
 

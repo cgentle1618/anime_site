@@ -1514,7 +1514,7 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 ### Tab-specific parsers
 
-`parse_collection_from_sheet`, `parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_tv_show_from_sheet`, `parse_cartoon_from_sheet`, `parse_manga_from_sheet`, `parse_novel_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
+`parse_collection_from_sheet`, `parse_franchise_from_sheet`, `parse_series_from_sheet`, `parse_anime_from_sheet`, `parse_anime_movie_from_sheet`, `parse_movie_from_sheet`, `parse_tv_show_from_sheet`, `parse_cartoon_from_sheet`, `parse_manga_from_sheet`, `parse_novel_from_sheet`, `parse_note_from_sheet`, `parse_system_option_from_sheet` — each calls `parse_from_sheet` for every expected field with the correct type.
 
 `_uuid_or_none` is used for plain UUID pointer columns that have **no** name-resolution step (`franchise.cover_entry_id`, `collection.cover_franchise_id`). `parse_from_sheet(..., UUID)` deliberately returns the raw *string* for an invalid UUID so the service layer can resolve names; for these columns that string would reach the database and raise, so it is coerced to `None`.
 
@@ -1524,9 +1524,11 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 **`parse_tv_show_from_sheet`**: Parses a raw dictionary from the TV Shows sheet into typed data ready for the database. Foreign keys parsed as `UUID`. `imdb_id` parsed as `str`.
 
+**`parse_note_from_sheet`**: Parses a raw dictionary from the Note sheet. `links` is parsed via `json.loads` (JSONB); `sort_index` as `float`. `owner_id` uses `_uuid_or_none` rather than `parse_from_sheet(..., UUID)`: it is an FK-less pointer with no name-resolution step in Pull, so an unparseable cell becomes `None` and the note imports unlinked instead of failing the tab.
+
 **Notable:**
 
-- `parse_anime_from_sheet`: `notes` field parsed via `json.loads` directly (JSONB). `source_netflix` defaults to `False` if null (unlike `source_baha` which stays `None`).
+- `parse_anime_from_sheet`: `source_netflix` defaults to `False` if null (unlike `source_baha` which stays `None`). The `notes` JSONB field is gone — notes are their own table now, parsed by `parse_note_from_sheet` off the Note tab.
 - Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`): parsed as `UUID` — if the sheet contains a string name, `parse_from_sheet` returns the string and `execute_pull_specific` resolves it to a real UUID.
 
 ---

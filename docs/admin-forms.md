@@ -87,6 +87,29 @@ expose the auto-fill checkbox.
 
 ## Add Page
 
+### Notes and the entry forms
+
+**Neither the Add nor the Modify form carries notes as form data.** Notes used
+to be a `notes` JSONB field on the entry payload; they are now rows in the
+`note` table, written through `/api/notes`.
+
+- **Add tabs mount no notes editor at all.** A note is keyed by
+  `(owner_type, owner_id)`, and the owner does not exist until the entry is
+  created — so notes are added afterwards, from the entry's Modify tab or its
+  detail page.
+- **Modify tabs mount the shared notes editor** under a "Structured Notes"
+  header, but it sits *outside* the form: the tab passes only
+  `{ system_id }`, and the editor loads and saves itself against `/api/notes`.
+  Its edits save immediately and independently — they are not part of Save
+  Changes, and Save Changes never writes notes.
+- The section list comes from `GET /api/notes/sections`, so the tabs name no
+  sections and need no change when the registry does. See
+  `reusable-elements.md` for the editor and `options.md` for the kinds.
+- The `remark` **Text column** on the entry is a different field and *is* still
+  part of the form payload; only the `remark` notes *section* moved.
+
+---
+
 ### General Field Interactions
 
 **Franchise & Series Autocomplete**
@@ -650,8 +673,8 @@ form) and is excluded from `FORM_TABS`, so it never appears on `/defaults`.
 - Pre-populated from the loaded entry.
 - User can add, delete, and reorder pairs.
 
-**Structured Notes section** — editable in the Modify form. Sections:
-Remark, 優點, 缺點, 優缺點, 大眾評價, 我的評價, 神片段, 解析, 巧思, Foreshadowing, 對稱, 改編, Resources, Unread, Questions, 名言/梗/迷因
+**Structured Notes section** — see "Notes and the entry forms" above; it is the
+same shared editor every Modify tab mounts, and it is not part of the form payload.
 
 ---
 

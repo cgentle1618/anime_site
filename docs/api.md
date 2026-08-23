@@ -24,6 +24,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Manga — `/api/manga`](#manga--apimanga)
 - [Novel — `/api/novel`](#novel--apinovel)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
+- [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
@@ -351,6 +352,44 @@ no dangling-quote state to represent: deleting a quote simply unlinks it.
 
 Quotes are entry-only, so a tier-owned meme has no quotes of its own to link;
 the frontend hides the quote-link control in that case.
+
+---
+
+## Note — `/api/notes`
+
+Structured commentary on any owner: one row per bullet, linked resource or
+episode comment. Replaces the `notes` JSONB column that used to sit on the
+seven media tables. Reads are public; every write is admin-only.
+
+Like Meme, a note's owner may be a media entry **or** one of the three
+grouping tiers — the same ten hyphenated `owner_type` values.
+
+| Method   | Path           | Auth   | Description                                                                                                                                       |
+| -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one.                            |
+| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`.                                        |
+| `POST`   | `""`           | Admin  | Create. Body: `NoteCreate`. 422 on a payload the registry rejects, or on a second row in a singleton section. `sort_index` defaults to the end.     |
+| `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes.                |
+| `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination.                      |
+| `DELETE` | `/{note_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.                               |
+
+**Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
+entry: `key`, `shape`, `label`, `kinds`, `episode_placeholder`, `singleton`,
+`desc_required`).
+
+**The registry is the contract.** `app/utils/note_sections.py` is the single
+authority on what a section is; `/sections` is how the frontend learns it, so
+the page names no section keys of its own. `label`, `episode_placeholder` and
+`desc_required` arrive already resolved for the requested owner — manga reads
+"神回" and "Chapter(s), e.g. ch 6" where TV reads the defaults — so the client
+needs no per-owner branching.
+
+**Ordering.** A listing sorts by the section's position in the registry first,
+then `sort_index` within it, which is exactly the page's render order.
+
+`/reorder` is declared **before** `/{note_id}`: FastAPI matches in declaration
+order, so the dynamic route would otherwise swallow `reorder` as a note id. It
+has no frontend caller yet — it is intentional surface awaiting a reorder UI.
 
 ---
 
