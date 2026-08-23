@@ -1,4 +1,5 @@
 // Frontend: day-by-day weekly schedule grid used at the top of the dashboard.
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { SCHEDULE_DAYS } from "../../config/weekdays";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
@@ -58,6 +59,8 @@ function ScheduleEntry({ item, timeField }) {
  * Entries whose day value is not a recognized weekday are skipped.
  * When `timeField` is given, entries show that time and sort by it
  * (missing times last); otherwise they sort by display name.
+ * With `collapsible`, the header toggles the day grid; `defaultCollapsed`
+ * decides whether it starts closed.
  */
 export default function WeeklySchedule({
   id,
@@ -68,7 +71,10 @@ export default function WeeklySchedule({
   timeField,
   items,
   emptyText = "Nothing scheduled right now.",
+  collapsible = false,
+  defaultCollapsed = false,
 }) {
+  const [collapsed, setCollapsed] = useState(collapsible && defaultCollapsed);
   const today = getTodayName();
 
   const byDay = Object.fromEntries(SCHEDULE_DAYS.map((d) => [d, []]));
@@ -96,7 +102,12 @@ export default function WeeklySchedule({
 
   return (
     <div id={id}>
-      <div className="flex items-center justify-between pb-3 mb-2 border-b-2 border-gray-100">
+      <div
+        className={`flex items-center justify-between pb-3 mb-2 border-b-2 border-gray-100 ${
+          collapsible ? "cursor-pointer select-none" : ""
+        }`}
+        onClick={collapsible ? () => setCollapsed((v) => !v) : undefined}
+      >
         <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
           <i className={`fas ${icon} text-brand/70`}></i>
           {title}
@@ -110,10 +121,15 @@ export default function WeeklySchedule({
           <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
             {total}
           </span>
+          {collapsible && (
+            <i
+              className={`fas fa-chevron-${collapsed ? "down" : "up"} text-gray-400 text-sm`}
+            ></i>
+          )}
         </div>
       </div>
 
-      {total === 0 ? (
+      {collapsed ? null : total === 0 ? (
         <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
           <p className="text-gray-400 font-medium italic">
             <i className="fas fa-ghost mr-2"></i>

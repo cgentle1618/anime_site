@@ -637,6 +637,8 @@ export default function Index() {
                 timeField="broadcast_time"
                 items={broadcastSchedule}
                 emptyText="No airing entries have a broadcast day set."
+                collapsible
+                defaultCollapsed
               />
             </div>
           </div>
