@@ -363,22 +363,6 @@ export default function MangaModifyTab({
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Prequel ID">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={cmgf.prequel_id || ""}
-            onChange={(e) => umg("prequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
-        <Field label="Sequel ID">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={cmgf.sequel_id || ""}
-            onChange={(e) => umg("sequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
         <Field label="Watch Order">
           <input
             className={inputCls}
@@ -387,17 +371,6 @@ export default function MangaModifyTab({
             value={cmgf.watch_order ?? ""}
             onChange={(e) => umg("watch_order", e.target.value)}
           />
-        </Field>
-        <Field label="Derive Related">
-          <select
-            className={selectCls}
-            value={cmgf.derive_related || ""}
-            onChange={(e) => umg("derive_related", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
         </Field>
       </div>
 

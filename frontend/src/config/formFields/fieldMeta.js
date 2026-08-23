@@ -83,9 +83,6 @@ export const COMMON_FIELD_META = {
   collection_text: { hidden: true },
   franchise_text: { hidden: true },
   series_text: { hidden: true },
-  // Derived by the prequel/sequel pipeline — never a default, never copied.
-  prequel_id: { hidden: true, defaultable: false, autofillable: false },
-  sequel_id: { hidden: true, defaultable: false, autofillable: false },
 
   // ---- Status ----------------------------------------------------------
   airing_status: {
@@ -155,16 +152,8 @@ export const COMMON_FIELD_META = {
   length_min: { label: "Length (min)", control: "number", group: "Release" },
 
   // ---- Derivation ------------------------------------------------------
-  derive_related: {
-    label: "Derive Related",
-    control: "select",
-    options: TRISTATE_OPTIONS,
-    coerce: "tristate",
-    group: "Derivation",
-  },
   watch_order: { label: "Watch Order", control: "number", group: "Derivation" },
   read_order: { label: "Read Order", control: "number", group: "Derivation" },
-  alternative: { label: "Alternative", group: "Derivation" },
 
   // ---- Links -----------------------------------------------------------
   mal_id: { label: "MAL ID", control: "number", group: "Links" },
@@ -619,7 +608,6 @@ export const BUILTIN_AUTOFILL = {
     "is_main",
     "source_official",
     "season_part",
-    "derive_related",
     "imdb_link",
   ],
   manga: [

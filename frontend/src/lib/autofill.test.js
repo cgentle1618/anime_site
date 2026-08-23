@@ -62,7 +62,7 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
     });
   });
 
-  it("copies the cartoon field set, coercing derive_related to a string", () => {
+  it("copies the cartoon field set", () => {
     const source = {
       cartoon_name_en: "Gravity Falls",
       cartoon_name_cn: "怪誕小鎮",
@@ -73,7 +73,6 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       is_main: "本傳",
       source_official: "Disney+",
       season_part: "Season 1",
-      derive_related: false,
       imdb_link: "https://www.imdb.com/title/tt1865718/",
     };
 
@@ -89,20 +88,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       is_main: "本傳",
       source_official: "Disney+",
       season_part: "Season 1",
-      derive_related: "false",
       imdb_link: "https://www.imdb.com/title/tt1865718/",
     });
-  });
-
-  it("maps derive_related true/false/undefined to the select's three values", () => {
-    const run = (derive_related) =>
-      buildAutofillPatch({ derive_related }, "cartoon", ["derive_related"], ctx)
-        .derive_related;
-
-    expect(run(true)).toBe("true");
-    expect(run(false)).toBe("false");
-    expect(run(undefined)).toBe("");
-    expect(run(null)).toBe("");
   });
 
   it("copies the manga field set", () => {

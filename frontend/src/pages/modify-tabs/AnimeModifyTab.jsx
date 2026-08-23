@@ -461,27 +461,6 @@ export default function AnimeModifyTab({
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Prequel ID" hint="UUID">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={af.prequel_id || ""}
-            onChange={(e) => ua("prequel_id", e.target.value || null)}
-          />
-        </Field>
-        <Field label="Sequel ID" hint="UUID">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={af.sequel_id || ""}
-            onChange={(e) => ua("sequel_id", e.target.value || null)}
-          />
-        </Field>
-        <Field label="Alternative IDs" hint="Comma-separated UUIDs">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={af.alternative}
-            onChange={(e) => ua("alternative", e.target.value)}
-          />
-        </Field>
         <Field label="Is Main Entry">
           <label className="flex items-center gap-2 cursor-pointer mt-1">
             <input
@@ -503,20 +482,6 @@ export default function AnimeModifyTab({
             value={af.watch_order}
             onChange={(e) => ua("watch_order", e.target.value)}
           />
-        </Field>
-        <Field
-          label="Derive Related"
-          hint="Set to No to skip prequel/sequel derivation"
-        >
-          <select
-            className={selectCls}
-            value={af.derive_related}
-            onChange={(e) => ua("derive_related", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
         </Field>
       </div>
 

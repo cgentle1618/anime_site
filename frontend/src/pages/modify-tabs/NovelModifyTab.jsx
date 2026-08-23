@@ -437,30 +437,6 @@ export default function NovelModifyTab({
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Prequel ID">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={cnvf.prequel_id || ""}
-            onChange={(e) => unv("prequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
-        <Field label="Sequel ID">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={cnvf.sequel_id || ""}
-            onChange={(e) => unv("sequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
-        <Field label="Alternative IDs" hint="Comma-separated UUIDs">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={cnvf.alternative || ""}
-            onChange={(e) => unv("alternative", e.target.value)}
-            placeholder="uuid1, uuid2, ..."
-          />
-        </Field>
         <Field label="Read Order">
           <input
             className={inputCls}

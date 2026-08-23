@@ -89,16 +89,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     producer: anime.producer || "",
     music: anime.music || "",
     distributor_tw: anime.distributor_tw || "",
-    prequel_id: anime.prequel_id || null,
-    sequel_id: anime.sequel_id || null,
-    alternative: anime.alternative || "",
     is_main_entry: anime.is_main_entry === true,
-    derive_related:
-      anime.derive_related === true
-        ? "true"
-        : anime.derive_related === false
-          ? "false"
-          : "",
     watch_order: anime.watch_order ?? "",
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
@@ -470,15 +461,7 @@ export default function Modify() {
       release_date_usa: m.release_date_usa || "",
       release_date_tw: m.release_date_tw || "",
       director: m.director || "",
-      prequel_id: m.prequel_id || null,
-      sequel_id: m.sequel_id || null,
       watch_order: m.watch_order ?? "",
-      derive_related:
-        m.derive_related === true
-          ? "true"
-          : m.derive_related === false
-            ? "false"
-            : "",
       imdb_id: m.imdb_id ?? "",
       imdb_link: m.imdb_link || "",
       source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
@@ -516,15 +499,7 @@ export default function Modify() {
       my_rating: t.my_rating || "",
       imdb_rating: t.imdb_rating || "",
       release_date: t.release_date || "",
-      prequel_id: t.prequel_id || null,
-      sequel_id: t.sequel_id || null,
       watch_order: t.watch_order ?? "",
-      derive_related:
-        t.derive_related === true
-          ? "true"
-          : t.derive_related === false
-            ? "false"
-            : "",
       imdb_id: t.imdb_id ?? "",
       imdb_link: t.imdb_link || "",
       watch_next: t.watch_next ?? false,
@@ -563,15 +538,7 @@ export default function Modify() {
       length_ep_min: c.length_ep_min ?? "",
       source_official: c.source_official || "",
       release_date: c.release_date || "",
-      prequel_id: c.prequel_id || null,
-      sequel_id: c.sequel_id || null,
       watch_order: c.watch_order ?? "",
-      derive_related:
-        c.derive_related === true
-          ? "true"
-          : c.derive_related === false
-            ? "false"
-            : "",
       imdb_id: c.imdb_id ?? "",
       imdb_link: c.imdb_link || "",
       source_other: Array.isArray(c.source_other)
@@ -622,14 +589,6 @@ export default function Modify() {
       anime_studio: m.anime_studio || "",
       serialization_platform: m.serialization_platform || "",
       publisher_tw: m.publisher_tw || "",
-      derive_related:
-        m.derive_related === true
-          ? "true"
-          : m.derive_related === false
-            ? "false"
-            : "",
-      prequel_id: m.prequel_id || null,
-      sequel_id: m.sequel_id || null,
       watch_order: m.watch_order ?? "",
       mal_id: m.mal_id ?? "",
       mal_link: m.mal_link || "",
@@ -687,9 +646,6 @@ export default function Modify() {
       release_year: n.release_year ?? "",
       end_year: n.end_year ?? "",
       publisher_tw: n.publisher_tw || "",
-      prequel_id: n.prequel_id || null,
-      sequel_id: n.sequel_id || null,
-      alternative: n.alternative || "",
       read_order: n.read_order ?? "",
       novel_name_each_cn,
       novel_name_each_en,
@@ -1183,15 +1139,7 @@ export default function Modify() {
       release_date_usa: mmf.release_date_usa || null,
       release_date_tw: mmf.release_date_tw || null,
       director: mmf.director || null,
-      prequel_id: mmf.prequel_id || null,
-      sequel_id: mmf.sequel_id || null,
       watch_order: mmf.watch_order !== "" ? parseFloat(mmf.watch_order) : null,
-      derive_related:
-        mmf.derive_related === "true"
-          ? true
-          : mmf.derive_related === "false"
-            ? false
-            : null,
       imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
       source_other:
@@ -1322,16 +1270,8 @@ export default function Modify() {
       my_rating: tvmf.my_rating || null,
       imdb_rating: tvmf.imdb_rating || null,
       release_date: tvmf.release_date || null,
-      prequel_id: tvmf.prequel_id || null,
-      sequel_id: tvmf.sequel_id || null,
       watch_order:
         tvmf.watch_order !== "" ? parseFloat(tvmf.watch_order) : null,
-      derive_related:
-        tvmf.derive_related === "true"
-          ? true
-          : tvmf.derive_related === "false"
-            ? false
-            : null,
       imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
       imdb_link: tvmf.imdb_link || null,
       source_other:
@@ -1464,15 +1404,7 @@ export default function Modify() {
         cmf.length_ep_min !== "" ? parseInt(cmf.length_ep_min) : null,
       source_official: cmf.source_official || null,
       release_date: cmf.release_date || null,
-      prequel_id: cmf.prequel_id || null,
-      sequel_id: cmf.sequel_id || null,
       watch_order: cmf.watch_order !== "" ? parseFloat(cmf.watch_order) : null,
-      derive_related:
-        cmf.derive_related === "true"
-          ? true
-          : cmf.derive_related === "false"
-            ? false
-            : null,
       imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
       imdb_link: cmf.imdb_link || null,
       source_other:
@@ -1623,14 +1555,6 @@ export default function Modify() {
       anime_studio: cmgf.anime_studio || null,
       serialization_platform: cmgf.serialization_platform || null,
       publisher_tw: cmgf.publisher_tw || null,
-      derive_related:
-        cmgf.derive_related === "true"
-          ? true
-          : cmgf.derive_related === "false"
-            ? false
-            : null,
-      prequel_id: cmgf.prequel_id || null,
-      sequel_id: cmgf.sequel_id || null,
       watch_order:
         cmgf.watch_order !== "" ? parseFloat(cmgf.watch_order) : null,
       mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
@@ -1844,9 +1768,6 @@ export default function Modify() {
         cnvf.release_year !== "" ? parseInt(cnvf.release_year) : null,
       end_year: cnvf.end_year !== "" ? parseInt(cnvf.end_year) : null,
       publisher_tw: cnvf.publisher_tw || null,
-      prequel_id: cnvf.prequel_id || null,
-      sequel_id: cnvf.sequel_id || null,
-      alternative: cnvf.alternative || null,
       read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
       novel_name_each_cn: novelNameEachCn,
       novel_name_each_en: novelNameEachEn,

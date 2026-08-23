@@ -96,17 +96,8 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     producer: af.producer || null,
     music: af.music || null,
     distributor_tw: af.distributor_tw || null,
-    prequel_id: af.prequel_id || null,
-    sequel_id: af.sequel_id || null,
-    alternative: af.alternative || null,
     is_main_entry: af.is_main_entry || null,
     watch_order: af.watch_order !== "" ? parseFloat(af.watch_order) : null,
-    derive_related:
-      af.derive_related === "true"
-        ? true
-        : af.derive_related === "false"
-          ? false
-          : null,
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
     anilist_link: af.anilist_link || null,

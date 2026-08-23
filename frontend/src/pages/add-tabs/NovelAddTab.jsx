@@ -500,30 +500,6 @@ export default function NovelAddTab({
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Prequel ID" hint="UUID of prequel entry">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={nvf.prequel_id || ""}
-            onChange={(e) => unv("prequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
-        <Field label="Sequel ID" hint="UUID of sequel entry">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={nvf.sequel_id || ""}
-            onChange={(e) => unv("sequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
-        <Field label="Alternative IDs" hint="Comma-separated UUIDs">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={nvf.alternative || ""}
-            onChange={(e) => unv("alternative", e.target.value)}
-            placeholder="uuid1, uuid2, ..."
-          />
-        </Field>
         <Field label="Read Order" hint="e.g. 1, 1.5, 2">
           <input
             className={inputCls}

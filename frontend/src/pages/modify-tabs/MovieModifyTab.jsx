@@ -263,22 +263,6 @@ export default function MovieModifyTab({
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Prequel ID" hint="UUID of prequel entry">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={mmf.prequel_id || ""}
-            onChange={(e) => umm("prequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
-        <Field label="Sequel ID" hint="UUID of sequel entry">
-          <input
-            className={inputCls + " font-mono text-xs"}
-            value={mmf.sequel_id || ""}
-            onChange={(e) => umm("sequel_id", e.target.value || null)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-        </Field>
         <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
           <input
             className={inputCls}
@@ -288,20 +272,6 @@ export default function MovieModifyTab({
             onChange={(e) => umm("watch_order", e.target.value)}
             placeholder="e.g. 1, 1.5, 2"
           />
-        </Field>
-        <Field
-          label="Derive Related"
-          hint="Set to No to skip prequel/sequel derivation"
-        >
-          <select
-            className={selectCls}
-            value={mmf.derive_related}
-            onChange={(e) => umm("derive_related", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
         </Field>
       </div>
 

@@ -113,5 +113,5 @@ export const SEASON_NUMS = Array.from({ length: 10 }, (_, i) => String(i + 1));
 export const PART_NUMS = Array.from({ length: 7 }, (_, i) => String(i + 1));
 
 // Yes/No selects that store the STRING "true"/"false" (never a real boolean),
-// with "" meaning "unset". Used by derive_related, source_baha, source_netflix.
+// with "" meaning "unset". Used by source_baha, source_netflix.
 export const TRISTATE = ["true", "false"];
