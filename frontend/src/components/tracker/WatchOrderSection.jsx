@@ -14,7 +14,7 @@ import WatchOrderGuide, {
   mediaScope,
 } from "./WatchOrderGuide";
 
-export default function WatchOrderSection({ franchiseId, collectionId }) {
+export default function WatchOrderSection({ franchiseId, collectionId, seriesId }) {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
@@ -30,6 +30,7 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
       buildUrl(endpoints.watchOrder.lists(), {
         franchise_id: franchiseId,
         collection_id: collectionId,
+        series_id: seriesId,
       }),
       { credentials: "include" }
     )
@@ -47,7 +48,7 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
       })
       .catch(() => setError("Could not load watch orders."))
       .finally(() => setLoading(false));
-  }, [franchiseId, collectionId]);
+  }, [franchiseId, collectionId, seriesId]);
 
   useEffect(loadLists, [loadLists]);
 
@@ -84,6 +85,7 @@ export default function WatchOrderSection({ franchiseId, collectionId }) {
         buildUrl(endpoints.watchOrder.createRelease(), {
           franchise_id: franchiseId,
           collection_id: collectionId,
+          series_id: seriesId,
           anime_only: animeOnly ? "true" : undefined,
         }),
         { method: "POST", credentials: "include" }

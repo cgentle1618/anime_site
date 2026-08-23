@@ -10,5 +10,5 @@ export const MEDIA_CONFIG = {
   novel:         { statusField: "reading_status",  apiEndpoint: "/api/novel",       navPath: "/novel",        statusType: "read"  },
   collection:    { statusField: null,              apiEndpoint: "/api/collection",  navPath: "/collection",   statusType: null    },
   franchise:     { statusField: null,              apiEndpoint: "/api/franchise",   navPath: "/franchise",    statusType: null    },
-  series:        { statusField: null,              apiEndpoint: "/api/series",      navPath: null,            statusType: null    },
+  series:        { statusField: null,              apiEndpoint: "/api/series",      navPath: "/series",       statusType: null    },
 };

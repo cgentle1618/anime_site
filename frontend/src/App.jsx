@@ -13,6 +13,7 @@ import Search from "./pages/public/Search";
 
 import Collection from "./pages/detail/Collection";
 import Franchise from "./pages/detail/Franchise";
+import Series from "./pages/detail/Series";
 import Anime from "./pages/detail/Anime";
 import AnimeMovie from "./pages/detail/AnimeMovie";
 import Movie from "./pages/detail/Movie";
@@ -107,6 +108,7 @@ export default function App() {
                 <Route path="/library/novel" element={<LibraryNovel />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
+                <Route path="/series/:system_id" element={<Series />} />
                 <Route path="/watch-order/:system_id" element={<WatchOrder />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route

@@ -89,6 +89,40 @@ export function getFranchiseCover(
 }
 
 /**
+ * Resolve a series's cover:
+ *   1. its explicitly chosen cover_entry_id (searched across all provided entries)
+ *   2. else the newest entry among those that has a cover image
+ *   3. else the placeholder
+ *
+ * Unlike getFranchiseCover, entries are passed as a single combined list -
+ * SeriesPage loads six flat entry arrays (anime, movies, TV shows, cartoons,
+ * manga, novels) with no per-franchise grouping, so there is no "convention
+ * filename" fallback to key off.
+ */
+export function getSeriesCover(series, entries) {
+  if (series.cover_entry_id) {
+    const coverEntry = entries.find(
+      (e) => e.system_id === series.cover_entry_id,
+    );
+    if (
+      coverEntry &&
+      coverEntry.cover_image_file &&
+      coverEntry.cover_image_file !== "N/A"
+    ) {
+      return getCoverUrl(coverEntry.cover_image_file);
+    }
+  }
+  const withCovers = entries.filter(
+    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
+  );
+  if (withCovers.length > 0) {
+    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
+    return getCoverUrl(withCovers[0].cover_image_file);
+  }
+  return FALLBACK_SVG;
+}
+
+/**
  * Resolve a collection's cover by delegating to a member franchise:
  *   1. its chosen cover_franchise_id, resolved via getFranchiseCover
  *   2. else the first member franchise (by name) that yields a real cover
