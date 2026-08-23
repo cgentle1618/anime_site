@@ -17,6 +17,86 @@ import WatchOrderGuide, {
 // How many steps a hub page draws before deferring to the order's own page.
 const INLINE_STEP_LIMIT = 10;
 
+// Above this many orders the chips give way to a dropdown. Built-in orders are
+// bounded by the generator kinds, but hand-written ones are not, so the chip
+// row needs a ceiling it will almost never reach.
+const CHIP_LIMIT = 6;
+
+/**
+ * Hand-written orders first, then generated ones: a curated order is the one a
+ * reader most likely wants, and `auto_source` is what the backend stamps on
+ * anything it built itself. Backend ordering is preserved inside each group,
+ * and an empty group is dropped rather than shown as a bare label.
+ */
+function splitByOrigin(lists) {
+  return [
+    { label: "Custom", lists: lists.filter((l) => !l.auto_source) },
+    { label: "Built-in", lists: lists.filter((l) => l.auto_source) },
+  ].filter((g) => g.lists.length > 0);
+}
+
+/**
+ * One order. The name truncates at a width no current order comes near - it is
+ * a guard against a future long name, not a normal state - while the star and
+ * the step count sit outside the truncation so they always survive.
+ */
+function OrderChip({ list, active, onSelect }) {
+  const name = list.list_name || "Untitled Order";
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(list.system_id)}
+      title={name}
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+        active
+          ? "bg-brand text-white border-brand"
+          : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:text-gray-900"
+      }`}
+    >
+      {list.is_most_recommended && (
+        <i
+          className={`fas fa-star shrink-0 ${active ? "text-white" : "text-amber-500"}`}
+        ></i>
+      )}
+      <span className="truncate max-w-[18rem]">{name}</span>
+      <span
+        className={`shrink-0 font-bold ${active ? "text-white/70" : "text-gray-400"}`}
+      >
+        {list.item_count}
+      </span>
+    </button>
+  );
+}
+
+/** The chip rendering of the picker: one labelled cluster per origin group. */
+function OrderChips({ groups, selectedId, onSelect }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {groups.map((group, i) => (
+        <div key={group.label} className="flex flex-wrap items-center gap-2">
+          {i > 0 && (
+            <div
+              className="w-px h-5 bg-gray-200 shrink-0 mr-1"
+              aria-hidden="true"
+            />
+          )}
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+            {group.label}
+          </span>
+          {group.lists.map((l) => (
+            <OrderChip
+              key={l.system_id}
+              list={l}
+              active={l.system_id === selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function WatchOrderSection({ franchiseId, collectionId, seriesId }) {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
@@ -108,6 +188,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
   }
 
   const hasRelease = lists.some((l) => l.auto_source === "release");
+  const groups = splitByOrigin(lists);
 
   if (!lists.length) {
     return (
@@ -141,22 +222,34 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
       <MediaScopeLine mediaTypes={detail?.media_types} className="mb-1.5" />
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {lists.length > 1 && (
+        {lists.length > 1 && lists.length <= CHIP_LIMIT && (
+          <OrderChips
+            groups={groups}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        )}
+
+        {lists.length > CHIP_LIMIT && (
           <select
             value={selectedId || ""}
             onChange={(e) => setSelectedId(e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand"
           >
-            {lists.map((l) => (
-              <option key={l.system_id} value={l.system_id}>
-                {l.is_most_recommended ? "★ " : ""}
-                {l.list_name || "Untitled Order"}
-                {l.is_most_recommended ? " (most recommended)" : ""} —{" "}
-                {l.item_count} steps
-                {mediaScope(l.media_types)
-                  ? ` · ${mediaScope(l.media_types).short}`
-                  : ""}
-              </option>
+            {groups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.lists.map((l) => (
+                  <option key={l.system_id} value={l.system_id}>
+                    {l.is_most_recommended ? "★ " : ""}
+                    {l.list_name || "Untitled Order"}
+                    {l.is_most_recommended ? " (most recommended)" : ""} —{" "}
+                    {l.item_count} steps
+                    {mediaScope(l.media_types)
+                      ? ` · ${mediaScope(l.media_types).short}`
+                      : ""}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         )}
