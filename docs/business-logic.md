@@ -745,7 +745,12 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 
 ### Find Remarks `find_all_remarks(db)`
 
-Find all media type entries with remark data column not being null.
+Find all media type entries whose `remark` is non-null and non-empty. `remark`
+is no longer a stored column on these tables — it is a read-only
+`column_property` correlated against the `remark`-section row in `note` for
+that owner — but the query filters and orders on it exactly as it would a
+real column, since SQLAlchemy compiles the property into the same subquery
+wherever it is referenced.
 
 ---
 

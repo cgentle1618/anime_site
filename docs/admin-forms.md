@@ -111,8 +111,17 @@ to be a `notes` JSONB field on the entry payload; they are now rows in the
 - The section list comes from `GET /api/notes/sections`, so the tabs name no
   sections and need no change when the registry does. See
   `reusable-elements.md` for the editor and `options.md` for the kinds.
-- The `remark` **Text column** on the entry is a different field and *is* still
-  part of the form payload; only the `remark` notes *section* moved.
+- `remark` *is* still part of the form payload, even though it is no longer
+  a column on the entry: it is the singleton `remark` row in `note` (the
+  same section the notes editor above lists as "備註 Remark", since its
+  `owners` include every entry type), exposed on the model as a read-only
+  `column_property` so the form still reads and writes it as a plain string
+  on the entry's own endpoint. The router pops `remark` out of the payload
+  and upserts it onto that note row. Because the "Structured Notes" editor
+  on the same Modify tab — and the hub's Remark Modal, for franchise/series/
+  collection owners (see `reusable-elements.md`) — write that same section
+  through `/api/notes`, an entry's remark has two write surfaces and last
+  write wins.
 
 ---
 

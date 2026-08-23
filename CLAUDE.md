@@ -85,7 +85,6 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 ## Common Points of Confusion
 
 - Anime Movie is not the same as Anime with airing_type as "movie". Anime Movie has its own database table anime_movie. Anime with airing_type as "movie" belongs to the database table anime. When mentioning Anime Movie, it is more likely to be referring to the entries in anime_movie database table.
-- Remark column is different from remark field in notes column. The prior is of data type Text. The later is an user-defined sub-field of JSONB notes column.
 - Reality franchise is referring to franchise with type as "TV or Movie".
 
 ## Concurrent Claude Code Sessions

@@ -87,13 +87,12 @@ Optional umbrella tier above Franchise. Groups several distinct franchises that 
 | `my_rating`              | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                                                             |
 | `collection_expectation` | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                                                     |
 | `cover_franchise_id`     | UUID     | Yes      | —          | FK → `franchise.system_id` (`ON DELETE SET NULL`). The cover is a **member franchise**, whose own cover logic then resolves the image. Falls back to the first member with a cover. |
-| `remark`                 | Text     | Yes      | —          |                                                                                                |
 | `created_at`             | DateTime | Yes      | Taipei now |                                                                                                |
 | `updated_at`             | DateTime | Yes      | Taipei now | Auto-updated on save                                                                           |
 | `no_built_in_orders` | Boolean | Yes | Opts every member franchise out of built-in watch orders. Set for 迪士尼, whose members are unrelated standalone works |
 
 
-**Note:** There is deliberately no `collection_type`, and no roll-up/computed statistics.
+**Note:** There is deliberately no `collection_type`, and no roll-up/computed statistics. `remark` is not a column here — see the `note` table below for how it is exposed as a read-only property backed by that table's singleton `remark` row.
 
 **Relationships:** `franchises[]` (one-to-many, via `franchise.collection_id`), `cover_franchise` (many-to-one)
 
@@ -122,9 +121,10 @@ Top-level media franchise entity. Groups related series and individual entries.
 | `type_covers`           | JSONB    | Yes      | —          | Dict mapping franchise type string → entry UUID; used for per-type covers in 3x3 grids (e.g. `{"ACG": "<uuid>", "TV or Movie": "<uuid>"}` ) |
 | `watch_next_group`      | String   | Yes      | —          | `"12ep"`, `"24ep"`, `"30ep_plus"`, or null                                                                                                  |
 | `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                                                                             |
-| `remark`                | Text     | Yes      | —          |                                                                                                                                             |
 | `created_at`            | DateTime | No       | Taipei now |                                                                                                                                             |
 | `updated_at`            | DateTime | No       | Taipei now | Auto-updated on save                                                                                                                        |
+
+`remark` is not a column on `franchise` either — it is the `column_property` described under the `note` table below.
 
 **Column order matters:** `format_model_for_sheet` iterates `__table__.columns`, so the model's declaration order *is* the Google Sheets column order. `collection_id` is declared right after `franchise_expectation` so it lands in column J of the Franchise tab. Reordering model columns needs no migration — physical DB order is unaffected.
 
@@ -151,7 +151,6 @@ Optional intermediate grouping layer within a franchise.
 | `series_expectation`   | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                      |
 | `cover_entry_id`       | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover; no FK constraint |
 | `to_rewatch`           | Boolean  | Yes      | `False`    |                                                                 |
-| `remark`               | Text     | Yes      | —          |                                                                 |
 | `created_at`           | DateTime | No       | Taipei now |                                                                 |
 | `updated_at`           | DateTime | No       | Taipei now | Auto-updated on save                                           |
 
@@ -161,7 +160,7 @@ Optional intermediate grouping layer within a franchise.
 
 **Relationships:** `franchise` (many-to-one), `animes[]` (one-to-many)
 
-**Note:** `display_name` fallback: CN → EN → Alt → roman → JP.
+**Note:** `display_name` fallback: CN → EN → Alt → roman → JP. `remark` is not a column here either — see the `note` table below.
 
 ---
 
@@ -293,11 +292,12 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -377,11 +377,12 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -454,11 +455,12 @@ Live-action and animated movie entries.
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -537,11 +539,12 @@ Live-action and scripted TV show entries.
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -621,11 +624,12 @@ Western animated TV show entries.
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -721,11 +725,12 @@ Manga, manhwa, and manhua entries.
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | `False`                                     |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -823,11 +828,12 @@ Light novel and book entries.
 | ------------------ | -------- | -------- | ------------------------------------------- |
 | `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | —                                           |
-| `remark`           | Text     | Yes      | Temporary free-form notes                   |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
 
 ---
 
@@ -1133,6 +1139,25 @@ a series, franchise, or collection — the same ten `owner_type` values.
   matching `meme` and `watch_order_item`.
 - Index `ix_note_owner_section` on `(owner_type, owner_id, section)` covers the
   only read path the notes page uses.
+- **`remark` is a section, not a column, on the ten owner tables.** Each of
+  `collection`, `franchise`, `series`, `anime`, `anime_movies`, `movies`,
+  `tv_shows`, `cartoons`, `manga`, and `novel` exposes `remark` as a
+  read-only SQLAlchemy `column_property` — a correlated subquery against this
+  table for the row where `section = 'remark'` — declared at the bottom of
+  `app/models/__init__.py`. It reads like a plain column everywhere a
+  response schema or a template touches it, but there is nothing to migrate
+  on the owner table when a remark is added, edited, or cleared. Writes still
+  go through the owner's own endpoint (Add, Modify, and the hub's Remark
+  Modal all send `remark` as a string there); the router pops it out of the
+  payload and upserts or deletes the underlying note row, so an empty or
+  whitespace-only remark deletes the row rather than storing a blank one.
+  Because the form and the notes page both ultimately write the same row,
+  last write wins between them.
+- Partial unique index `ix_note_one_remark_per_owner` on
+  `(owner_type, owner_id) WHERE section = 'remark'` enforces that a `remark`
+  column_property has at most one row to resolve. Without it, a duplicate
+  remark row would make the scalar subquery raise on every read of that
+  owner rather than fail only the write that created the duplicate.
 - Column declaration order is also the Google Sheets column order, because
   `format_model_for_sheet` walks `__table__.columns` in declaration order.
 - Deleting a note is audited through `log_deleted_record(db, note, "Note")`,
