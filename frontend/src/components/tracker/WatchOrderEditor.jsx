@@ -11,8 +11,6 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { MediaScopeLine, specialLabel } from "./WatchOrderGuide";
 
-// Exported so the create form on /watch-orders offers exactly the same
-// choices the editor does.
 // The three rungs a step can sit on, most important first. Mirrors
 // ITEM_IMPORTANCE in app/services/domain/watch_order.py, which validates them.
 export const ITEM_IMPORTANCE = ["Essential", "Normal", "Optional"];
@@ -25,6 +23,8 @@ const IMPORTANCE_ACTIVE_CLASS = {
   Optional: "bg-white text-amber-600 shadow-sm",
 };
 
+// Exported so the create form on /watch-orders offers exactly the same
+// choices the editor does.
 export const LIST_TYPES = [
   "Custom",
   "Chronological",
@@ -45,6 +45,7 @@ const TYPE_LABELS = {
 function ItemRow({
   item,
   index,
+  total,
   onPatch,
   onRemove,
   onMove,
@@ -58,6 +59,9 @@ function ItemRow({
   const [epStart, setEpStart] = useState(item.ep_start ?? "");
   const [epEnd, setEpEnd] = useState(item.ep_end ?? "");
   const [note, setNote] = useState(item.note ?? "");
+  // Same reason: "12" passes through "1" on the way, and moving the step to
+  // slot 1 mid-keystroke would reorder the list out from under the typist.
+  const [slot, setSlot] = useState(String(index));
 
   useEffect(() => {
     setEpStart(item.ep_start ?? "");
@@ -65,10 +69,42 @@ function ItemRow({
     setNote(item.note ?? "");
   }, [item.ep_start, item.ep_end, item.note]);
 
+  // A move by any means - drag, the arrows, or another row's typed slot -
+  // changes this row's number, so the box follows the list rather than
+  // holding whatever was last typed into it.
+  useEffect(() => {
+    setSlot(String(index));
+  }, [index]);
+
   function commit(field, raw) {
     const value = raw === "" ? null : raw;
     if ((item[field] ?? null) === value) return;
     onPatch(item.system_id, { [field]: value });
+  }
+
+  /**
+   * Moves this step to the typed slot, counting the way the badges read (1..N)
+   * rather than in the stored float positions - the reorder endpoint renumbers
+   * to 1..N regardless, so a typed 2.5 would be normalized away by the next
+   * move anyway.
+   *
+   * Out of range clamps to the nearest end, which is what someone typing 99 to
+   * mean "last" intends. Anything unparseable simply restores the current slot.
+   */
+  function commitSlot() {
+    const parsed = Number.parseInt(slot, 10);
+    if (Number.isNaN(parsed)) {
+      setSlot(String(index));
+      return;
+    }
+    const target = Math.min(Math.max(parsed, 1), total);
+    if (target === index) {
+      // Normalizes what is shown: typing 0 on the first row is not a move,
+      // but the box should still read 1 afterwards.
+      setSlot(String(index));
+      return;
+    }
+    onMove(index - 1, target - 1);
   }
 
   return (
@@ -83,9 +119,39 @@ function ItemRow({
         {!readOnly && (
           <i className="fas fa-grip-vertical text-gray-300 cursor-grab"></i>
         )}
-        <span className="w-7 h-7 shrink-0 rounded-full bg-brand/10 text-brand text-xs font-black flex items-center justify-center">
-          {index}
-        </span>
+        {/*
+          A box rather than the old circle: a caret and two digits do not fit a
+          28px round badge. Typing a slot is the third way to reorder, beside
+          dragging and the arrows, and the only one that works when the
+          destination is off-screen.
+        */}
+        {readOnly ? (
+          <span className="w-9 h-7 shrink-0 rounded-lg bg-brand/10 text-brand text-xs font-black flex items-center justify-center">
+            {index}
+          </span>
+        ) : (
+          <input
+            type="number"
+            min={1}
+            max={total}
+            value={slot}
+            title="Type a position to move this step"
+            aria-label={`Position, currently ${index} of ${total}`}
+            onChange={(e) => setSlot(e.target.value)}
+            onBlur={commitSlot}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setSlot(String(index));
+                // Blurring after the reset would commit the restored value
+                // through onBlur, which is harmless but pointless; leaving
+                // focus put also lets the typist correct and retry.
+                e.currentTarget.select();
+              }
+            }}
+            className="w-9 h-7 shrink-0 rounded-lg bg-brand/10 text-brand text-xs font-black text-center border border-transparent hover:border-brand/30 focus:outline-none focus:ring-2 focus:ring-brand [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        )}
 
         {item.missing ? (
           <span className="text-sm font-medium text-red-400 flex-1">
@@ -740,6 +806,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
               index={i + 1}
               readOnly={isBuiltIn}
               isFirst={i === 0}
+              total={list.items.length}
               isLast={i === list.items.length - 1}
               onPatch={patchItem}
               onRemove={removeItem}

@@ -1203,7 +1203,11 @@ entry is *fully* covered, since that would mean trusting an `ep_total` that is
 often blank, and a "Hide added" toggle in the search row that drops those rows
 so only what is left to add remains — per-step episode range / importance
 (three buttons rather than a dropdown, so the whole ladder stays visible while
-scanning a list of steps) / note, and reordering by drag or up/down buttons.
+scanning a list of steps) / note, and reordering by drag, up/down buttons, or
+typing a step's position into its number box — the third being the only one
+that works when the destination is off-screen. A typed position counts in
+displayed slots (1..N, the same numbering the reorder endpoint writes), clamps
+to the nearest end, and restores itself if it cannot be parsed.
 Text and number inputs commit on blur, not per keystroke; reorder commits the full id sequence through
 `PUT /lists/{id}/reorder` and is applied locally first so a dragged row does not
 snap back mid-request.
