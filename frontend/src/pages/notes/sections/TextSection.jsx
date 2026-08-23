@@ -131,31 +131,11 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
-export default function TextSection({
-  section,
-  notes,
-  isAdmin,
-  onCreate,
-  onUpdate,
-  onDelete,
-}) {
+function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState("");
-
-  if (section.singleton) {
-    return (
-      <SingletonText
-        section={section}
-        note={notes[0]}
-        isAdmin={isAdmin}
-        onCreate={onCreate}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />
-    );
-  }
 
   const commit = () => {
     const content = draft.trim();
@@ -231,5 +211,14 @@ export default function TextSection({
       )}
       {!notes.length && !adding && <EmptyHint />}
     </SectionCard>
+  );
+}
+
+// The two cases keep their own state, so neither carries the other's.
+export default function TextSection({ section, notes, ...rest }) {
+  return section.singleton ? (
+    <SingletonText section={section} note={notes[0]} {...rest} />
+  ) : (
+    <TextList section={section} notes={notes} {...rest} />
   );
 }

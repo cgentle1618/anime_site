@@ -32,14 +32,3 @@ export const updateNote = (id, payload) =>
 
 export const deleteNote = (id) =>
   fetchNoContent(`${BASE}/${id}`, { method: "DELETE" });
-
-export const reorderNotes = ({ ownerType, ownerId, section, orderedIds }) =>
-  fetchJson(`${BASE}/reorder`, {
-    method: "PATCH",
-    ...jsonBody({
-      owner_type: ownerType,
-      owner_id: ownerId,
-      section,
-      ordered_ids: orderedIds,
-    }),
-  });

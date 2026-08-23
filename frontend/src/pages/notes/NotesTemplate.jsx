@@ -24,9 +24,16 @@ const SHAPES = {
   name_links: NameLinksSection,
 };
 
-// Quotes and memes are registry sections like any other - the registry gives
-// their order and label - but they are backed by their own tables, so they
-// read and write through their own components instead of the note handlers.
+// The one deliberate, scoped exception to "the frontend never names sections".
+// The four shapes above are fully registry-driven: the backend can add, drop or
+// relabel a `text` section and this file never changes. An `external` section
+// cannot work that way - quotes and memes are backed by their own tables, their
+// own endpoints and their own long-lived components, so rendering one means
+// naming a component for it. Keying that off the section key (rather than
+// minting a shape per section) keeps the exception to this map: the registry
+// still decides whether the section exists at all, where it sits, and what it
+// is called, and an external key with no component here degrades to null.
+//
 // Their props predate this page's shape contract, so each is adapted here
 // rather than rewritten. media_type/entry_id and owner_type/owner_id are the
 // same hyphenated owner keys the notes API uses.
@@ -52,17 +59,15 @@ const EXTERNAL_SHAPES = {
 export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
   const [sections, setSections] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const reload = useCallback(async () => {
+  // Only the rows change while the page is open, so a mutation refetches them
+  // alone; the registry is static for the session.
+  const reloadNotes = useCallback(async () => {
     if (!ownerType || !ownerId) return;
     try {
-      const [secs, rows] = await Promise.all([
-        api.fetchSections(ownerType),
-        api.fetchNotes(ownerType, ownerId),
-      ]);
-      setSections(secs);
-      setNotes(rows);
+      setNotes(await api.fetchNotes(ownerType, ownerId));
       setError(null);
     } catch (e) {
       setError(String(e.message || e));
@@ -70,8 +75,29 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
   }, [ownerType, ownerId]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (!ownerType || !ownerId) return;
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      api.fetchSections(ownerType),
+      api.fetchNotes(ownerType, ownerId),
+    ])
+      .then(([secs, rows]) => {
+        if (cancelled) return;
+        setSections(secs);
+        setNotes(rows);
+        setError(null);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e.message || e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerType, ownerId]);
 
   const bySection = useMemo(() => {
     const map = {};
@@ -88,7 +114,7 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
             owner_id: ownerId,
             ...payload,
           });
-          await reload();
+          await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
         }
@@ -96,7 +122,7 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
       onUpdate: async (id, payload) => {
         try {
           await api.updateNote(id, payload);
-          await reload();
+          await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
         }
@@ -104,21 +130,13 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
       onDelete: async (id) => {
         try {
           await api.deleteNote(id);
-          await reload();
-        } catch (e) {
-          setError(String(e.message || e));
-        }
-      },
-      onReorder: async (section, orderedIds) => {
-        try {
-          await api.reorderNotes({ ownerType, ownerId, section, orderedIds });
-          await reload();
+          await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
         }
       },
     }),
-    [ownerType, ownerId, reload],
+    [ownerType, ownerId, reloadNotes],
   );
 
   return (
@@ -130,34 +148,39 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
       </div>
       <div className="p-4 space-y-3">
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {sections.map((section) => {
-          if (section.shape === "external") {
-            // An external section this page has no component for renders
-            // nothing rather than crashing.
-            const External = EXTERNAL_SHAPES[section.key];
-            if (!External) return null;
+        {loading ? (
+          <div className="py-10 text-center text-gray-400">
+            <i className="fas fa-circle-notch fa-spin text-xl"></i>
+            <p className="text-xs mt-2">Loading notes...</p>
+          </div>
+        ) : (
+          sections.map((section) => {
+            if (section.shape === "external") {
+              const External = EXTERNAL_SHAPES[section.key];
+              if (!External) return null;
+              return (
+                <External
+                  key={section.key}
+                  label={section.label}
+                  ownerType={ownerType}
+                  ownerId={ownerId}
+                  isAdmin={isAdmin}
+                />
+              );
+            }
+            const Component = SHAPES[section.shape];
+            if (!Component) return null;
             return (
-              <External
+              <Component
                 key={section.key}
-                label={section.label}
-                ownerType={ownerType}
-                ownerId={ownerId}
+                section={section}
+                notes={bySection[section.key] || []}
                 isAdmin={isAdmin}
+                {...handlers}
               />
             );
-          }
-          const Component = SHAPES[section.shape];
-          if (!Component) return null;
-          return (
-            <Component
-              key={section.key}
-              section={section}
-              notes={bySection[section.key] || []}
-              isAdmin={isAdmin}
-              {...handlers}
-            />
-          );
-        })}
+          })
+        )}
       </div>
     </div>
   );
