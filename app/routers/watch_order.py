@@ -908,6 +908,106 @@ def delete_watch_order_list(
     return {"status": "success", "message": "Watch order deleted successfully."}
 
 
+def _steps_to_copy(db: Session, source: models.WatchOrderList) -> List[dict]:
+    """
+    The source's steps as plain field dicts, ready to become new item rows.
+
+    A generated list has no watch_order_item rows to read, so its steps are
+    computed the same way a read computes them. They carry no range, rung or
+    note, so only the three fields a generated step actually has are taken.
+    """
+    if source.auto_source:
+        generated = build_release_items(db, **_generated_scope(db, source))
+        return [
+            {
+                "position": step["position"],
+                "media_type": step["media_type"],
+                "entry_id": step["entry_id"],
+            }
+            for step in generated
+        ]
+
+    return [
+        {
+            "position": item.position,
+            "media_type": item.media_type,
+            "entry_id": item.entry_id,
+            "ep_start": item.ep_start,
+            "ep_end": item.ep_end,
+            "importance": item.importance,
+            "note": item.note,
+        }
+        for item in source.items
+    ]
+
+
+@router.post(
+    "/lists/{system_id}/duplicate",
+    response_model=schemas.WatchOrderListResponse,
+    summary="Duplicate Watch Order",
+)
+def duplicate_watch_order_list(
+    system_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Copies a watch order and its steps into a new, editable list.
+
+    The copy keeps the source's owner, type, note and sort_index, so it lands
+    beside the original wherever orders are listed. Both winner flags are
+    cleared: a copy must never take the default or most-recommended slot from
+    the list it was made from.
+
+    Deliberately not guarded by _reject_if_generated. This is the one place a
+    built-in order becomes editable - its generated steps are written out as
+    real rows and auto_source is dropped, which is the main reason to
+    duplicate one at all.
+    """
+    source = _get_list_or_404(db, system_id)
+
+    try:
+        new_list = models.WatchOrderList(
+            system_id=uuid.uuid4(),
+            franchise_id=source.franchise_id,
+            collection_id=source.collection_id,
+            series_id=source.series_id,
+            list_name=f"{source.display_name} (Copy)",
+            list_type=source.list_type,
+            remark=source.remark,
+            sort_index=source.sort_index,
+            is_default=False,
+            is_most_recommended=False,
+            # Always a hand-built list, whatever the source was.
+            auto_source=None,
+            created_at=get_taipei_now(),
+            updated_at=get_taipei_now(),
+        )
+        db.add(new_list)
+        db.flush()
+
+        for step in _steps_to_copy(db, source):
+            db.add(
+                models.WatchOrderItem(
+                    system_id=uuid.uuid4(),
+                    list_id=new_list.system_id,
+                    created_at=get_taipei_now(),
+                    updated_at=get_taipei_now(),
+                    **step,
+                )
+            )
+
+        db.commit()
+        db.refresh(new_list)
+        return _with_count(db, new_list)
+    except Exception as e:
+        logger.error(f"CRITICAL ERROR duplicating watch order: {str(e)}", exc_info=True)
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Database Insertion Error: {str(e)}"
+        )
+
+
 # ==========================================
 # PROTECTED ITEM WRITES (Admin Only)
 # ==========================================

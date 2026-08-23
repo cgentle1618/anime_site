@@ -250,6 +250,31 @@ export default function WatchOrders() {
     }
   }
 
+  // No confirm dialog: duplicating adds a list and touches nothing else, so
+  // the undo is simply deleting the copy.
+  async function duplicateList(id) {
+    setBusy(true);
+    try {
+      const res = await fetch(endpoints.watchOrder.duplicateList(id), {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.detail || res.statusText);
+      }
+      const created = await res.json();
+      await loadLists();
+      // Select the copy, not the source: duplicating is how you start editing.
+      setSelectedId(created.system_id);
+      showToast("success", "Watch order duplicated.");
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function backfillRelease() {
     if (
       !window.confirm(
@@ -433,6 +458,19 @@ export default function WatchOrders() {
                         >
                           <i className="fas fa-arrow-up-right-from-square text-xs"></i>
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => duplicateList(l.system_id)}
+                          disabled={busy}
+                          title={
+                            l.auto_source
+                              ? "Duplicate as an editable order"
+                              : "Duplicate order"
+                          }
+                          className="text-gray-300 hover:text-brand disabled:opacity-40"
+                        >
+                          <i className="fas fa-copy text-xs"></i>
+                        </button>
                         <button
                           type="button"
                           onClick={() => deleteList(l.system_id)}

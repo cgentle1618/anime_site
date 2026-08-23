@@ -65,6 +65,7 @@ export const endpoints = {
     updateList: (id) => `/api/watch-order/lists/${id}`,
     patchList: (id) => `/api/watch-order/lists/${id}`,
     removeList: (id) => `/api/watch-order/lists/${id}`,
+    duplicateList: (id) => `/api/watch-order/lists/${id}/duplicate`,
     createItem: (listId) => `/api/watch-order/lists/${listId}/items`,
     updateItem: (itemId) => `/api/watch-order/items/${itemId}`,
     patchItem: (itemId) => `/api/watch-order/items/${itemId}`,

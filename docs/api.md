@@ -227,6 +227,7 @@ per-entry `watch_order` Float column, which this router never touches.
 | `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`.                                                                                                         |
 | `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict.                                                                                                |
 | `DELETE` | `/lists/{system_id}`          | Admin  | Delete an order. Items cascade; the media entries are untouched. Logs to `deleted_record` as type "Watch Order".                                    |
+| `POST`   | `/lists/{system_id}/duplicate` | Admin | Copy an order and its steps into a new, editable list named `"<name> (Copy)"`. Keeps the owner, type, note and `sort_index`; clears `is_default` and `is_most_recommended`; always sets `auto_source` to null. A built-in source has its generated steps written out as real rows. 404 on an unknown id. |
 | `POST`   | `/lists/{system_id}/items`    | Admin  | Add a step. Appends unless `position` is given. Body: `WatchOrderItemCreate`. 400 on an unknown media type or a nonexistent entry.                  |
 | `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `WatchOrderItemUpdate`.                                                                                             |
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
@@ -237,7 +238,9 @@ per-entry `watch_order` Float column, which this router never touches.
 `watch_order_item` rows: `GET /lists/{id}` computes its steps from the entries'
 release dates each time, so entries added later appear on their own. Every item
 endpoint (add, update, delete, reorder) returns 400 for such a list, while the
-list's own name, type, note and flags stay editable. `GET /lists` accepts
+list's own name, type, note and flags stay editable. The one exception is
+`POST /lists/{id}/duplicate`, which is how a built-in becomes editable: it
+materializes the generated steps into a hand-built copy. `GET /lists` accepts
 `auto=exclude` / `auto=only`, since built-in lists would otherwise bury the
 hand-built ones in any cross-owner view, and `series_id` as an owner filter.
 

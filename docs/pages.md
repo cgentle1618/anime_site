@@ -1676,7 +1676,11 @@ this list. A search box over order and owner names, a "New order" form
 (owner tier toggle — Franchise by default — a typeahead over that tier's
 names, an order name, and the order type), then every
 order grouped by owner. Each row opens the editor, links out to the public
-page, or deletes the order behind a confirm.
+page, duplicates the order, or deletes it behind a confirm. Duplicating
+(`POST /lists/{id}/duplicate`) selects the copy straight away and takes no
+confirm — the undo is deleting the copy. It is also the only way to edit a
+built-in order's steps: the copy is hand-built, with the generated steps
+written out as real ones.
 
 **Right pane:** `components/tracker/WatchOrderEditor.jsx` for the selected order:
 
@@ -1687,7 +1691,8 @@ page, or deletes the order behind a confirm.
   first). The same entry may be added repeatedly — that is how a split run is
   written.
 - Per-step episode range, Optional checkbox, and note. Text and number inputs
-  commit on blur, not per keystroke.
+  commit on blur, not per keystroke. Movie, anime-movie, manga and novel
+  steps cover their entry whole, so those get no range inputs at all.
 - Reorder by drag or by up/down buttons; both commit through
   `PUT /lists/{id}/reorder`, which renumbers positions 1..N. The reorder is
   applied locally first so a dragged row does not snap back mid-request.

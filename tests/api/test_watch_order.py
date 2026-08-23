@@ -1405,3 +1405,158 @@ class TestReorder:
             json={"item_ids": [str(i.system_id) for i in sample_items]},
         )
         assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Duplicate
+# ---------------------------------------------------------------------------
+
+
+class TestDuplicateWatchOrderList:
+    """A copy the admin can edit without disturbing the original."""
+
+    @pytest.fixture
+    def copy_of_sample(self, admin_client, sample_list, sample_items):
+        response = admin_client.post(
+            f"/api/watch-order/lists/{sample_list.system_id}/duplicate"
+        )
+        assert response.status_code == 200
+        return response.json()
+
+    def test_copy_is_a_new_list(self, copy_of_sample, sample_list):
+        assert copy_of_sample["system_id"] != str(sample_list.system_id)
+
+    def test_copy_is_named_after_the_source(self, copy_of_sample):
+        assert copy_of_sample["list_name"] == "Chronological (Copy)"
+
+    def test_copy_keeps_the_owner(self, copy_of_sample, sample_franchise):
+        assert copy_of_sample["franchise_id"] == str(sample_franchise.system_id)
+
+    def test_copy_keeps_type_and_sort_index(self, copy_of_sample, sample_list):
+        assert copy_of_sample["list_type"] == sample_list.list_type
+        assert copy_of_sample["sort_index"] == sample_list.sort_index
+
+    def test_winner_flags_are_cleared(self, copy_of_sample, sample_list):
+        """sample_list is the default; the copy must not steal that slot."""
+        assert sample_list.is_default is True
+        assert copy_of_sample["is_default"] is False
+        assert copy_of_sample["is_most_recommended"] is False
+
+    def test_every_step_is_copied(self, admin_client, copy_of_sample, sample_items):
+        steps = admin_client.get(
+            f"/api/watch-order/lists/{copy_of_sample['system_id']}"
+        ).json()["items"]
+        assert len(steps) == len(sample_items)
+
+    def test_step_fields_survive_the_copy(self, admin_client, copy_of_sample):
+        steps = admin_client.get(
+            f"/api/watch-order/lists/{copy_of_sample['system_id']}"
+        ).json()["items"]
+        assert [(s["ep_start"], s["ep_end"]) for s in steps] == [
+            (1, 10),
+            (None, None),
+            (11, 12),
+        ]
+        assert steps[1]["importance"] == "Optional"
+        assert steps[1]["note"] == "Optional side story"
+        assert [s["position"] for s in steps] == [1.0, 2.0, 3.0]
+
+    def test_copied_steps_are_new_rows(
+        self, admin_client, copy_of_sample, sample_items
+    ):
+        """Sharing item rows would make an edit to the copy hit the original."""
+        steps = admin_client.get(
+            f"/api/watch-order/lists/{copy_of_sample['system_id']}"
+        ).json()["items"]
+        original_ids = {str(i.system_id) for i in sample_items}
+        assert original_ids.isdisjoint({s["system_id"] for s in steps})
+
+    def test_source_keeps_its_own_steps(self, admin_client, copy_of_sample, sample_list):
+        steps = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert len(steps) == 3
+
+    def test_editing_the_copy_leaves_the_source_alone(
+        self, admin_client, copy_of_sample, sample_list
+    ):
+        steps = admin_client.get(
+            f"/api/watch-order/lists/{copy_of_sample['system_id']}"
+        ).json()["items"]
+        admin_client.patch(
+            f"/api/watch-order/items/{steps[0]['system_id']}", json={"ep_end": 4}
+        )
+        source = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert source[0]["ep_end"] == 10
+
+    def test_item_count_is_reported(self, copy_of_sample, sample_items):
+        assert copy_of_sample["item_count"] == len(sample_items)
+
+    def test_nonexistent_id_returns_404(self, admin_client):
+        response = admin_client.post(
+            f"/api/watch-order/lists/{uuid.uuid4()}/duplicate"
+        )
+        assert response.status_code == 404
+
+    def test_guest_cannot_duplicate(self, client, sample_list):
+        response = client.post(
+            f"/api/watch-order/lists/{sample_list.system_id}/duplicate"
+        )
+        assert response.status_code == 401
+
+
+class TestDuplicateGeneratedList:
+    """
+    Duplicating a built-in is how it becomes editable: the generated steps are
+    written out as real rows and auto_source is dropped.
+    """
+
+    @pytest.fixture
+    def release_list(self, admin_client, orderable_franchise):
+        return admin_client.post(
+            f"/api/watch-order/lists/release?franchise_id={orderable_franchise.system_id}"
+        ).json()
+
+    @pytest.fixture
+    def copy_of_release(self, admin_client, release_list):
+        response = admin_client.post(
+            f"/api/watch-order/lists/{release_list['system_id']}/duplicate"
+        )
+        assert response.status_code == 200
+        return response.json()
+
+    def test_copy_is_not_generated(self, copy_of_release):
+        assert copy_of_release["auto_source"] is None
+
+    def test_generated_steps_become_real_rows(
+        self, admin_client, release_list, copy_of_release
+    ):
+        generated = admin_client.get(
+            f"/api/watch-order/lists/{release_list['system_id']}"
+        ).json()["items"]
+        copied = admin_client.get(
+            f"/api/watch-order/lists/{copy_of_release['system_id']}"
+        ).json()["items"]
+        assert len(generated) > 0
+        assert [s["entry_id"] for s in copied] == [s["entry_id"] for s in generated]
+        assert [s["media_type"] for s in copied] == [
+            s["media_type"] for s in generated
+        ]
+
+    def test_copy_accepts_a_new_step(
+        self, admin_client, copy_of_release, sample_anime
+    ):
+        """The whole point: the source refuses this, the copy must not."""
+        response = admin_client.post(
+            f"/api/watch-order/lists/{copy_of_release['system_id']}/items",
+            json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+        )
+        assert response.status_code == 200
+
+    def test_source_stays_generated(self, admin_client, release_list, copy_of_release):
+        row = admin_client.get(
+            f"/api/watch-order/lists/{release_list['system_id']}"
+        ).json()
+        assert row["auto_source"] == "release"
