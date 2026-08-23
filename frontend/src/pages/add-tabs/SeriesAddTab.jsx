@@ -5,6 +5,7 @@ import {
   Field,
   SectionHeader,
   inputCls,
+  selectCls,
 } from "../../components/forms/FormField";
 
 export { defaultSeries } from "../../config/formFactories";
@@ -57,6 +58,20 @@ export default function SeriesAddTab({
             onChange={(e) => us("series_name_cn", e.target.value)}
           />
         </Field>
+        <Field label="Series Name roman">
+          <input
+            className={inputCls}
+            value={sf.series_name_roman}
+            onChange={(e) => us("series_name_roman", e.target.value)}
+          />
+        </Field>
+        <Field label="Series Name JP">
+          <input
+            className={inputCls}
+            value={sf.series_name_jp}
+            onChange={(e) => us("series_name_jp", e.target.value)}
+          />
+        </Field>
         <Field label="Series Name Alt">
           <input
             className={inputCls}
@@ -65,6 +80,55 @@ export default function SeriesAddTab({
           />
         </Field>
       </div>
+      <SectionHeader icon="fa-info-circle" title="Other Information" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="My Rating">
+          <select
+            className={selectCls}
+            value={sf.my_rating}
+            onChange={(e) => us("my_rating", e.target.value)}
+          >
+            <option value="">—</option>
+            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Expectation">
+          <select
+            className={selectCls}
+            value={sf.series_expectation}
+            onChange={(e) => us("series_expectation", e.target.value)}
+          >
+            <option value="">—</option>
+            {["Highest", "High", "Medium", "Low"].map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      {/*
+        No Main Cover control here: a series that does not exist yet has no
+        entries to choose from. It lives on the Modify tab only, exactly as
+        franchise does.
+      */}
+      <Field label="To Rewatch">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!sf.to_rewatch}
+            onChange={(e) => us("to_rewatch", e.target.checked)}
+            className="w-4 h-4 rounded accent-brand"
+          />
+          <span className="text-sm font-medium text-gray-700">
+            Mark this series for rewatch
+          </span>
+        </label>
+      </Field>
       <Field label="Remark">
         <textarea
           className={inputCls}

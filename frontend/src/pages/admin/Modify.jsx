@@ -164,7 +164,13 @@ function seriesToForm(s, allFranchises) {
     franchise_text: f ? getDisplayName(f, "franchise") : "",
     series_name_en: s.series_name_en || "",
     series_name_cn: s.series_name_cn || "",
+    series_name_roman: s.series_name_roman || "",
+    series_name_jp: s.series_name_jp || "",
     series_name_alt: s.series_name_alt || "",
+    my_rating: s.my_rating || "",
+    series_expectation: s.series_expectation || "",
+    cover_entry_id: s.cover_entry_id ?? null,
+    to_rewatch: s.to_rewatch ?? false,
     remark: s.remark || "",
   };
 }
@@ -943,7 +949,13 @@ export default function Modify() {
         franchise_id: franchiseId,
         series_name_en: sf.series_name_en || null,
         series_name_cn: sf.series_name_cn || null,
+        series_name_roman: sf.series_name_roman || null,
+        series_name_jp: sf.series_name_jp || null,
         series_name_alt: sf.series_name_alt || null,
+        my_rating: sf.my_rating || null,
+        series_expectation: sf.series_expectation || null,
+        cover_entry_id: sf.cover_entry_id || null,
+        to_rewatch: !!sf.to_rewatch,
         remark: sf.remark || null,
       }),
       credentials: "include",
@@ -2843,6 +2855,13 @@ export default function Modify() {
                 sf={sf}
                 us={us}
                 franchiseItems={franchiseItems}
+                allAnime={allAnime}
+                allMovies={allMovies}
+                allTvShows={allTvShows}
+                allCartoons={allCartoons}
+                allMangas={allMangas}
+                allNovels={allNovels}
+                editingItem={editingItem}
               />
             )}
 

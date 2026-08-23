@@ -702,7 +702,13 @@ export default function Add() {
   }
 
   async function submitSeries() {
-    if (!sf.series_name_en && !sf.series_name_cn && !sf.series_name_alt) {
+    if (
+      !sf.series_name_en &&
+      !sf.series_name_cn &&
+      !sf.series_name_alt &&
+      !sf.series_name_roman &&
+      !sf.series_name_jp
+    ) {
       showToast("warning", "At least one Series Name must be provided.");
       return;
     }
@@ -718,7 +724,12 @@ export default function Add() {
         franchise_id: sf.franchise_id,
         series_name_en: sf.series_name_en || null,
         series_name_cn: sf.series_name_cn || null,
+        series_name_roman: sf.series_name_roman || null,
+        series_name_jp: sf.series_name_jp || null,
         series_name_alt: sf.series_name_alt || null,
+        my_rating: sf.my_rating || null,
+        series_expectation: sf.series_expectation || null,
+        to_rewatch: !!sf.to_rewatch,
         remark: sf.remark || null,
       }),
       credentials: "include",

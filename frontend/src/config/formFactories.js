@@ -303,7 +303,13 @@ export const defaultSeries = () => ({
   franchise_text: "",
   series_name_en: "",
   series_name_cn: "",
+  series_name_roman: "",
+  series_name_jp: "",
   series_name_alt: "",
+  my_rating: "",
+  series_expectation: "Low",
+  cover_entry_id: null,
+  to_rewatch: false,
   remark: "",
 });
 
