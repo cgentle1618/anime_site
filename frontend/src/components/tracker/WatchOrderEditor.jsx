@@ -9,7 +9,11 @@ import { buildUrl, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
-import { MediaScopeLine, specialLabel } from "./WatchOrderGuide";
+import {
+  MediaScopeLine,
+  specialLabel,
+  supportsEpisodeRange,
+} from "./WatchOrderGuide";
 
 // The rungs a step can sit on, most important first. Mirrors ITEM_IMPORTANCE
 // in app/services/domain/watch_order.py, which validates them.
@@ -223,26 +227,39 @@ function ItemRow({
           readOnly ? "hidden" : ""
         }`}
       >
-        <input
-          type="number"
-          value={epStart}
-          onChange={(e) => setEpStart(e.target.value)}
-          onBlur={() => commit("ep_start", epStart === "" ? "" : Number(epStart))}
-          placeholder="from"
-          className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
-        />
-        <span className="text-xs text-gray-300">–</span>
-        <input
-          type="number"
-          value={epEnd}
-          onChange={(e) => setEpEnd(e.target.value)}
-          onBlur={() => commit("ep_end", epEnd === "" ? "" : Number(epEnd))}
-          placeholder="to"
-          className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
-        />
-        <span className="text-[10px] font-bold text-gray-400">
-          leave blank for the whole entry
-        </span>
+        {/*
+          A movie, manga or novel step covers its entry whole, so the from/to
+          pair is omitted rather than disabled - there is nothing to fill in.
+          Any range already stored on such a step is left alone and still
+          renders in the guide; silently clearing it would delete the admin's
+          data to satisfy a display rule.
+        */}
+        {supportsEpisodeRange(item.media_type) && (
+          <>
+            <input
+              type="number"
+              value={epStart}
+              onChange={(e) => setEpStart(e.target.value)}
+              onBlur={() =>
+                commit("ep_start", epStart === "" ? "" : Number(epStart))
+              }
+              placeholder="from"
+              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+            />
+            <span className="text-xs text-gray-300">–</span>
+            <input
+              type="number"
+              value={epEnd}
+              onChange={(e) => setEpEnd(e.target.value)}
+              onBlur={() => commit("ep_end", epEnd === "" ? "" : Number(epEnd))}
+              placeholder="to"
+              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+            />
+            <span className="text-[10px] font-bold text-gray-400">
+              leave blank for the whole entry
+            </span>
+          </>
+        )}
 
         {/*
           Three buttons rather than a dropdown: the whole ladder is visible at
