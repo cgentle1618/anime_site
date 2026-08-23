@@ -20,6 +20,7 @@ from app.models import (
     Movies,
     TVShows,
     SystemOption,
+    SystemConfigs,
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
@@ -43,6 +44,7 @@ from app.utils.formatter import (
     parse_movie_from_sheet,
     parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
+    parse_system_config_from_sheet,
     parse_seasonal_from_sheet,
     parse_watch_order_list_from_sheet,
     parse_watch_order_item_from_sheet,
@@ -125,6 +127,7 @@ def execute_pull_specific(
         "Movies": Movies,
         "TV Shows": TVShows,
         "System Options": SystemOption,
+        "System Configs": SystemConfigs,
         "Seasonal": Seasonal,
         "Watch Order List": WatchOrderList,
         "Watch Order Item": WatchOrderItem,
@@ -146,6 +149,7 @@ def execute_pull_specific(
         "Movies": parse_movie_from_sheet,
         "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
+        "System Configs": parse_system_config_from_sheet,
         "Seasonal": parse_seasonal_from_sheet,
         "Watch Order List": parse_watch_order_list_from_sheet,
         "Watch Order Item": parse_watch_order_item_from_sheet,
@@ -340,8 +344,9 @@ def execute_pull_specific(
                     )
                     continue
 
-        # System Options uses 'id', Seasonal uses 'seasonal', others use 'system_id'
-        if tab_name == "System Options":
+        # System Options and System Configs use 'id', Seasonal uses 'seasonal',
+        # others use 'system_id'
+        if tab_name in ("System Options", "System Configs"):
             pk_field = "id"
         elif tab_name == "Seasonal":
             pk_field = "seasonal"
@@ -380,6 +385,17 @@ def execute_pull_specific(
                                 Collection.collection_name_cn == name,
                             )
                         )
+                        .first()
+                    )
+            elif tab_name == "System Configs":
+                # config_key is UNIQUE, so an id-less row whose key already
+                # exists locally would fail the INSERT and roll back the whole
+                # tab. Match on the key instead and update it in place.
+                config_key = clean_header_dict.get("config_key")
+                if config_key:
+                    existing_record = (
+                        db.query(SystemConfigs)
+                        .filter(SystemConfigs.config_key == config_key)
                         .first()
                     )
             elif tab_name == "Watch Order List":
@@ -682,6 +698,14 @@ def execute_pull_specific(
         )
         db.commit()
 
+    if tab_name == "System Configs":
+        db.execute(
+            text(
+                "SELECT setval('system_configs_id_seq', COALESCE((SELECT MAX(id) FROM system_configs), 0))"
+            )
+        )
+        db.commit()
+
     logger.info(
         f"Successfully pulled and upserted {processed} records from '{tab_name}'."
     )
@@ -713,6 +737,9 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
 
     tabs_in_order = [
         "System Options",
+        # Key/value rows (announcements, admin form defaults) that nothing
+        # else references, so they restore alongside the other option data.
+        "System Configs",
         "Collection",
         "Franchise",
         "Series",
@@ -727,6 +754,9 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         # so a freshly restored guide points at rows that already exist.
         "Watch Order List",
         "Watch Order Item",
+        # Relations join two media rows through FK-less (media_type, entry_id)
+        # pairs, so both endpoints must already exist.
+        "Media Relation",
         # Quotes point at media rows the same FK-less way items do.
         "Quote",
         # Memes name quotes, so they restore after them.

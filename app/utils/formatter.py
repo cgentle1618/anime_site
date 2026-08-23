@@ -649,6 +649,17 @@ def parse_system_option_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_system_config_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the System Configs sheet into typed data ready for the Database.
+    """
+    return {
+        "id": parse_from_sheet(raw.get("id"), int),
+        "config_key": parse_from_sheet(raw.get("config_key"), str),
+        "config_value": parse_from_sheet(raw.get("config_value"), str),
+    }
+
+
 def parse_seasonal_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Seasonal sheet into typed data ready for the Database.

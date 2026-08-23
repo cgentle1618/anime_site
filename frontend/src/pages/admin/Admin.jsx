@@ -2057,10 +2057,12 @@ export default function Admin() {
                   <option value="Series">Series</option>
                   <option value="Watch Order List">Watch Order List</option>
                   <option value="Watch Order Item">Watch Order Item</option>
+                  <option value="Media Relation">Media Relation</option>
                   <option value="Quote">Quote</option>
                   <option value="Meme">Meme</option>
                   <option value="Note">Note</option>
                   <option value="System Options">Options</option>
+                  <option value="System Configs">Configs</option>
                   <option value="Seasonal">Seasonal</option>
                 </select>
                 <button

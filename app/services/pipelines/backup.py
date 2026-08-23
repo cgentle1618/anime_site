@@ -20,6 +20,7 @@ from app.models import (
     Movies,
     TVShows,
     SystemOption,
+    SystemConfigs,
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
@@ -112,6 +113,15 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         sysopt_headers = [c.name for c in SystemOption.__table__.columns]
         sysopt_matrix = [sysopt_headers] + [format_model_for_sheet(o) for o in sysopts]
         bulk_overwrite_sheet("System Options", sysopt_matrix)
+
+        # Announcements and admin form defaults live here as key/value rows,
+        # so the tab is real user data rather than runtime bookkeeping.
+        sysconfigs = db.query(SystemConfigs).all()
+        sysconfig_headers = [c.name for c in SystemConfigs.__table__.columns]
+        sysconfig_matrix = [sysconfig_headers] + [
+            format_model_for_sheet(c) for c in sysconfigs
+        ]
+        bulk_overwrite_sheet("System Configs", sysconfig_matrix)
 
         seasonals = db.query(Seasonal).all()
         seasonal_headers = [c.name for c in Seasonal.__table__.columns]
