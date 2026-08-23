@@ -554,13 +554,13 @@ orders, an "Open full page" link to `/watch-order/:id`, and, for admins, an
    - Franchise type badge (raw `franchise_type` string)
    - Main title: Franchise Name CN (fallback: EN → Alt → Roman → JP)
    - Sub-titles: EN / JP / Romaji / Alt — each hidden if same as main title
-   - Badges: My Rating, Franchise Expectation, Watch Next Group (ACG only), To Rewatch (ACG only), Total Entries count
+   - Badges: My Rating, Franchise Expectation, Watch Next Group (ACG only), To Rewatch (ACG only), parent Collection (links to `/collection/:id`, shown only when `collection_id` is set), Total Entries count
    - Completion block: `completed / total` across all entry types; watchable entries (anime, anime movies, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) uses `reading_status === "Completed"`
    - Admin controls: Overall Rating select, Expectation select, Watch Next Group select (ACG only), To Rewatch checkbox (ACG only) — all save via `PATCH /api/franchise/:system_id`
+   - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur via `PATCH /api/franchise/:system_id`); hidden for guests when empty. When the text overflows the three rows a "Show all" button opens `RemarkModal`. Same treatment as the Collection Hub.
 4. Series card: clickable series name badges — opens SeriesModal
-5. Notes & Overview card: remark textarea (admin editable on blur) — saves via `PATCH /api/franchise/:system_id`
-6. Tab bar (hidden when only 1 tab): tab label + entry count badge per tab
-7. Tab content sections (one rendered at a time)
+5. Tab bar, in two labelled groups (see below)
+6. Tab content sections (one rendered at a time)
 
 **Tabs** (a tab appears only when its type flag is `true` AND it has at least one entry):
 
@@ -574,7 +574,14 @@ orders, an "Open full page" link to `/watch-order/:id`, and, for admins, an
 | TV Shows     | `hasTvMovie` | `tvShowList`     |
 | Cartoons     | `hasCartoon` | `cartoonList`    |
 
-Default active tab: first tab in the above order that has entries. When `tabs.length === 1`, the tab bar is hidden and content is shown directly.
+Default active tab: first tab in the above order that has entries; the Extras tabs below take over when the franchise has no entries at all.
+
+**Tab groups:** the bar is split so it is clear which selector filters media entries and which does not.
+
+| Group  | Tabs                                                       | Notes                                                                        |
+| ------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Media  | Anime, Anime Movies, Manga, Novel, Movies, TV Shows, Cartoons | Picks which entries the list below shows; each carries an entry count pill. Group is omitted when the franchise has no entries. |
+| Extras | Watch Order, Memes, Notes                                  | Material owned by the franchise itself, not an entry filter; always present, no count pill. |
 
 **Anime tab:**
 

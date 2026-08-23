@@ -1046,6 +1046,14 @@ Props: `entityType` (e.g. "Franchise", "Series"), `text` (the unmatched input), 
 
 Used by: Add Page, Modify Page
 
+### RemarkModal (`RemarkModal.jsx`)
+
+Full-text view of a hub's `remark`. The hubs that own one clip it to three rows inline and hand the whole thing here rather than letting a long remark push the rest of the page down. Admins get a 16-row autofocused textarea and a "Save & Close" button; guests get read-only `whitespace-pre-wrap` text and "Close". Closing (button, X, or backdrop click) fires `onClose`, which is where the caller saves the draft.
+
+Props: `value`, `isAdmin`, `onChange(value)`, `onClose`
+
+Used by: Franchise Hub, Collection Hub
+
 ### Utility: `getOptions` (`utils/anime.js`)
 
 Filters the global options list by category and returns an array of option values.

@@ -1,5 +1,5 @@
 // Frontend: page component file for FranchisePage.
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
@@ -14,6 +14,7 @@ import {
 } from "../../utils/media";
 import MediaCard from "../../components/cards/MediaCard";
 import SeriesModal from "../../components/modals/SeriesModal";
+import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import { MemeSection } from "../notes/NotesTemplate";
 import FranchiseNotes from "./FranchiseNotes";
@@ -112,6 +113,28 @@ function SectionHeader({ icon, title, subtitle, count }) {
   );
 }
 
+// One tab, in either group. A count pill only makes sense for the media tabs,
+// so it is drawn when a count is passed and left off otherwise.
+function TabButton({ tab, activeTab, onSelect, count }) {
+  return (
+    <button
+      onClick={() => onSelect(tab)}
+      className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+        activeTab === tab
+          ? "border-brand text-brand"
+          : "border-transparent text-gray-500 hover:text-gray-700"
+      }`}
+    >
+      {tab}
+      {count !== undefined && (
+        <span className="ml-1.5 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="text-center py-16 text-gray-400">
@@ -147,6 +170,9 @@ export default function FranchisePage() {
   const [watchNextGroup, setWatchNextGroup] = useState("");
   const [toRewatch, setToRewatch] = useState(false);
   const [remark, setRemark] = useState("");
+  const [showRemark, setShowRemark] = useState(false);
+  const [remarkClipped, setRemarkClipped] = useState(false);
+  const remarkRef = useRef(null);
 
   // ── tab ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(null);
@@ -297,7 +323,10 @@ export default function FranchisePage() {
   const hasTV = useMemo(() => types.includes("TV"), [types]);
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
 
-  const tabs = useMemo(() => {
+  // Only this group filters which media entries are listed. It is shown under
+  // its own label, apart from the extras below, because mixing the two in one
+  // row made "Memes" read as just another entry type.
+  const mediaTabs = useMemo(() => {
     if (!franchise) return [];
     return [
       hasACG && animeList.length && "Anime",
@@ -307,13 +336,6 @@ export default function FranchisePage() {
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
-      // Always offered: the section itself reports whether an order exists,
-      // and an admin needs the entry point precisely when there is none yet.
-      "Watch Order",
-      // Same reasoning: a franchise-level running gag may not exist yet.
-      "Memes",
-      // Same reasoning again: a franchise-level note may not exist yet.
-      "Notes",
     ].filter(Boolean);
   }, [
     franchise,
@@ -332,6 +354,19 @@ export default function FranchisePage() {
     tvShowList,
     cartoonList,
   ]);
+
+  // Always offered, and never dependent on the entry lists: each section
+  // reports whether it holds anything, and an admin needs the entry point
+  // precisely when it is still empty.
+  const extraTabs = useMemo(
+    () => (franchise ? ["Watch Order", "Memes", "Notes"] : []),
+    [franchise],
+  );
+
+  const tabs = useMemo(
+    () => [...mediaTabs, ...extraTabs],
+    [mediaTabs, extraTabs],
+  );
 
   useEffect(() => {
     if (tabs.length > 0 && activeTab === null) setActiveTab(tabs[0]);
@@ -401,6 +436,17 @@ export default function FranchisePage() {
     };
   }, [franchise?.collection_id]);
 
+  // The inline box stays a fixed three rows; "Show all" is only worth offering
+  // when the text actually runs past it.
+  useEffect(() => {
+    const el = remarkRef.current;
+    if (!el) {
+      setRemarkClipped(false);
+      return;
+    }
+    setRemarkClipped(el.scrollHeight > el.clientHeight + 1);
+  }, [remark, loading]);
+
   async function saveField(field, value) {
     try {
       const res = await fetch(endpoints.resource("franchise").patch(system_id), {
@@ -418,6 +464,12 @@ export default function FranchisePage() {
     } catch {
       showToast("error", "Network error. Reverting.");
     }
+  }
+
+  // Shared by the inline box and the full-view modal, which edit one draft.
+  function saveRemark() {
+    if (isAdmin && remark !== (franchise?.remark || ""))
+      saveField("remark", remark);
   }
 
   function toggleSetFilter(setFn, group, value) {
@@ -1006,6 +1058,20 @@ export default function FranchisePage() {
                   {franchise.franchise_expectation} Expectation
                 </span>
               )}
+              {/*
+                A link rather than a status pill: the collection is somewhere to
+                go, so it carries the indigo tone the admin toolbar uses for
+                navigation instead of a flat badge colour.
+              */}
+              {parentCollection && (
+                <Link
+                  to={`/collection/${parentCollection.system_id}`}
+                  className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full text-xs font-bold hover:bg-indigo-100 transition"
+                >
+                  <i className="fas fa-boxes-stacked mr-1"></i>
+                  {getDisplayName(parentCollection, "collection")}
+                </Link>
+              )}
               {hasACG && franchise.watch_next_group && (
                 <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">
                   <i className="fas fa-list-ol mr-1"></i>
@@ -1135,6 +1201,37 @@ export default function FranchisePage() {
             )}
           </div>
         </div>
+
+        {/* Remark */}
+        {(isAdmin || franchise.remark) && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Remark
+              </label>
+              {remarkClipped && (
+                <button
+                  type="button"
+                  onClick={() => setShowRemark(true)}
+                  className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+                >
+                  <i className="fas fa-up-right-and-down-left-from-center text-[10px]"></i>
+                  Show all
+                </button>
+              )}
+            </div>
+            <textarea
+              ref={remarkRef}
+              value={remark}
+              disabled={!isAdmin}
+              onChange={(e) => setRemark(e.target.value)}
+              onBlur={() => saveRemark()}
+              rows={3}
+              placeholder="Add private overview notes, watch order guides, or specific remarks for the entire franchise..."
+              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
+            />
+          </div>
+        )}
       </div>
 
       {/* Series list */}
@@ -1168,48 +1265,50 @@ export default function FranchisePage() {
         </div>
       )}
 
-      {/* Notes card */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <div className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <i className="fas fa-sticky-note text-brand/60"></i> Notes & Overview
-        </div>
-        <textarea
-          value={remark}
-          onChange={(e) => setRemark(e.target.value)}
-          onBlur={() => saveField("remark", remark)}
-          disabled={!isAdmin}
-          rows={3}
-          placeholder="Add private overview notes, watch order guides, or specific remarks for the entire franchise..."
-          className={`w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
-        />
+      {/*
+        Tab bar, in two labelled groups: "Media" picks which entries the list
+        below shows, "Extras" opens material that belongs to the franchise as a
+        whole. The Media group disappears for a franchise with no entries yet.
+      */}
+      <div className="flex items-stretch gap-3 border-b border-gray-200 overflow-x-auto">
+        {mediaTabs.length > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap pr-1">
+              Media
+            </span>
+            {mediaTabs.map((tab) => (
+              <TabButton
+                key={tab}
+                tab={tab}
+                activeTab={activeTab}
+                onSelect={setActiveTab}
+                count={getTabCount(tab)}
+              />
+            ))}
+          </div>
+        )}
+        {mediaTabs.length > 0 && extraTabs.length > 0 && (
+          <div className="w-px bg-gray-200 shrink-0 my-2" aria-hidden="true" />
+        )}
+        {extraTabs.length > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap pr-1">
+              Extras
+            </span>
+            {extraTabs.map((tab) => (
+              <TabButton
+                key={tab}
+                tab={tab}
+                activeTab={activeTab}
+                onSelect={setActiveTab}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Tab bar (only when multiple tabs) */}
-      {tabs.length > 1 && (
-        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? "border-brand text-brand"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab}
-              {tab !== "Watch Order" && (
-                <span className="ml-1.5 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">
-                  {getTabCount(tab)}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* ── Anime tab content ─────────────────────────────────────────────── */}
-      {(activeTab === "Anime" || (tabs.length === 1 && tabs[0] === "Anime")) &&
+      {activeTab === "Anime" &&
         animeList.length > 0 && (
           <div>
             <SectionHeader
@@ -1397,8 +1496,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Anime Movies tab content ──────────────────────────────────────── */}
-      {(activeTab === "Anime Movies" ||
-        (tabs.length === 1 && tabs[0] === "Anime Movies")) &&
+      {activeTab === "Anime Movies" &&
         animeMovieList.length > 0 && (
           <div>
             <SectionHeader
@@ -1435,7 +1533,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Manga tab content ─────────────────────────────────────────────── */}
-      {(activeTab === "Manga" || (tabs.length === 1 && tabs[0] === "Manga")) &&
+      {activeTab === "Manga" &&
         mangaList.length > 0 && (
           <div>
             <SectionHeader
@@ -1572,7 +1670,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Novel tab content ────────────────────────────────────────────── */}
-      {(activeTab === "Novel" || (tabs.length === 1 && tabs[0] === "Novel")) &&
+      {activeTab === "Novel" &&
         novelList.length > 0 && (
           <div>
             <SectionHeader
@@ -1707,8 +1805,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Movies tab content ────────────────────────────────────────────── */}
-      {(activeTab === "Movies" ||
-        (tabs.length === 1 && tabs[0] === "Movies")) &&
+      {activeTab === "Movies" &&
         movieList.length > 0 && (
           <div>
             <SectionHeader
@@ -1839,8 +1936,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── TV Shows tab content ──────────────────────────────────────────── */}
-      {(activeTab === "TV Shows" ||
-        (tabs.length === 1 && tabs[0] === "TV Shows")) &&
+      {activeTab === "TV Shows" &&
         tvShowList.length > 0 && (
           <div>
             <SectionHeader
@@ -1974,8 +2070,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Cartoons tab content ──────────────────────────────────────────── */}
-      {(activeTab === "Cartoons" ||
-        (tabs.length === 1 && tabs[0] === "Cartoons")) &&
+      {activeTab === "Cartoons" &&
         cartoonList.length > 0 && (
           <div>
             <SectionHeader
@@ -2124,7 +2219,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Memes tab content ────────────────────────────────────────────── */}
-      {(activeTab === "Memes" || (tabs.length === 1 && tabs[0] === "Memes")) && (
+      {activeTab === "Memes" && (
         <div>
           <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
             <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
@@ -2154,8 +2249,7 @@ export default function FranchisePage() {
       )}
 
       {/* ── Watch Order tab content ──────────────────────────────────────── */}
-      {(activeTab === "Watch Order" ||
-        (tabs.length === 1 && tabs[0] === "Watch Order")) && (
+      {activeTab === "Watch Order" && (
         <div>
           {/*
             Not SectionHeader: that renders an "N entries" pill, and the orders
@@ -2179,7 +2273,7 @@ export default function FranchisePage() {
       )}
 
       {/* ── Notes tab content ─────────────────────────────────────────────── */}
-      {(activeTab === "Notes" || (tabs.length === 1 && tabs[0] === "Notes")) && (
+      {activeTab === "Notes" && (
         <div>
           <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
             <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
@@ -2204,6 +2298,18 @@ export default function FranchisePage() {
           <i className="fas fa-box-open text-3xl mb-3"></i>
           <p className="font-medium">No entries found for this franchise.</p>
         </div>
+      )}
+
+      {showRemark && (
+        <RemarkModal
+          value={remark}
+          isAdmin={isAdmin}
+          onChange={setRemark}
+          onClose={() => {
+            saveRemark();
+            setShowRemark(false);
+          }}
+        />
       )}
 
       {/* Series Modal */}
