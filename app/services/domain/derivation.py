@@ -1,4 +1,9 @@
-"""Field derivation: watch order, ep_previous, prequel/sequel, season, id/season extraction."""
+"""Field derivation: watch order, ep_previous, season, id/season extraction.
+
+Prequel/sequel are no longer derived. They moved to the `media_relation` table,
+where they are curated by hand: chaining a franchise by watch_order cannot tell
+a sequel from a side story, and guessed wrong often enough to be worth losing.
+"""
 
 import logging
 import uuid
@@ -289,149 +294,6 @@ def derive_watch_order_cartoon(db: Session, franchise_id) -> None:
     for position, entry in enumerate(ordered_entries, start=1):
         if entry.watch_order is None:
             entry.watch_order = float(position)
-
-
-def derive_prequel_sequel_anime(db: Session, franchise_id: Any) -> None:
-    """
-    Derives prequel_id and sequel_id for eligible entries within an acg franchise.
-    Eligible: watch_order is not null.
-    Entries are ordered by watch_order; only fills fields that are currently None.
-    """
-    if not franchise_id:
-        return
-
-    entries = (
-        db.query(Anime)
-        .filter(
-            Anime.franchise_id == franchise_id,
-            Anime.watch_order.isnot(None),
-            Anime.derive_related.isnot(False),
-        )
-        .order_by(Anime.watch_order)
-        .all()
-    )
-
-    for i, entry in enumerate(entries):
-        prev_entry = entries[i - 1] if i > 0 else None
-        next_entry = entries[i + 1] if i < len(entries) - 1 else None
-
-        if entry.prequel_id is None and prev_entry is not None:
-            entry.prequel_id = prev_entry.system_id
-
-        if entry.sequel_id is None and next_entry is not None:
-            entry.sequel_id = next_entry.system_id
-
-
-_TV_SPECIAL_FRANCHISE_NAMES = {
-    "獨立電影 / 影集",
-    "Marvel",
-    "Disney",
-    "Christopher Nolan",
-    "周星馳",
-}
-
-
-def derive_prequel_sequel_tv_show(db: Session, franchise_id) -> None:
-    if not franchise_id:
-        return
-
-    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
-    if franchise:
-        franchise_names = franchise.get_all_names()
-        if franchise_names & _TV_SPECIAL_FRANCHISE_NAMES:
-            return
-
-    entries = (
-        db.query(TVShows)
-        .filter(
-            TVShows.franchise_id == franchise_id,
-            TVShows.watch_order.isnot(None),
-            TVShows.derive_related.isnot(False),
-        )
-        .order_by(TVShows.watch_order)
-        .all()
-    )
-
-    for i, entry in enumerate(entries):
-        prev_entry = entries[i - 1] if i > 0 else None
-        next_entry = entries[i + 1] if i < len(entries) - 1 else None
-
-        if entry.prequel_id is None and prev_entry is not None:
-            entry.prequel_id = prev_entry.system_id
-
-        if entry.sequel_id is None and next_entry is not None:
-            entry.sequel_id = next_entry.system_id
-
-
-_CARTOON_SPECIAL_FRANCHISE_NAMES: set[str] = set()
-
-
-def derive_prequel_sequel_cartoon(db: Session, franchise_id) -> None:
-    if not franchise_id:
-        return
-
-    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
-    if franchise:
-        franchise_names = franchise.get_all_names()
-        if franchise_names & _CARTOON_SPECIAL_FRANCHISE_NAMES:
-            return
-
-    entries = (
-        db.query(Cartoon)
-        .filter(
-            Cartoon.franchise_id == franchise_id,
-            Cartoon.watch_order.isnot(None),
-            Cartoon.derive_related.isnot(False),
-        )
-        .order_by(Cartoon.watch_order)
-        .all()
-    )
-
-    for i, entry in enumerate(entries):
-        prev_entry = entries[i - 1] if i > 0 else None
-        next_entry = entries[i + 1] if i < len(entries) - 1 else None
-
-        if entry.prequel_id is None and prev_entry is not None:
-            entry.prequel_id = prev_entry.system_id
-
-        if entry.sequel_id is None and next_entry is not None:
-            entry.sequel_id = next_entry.system_id
-
-
-_MANGA_SPECIAL_FRANCHISE_NAMES: set[str] = set()
-
-
-def derive_prequel_sequel_manga(db: Session, franchise_id: Any) -> None:
-    """Sets prequel_id and sequel_id for eligible manga entries in a franchise, fill-only."""
-    if not franchise_id:
-        return
-
-    franchise = db.query(Franchise).filter(Franchise.system_id == franchise_id).first()
-    if franchise:
-        franchise_names = franchise.get_all_names()
-        if franchise_names & _MANGA_SPECIAL_FRANCHISE_NAMES:
-            return
-
-    entries = (
-        db.query(Manga)
-        .filter(
-            Manga.franchise_id == franchise_id,
-            Manga.watch_order.isnot(None),
-            Manga.derive_related.isnot(False),
-        )
-        .order_by(Manga.watch_order)
-        .all()
-    )
-
-    for i, entry in enumerate(entries):
-        prev_entry = entries[i - 1] if i > 0 else None
-        next_entry = entries[i + 1] if i < len(entries) - 1 else None
-
-        if entry.prequel_id is None and prev_entry is not None:
-            entry.prequel_id = prev_entry.system_id
-
-        if entry.sequel_id is None and next_entry is not None:
-            entry.sequel_id = next_entry.system_id
 
 
 _SERIES_UNSET = object()

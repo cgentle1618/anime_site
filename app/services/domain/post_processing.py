@@ -68,10 +68,6 @@ from app.services.domain.derivation import (
     apply_extract_mal_id_manga_novel,
     apply_extract_season_from_title,
     derive_ep_previous_anime,
-    derive_prequel_sequel_anime,
-    derive_prequel_sequel_cartoon,
-    derive_prequel_sequel_manga,
-    derive_prequel_sequel_tv_show,
     derive_season_1_anime,
     derive_season_1_cartoon,
     derive_season_1_tv_show,
@@ -170,8 +166,6 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
     autofill_manga_from_mal(manga, force_replace_ratings=True)
     manga_post_processing(manga, db)
 
-    if not bulk:
-        derive_related_manga(db)
 
 
 def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) -> None:
@@ -244,7 +238,7 @@ def manga_post_processing(manga: Manga, db: Session) -> None:
 
 
 def derive_related_anime(db: Session) -> None:
-    """Derives watch order, ep_previous, and prequel/sequel for all acg franchises."""
+    """Derives watch order and ep_previous for all acg franchises."""
     rows = (
         db.query(Anime.franchise_id)
         .filter(Anime.franchise_id.isnot(None))
@@ -255,13 +249,12 @@ def derive_related_anime(db: Session) -> None:
     for fid in franchise_ids:
         derive_watch_order_anime(db, fid)
         derive_ep_previous_anime(db, fid)
-        derive_prequel_sequel_anime(db, fid)
     if franchise_ids:
         db.commit()
 
 
 def derive_related_tv_show(db: Session) -> None:
-    """Derives watch order and prequel/sequel for all TV show franchises."""
+    """Derives watch order for all TV show franchises."""
     rows = (
         db.query(TVShows.franchise_id)
         .filter(TVShows.franchise_id.isnot(None))
@@ -271,13 +264,12 @@ def derive_related_tv_show(db: Session) -> None:
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
         derive_watch_order_tv_show(db, fid)
-        derive_prequel_sequel_tv_show(db, fid)
     if franchise_ids:
         db.commit()
 
 
 def derive_related_cartoon(db: Session) -> None:
-    """Derives watch order and prequel/sequel for all cartoon franchises."""
+    """Derives watch order for all cartoon franchises."""
     rows = (
         db.query(Cartoon.franchise_id)
         .filter(Cartoon.franchise_id.isnot(None))
@@ -287,21 +279,5 @@ def derive_related_cartoon(db: Session) -> None:
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
         derive_watch_order_cartoon(db, fid)
-        derive_prequel_sequel_cartoon(db, fid)
-    if franchise_ids:
-        db.commit()
-
-
-def derive_related_manga(db: Session) -> None:
-    """Derives prequel/sequel for all ACG franchises that have manga entries."""
-    rows = (
-        db.query(Manga.franchise_id)
-        .filter(Manga.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_prequel_sequel_manga(db, fid)
     if franchise_ids:
         db.commit()

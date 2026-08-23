@@ -38,7 +38,6 @@ from app.services.domain import (
     derive_related_anime,
     derive_related_cartoon,
     derive_related_tv_show,
-    derive_related_manga,
 )
 
 # ==========================================
@@ -386,10 +385,9 @@ def run_derive_related(db: Session) -> dict:
     derive_related_anime(db)
     derive_related_tv_show(db)
     derive_related_cartoon(db)
-    derive_related_manga(db)
     return {
         "status": "success",
-        "message": "Derived watch order, ep_previous, and prequel/sequel for all franchises.",
+        "message": "Derived watch order and ep_previous for all franchises.",
     }
 
 

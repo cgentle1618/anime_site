@@ -72,7 +72,6 @@ from app.services.domain import (
     tv_show_post_processing,
     derive_related_anime,
     derive_related_cartoon,
-    derive_related_manga,
     derive_related_tv_show,
     resolve_anime_movie_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
@@ -1060,7 +1059,6 @@ async def execute_replace_manga(
         if await request.is_disconnected():
             raise asyncio.CancelledError()
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        derive_related_manga(db)
 
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
         run_sync_manga(db)

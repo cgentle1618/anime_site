@@ -76,10 +76,6 @@ from app.services.domain.derivation import (
     derive_watch_order_anime,
     derive_watch_order_tv_show,
     derive_watch_order_cartoon,
-    derive_prequel_sequel_anime,
-    derive_prequel_sequel_tv_show,
-    derive_prequel_sequel_cartoon,
-    derive_prequel_sequel_manga,
     derive_ep_previous_anime,
     derive_season_1_anime,
     derive_season_1_tv_show,
@@ -126,7 +122,6 @@ from app.services.domain.post_processing import (
     derive_related_anime,
     derive_related_tv_show,
     derive_related_cartoon,
-    derive_related_manga,
 )
 
 __all__ = [
@@ -183,10 +178,6 @@ __all__ = [
     "derive_watch_order_anime",
     "derive_watch_order_tv_show",
     "derive_watch_order_cartoon",
-    "derive_prequel_sequel_anime",
-    "derive_prequel_sequel_tv_show",
-    "derive_prequel_sequel_cartoon",
-    "derive_prequel_sequel_manga",
     "derive_ep_previous_anime",
     "derive_season_1_anime",
     "derive_season_1_tv_show",
@@ -221,5 +212,4 @@ __all__ = [
     "derive_related_anime",
     "derive_related_tv_show",
     "derive_related_cartoon",
-    "derive_related_manga",
 ]

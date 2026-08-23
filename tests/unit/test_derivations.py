@@ -14,7 +14,6 @@ import pytest
 from app.services.domain import (
     derive_watch_order_anime,
     derive_ep_previous_anime,
-    derive_prequel_sequel_anime,
     derive_season_1_anime,
 )
 
@@ -40,9 +39,6 @@ def make_anime(**kwargs):
         ep_previous=None,
         ep_total=12,
         ep_special=None,
-        prequel_id=None,
-        sequel_id=None,
-        derive_related=None,
     )
     defaults.update(kwargs)
     return types.SimpleNamespace(**defaults)
@@ -177,54 +173,6 @@ class TestDeriveEpPrevious:
         db = mock_db_returns([s1, s2])
         derive_ep_previous_anime(db, FRANCHISE_ID)
         assert s2.ep_previous is None  # cannot derive
-
-
-# ---------------------------------------------------------------------------
-# derive_prequel_sequel_anime
-# ---------------------------------------------------------------------------
-
-
-class TestDerivePrequelSequel:
-    def test_middle_entry_gets_both_links(self):
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=None, sequel_id=None)
-        a3 = make_anime(watch_order=3.0, prequel_id=None, sequel_id=None)
-        db = mock_db_returns([a1, a2, a3])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a2.prequel_id == a1.system_id
-        assert a2.sequel_id == a3.system_id
-
-    def test_first_entry_has_no_prequel(self):
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=None, sequel_id=None)
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a1.prequel_id is None
-
-    def test_last_entry_has_no_sequel(self):
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=None, sequel_id=None)
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a2.sequel_id is None
-
-    def test_existing_prequel_id_not_overwritten(self):
-        existing = uuid.uuid4()
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=existing, sequel_id=None)
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a2.prequel_id == existing  # not overwritten
-
-    def test_derive_related_false_excludes_entry(self):
-        # derive_related=False entries are excluded from the query (filtered at DB level)
-        # We simulate this by only returning entries where derive_related != False
-        a1 = make_anime(watch_order=1.0, derive_related=None)
-        a2 = make_anime(watch_order=2.0, derive_related=None)
-        # a3 would be excluded by the DB filter, so not in returned list
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a1.sequel_id == a2.system_id
 
 
 # ---------------------------------------------------------------------------
