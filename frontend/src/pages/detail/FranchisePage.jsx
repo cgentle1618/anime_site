@@ -16,6 +16,7 @@ import MediaCard from "../../components/cards/MediaCard";
 import SeriesModal from "../../components/modals/SeriesModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import { MemeSection } from "../notes/NotesTemplate";
+import FranchiseNotes from "./FranchiseNotes";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -311,6 +312,8 @@ export default function FranchisePage() {
       "Watch Order",
       // Same reasoning: a franchise-level running gag may not exist yet.
       "Memes",
+      // Same reasoning again: a franchise-level note may not exist yet.
+      "Notes",
     ].filter(Boolean);
   }, [
     franchise,
@@ -2172,6 +2175,26 @@ export default function FranchisePage() {
             </div>
           </div>
           <WatchOrderSection franchiseId={system_id} />
+        </div>
+      )}
+
+      {/* ── Notes tab content ─────────────────────────────────────────────── */}
+      {(activeTab === "Notes" || (tabs.length === 1 && tabs[0] === "Notes")) && (
+        <div>
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+              <i className="fas fa-sticky-note text-brand"></i>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                Notes
+              </h2>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                Structured notes belonging to the whole franchise
+              </p>
+            </div>
+          </div>
+          <FranchiseNotes franchiseId={franchise.system_id} isAdmin={isAdmin} />
         </div>
       )}
 

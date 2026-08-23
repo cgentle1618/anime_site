@@ -23,6 +23,7 @@ import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import { mediaScope } from "../../components/tracker/WatchOrderGuide";
 import { MemeSection } from "../notes/NotesTemplate";
+import CollectionNotes from "./CollectionNotes";
 
 export default function CollectionPage() {
   const { system_id } = useParams();
@@ -374,6 +375,12 @@ export default function CollectionPage() {
           ownerId={system_id}
           isAdmin={isAdmin}
         />
+
+        {/* Likewise a section, and owned by the collection itself. */}
+        <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
+          Notes
+        </h2>
+        <CollectionNotes collectionId={system_id} isAdmin={isAdmin} />
       </div>
 
       {showRemark && (
