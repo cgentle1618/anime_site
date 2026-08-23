@@ -1,8 +1,12 @@
 // Frontend: page component file for TVShowNotes.
 import NotesTemplate from "../notes/NotesTemplate";
-import SECTIONS from "../notes/configs/tvShowNotesConfig";
 
-export default function TVShowNotes({ show, isAdmin, onSave }) {
-  return <NotesTemplate entity={show} isAdmin={isAdmin} onSave={onSave} sections={SECTIONS} mediaType="tv-show" />;
+export default function TVShowNotes({ show, isAdmin }) {
+  return (
+    <NotesTemplate
+      ownerType="tv-show"
+      ownerId={show.system_id}
+      isAdmin={isAdmin}
+    />
+  );
 }
-
