@@ -17,14 +17,8 @@ import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
-import {
-  emptyQuote,
-  toQuotePayload,
-} from "../../components/forms/QuoteForm";
-import {
-  emptyMeme,
-  toMemePayload,
-} from "../../components/forms/MemeForm";
+import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
+import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
@@ -122,7 +116,9 @@ export default function Add() {
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
   const uq = (patch) => setQf((prev) => ({ ...prev, ...patch }));
-  const [memf, setMemf] = useState(emptyMeme({ owner_type: "", owner_id: null }));
+  const [memf, setMemf] = useState(
+    emptyMeme({ owner_type: "", owner_id: null }),
+  );
   const umeme = (patch) => setMemf((prev) => ({ ...prev, ...patch }));
 
   const [optCategory, setOptCategory] = useState("");
@@ -791,7 +787,9 @@ export default function Add() {
       showToast("success", "Meme appended.");
       setLastAdded(memf.text?.trim() || memf.image_file);
       // Keep the entry selected: memes are usually added several at a time.
-      setMemf(emptyMeme({ owner_type: memf.owner_type, owner_id: memf.owner_id }));
+      setMemf(
+        emptyMeme({ owner_type: memf.owner_type, owner_id: memf.owner_id }),
+      );
     } catch (err) {
       showToast("error", err.message || "Failed to append meme.");
     }
@@ -1059,8 +1057,7 @@ export default function Add() {
       series_id: seriesId || null,
       is_main: mf.is_main || null,
       airing_status: mf.airing_status || null,
-      watching_status:
-        mf.watching_status || freshForm("movie").watching_status,
+      watching_status: mf.watching_status || freshForm("movie").watching_status,
       my_rating: mf.my_rating || null,
       movie_type: mf.movie_type || null,
       length_min: mf.length_min !== "" ? parseInt(mf.length_min) : null,
@@ -1534,8 +1531,7 @@ export default function Add() {
       series_id: seriesId || null,
       region: mgf.region || null,
       serialization_status: mgf.serialization_status || null,
-      reading_status:
-        mgf.reading_status || freshForm("manga").reading_status,
+      reading_status: mgf.reading_status || freshForm("manga").reading_status,
       is_main: mgf.is_main || null,
       vol_total: mgf.vol_total !== "" ? parseInt(mgf.vol_total) : null,
       vol_fin: mgf.vol_fin !== "" ? parseInt(mgf.vol_fin) : 0,
@@ -1756,8 +1752,7 @@ export default function Add() {
       version: nvf.version || null,
       is_main: nvf.is_main || null,
       serialization_status: nvf.serialization_status || null,
-      reading_status:
-        nvf.reading_status || freshForm("novel").reading_status,
+      reading_status: nvf.reading_status || freshForm("novel").reading_status,
       progress_display: nvf.progress_display || null,
       vol_total_original:
         nvf.vol_total_original !== ""
@@ -1830,6 +1825,19 @@ export default function Add() {
     setNvf(freshForm("novel"));
     setAllNovels((prev) => [...prev, created]);
   }
+
+  // franchise system_id -> the name of the collection it belongs to, so every
+  // tab with a franchise picker can name the wider grouping.
+  const franchiseCollections = Object.fromEntries(
+    allFranchises
+      .filter((f) => f.collection_id)
+      .map((f) => [
+        f.system_id,
+        allCollections.find((c) => c.system_id === f.collection_id),
+      ])
+      .filter(([, c]) => c)
+      .map(([id, c]) => [id, getDisplayName(c, "collection")]),
+  );
 
   const collectionItems = allCollections.map((c) => ({
     id: c.system_id,
@@ -1983,6 +1991,7 @@ export default function Add() {
         {/* ═══ ANIME TAB ═══ */}
         {activeTab === "anime" && (
           <AnimeAddTab
+            franchiseCollections={franchiseCollections}
             af={af}
             ua={ua}
             fillQuery={fillQuery}
@@ -2002,6 +2011,7 @@ export default function Add() {
         {/* ═══ ANIME MOVIE TAB ═══ */}
         {activeTab === "anime-movie" && (
           <AnimeMovieAddTab
+            franchiseCollections={franchiseCollections}
             amf={amf}
             uam={uam}
             amFillQuery={amFillQuery}
@@ -2020,6 +2030,7 @@ export default function Add() {
         {/* ═══ MOVIE TAB ═══ */}
         {activeTab === "movie" && (
           <MovieAddTab
+            franchiseCollections={franchiseCollections}
             mf={mf}
             umf={umf}
             movieFillQuery={movieFillQuery}
@@ -2037,6 +2048,7 @@ export default function Add() {
         {/* ═══ TV SHOW TAB ═══ */}
         {activeTab === "tv-show" && (
           <TvShowAddTab
+            franchiseCollections={franchiseCollections}
             tvf={tvf}
             utf={utf}
             tvFillQuery={tvFillQuery}
@@ -2054,6 +2066,7 @@ export default function Add() {
         {/* ═══ CARTOON TAB ═══ */}
         {activeTab === "cartoon" && (
           <CartoonAddTab
+            franchiseCollections={franchiseCollections}
             cf={cf}
             uc={uc}
             cartoonFillQuery={cartoonFillQuery}
@@ -2071,6 +2084,7 @@ export default function Add() {
         {/* ═══ MANGA TAB ═══ */}
         {activeTab === "manga" && (
           <MangaAddTab
+            franchiseCollections={franchiseCollections}
             mgf={mgf}
             umg={umg}
             mangaFillQuery={mangaFillQuery}
@@ -2089,6 +2103,7 @@ export default function Add() {
         {/* ═══ NOVEL TAB ═══ */}
         {activeTab === "novel" && (
           <NovelAddTab
+            franchiseCollections={franchiseCollections}
             nvf={nvf}
             unv={unv}
             novelFillQuery={novelFillQuery}
@@ -2105,16 +2120,19 @@ export default function Add() {
         )}
 
         {/* ═══ FRANCHISE TAB ═══ */}
-        {activeTab === "collection" && (
-          <CollectionAddTab cf={colf} uf={ucol} />
-        )}
+        {activeTab === "collection" && <CollectionAddTab cf={colf} uf={ucol} />}
         {activeTab === "franchise" && (
           <FranchiseAddTab ff={ff} uf={uf} collectionItems={collectionItems} />
         )}
 
         {/* ═══ SERIES TAB ═══ */}
         {activeTab === "series" && (
-          <SeriesAddTab sf={sf} us={us} franchiseItems={franchiseItems} />
+          <SeriesAddTab
+            sf={sf}
+            us={us}
+            franchiseItems={franchiseItems}
+            franchiseCollections={franchiseCollections}
+          />
         )}
 
         {/* ═══ QUOTE TAB ═══ */}
@@ -2210,4 +2228,3 @@ export default function Add() {
     </div>
   );
 }
-

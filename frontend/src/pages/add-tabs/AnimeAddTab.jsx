@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -25,6 +26,7 @@ import {
 export { defaultAnime } from "../../config/formFactories";
 
 export default function AnimeAddTab({
+  franchiseCollections,
   af,
   ua,
   fillQuery,
@@ -124,6 +126,10 @@ export default function AnimeAddTab({
             }}
             placeholder="Search or type new franchise..."
             allowNew
+          />
+          <CollectionNote
+            franchiseId={af.franchise_id}
+            franchiseCollections={franchiseCollections}
           />
         </Field>
         <Field label="Series">
@@ -392,13 +398,11 @@ export default function AnimeAddTab({
             onChange={(e) => ua("airing_type", e.target.value)}
           >
             <option value="">—</option>
-            {ANIME_AIRING_TYPES.map(
-              (v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ),
-            )}
+            {ANIME_AIRING_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Main / Spinoff">
@@ -809,4 +813,3 @@ export default function AnimeAddTab({
     </div>
   );
 }
-

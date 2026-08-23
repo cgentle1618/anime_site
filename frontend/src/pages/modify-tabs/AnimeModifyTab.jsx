@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -13,6 +14,7 @@ import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import AnimeNotes from "../detail/AnimeNotes";
 
 export default function AnimeModifyTab({
+  franchiseCollections,
   af,
   ua,
   franchiseItems,
@@ -43,6 +45,10 @@ export default function AnimeModifyTab({
             }}
             placeholder="Search franchise..."
             allowNew
+          />
+          <CollectionNote
+            franchiseId={af.franchise_id}
+            franchiseCollections={franchiseCollections}
           />
         </Field>
         <Field label="Series">
@@ -736,4 +742,3 @@ export default function AnimeModifyTab({
     </>
   );
 }
-

@@ -1,10 +1,20 @@
 // Frontend: add tab page file for SeriesAddTab.
 import ComboBox from "../../components/forms/ComboBox";
-import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
+import {
+  CollectionNote,
+  Field,
+  SectionHeader,
+  inputCls,
+} from "../../components/forms/FormField";
 
 export { defaultSeries } from "../../config/formFactories";
 
-export default function SeriesAddTab({ sf, us, franchiseItems }) {
+export default function SeriesAddTab({
+  sf,
+  us,
+  franchiseItems,
+  franchiseCollections,
+}) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-layer-group" title="Titles & Naming" />
@@ -26,6 +36,10 @@ export default function SeriesAddTab({ sf, us, franchiseItems }) {
             us("franchise_text", "");
           }}
           placeholder="Search existing franchises..."
+        />
+        <CollectionNote
+          franchiseId={sf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series Name EN">
@@ -62,4 +76,3 @@ export default function SeriesAddTab({ sf, us, franchiseItems }) {
     </div>
   );
 }
-

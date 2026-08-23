@@ -1,6 +1,7 @@
 // Frontend: add tab page file for CartoonAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -18,6 +19,7 @@ import {
 export { defaultCartoon } from "../../config/formFactories";
 
 export default function CartoonAddTab({
+  franchiseCollections,
   cf,
   uc,
   cartoonFillQuery,
@@ -137,6 +139,10 @@ export default function CartoonAddTab({
           }}
           placeholder="Search or type new franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={cf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -501,4 +507,3 @@ export default function CartoonAddTab({
     </div>
   );
 }
-

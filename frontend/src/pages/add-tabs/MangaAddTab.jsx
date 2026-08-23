@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -19,6 +20,7 @@ import {
 export { defaultManga } from "../../config/formFactories";
 
 export default function MangaAddTab({
+  franchiseCollections,
   mgf,
   umg,
   mangaFillQuery,
@@ -142,6 +144,10 @@ export default function MangaAddTab({
           }}
           placeholder="Search or type new franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={mgf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -620,4 +626,3 @@ export default function MangaAddTab({
     </div>
   );
 }
-

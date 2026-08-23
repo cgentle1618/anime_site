@@ -1,8 +1,18 @@
 // Frontend: modify tab page file for SeriesModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
-import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
+import {
+  CollectionNote,
+  Field,
+  SectionHeader,
+  inputCls,
+} from "../../components/forms/FormField";
 
-export default function SeriesModifyTab({ sf, us, franchiseItems }) {
+export default function SeriesModifyTab({
+  sf,
+  us,
+  franchiseItems,
+  franchiseCollections,
+}) {
   return (
     <>
       <SectionHeader icon="fa-layer-group" title="Titles & Naming" />
@@ -25,6 +35,10 @@ export default function SeriesModifyTab({ sf, us, franchiseItems }) {
           }}
           placeholder="Search or type new franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={sf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series Name EN">
@@ -61,4 +75,3 @@ export default function SeriesModifyTab({ sf, us, franchiseItems }) {
     </>
   );
 }
-

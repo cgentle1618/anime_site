@@ -1,6 +1,7 @@
 // Frontend: add tab page file for MovieAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -18,6 +19,7 @@ import {
 export { defaultMovie } from "../../config/formFactories";
 
 export default function MovieAddTab({
+  franchiseCollections,
   mf,
   umf,
   movieFillQuery,
@@ -137,6 +139,10 @@ export default function MovieAddTab({
           }}
           placeholder="Search or type new franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={mf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -472,4 +478,3 @@ export default function MovieAddTab({
     </div>
   );
 }
-

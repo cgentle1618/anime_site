@@ -1,6 +1,7 @@
 // Frontend: add tab page file for TvShowAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -18,6 +19,7 @@ import {
 export { defaultTvShow } from "../../config/formFactories";
 
 export default function TvShowAddTab({
+  franchiseCollections,
   tvf,
   utf,
   tvFillQuery,
@@ -137,6 +139,10 @@ export default function TvShowAddTab({
           }}
           placeholder="Search or type new franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={tvf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -493,4 +499,3 @@ export default function TvShowAddTab({
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 // Frontend: modify tab page file for TvShowModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -10,6 +11,7 @@ import { getDisplayName, parseTypes } from "../../utils/media";
 import TVShowNotes from "../detail/TVShowNotes";
 
 export default function TvShowModifyTab({
+  franchiseCollections,
   tvmf,
   utv,
   allFranchises,
@@ -60,6 +62,10 @@ export default function TvShowModifyTab({
           }}
           placeholder="Search franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={tvmf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -427,4 +433,3 @@ export default function TvShowModifyTab({
     </>
   );
 }
-

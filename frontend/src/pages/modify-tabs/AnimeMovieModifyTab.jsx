@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -11,6 +12,7 @@ import { getOptions } from "../../utils/media";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 
 export default function AnimeMovieModifyTab({
+  franchiseCollections,
   amf,
   uam,
   franchiseItems,
@@ -39,6 +41,10 @@ export default function AnimeMovieModifyTab({
           }}
           placeholder="Search franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={amf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Anime Movie Name EN">
@@ -406,4 +412,3 @@ export default function AnimeMovieModifyTab({
     </>
   );
 }
-

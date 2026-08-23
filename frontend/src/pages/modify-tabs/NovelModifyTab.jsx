@@ -3,6 +3,7 @@ import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor"
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -31,6 +32,7 @@ const PROGRESS_DISPLAY_OPTIONS = [
 ];
 
 export default function NovelModifyTab({
+  franchiseCollections,
   cnvf,
   unv,
   allFranchises,
@@ -91,6 +93,10 @@ export default function NovelModifyTab({
           }}
           placeholder="Search franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={cnvf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -414,7 +420,11 @@ export default function NovelModifyTab({
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}
-            selectedId={publisherOptions.includes(cnvf.publisher_tw) ? cnvf.publisher_tw : null}
+            selectedId={
+              publisherOptions.includes(cnvf.publisher_tw)
+                ? cnvf.publisher_tw
+                : null
+            }
             inputText={cnvf.publisher_tw || ""}
             onSelect={(id) => unv("publisher_tw", id)}
             onType={(text) => unv("publisher_tw", text)}
@@ -626,4 +636,3 @@ export default function NovelModifyTab({
     </>
   );
 }
-

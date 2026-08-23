@@ -1,6 +1,7 @@
 // Frontend: modify tab page file for CartoonModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -10,6 +11,7 @@ import { getDisplayName, parseTypes } from "../../utils/media";
 import CartoonNotes from "../detail/CartoonNotes";
 
 export default function CartoonModifyTab({
+  franchiseCollections,
   cmf,
   uc,
   allFranchises,
@@ -60,6 +62,10 @@ export default function CartoonModifyTab({
           }}
           placeholder="Search franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={cmf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -438,4 +444,3 @@ export default function CartoonModifyTab({
     </>
   );
 }
-

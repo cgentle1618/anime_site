@@ -1,6 +1,7 @@
 // Frontend: modify tab page file for MovieModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -10,6 +11,7 @@ import { getDisplayName, parseTypes } from "../../utils/media";
 import MovieNotes from "../detail/MovieNotes";
 
 export default function MovieModifyTab({
+  franchiseCollections,
   mmf,
   umm,
   allFranchises,
@@ -60,6 +62,10 @@ export default function MovieModifyTab({
           }}
           placeholder="Search franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={mmf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -406,4 +412,3 @@ export default function MovieModifyTab({
     </>
   );
 }
-

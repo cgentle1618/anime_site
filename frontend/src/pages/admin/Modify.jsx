@@ -307,20 +307,19 @@ export default function Modify() {
           ctRes,
           mgRes,
           nvRes,
-        ] =
-          await Promise.all([
-            fetch("/api/anime/?limit=2000", { credentials: "include" }),
-            fetch("/api/collection/?limit=2000", { credentials: "include" }),
-            fetch("/api/franchise/?limit=2000", { credentials: "include" }),
-            fetch("/api/series/?limit=2000", { credentials: "include" }),
-            fetch("/api/options/", { credentials: "include" }),
-            fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
-            fetch("/api/movies/?limit=2000", { credentials: "include" }),
-            fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
-            fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
-            fetch("/api/manga/?limit=2000", { credentials: "include" }),
-            fetch("/api/novel/?limit=2000", { credentials: "include" }),
-          ]);
+        ] = await Promise.all([
+          fetch("/api/anime/?limit=2000", { credentials: "include" }),
+          fetch("/api/collection/?limit=2000", { credentials: "include" }),
+          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
+          fetch("/api/series/?limit=2000", { credentials: "include" }),
+          fetch("/api/options/", { credentials: "include" }),
+          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
+          fetch("/api/movies/?limit=2000", { credentials: "include" }),
+          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
+          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
+          fetch("/api/manga/?limit=2000", { credentials: "include" }),
+          fetch("/api/novel/?limit=2000", { credentials: "include" }),
+        ]);
         // Guarded separately: on failure every form falls back to its built-ins.
         formDefaultsRef.current = await fetchFormDefaults();
         const [
@@ -726,11 +725,13 @@ export default function Modify() {
   ) {
     setEditingItem(item);
     setEditingType(type);
-    if (type === "anime") setAf(animeToForm(item, franchises, series, md("anime")));
+    if (type === "anime")
+      setAf(animeToForm(item, franchises, series, md("anime")));
     else if (type === "collection") setColf(collectionToForm(item));
     else if (type === "franchise") setFf(franchiseToForm(item, collections));
     else if (type === "series") setSf(seriesToForm(item, franchises));
-    else if (type === "anime-movie") setAmf(movieToForm(item, franchises, md("anime-movie")));
+    else if (type === "anime-movie")
+      setAmf(movieToForm(item, franchises, md("anime-movie")));
     else if (type === "movie")
       setMmf(liveMovieToForm(item, franchises, series));
     else if (type === "tv-show")
@@ -1184,8 +1185,7 @@ export default function Modify() {
       series_id: seriesId || null,
       is_main: mmf.is_main || null,
       airing_status: mmf.airing_status || null,
-      watching_status:
-        mmf.watching_status || md("movie").watching_status,
+      watching_status: mmf.watching_status || md("movie").watching_status,
       my_rating: mmf.my_rating || null,
       movie_type: mmf.movie_type || null,
       length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
@@ -1326,8 +1326,7 @@ export default function Modify() {
       source_official: tvmf.source_official || null,
       is_main: tvmf.is_main || null,
       airing_status: tvmf.airing_status || null,
-      watching_status:
-        tvmf.watching_status || md("tv-show").watching_status,
+      watching_status: tvmf.watching_status || md("tv-show").watching_status,
       ep_total: tvmf.ep_total !== "" ? parseInt(tvmf.ep_total) : null,
       ep_fin: tvmf.ep_fin !== "" ? parseInt(tvmf.ep_fin) : null,
       my_rating: tvmf.my_rating || null,
@@ -1466,8 +1465,7 @@ export default function Modify() {
       season_part: cmf.season_part || null,
       airing_type: cmf.airing_type || null,
       airing_status: cmf.airing_status || null,
-      watching_status:
-        cmf.watching_status || md("cartoon").watching_status,
+      watching_status: cmf.watching_status || md("cartoon").watching_status,
       is_main: cmf.is_main || null,
       ep_total: cmf.ep_total !== "" ? parseInt(cmf.ep_total) : null,
       ep_fin: cmf.ep_fin !== "" ? parseInt(cmf.ep_fin) : null,
@@ -1616,8 +1614,7 @@ export default function Modify() {
       series_id: seriesId || null,
       region: cmgf.region || null,
       serialization_status: cmgf.serialization_status || null,
-      reading_status:
-        cmgf.reading_status || md("manga").reading_status,
+      reading_status: cmgf.reading_status || md("manga").reading_status,
       is_main: cmgf.is_main || null,
       vol_total: cmgf.vol_total !== "" ? parseInt(cmgf.vol_total) : null,
       vol_fin: cmgf.vol_fin !== "" ? parseInt(cmgf.vol_fin) : null,
@@ -1769,12 +1766,18 @@ export default function Modify() {
       seriesId = ns.system_id;
       setAllSeries((prev) => [...prev, ns]);
     }
-    const novelNameEachCn = (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
-      ? (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
-      : null;
-    const novelNameEachEn = (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
-      ? (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).map((e) => ({ key: e.key, name: e.name.trim() }))
-      : null;
+    const novelNameEachCn =
+      (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
+        ? (cnvf.novel_name_each_cn || [])
+            .filter((e) => e.name.trim())
+            .map((e) => ({ key: e.key, name: e.name.trim() }))
+        : null;
+    const novelNameEachEn =
+      (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
+        ? (cnvf.novel_name_each_en || [])
+            .filter((e) => e.name.trim())
+            .map((e) => ({ key: e.key, name: e.name.trim() }))
+        : null;
 
     // Auto-create missing system options for author, illustrator, publisher_tw
     {
@@ -1784,11 +1787,17 @@ export default function Modify() {
         existingValues[o.category].add(o.option_value);
       }
       const toCreate = [];
-      for (const v of (cnvf.author || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+      for (const v of (cnvf.author || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         if (!existingValues["Novel Author"]?.has(v))
           toCreate.push({ category: "Novel Author", option_value: v });
       }
-      for (const v of (cnvf.illustrator || "").split(",").map((s) => s.trim()).filter(Boolean)) {
+      for (const v of (cnvf.illustrator || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         if (!existingValues["Novel Illustrator"]?.has(v))
           toCreate.push({ category: "Novel Illustrator", option_value: v });
       }
@@ -1824,11 +1833,14 @@ export default function Modify() {
       version: cnvf.version || null,
       is_main: cnvf.is_main || null,
       serialization_status: cnvf.serialization_status || null,
-      reading_status:
-        cnvf.reading_status || md("novel").reading_status,
+      reading_status: cnvf.reading_status || md("novel").reading_status,
       progress_display: cnvf.progress_display || null,
-      vol_total_original: cnvf.vol_total_original !== "" ? parseFloat(cnvf.vol_total_original) : null,
-      vol_total_tw: cnvf.vol_total_tw !== "" ? parseFloat(cnvf.vol_total_tw) : null,
+      vol_total_original:
+        cnvf.vol_total_original !== ""
+          ? parseFloat(cnvf.vol_total_original)
+          : null,
+      vol_total_tw:
+        cnvf.vol_total_tw !== "" ? parseFloat(cnvf.vol_total_tw) : null,
       vol_fin: cnvf.vol_fin !== "" ? parseFloat(cnvf.vol_fin) : null,
       arc_total: cnvf.arc_total !== "" ? parseFloat(cnvf.arc_total) : null,
       arc_fin: cnvf.arc_fin !== "" ? parseFloat(cnvf.arc_fin) : null,
@@ -1837,10 +1849,12 @@ export default function Modify() {
       my_rating: cnvf.my_rating || null,
       mal_rating: cnvf.mal_rating !== "" ? parseFloat(cnvf.mal_rating) : null,
       mal_rank: cnvf.mal_rank !== "" ? parseInt(cnvf.mal_rank) : null,
-      anilist_rating: cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
+      anilist_rating:
+        cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
       author: cnvf.author || null,
       illustrator: cnvf.illustrator || null,
-      release_year: cnvf.release_year !== "" ? parseInt(cnvf.release_year) : null,
+      release_year:
+        cnvf.release_year !== "" ? parseInt(cnvf.release_year) : null,
       end_year: cnvf.end_year !== "" ? parseInt(cnvf.end_year) : null,
       publisher_tw: cnvf.publisher_tw || null,
       prequel_id: cnvf.prequel_id || null,
@@ -2242,6 +2256,19 @@ export default function Modify() {
       </div>
     );
   })();
+
+  // franchise system_id -> the name of the collection it belongs to, so every
+  // tab with a franchise picker can name the wider grouping.
+  const franchiseCollections = Object.fromEntries(
+    allFranchises
+      .filter((f) => f.collection_id)
+      .map((f) => [
+        f.system_id,
+        allCollections.find((c) => c.system_id === f.collection_id),
+      ])
+      .filter(([, c]) => c)
+      .map(([id, c]) => [id, getDisplayName(c, "collection")]),
+  );
 
   const collectionItems = allCollections.map((c) => ({
     id: c.system_id,
@@ -2865,6 +2892,7 @@ export default function Modify() {
             {/* ── ANIME EDITOR ── */}
             {editingType === "anime" && (
               <AnimeModifyTab
+                franchiseCollections={franchiseCollections}
                 af={af}
                 ua={ua}
                 franchiseItems={franchiseItems}
@@ -2904,6 +2932,7 @@ export default function Modify() {
             {/* ── SERIES EDITOR ── */}
             {editingType === "series" && (
               <SeriesModifyTab
+                franchiseCollections={franchiseCollections}
                 sf={sf}
                 us={us}
                 franchiseItems={franchiseItems}
@@ -2913,6 +2942,7 @@ export default function Modify() {
             {/* ── ANIME MOVIE EDITOR ── */}
             {editingType === "anime-movie" && (
               <AnimeMovieModifyTab
+                franchiseCollections={franchiseCollections}
                 amf={amf}
                 uam={uam}
                 franchiseItems={franchiseItems}
@@ -2924,6 +2954,7 @@ export default function Modify() {
             {/* ── MOVIE EDITOR ── */}
             {editingType === "movie" && (
               <MovieModifyTab
+                franchiseCollections={franchiseCollections}
                 mmf={mmf}
                 umm={umm}
                 allFranchises={allFranchises}
@@ -2935,6 +2966,7 @@ export default function Modify() {
             {/* ── TV SHOW EDITOR ── */}
             {editingType === "tv-show" && (
               <TvShowModifyTab
+                franchiseCollections={franchiseCollections}
                 tvmf={tvmf}
                 utv={utv}
                 allFranchises={allFranchises}
@@ -2946,6 +2978,7 @@ export default function Modify() {
             {/* ── CARTOON EDITOR ── */}
             {editingType === "cartoon" && (
               <CartoonModifyTab
+                franchiseCollections={franchiseCollections}
                 cmf={cmf}
                 uc={uc}
                 allFranchises={allFranchises}
@@ -2957,6 +2990,7 @@ export default function Modify() {
             {/* ── MANGA EDITOR ── */}
             {editingType === "manga" && (
               <MangaModifyTab
+                franchiseCollections={franchiseCollections}
                 cmgf={cmgf}
                 umg={umg}
                 allFranchises={allFranchises}
@@ -2970,6 +3004,7 @@ export default function Modify() {
             {/* ── NOVEL EDITOR ── */}
             {editingType === "novel" && (
               <NovelModifyTab
+                franchiseCollections={franchiseCollections}
                 cnvf={cnvf}
                 unv={unv}
                 allFranchises={allFranchises}
@@ -3028,4 +3063,3 @@ export default function Modify() {
     </div>
   );
 }
-

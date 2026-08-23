@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
+  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -11,6 +12,7 @@ import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 import MangaNotes from "../detail/MangaNotes";
 
 export default function MangaModifyTab({
+  franchiseCollections,
   cmgf,
   umg,
   allFranchises,
@@ -68,6 +70,10 @@ export default function MangaModifyTab({
           }}
           placeholder="Search franchise..."
           allowNew
+        />
+        <CollectionNote
+          franchiseId={cmgf.franchise_id}
+          franchiseCollections={franchiseCollections}
         />
       </Field>
       <Field label="Series">
@@ -543,4 +549,3 @@ export default function MangaModifyTab({
     </>
   );
 }
-
