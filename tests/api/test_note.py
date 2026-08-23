@@ -197,6 +197,44 @@ def test_create_assigns_next_sort_index(admin_client, sample_anime, anime_note):
     assert r.json()["sort_index"] == 1.0
 
 
+def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample_anime):
+    # A NULL sort_index sorts first on DESC in PostgreSQL, so the query behind
+    # _next_sort_index must exclude NULLs or it collides with the existing 2.0 row.
+    db_session.add(
+        models.Note(
+            system_id=uuid.uuid4(),
+            owner_type="anime",
+            owner_id=sample_anime.system_id,
+            section="advantages",
+            content="無序號",
+            sort_index=None,
+        )
+    )
+    db_session.add(
+        models.Note(
+            system_id=uuid.uuid4(),
+            owner_type="anime",
+            owner_id=sample_anime.system_id,
+            section="advantages",
+            content="第三",
+            sort_index=2.0,
+        )
+    )
+    db_session.flush()
+
+    r = admin_client.post(
+        "/api/notes",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "section": "advantages",
+            "content": "新的",
+        },
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["sort_index"] == 3.0
+
+
 # --- Update and delete ----------------------------------------------------
 
 
@@ -219,6 +257,40 @@ def test_update_revalidates_against_registry(admin_client, anime_note):
         f"/api/notes/{anime_note.system_id}", json={"section": "nope"}
     )
     assert r.status_code == 422
+
+
+def test_update_to_singleton_conflict_does_not_flush_mutation(
+    admin_client, db_session, sample_anime, anime_note
+):
+    # sample_anime already has a 'remark' note; patching anime_note's section
+    # to 'remark' must be rejected, and - because the check must run before
+    # any mutation touches db_note - the row must come back unchanged on a
+    # subsequent read, proving nothing was flushed by autoflush.
+    db_session.add(
+        models.Note(
+            system_id=uuid.uuid4(),
+            owner_type="anime",
+            owner_id=sample_anime.system_id,
+            section="remark",
+            content="既有備註",
+            sort_index=0.0,
+        )
+    )
+    db_session.flush()
+
+    r = admin_client.patch(
+        f"/api/notes/{anime_note.system_id}", json={"section": "remark"}
+    )
+    assert r.status_code == 422
+    assert "already has" in r.text
+
+    got = admin_client.get(
+        "/api/notes",
+        params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
+    ).json()
+    unchanged = next(n for n in got if n["system_id"] == str(anime_note.system_id))
+    assert unchanged["section"] == "advantages"
+    assert unchanged["content"] == "敘事結構精巧"
 
 
 def test_update_404s_on_missing_note(admin_client):

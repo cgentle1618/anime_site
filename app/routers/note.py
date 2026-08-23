@@ -13,7 +13,6 @@ shape used to live in seven frontend config files, where nothing could enforce
 it.
 """
 
-import logging
 import uuid
 from typing import List, Optional
 
@@ -26,8 +25,6 @@ from app.dependencies import get_db, get_current_admin
 from app.schemas.note import sections_out, validate_note_payload
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import NOTE_SECTIONS, section_by_key
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notes", tags=["Note Management"])
 
@@ -95,6 +92,7 @@ def _next_sort_index(db: Session, payload: schemas.NoteBase) -> float:
             models.Note.owner_type == payload.owner_type,
             models.Note.owner_id == payload.owner_id,
             models.Note.section == payload.section,
+            models.Note.sort_index.isnot(None),
         )
         .order_by(models.Note.sort_index.desc())
         .first()
@@ -211,31 +209,31 @@ def update_note(
     _admin=Depends(get_current_admin),
 ):
     db_note = _get_or_404(db, note_id)
-
     data = payload.model_dump(exclude_unset=True)
-    for key, value in data.items():
-        setattr(db_note, key, value)
 
-    # Validate the row as it will be, not just the fields that changed - a
-    # partial update can still land on an invalid combination.
+    # Validate the row as it WILL be, before mutating anything - a partial
+    # update can still land on an invalid combination, and a check that runs
+    # after the mutation lets autoflush write the unvalidated row into the
+    # open transaction. This also preserves the existing behavior that a PATCH
+    # may change owner_type/owner_id: data.get(..., current) picks up an
+    # incoming owner if one is supplied, so section-applicability is checked
+    # against the NEW owner.
     merged = schemas.NoteUpdate(
-        owner_type=db_note.owner_type,
-        owner_id=db_note.owner_id,
-        section=db_note.section,
-        episode=db_note.episode,
-        kind=db_note.kind,
-        title=db_note.title,
-        content=db_note.content,
-        links=db_note.links,
-        sort_index=db_note.sort_index,
+        owner_type=data.get("owner_type", db_note.owner_type),
+        owner_id=data.get("owner_id", db_note.owner_id),
+        section=data.get("section", db_note.section),
+        episode=data.get("episode", db_note.episode),
+        kind=data.get("kind", db_note.kind),
+        title=data.get("title", db_note.title),
+        content=data.get("content", db_note.content),
+        links=data.get("links", db_note.links),
+        sort_index=data.get("sort_index", db_note.sort_index),
     )
-    try:
-        validate_note_payload(merged)
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=422, detail=str(exc))
+    _validate_or_422(merged)
     _reject_second_singleton(db, merged, exclude_id=note_id)
 
+    for key, value in data.items():
+        setattr(db_note, key, value)
     db_note.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_note)
