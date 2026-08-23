@@ -17,7 +17,9 @@ Downgrade restores the columns and copies the note content back, then deletes
 every remark note row. It is deliberately asymmetric: a merged remark returns
 as one blob, label included. A pre-migration Google Sheets backup will NOT
 restore this data either - the ten media tabs lose their remark column here, so
-this revision is the authority for the move.
+this revision is the authority for the move. Remark rows whose owner no longer
+exists (owner_id is FK-less) have no column to return to, so downgrade leaves
+them in `note` rather than destroying content stored nowhere else.
 """
 from typing import Sequence, Union
 
@@ -164,7 +166,17 @@ def downgrade() -> None:
                AND n.section = 'remark'
             """
         )
+        # Only delete the rows the UPDATE above actually copied back. note.owner_id
+        # is FK-less by design, so a remark row can outlive its owner; that row has
+        # no column to be written to, and deleting it here would destroy content
+        # stored nowhere else. Orphans stay put and upgrade will find them again.
         op.execute(
-            f"DELETE FROM note WHERE owner_type = '{owner_type}' "
-            "AND section = 'remark'"
+            f"""
+            DELETE FROM note n
+             WHERE n.owner_type = '{owner_type}'
+               AND n.section = 'remark'
+               AND EXISTS (
+                   SELECT 1 FROM {table} t WHERE t.system_id = n.owner_id
+               )
+            """
         )

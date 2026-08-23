@@ -6,6 +6,9 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 
 import uuid
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from app import models
 from app.services.domain.remark_field import upsert_remark
 
@@ -99,3 +102,56 @@ def test_upsert_leaves_other_sections_alone(db_session, sample_anime):
     assert db_session.query(models.Note).filter(
         models.Note.section == "advantages"
     ).count() == 1
+
+
+def test_a_second_remark_row_is_rejected_by_the_database(db_session, sample_anime):
+    """
+    The singleton rule is load-bearing, not advisory: the read side is a scalar
+    subquery, so two remark rows for one owner would make every read of that
+    anime raise. `ix_note_one_remark_per_owner` is declared on the model as well
+    as in revision r1e2m3a4r5k6, so it reaches this create_all-built schema too -
+    if that declaration is ever lost, this test fails.
+    """
+    upsert_remark(db_session, "anime", sample_anime.system_id, "the one remark")
+    db_session.flush()
+
+    savepoint = db_session.begin_nested()
+    db_session.add(
+        models.Note(
+            system_id=uuid.uuid4(),
+            owner_type="anime",
+            owner_id=sample_anime.system_id,
+            section="remark",
+            content="a second one",
+            sort_index=0.0,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+    savepoint.rollback()
+
+    # The session survives, and the original row is untouched.
+    rows = _rows(db_session, "anime", sample_anime.system_id)
+    assert len(rows) == 1
+    assert rows[0].content == "the one remark"
+
+
+def test_the_index_does_not_constrain_other_sections(db_session, sample_anime):
+    """The predicate is `section = 'remark'`; two `advantages` rows are legal."""
+    for content in ("first point", "second point"):
+        db_session.add(
+            models.Note(
+                system_id=uuid.uuid4(),
+                owner_type="anime",
+                owner_id=sample_anime.system_id,
+                section="advantages",
+                content=content,
+                sort_index=0.0,
+            )
+        )
+    db_session.flush()
+
+    assert db_session.query(models.Note).filter(
+        models.Note.owner_id == sample_anime.system_id,
+        models.Note.section == "advantages",
+    ).count() == 2

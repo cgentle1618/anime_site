@@ -1,7 +1,7 @@
 """Note ORM model - one item of structured notes on any owner."""
 
 import uuid
-from sqlalchemy import Column, DateTime, Float, Index, String, Text
+from sqlalchemy import Column, DateTime, Float, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database import Base, get_taipei_now
@@ -66,4 +66,20 @@ class Note(Base):
     __table_args__ = (
         # The only read path the notes page uses.
         Index("ix_note_owner_section", "owner_type", "owner_id", "section"),
+        # `remark` is a singleton per owner, and that rule is load-bearing: the
+        # read side is a scalar subquery (see the `remark` column_property in
+        # app/models/__init__.py), so a second remark row for one owner makes
+        # EVERY read of that entity raise "more than one row returned by a
+        # subquery used as an expression" rather than degrade. Declared here as
+        # well as in the database so autogenerate does not propose dropping it
+        # and so create_all-built schemas (the test DB) enforce it too. Mirrors
+        # the index created in revision r1e2m3a4r5k6 - keep the name and the
+        # predicate identical.
+        Index(
+            "ix_note_one_remark_per_owner",
+            "owner_type",
+            "owner_id",
+            unique=True,
+            postgresql_where=text("section = 'remark'"),
+        ),
     )
