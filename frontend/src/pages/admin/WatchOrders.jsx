@@ -294,8 +294,13 @@ export default function WatchOrders() {
   const loadLists = useCallback(
     () =>
       fetch(
+        // limit=2000 (the endpoint's ceiling), not the default 500: there is
+        // one built-in order per owner, so with the toggle on they alone
+        // overflow the default page and silently truncate the hand-built
+        // orders this page exists for.
         buildUrl(endpoints.watchOrder.lists(), {
           auto: showGenerated ? undefined : "exclude",
+          limit: 2000,
         }),
         { credentials: "include" }
       )
