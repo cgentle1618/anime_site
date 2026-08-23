@@ -71,9 +71,15 @@ def test_desc_required_section_rejects_empty_content():
 
 
 def test_desc_required_does_not_apply_to_other_owners():
-    # adaptation is desc_required on anime but not on tv_show.
+    # adaptation is desc_required on anime but not on tv-show, so a row with
+    # only a link and no description is valid there.
     validate_note_payload(
-        _payload(owner_type="tv-show", section="adaptation", content=None)
+        _payload(
+            owner_type="tv-show",
+            section="adaptation",
+            content=None,
+            links=["https://example.com/adaptation"],
+        )
     )
 
 
@@ -87,3 +93,34 @@ def test_name_links_row_may_have_title_and_no_content():
         _payload(section="resources", content=None, title="官方設定集",
                  links=["https://example.com/artbook"])
     )
+
+
+def test_name_links_row_may_have_only_title():
+    # name_links shape allows title alone, without content or links
+    validate_note_payload(
+        _payload(section="resources", content=None, title="官方設定集", links=None)
+    )
+
+
+def test_episode_text_row_may_have_only_episode():
+    # episode_text shape allows episode alone, without content
+    validate_note_payload(
+        _payload(section="episode_comments", episode="ep 1", content=None)
+    )
+
+
+def test_episode_text_row_without_episode_and_content_rejected():
+    # episode_text shape requires either episode or content
+    with pytest.raises(ValueError, match="empty"):
+        validate_note_payload(
+            _payload(section="episode_comments", episode=None, content=None)
+        )
+
+
+def test_blank_text_links_row_rejected():
+    # text_links shape (e.g., adaptation) still requires content or links
+    # Use tv-show where adaptation is NOT desc_required, so it hits the emptiness check
+    with pytest.raises(ValueError, match="empty"):
+        validate_note_payload(
+            _payload(owner_type="tv-show", section="adaptation", content=None, links=None)
+        )

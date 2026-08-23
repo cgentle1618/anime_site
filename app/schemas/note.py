@@ -10,7 +10,6 @@ from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
     SHAPE_EPISODE_TEXT,
     SHAPE_NAME_LINKS,
-    SHAPE_TEXT_LINKS,
     STORED_SHAPES,
     NoteSection,
     label_for,
@@ -134,8 +133,5 @@ def validate_note_payload(payload: NoteBase) -> None:
     elif section.shape == SHAPE_EPISODE_TEXT:
         if not content and not (payload.episode or "").strip():
             raise ValueError(f"Section '{section.key}' note is empty.")
-    elif section.shape == SHAPE_TEXT_LINKS:
-        # text_links rows can be empty (no enforcement)
-        pass
     elif not content and not payload.links:
         raise ValueError(f"Section '{section.key}' note is empty.")
