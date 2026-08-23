@@ -346,8 +346,7 @@ export default function Nav() {
     setSearchQuery("");
     if (item.type === "collection") navigate(`/collection/${item.system_id}`);
     else if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
-    else if (item.type === "series")
-      navigate(`/franchise/${item.franchise_id}`);
+    else if (item.type === "series") navigate(`/series/${item.system_id}`);
     else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
     else if (item.type === "manga") navigate(`/manga/${item.system_id}`);
     else if (item.type === "novel") navigate(`/novel/${item.system_id}`);
