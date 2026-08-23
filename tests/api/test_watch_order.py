@@ -64,7 +64,7 @@ def sample_items(db_session, sample_list, sample_anime, sample_anime_movie):
             position=2.0,
             media_type="anime-movie",
             entry_id=sample_anime_movie.system_id,
-            is_optional=True,
+            importance="Optional",
             note="Optional side story",
         ),
         models.WatchOrderItem(
@@ -195,12 +195,14 @@ class TestGetWatchOrderDetail:
         ]
         assert items[0]["ep_special"] == 0
 
-    def test_optional_flag_and_note_survive(self, client, sample_list, sample_items):
+    def test_importance_and_note_survive(self, client, sample_list, sample_items):
         items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
             "items"
         ]
-        assert items[1]["is_optional"] is True
+        assert items[1]["importance"] == "Optional"
         assert items[1]["note"] == "Optional side story"
+        # An unmarked step reads back as Normal, not as null.
+        assert items[0]["importance"] == "Normal"
 
     def test_dangling_entry_is_flagged_not_dropped(
         self, client, db_session, sample_list
@@ -1304,12 +1306,20 @@ class TestUpdateWatchOrderItem:
         assert response.status_code == 200
         assert (response.json()["ep_start"], response.json()["ep_end"]) == (1, 8)
 
-    def test_patch_toggles_optional(self, admin_client, sample_items):
+    def test_patch_sets_importance(self, admin_client, sample_items):
         response = admin_client.patch(
             f"/api/watch-order/items/{sample_items[0].system_id}",
-            json={"is_optional": True},
+            json={"importance": "Essential"},
         )
-        assert response.json()["is_optional"] is True
+        assert response.json()["importance"] == "Essential"
+
+    def test_patch_rejects_unknown_importance(self, admin_client, sample_items):
+        """The API refuses junk where the Sheets parser would coerce it."""
+        response = admin_client.patch(
+            f"/api/watch-order/items/{sample_items[0].system_id}",
+            json={"importance": "Critical"},
+        )
+        assert response.status_code == 400
 
     def test_guest_cannot_patch(self, client, sample_items):
         response = client.patch(

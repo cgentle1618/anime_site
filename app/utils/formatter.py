@@ -9,6 +9,10 @@ from typing import Any, List, Dict
 from datetime import datetime, time
 from uuid import UUID
 
+# Imported rather than duplicated so the Sheets tab and the API agree on what
+# the three rungs are.
+from app.services.domain.watch_order import normalize_importance
+
 # ==========================================
 # FORMATTERS (DB -> Google Sheets)
 # ==========================================
@@ -183,7 +187,11 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
         "entry_id": _uuid_or_none(raw.get("entry_id")),
         "ep_start": parse_from_sheet(raw.get("ep_start"), int),
         "ep_end": parse_from_sheet(raw.get("ep_end"), int),
-        "is_optional": parse_from_sheet(raw.get("is_optional"), bool),
+        # Coerced, not validated: a blank cell, or a row backed up before the
+        # column existed, restores as "Normal" rather than failing the Pull.
+        "importance": normalize_importance(
+            parse_from_sheet(raw.get("importance"), str)
+        ),
         "note": parse_from_sheet(raw.get("note"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

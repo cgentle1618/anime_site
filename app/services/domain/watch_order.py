@@ -62,6 +62,26 @@ _TOTAL_FIELDS = {
 
 VALID_WATCH_ORDER_MEDIA_TYPES = frozenset(MEDIA_TYPE_MODELS)
 
+# The three rungs a step can sit on, most important first. Mirrors
+# ITEM_IMPORTANCE in frontend/src/components/tracker/WatchOrderEditor.jsx.
+# One column rather than a pair of booleans, because a step has exactly one.
+ITEM_IMPORTANCE = ("Essential", "Normal", "Optional")
+DEFAULT_IMPORTANCE = "Normal"
+
+
+def normalize_importance(value: Any) -> str:
+    """
+    Coerces a stored or incoming importance to one of the three rungs.
+
+    Anything unrecognized - NULL from a row written before the column existed,
+    a blank Google Sheets cell, a typo restored by Pull - falls back to
+    "Normal", which is what an unmarked step has always meant.
+    """
+    if value is None:
+        return DEFAULT_IMPORTANCE
+    text = str(value).strip().title()
+    return text if text in ITEM_IMPORTANCE else DEFAULT_IMPORTANCE
+
 
 def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
     """Pulls the display fields the guide needs off a resolved entry."""
@@ -130,7 +150,7 @@ def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
             "entry_id": item.entry_id,
             "ep_start": item.ep_start,
             "ep_end": item.ep_end,
-            "is_optional": item.is_optional,
+            "importance": normalize_importance(item.importance),
             "note": item.note,
             "created_at": item.created_at,
             "updated_at": item.updated_at,
@@ -385,7 +405,10 @@ def build_release_items(
                 "entry_id": c["entry_id"],
                 "ep_start": None,
                 "ep_end": None,
-                "is_optional": False,
+                # Generated steps have no watch_order_item row to carry a
+                # rung, so every one of them is Normal - the same reason they
+                # carry no note and no episode range.
+                "importance": DEFAULT_IMPORTANCE,
                 "note": None,
                 "created_at": None,
                 "updated_at": None,

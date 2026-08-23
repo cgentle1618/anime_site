@@ -55,7 +55,7 @@ def make_item(media_type, entry_id, **overrides):
         "entry_id": entry_id,
         "ep_start": None,
         "ep_end": None,
-        "is_optional": False,
+        "importance": "Normal",
         "note": None,
         "created_at": None,
         "updated_at": None,
@@ -134,15 +134,41 @@ class TestResolveItems:
         entry_id = uuid.uuid4()
         db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [make_anime(entry_id)]})
         item = make_item(
-            "anime", entry_id, ep_start=1, ep_end=10, is_optional=True, note="skip recap"
+            "anime",
+            entry_id,
+            ep_start=1,
+            ep_end=10,
+            importance="Optional",
+            note="skip recap",
         )
 
         result = resolve_items(db, [item])[0]
 
         assert result["ep_start"] == 1
         assert result["ep_end"] == 10
-        assert result["is_optional"] is True
+        assert result["importance"] == "Optional"
         assert result["note"] == "skip recap"
+
+    def test_null_importance_resolves_to_normal(self):
+        """Rows written before the column existed carry NULL, not a rung."""
+        entry_id = uuid.uuid4()
+        db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [make_anime(entry_id)]})
+
+        result = resolve_items(
+            db, [make_item("anime", entry_id, importance=None)]
+        )[0]
+
+        assert result["importance"] == "Normal"
+
+    def test_unrecognized_importance_resolves_to_normal(self):
+        entry_id = uuid.uuid4()
+        db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [make_anime(entry_id)]})
+
+        result = resolve_items(
+            db, [make_item("anime", entry_id, importance="Critical")]
+        )[0]
+
+        assert result["importance"] == "Normal"
 
     def test_reading_status_is_used_for_manga(self):
         entry_id = uuid.uuid4()

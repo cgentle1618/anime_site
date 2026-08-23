@@ -13,6 +13,10 @@ import { MediaScopeLine, specialLabel } from "./WatchOrderGuide";
 
 // Exported so the create form on /watch-orders offers exactly the same
 // choices the editor does.
+// The three rungs a step can sit on, most important first. Mirrors
+// ITEM_IMPORTANCE in app/services/domain/watch_order.py, which validates them.
+export const ITEM_IMPORTANCE = ["Essential", "Normal", "Optional"];
+
 export const LIST_TYPES = [
   "Custom",
   "Chronological",
@@ -160,16 +164,21 @@ function ItemRow({
           leave blank for the whole entry
         </span>
 
-        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 cursor-pointer select-none ml-auto">
-          <input
-            type="checkbox"
-            checked={!!item.is_optional}
+        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 select-none ml-auto">
+          Importance
+          <select
+            value={item.importance || "Normal"}
             onChange={(e) =>
-              onPatch(item.system_id, { is_optional: e.target.checked })
+              onPatch(item.system_id, { importance: e.target.value })
             }
-            className="accent-brand"
-          />
-          Optional
+            className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+          >
+            {ITEM_IMPORTANCE.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

@@ -733,10 +733,11 @@ blocking it.
 and a step count → `<WatchOrderGuide roomy>` → "Other orders for …" links.
 
 **Steps** show a position badge, poster, title, episode-range label (`Ep 1–10`),
-an Optional badge, the media type, the entry's watch/read status, and the
-per-step note; each links to the entry's detail page. A "Hide optional" toggle
-appears when any step is optional, and hiding renumbers the visible rows rather
-than leaving gaps. A step whose entry was deleted renders as a muted
+an Essential or Optional badge, the media type, the entry's watch/read status,
+and the per-step note; each links to the entry's detail page. An
+All / Hide optional / Essentials only filter appears when any step is marked
+either way — each option is offered only when it has something to act on — and
+filtering renumbers the visible rows rather than leaving gaps. A step whose entry was deleted renders as a muted
 "Entry no longer exists" row instead of disappearing.
 
 Admins get an "Edit this order" link to `/watch-orders`; nothing on this page writes.

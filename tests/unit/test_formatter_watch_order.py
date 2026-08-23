@@ -100,7 +100,7 @@ class TestWatchOrderItemParser:
             "entry_id",
             "ep_start",
             "ep_end",
-            "is_optional",
+            "importance",
             "note",
             "created_at",
             "updated_at",
@@ -117,7 +117,7 @@ class TestWatchOrderItemParser:
                 "entry_id": str(entry_id),
                 "ep_start": "1",
                 "ep_end": "10",
-                "is_optional": "TRUE",
+                "importance": "Optional",
                 "note": "skip the recap",
                 "created_at": "2026-08-22T10:00:00",
                 "updated_at": "2026-08-22T11:00:00",
@@ -130,7 +130,7 @@ class TestWatchOrderItemParser:
         assert parsed["entry_id"] == entry_id
         assert parsed["ep_start"] == 1
         assert parsed["ep_end"] == 10
-        assert parsed["is_optional"] is True
+        assert parsed["importance"] == "Optional"
         assert parsed["note"] == "skip the recap"
 
     def test_whole_entry_item_has_no_episode_range(self):
@@ -144,6 +144,32 @@ class TestWatchOrderItemParser:
         """Sheets renders an integer cell as '11.0' often enough to matter."""
         parsed = parse_watch_order_item_from_sheet({"ep_start": "11.0"})
         assert parsed["ep_start"] == 11
+
+    def test_blank_importance_becomes_normal(self):
+        """A row backed up before the column existed must still restore."""
+        assert parse_watch_order_item_from_sheet({})["importance"] == "Normal"
+        assert (
+            parse_watch_order_item_from_sheet({"importance": ""})["importance"]
+            == "Normal"
+        )
+
+    def test_unrecognized_importance_becomes_normal(self):
+        """Coerced rather than rejected: one bad cell must not fail a Pull."""
+        assert (
+            parse_watch_order_item_from_sheet({"importance": "Critical"})[
+                "importance"
+            ]
+            == "Normal"
+        )
+
+    def test_importance_casing_is_normalized(self):
+        """Sheets cells get hand-edited; 'essential' is not a different rung."""
+        assert (
+            parse_watch_order_item_from_sheet({"importance": "essential"})[
+                "importance"
+            ]
+            == "Essential"
+        )
 
     def test_junk_entry_id_becomes_none(self):
         """A None entry_id shows up in the guide as a missing step, not a 500."""

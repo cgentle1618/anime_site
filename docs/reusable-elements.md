@@ -1175,9 +1175,10 @@ shares its parent's title and the number is the only thing telling two rows
 apart; it tests `!= null`, since `0` (第零集) is a real value a
 truthiness check would silently drop. Status colors come from
 `getCardStatusConfig(type, status)` rather than `getStatusStyle` — reading
-statuses have no entry in the watching style map. A "Hide optional" toggle
-appears when any step is optional, and numbering follows the *visible* rows, so
-hiding leaves no gaps. A step whose entry was deleted (`missing: true`) renders
+statuses have no entry in the watching style map. An
+All / Hide optional / Essentials only filter appears when any step carries a
+non-`Normal` `importance`, and numbering follows the *visible* rows, so
+filtering leaves no gaps. A step whose entry was deleted (`missing: true`) renders
 as a muted "Entry no longer exists" row.
 
 ### `WatchOrderSection` (`components/tracker/WatchOrderSection.jsx`)
@@ -1195,7 +1196,7 @@ optional `onListChanged` callback. Deliberately does **not** reuse
 `WatchOrderGuide`: an editable row needs inputs where the guide needs links.
 
 Covers order metadata (name, type, note, default flag), an entry picker fed by
-`GET /api/watch-order/candidates`, per-step episode range / optional flag /
+`GET /api/watch-order/candidates`, per-step episode range / importance /
 note, and reordering by drag or up/down buttons. Text and number inputs commit
 on blur, not per keystroke; reorder commits the full id sequence through
 `PUT /lists/{id}/reorder` and is applied locally first so a dragged row does not

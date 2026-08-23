@@ -200,7 +200,12 @@ function StepRow({ item, index, roomy }) {
               {label}
             </span>
           )}
-          {item.is_optional && (
+          {item.importance === "Essential" && (
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 whitespace-nowrap">
+              Essential
+            </span>
+          )}
+          {item.importance === "Optional" && (
             <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
               Optional
             </span>
@@ -251,7 +256,7 @@ function StepRow({ item, index, roomy }) {
   const rowClass = `flex items-center gap-3 rounded-xl border transition-colors ${
     roomy ? "py-3 px-4" : "py-2.5 px-3"
   } ${
-    item.is_optional
+    item.importance === "Optional"
       ? "border-gray-100 bg-gray-50/60 opacity-75 hover:opacity-100"
       : "border-gray-200 bg-white hover:border-brand/40"
   }`;
@@ -269,12 +274,34 @@ function StepRow({ item, index, roomy }) {
   );
 }
 
+// The three ways a reader can narrow a guide. "essentials" is the answer to
+// "what is the shortest path through this?", which hiding optional steps alone
+// does not give - a franchise can be mostly Normal steps and still have a
+// handful that carry the story.
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "no-optional", label: "Hide optional" },
+  { key: "essentials", label: "Essentials only" },
+];
+
 export default function WatchOrderGuide({ list, roomy = false }) {
-  const [hideOptional, setHideOptional] = useState(false);
+  const [filter, setFilter] = useState("all");
 
   const items = useMemo(() => list?.items || [], [list]);
-  const optionalCount = items.filter((i) => i.is_optional).length;
-  const visible = hideOptional ? items.filter((i) => !i.is_optional) : items;
+  const optionalCount = items.filter((i) => i.importance === "Optional").length;
+  const essentialCount = items.filter(
+    (i) => i.importance === "Essential"
+  ).length;
+
+  const visible = useMemo(() => {
+    if (filter === "essentials") {
+      return items.filter((i) => i.importance === "Essential");
+    }
+    if (filter === "no-optional") {
+      return items.filter((i) => i.importance !== "Optional");
+    }
+    return items;
+  }, [items, filter]);
 
   if (!list) return null;
 
@@ -299,16 +326,51 @@ export default function WatchOrderGuide({ list, roomy = false }) {
         </p>
       )}
 
-      {optionalCount > 0 && (
-        <label className="inline-flex items-center gap-2 mb-3 text-xs font-bold text-gray-500 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={hideOptional}
-            onChange={(e) => setHideOptional(e.target.checked)}
-            className="accent-brand"
-          />
-          Hide optional ({optionalCount})
-        </label>
+      {/*
+        Only worth showing when a filter would actually change the list: a
+        guide whose steps are all Normal has nothing to narrow to.
+      */}
+      {(optionalCount > 0 || essentialCount > 0) && (
+        <div className="inline-flex items-center gap-1 mb-3 p-0.5 rounded-lg bg-gray-100">
+          {FILTERS.map((f) => {
+            // Each option is hidden unless it has something to act on, so a
+            // guide with optional steps but no essential ones does not offer
+            // an "Essentials only" view that would come back empty.
+            if (f.key === "no-optional" && optionalCount === 0) return null;
+            if (f.key === "essentials" && essentialCount === 0) return null;
+            const count =
+              f.key === "no-optional"
+                ? optionalCount
+                : f.key === "essentials"
+                  ? essentialCount
+                  : null;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-colors ${
+                  filter === f.key
+                    ? "bg-white text-brand shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {f.label}
+                {count != null && ` (${count})`}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/*
+        A filter can empty the list even though the guide has steps, so this
+        says so rather than leaving a blank space under the controls.
+      */}
+      {!visible.length && (
+        <p className="text-sm font-medium text-gray-400 py-6 text-center">
+          No steps match this filter.
+        </p>
       )}
 
       {/*

@@ -23,6 +23,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
+    ITEM_IMPORTANCE,
     build_release_items,
     VALID_WATCH_ORDER_MEDIA_TYPES,
     entry_exists,
@@ -88,6 +89,24 @@ def _validate_entry(db: Session, media_type, entry_id) -> None:
     if entry_id is None or not entry_exists(db, media_type, entry_id):
         raise HTTPException(
             status_code=400, detail="Referenced entry does not exist."
+        )
+
+
+def _validate_importance(value) -> None:
+    """
+    Rejects an importance outside the three rungs.
+
+    Unlike the Sheets parser, which coerces junk to "Normal" so one bad cell
+    cannot fail a whole restore, the API refuses it: a typo from the editor is
+    a bug worth surfacing, not something to silently downgrade.
+    """
+    if value is not None and value not in ITEM_IMPORTANCE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown importance '{value}'. "
+                f"Expected one of: {', '.join(ITEM_IMPORTANCE)}."
+            ),
         )
 
 
@@ -915,6 +934,7 @@ def create_watch_order_item(
     db_list = _get_list_or_404(db, system_id)
     _reject_if_generated(db_list)
     _validate_entry(db, payload.media_type, payload.entry_id)
+    _validate_importance(payload.importance)
 
     data = payload.model_dump(exclude_unset=True)
     if data.get("position") is None:
@@ -953,6 +973,7 @@ def update_watch_order_item(
         setattr(db_item, key, value)
 
     _validate_entry(db, db_item.media_type, db_item.entry_id)
+    _validate_importance(db_item.importance)
 
     db_item.updated_at = get_taipei_now()
     db.commit()
@@ -971,7 +992,7 @@ def patch_watch_order_item(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Partially updates a step (episode range, optional flag, note)."""
+    """Partially updates a step (episode range, importance, note)."""
     db_item = _get_item_or_404(db, item_id)
     _reject_if_generated(db_item.parent_list)
 
@@ -980,6 +1001,7 @@ def patch_watch_order_item(
             setattr(db_item, key, value)
 
     _validate_entry(db, db_item.media_type, db_item.entry_id)
+    _validate_importance(db_item.importance)
 
     db_item.updated_at = get_taipei_now()
     db.commit()

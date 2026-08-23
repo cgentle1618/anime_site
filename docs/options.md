@@ -22,6 +22,7 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 - [Region (TV Show)](#region-tv-show)
 - [Region (Manga)](#region-manga)
 - [Serialization Status](#serialization-status)
+- [Watch Order Step Importance](#watch-order-step-importance)
 - [Franchise — Special Entries](#franchise--special-entries)
 - [Fields to Fill by Entry Type](#fields-to-fill-by-entry-type)
 
@@ -291,6 +292,26 @@ Field: `serialization_status` _(future)_ — Default: `null`
 | `腰斬`   |         | Cancelled / axed               |
 | `完結`   |         | Completed                      |
 | `未出`   |         | Not yet published (novel only) |
+
+---
+
+## Watch Order Step Importance
+
+Field: `watch_order_item.importance` — Default: `Normal`
+
+One rung per step, never two — which is why this is a single column rather than
+a pair of booleans. The API rejects any other value; the Google Sheets parser
+instead coerces an unrecognized cell to `Normal`, so one bad cell cannot fail a
+whole restore.
+
+| Value       | Default | Notes                                                                        |
+| ----------- | ------- | ---------------------------------------------------------------------------- |
+| `Essential` |         | Carries the story; the guide badges it and can show these alone              |
+| `Normal`    | Yes     | An ordinary step — no badge                                                  |
+| `Optional`  |         | Skippable / filler; the guide dims the row and can hide it                   |
+
+Generated (built-in) orders have no `watch_order_item` rows behind them, so
+every step of one is `Normal`.
 
 ---
 
