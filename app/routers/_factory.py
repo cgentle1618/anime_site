@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_admin
 from app.database import get_taipei_now
-from app.services.domain import apply_completion_timestamp
+from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
 from app.services.integrations.image_manager import delete_cover_image
 from app.utils.data_control_utils import log_deleted_record
 
@@ -69,7 +69,8 @@ def make_media_router(spec) -> APIRouter:
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
     ):
-        entry = spec.model(**data.model_dump())
+        payload, remark, has_remark = pop_remark(data.model_dump())
+        entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         entry.franchise_id, entry.series_id = spec.resolve_hierarchy(
             db, entry.franchise_id, entry.series_id, _names(entry)
@@ -80,6 +81,11 @@ def make_media_router(spec) -> APIRouter:
 
         await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
         db.refresh(entry)
+
+        if has_remark:
+            upsert_remark(db, spec.owner_type, entry.system_id, remark)
+            db.commit()
+            db.refresh(entry)
         return entry
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
@@ -90,8 +96,11 @@ def make_media_router(spec) -> APIRouter:
         admin: dict = Depends(get_current_admin),
     ):
         entry = _get_or_404(db, entry_id)
-        for key, value in data.model_dump(exclude_unset=True).items():
+        payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
+        for key, value in payload.items():
             setattr(entry, key, value)
+        if has_remark:
+            upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
         apply_completion_timestamp(entry, getattr(data, spec.status_field, None))
         entry.franchise_id, entry.series_id = spec.resolve_hierarchy(
@@ -113,9 +122,12 @@ def make_media_router(spec) -> APIRouter:
         admin: dict = Depends(get_current_admin),
     ):
         entry = _get_or_404(db, entry_id)
+        payload, remark, has_remark = pop_remark(payload)
         for key, value in payload.items():
             if hasattr(entry, key):
                 setattr(entry, key, value)
+        if has_remark:
+            upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
         apply_completion_timestamp(entry, payload.get(spec.status_field))
         entry.updated_at = get_taipei_now()

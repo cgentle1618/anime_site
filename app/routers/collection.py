@@ -15,6 +15,7 @@ from app import models
 from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
+from app.services.domain import pop_remark, upsert_remark
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ def create_collection(
     try:
         # Build from the validated payload rather than field-by-field, so newly
         # added schema fields persist automatically instead of being dropped.
-        data = payload.model_dump(exclude_unset=True)
+        data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
         new_collection = models.Collection(
             **data,
             system_id=uuid.uuid4(),
@@ -108,6 +109,11 @@ def create_collection(
         db.add(new_collection)
         db.commit()
         db.refresh(new_collection)
+
+        if has_remark:
+            upsert_remark(db, "collection", new_collection.system_id, remark)
+            db.commit()
+            db.refresh(new_collection)
 
         return new_collection
     except Exception as e:
@@ -138,9 +144,11 @@ def update_collection(
     if not db_collection:
         raise HTTPException(status_code=404, detail="Collection not found.")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
     for key, value in update_data.items():
         setattr(db_collection, key, value)
+    if has_remark:
+        upsert_remark(db, "collection", db_collection.system_id, remark)
 
     db_collection.updated_at = get_taipei_now()
     db.commit()
@@ -169,9 +177,12 @@ def patch_collection(
     if not db_collection:
         raise HTTPException(status_code=404, detail="Collection not found.")
 
+    payload, remark, has_remark = pop_remark(payload)
     for key, value in payload.items():
         if hasattr(db_collection, key):
             setattr(db_collection, key, value)
+    if has_remark:
+        upsert_remark(db, "collection", db_collection.system_id, remark)
 
     db_collection.updated_at = get_taipei_now()
     db.commit()

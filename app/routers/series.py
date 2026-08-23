@@ -18,7 +18,7 @@ from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
 
-from app.services.domain import resolve_series_parent_hierarchy
+from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
 
 from app.utils.data_control_utils import log_deleted_record
 
@@ -96,7 +96,8 @@ def create_series(
     Creates a new Series.
     Smartly resolves or auto-creates its parent Franchise if missing.
     """
-    new_series = models.Series(**series_in.model_dump())
+    payload, remark, has_remark = pop_remark(series_in.model_dump())
+    new_series = models.Series(**payload)
     new_series.system_id = uuid.uuid4()
 
     new_series.franchise_id = resolve_series_parent_hierarchy(
@@ -106,6 +107,11 @@ def create_series(
     db.add(new_series)
     db.commit()
     db.refresh(new_series)
+
+    if has_remark:
+        upsert_remark(db, "series", new_series.system_id, remark)
+        db.commit()
+        db.refresh(new_series)
 
     return new_series
 
@@ -126,9 +132,11 @@ def update_series(
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
 
-    update_data = series_in.model_dump(exclude_unset=True)
+    update_data, remark, has_remark = pop_remark(series_in.model_dump(exclude_unset=True))
     for key, value in update_data.items():
         setattr(db_series, key, value)
+    if has_remark:
+        upsert_remark(db, "series", db_series.system_id, remark)
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
@@ -156,9 +164,12 @@ def patch_series(
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
 
+    payload, remark, has_remark = pop_remark(payload)
     for key, value in payload.items():
         if hasattr(db_series, key):
             setattr(db_series, key, value)
+    if has_remark:
+        upsert_remark(db, "series", db_series.system_id, remark)
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict

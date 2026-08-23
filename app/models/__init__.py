@@ -55,3 +55,43 @@ __all__ = [
     "DataControlLog",
     "DeletedRecord",
 ]
+
+# ---------------------------------------------------------------------------
+# `remark`, read side
+# ---------------------------------------------------------------------------
+# `remark` used to be a Text column on each of these ten tables. It is now the
+# singleton `remark` row in `note`, and this maps it back onto every owner so
+# the response schemas, the ten detail pages, Delete.jsx's previews and
+# find_all_remarks keep reading a plain attribute.
+#
+# Read-only by construction: assigning to it raises, which is deliberate. Every
+# write goes through app.services.domain.remark_field.upsert_remark. Attached
+# here, after all models are imported, so the ten declarations sit together and
+# no model module has to import Note.
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.orm import column_property  # noqa: E402
+
+_REMARK_OWNERS = (
+    (Anime, "anime"),
+    (AnimeMovies, "anime-movie"),
+    (Movies, "movie"),
+    (TVShows, "tv-show"),
+    (Cartoon, "cartoon"),
+    (Manga, "manga"),
+    (Novel, "novel"),
+    (Series, "series"),
+    (Franchise, "franchise"),
+    (Collection, "collection"),
+)
+
+for _model, _owner_type in _REMARK_OWNERS:
+    _model.remark = column_property(
+        select(Note.content)
+        .where(
+            Note.owner_type == _owner_type,
+            Note.owner_id == _model.system_id,
+            Note.section == "remark",
+        )
+        .correlate_except(Note)
+        .scalar_subquery()
+    )

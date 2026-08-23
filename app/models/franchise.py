@@ -9,7 +9,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    Text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -59,7 +58,6 @@ class Franchise(Base, NameFallbackMixin):
     type_slots = Column(JSONB, nullable=True)
     watch_next_group = Column(String, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
-    remark = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
@@ -123,7 +121,6 @@ class Series(Base, NameFallbackMixin):
     # entry tables a series may hold. Mirrors Franchise.cover_entry_id.
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
-    remark = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -9,7 +9,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    Text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -84,7 +83,6 @@ class Manga(Base, NameFallbackMixin):
 
     read_next = Column(Boolean, nullable=True)
     to_reread = Column(Boolean, default=False, nullable=True)
-    remark = Column(Text, nullable=True)
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

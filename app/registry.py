@@ -39,6 +39,9 @@ class MediaTypeSpec:
     """Per-type configuration consumed by make_media_router()."""
 
     key: str                       # internal key, e.g. "cartoon"
+    # The hyphenated OWNER_TABLES key, which differs from `key` for tv_show.
+    # Notes and remarks are addressed by this, never by `key`.
+    owner_type: str
     label: str                     # human label used in messages/tags, e.g. "Cartoon"
     route: str                     # URL segment, e.g. "cartoon" -> /api/cartoon
     model: type
@@ -64,6 +67,7 @@ class MediaTypeSpec:
 MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
     "movie": MediaTypeSpec(
         key="movie",
+        owner_type="movie",
         label="Movie",
         route="movies",
         model=models.Movies,
@@ -80,6 +84,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
     ),
     "tv_show": MediaTypeSpec(
         key="tv_show",
+        owner_type="tv-show",
         label="TV Show",
         route="tv-shows",
         model=models.TVShows,
@@ -96,6 +101,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
     ),
     "cartoon": MediaTypeSpec(
         key="cartoon",
+        owner_type="cartoon",
         label="Cartoon",
         route="cartoon",
         model=models.Cartoon,
@@ -112,6 +118,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
     ),
     "manga": MediaTypeSpec(
         key="manga",
+        owner_type="manga",
         label="Manga",
         route="manga",
         model=models.Manga,
@@ -129,6 +136,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
     ),
     "novel": MediaTypeSpec(
         key="novel",
+        owner_type="novel",
         label="Novel",
         route="novel",
         model=models.Novel,

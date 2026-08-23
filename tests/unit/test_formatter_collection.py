@@ -96,7 +96,8 @@ class TestParseCollectionFromSheet:
         assert parsed["my_rating"] == "S"
         assert parsed["collection_expectation"] == "High"
         assert parsed["cover_franchise_id"] == cover
-        assert parsed["remark"] == "note"
+        # remark is no longer a collection column: it lives in the Note tab.
+        assert "remark" not in parsed
         assert parsed["created_at"] == datetime(2026, 1, 1)
 
     def test_empty_row_yields_all_none(self):

@@ -16,6 +16,7 @@ from app import models
 from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
+from app.services.domain import pop_remark, upsert_remark
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -99,7 +100,7 @@ def create_franchise(
         # explicit form silently dropped cover_entry_id, type_covers, type_slots,
         # watch_next_group and to_rewatch on every create.
         # Explicitly assign UUID and Timestamps in Python to bypass missing database default constraints
-        data = payload.model_dump(exclude_unset=True)
+        data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
         new_franchise = models.Franchise(
             **data,
             system_id=uuid.uuid4(),
@@ -110,6 +111,11 @@ def create_franchise(
         db.add(new_franchise)
         db.commit()
         db.refresh(new_franchise)
+
+        if has_remark:
+            upsert_remark(db, "franchise", new_franchise.system_id, remark)
+            db.commit()
+            db.refresh(new_franchise)
 
         return new_franchise
     except Exception as e:
@@ -138,9 +144,11 @@ def update_franchise(
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
+    if has_remark:
+        upsert_remark(db, "franchise", db_franchise.system_id, remark)
 
     db_franchise.updated_at = get_taipei_now()
     db.commit()
@@ -167,9 +175,12 @@ def patch_franchise(
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
+    payload, remark, has_remark = pop_remark(payload)
     for key, value in payload.items():
         if hasattr(db_franchise, key):
             setattr(db_franchise, key, value)
+    if has_remark:
+        upsert_remark(db, "franchise", db_franchise.system_id, remark)
 
     db_franchise.updated_at = get_taipei_now()
     db.commit()

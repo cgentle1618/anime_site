@@ -1,9 +1,8 @@
 """
 Unit tests for parse_series_from_sheet in app/utils/formatter.py.
 
-Covers the eight fields added with the Series hub page, plus `remark`,
-which the parser used to drop - meaning every Pull of the Series tab
-silently wiped it.
+Covers the eight fields added with the Series hub page, and pins that the
+parser no longer emits `remark` - series remarks are note rows now.
 """
 
 import uuid
@@ -13,12 +12,11 @@ from app.utils.formatter import parse_series_from_sheet
 
 
 class TestSeriesRemarkNoLongerDropped:
-    def test_remark_key_is_emitted(self):
-        assert "remark" in parse_series_from_sheet({})
-
-    def test_remark_value_is_parsed(self):
-        parsed = parse_series_from_sheet({"remark": "a note"})
-        assert parsed["remark"] == "a note"
+    def test_remark_key_is_not_emitted(self):
+        # Series remarks are note rows now, so the Series tab has no such
+        # column and the parser must not invent one - pull.py would try to
+        # assign it to a read-only attribute.
+        assert "remark" not in parse_series_from_sheet({"remark": "ignored"})
 
 
 class TestSeriesNewFields:
@@ -72,7 +70,7 @@ class TestSeriesBlankCells:
         raw = {k: "" for k in (
             "series_name_en", "series_name_cn", "series_name_roman",
             "series_name_jp", "series_name_alt", "my_rating",
-            "series_expectation", "cover_entry_id", "remark",
+            "series_expectation", "cover_entry_id",
         )}
         parsed = parse_series_from_sheet(raw)
         for key in raw:

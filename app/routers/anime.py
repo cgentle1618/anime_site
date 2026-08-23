@@ -25,7 +25,9 @@ from app.services.domain import (
     create_missing_seasonal,
     derive_ep_previous_anime,
     mark_tv_completed,
+    pop_remark,
     resolve_anime_parent_hierarchy,
+    upsert_remark,
 )
 
 from app.utils.data_control_utils import log_deleted_record
@@ -115,7 +117,8 @@ def create_anime_entry(
     Creates a new anime entry.
     Applies unified domain rules and correctly cascades episode calculations.
     """
-    new_anime = models.Anime(**anime_in.model_dump())
+    payload, remark, has_remark = pop_remark(anime_in.model_dump())
+    new_anime = models.Anime(**payload)
     new_anime.system_id = uuid.uuid4()
 
     final_franchise_id, final_series_id = resolve_anime_parent_hierarchy(
@@ -141,6 +144,11 @@ def create_anime_entry(
 
     db.commit()
     db.refresh(new_anime)
+
+    if has_remark:
+        upsert_remark(db, "anime", new_anime.system_id, remark)
+        db.commit()
+        db.refresh(new_anime)
     return new_anime
 
 
@@ -163,9 +171,11 @@ def update_anime_entry(
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
-    update_data = anime_in.model_dump(exclude_unset=True)
+    update_data, remark, has_remark = pop_remark(anime_in.model_dump(exclude_unset=True))
     for key, value in update_data.items():
         setattr(db_anime, key, value)
+    if has_remark:
+        upsert_remark(db, "anime", db_anime.system_id, remark)
 
     apply_completion_timestamp(db_anime, update_data.get("watching_status"))
 
@@ -211,9 +221,12 @@ def patch_anime_entry(
     if not db_anime:
         raise HTTPException(status_code=404, detail="Anime entry not found.")
 
+    payload, remark, has_remark = pop_remark(payload)
     for key, value in payload.items():
         if hasattr(db_anime, key):
             setattr(db_anime, key, value)
+    if has_remark:
+        upsert_remark(db, "anime", db_anime.system_id, remark)
 
     apply_completion_timestamp(db_anime, payload.get("watching_status"))
 

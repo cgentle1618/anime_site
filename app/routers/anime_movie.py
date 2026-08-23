@@ -17,7 +17,13 @@ from app import models
 from app import schemas
 
 from app.services.integrations.image_manager import delete_cover_image
-from app.services.domain import apply_completion_timestamp, mark_movie_completed, resolve_anime_movie_parent_hierarchy
+from app.services.domain import (
+    apply_completion_timestamp,
+    mark_movie_completed,
+    pop_remark,
+    resolve_anime_movie_parent_hierarchy,
+    upsert_remark,
+)
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -94,7 +100,8 @@ def create_anime_movie(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    new_entry = models.AnimeMovies(**data.model_dump())
+    payload, remark, has_remark = pop_remark(data.model_dump())
+    new_entry = models.AnimeMovies(**payload)
     new_entry.system_id = uuid.uuid4()
 
     new_entry.franchise_id = resolve_anime_movie_parent_hierarchy(
@@ -104,6 +111,11 @@ def create_anime_movie(
     db.add(new_entry)
     db.commit()
     db.refresh(new_entry)
+
+    if has_remark:
+        upsert_remark(db, "anime-movie", new_entry.system_id, remark)
+        db.commit()
+        db.refresh(new_entry)
     return new_entry
 
 
@@ -126,8 +138,11 @@ def update_anime_movie(
     if not entry:
         raise HTTPException(status_code=404, detail="Anime Movie entry not found.")
 
-    for key, value in data.model_dump(exclude_unset=True).items():
+    update_data, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
+    for key, value in update_data.items():
         setattr(entry, key, value)
+    if has_remark:
+        upsert_remark(db, "anime-movie", entry.system_id, remark)
 
     apply_completion_timestamp(entry, data.watching_status)
 
@@ -160,9 +175,12 @@ def patch_anime_movie(
     if not entry:
         raise HTTPException(status_code=404, detail="Anime Movie entry not found.")
 
+    payload, remark, has_remark = pop_remark(payload)
     for key, value in payload.items():
         if hasattr(entry, key):
             setattr(entry, key, value)
+    if has_remark:
+        upsert_remark(db, "anime-movie", entry.system_id, remark)
 
     apply_completion_timestamp(entry, payload.get("watching_status"))
 

@@ -171,3 +171,13 @@ class TestEntryRefPayload:
         assert payload["missing"] is True
         assert payload["entry_display_name"] is None
         assert payload["entry_nav_path"] is None
+
+
+def test_every_registry_spec_names_a_real_owner_type():
+    from app.registry import MEDIA_REGISTRY
+    from app.utils.media_resolver import OWNER_TABLES
+
+    for key, spec in MEDIA_REGISTRY.items():
+        assert spec.owner_type in OWNER_TABLES, (
+            f"{key} declares owner_type {spec.owner_type!r}, which is not an owner"
+        )
