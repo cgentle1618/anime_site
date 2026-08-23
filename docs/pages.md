@@ -1762,19 +1762,43 @@ server-side.
 
 Where watch orders are built. The Franchise and Collection pages only read them.
 
-**Data loaded:** `GET /api/watch-order/lists` (all orders), `/api/franchise/`
-and `/api/collection/` for the owner names used by the grouping headers and the
-new-order picker.
+**Data loaded:** `GET /api/watch-order/lists` (all orders), `/api/franchise/`,
+`/api/series/` and `/api/collection/` for the owner names. All three tiers are
+indexed together, so a series-owned order resolves to its series name instead
+of falling through the franchise/collection split.
 
-**Left pane:** built-in orders are hidden behind a **Show built-in** checkbox —
-with two per franchise and two per series they would otherwise bury the
-hand-built orders this page exists for — and a **Backfill built-in orders**
-action creates them for every owner that lacks them. Series-owned built-in
-orders have no page of their own yet; they are reachable through the API and
-this list. A search box over order and owner names, a "New order" form
-(owner tier toggle — Franchise by default — a typeahead over that tier's
-names, an order name, and the order type), then every
-order grouped by owner. Each row opens the editor, links out to the public
+**Left pane — owner first.** Persistent across every state: one search bar, a
+**Show built-in** checkbox (built-in orders are hidden by default — with two
+per franchise and two per series they would otherwise bury the hand-built
+orders this page exists for), and a **Backfill built-in orders** action that
+creates them for every owner that lacks them. Series-owned built-in orders have
+no page of their own yet; they are reachable through the API and this list.
+
+**The search bar** follows the nav's universal search: a scope select — `All`,
+`Collection`, `Franchise`, `Series`, `Order` — beside the text box, since you
+rarely know in advance whether a half-remembered name belongs to an owner or to
+an order. `All` spans both; the rest narrow to one kind. Below it the pane is in
+one of two states:
+
+- **Owners and orders (no owner picked, or the box has text).** Owner rows
+  sectioned by tier, widest first — Collection, then Franchise, then Series,
+  each under its own pill and count, empty tiers omitted — followed by an
+  **Order** section of matching orders, grouped by owner because two orders can
+  share a name. With the box empty, the owner sections list only the owners that
+  have orders and no orders are shown; typing widens the owners to every name
+  and brings in the order matches. Scope `Order` with an empty box is the
+  exception: it lists every order, which is what this page showed before the
+  rewrite. Opening an order also scopes to its owner, so clearing the search
+  leaves you where that order lives.
+- **Scoped (an owner picked, box empty).** A header with the owner name, tier
+  pill, a back arrow, and a **+ New order** button, followed by that owner's
+  orders. The scope lives in the URL as `?owner=<tier>:<id>`, so a reload or a
+  shared link lands on the same owner. Creating happens here and nowhere else:
+  the form takes only a name and a type, since the owner is already fixed.
+  Typing in the search bar overrides this view; clearing the box returns to it.
+
+Scoping and searching filter the lists already in memory — no extra
+requests. Each order row opens the editor, links out to the public
 page, duplicates the order, or deletes it behind a confirm. Duplicating
 (`POST /lists/{id}/duplicate`) selects the copy straight away and takes no
 confirm — the undo is deleting the copy. It is also the only way to edit a
