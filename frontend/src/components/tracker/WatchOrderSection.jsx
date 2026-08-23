@@ -23,6 +23,37 @@ const INLINE_STEP_LIMIT = 10;
 const CHIP_LIMIT = 6;
 
 /**
+ * What an order covers, collapsed to one key: a single media type by slug, or
+ * "cross" for an order spanning several. Mirrors how mediaScope reads a list,
+ * so the filter's wording matches the scope line above it.
+ */
+function scopeKey(list) {
+  const types = list.media_types || [];
+  if (!types.length) return "none";
+  return types.length > 1 ? "cross" : types[0];
+}
+
+/**
+ * The scopes actually present among an owner's orders, cross-type first. Only
+ * worth offering when more than one exists - filtering to the single scope
+ * every order already has would narrow nothing.
+ */
+function scopeOptions(lists) {
+  const seen = new Map();
+  for (const l of lists) {
+    const key = scopeKey(l);
+    if (!seen.has(key)) {
+      seen.set(key, mediaScope(l.media_types)?.short || "Unscoped");
+    }
+  }
+  const opts = [...seen].map(([key, label]) => ({ key, label }));
+  opts.sort((a, b) =>
+    a.key === "cross" ? -1 : b.key === "cross" ? 1 : a.label.localeCompare(b.label)
+  );
+  return opts;
+}
+
+/**
  * Hand-written orders first, then generated ones: a curated order is the one a
  * reader most likely wants, and `auto_source` is what the backend stamps on
  * anything it built itself. Backend ordering is preserved inside each group,
@@ -103,6 +134,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
 
   const [lists, setLists] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [scope, setScope] = useState("all");
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -188,7 +220,21 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
   }
 
   const hasRelease = lists.some((l) => l.auto_source === "release");
-  const groups = splitByOrigin(lists);
+  const scopes = scopeOptions(lists);
+  const visibleLists =
+    scope === "all" ? lists : lists.filter((l) => scopeKey(l) === scope);
+  const groups = splitByOrigin(visibleLists);
+
+  // Narrowing can hide whatever was open, so the filter moves the selection
+  // to the first order it still offers rather than blanking the guide.
+  function selectScope(next) {
+    setScope(next);
+    const kept =
+      next === "all" ? lists : lists.filter((l) => scopeKey(l) === next);
+    if (kept.length && !kept.some((l) => l.system_id === selectedId)) {
+      setSelectedId(kept[0].system_id);
+    }
+  }
 
   if (!lists.length) {
     return (
@@ -221,8 +267,42 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
       {/* Scope of the order currently selected, ahead of the controls. */}
       <MediaScopeLine mediaTypes={detail?.media_types} className="mb-1.5" />
 
+      {/*
+        Narrows which orders the picker offers, by what each one covers. Drawn
+        only when the owner's orders actually differ in scope: an owner whose
+        orders are all cross-type has nothing to narrow to.
+      */}
+      {scopes.length > 1 && (
+        <div className="flex items-center gap-2 mb-3">
+          {/*
+            Labelled because the guide below carries its own All/Hide optional
+            row: two unlabelled segmented controls, each opening on "All", would
+            not say which one narrows the orders and which narrows the steps.
+          */}
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+            Scope
+          </span>
+          <div className="inline-flex items-center gap-1 p-0.5 rounded-lg bg-gray-100">
+            {[{ key: "all", label: "All" }, ...scopes].map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => selectScope(opt.key)}
+                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  scope === opt.key
+                    ? "bg-white text-brand shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {lists.length > 1 && lists.length <= CHIP_LIMIT && (
+        {visibleLists.length > 1 && visibleLists.length <= CHIP_LIMIT && (
           <OrderChips
             groups={groups}
             selectedId={selectedId}
@@ -230,7 +310,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           />
         )}
 
-        {lists.length > CHIP_LIMIT && (
+        {visibleLists.length > CHIP_LIMIT && (
           <select
             value={selectedId || ""}
             onChange={(e) => setSelectedId(e.target.value)}
@@ -254,16 +334,16 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           </select>
         )}
 
-        {lists.length === 1 && (
+        {visibleLists.length === 1 && (
           <span className="text-sm font-black text-gray-900">
-            {lists[0].list_name || "Untitled Order"}
-            {lists[0].is_most_recommended && (
+            {visibleLists[0].list_name || "Untitled Order"}
+            {visibleLists[0].is_most_recommended && (
               <span className="ml-2 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
                 <i className="fas fa-star mr-1"></i>Most recommended
               </span>
             )}
             <span className="ml-2 text-xs font-bold text-gray-400">
-              {lists[0].item_count} steps
+              {visibleLists[0].item_count} steps
             </span>
           </span>
         )}
