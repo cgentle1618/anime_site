@@ -124,6 +124,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="神回/神片段 Highlights",
         owners=("anime",),
         episode_placeholder="Episode(s), e.g. ep 6",
+        # The stored data distinguishes a great episode from a great arc, so the
+        # section keeps a dropdown even though its siblings do not.
+        kinds=("神回", "神篇章"),
     ),
     NoteSection(
         key="highlight_episodes",

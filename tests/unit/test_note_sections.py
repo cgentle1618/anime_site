@@ -34,9 +34,9 @@ def test_only_remark_is_singleton():
     assert singletons == ["remark"]
 
 
-def test_kinds_only_on_op_ed_changes():
+def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
-    assert with_kinds == ["op_ed_changes"]
+    assert with_kinds == ["highlights", "op_ed_changes"]
 
 
 def test_op_ed_kinds_exclude_retired_values():
