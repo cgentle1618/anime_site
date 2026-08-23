@@ -3,12 +3,13 @@
 // component with a different owner.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function FranchiseNotes({ franchise, isAdmin }) {
+export default function FranchiseNotes({ franchise, isAdmin, hideSections }) {
   return (
     <NotesTemplate
       ownerType="franchise"
       ownerId={franchise.system_id}
       isAdmin={isAdmin}
+      hideSections={hideSections}
     />
   );
 }

@@ -74,12 +74,18 @@ def upgrade() -> None:
              GROUP BY owner_type, owner_id
         )
         UPDATE note n
-           SET content = COALESCE(n.content, '') || E'\\n\\n' || e.extra,
-               updated_at = now()
+           SET content = COALESCE(n.content, '')
+                         || E'\\n\\n'
+                         || COALESCE(e.extra, ''),
+               updated_at = (now() AT TIME ZONE 'Asia/Taipei')
           FROM survivors s, extras e
          WHERE n.system_id = s.system_id
            AND s.owner_type = e.owner_type
            AND s.owner_id = e.owner_id
+           -- string_agg returns NULL when every duplicate's content is NULL,
+           -- and the grouped row still exists, so an unguarded concat would
+           -- null out the survivor's own text. Nothing to merge: skip the row.
+           AND COALESCE(e.extra, '') <> ''
         """
     )
     op.execute(
@@ -107,7 +113,7 @@ def upgrade() -> None:
                SET content = COALESCE(n.content, '')
                              || E'\\n\\noriginal remark:\\n'
                              || t.remark,
-                   updated_at = now()
+                   updated_at = (now() AT TIME ZONE 'Asia/Taipei')
               FROM {table} t
              WHERE n.owner_type = '{owner_type}'
                AND n.owner_id = t.system_id
@@ -124,7 +130,9 @@ def upgrade() -> None:
             INSERT INTO note (system_id, owner_type, owner_id, section,
                               content, sort_index, created_at, updated_at)
             SELECT gen_random_uuid(), '{owner_type}', t.system_id, 'remark',
-                   t.remark, 0, now(), now()
+                   t.remark, 0,
+                   (now() AT TIME ZONE 'Asia/Taipei'),
+                   (now() AT TIME ZONE 'Asia/Taipei')
               FROM {table} t
              WHERE t.remark IS NOT NULL
                AND btrim(t.remark) <> ''

@@ -20,7 +20,8 @@ const SHAPES = {
   name_links: NameLinksSection,
 };
 
-// The one deliberate, scoped exception to "the frontend never names sections".
+// The first of two deliberate, scoped exceptions to "the frontend never names
+// sections". (The second is the `hideSections` prop below.)
 // The four shapes above are fully registry-driven: the backend can add, drop or
 // relabel a `text` section and this file never changes. An `external` section
 // cannot work that way - quotes and memes are backed by their own tables, their
@@ -52,7 +53,24 @@ const EXTERNAL_SHAPES = {
   ),
 };
 
-export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
+// The second scoped exception to "the frontend never names sections":
+// `hideSections` lets an embedding screen suppress sections it already renders
+// itself. Only `remark` needs it today, and it needs it badly - `remark` is a
+// singleton row, and the Add form, the Modify tabs and the hub pages all keep a
+// dedicated remark editor that writes the SAME row through the owner router.
+// Rendering this page's `remark` section beside one of those puts two editors
+// on one row: the dedicated editor submits state captured at page load, so it
+// silently reverts anything typed in the notes box - and when the entry had no
+// remark at load, it submits null and DELETES the row outright. Suppressing the
+// duplicate is what keeps that from happening. The registry still owns the
+// structure: the caller names a section it renders itself, never a new one, and
+// a screen with no dedicated editor (pass nothing) still shows every section.
+export default function NotesTemplate({
+  ownerType,
+  ownerId,
+  isAdmin,
+  hideSections = [],
+}) {
   const [sections, setSections] = useState([]);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +117,14 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
       cancelled = true;
     };
   }, [ownerType, ownerId]);
+
+  // Callers pass a fresh array literal on every render, so the join keeps this
+  // memo from recomputing on identity alone.
+  const hiddenKey = hideSections.join(",");
+  const visibleSections = useMemo(() => {
+    const hidden = new Set(hiddenKey ? hiddenKey.split(",") : []);
+    return sections.filter((s) => !hidden.has(s.key));
+  }, [sections, hiddenKey]);
 
   const bySection = useMemo(() => {
     const map = {};
@@ -155,7 +181,7 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
             <p className="text-xs mt-2">Loading notes...</p>
           </div>
         ) : (
-          sections.map((section) => {
+          visibleSections.map((section) => {
             if (section.shape === "external") {
               const External = EXTERNAL_SHAPES[section.key];
               if (!External) return null;

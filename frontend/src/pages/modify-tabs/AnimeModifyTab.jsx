@@ -698,10 +698,14 @@ export default function AnimeModifyTab({
       </Field>
 
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
+      {/* `remark` is hidden here: the dedicated Remark field above edits the
+          same singleton note row, and two editors for one row overwrite each
+          other on Save Changes. */}
       <AnimeNotes
         key={editingItem.system_id}
         anime={{ system_id: editingItem.system_id }}
         isAdmin={true}
+        hideSections={["remark"]}
       />
     </>
   );

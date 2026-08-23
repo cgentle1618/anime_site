@@ -490,10 +490,14 @@ export default function Cartoon() {
           )}
 
           {/* Structured Notes */}
+          {/* The dedicated remark textarea above renders only when a remark
+              exists; hide the notes page's `remark` section exactly then, so
+              the singleton row never has two editors on one screen. */}
           <CartoonNotes
             key={cartoon.system_id}
             cartoon={cartoon}
             isAdmin={isAdmin}
+            hideSections={cartoon.remark ? ["remark"] : []}
           />
         </div>
       </div>

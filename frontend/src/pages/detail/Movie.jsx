@@ -526,10 +526,14 @@ export default function Movie() {
             </div>
           )}
 
+          {/* The dedicated remark textarea above renders only when a remark
+              exists; hide the notes page's `remark` section exactly then, so
+              the singleton row never has two editors on one screen. */}
           <MovieNotes
             key={movie.system_id}
             movie={movie}
             isAdmin={isAdmin}
+            hideSections={movie.remark ? ["remark"] : []}
           />
         </div>
       </div>

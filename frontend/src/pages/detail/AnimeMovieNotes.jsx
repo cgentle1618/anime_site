@@ -1,12 +1,13 @@
 // Frontend: page component file for AnimeMovieNotes.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function AnimeMovieNotes({ movie, isAdmin }) {
+export default function AnimeMovieNotes({ movie, isAdmin, hideSections }) {
   return (
     <NotesTemplate
       ownerType="anime-movie"
       ownerId={movie.system_id}
       isAdmin={isAdmin}
+      hideSections={hideSections}
     />
   );
 }

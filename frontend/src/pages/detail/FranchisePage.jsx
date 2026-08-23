@@ -2161,7 +2161,13 @@ export default function FranchisePage() {
             title="Notes"
             subtitle="Structured notes belonging to the whole franchise"
           />
-          <FranchiseNotes franchise={franchise} isAdmin={isAdmin} />
+          {/* The hero remark editor above edits the same singleton note row, so
+              hide the duplicate `remark` section wherever that editor renders. */}
+          <FranchiseNotes
+            franchise={franchise}
+            isAdmin={isAdmin}
+            hideSections={isAdmin || franchise.remark ? ["remark"] : []}
+          />
         </div>
       )}
 

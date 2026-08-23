@@ -1482,7 +1482,13 @@ export default function SeriesPage() {
             title="Notes"
             subtitle="Structured notes belonging to the whole series"
           />
-          <SeriesNotes series={series} isAdmin={isAdmin} />
+          {/* The hero remark editor above edits the same singleton note row, so
+              hide the duplicate `remark` section wherever that editor renders. */}
+          <SeriesNotes
+            series={series}
+            isAdmin={isAdmin}
+            hideSections={isAdmin || series.remark ? ["remark"] : []}
+          />
         </div>
       )}
 

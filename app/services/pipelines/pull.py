@@ -603,6 +603,33 @@ def execute_pull_specific(
             if clean_header_dict.get("updated_at") is None:
                 clean_header_dict["updated_at"] = get_taipei_now()
 
+        # A remark note is a singleton per owner - ix_note_one_remark_per_owner
+        # forbids a second row - so a blind INSERT is fatal to the WHOLE tab:
+        # the IntegrityError surfaces at db.commit() below, which rolls back
+        # every row and returns {"status": "error"}. A sheet remark row whose
+        # system_id is missing locally takes exactly that path, and that is the
+        # normal case rather than a rare one: the r1e2m3a4r5k6 migration minted
+        # fresh UUIDs for every migrated remark, and clearing then re-typing a
+        # remark after a backup mints another. So retarget such a row at the
+        # remark row the owner already has and update it in place, keeping the
+        # local system_id (popped from the payload so it is not overwritten).
+        if tab_name == "Note" and clean_header_dict.get("section") == "remark":
+            rk_owner_type = clean_header_dict.get("owner_type")
+            rk_owner_id = clean_header_dict.get("owner_id")
+            if rk_owner_type and rk_owner_id:
+                local_remark = (
+                    db.query(Note)
+                    .filter(
+                        Note.owner_type == rk_owner_type,
+                        Note.owner_id == rk_owner_id,
+                        Note.section == "remark",
+                    )
+                    .first()
+                )
+                if local_remark is not None:
+                    clean_header_dict.pop(pk_field, None)
+                    pk_value = local_remark.system_id
+
         # UPSERT LOGIC
         if pk_value:
             existing = (

@@ -479,10 +479,14 @@ export default function TV() {
           )}
 
           {/* Structured Notes */}
+          {/* The dedicated remark textarea above renders only when a remark
+              exists; hide the notes page's `remark` section exactly then, so
+              the singleton row never has two editors on one screen. */}
           <TVShowNotes
             key={show.system_id}
             show={show}
             isAdmin={isAdmin}
+            hideSections={show.remark ? ["remark"] : []}
           />
         </div>
       </div>

@@ -578,10 +578,14 @@ export default function Anime() {
           )}
 
           {/* Structured Notes */}
+          {/* The dedicated remark textarea above renders only when a remark
+              exists; hide the notes page's `remark` section exactly then, so
+              the singleton row never has two editors on one screen. */}
           <AnimeNotes
             key={anime.system_id}
             anime={anime}
             isAdmin={isAdmin}
+            hideSections={anime.remark ? ["remark"] : []}
           />
         </div>
       </div>

@@ -614,10 +614,14 @@ export default function Novel() {
           />
 
           {/* Structured Notes */}
+          {/* The dedicated remark textarea above renders only when a remark
+              exists; hide the notes page's `remark` section exactly then, so
+              the singleton row never has two editors on one screen. */}
           <NovelNotes
             key={novel.system_id}
             novel={novel}
             isAdmin={isAdmin}
+            hideSections={novel.remark ? ["remark"] : []}
           />
         </div>
       </div>

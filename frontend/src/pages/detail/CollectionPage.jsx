@@ -404,7 +404,13 @@ export default function CollectionPage() {
             title="Notes"
             subtitle="Structured notes belonging to the whole collection"
           />
-          <CollectionNotes collection={collection} isAdmin={isAdmin} />
+          {/* The hero remark editor above edits the same singleton note row, so
+              hide the duplicate `remark` section wherever that editor renders. */}
+          <CollectionNotes
+            collection={collection}
+            isAdmin={isAdmin}
+            hideSections={isAdmin || collection.remark ? ["remark"] : []}
+          />
         </div>
       )}
 

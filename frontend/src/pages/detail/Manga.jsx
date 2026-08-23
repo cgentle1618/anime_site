@@ -776,10 +776,14 @@ export default function Manga() {
           )}
 
           {/* Structured Notes */}
+          {/* The dedicated remark textarea above renders only when a remark
+              exists; hide the notes page's `remark` section exactly then, so
+              the singleton row never has two editors on one screen. */}
           <MangaNotes
             key={manga.system_id}
             manga={manga}
             isAdmin={isAdmin}
+            hideSections={manga.remark ? ["remark"] : []}
           />
         </div>
       </div>
