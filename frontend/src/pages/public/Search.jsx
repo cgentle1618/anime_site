@@ -672,9 +672,7 @@ export default function Search() {
                 return (
                   <div
                     key={s.system_id}
-                    onClick={() =>
-                      s.franchise_id && navigate(`/franchise/${s.franchise_id}`)
-                    }
+                    onClick={() => navigate(`/series/${s.system_id}`)}
                     className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
                   >
                     <div>
