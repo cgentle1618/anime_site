@@ -17,6 +17,7 @@
   - [manga](#manga)
   - [novel](#novel)
 - [Watch Order Tables](#watch-order-tables)
+- [Media Relation Table](#media-relation-table)
   - [watch_order_list](#watch_order_list)
   - [watch_order_item](#watch_order_item)
 - [Note Table](#note-table)
@@ -189,7 +190,7 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 | `airing_status`   | String  | Yes      | —               | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null                           |
 | `watching_status` | String  | No       | `"Might Watch"` | See options.md for all valid values                                                |
 | `is_main`         | String  | Yes      | —               | Whether the entry is main story or spinoff; see system_options                     |
-| `is_main_entry`   | Boolean | Yes      | —               | Whether this is the main entry among its alternative entries                       |
+| `is_main_entry`   | Boolean | Yes      | —               | Whether this is the main entry among entries linked by an `alternative` relation                       |
 
 #### Episode Tracking
 
@@ -248,10 +249,6 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 
 | Column           | Type    | Nullable | Notes                                                                       |
 | ---------------- | ------- | -------- | --------------------------------------------------------------------------- |
-| `derive_related` | Boolean | Yes      | Three-state: `true` = force-derive, `false` = skip derive, `null` = auto    |
-| `prequel_id`     | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint                          |
-| `sequel_id`      | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint                           |
-| `alternative`    | String  | Yes      | Comma-separated `system_id`s of alternative entries, e.g. `[id1], [id2]`    |
 | `watch_order`    | Float   | Yes      | Explicit chronological watch order within the franchise (e.g. `1.0`, `1.5`) |
 
 #### External Links
@@ -426,9 +423,6 @@ Live-action and animated movie entries.
 
 | Column           | Type    | Nullable | Notes                                                         |
 | ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `derive_related` | Boolean | Yes      | Three-state: `true` = force, `false` = skip, `null` = auto    |
-| `prequel_id`     | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint            |
-| `sequel_id`      | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint             |
 | `watch_order`    | Float   | Yes      | Explicit chronological watch order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
@@ -512,9 +506,6 @@ Live-action and scripted TV show entries.
 
 | Column           | Type    | Nullable | Notes                                                         |
 | ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `derive_related` | Boolean | Yes      | Three-state: `true` = force, `false` = skip, `null` = auto    |
-| `prequel_id`     | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint            |
-| `sequel_id`      | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint             |
 | `watch_order`    | Float   | Yes      | Explicit chronological watch order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
@@ -599,9 +590,6 @@ Western animated TV show entries.
 
 | Column           | Type    | Nullable | Notes                                                         |
 | ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `derive_related` | Boolean | Yes      | Three-state: `true` = force, `false` = skip, `null` = auto    |
-| `prequel_id`     | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint            |
-| `sequel_id`      | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint             |
 | `watch_order`    | Float   | Yes      | Explicit chronological watch order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
@@ -701,9 +689,6 @@ Manga, manhwa, and manhua entries.
 
 | Column           | Type    | Nullable | Notes                                                        |
 | ---------------- | ------- | -------- | ------------------------------------------------------------ |
-| `derive_related` | Boolean | Yes      | Three-state: `true` = force, `false` = skip, `null` = auto   |
-| `prequel_id`     | UUID    | Yes      | `system_id` of the prequel entry; no FK constraint           |
-| `sequel_id`      | UUID    | Yes      | `system_id` of the sequel entry; no FK constraint            |
 | `watch_order`    | Float   | Yes      | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
@@ -809,11 +794,8 @@ Light novel and book entries.
 
 | Column        | Type   | Nullable | Notes                                                                    |
 | ------------- | ------ | -------- | ------------------------------------------------------------------------ |
-| `prequel_id`  | UUID   | Yes      | `system_id` of the prequel entry; no FK constraint                       |
-| `sequel_id`   | UUID   | Yes      | `system_id` of the sequel entry; no FK constraint                        |
-| `alternative` | String | Yes      | Comma-separated `system_id`s of alternative entries, e.g. `[id1], [id2]` |
 
-| `is_main_entry` | Boolean | Yes | Whether this is the main entry among its alternative entries |
+| `is_main_entry` | Boolean | Yes | Whether this is the main entry among entries linked by an `alternative` relation |
 | `read_order` | Float | Yes | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
@@ -912,6 +894,67 @@ One step of a guide.
 - No foreign key can span seven tables, so deleting a media entry leaves a
   dangling item. Resolution flags it `missing: true` at read time instead of
   dropping it, so the admin can see and remove the broken step.
+
+---
+
+## Media Relation Table
+
+### `media_relation`
+
+Typed links between two media entries, replacing the old per-entry
+`prequel_id` / `sequel_id` / `alternative` columns. Those could hold only one
+link each, carried no type discriminator (so a link could never leave its own
+table), and excluded `anime_movies` entirely.
+
+| Column          | Type     | Nullable | Notes                                                        |
+| --------------- | -------- | -------- | ------------------------------------------------------------ |
+| `system_id`     | UUID     | No       | Primary key, indexed                                          |
+| `from_type`     | String   | No       | Media type slug, e.g. `anime`, `anime-movie`                  |
+| `from_id`       | UUID     | No       | Entry in the table `from_type` names; no FK constraint        |
+| `relation_type` | String   | No       | One of the eight stored kinds below                           |
+| `to_type`       | String   | No       | Media type slug                                               |
+| `to_id`         | UUID     | No       | Entry in the table `to_type` names; no FK constraint          |
+| `remark`        | Text     | Yes      | Free text scoping the link, e.g. "covers ep 1-12 only"        |
+| `created_at`    | DateTime | Yes      | Defaults to Taipei now                                        |
+| `updated_at`    | DateTime | Yes      | Defaults to Taipei now, updated on change                     |
+
+**Constraints and indexes**
+
+- `ck_media_relation_no_self` — an entry cannot relate to itself.
+- `uq_media_relation_pair` — unique on
+  (`from_type`, `from_id`, `relation_type`, `to_type`, `to_id`).
+- `ix_media_relation_from` on (`from_type`, `from_id`) and
+  `ix_media_relation_to` on (`to_type`, `to_id`) — both directions are queried
+  on every entry read, so neither endpoint can rely on the other's index.
+- No foreign keys, by necessity: no single FK spans the seven media tables.
+  Both endpoints use the same FK-less `(media_type, entry_id)` contract as
+  `watch_order_item`, and a deleted target resolves to `missing: true` rather
+  than vanishing.
+
+**Relation kinds**
+
+A row reads `from` → `to`. Nine user-facing labels compress to eight stored
+kinds, because Prequel is Sequel read backwards; the API accepts `prequel` and
+stores it as a `sequel` row with the endpoints swapped, so one fact is always
+one row.
+
+| Stored `relation_type` | Reads as              | Inverse label | Family      |
+| ---------------------- | --------------------- | ------------- | ----------- |
+| `sequel`               | A is the sequel of B  | Prequel       | timeline    |
+| `alternative`          | A is an alternative of B | Alternative (symmetric) | equivalence |
+| `renew`                | A is the renew of B   | Original      | equivalence |
+| `directors_cut`        | A is the Director's Cut of B | Original | equivalence |
+| `extended`             | A is the Extended version of B | Original | equivalence |
+| `side_story`           | A is a side story of B | Parent Story | branch      |
+| `spin_off`             | A is a spin-off of B  | Main Story    | branch      |
+| `adaptation`           | A is an adaptation of B | Source      | derivation  |
+
+The vocabulary lives in `app/utils/relation_kinds.py` and is served over HTTP
+at `GET /api/media-relation/kinds`, so the admin dropdown keeps no second copy.
+
+Relations are **hand-curated** on the `/relations` admin page. Nothing derives
+them: chaining a franchise by `watch_order` cannot tell a sequel from a side
+story.
 
 ---
 

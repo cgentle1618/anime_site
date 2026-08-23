@@ -132,7 +132,7 @@ Fills missing metadata for all manga entries that need it.
 2. Build queue: entries where `has_missing_values_manga()` returns `True`.
 3. For each queued entry: call `autofill_manga_from_mal()`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
-5. After loop: `run_manga_post_processing`, `run_derive_related_manga`, `run_sync_manga`.
+5. After loop: `run_manga_post_processing`, `run_sync_manga`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
 **Note:** Shows entry being processed by manga entry name (with fallback).
@@ -229,7 +229,6 @@ Replaces metadata for all manga entries that have a `mal_id` or `mal_link`.
 
 1. Query all manga with `mal_id` or `mal_link` set. Return early if queue is empty.
 2. For each entry: call `apply_single_replace_manga(bulk=True)`.
-3. After loop: call `run_derive_related_manga(db)`.
 4. Call `run_sync_manga(db)`.
 
 **Note:** Shows entry being processed by manga name (with fallback).
@@ -313,7 +312,6 @@ Replaces metadata for all novel entries that have a `mal_id` or `mal_link`.
 1. `apply_extract_mal_id_manga_novel`
 2. `autofill_manga_from_mal`
 3. `manga_post_processing`
-4. If `bulk=False`: call `run_derive_related_manga(db)` inline. If `bulk=True`: caller handles `run_derive_related_manga` after the loop.
 
 ---
 
@@ -457,13 +455,12 @@ Master orchestrator. Calls all post-processing functions across every media type
 
 ### Derive Related Anime — `derive_related_anime(db, franchise_id)`
 
-Runs watch order, episode previous, and prequel/sequel derivation for every ACG franchise in the DB.
+Runs watch order and episode previous derivation for every ACG franchise in the DB.
 
 **Per franchise_id:**
 
 1. `derive_watch_order_anime`
 2. `derive_ep_previous_anime` (uses `_SERIES_UNSET` sentinel to process all series groups independently)
-3. `derive_prequel_sequel_anime`
 
 Commits after all franchises processed.
 
@@ -471,12 +468,11 @@ Commits after all franchises processed.
 
 ### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)`
 
-Runs watch order and prequel/sequel derivation for every TV or Movie franchise in the DB.
+Runs watch order derivation for every TV or Movie franchise in the DB.
 
 **Per franchise_id:**
 
 1. `derive_watch_order_tv_show`
-2. `derive_prequel_sequel_tv_show`
 
 Commits after all franchises processed.
 
@@ -484,24 +480,11 @@ Commits after all franchises processed.
 
 ### Derive Related Cartoon — `derive_related_cartoon(db, franchise_id)`
 
-Runs watch order and prequel/sequel derivation for every Cartoon franchise in the DB.
+Runs watch order derivation for every Cartoon franchise in the DB.
 
 **Per franchise_id:**
 
 1. `derive_watch_order_cartoon`
-2. `derive_prequel_sequel_cartoon`
-
-Commits after all franchises processed.
-
----
-
-### Derive Related Manga — `derive_related_manga(db, franchise_id=None)`
-
-Runs prequel/sequel derivation for every ACG franchise in the DB.
-
-**Per franchise_id:**
-
-1. `derive_prequel_sequel_manga`
 
 Commits after all franchises processed.
 
@@ -516,7 +499,6 @@ Master orchestrator. Calls all derive-related functions across every eligible me
 1. `run_derive_related_anime`
 2. `run_derive_related_tv_show`
 3. `run_derive_related_cartoon`
-4. `run_derive_related_manga`
 
 ---
 
@@ -860,55 +842,33 @@ TBD.
 
 ---
 
-### Derive Prequel Sequel Anime — `derive_prequel_sequel_anime(db, franchise_id)`
+### Media Relations — hand-curated, not derived
 
-Sets `prequel_id` and `sequel_id` for anime entries in an ACG franchise, sorted by `watch_order`.
+Prequel/sequel derivation was retired when relations moved to the
+`media_relation` table. Chaining a franchise by `watch_order` cannot tell a
+sequel from a side story, and once Side Story, Spin-off and Adaptation exist it
+guessed wrong often enough not to be worth keeping.
 
-**Eligibility:** `watch_order` is not null AND `derive_related != False`.
+Relations are now created by hand on the `/relations` admin page. The rules
+that replaced the derivation are normalization rules, applied on write:
 
-**Only fills entries where the field is currently `None`** — never overwrites.
+- **`prequel` is never stored.** It is accepted from the UI and recorded as a
+  `sequel` row with the two endpoints swapped, so one fact is always one row and
+  `uq_media_relation_pair` can actually catch a duplicate entered from the other
+  side.
+- **A symmetric kind sorts its endpoints.** `alternative` means the same thing
+  both ways, so its two `(type, id)` pairs are sorted before writing; A-alt-B and
+  B-alt-A collapse to the same row.
+- **Every other kind is stored exactly as given.** Which of two movies is the
+  Director's Cut is the point of the relation.
+- **Labels invert on read.** A row reads "`from` is the *label* of `to`", and the
+  API labels the entry at the *far* end: viewing `from`, the far entry carries the
+  kind's inverse label. If A is the Sequel of B, then A's page shows B as
+  "Prequel" and B's page shows A as "Sequel".
+- **Self-relations and duplicates return 409**, mirroring the two table
+  constraints so a bad payload never surfaces as a 500.
 
-Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
-
----
-
-### Derive Prequel Sequel Movie — `derive_prequel_sequel_movie(db, franchise_id)`
-
-## TBD.
-
-### Derive Prequel Sequel TV Show — `derive_prequel_sequel_tv_show(db, franchise_id)`
-
-Sets `prequel_id` and `sequel_id` for TV show entries in a TV or Movie franchise, sorted by `watch_order`.
-
-**Eligibility:** `watch_order` is not null AND `derive_related != False`. Does not apply to Special Franchises.
-
-**Only fills entries where the field is currently `None`** — never overwrites.
-
-Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
-
----
-
-### Derive Prequel Sequel Cartoon — `derive_prequel_sequel_cartoon(db, franchise_id)`
-
-Sets `prequel_id` and `sequel_id` for Cartoon entries in a Cartoon franchise, sorted by `watch_order`.
-
-**Eligibility:** `watch_order` is not null AND `derive_related != False`. Does not apply to Special Franchises.
-
-**Only fills entries where the field is currently `None`** — never overwrites.
-
-Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
-
----
-
-### Derive Prequel Sequel Manga — `derive_prequel_sequel_manga(db, franchise_id)`
-
-Sets `prequel_id` and `sequel_id` for manga entries in an ACG franchise, sorted by `watch_order`.
-
-**Eligibility:** `watch_order` is not null AND `derive_related != False`.
-
-**Only fills entries where the field is currently `None`** — never overwrites.
-
-Each entry's `prequel_id` = the entry before it; `sequel_id` = the entry after it.
+See `docs/database-schema.md` for the eight stored kinds and their inverses.
 
 ---
 
@@ -1520,7 +1480,7 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 > **Fixed:** `parse_franchise_from_sheet` previously omitted `cover_entry_id`, `type_covers`, `type_slots`, `watch_next_group`, and `to_rewatch`, so every Pull of the Franchise tab silently wiped those five columns. All five are now parsed (`_safe_json` for the two JSONB fields).
 
-**`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
+**`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
 
 **`parse_tv_show_from_sheet`**: Parses a raw dictionary from the TV Shows sheet into typed data ready for the database. Foreign keys parsed as `UUID`. `imdb_id` parsed as `str`.
 
@@ -1529,7 +1489,7 @@ Core type converter. Returns `None` for empty/whitespace strings.
 **Notable:**
 
 - `parse_anime_from_sheet`: `source_netflix` defaults to `False` if null (unlike `source_baha` which stays `None`). The `notes` JSONB field is gone — notes are their own table now, parsed by `parse_note_from_sheet` off the Note tab.
-- Foreign keys (`franchise_id`, `series_id`, `prequel_id`, `sequel_id`): parsed as `UUID` — if the sheet contains a string name, `parse_from_sheet` returns the string and `execute_pull_specific` resolves it to a real UUID.
+- Foreign keys (`franchise_id`, `series_id`): parsed as `UUID` — if the sheet contains a string name, `parse_from_sheet` returns the string and `execute_pull_specific` resolves it to a real UUID.
 
 ---
 

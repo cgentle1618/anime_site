@@ -1033,6 +1033,27 @@ non-`Normal` `importance`, and numbering follows the *visible* rows, so
 filtering leaves no gaps. A step whose entry was deleted (`missing: true`) renders
 as a muted "Entry no longer exists" row.
 
+### `RelationsSection` (`components/tracker/RelationsSection.jsx`)
+
+The "Related Entries" card on every media detail page. Props: `mediaType`,
+`entryId`.
+
+Fetches `GET /api/media-relation/for-entry` and renders the rows grouped by
+family, each showing the label for the entry at the far end, its cover, its
+media-type badge and its remark. Renders nothing when there are no relations.
+
+One component for all seven media types, because a relation is type-agnostic —
+an anime's source may be a manga and its alternative an anime movie. It replaced
+the hand-rolled `prequel_id` / `sequel_id` / `alternative` blocks that Anime,
+Cartoon, Manga, TV and Novel each carried, which could only ever show same-table
+links and only three kinds.
+
+A far endpoint that no longer exists renders red with its dangling id rather
+than being dropped, since relation endpoints are FK-less. Editing lives on the
+admin `/relations` page; this component never writes.
+
+---
+
 ### `WatchOrderSection` (`components/tracker/WatchOrderSection.jsx`)
 
 The Watch Order tab body for a Franchise or Collection page. Takes exactly one

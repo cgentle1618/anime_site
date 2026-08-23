@@ -45,6 +45,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/delete`                 | `Delete`                                           | Admin only |
 | `/defaults`               | `FormDefaults`                                     | Admin only |
 | `/watch-orders`           | `WatchOrders`                                      | Admin only |
+| `/relations`              | `Relations`                                        | Admin only |
 
 Admin routes are wrapped by `ProtectedRoute`, which redirects unauthenticated users to `/login?next=<path>`.
 
@@ -323,7 +324,7 @@ Full detail page for a single TV show entry.
 - `GET /api/tv-shows/:system_id`
 - `GET /api/franchise/`
 - `GET /api/series/`
-- `GET /api/tv-shows/:prequel_id` and `GET /api/tv-shows/:sequel_id` (when set)
+- `GET /api/media-relation/for-entry?media_type=tv-show&entry_id=:system_id` — feeds the Related Entries card
 
 **Admin Controls Block** (admin only):
 
@@ -379,7 +380,7 @@ Full detail page for a single cartoon entry.
 - `GET /api/cartoon/:system_id`
 - `GET /api/franchise/`
 - `GET /api/series/`
-- `GET /api/cartoon/:prequel_id` and `GET /api/cartoon/:sequel_id` (when set)
+- `GET /api/media-relation/for-entry?media_type=cartoon&entry_id=:system_id` — feeds the Related Entries card
 
 **Admin Controls Block** (admin only):
 
@@ -1669,6 +1670,40 @@ disabled unless dirty). Unsaved tabs are marked with an amber dot in the tab bar
   but still expose the auto-fill checkbox where that makes sense.
 - Saving while `/add` is already open does not hot-update it; Add re-reads the config on
   its next mount.
+
+---
+
+### Relations (`/relations`)
+
+**File:** `frontend/src/pages/admin/Relations.jsx`
+
+Where media relations are curated. Nothing derives them, and the detail pages
+only read them.
+
+**Data loaded:** `GET /api/media-relation/kinds` (the dropdown vocabulary),
+`/api/franchise/` and `/api/collection/` at `limit=2000` for the scope picker,
+then per scope `GET /api/watch-order/candidates` (reused — it already flattens
+a franchise or collection's entries across all seven media tables) and
+`GET /api/media-relation/?franchise_id=` for the count badges. Selecting an
+entry loads `GET /api/media-relation/for-entry`.
+
+**Scope is a browsing lens, not ownership.** Unlike a watch order, a relation
+belongs to no tier — it links two entries. Collection works as the wider lens
+for free, since it sits strictly above Franchise, and that is where most
+cross-franchise relations live.
+
+**Left pane:** a Franchise / Collection toggle, a typeahead over that tier, a
+text filter, then the scope's entries grouped by media type. Each row badges how
+many relations touch it, counting **both** endpoints — an entry with only
+inbound relations still has relations.
+
+**Right pane:** the selected entry's relations, grouped by family (Timeline,
+Equivalence, Branch, Derivation), each row showing the label for the entry at the
+far end, its media-type badge, its remark, and a delete button behind a confirm.
+A row whose target no longer exists renders red with its dangling id: deletable,
+not clickable. The add form reads "This entry is the *kind* of…" and offers all
+nine labels including Prequel — the flip to a stored `sequel` row happens
+server-side.
 
 ---
 

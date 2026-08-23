@@ -216,8 +216,14 @@ Spreadsheet is identified by `GOOGLE_SHEET_ID` env var. One tab per model:
 | `Manga`          | `Manga`        |
 | `Novel`          | `Novel`        |
 | `Seasonal`       | `Seasonal`     |
+| `Media Relation` | `MediaRelation` |
 
 Tabs are auto-created (1000 rows × 50 columns) if missing on first Backup or Pull operation.
+
+`Media Relation` is written after every media tab, for the same reason `Quote`
+and the watch-order tabs are: both of its endpoints are FK-less
+`(media_type, entry_id)` pairs, so on restore the rows they point at must
+already exist.
 
 ### Backup Flow (DB → Sheets)
 

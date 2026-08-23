@@ -24,6 +24,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Manga — `/api/manga`](#manga--apimanga)
 - [Novel — `/api/novel`](#novel--apinovel)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
+- [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
@@ -285,6 +286,54 @@ with `display_name`, `cover_image_file`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
 per media type present, never one per item. An item whose entry no longer
 exists comes back with `missing: true` rather than being dropped.
+
+---
+
+## Media Relation — `/api/media-relation`
+
+Typed links between two media entries. Reads are public; every write is
+admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
+`sequel_id` / `alternative` columns.
+
+| Method   | Path                                     | Auth   | Description                                                                                                               |
+| -------- | ---------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family`, `symmetric`, `stored_as`. Nine entries — the eight stored kinds plus `prequel`. |
+| `GET`    | `/for-entry?media_type=&entry_id=`       | Public | Every relation touching one entry, from **both** endpoints, each resolved to the far entry's display data and labelled for the side being viewed. |
+| `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. |
+| `POST`   | `/`                                      | Admin  | Create. Body is the relation as typed; direction is normalized before writing.                                             |
+| `PATCH`  | `/{system_id}`                           | Admin  | Edit `kind` and/or `remark`. Changing the kind re-normalizes, so Sequel → Prequel flips the stored endpoints.              |
+| `DELETE` | `/{system_id}`                           | Admin  | Delete. Logs to `deleted_record` as type "Media Relation". The two entries are untouched.                                  |
+
+**Create body**
+
+```json
+{
+  "from_type": "anime", "from_id": "…",
+  "kind": "prequel",
+  "to_type": "anime-movie", "to_id": "…",
+  "remark": null
+}
+```
+
+`kind` accepts any of the nine user-facing keys. `prequel` is stored as a
+`sequel` row with the endpoints swapped; a symmetric `alternative` has its two
+`(type, id)` pairs sorted. Both rewrites exist so one fact is one row.
+
+**Errors**
+
+- `400` — unknown `kind`, unknown media type, or an endpoint that does not exist.
+- `409` — self-relation, or a duplicate. The duplicate message names the
+  existing row's id and notes it may have been entered from the other side.
+  Both mirror table constraints so neither surfaces as a 500.
+
+**Reading direction.** A row reads `from` → `to` ("`from` is the *label* of
+`to`"). `/for-entry` labels the entry at the **far** end, so viewing `from`
+returns the kind's `inverse_label` and viewing `to` returns its `label`: if A is
+the Sequel of B, A's page shows B as "Prequel" and B's shows A as "Sequel".
+`direction` is `"forward"` when the viewed entry is `from`.
+
+A far endpoint whose row no longer exists comes back with `missing: true` rather
+than being dropped, since endpoints are FK-less.
 
 ---
 

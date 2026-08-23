@@ -1,5 +1,13 @@
 # Admin Forms Logic
 
+> **Relations are not edited here.** The Prequel ID, Sequel ID, Alternative IDs
+> and Derive Related fields were removed from every Add and Modify tab when
+> relations moved to the `media_relation` table. They are curated on the
+> `/relations` admin page instead, which links entries by name across every
+> media type rather than by pasted UUID. `Is Main Entry` stays on the Anime and
+> Novel tabs — it flags which entry represents a group in listings, which is a
+> display concern, not a relation.
+
 This document describes the frontend interaction logic for the Add, Modify, and Delete admin pages. All logic is implemented in the React SPA. For the backend pipeline functions triggered on submit (e.g. `execute_replace_single_anime`), see `business-logic.md`.
 
 ---
@@ -56,8 +64,6 @@ field lists.
   outside the list keep whatever the form already had.
 - **Franchise / series** resolve their `_id` and display-name `_text` fields together
   from one registry entry — copying the id alone would leave the ComboBox blank.
-- **`derive_related`** is a real boolean in the DB but a `"true"`/`"false"`/`""` select
-  in the form, so it is coerced on the way in.
 - **Movie's `airing_status`** falls back to the configured default when the source entry
   has none. (It previously pinned a literal `"Not Yet Aired"`, which contradicted the
   Movie tab's own `"Finished Airing"` default.)

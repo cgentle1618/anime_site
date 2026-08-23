@@ -318,6 +318,35 @@ every step of one is `Normal`.
 
 ---
 
+## Media Relation Kinds
+
+The vocabulary of `media_relation.relation_type`, defined in
+`app/utils/relation_kinds.py` and served at `GET /api/media-relation/kinds`.
+
+Nine labels appear in the admin dropdown; eight are stored. `Prequel` is
+accepted on write and recorded as a `sequel` row with the endpoints swapped, so
+one fact is always one row.
+
+| Label          | Stored as       | Inverse label | Family      |
+| -------------- | --------------- | ------------- | ----------- |
+| Sequel         | `sequel`        | Prequel       | timeline    |
+| Prequel        | `sequel` (swapped) | Sequel     | timeline    |
+| Alternative    | `alternative`   | Alternative   | equivalence |
+| Renew          | `renew`         | Original      | equivalence |
+| Director's Cut | `directors_cut` | Original      | equivalence |
+| Extended       | `extended`      | Original      | equivalence |
+| Side Story     | `side_story`    | Parent Story  | branch      |
+| Spin-off       | `spin_off`      | Main Story    | branch      |
+| Adaptation     | `adaptation`    | Source        | derivation  |
+
+Families group the rows on the admin page and on each detail page's Related
+Entries card: `timeline`, `equivalence`, `branch`, `derivation`.
+
+Only `alternative` is symmetric. Every other kind is directional, and the label
+shown always describes the entry at the *far* end of the link.
+
+---
+
 ## Note Section Kinds
 
 Field: `note.kind` — Default: `null`

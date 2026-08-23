@@ -125,7 +125,9 @@ Tests for stateless functions with no DB or network dependencies.
 
 - `derive_watch_order_anime`: sequential assignment; null `season_part` skipped; airing type priority (TV before OVA); series grouping
 - `derive_ep_previous_anime`: Season 1 → `0`; Season 2 → `S1.ep_total`; different series isolated
-- `derive_prequel_sequel_anime`: links built; `derive_related=False` skipped; nulls only filled, not overwritten
+- Media relations are covered separately — see `tests/unit/test_relation_kinds.py`,
+  `tests/unit/test_formatter_media_relation.py`, `tests/api/test_media_relation_model.py`,
+  `tests/api/test_media_relation_service.py` and `tests/api/test_media_relation.py`.
 - `derive_season_1_anime`: single TV in franchise → `"Season 1"`; multi TV → no change; non-TV → no change
 
 ### `tests/unit/test_checking_rules.py` → `app/services/domain/checking.py` + `app/utils/utils.py`
