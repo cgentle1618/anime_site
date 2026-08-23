@@ -4,7 +4,7 @@
 // collection groups franchises, not media entries, so there are no per-type
 // tabs, no status filters and no roll-up statistics here. Clicking a member
 // card lands on the normal Franchise hub.
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
@@ -21,26 +21,8 @@ import {
 } from "../../config/fieldOptions";
 import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
-import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import { mediaScope } from "../../components/tracker/WatchOrderGuide";
 import { MemeSection } from "../notes/NotesTemplate";
-
-const RATING_COLORS = {
-  S: "bg-yellow-400 text-yellow-900",
-  "A+": "bg-emerald-500 text-white",
-  A: "bg-emerald-400 text-white",
-  B: "bg-blue-400 text-white",
-  C: "bg-gray-400 text-white",
-  D: "bg-orange-400 text-white",
-  E: "bg-red-400 text-white",
-  F: "bg-red-600 text-white",
-};
-
-const EXPECTATION_STYLES = {
-  Highest: "bg-purple-100 text-purple-700 border-purple-200",
-  High: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  Medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  Low: "bg-gray-100 text-gray-500 border-gray-200",
-};
 
 export default function CollectionPage() {
   const { system_id } = useParams();
@@ -54,6 +36,20 @@ export default function CollectionPage() {
   const [remarkDraft, setRemarkDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showRemark, setShowRemark] = useState(false);
+  const [remarkClipped, setRemarkClipped] = useState(false);
+  const remarkRef = useRef(null);
+
+  // The inline box stays a fixed three rows; "Show all" is only worth offering
+  // when the text actually runs past it.
+  useEffect(() => {
+    const el = remarkRef.current;
+    if (!el) {
+      setRemarkClipped(false);
+      return;
+    }
+    setRemarkClipped(el.scrollHeight > el.clientHeight + 1);
+  }, [remarkDraft, loading]);
 
   useEffect(() => {
     async function load() {
@@ -156,6 +152,12 @@ export default function CollectionPage() {
     }
   }
 
+  // Shared by the inline box and the full-view modal, which edit one draft.
+  function saveRemark() {
+    if (isAdmin && remarkDraft !== (collection?.remark || ""))
+      saveField("remark", remarkDraft);
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -185,10 +187,6 @@ export default function CollectionPage() {
   }
 
   const name = getDisplayName(collection, "collection") || "Unknown Collection";
-  const ratingCls = RATING_COLORS[collection.my_rating] || "";
-  const expectCls =
-    EXPECTATION_STYLES[collection.collection_expectation] ||
-    "bg-gray-100 text-gray-500 border-gray-200";
   const altNames = getNamingFields(collection, "collection").filter(
     (f) => f.value && f.value !== name,
   );
@@ -218,28 +216,11 @@ export default function CollectionPage() {
 
         {/* Hero */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-black text-gray-900 leading-tight">
-                  {name}
-                </h1>
-                {collection.my_rating && (
-                  <span
-                    className={`${ratingCls} text-xs font-black px-2 py-0.5 rounded flex items-center gap-1`}
-                  >
-                    <i className="fas fa-star text-[9px]"></i>
-                    {collection.my_rating}
-                  </span>
-                )}
-                {collection.collection_expectation && (
-                  <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded border ${expectCls}`}
-                  >
-                    {collection.collection_expectation}
-                  </span>
-                )}
-              </div>
+          <div className="flex flex-col lg:flex-row items-start gap-6">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-black text-gray-900 leading-tight">
+                {name}
+              </h1>
               {altNames.length > 0 && (
                 <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-x-3">
                   {altNames.map((f) => (
@@ -247,42 +228,67 @@ export default function CollectionPage() {
                   ))}
                 </div>
               )}
-              <p className="text-xs text-gray-400 mt-2">
-                {members.length}{" "}
-                {members.length === 1 ? "franchise" : "franchises"} in this
-                collection
-              </p>
+
+              {/* Same badge vocabulary as the Franchise hub, so a rating or an
+                  expectation reads the same wherever it turns up. */}
+              <div className="flex flex-wrap gap-2 mt-4">
+                {collection.my_rating && (
+                  <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-full text-xs font-bold">
+                    <i className="fas fa-star mr-1"></i>
+                    {collection.my_rating}
+                  </span>
+                )}
+                {collection.collection_expectation && (
+                  <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
+                    {collection.collection_expectation} Expectation
+                  </span>
+                )}
+                <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
+                  {members.length}{" "}
+                  {members.length === 1 ? "Franchise" : "Franchises"}
+                </span>
+              </div>
             </div>
 
-            {/* Admin inline controls */}
+            {/* Admin controls, labelled the way the Franchise hub labels them. */}
             {isAdmin && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <select
-                  value={collection.my_rating || ""}
-                  onChange={(e) => saveField("my_rating", e.target.value)}
-                  className="bg-gray-100 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
-                >
-                  <option value="">Rating: —</option>
-                  {MY_RATINGS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={collection.collection_expectation || ""}
-                  onChange={(e) =>
-                    saveField("collection_expectation", e.target.value)
-                  }
-                  className="bg-gray-100 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
-                >
-                  <option value="">Expectation: —</option>
-                  {FRANCHISE_EXPECTATIONS.map((x) => (
-                    <option key={x} value={x}>
-                      {x}
-                    </option>
-                  ))}
-                </select>
+              <div className="w-full lg:w-52 shrink-0 space-y-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                    Overall Rating
+                  </label>
+                  <select
+                    value={collection.my_rating || ""}
+                    onChange={(e) => saveField("my_rating", e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                  >
+                    <option value="">— Not Rated —</option>
+                    {MY_RATINGS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                    Expectation
+                  </label>
+                  <select
+                    value={collection.collection_expectation || ""}
+                    onChange={(e) =>
+                      saveField("collection_expectation", e.target.value)
+                    }
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                  >
+                    <option value="">— None —</option>
+                    {FRANCHISE_EXPECTATIONS.map((x) => (
+                      <option key={x} value={x}>
+                        {x}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -290,17 +296,27 @@ export default function CollectionPage() {
           {/* Remark */}
           {(isAdmin || collection.remark) && (
             <div className="mt-4">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Remark
-              </label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Remark
+                </label>
+                {remarkClipped && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRemark(true)}
+                    className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+                  >
+                    <i className="fas fa-up-right-and-down-left-from-center text-[10px]"></i>
+                    Show all
+                  </button>
+                )}
+              </div>
               <textarea
+                ref={remarkRef}
                 value={remarkDraft}
                 disabled={!isAdmin}
                 onChange={(e) => setRemarkDraft(e.target.value)}
-                onBlur={() => {
-                  if (remarkDraft !== (collection.remark || ""))
-                    saveField("remark", remarkDraft);
-                }}
+                onBlur={() => saveRemark()}
                 rows={3}
                 className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
               />
@@ -345,7 +361,7 @@ export default function CollectionPage() {
         <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
           Watch Order
         </h2>
-        <WatchOrderSection collectionId={system_id} />
+        <CollectionWatchOrders collectionId={system_id} />
 
         {/* Likewise a section, and owned by the collection itself. */}
         <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
@@ -359,6 +375,166 @@ export default function CollectionPage() {
           isAdmin={isAdmin}
         />
       </div>
+
+      {showRemark && (
+        <RemarkModal
+          value={remarkDraft}
+          isAdmin={isAdmin}
+          onChange={setRemarkDraft}
+          onClose={() => {
+            saveRemark();
+            setShowRemark(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// The remark can run long, so the hero clips it to three rows and hands the
+// whole thing to a modal rather than pushing the rest of the page down.
+function RemarkModal({ value, isAdmin, onChange, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <h3 className="text-lg font-black text-gray-800 flex items-center">
+            <i className="fas fa-comment-dots text-brand mr-2"></i>Remark
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition bg-white hover:bg-gray-100 rounded-lg p-1.5 focus:outline-none"
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+        <div className="p-6">
+          {isAdmin ? (
+            <textarea
+              value={value}
+              autoFocus
+              onChange={(e) => onChange(e.target.value)}
+              rows={16}
+              className="w-full max-h-[60vh] border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none bg-white"
+            />
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto text-sm text-gray-700 bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 whitespace-pre-wrap">
+              {value}
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-100 transition shadow-sm focus:outline-none"
+          >
+            {isAdmin ? "Save & Close" : "Close"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The collection hub links out to its watch orders instead of rendering one
+// inline: a cross-franchise order is long, and the guide already has a page of
+// its own.
+function CollectionWatchOrders({ collectionId }) {
+  const { isAdmin } = useAuth();
+  const [lists, setLists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    fetch(
+      buildUrl(endpoints.watchOrder.lists(), { collection_id: collectionId }),
+      { credentials: "include" },
+    )
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
+      .then((data) => {
+        if (!alive) return;
+        setLists(data);
+        setError(null);
+      })
+      .catch(() => {
+        if (alive) setError("Could not load watch orders.");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [collectionId]);
+
+  if (loading) {
+    return (
+      <div className="py-10 text-center text-gray-400">
+        <i className="fas fa-circle-notch fa-spin text-xl"></i>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-10 text-center text-gray-400 font-medium text-sm">
+        {error}
+      </div>
+    );
+  }
+
+  if (!lists.length) {
+    return (
+      <div className="text-center py-12 bg-white rounded-xl border border-gray-200 text-gray-400">
+        <i className="fas fa-list-ol text-3xl mb-3"></i>
+        <p className="font-medium">No watch order has been written yet.</p>
+        {isAdmin && (
+          <Link
+            to="/watch-orders"
+            className="text-sm font-bold text-brand hover:underline mt-3 inline-block"
+          >
+            Build one
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
+      {lists.map((l) => {
+        const scope = mediaScope(l.media_types);
+        return (
+          <Link
+            key={l.system_id}
+            to={`/watch-order/${l.system_id}`}
+            className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50 transition"
+          >
+            <i className="fas fa-list-ol text-gray-300 shrink-0"></i>
+            <span className="font-bold text-sm text-gray-900 truncate">
+              {l.list_name || "Untitled Order"}
+            </span>
+            {l.is_most_recommended && (
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap shrink-0">
+                <i className="fas fa-star mr-1"></i>Most recommended
+              </span>
+            )}
+            <span className="ml-auto flex items-center gap-3 text-xs font-bold text-gray-400 whitespace-nowrap shrink-0">
+              {scope && <span>{scope.short}</span>}
+              <span>{l.item_count} steps</span>
+              <i className="fas fa-chevron-right text-gray-300"></i>
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
