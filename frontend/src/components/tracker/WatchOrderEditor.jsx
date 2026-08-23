@@ -11,14 +11,20 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { MediaScopeLine, specialLabel } from "./WatchOrderGuide";
 
-// The three rungs a step can sit on, most important first. Mirrors
-// ITEM_IMPORTANCE in app/services/domain/watch_order.py, which validates them.
-export const ITEM_IMPORTANCE = ["Essential", "Normal", "Optional"];
+// The rungs a step can sit on, most important first. Mirrors ITEM_IMPORTANCE
+// in app/services/domain/watch_order.py, which validates them.
+export const ITEM_IMPORTANCE = [
+  "Essential",
+  "Recommended",
+  "Normal",
+  "Optional",
+];
 
 // The selected rung's colors, matching the guide's badges so a step looks the
 // same in the editor as it does on the page.
 const IMPORTANCE_ACTIVE_CLASS = {
   Essential: "bg-white text-emerald-600 shadow-sm",
+  Recommended: "bg-white text-sky-600 shadow-sm",
   Normal: "bg-white text-gray-700 shadow-sm",
   Optional: "bg-white text-amber-600 shadow-sm",
 };

@@ -162,6 +162,10 @@ class TestWatchOrderItemParser:
             == "Normal"
         )
 
+    def test_recommended_rung_survives_a_round_trip(self):
+        parsed = parse_watch_order_item_from_sheet({"importance": "Recommended"})
+        assert parsed["importance"] == "Recommended"
+
     def test_importance_casing_is_normalized(self):
         """Sheets cells get hand-edited; 'essential' is not a different rung."""
         assert (

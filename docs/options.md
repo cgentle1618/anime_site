@@ -300,15 +300,17 @@ Field: `serialization_status` _(future)_ — Default: `null`
 Field: `watch_order_item.importance` — Default: `Normal`
 
 One rung per step, never two — which is why this is a single column rather than
-a pair of booleans. The API rejects any other value; the Google Sheets parser
+a set of booleans. Unrelated to `watch_order_list.list_type`, which also has a
+`Recommended` value: that ranks whole orders, this ranks steps within one. The API rejects any other value; the Google Sheets parser
 instead coerces an unrecognized cell to `Normal`, so one bad cell cannot fail a
 whole restore.
 
-| Value       | Default | Notes                                                                        |
-| ----------- | ------- | ---------------------------------------------------------------------------- |
-| `Essential` |         | Carries the story; the guide badges it and can show these alone              |
-| `Normal`    | Yes     | An ordinary step — no badge                                                  |
-| `Optional`  |         | Skippable / filler; the guide dims the row and can hide it                   |
+| Value         | Default | Notes                                                                      |
+| ------------- | ------- | -------------------------------------------------------------------------- |
+| `Essential`   |         | Carries the story; the guide badges it and can show these alone            |
+| `Recommended` |         | Worth watching but not load-bearing; badged, and kept by "Hide optional"   |
+| `Normal`      | Yes     | An ordinary step — no badge                                                |
+| `Optional`    |         | Skippable / filler; the guide dims the row and can hide it                 |
 
 Generated (built-in) orders have no `watch_order_item` rows behind them, so
 every step of one is `Normal`.

@@ -1313,6 +1313,16 @@ class TestUpdateWatchOrderItem:
         )
         assert response.json()["importance"] == "Essential"
 
+    def test_patch_accepts_every_rung(self, admin_client, sample_items):
+        """Every value the editor offers must survive a round trip."""
+        for rung in ("Essential", "Recommended", "Normal", "Optional"):
+            response = admin_client.patch(
+                f"/api/watch-order/items/{sample_items[0].system_id}",
+                json={"importance": rung},
+            )
+            assert response.status_code == 200
+            assert response.json()["importance"] == rung
+
     def test_patch_rejects_unknown_importance(self, admin_client, sample_items):
         """The API refuses junk where the Sheets parser would coerce it."""
         response = admin_client.patch(

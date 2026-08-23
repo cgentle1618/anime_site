@@ -62,10 +62,10 @@ _TOTAL_FIELDS = {
 
 VALID_WATCH_ORDER_MEDIA_TYPES = frozenset(MEDIA_TYPE_MODELS)
 
-# The three rungs a step can sit on, most important first. Mirrors
+# The rungs a step can sit on, most important first. Mirrors
 # ITEM_IMPORTANCE in frontend/src/components/tracker/WatchOrderEditor.jsx.
 # One column rather than a pair of booleans, because a step has exactly one.
-ITEM_IMPORTANCE = ("Essential", "Normal", "Optional")
+ITEM_IMPORTANCE = ("Essential", "Recommended", "Normal", "Optional")
 DEFAULT_IMPORTANCE = "Normal"
 
 

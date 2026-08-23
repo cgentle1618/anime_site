@@ -18,8 +18,8 @@ class WatchOrderItemBase(BaseModel):
     position: Optional[float] = None
     ep_start: Optional[int] = None
     ep_end: Optional[int] = None
-    # "Essential" | "Normal" | "Optional". Validated against ITEM_IMPORTANCE by
-    # the item endpoints; a step carries exactly one of the three.
+    # "Essential" | "Recommended" | "Normal" | "Optional". Validated against
+    # ITEM_IMPORTANCE by the item endpoints; a step carries exactly one rung.
     importance: Optional[str] = "Normal"
     note: Optional[str] = None
 

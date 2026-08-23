@@ -907,7 +907,7 @@ One step of a guide.
 | `entry_id`    | UUID     | Yes      | **No FK** — points at whichever media table `media_type` names, indexed   |
 | `ep_start`    | Integer  | Yes      | Both null = the whole entry                                              |
 | `ep_end`      | Integer  | Yes      | —                                                                         |
-| `importance`  | String   | Yes      | `Essential` / `Normal` / `Optional`, default `Normal` — one rung per step. `Optional` dims the row; the guide filters on both ends |
+| `importance`  | String   | Yes      | `Essential` / `Recommended` / `Normal` / `Optional`, default `Normal` — one rung per step. `Optional` dims the row; the guide filters on both ends |
 | `note`        | Text     | Yes      | Per-step note                                                             |
 | `created_at`  | DateTime | Yes      | Auto-set on create                                                        |
 | `updated_at`  | DateTime | Yes      | Auto-updated on save                                                      |

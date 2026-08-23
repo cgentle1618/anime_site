@@ -137,10 +137,10 @@ class WatchOrderItem(Base):
     ep_start = Column(Integer, nullable=True)
     ep_end = Column(Integer, nullable=True)
 
-    # Exactly one of "Essential" / "Normal" / "Optional" - a step sits on one
-    # rung of the ladder, never two, which is why this is one column and not a
-    # pair of booleans. Replaces the older is_optional flag; "Optional" carries
-    # that meaning forward unchanged.
+    # Exactly one of "Essential" / "Recommended" / "Normal" / "Optional" - a
+    # step sits on one rung of the ladder, never two, which is why this is one
+    # column and not a set of booleans. Replaces the older is_optional flag;
+    # "Optional" carries that meaning forward unchanged.
     importance = Column(String, default="Normal", nullable=True)
     note = Column(Text, nullable=True)
 

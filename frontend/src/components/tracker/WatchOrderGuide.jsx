@@ -205,6 +205,11 @@ function StepRow({ item, index, roomy }) {
               Essential
             </span>
           )}
+          {item.importance === "Recommended" && (
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200 whitespace-nowrap">
+              Recommended
+            </span>
+          )}
           {item.importance === "Optional" && (
             <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
               Optional
