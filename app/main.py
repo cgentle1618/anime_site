@@ -31,6 +31,7 @@ from app.routers import (
     movie,
     tv_show,
     manga,
+    note,
     novel,
     watch_order,
     quote,
@@ -145,6 +146,7 @@ app.include_router(cartoon.router)
 app.include_router(movie.router)
 app.include_router(tv_show.router)
 app.include_router(manga.router)
+app.include_router(note.router)
 app.include_router(novel.router)
 app.include_router(watch_order.router)
 app.include_router(quote.router)
