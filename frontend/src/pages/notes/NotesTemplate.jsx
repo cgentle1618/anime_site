@@ -13,10 +13,6 @@ import NameLinksSection from "./sections/NameLinksSection";
 import QuoteSection from "./sections/QuoteSection";
 import MemeSection from "./sections/MemeSection";
 
-// The franchise and collection pages mount the memes section on its own; it
-// used to live in this file, so the import path stays valid from here.
-export { MemeSection };
-
 const SHAPES = {
   text: TextSection,
   text_links: TextLinksSection,
@@ -75,7 +71,12 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
   }, [ownerType, ownerId]);
 
   useEffect(() => {
-    if (!ownerType || !ownerId) return;
+    // Nothing to fetch without an owner, so stop loading rather than spinning
+    // forever: `loading` starts true, and every call site reaches this hook.
+    if (!ownerType || !ownerId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     Promise.all([

@@ -13,6 +13,7 @@ from app.utils.note_sections import (
     STORED_SHAPES,
     NoteSection,
     label_for,
+    placeholder_for,
     section_by_key,
     sections_for,
 )
@@ -76,7 +77,7 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         shape=section.shape,
         label=label_for(section, owner_type),
         kinds=list(section.kinds),
-        episode_placeholder=section.episode_placeholder,
+        episode_placeholder=placeholder_for(section, owner_type),
         singleton=section.singleton,
         desc_required=owner_type in section.desc_required,
     )

@@ -122,6 +122,25 @@ def test_label_for_falls_back_to_default():
     assert ns.label_for(sec, "tv-show") == "神回/神片段"
 
 
+def test_placeholder_for_falls_back_to_default():
+    sec = ns.section_by_key("highlight_episodes")
+    assert ns.placeholder_for(sec, "manga") == "Chapter(s), e.g. ch 6"
+    assert ns.placeholder_for(sec, "tv-show") == "Episode(s), e.g. ep 3"
+
+
+def test_placeholder_for_is_none_without_one():
+    assert ns.placeholder_for(ns.section_by_key("remark"), "anime") is None
+
+
+def test_episode_anchored_text_links_offer_an_episode():
+    """
+    foreshadowing/symmetry/cinematography are frequently episode-anchored, so
+    the text_links episode input must actually render for them.
+    """
+    for key in ("foreshadowing", "symmetry", "cinematography"):
+        assert ns.section_by_key(key).episode_placeholder
+
+
 def test_desc_required_is_per_owner():
     sec = ns.section_by_key("adaptation")
     assert "anime" in sec.desc_required

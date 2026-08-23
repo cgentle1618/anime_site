@@ -2059,6 +2059,7 @@ export default function Admin() {
                   <option value="Watch Order Item">Watch Order Item</option>
                   <option value="Quote">Quote</option>
                   <option value="Meme">Meme</option>
+                  <option value="Note">Note</option>
                   <option value="System Options">Options</option>
                   <option value="Seasonal">Seasonal</option>
                 </select>

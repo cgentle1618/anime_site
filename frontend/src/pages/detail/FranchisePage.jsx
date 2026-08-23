@@ -16,7 +16,6 @@ import MediaCard from "../../components/cards/MediaCard";
 import SeriesModal from "../../components/modals/SeriesModal";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
-import { MemeSection } from "../notes/NotesTemplate";
 import FranchiseNotes from "./FranchiseNotes";
 
 const WATCHING_STATUS_GROUPS = {
@@ -359,7 +358,7 @@ export default function FranchisePage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (franchise ? ["Watch Order", "Memes", "Notes"] : []),
+    () => (franchise ? ["Watch Order", "Notes"] : []),
     [franchise],
   );
 
@@ -2217,36 +2216,6 @@ export default function FranchisePage() {
             )}
           </div>
         )}
-
-      {/* ── Memes tab content ────────────────────────────────────────────── */}
-      {activeTab === "Memes" && (
-        <div>
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-face-grin-squint text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Memes
-              </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                Running gags belonging to the whole franchise
-              </p>
-            </div>
-          </div>
-          {/*
-            Owner is the franchise itself, not one of its entries: a running gag
-            often spans the franchise rather than sitting in one episode.
-          */}
-          <MemeSection
-            sectionKey="memes"
-            label="梗／迷因 Memes"
-            ownerType="franchise"
-            ownerId={franchise.system_id}
-            isAdmin={isAdmin}
-          />
-        </div>
-      )}
 
       {/* ── Watch Order tab content ──────────────────────────────────────── */}
       {activeTab === "Watch Order" && (

@@ -23,6 +23,7 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
 from app.schemas.note import sections_out, validate_note_payload
+from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import NOTE_SECTIONS, section_by_key
 
@@ -166,6 +167,12 @@ def create_note(
     return db_note
 
 
+# Declared before "/{note_id}" on purpose: FastAPI matches in declaration order,
+# so the dynamic route would otherwise swallow "reorder" as a note id.
+#
+# No frontend calls this yet - the half-built reorder plumbing was removed as
+# dead code. The endpoint is intentional surface kept for a future reorder UI
+# (it is covered by tests); do not delete it as unused.
 @router.patch("/reorder")
 def reorder_notes(
     payload: schemas.NoteReorder,
@@ -247,6 +254,10 @@ def delete_note(
     _admin=Depends(get_current_admin),
 ):
     db_note = _get_or_404(db, note_id)
+
+    # Stage the deleted record log before actually deleting
+    log_deleted_record(db, db_note, "Note")
+
     db.delete(db_note)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

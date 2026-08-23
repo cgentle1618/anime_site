@@ -23,7 +23,6 @@ import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import { mediaScope } from "../../components/tracker/WatchOrderGuide";
-import { MemeSection } from "../notes/NotesTemplate";
 import CollectionNotes from "./CollectionNotes";
 
 export default function CollectionPage() {
@@ -365,19 +364,11 @@ export default function CollectionPage() {
         </h2>
         <CollectionWatchOrders collectionId={system_id} />
 
-        {/* Likewise a section, and owned by the collection itself. */}
-        <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
-          Memes
-        </h2>
-        <MemeSection
-          sectionKey="memes"
-          label="梗／迷因 Memes"
-          ownerType="collection"
-          ownerId={system_id}
-          isAdmin={isAdmin}
-        />
-
-        {/* Likewise a section, and owned by the collection itself. */}
+        {/*
+          Likewise a section, and owned by the collection itself. Memes live
+          inside it: the section registry gives `memes` to every owner, so the
+          Notes tab renders them alongside the rest.
+        */}
         <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
           Notes
         </h2>

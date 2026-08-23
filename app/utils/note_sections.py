@@ -17,7 +17,7 @@ vs `craft`): the drift is intentional, not accidental.
 
 from dataclasses import dataclass, field
 
-from app.utils.media_resolver import OWNER_TYPE_KEYS
+from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 
 # --- Shapes ---------------------------------------------------------------
 # Each shape names which of `note`'s content columns a section uses. Columns a
@@ -34,16 +34,9 @@ STORED_SHAPES = frozenset(
 )
 
 # --- Owner groups ---------------------------------------------------------
-ENTRY_OWNERS = (
-    "anime",
-    "anime-movie",
-    "movie",
-    "tv-show",
-    "cartoon",
-    "manga",
-    "novel",
-)
-TIER_OWNERS = ("series", "franchise", "collection")
+# Both derive from media_resolver rather than restating its lists: a new media
+# type must not silently leave a group here stale.
+ENTRY_OWNERS = MEDIA_TYPE_KEYS
 ALL_OWNERS = tuple(OWNER_TYPE_KEYS)
 
 # Sections every owner shares, spelled out per section below rather than
@@ -64,6 +57,9 @@ class NoteSection:
     # Allowed values for note.kind. Empty means the section has no dropdown.
     kinds: tuple[str, ...] = ()
     episode_placeholder: str | None = None
+    # Per-owner episode-placeholder overrides; `episode_placeholder` is the
+    # fallback. Manga counts chapters, not episodes.
+    episode_placeholders: dict[str, str] = field(default_factory=dict)
     # At most one row per owner.
     singleton: bool = False
     # Owner types where `content` may not be empty.
@@ -135,6 +131,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("tv-show", "cartoon", "manga"),
         labels={"manga": "神回"},
         episode_placeholder="Episode(s), e.g. ep 3",
+        episode_placeholders={"manga": "Chapter(s), e.g. ch 6"},
     ),
     NoteSection(
         key="highlight_passages",
@@ -153,6 +150,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="分鏡/演出/巧思",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "manga", "series"),
+        episode_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="craft",
@@ -173,6 +171,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
+        episode_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="symmetry",
@@ -187,6 +186,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
+        episode_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="op_ed_changes",
@@ -262,3 +262,8 @@ def sections_for(owner_type: str) -> list[NoteSection]:
 def label_for(section: NoteSection, owner_type: str) -> str:
     """This section's label for this owner, falling back to the default."""
     return section.labels.get(owner_type, section.label)
+
+
+def placeholder_for(section: NoteSection, owner_type: str) -> str | None:
+    """This section's episode placeholder for this owner, else the default."""
+    return section.episode_placeholders.get(owner_type, section.episode_placeholder)
