@@ -128,6 +128,14 @@ from app.schemas.meme import (
     MemeGroup,
     MemeSheetSync,
 )
+from app.schemas.note import (
+    NoteBase,
+    NoteCreate,
+    NoteUpdate,
+    NoteResponse,
+    NoteReorder,
+    NoteSectionOut,
+)
 
 __all__ = [
     "Token",
@@ -228,4 +236,10 @@ __all__ = [
     "MemeResolved",
     "MemeGroup",
     "MemeSheetSync",
+    "NoteBase",
+    "NoteCreate",
+    "NoteUpdate",
+    "NoteResponse",
+    "NoteReorder",
+    "NoteSectionOut",
 ]
