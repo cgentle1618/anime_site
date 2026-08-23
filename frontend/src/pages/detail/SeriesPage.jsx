@@ -10,10 +10,24 @@ import {
   getSortName,
   isBaha,
   getRatingWeight,
-  FALLBACK_SVG,
 } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
-import TierBadge, { tierAccent } from "../../components/layout/TierBadge";
+import TierBadge from "../../components/layout/TierBadge";
+import SectionHeader from "../../components/hub/SectionHeader";
+import HubTabBar from "../../components/hub/HubTabBar";
+import {
+  HubLoading,
+  HubError,
+  FilterEmpty,
+} from "../../components/hub/HubStates";
+import {
+  HubShell,
+  HubBreadcrumb,
+  HubCard,
+  HubHeroRow,
+  HubCover,
+  GRID_CLS,
+} from "../../components/hub/HubChrome";
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
@@ -90,60 +104,6 @@ async function asList(res) {
   }
 }
 
-const GRID_CLS =
-  "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3";
-
-function SectionHeader({ icon, title, subtitle, count }) {
-  return (
-    <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-      <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-        <i className={`fas ${icon} text-brand`}></i>
-      </div>
-      <div>
-        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="text-xs text-gray-400 font-medium mt-0.5">{subtitle}</p>
-        )}
-      </div>
-      <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-        {count} entries
-      </span>
-    </div>
-  );
-}
-
-// One tab, in either group. A count pill only makes sense for the media tabs,
-// so it is drawn when a count is passed and left off otherwise.
-function TabButton({ tab, activeTab, onSelect, count }) {
-  return (
-    <button
-      onClick={() => onSelect(tab)}
-      className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
-        activeTab === tab
-          ? "border-brand text-brand"
-          : "border-transparent text-gray-500 hover:text-gray-700"
-      }`}
-    >
-      {tab}
-      {count !== undefined && (
-        <span className="ml-1.5 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="text-center py-16 text-gray-400">
-      <i className="fas fa-ghost text-3xl mb-3"></i>
-      <p className="font-medium">No entries match the current filters.</p>
-    </div>
-  );
-}
 
 export default function SeriesPage() {
   const { system_id } = useParams();
@@ -717,28 +677,17 @@ export default function SeriesPage() {
   }
 
   // ── loading / error ───────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading Series Hub...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <HubLoading label="Loading Series Hub..." />;
 
-  if (error) {
+  if (error)
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
-          <p className="font-bold">Error Loading Series</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </div>
+      <HubError
+        title="Error Loading Series"
+        message={error}
+        backTo="/library/franchise"
+        backLabel="Franchise Library"
+      />
     );
-  }
 
   // Combined flat entry list, used only for hero cover resolution: search
   // every loaded tab's entries for cover_entry_id, then fall back to the
@@ -768,62 +717,38 @@ export default function SeriesPage() {
     { label: "Alt", value: series.series_name_alt },
   ].filter(({ value }) => value && value !== mainTitle);
 
+  // A series always hangs off a franchise, so the franchise library is the
+  // root of the trail even when the parent has not loaded.
+  const trail = [
+    {
+      to: "/library/franchise",
+      icon: "fa-sitemap",
+      label: "Franchise Library",
+    },
+    ...(parentFranchise
+      ? [
+          {
+            to: `/franchise/${parentFranchise.system_id}`,
+            icon: "fa-sitemap",
+            label: getDisplayName(parentFranchise, "franchise"),
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Breadcrumb — Quick Edit sits inline here, as on the Collection hub,
-          instead of in a separate admin toolbar. */}
-      <div className="flex items-start justify-between gap-3">
-        <nav className="text-sm text-gray-500 flex items-center gap-1.5 flex-wrap min-w-0">
-          <Link
-            to="/library/franchise"
-            className="hover:text-brand font-medium"
-          >
-            <i className="fas fa-sitemap mr-1"></i>Franchise Library
-          </Link>
-          <span>/</span>
-          {parentFranchise && (
-            <>
-              <Link
-                to={`/franchise/${parentFranchise.system_id}`}
-                className="hover:text-brand font-medium"
-              >
-                <i className="fas fa-sitemap mr-1"></i>
-                {getDisplayName(parentFranchise, "franchise")}
-              </Link>
-              <span>/</span>
-            </>
-          )}
-          <span className="font-bold text-gray-800 truncate">{mainTitle}</span>
-        </nav>
-        {isAdmin && (
-          <Link
-            to={`/modify?id=${system_id}`}
-            className="shrink-0 text-xs font-bold text-gray-500 hover:text-brand transition flex items-center gap-1.5 border border-gray-200 bg-white rounded-lg px-3 py-1.5"
-          >
-            <i className="fas fa-pen text-[10px]"></i>
-            Quick Edit
-          </Link>
-        )}
-      </div>
+    <HubShell>
+      <HubBreadcrumb
+        trail={trail}
+        current={mainTitle}
+        editId={system_id}
+        isAdmin={isAdmin}
+      />
 
       {/* Hero */}
-      <div
-        className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ${tierAccent("series")}`}
-      >
-        <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-          {/* Cover */}
-          <div className="w-28 sm:w-36 lg:w-40 shrink-0">
-            <div className="w-full aspect-[2/3] bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
-              <img
-                src={coverUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
-              />
-            </div>
-          </div>
+      <HubCard tier="series">
+        <HubHeroRow>
+          <HubCover src={coverUrl} />
 
           {/* Left: title + info */}
           <div className="flex-1 min-w-0">
@@ -966,7 +891,7 @@ export default function SeriesPage() {
               </div>
             )}
           </div>
-        </div>
+        </HubHeroRow>
 
         {/* Remark */}
         {(isAdmin || series.remark) && (
@@ -998,49 +923,22 @@ export default function SeriesPage() {
             />
           </div>
         )}
-      </div>
+      </HubCard>
 
       {/*
         Tab bar, in two labelled groups: "Media" picks which entries the list
         below shows, "Extras" opens material that belongs to the series as a
         whole. The Media group disappears for a series with no entries yet.
       */}
-      <div className="flex items-stretch gap-3 border-b border-gray-200 overflow-x-auto">
-        {mediaTabs.length > 0 && (
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap pr-1">
-              Media
-            </span>
-            {mediaTabs.map((tab) => (
-              <TabButton
-                key={tab}
-                tab={tab}
-                activeTab={activeTab}
-                onSelect={setActiveTab}
-                count={getTabCount(tab)}
-              />
-            ))}
-          </div>
-        )}
-        {mediaTabs.length > 0 && extraTabs.length > 0 && (
-          <div className="w-px bg-gray-200 shrink-0 my-2" aria-hidden="true" />
-        )}
-        {extraTabs.length > 0 && (
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap pr-1">
-              Extras
-            </span>
-            {extraTabs.map((tab) => (
-              <TabButton
-                key={tab}
-                tab={tab}
-                activeTab={activeTab}
-                onSelect={setActiveTab}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <HubTabBar
+        groups={[
+          { label: "Media", tabs: mediaTabs, counted: true },
+          { label: "Extras", tabs: extraTabs },
+        ]}
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+        getCount={getTabCount}
+      />
 
       {/* ── Anime tab content ─────────────────────────────────────────────── */}
       {activeTab === "Anime" && animeList.length > 0 && (
@@ -1130,7 +1028,7 @@ export default function SeriesPage() {
           </div>
 
           {filteredAndSortedAnime.length === 0 ? (
-            <EmptyState />
+            <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
               {filteredAndSortedAnime.map((a) => (
@@ -1226,7 +1124,7 @@ export default function SeriesPage() {
           </div>
 
           {filteredAndSortedManga.length === 0 ? (
-            <EmptyState />
+            <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
               {filteredAndSortedManga.map((m) => (
@@ -1310,7 +1208,7 @@ export default function SeriesPage() {
           </div>
 
           {filteredAndSortedNovel.length === 0 ? (
-            <EmptyState />
+            <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
               {filteredAndSortedNovel.map((n) => (
@@ -1383,7 +1281,7 @@ export default function SeriesPage() {
           </div>
 
           {filteredAndSortedMovies.length === 0 ? (
-            <EmptyState />
+            <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
               {filteredAndSortedMovies.map((m) => (
@@ -1457,7 +1355,7 @@ export default function SeriesPage() {
           </div>
 
           {filteredAndSortedTvShows.length === 0 ? (
-            <EmptyState />
+            <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
               {filteredAndSortedTvShows.map((t) => (
@@ -1548,7 +1446,7 @@ export default function SeriesPage() {
           </div>
 
           {filteredAndSortedCartoons.length === 0 ? (
-            <EmptyState />
+            <FilterEmpty />
           ) : (
             <div className={GRID_CLS}>
               {filteredAndSortedCartoons.map((c) => (
@@ -1567,23 +1465,11 @@ export default function SeriesPage() {
       {/* ── Watch Order tab content ──────────────────────────────────────── */}
       {activeTab === "Watch Order" && (
         <div>
-          {/*
-            Not SectionHeader: that renders an "N entries" pill, and the orders
-            are fetched inside WatchOrderSection, so no count exists here yet.
-          */}
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-list-ol text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Watch Order
-              </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                Ordered viewing guide across every media type
-              </p>
-            </div>
-          </div>
+          <SectionHeader
+            icon="fa-list-ol"
+            title="Watch Order"
+            subtitle="Ordered viewing guide across every media type"
+          />
           <WatchOrderSection seriesId={system_id} />
         </div>
       )}
@@ -1591,19 +1477,11 @@ export default function SeriesPage() {
       {/* ── Notes tab content ─────────────────────────────────────────────── */}
       {activeTab === "Notes" && (
         <div>
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-gray-200">
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-              <i className="fas fa-sticky-note text-brand"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
-                Notes
-              </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                Structured notes belonging to the whole series
-              </p>
-            </div>
-          </div>
+          <SectionHeader
+            icon="fa-sticky-note"
+            title="Notes"
+            subtitle="Structured notes belonging to the whole series"
+          />
           <SeriesNotes series={series} isAdmin={isAdmin} />
         </div>
       )}
@@ -1628,6 +1506,6 @@ export default function SeriesPage() {
           }}
         />
       )}
-    </div>
+    </HubShell>
   );
 }
