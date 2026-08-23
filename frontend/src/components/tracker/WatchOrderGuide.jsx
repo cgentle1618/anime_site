@@ -346,9 +346,16 @@ export default function WatchOrderGuide({
 
   return (
     <div>
+      {/*
+        The note belongs to the order below it, not to the picker above, so it
+        sits closer to the guide than to the controls it would otherwise look
+        attached to. Padding rather than a margin: as the first child of this
+        wrapper a top margin collapses out and merges with the picker's own
+        bottom margin, leaving the gap unchanged.
+      */}
       {list.remark && (
         <p
-          className={`text-gray-600 font-medium mb-3 ${
+          className={`text-gray-600 font-medium pt-3 mb-3 ${
             roomy ? "text-sm" : "text-xs"
           }`}
         >
