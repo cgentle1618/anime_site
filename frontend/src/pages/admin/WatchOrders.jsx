@@ -278,6 +278,10 @@ export default function WatchOrders() {
   const setScope = useCallback(
     (key) => {
       setCreating(false);
+      // Picking an owner ends the search. The scoped view is skipped while a
+      // query is live, so leaving the box filled would swallow the click and
+      // keep the result list on screen as if nothing had been selected.
+      setQuery("");
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
