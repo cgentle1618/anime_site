@@ -14,6 +14,9 @@ import WatchOrderGuide, {
   mediaScope,
 } from "./WatchOrderGuide";
 
+// How many steps a hub page draws before deferring to the order's own page.
+const INLINE_STEP_LIMIT = 10;
+
 export default function WatchOrderSection({ franchiseId, collectionId, seriesId }) {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
@@ -79,14 +82,15 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
     );
   }
 
-  async function createRelease(animeOnly = false) {
+  // Release order only: the anime-only variant is built on the admin
+  // /watch-orders page, not from a hub.
+  async function createRelease() {
     try {
       const res = await fetch(
         buildUrl(endpoints.watchOrder.createRelease(), {
           franchise_id: franchiseId,
           collection_id: collectionId,
           series_id: seriesId,
-          anime_only: animeOnly ? "true" : undefined,
         }),
         { method: "POST", credentials: "include" }
       );
@@ -104,7 +108,6 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
   }
 
   const hasRelease = lists.some((l) => l.auto_source === "release");
-  const hasAnimeRelease = lists.some((l) => l.auto_source === "release-anime");
 
   if (!lists.length) {
     return (
@@ -115,7 +118,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           <div className="flex items-center justify-center gap-3 mt-3">
             <button
               type="button"
-              onClick={() => createRelease(false)}
+              onClick={() => createRelease()}
               className="text-sm font-bold text-brand hover:underline"
             >
               Add built-in order
@@ -184,21 +187,10 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           {isAdmin && !hasRelease && (
             <button
               type="button"
-              onClick={() => createRelease(false)}
+              onClick={() => createRelease()}
               className="text-xs font-bold text-gray-500 hover:text-brand whitespace-nowrap"
             >
               <i className="fas fa-wand-magic-sparkles mr-1"></i>Add built-in
-            </button>
-          )}
-          {/* Only offered for a franchise: an anime-only order over a
-              collection has not been asked for. */}
-          {isAdmin && franchiseId && !hasAnimeRelease && (
-            <button
-              type="button"
-              onClick={() => createRelease(true)}
-              className="text-xs font-bold text-gray-500 hover:text-brand whitespace-nowrap"
-            >
-              <i className="fas fa-tv mr-1"></i>Add built-in (anime)
             </button>
           )}
           {isAdmin && (
@@ -212,7 +204,15 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
         </div>
       </div>
 
-      <WatchOrderGuide list={detail} />
+      {/*
+        Capped inline: the hub pages are an overview, and a long order belongs
+        on its own page rather than pushing the rest of the hub off-screen.
+      */}
+      <WatchOrderGuide
+        list={detail}
+        limit={INLINE_STEP_LIMIT}
+        fullHref={selectedId ? `/watch-order/${selectedId}` : undefined}
+      />
     </div>
   );
 }

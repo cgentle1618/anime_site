@@ -298,7 +298,18 @@ const FILTERS = [
   { key: "essentials", label: "Essentials only" },
 ];
 
-export default function WatchOrderGuide({ list, roomy = false }) {
+/**
+ * `limit` caps how many steps are drawn inline - the hub pages pass one so a
+ * long cross-franchise order does not run the page off the screen, and point
+ * `fullHref` at the order's own page for the rest. The full page itself passes
+ * neither and draws every step.
+ */
+export default function WatchOrderGuide({
+  list,
+  roomy = false,
+  limit,
+  fullHref,
+}) {
   const [filter, setFilter] = useState("all");
 
   const items = useMemo(() => list?.items || [], [list]);
@@ -316,6 +327,11 @@ export default function WatchOrderGuide({ list, roomy = false }) {
     }
     return items;
   }, [items, filter]);
+
+  // The cap applies to what the active filter leaves, so "Essentials only" on
+  // a long order can still fit inline without truncation.
+  const shown = limit ? visible.slice(0, limit) : visible;
+  const hiddenCount = visible.length - shown.length;
 
   if (!list) return null;
 
@@ -392,7 +408,7 @@ export default function WatchOrderGuide({ list, roomy = false }) {
         1..N instead of leaving gaps the reader has to mentally close.
       */}
       <ol className="flex flex-col gap-2">
-        {visible.map((item, index) => (
+        {shown.map((item, index) => (
           <StepRow
             key={item.system_id}
             item={item}
@@ -401,6 +417,27 @@ export default function WatchOrderGuide({ list, roomy = false }) {
           />
         ))}
       </ol>
+
+      {/*
+        Truncation is stated rather than silent: a reader who sees ten steps
+        needs to know the order does not end there.
+      */}
+      {hiddenCount > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
+          <span className="text-xs font-bold text-gray-400">
+            Showing {shown.length} of {visible.length} steps
+          </span>
+          {fullHref && (
+            <Link
+              to={fullHref}
+              className="text-xs font-bold text-brand hover:underline whitespace-nowrap"
+            >
+              See all {visible.length}
+              <i className="fas fa-arrow-up-right-from-square ml-1"></i>
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }
