@@ -119,13 +119,13 @@ def test_memes_span_every_owner():
 def test_label_for_falls_back_to_default():
     sec = ns.section_by_key("highlight_episodes")
     assert ns.label_for(sec, "manga") == "神回"
-    assert ns.label_for(sec, "tv_show") == "神回/神片段"
+    assert ns.label_for(sec, "tv-show") == "神回/神片段"
 
 
 def test_desc_required_is_per_owner():
     sec = ns.section_by_key("adaptation")
     assert "anime" in sec.desc_required
-    assert "tv_show" not in sec.desc_required
+    assert "tv-show" not in sec.desc_required
 
 
 def test_labels_use_ascii_solidus():
