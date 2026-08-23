@@ -40,8 +40,11 @@ Reference these files in `/docs` for deep technical context (note that the docum
 # Start PostgreSQL (Docker)
 docker-compose up -d
 
-# Watch Tailwind CSS
+# Vite dev server on :5173 (also watches Tailwind CSS)
 cd frontend && npm run dev
+
+# Build the bundle uvicorn serves on :8000 (writes frontend_dist/)
+cd frontend && npm run build
 
 # Run FastAPI dev server (backend code lives in the app/ package)
 uvicorn app.main:app --reload
@@ -51,6 +54,17 @@ alembic upgrade head
 alembic revision --autogenerate -m "describe change"
 alembic downgrade -1
 ```
+
+## Frontend Ports and Rebuilds
+
+The frontend is reachable on two ports and they do not stay in sync on their own:
+
+- **:5173** — the Vite dev server. Serves `frontend/src/` directly and hot-reloads, so source edits show up immediately.
+- **:8000** — uvicorn. Serves the prebuilt bundle in `frontend_dist/` (see `outDir` in `frontend/vite.config.js`), which only changes when `npm run build` runs.
+
+**After any frontend change, run `cd frontend && npm run build` so the change works on both ports.** Skipping it makes :8000 keep serving the old bundle — the classic "it works on 5173 but not on 8000" symptom. Do this before claiming a frontend change is done, and before asking me to verify it.
+
+If a frontend change appears missing on one port only, suspect a stale build before suspecting the code. Note that `frontend_dist/` is gitignored and never committed.
 
 ## Required Environment Variables
 
