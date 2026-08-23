@@ -13,7 +13,6 @@ import {
   parseTypes,
 } from "../../utils/media";
 import MediaCard from "../../components/cards/MediaCard";
-import SeriesModal from "../../components/modals/SeriesModal";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
@@ -175,10 +174,6 @@ export default function FranchisePage() {
 
   // ── tab ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(null);
-
-  // ── series modal ──────────────────────────────────────────────────────────
-  const [selectedSeries, setSelectedSeries] = useState(null);
-  const [showSeriesModal, setShowSeriesModal] = useState(false);
 
   // ── Anime tab state ───────────────────────────────────────────────────────
   const [animeSort, setAnimeSort] = useState("release_date");
@@ -1247,17 +1242,14 @@ export default function FranchisePage() {
                 s.series_name_alt ||
                 "Unknown Series";
               return (
-                <button
+                <Link
                   key={s.system_id}
-                  onClick={() => {
-                    setSelectedSeries(s);
-                    setShowSeriesModal(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-bold transition cursor-pointer"
+                  to={`/series/${s.system_id}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-bold transition"
                 >
                   <i className="fas fa-layer-group text-purple-400 text-xs"></i>
                   {name}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -2281,17 +2273,6 @@ export default function FranchisePage() {
         />
       )}
 
-      {/* Series Modal */}
-      {showSeriesModal && selectedSeries && (
-        <SeriesModal
-          series={selectedSeries}
-          isAdmin={isAdmin}
-          onClose={() => {
-            setShowSeriesModal(false);
-            setSelectedSeries(null);
-          }}
-        />
-      )}
     </div>
   );
 }

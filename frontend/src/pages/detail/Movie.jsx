@@ -8,7 +8,6 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
-import SeriesModal from "../../components/modals/SeriesModal";
 import MovieNotes from "./MovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
@@ -46,7 +45,6 @@ export default function Movie() {
   const { showToast } = useToast();
 
   const [movie, setMovie] = useState(null);
-  const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
 
   const movieQuery = useMediaItem("movie", system_id);
@@ -332,14 +330,14 @@ export default function Movie() {
                   <div className="hidden sm:block text-gray-300">|</div>
                   <span>
                     <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <button
-                      onClick={() => setShowSeriesModal(true)}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition bg-transparent border-none cursor-pointer p-0"
+                    <Link
+                      to={`/series/${series.system_id}`}
+                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
                     >
                       {series.series_name_cn ||
                         series.series_name_en ||
                         series.series_name_alt}
-                    </button>
+                    </Link>
                   </span>
                 </>
               )}
@@ -536,13 +534,6 @@ export default function Movie() {
         </div>
       </div>
 
-      {showSeriesModal && series && (
-        <SeriesModal
-          series={series}
-          isAdmin={isAdmin}
-          onClose={() => setShowSeriesModal(false)}
-        />
-      )}
     </div>
   );
 }

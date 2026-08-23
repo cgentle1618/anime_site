@@ -11,7 +11,6 @@ import NamingCard from "../../components/info/NamingCard";
 import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
-import SeriesModal from "../../components/modals/SeriesModal";
 import NovelNotes from "./NovelNotes";
 import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
@@ -143,7 +142,6 @@ export default function Novel() {
   const { showToast } = useToast();
 
   const [novel, setNovel] = useState(null);
-  const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
 
   const novelQuery = useMediaItem("novel", system_id);
@@ -446,14 +444,14 @@ export default function Novel() {
                   <div className="hidden sm:block text-gray-300">|</div>
                   <span>
                     <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <button
-                      onClick={() => setShowSeriesModal(true)}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition bg-transparent border-none cursor-pointer p-0"
+                    <Link
+                      to={`/series/${series.system_id}`}
+                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
                     >
                       {series.series_name_cn ||
                         series.series_name_en ||
                         series.series_name_alt}
-                    </button>
+                    </Link>
                   </span>
                 </>
               )}
@@ -624,13 +622,6 @@ export default function Novel() {
         </div>
       </div>
 
-      {showSeriesModal && series && (
-        <SeriesModal
-          series={series}
-          isAdmin={isAdmin}
-          onClose={() => setShowSeriesModal(false)}
-        />
-      )}
     </div>
   );
 }

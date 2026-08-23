@@ -12,7 +12,6 @@ import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
-import SeriesModal from "../../components/modals/SeriesModal";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
@@ -42,12 +41,10 @@ export default function Anime() {
   const { showToast } = useToast();
 
   const [anime, setAnime] = useState(null);
-  const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
   const animeQuery = useMediaItem("anime", system_id);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
-  const allAnimeQuery = useMediaList("anime", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime", system_id);
 
@@ -55,7 +52,6 @@ export default function Anime() {
     if (animeQuery.data) setAnime(animeQuery.data);
   }, [animeQuery.data]);
 
-  const allAnime = allAnimeQuery.data || [];
   const allFranchises = franchiseQuery.data || [];
   const allSeries = seriesQuery.data || [];
   const franchise = useMemo(
@@ -75,13 +71,11 @@ export default function Anime() {
   const loading =
     animeQuery.isLoading ||
     franchiseQuery.isLoading ||
-    seriesQuery.isLoading ||
-    allAnimeQuery.isLoading;
+    seriesQuery.isLoading;
   const error =
     animeQuery.error?.message ||
     franchiseQuery.error?.message ||
     seriesQuery.error?.message ||
-    allAnimeQuery.error?.message ||
     null;
 
   async function performUpdate(payload, msg) {
@@ -399,12 +393,12 @@ export default function Anime() {
                 {series ? (
                   <span>
                     <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <button
-                      onClick={() => setShowSeriesModal(true)}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition bg-transparent border-none cursor-pointer p-0"
+                    <Link
+                      to={`/series/${series.system_id}`}
+                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
                     >
                       {seriesName}
-                    </button>
+                    </Link>
                   </span>
                 ) : (
                   <span className="text-gray-400">
@@ -592,14 +586,6 @@ export default function Anime() {
         </div>
       </div>
 
-      {/* Series Modal */}
-      {showSeriesModal && series && (
-        <SeriesModal
-          series={series}
-          isAdmin={isAdmin}
-          onClose={() => setShowSeriesModal(false)}
-        />
-      )}
     </div>
   );
 }
