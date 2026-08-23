@@ -14,12 +14,14 @@ import {
   getDisplayName,
   getNamingFields,
   getSortName,
+  FALLBACK_SVG,
 } from "../../utils/media";
 import {
   MY_RATINGS,
   FRANCHISE_EXPECTATIONS,
 } from "../../config/fieldOptions";
-import { getFranchiseCover } from "../../lib/covers";
+import { getFranchiseCover, getCollectionCover } from "../../lib/covers";
+import TierBadge, { tierAccent } from "../../components/layout/TierBadge";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import { mediaScope } from "../../components/tracker/WatchOrderGuide";
@@ -187,6 +189,15 @@ export default function CollectionPage() {
     );
   }
 
+  // The collection has no cover of its own: the shared helper borrows one from
+  // its chosen (or first usable) member franchise.
+  const coverUrl = getCollectionCover(
+    collection,
+    sortedMembers,
+    allEntriesDict,
+    allEntriesByFranchise,
+  );
+
   const name = getDisplayName(collection, "collection") || "Unknown Collection";
   const altNames = getNamingFields(collection, "collection").filter(
     (f) => f.value && f.value !== name,
@@ -216,9 +227,28 @@ export default function CollectionPage() {
         </div>
 
         {/* Hero */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+        <div
+          className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6 ${tierAccent("collection")}`}
+        >
           <div className="flex flex-col lg:flex-row items-start gap-6">
+            {/* Cover */}
+            <div className="w-28 sm:w-36 lg:w-40 shrink-0">
+              <div className="w-full aspect-[2/3] bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                <img
+                  src={coverUrl}
+                  alt="Cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                />
+              </div>
+            </div>
+
             <div className="flex-1 min-w-0">
+              <div className="mb-2">
+                <TierBadge tier="collection" />
+              </div>
               <h1 className="text-2xl font-black text-gray-900 leading-tight">
                 {name}
               </h1>

@@ -1,6 +1,6 @@
 // Frontend: page component file for SeriesPage.
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
@@ -13,6 +13,7 @@ import {
   FALLBACK_SVG,
 } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
+import TierBadge, { tierAccent } from "../../components/layout/TierBadge";
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
@@ -148,7 +149,6 @@ export default function SeriesPage() {
   const { system_id } = useParams();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
 
   // ── data ──────────────────────────────────────────────────────────────────
   const [series, setSeries] = useState(null);
@@ -770,44 +770,46 @@ export default function SeriesPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 flex items-center gap-1.5 flex-wrap">
-        <Link to="/library/franchise" className="hover:text-brand font-medium">
-          <i className="fas fa-sitemap mr-1"></i>Franchise Library
-        </Link>
-        <span>/</span>
-        {parentFranchise && (
-          <>
-            <Link
-              to={`/franchise/${parentFranchise.system_id}`}
-              className="hover:text-brand font-medium"
-            >
-              <i className="fas fa-sitemap mr-1"></i>
-              {getDisplayName(parentFranchise, "franchise")}
-            </Link>
-            <span>/</span>
-          </>
-        )}
-        <span className="font-bold text-gray-800 truncate">{mainTitle}</span>
-      </nav>
-
-      {/* Admin toolbar */}
-      {isAdmin && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between shadow-sm">
-          <span className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
-            <i className="fas fa-shield-alt"></i> Admin Tools
-          </span>
-          <button
-            onClick={() => navigate(`/modify?id=${system_id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-50 transition shadow-sm"
+      {/* Breadcrumb — Quick Edit sits inline here, as on the Collection hub,
+          instead of in a separate admin toolbar. */}
+      <div className="flex items-start justify-between gap-3">
+        <nav className="text-sm text-gray-500 flex items-center gap-1.5 flex-wrap min-w-0">
+          <Link
+            to="/library/franchise"
+            className="hover:text-brand font-medium"
           >
-            <i className="fas fa-pencil-alt"></i> Quick Edit
-          </button>
-        </div>
-      )}
+            <i className="fas fa-sitemap mr-1"></i>Franchise Library
+          </Link>
+          <span>/</span>
+          {parentFranchise && (
+            <>
+              <Link
+                to={`/franchise/${parentFranchise.system_id}`}
+                className="hover:text-brand font-medium"
+              >
+                <i className="fas fa-sitemap mr-1"></i>
+                {getDisplayName(parentFranchise, "franchise")}
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          <span className="font-bold text-gray-800 truncate">{mainTitle}</span>
+        </nav>
+        {isAdmin && (
+          <Link
+            to={`/modify?id=${system_id}`}
+            className="shrink-0 text-xs font-bold text-gray-500 hover:text-brand transition flex items-center gap-1.5 border border-gray-200 bg-white rounded-lg px-3 py-1.5"
+          >
+            <i className="fas fa-pen text-[10px]"></i>
+            Quick Edit
+          </Link>
+        )}
+      </div>
 
       {/* Hero */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div
+        className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ${tierAccent("series")}`}
+      >
         <div className="flex flex-col lg:flex-row lg:items-start gap-6">
           {/* Cover */}
           <div className="w-28 sm:w-36 lg:w-40 shrink-0">
@@ -825,9 +827,8 @@ export default function SeriesPage() {
 
           {/* Left: title + info */}
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-black text-brand uppercase tracking-widest mb-2">
-              <i className="fas fa-layer-group mr-1"></i>
-              Series
+            <div className="mb-2">
+              <TierBadge tier="series" />
             </div>
             <h1 className="text-2xl font-black text-gray-900 leading-tight mb-1">
               {mainTitle}
@@ -858,8 +859,8 @@ export default function SeriesPage() {
               )}
               {/*
                 A link rather than a status pill: the franchise is somewhere to
-                go, so it carries the indigo tone the admin toolbar uses for
-                navigation instead of a flat badge colour.
+                go, so it carries an indigo tone for navigation instead of a
+                flat badge colour.
               */}
               {parentFranchise && (
                 <Link
