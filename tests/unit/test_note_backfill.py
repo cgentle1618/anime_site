@@ -110,3 +110,66 @@ def test_episode_sort_key_is_numeric_not_lexical():
 def test_episode_sort_key_handles_no_digits():
     # Must not raise; non-numeric episodes sort after numeric ones.
     assert mod._episode_sort_key("OVA") > mod._episode_sort_key("ep 99")
+
+
+def test_row_with_only_a_kind_is_not_dropped():
+    # An item carrying nothing but `type` used to fail the emptiness check
+    # and vanish; `kind` must count as usable content like the other fields.
+    got = rows("op_ed_changes", [{"episode": "", "type": "變化OP", "description": ""}])
+    assert len(got) == 1
+    assert got[0]["kind"] == "變化OP"
+    assert got[0]["content"] is None
+
+
+def test_non_str_non_dict_item_is_reported_not_silently_discarded():
+    dropped = []
+    got = mod._rows_from_value("advantages", [42, "真正的優點"], dropped)
+    assert [r["content"] for r in got] == ["真正的優點"]
+    assert dropped == [42]
+
+
+def test_all_none_dict_item_is_reported_not_silently_discarded():
+    dropped = []
+    got = mod._rows_from_value("resources", [{"name": "", "link": ""}], dropped)
+    assert got == []
+    assert dropped == [{"name": "", "link": ""}]
+
+
+def test_blank_string_item_is_not_reported_as_dropped():
+    # A blank bare string is a normal empty entry (see
+    # test_empty_values_produce_no_rows), not a malformed one.
+    dropped = []
+    got = mod._rows_from_value("advantages", ["", "   "], dropped)
+    assert got == []
+    assert dropped == []
+
+
+def test_empty_episode_comment_pair_is_reported_not_silently_discarded():
+    dropped = []
+    got = mod._rows_from_value("episode_comments", {"": "", "ep 1": "有料"}, dropped)
+    assert [r["episode"] for r in got] == ["ep 1"]
+    assert dropped == [{"": ""}]
+
+
+def test_insert_params_are_stamped_with_backfill_stamp_not_now():
+    row = {
+        "section": "remark", "episode": None, "kind": None, "title": None,
+        "content": "重看第三次", "links": None, "sort_index": 0.0,
+    }
+    params = mod._insert_params("anime", 7, row)
+    assert params["created_at"] == mod.BACKFILL_STAMP
+    assert params["updated_at"] == mod.BACKFILL_STAMP
+    assert params["owner_type"] == "anime"
+    assert params["owner_id"] == "7"
+
+
+def test_downgrade_deletes_only_rows_created_at_the_backfill_stamp():
+    # downgrade() must scope its DELETE to BACKFILL_STAMP, not delete
+    # unconditionally - otherwise a user's own notes, created through the
+    # note API after this migration ran, would be destroyed by a downgrade.
+    import inspect
+
+    source = inspect.getsource(mod.downgrade)
+    assert "BACKFILL_STAMP" in source
+    assert "DELETE FROM note" in source
+    assert "WHERE created_at = :stamp" in source

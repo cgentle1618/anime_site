@@ -20,8 +20,13 @@ Two things are knowingly lossy, and both are reported rather than hidden:
 
 `name_link` held one link and `note.links` holds a list, so that direction
 widens and loses nothing.
+
+This revision is not idempotent: re-running it after a manual reset of
+`alembic_version` would insert duplicate rows, since nothing here checks
+whether a given source item was already backfilled.
 """
 from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import logging
 import re
@@ -39,6 +44,13 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 logger = logging.getLogger("alembic.runtime.migration")
+
+# Every row this migration inserts carries this exact timestamp, which is what
+# downgrade() deletes on. Without a marker, a downgrade would take
+# user-authored notes with it - the note API goes live in the same plan, so by
+# the time anyone runs this downgrade the table may hold rows this migration
+# never created.
+BACKFILL_STAMP = datetime(2026, 8, 23, 0, 0, 0)
 
 # owner_type -> table name. The seven media tables are the only ones that ever
 # had a notes column; the three tiers start empty.
@@ -145,23 +157,38 @@ def _row_from_item(section: str, item: Any) -> dict | None:
         links = [item["link"]]
     row["links"] = _clean_links(links)
 
-    if not any((row["episode"], row["content"], row["title"], row["links"])):
+    if not any(
+        (row["episode"], row["kind"], row["content"], row["title"], row["links"])
+    ):
         return None
     return row
 
 
-def _rows_from_value(section: str, value: Any) -> list[dict]:
-    """Every note row for one section's stored value."""
+def _rows_from_value(
+    section: str, value: Any, dropped: list[Any] | None = None
+) -> list[dict]:
+    """
+    Every note row for one section's stored value.
+
+    `dropped`, if given, collects raw items that carried no usable content -
+    a list item that is neither a string nor a dict, or a dict (or
+    episode/comment pair) that reduces to nothing after cleaning. The caller
+    reports these instead of letting them vanish, the same as the
+    `special_changes` split already does for its own unplaced kinds.
+    """
+    if dropped is None:
+        dropped = []
     if value is None:
         return []
 
     # episode_comments is an object map {episode: comment}, not a list.
     if isinstance(value, dict):
-        pairs = [
-            (ep, comment)
-            for ep, comment in value.items()
-            if _clean(ep) or _clean(comment)
-        ]
+        pairs = []
+        for ep, comment in value.items():
+            if _clean(ep) or _clean(comment):
+                pairs.append((ep, comment))
+            else:
+                dropped.append({ep: comment})
         pairs.sort(key=lambda pair: _episode_sort_key(pair[0]))
         rows = []
         for index, (episode, comment) in enumerate(pairs):
@@ -177,6 +204,10 @@ def _rows_from_value(section: str, value: Any) -> list[dict]:
     for item in items:
         row = _row_from_item(section, item)
         if row is None:
+            # A blank/whitespace-only bare string is a normal empty entry,
+            # not a malformed one, so only non-string misses are reported.
+            if not isinstance(item, str):
+                dropped.append(item)
             continue
         row["sort_index"] = float(len(rows))
         rows.append(row)
@@ -228,11 +259,31 @@ def _split_special(value: Any) -> SplitResult:
     return result
 
 
+def _insert_params(owner_type: str, owner_id: Any, row: dict) -> dict:
+    """
+    Bind params for one INSERT, stamped with BACKFILL_STAMP.
+
+    Both `created_at` and `updated_at` get the same fixed stamp rather than
+    `NOW()`, so `downgrade()` can delete exactly the rows this migration
+    created and nothing a user later adds through the note API.
+    """
+    return {
+        "system_id": str(uuid.uuid4()),
+        "owner_type": owner_type,
+        "owner_id": str(owner_id),
+        **row,
+        "links": json.dumps(row["links"]) if row["links"] else None,
+        "created_at": BACKFILL_STAMP,
+        "updated_at": BACKFILL_STAMP,
+    }
+
+
 def upgrade() -> None:
     """Expand every notes JSONB blob into note rows."""
     conn = op.get_bind()
     total = 0
     unplaced_report: list[str] = []
+    dropped_report: list[str] = []
 
     for owner_type, table in MEDIA_TABLES.items():
         rows = conn.execute(
@@ -257,7 +308,12 @@ def upgrade() -> None:
                             f"{owner_type} {owner_id} {section}: {item!r}"
                         )
                     continue
-                note_rows.extend(_rows_from_value(section, value))
+                dropped: list[Any] = []
+                note_rows.extend(_rows_from_value(section, value, dropped))
+                for item in dropped:
+                    dropped_report.append(
+                        f"{owner_type} {owner_id} {section}: {item!r}"
+                    )
 
             for row in note_rows:
                 conn.execute(
@@ -267,15 +323,9 @@ def upgrade() -> None:
                         " created_at, updated_at)"
                         " VALUES (:system_id, :owner_type, :owner_id, :section,"
                         " :episode, :kind, :title, :content, CAST(:links AS JSONB),"
-                        " :sort_index, NOW(), NOW())"
+                        " :sort_index, :created_at, :updated_at)"
                     ),
-                    {
-                        "system_id": str(uuid.uuid4()),
-                        "owner_type": owner_type,
-                        "owner_id": str(owner_id),
-                        **row,
-                        "links": json.dumps(row["links"]) if row["links"] else None,
-                    },
+                    _insert_params(owner_type, owner_id, row),
                 )
             total += len(note_rows)
 
@@ -287,12 +337,24 @@ def upgrade() -> None:
             len(unplaced_report),
             "\n".join(unplaced_report),
         )
+    if dropped_report:
+        logger.warning(
+            "%s item(s) elsewhere carried no usable content and were NOT "
+            "migrated. Review them by hand:\n%s",
+            len(dropped_report),
+            "\n".join(dropped_report),
+        )
 
 
 def downgrade() -> None:
-    """Delete the backfilled rows.
+    """Delete only the rows this migration created.
 
-    The `notes` columns were never dropped by this revision, so the original
+    Scoped by BACKFILL_STAMP: notes authored through the API after this ran
+    are left alone. The `notes` columns were never dropped, so the source
     content is still there and nothing needs folding back.
     """
-    op.execute("DELETE FROM note")
+    conn = op.get_bind()
+    conn.execute(
+        sa.text("DELETE FROM note WHERE created_at = :stamp"),
+        {"stamp": BACKFILL_STAMP},
+    )
