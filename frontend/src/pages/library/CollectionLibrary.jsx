@@ -21,7 +21,7 @@ export default function CollectionLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentSort, setCurrentSort] = useState("title");
+  const [currentSort, setCurrentSort] = useState("my_rating");
 
   useEffect(() => {
     async function load() {
