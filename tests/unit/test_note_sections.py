@@ -84,6 +84,9 @@ def test_collection_gets_the_narrow_set():
     # `questions` sits after `unread` in NOTE_SECTIONS.
     assert keys == [
         "remark",
+        "advantages",
+        "disadvantages",
+        "double_edged",
         "public_reviews",
         "personal_reviews",
         "analysis",

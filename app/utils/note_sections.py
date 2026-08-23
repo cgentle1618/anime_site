@@ -81,19 +81,19 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="advantages",
         shape=SHAPE_TEXT,
         label="優點 Advantages",
-        owners=ENTRY_OWNERS + _SERIES_AND_UP,
+        owners=ALL_OWNERS,
     ),
     NoteSection(
         key="disadvantages",
         shape=SHAPE_TEXT,
         label="缺點 Disadvantages",
-        owners=ENTRY_OWNERS + _SERIES_AND_UP,
+        owners=ALL_OWNERS,
     ),
     NoteSection(
         key="double_edged",
         shape=SHAPE_TEXT,
         label="優缺點",
-        owners=ENTRY_OWNERS + _SERIES_AND_UP,
+        owners=ALL_OWNERS,
     ),
     NoteSection(
         key="public_reviews",

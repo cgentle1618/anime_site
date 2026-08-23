@@ -853,11 +853,11 @@ with no component degrades to `null`.
 **Which sections an owner gets** is a property of the registry
 (`app/utils/note_sections.py`), not of this page — see `options.md` for the
 vocabulary and `database-schema.md` for the `note` table. Broadly: every owner
-has Remark, Public/Personal Reviews, Analysis, Resources, Unread, Questions and
-Memes; entries and the series/franchise tiers add Advantages, Disadvantages,
-優缺點, Foreshadowing, Symmetry and Adaptation; the episode-anchored sections
-(Episode Comments, Highlights, OP/ED 變動, 加長) belong to the serialized types
-only, and Quotes to media entries only.
+has Remark, Advantages, Disadvantages, 優缺點, Public/Personal Reviews,
+Analysis, Resources, Unread, Questions and Memes; entries and the
+series/franchise tiers add Foreshadowing, Symmetry and Adaptation; the
+episode-anchored sections (Episode Comments, Highlights, OP/ED 變動, 加長)
+belong to the serialized types only, and Quotes to media entries only.
 
 ---
 
