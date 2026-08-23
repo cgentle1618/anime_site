@@ -34,6 +34,7 @@ from app.routers import (
     note,
     novel,
     watch_order,
+    media_relation,
     quote,
     meme,
     seasonal,
@@ -149,6 +150,7 @@ app.include_router(manga.router)
 app.include_router(note.router)
 app.include_router(novel.router)
 app.include_router(watch_order.router)
+app.include_router(media_relation.router)
 app.include_router(quote.router)
 app.include_router(meme.router)
 app.include_router(seasonal.router)

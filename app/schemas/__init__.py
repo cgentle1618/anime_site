@@ -110,6 +110,14 @@ from app.schemas.watch_order import (
     WatchOrderListSheetSync,
     WatchOrderItemSheetSync,
 )
+from app.schemas.media_relation import (
+    RelationKindResponse,
+    MediaRelationCreate,
+    MediaRelationUpdate,
+    MediaRelationResponse,
+    RelationOtherEndpoint,
+    MediaRelationResolved,
+)
 from app.schemas.quote import (
     QuoteBase,
     QuoteCreate,
@@ -222,6 +230,12 @@ __all__ = [
     "WatchOrderCandidate",
     "WatchOrderListSheetSync",
     "WatchOrderItemSheetSync",
+    "RelationKindResponse",
+    "MediaRelationCreate",
+    "MediaRelationUpdate",
+    "MediaRelationResponse",
+    "RelationOtherEndpoint",
+    "MediaRelationResolved",
     "QuoteBase",
     "QuoteCreate",
     "QuoteUpdate",
