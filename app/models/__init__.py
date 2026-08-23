@@ -17,6 +17,7 @@ from app.models.novel import Novel
 from app.models.watch_order import WatchOrderList, WatchOrderItem
 from app.models.quote import Quote
 from app.models.meme import Meme
+from app.models.note import Note
 from app.models.system import (
     SystemOption,
     SystemConfigs,
@@ -44,6 +45,7 @@ __all__ = [
     "WatchOrderItem",
     "Quote",
     "Meme",
+    "Note",
     "SystemOption",
     "SystemConfigs",
     "Seasonal",

@@ -1,0 +1,69 @@
+"""Note ORM model - one item of structured notes on any owner."""
+
+import uuid
+from sqlalchemy import Column, DateTime, Float, Index, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from app.database import Base, get_taipei_now
+
+
+class Note(Base):
+    """
+    One note item - one bullet, one linked resource, one episode comment.
+
+    Replaces the `notes` JSONB column that used to sit on each of the seven
+    media tables. A blob could not be validated, queried across the library, or
+    edited a bullet at a time, and its shape lived in seven frontend config
+    files rather than in the backend.
+
+    `section` names an entry in app/utils/note_sections.NOTE_SECTIONS, which
+    declares that section's shape - which of the content columns below it uses.
+    Columns a shape does not use stay null; this is one table on purpose, so
+    adding a section costs a registry entry rather than a migration.
+
+    `owner_id` is deliberately FK-less: it points at whichever of the ten tables
+    `owner_type` names, and no single foreign key can span them - the same
+    reason `meme.owner_id` has none. A deleted owner leaves rows that
+    `app.utils.media_resolver` flags as missing rather than silently dropping.
+
+    Column order matters: `format_model_for_sheet` walks __table__.columns in
+    declaration order, so this is also the Google Sheets column order.
+    """
+
+    __tablename__ = "note"
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+
+    # --- Linkage ---
+    # The owner may be a media entry OR one of the three grouping tiers: see
+    # OWNER_TABLES in app/utils/media_resolver.
+    owner_type = Column(String, nullable=True, index=True)
+    owner_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+
+    # --- Which section this item belongs to ---
+    section = Column(String, nullable=True, index=True)
+
+    # --- Content, per the section's shape ---
+    # Free text so "ep 3", "ep 3-5" and "ch 12" all fit one column.
+    episode = Column(String, nullable=True)
+    # Only populated where the section declares `kinds`.
+    kind = Column(String, nullable=True)
+    # The name half of a name_links item.
+    title = Column(String, nullable=True)
+    content = Column(Text, nullable=True)
+    # List of URLs. A list even where the old shape held one, so `resources`
+    # gains multi-link support without another migration.
+    links = Column(JSONB, nullable=True)
+
+    # --- Ordering within (owner, section) ---
+    sort_index = Column(Float, nullable=True)
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    __table_args__ = (
+        # The only read path the notes page uses.
+        Index("ix_note_owner_section", "owner_type", "owner_id", "section"),
+    )
