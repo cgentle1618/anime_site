@@ -2194,7 +2194,7 @@ export default function FranchisePage() {
               </p>
             </div>
           </div>
-          <FranchiseNotes franchiseId={franchise.system_id} isAdmin={isAdmin} />
+          <FranchiseNotes franchise={franchise} isAdmin={isAdmin} />
         </div>
       )}
 

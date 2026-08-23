@@ -8,8 +8,12 @@
 // series hub page is built.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function SeriesNotes({ seriesId, isAdmin }) {
+export default function SeriesNotes({ series, isAdmin }) {
   return (
-    <NotesTemplate ownerType="series" ownerId={seriesId} isAdmin={isAdmin} />
+    <NotesTemplate
+      ownerType="series"
+      ownerId={series.system_id}
+      isAdmin={isAdmin}
+    />
   );
 }

@@ -3,8 +3,12 @@
 // same component with a different owner.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function CollectionNotes({ collectionId, isAdmin }) {
+export default function CollectionNotes({ collection, isAdmin }) {
   return (
-    <NotesTemplate ownerType="collection" ownerId={collectionId} isAdmin={isAdmin} />
+    <NotesTemplate
+      ownerType="collection"
+      ownerId={collection.system_id}
+      isAdmin={isAdmin}
+    />
   );
 }

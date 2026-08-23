@@ -380,7 +380,7 @@ export default function CollectionPage() {
         <h2 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-3 mt-10">
           Notes
         </h2>
-        <CollectionNotes collectionId={system_id} isAdmin={isAdmin} />
+        <CollectionNotes collection={collection} isAdmin={isAdmin} />
       </div>
 
       {showRemark && (
