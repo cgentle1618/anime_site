@@ -53,9 +53,6 @@ class NovelBase(BaseModel):
     end_year: Optional[int] = None
     publisher_tw: Optional[str] = None
 
-    prequel_id: Optional[UUID] = None
-    sequel_id: Optional[UUID] = None
-    alternative: Optional[str] = None
     is_main_entry: Optional[bool] = None
     read_order: Optional[float] = None
 

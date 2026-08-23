@@ -54,9 +54,6 @@ class Movies(Base, NameFallbackMixin):
     release_date_tw = Column(String, nullable=True)
     director = Column(String, nullable=True)
 
-    derive_related = Column(Boolean, nullable=True)
-    prequel_id = Column(UUID(as_uuid=True), nullable=True)
-    sequel_id = Column(UUID(as_uuid=True), nullable=True)
     watch_order = Column(Float, nullable=True)
 
     imdb_id = Column(String, nullable=True)

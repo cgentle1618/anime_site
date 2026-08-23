@@ -30,9 +30,6 @@ class CartoonBase(BaseModel):
     imdb_rating: Optional[str] = None
     release_date: Optional[str] = None
 
-    derive_related: Optional[bool] = None
-    prequel_id: Optional[UUID] = None
-    sequel_id: Optional[UUID] = None
     watch_order: Optional[float] = None
 
     imdb_id: Optional[str] = None

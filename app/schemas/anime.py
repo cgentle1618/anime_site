@@ -55,10 +55,6 @@ class AnimeBase(BaseModel):
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
 
-    derive_related: Optional[bool] = None
-    prequel_id: Optional[UUID] = None
-    sequel_id: Optional[UUID] = None
-    alternative: Optional[str] = None
     watch_order: Optional[float] = None
 
     mal_id: Optional[int] = None
