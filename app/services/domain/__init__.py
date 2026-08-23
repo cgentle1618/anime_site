@@ -53,6 +53,12 @@ from app.services.domain.remarks import (
     find_all_remarks,
 )
 
+from app.services.domain.remark_field import (
+    REMARK_SECTION,
+    pop_remark,
+    upsert_remark,
+)
+
 from app.services.domain.duplicates import (
     find_duplicate_franchises,
     find_duplicate_series,
@@ -153,6 +159,9 @@ __all__ = [
     "mark_novel_completed",
     "apply_completion_timestamp",
     "find_all_remarks",
+    "REMARK_SECTION",
+    "pop_remark",
+    "upsert_remark",
     "find_duplicate_franchises",
     "find_duplicate_series",
     "find_duplicate_anime",
