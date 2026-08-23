@@ -420,6 +420,13 @@ def execute_pull_specific(
                 n_owner_id = clean_header_dict.get("owner_id")
                 n_section = clean_header_dict.get("section")
                 n_content = clean_header_dict.get("content")
+                # Deliberately not guarded on n_content like the other three:
+                # a blank cell parses to None (parse_note_from_sheet blanks
+                # empty strings before typing), and SQLAlchemy renders
+                # `Note.content == None` as IS NULL, so a content-less note
+                # still matches its existing row instead of duplicating on
+                # every pull. Guarding on it here would make every blank-
+                # content row skip the match and insert fresh each time.
                 if n_owner_type and n_owner_id and n_section:
                     existing_record = (
                         db.query(Note)
