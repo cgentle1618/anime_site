@@ -50,7 +50,13 @@ class SeriesBase(BaseModel):
     franchise_id: Optional[UUID] = None
     series_name_en: Optional[str] = None
     series_name_cn: Optional[str] = None
+    series_name_roman: Optional[str] = None
+    series_name_jp: Optional[str] = None
     series_name_alt: Optional[str] = None
+    my_rating: Optional[str] = None
+    series_expectation: Optional[str] = "Low"
+    cover_entry_id: Optional[UUID] = None
+    to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
 
 
@@ -64,6 +70,8 @@ class SeriesUpdate(SeriesBase):
 
 class SeriesResponse(SeriesBase):
     system_id: UUID
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +85,7 @@ class FranchiseSheetSync(FranchiseCreate):
 
 
 class SeriesSheetSync(SeriesCreate):
-    """Schema for Google Sheets Series Sync operations."""
+    """Schema for Google Sheets Series Sync operations, including timestamps."""
 
-    pass
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

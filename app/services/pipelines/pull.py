@@ -592,6 +592,16 @@ def execute_pull_specific(
                 clean_header_dict["created_at"] = get_taipei_now()
             if clean_header_dict.get("updated_at") is None:
                 clean_header_dict["updated_at"] = get_taipei_now()
+        elif tab_name in ("Collection", "Franchise", "Series"):
+            # The sheet's tier tabs may not yet carry every model column (e.g.
+            # a Series tab pulled before the first Backup widens it with the
+            # new columns), so created_at/updated_at can come back NULL. Both
+            # are non-nullable on these models, so they need the same
+            # sanitizing the entry tabs already get above.
+            if clean_header_dict.get("created_at") is None:
+                clean_header_dict["created_at"] = get_taipei_now()
+            if clean_header_dict.get("updated_at") is None:
+                clean_header_dict["updated_at"] = get_taipei_now()
 
         # UPSERT LOGIC
         if pk_value:

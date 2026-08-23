@@ -88,11 +88,20 @@ class Franchise(Base, NameFallbackMixin):
 
 class Series(Base, NameFallbackMixin):
     """
-    Intermediate grouping layer. Links individual anime entries to a parent Franchise.
+    Intermediate grouping layer. Links individual entries to a parent Franchise.
+
+    Mirrors Franchise's shape without its type/collection concepts: a series has
+    no type of its own, and Collection is an umbrella over franchises, not series.
     """
 
     __tablename__ = "series"
-    _name_fields = ["series_name_en", "series_name_cn", "series_name_alt"]
+    _name_fields = [
+        "series_name_en",
+        "series_name_cn",
+        "series_name_roman",
+        "series_name_jp",
+        "series_name_alt",
+    ]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -104,8 +113,20 @@ class Series(Base, NameFallbackMixin):
     )
     series_name_en = Column(String, nullable=True)
     series_name_cn = Column(String, nullable=True)
+    series_name_roman = Column(String, nullable=True)
+    series_name_jp = Column(String, nullable=True)
     series_name_alt = Column(String, nullable=True)
+
+    my_rating = Column(String, nullable=True)
+    series_expectation = Column(String, default="Low")
+    # Any entry UUID, any type. No FK: no single constraint can span the six
+    # entry tables a series may hold. Mirrors Franchise.cover_entry_id.
+    cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
+    to_rewatch = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     # Relationships
     franchise = relationship("Franchise", back_populates="series")
@@ -116,6 +137,8 @@ class Series(Base, NameFallbackMixin):
         return {
             "en": self.series_name_en,
             "cn": self.series_name_cn,
+            "roman": self.series_name_roman,
+            "jp": self.series_name_jp,
             "alt": self.series_name_alt,
         }
 
@@ -125,5 +148,7 @@ class Series(Base, NameFallbackMixin):
             ("CN", self.series_name_cn),
             ("EN", self.series_name_en),
             ("Alt", self.series_name_alt),
+            ("roman", self.series_name_roman),
+            ("JP", self.series_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")

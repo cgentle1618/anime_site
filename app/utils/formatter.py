@@ -308,7 +308,19 @@ def parse_series_from_sheet(raw: dict) -> dict:
         ),  # Might be string, handled in the pull pipeline
         "series_name_en": parse_from_sheet(raw.get("series_name_en"), str),
         "series_name_cn": parse_from_sheet(raw.get("series_name_cn"), str),
+        "series_name_roman": parse_from_sheet(raw.get("series_name_roman"), str),
+        "series_name_jp": parse_from_sheet(raw.get("series_name_jp"), str),
         "series_name_alt": parse_from_sheet(raw.get("series_name_alt"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "series_expectation": parse_from_sheet(raw.get("series_expectation"), str),
+        # Must be a real UUID: unlike franchise_id there is no name-resolution
+        # step for this column, so a junk cell would hit the DB.
+        "cover_entry_id": _uuid_or_none(raw.get("cover_entry_id")),
+        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
+        # Previously omitted, so every Pull of the Series tab silently wiped it.
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
 
 
