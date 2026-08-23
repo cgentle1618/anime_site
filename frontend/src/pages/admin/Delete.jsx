@@ -656,9 +656,9 @@ export default function Delete() {
                     {getFranchiseTitle(selectedAnime.franchise_id)} /{" "}
                     {getSeriesTitle(selectedAnime.series_id)}
                   </p>
-                  {selectedAnime.notes?.remark && (
+                  {selectedAnime.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedAnime.notes.remark}
+                      {selectedAnime.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">
@@ -744,9 +744,9 @@ export default function Delete() {
                   <p className="text-xs text-gray-400 mt-1">
                     {getFranchiseTitle(selectedAnimeMovie.franchise_id)}
                   </p>
-                  {selectedAnimeMovie.notes?.remark && (
+                  {selectedAnimeMovie.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedAnimeMovie.notes.remark}
+                      {selectedAnimeMovie.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">
@@ -839,9 +839,9 @@ export default function Delete() {
                     {selectedMovie.series_id &&
                       ` / ${getSeriesTitle(selectedMovie.series_id)}`}
                   </p>
-                  {selectedMovie.notes?.remark && (
+                  {selectedMovie.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedMovie.notes.remark}
+                      {selectedMovie.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">
@@ -934,9 +934,9 @@ export default function Delete() {
                     {selectedTvShow.season_part &&
                       ` · ${selectedTvShow.season_part}`}
                   </p>
-                  {selectedTvShow.notes?.remark && (
+                  {selectedTvShow.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedTvShow.notes.remark}
+                      {selectedTvShow.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">
@@ -1024,9 +1024,9 @@ export default function Delete() {
                     {selectedCartoon.season_part &&
                       ` · ${selectedCartoon.season_part}`}
                   </p>
-                  {selectedCartoon.notes?.remark && (
+                  {selectedCartoon.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedCartoon.notes.remark}
+                      {selectedCartoon.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">
@@ -1121,9 +1121,9 @@ export default function Delete() {
                     {selectedManga.series_id &&
                       ` / ${getSeriesTitle(selectedManga.series_id)}`}
                   </p>
-                  {selectedManga.notes?.remark && (
+                  {selectedManga.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedManga.notes.remark}
+                      {selectedManga.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">
@@ -1224,9 +1224,9 @@ export default function Delete() {
                     {selectedNovel.series_id &&
                       ` / ${getSeriesTitle(selectedNovel.series_id)}`}
                   </p>
-                  {selectedNovel.notes?.remark && (
+                  {selectedNovel.remark && (
                     <p className="text-xs italic text-gray-400 mt-1">
-                      {selectedNovel.notes.remark}
+                      {selectedNovel.remark}
                     </p>
                   )}
                   <p className="text-xs font-mono text-gray-400">

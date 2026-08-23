@@ -735,9 +735,8 @@ export default function AnimeModifyTab({
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
       <AnimeNotes
         key={editingItem.system_id}
-        anime={{ notes: af.notes, system_id: editingItem.system_id }}
+        anime={{ system_id: editingItem.system_id }}
         isAdmin={true}
-        onSave={(updatedNotes) => ua("notes", updatedNotes)}
       />
     </>
   );

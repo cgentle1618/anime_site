@@ -423,12 +423,8 @@ export default function TvShowModifyTab({
       </Field>
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
       <TVShowNotes
-        show={{
-          notes: tvmf.notes,
-          system_id: editingItem?.system_id,
-        }}
+        show={{ system_id: editingItem?.system_id }}
         isAdmin={true}
-        onSave={(updatedNotes) => utv("notes", updatedNotes)}
       />
     </>
   );

@@ -563,9 +563,6 @@ export default function Cartoon() {
             key={cartoon.system_id}
             cartoon={cartoon}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performPatch({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

@@ -627,9 +627,6 @@ export default function Novel() {
             key={novel.system_id}
             novel={novel}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performPatch({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

@@ -1,9 +1,6 @@
 // Build request payloads from anime / anime-movie form state.
 
-export function buildAnimeMoviePayload(
-  amf,
-  { franchiseId, notes = null } = {},
-) {
+export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
   return {
     anime_movie_name_en: amf.anime_movie_name_en || null,
     anime_movie_name_cn: amf.anime_movie_name_cn || null,
@@ -55,14 +52,10 @@ export function buildAnimeMoviePayload(
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
     remark: amf.remark || null,
-    notes: notes,
   };
 }
 
-export function buildAnimePayload(
-  af,
-  { franchiseId, seriesId, notes = null } = {},
-) {
+export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
   let season_part = "";
   if (af.season_num) season_part = `Season ${af.season_num}`;
   if (af.season_num && af.part_num) season_part += ` Part ${af.part_num}`;
@@ -146,6 +139,5 @@ export function buildAnimePayload(
     seiyuu: af.seiyuu || null,
     cover_image_file: af.cover_image_file || null,
     remark: af.remark || null,
-    notes,
   };
 }

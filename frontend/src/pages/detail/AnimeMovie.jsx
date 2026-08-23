@@ -514,9 +514,6 @@ export default function AnimeMovie() {
             key={movie.system_id}
             movie={movie}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performUpdate({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

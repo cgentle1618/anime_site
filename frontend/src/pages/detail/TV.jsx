@@ -552,9 +552,6 @@ export default function TV() {
             key={show.system_id}
             show={show}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performPatch({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

@@ -405,9 +405,8 @@ export default function MovieModifyTab({
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
       <MovieNotes
         key={editingItem.system_id}
-        movie={{ notes: mmf.notes, system_id: editingItem.system_id }}
+        movie={{ system_id: editingItem.system_id }}
         isAdmin={true}
-        onSave={(updatedNotes) => umm("notes", updatedNotes)}
       />
     </>
   );

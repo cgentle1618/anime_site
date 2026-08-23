@@ -539,12 +539,8 @@ export default function MangaModifyTab({
       </Field>
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
       <MangaNotes
-        manga={{
-          notes: cmgf.notes,
-          system_id: editingItem?.system_id,
-        }}
+        manga={{ system_id: editingItem?.system_id }}
         isAdmin={true}
-        onSave={(updatedNotes) => umg("notes", updatedNotes)}
       />
     </>
   );

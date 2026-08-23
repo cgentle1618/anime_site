@@ -851,9 +851,6 @@ export default function Manga() {
             key={manga.system_id}
             manga={manga}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performPatch({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

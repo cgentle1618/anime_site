@@ -434,12 +434,8 @@ export default function CartoonModifyTab({
       </Field>
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
       <CartoonNotes
-        cartoon={{
-          notes: cmf.notes,
-          system_id: editingItem?.system_id,
-        }}
+        cartoon={{ system_id: editingItem?.system_id }}
         isAdmin={true}
-        onSave={(updatedNotes) => uc("notes", updatedNotes)}
       />
     </>
   );

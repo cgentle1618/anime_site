@@ -654,9 +654,6 @@ export default function Anime() {
             key={anime.system_id}
             anime={anime}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performUpdate({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

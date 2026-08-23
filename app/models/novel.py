@@ -94,7 +94,6 @@ class Novel(Base, NameFallbackMixin):
     read_next = Column(Boolean, nullable=True)
     to_reread = Column(Boolean, default=False, nullable=True)
     remark = Column(Text, nullable=True)
-    notes = Column(JSONB, nullable=True)
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

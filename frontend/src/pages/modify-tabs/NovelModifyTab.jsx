@@ -626,12 +626,8 @@ export default function NovelModifyTab({
       </Field>
       <SectionHeader icon="fa-book-open" title="Structured Notes" />
       <NovelNotes
-        novel={{
-          notes: cnvf.notes,
-          system_id: editingItem?.system_id,
-        }}
+        novel={{ system_id: editingItem?.system_id }}
         isAdmin={true}
-        onSave={(updatedNotes) => unv("notes", updatedNotes)}
       />
     </>
   );

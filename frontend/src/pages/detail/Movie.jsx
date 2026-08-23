@@ -532,9 +532,6 @@ export default function Movie() {
             key={movie.system_id}
             movie={movie}
             isAdmin={isAdmin}
-            onSave={(updatedNotes) =>
-              performPatch({ notes: updatedNotes }, "Notes saved")
-            }
           />
         </div>
       </div>

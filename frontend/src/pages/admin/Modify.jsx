@@ -127,7 +127,6 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     seiyuu: anime.seiyuu || "",
     cover_image_file: anime.cover_image_file || "",
     remark: anime.remark || "",
-    notes: anime.notes || {},
   };
 }
 
@@ -228,7 +227,6 @@ function movieToForm(movie, allFranchises, defaults) {
     to_rewatch: movie.to_rewatch ?? false,
     cover_image_file: movie.cover_image_file || "",
     remark: movie.remark || "",
-    notes: movie.notes || {},
   };
 }
 
@@ -491,7 +489,6 @@ export default function Modify() {
       to_rewatch: m.to_rewatch ?? false,
       cover_image_file: m.cover_image_file || "",
       remark: m.remark || "",
-      notes: m.notes || {},
     };
   }
 
@@ -538,7 +535,6 @@ export default function Modify() {
       })),
       cover_image_file: t.cover_image_file || "",
       remark: t.remark || "",
-      notes: t.notes || {},
     };
   }
 
@@ -588,7 +584,6 @@ export default function Modify() {
       to_rewatch: c.to_rewatch ?? false,
       cover_image_file: c.cover_image_file || "",
       remark: c.remark || "",
-      notes: c.notes || {},
     };
   }
 
@@ -649,7 +644,6 @@ export default function Modify() {
       to_reread: m.to_reread ?? false,
       cover_image_file: m.cover_image_file || "",
       remark: m.remark || "",
-      notes: m.notes || {},
     };
   }
 
@@ -712,7 +706,6 @@ export default function Modify() {
       to_reread: n.to_reread ?? false,
       cover_image_file: n.cover_image_file || "",
       remark: n.remark || "",
-      notes: n.notes || {},
     };
   }
 
@@ -859,7 +852,6 @@ export default function Modify() {
         buildAnimePayload(af, {
           franchiseId,
           seriesId,
-          notes: Object.keys(af.notes || {}).length > 0 ? af.notes : null,
         }),
       ),
       credentials: "include",
@@ -1076,7 +1068,6 @@ export default function Modify() {
       body: JSON.stringify(
         buildAnimeMoviePayload(amf, {
           franchiseId,
-          notes: Object.keys(amf.notes || {}).length > 0 ? amf.notes : null,
         }),
       ),
       credentials: "include",
@@ -1215,7 +1206,6 @@ export default function Modify() {
       to_rewatch: mmf.to_rewatch ?? false,
       cover_image_file: mmf.cover_image_file || null,
       remark: mmf.remark || null,
-      notes: Object.keys(mmf.notes || {}).length > 0 ? mmf.notes : null,
     };
     const res = await fetch(`/api/movies/${editingItem.system_id}`, {
       method: "PUT",
@@ -1356,7 +1346,6 @@ export default function Modify() {
       to_rewatch: tvmf.to_rewatch ?? false,
       cover_image_file: tvmf.cover_image_file || null,
       remark: tvmf.remark || null,
-      notes: Object.keys(tvmf.notes || {}).length > 0 ? tvmf.notes : null,
     };
     const res = await fetch(`/api/tv-shows/${editingItem.system_id}`, {
       method: "PUT",
@@ -1498,7 +1487,6 @@ export default function Modify() {
       to_rewatch: cmf.to_rewatch ?? false,
       cover_image_file: cmf.cover_image_file || null,
       remark: cmf.remark || null,
-      notes: Object.keys(cmf.notes || {}).length > 0 ? cmf.notes : null,
     };
     const res = await fetch(`/api/cartoon/${editingItem.system_id}`, {
       method: "PATCH",
@@ -1660,7 +1648,6 @@ export default function Modify() {
       to_reread: cmgf.to_reread ?? false,
       cover_image_file: cmgf.cover_image_file || null,
       remark: cmgf.remark || null,
-      notes: Object.keys(cmgf.notes || {}).length > 0 ? cmgf.notes : null,
     };
     const res = await fetch(`/api/manga/${editingItem.system_id}`, {
       method: "PATCH",
@@ -1878,7 +1865,6 @@ export default function Modify() {
       to_reread: cnvf.to_reread ?? false,
       cover_image_file: cnvf.cover_image_file || null,
       remark: cnvf.remark || null,
-      notes: Object.keys(cnvf.notes || {}).length > 0 ? cnvf.notes : null,
     };
     const res = await fetch(`/api/novel/${editingItem.system_id}`, {
       method: "PATCH",
