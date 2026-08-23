@@ -10,16 +10,43 @@ import TextSection from "./sections/TextSection";
 import TextLinksSection from "./sections/TextLinksSection";
 import EpisodeTextSection from "./sections/EpisodeTextSection";
 import NameLinksSection from "./sections/NameLinksSection";
+import QuoteSection from "./sections/QuoteSection";
+import MemeSection from "./sections/MemeSection";
 
 // The franchise and collection pages mount the memes section on its own; it
 // used to live in this file, so the import path stays valid from here.
-export { default as MemeSection } from "./sections/MemeSection";
+export { MemeSection };
 
 const SHAPES = {
   text: TextSection,
   text_links: TextLinksSection,
   episode_text: EpisodeTextSection,
   name_links: NameLinksSection,
+};
+
+// Quotes and memes are registry sections like any other - the registry gives
+// their order and label - but they are backed by their own tables, so they
+// read and write through their own components instead of the note handlers.
+// Their props predate this page's shape contract, so each is adapted here
+// rather than rewritten. media_type/entry_id and owner_type/owner_id are the
+// same hyphenated owner keys the notes API uses.
+const EXTERNAL_SHAPES = {
+  quotes: ({ label, ownerType, ownerId, isAdmin }) => (
+    <QuoteSection
+      label={label}
+      mediaType={ownerType}
+      entryId={ownerId}
+      isAdmin={isAdmin}
+    />
+  ),
+  memes: ({ label, ownerType, ownerId, isAdmin }) => (
+    <MemeSection
+      label={label}
+      ownerType={ownerType}
+      ownerId={ownerId}
+      isAdmin={isAdmin}
+    />
+  ),
 };
 
 export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
@@ -104,8 +131,21 @@ export default function NotesTemplate({ ownerType, ownerId, isAdmin }) {
       <div className="p-4 space-y-3">
         {error && <p className="text-sm text-red-600">{error}</p>}
         {sections.map((section) => {
-          // quotes and memes have their own tables and their own pages; the
-          // registry lists them so the page can link to them, not render them.
+          if (section.shape === "external") {
+            // An external section this page has no component for renders
+            // nothing rather than crashing.
+            const External = EXTERNAL_SHAPES[section.key];
+            if (!External) return null;
+            return (
+              <External
+                key={section.key}
+                label={section.label}
+                ownerType={ownerType}
+                ownerId={ownerId}
+                isAdmin={isAdmin}
+              />
+            );
+          }
           const Component = SHAPES[section.shape];
           if (!Component) return null;
           return (
