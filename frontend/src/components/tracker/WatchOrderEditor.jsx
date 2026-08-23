@@ -220,26 +220,86 @@ function ItemRow({
   );
 }
 
-function EntryPicker({ candidates, onAdd, disabled }) {
+// What the list already holds, keyed the way a candidate identifies itself.
+// Deliberately says only "this entry is in the list" and, when the steps carry
+// episode ranges, which ones - never whether those ranges add up to the whole
+// entry. That would mean trusting ep_total, which is blank often enough that
+// the claim would be wrong exactly where it mattered.
+function buildAddedIndex(items) {
+  const index = new Map();
+  for (const item of items) {
+    if (!item.media_type || !item.entry_id) continue;
+    const key = `${item.media_type}:${item.entry_id}`;
+    const entry = index.get(key) || { count: 0, ranges: [], whole: false };
+    // No range at all means the step covers the entry as a whole, which is
+    // worth saying plainly even when other steps name episodes.
+    if (item.ep_start == null && item.ep_end == null) {
+      entry.whole = true;
+    } else {
+      entry.ranges.push(formatRange(item.ep_start, item.ep_end));
+    }
+    entry.count += 1;
+    index.set(key, entry);
+  }
+  return index;
+}
+
+// "1-2", or words when only one bound is set: a step can legitimately say
+// "from ep 5 on" without knowing where the entry stops. Spelled out rather
+// than left as a bare dash, since "–3" reads as minus three.
+function formatRange(start, end) {
+  if (start != null && end != null) {
+    return start === end ? `${start}` : `${start}–${end}`;
+  }
+  if (start != null) return `${start} onward`;
+  return `up to ${end}`;
+}
+
+// The badge text for one candidate, or null when it is not in the list yet.
+function addedLabel(added) {
+  if (!added) return null;
+  if (added.whole || !added.ranges.length) return "Added";
+  return `Added · Ep ${added.ranges.join(", ")}`;
+}
+
+function EntryPicker({ candidates, items, onAdd, disabled }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
+  const [hideAdded, setHideAdded] = useState(false);
+
+  const added = useMemo(() => buildAddedIndex(items), [items]);
+
+  // How many of the franchise's entries are already in the list, whatever the
+  // search box currently shows - the toggle offering to hide them should say
+  // the same number before and after it is ticked.
+  const addedCount = useMemo(
+    () =>
+      candidates.filter((c) => added.has(`${c.media_type}:${c.entry_id}`))
+        .length,
+    [candidates, added]
+  );
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return candidates
-      .filter((c) => !type || c.media_type === type)
-      // search_names carries every title the entry answers to, already
-      // lowercased by the backend. display_name is one of them, but an entry
-      // saved before the field existed may arrive without it, so the displayed
-      // name is still checked on its own.
-      .filter(
-        (c) =>
-          !q ||
-          (c.display_name || "").toLowerCase().includes(q) ||
-          (c.search_names || []).some((n) => n.includes(q))
-      )
-      .slice(0, 40);
-  }, [candidates, query, type]);
+    return (
+      candidates
+        .filter((c) => !type || c.media_type === type)
+        .filter(
+          (c) => !hideAdded || !added.has(`${c.media_type}:${c.entry_id}`)
+        )
+        // search_names carries every title the entry answers to, already
+        // lowercased by the backend. display_name is one of them, but an entry
+        // saved before the field existed may arrive without it, so the displayed
+        // name is still checked on its own.
+        .filter(
+          (c) =>
+            !q ||
+            (c.display_name || "").toLowerCase().includes(q) ||
+            (c.search_names || []).some((n) => n.includes(q))
+        )
+        .slice(0, 40)
+    );
+  }, [candidates, query, type, hideAdded, added]);
 
   return (
     <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
@@ -263,16 +323,41 @@ function EntryPicker({ candidates, onAdd, disabled }) {
             </option>
           ))}
         </select>
+
+        {/*
+          Only worth offering once something would actually be hidden. Sits in
+          the search row because it narrows the same result set the box does.
+        */}
+        {addedCount > 0 && (
+          <label className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hideAdded}
+              onChange={(e) => setHideAdded(e.target.checked)}
+              className="accent-brand"
+            />
+            Hide added ({addedCount})
+          </label>
+        )}
       </div>
 
       {matches.length === 0 ? (
         <p className="text-xs font-medium text-gray-400 py-2">
-          No entries match.
+          {/*
+            With the toggle on, an empty result usually means there is nothing
+            left to add rather than nothing matching what was typed.
+          */}
+          {hideAdded && !query.trim()
+            ? "Every entry in scope is already in this order."
+            : "No entries match."}
         </p>
       ) : (
         <ul className="flex flex-col gap-1 max-h-64 overflow-y-auto">
-          {matches.map((c) => (
-            <li key={`${c.media_type}:${c.entry_id}`}>
+          {matches.map((c) => {
+            const key = `${c.media_type}:${c.entry_id}`;
+            const label = addedLabel(added.get(key));
+            return (
+            <li key={key}>
               <button
                 type="button"
                 disabled={disabled}
@@ -302,12 +387,22 @@ function EntryPicker({ candidates, onAdd, disabled }) {
                     {c.release_display}
                   </span>
                 )}
+                {/*
+                  Information, not a block: the button stays enabled, because
+                  adding the same entry twice is how a split run is written.
+                */}
+                {label && (
+                  <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200 whitespace-nowrap">
+                    {label}
+                  </span>
+                )}
                 <span className="ml-auto text-[10px] font-black text-gray-400 whitespace-nowrap">
                   {TYPE_LABELS[c.media_type]}
                 </span>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
       <p className="text-[10px] font-medium text-gray-400 mt-2">
@@ -624,7 +719,12 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           yours to edit.
         </p>
       ) : (
-        <EntryPicker candidates={candidates} onAdd={addItem} disabled={busy} />
+        <EntryPicker
+          candidates={candidates}
+          items={list.items}
+          onAdd={addItem}
+          disabled={busy}
+        />
       )}
 
       {list.items.length === 0 ? (

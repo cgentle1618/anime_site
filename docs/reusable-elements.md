@@ -1196,7 +1196,12 @@ optional `onListChanged` callback. Deliberately does **not** reuse
 `WatchOrderGuide`: an editable row needs inputs where the guide needs links.
 
 Covers order metadata (name, type, note, default flag), an entry picker fed by
-`GET /api/watch-order/candidates`, per-step episode range / importance
+`GET /api/watch-order/candidates` — whose rows carry an `Added` badge for an
+entry the list already holds, naming the episode ranges
+(`Added · Ep 1–10, 11–12`) when the steps carry any, and never claiming the
+entry is *fully* covered, since that would mean trusting an `ep_total` that is
+often blank, and a "Hide added" toggle in the search row that drops those rows
+so only what is left to add remains — per-step episode range / importance
 (three buttons rather than a dropdown, so the whole ladder stays visible while
 scanning a list of steps) / note, and reordering by drag or up/down buttons.
 Text and number inputs commit on blur, not per keystroke; reorder commits the full id sequence through
