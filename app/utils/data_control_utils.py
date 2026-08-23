@@ -162,6 +162,29 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 if src:
                     franchise_cn = src.display_name
 
+        elif entry_type == "Note":
+            # A note has no name of its own, so its content stands in for one.
+            from app.utils.media_resolver import OWNER_TABLES
+
+            body = (
+                getattr(entry, "content", None)
+                or getattr(entry, "title", None)
+                or getattr(entry, "section", None)
+                or ""
+            ).strip()
+            name_cn = (body[:80] + "...") if len(body) > 80 else (body or None)
+            # The owner may be an entry or a whole tier, so resolve through
+            # OWNER_TABLES rather than the entry-only map.
+            ref = OWNER_TABLES.get(getattr(entry, "owner_type", None) or "")
+            if ref and getattr(entry, "owner_id", None):
+                src = (
+                    db.query(ref.model)
+                    .filter(ref.model.system_id == entry.owner_id)
+                    .first()
+                )
+                if src:
+                    franchise_cn = src.display_name
+
         elif entry_type == "Franchise":
             name_cn = _cn(entry, "franchise")
             if _has_cn(entry, "franchise"):

@@ -720,3 +720,28 @@ def parse_meme_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+
+
+def parse_note_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Note sheet into typed data ready for the
+    Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "owner_type": parse_from_sheet(raw.get("owner_type"), str),
+        # owner_id has no foreign key - it points at whichever of the ten owner
+        # tables owner_type names - and there is no name-resolution step for it
+        # in Pull, so an unparseable cell becomes None and the note shows up
+        # unlinked rather than failing the import.
+        "owner_id": _uuid_or_none(raw.get("owner_id")),
+        "section": parse_from_sheet(raw.get("section"), str),
+        "episode": parse_from_sheet(raw.get("episode"), str),
+        "kind": parse_from_sheet(raw.get("kind"), str),
+        "title": parse_from_sheet(raw.get("title"), str),
+        "content": parse_from_sheet(raw.get("content"), str),
+        "links": json.loads(raw["links"]) if raw.get("links") else None,
+        "sort_index": parse_from_sheet(raw.get("sort_index"), float),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }

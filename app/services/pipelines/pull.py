@@ -25,6 +25,7 @@ from app.models import (
     WatchOrderItem,
     Quote,
     Meme,
+    Note,
 )
 
 from app.utils.formatter import (
@@ -46,6 +47,7 @@ from app.utils.formatter import (
     parse_watch_order_item_from_sheet,
     parse_quote_from_sheet,
     parse_meme_from_sheet,
+    parse_note_from_sheet,
 )
 from app.utils.data_control_utils import log_data_control
 
@@ -127,6 +129,7 @@ def execute_pull_specific(
         "Watch Order Item": WatchOrderItem,
         "Quote": Quote,
         "Meme": Meme,
+        "Note": Note,
     }
 
     PARSER_MAP = {
@@ -146,6 +149,7 @@ def execute_pull_specific(
         "Watch Order Item": parse_watch_order_item_from_sheet,
         "Quote": parse_quote_from_sheet,
         "Meme": parse_meme_from_sheet,
+        "Note": parse_note_from_sheet,
     }
 
     if tab_name not in MODEL_MAP:
@@ -408,6 +412,25 @@ def execute_pull_specific(
                         )
                         .first()
                     )
+            elif tab_name == "Note":
+                # An id-less row is matched on owner + section + content, so
+                # re-importing the same sheet updates rather than duplicating.
+                # Notes have no name of their own to match on.
+                n_owner_type = clean_header_dict.get("owner_type")
+                n_owner_id = clean_header_dict.get("owner_id")
+                n_section = clean_header_dict.get("section")
+                n_content = clean_header_dict.get("content")
+                if n_owner_type and n_owner_id and n_section:
+                    existing_record = (
+                        db.query(Note)
+                        .filter(
+                            Note.owner_type == n_owner_type,
+                            Note.owner_id == n_owner_id,
+                            Note.section == n_section,
+                            Note.content == n_content,
+                        )
+                        .first()
+                    )
             elif tab_name == "Quote":
                 # An id-less row is matched on the entry it belongs to plus its
                 # text, so re-importing the same sheet updates rather than
@@ -661,6 +684,9 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Quote",
         # Memes name quotes, so they restore after them.
         "Meme",
+        # Notes point at owners the same FK-less way memes do, so they restore
+        # after the media tabs their owners live in.
+        "Note",
         "Seasonal",
     ]
 

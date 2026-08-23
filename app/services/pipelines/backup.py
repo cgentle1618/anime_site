@@ -25,6 +25,7 @@ from app.models import (
     WatchOrderItem,
     Quote,
     Meme,
+    Note,
 )
 
 from app.utils.formatter import (
@@ -223,6 +224,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         meme_headers = [c.name for c in Meme.__table__.columns]
         meme_matrix = [meme_headers] + [format_model_for_sheet(m) for m in memes]
         bulk_overwrite_sheet("Meme", meme_matrix)
+
+        # Notes point at owners the same FK-less way memes do, so they carry no
+        # ordering constraint of their own.
+        notes = db.query(Note).all()
+        note_headers = [c.name for c in Note.__table__.columns]
+        note_matrix = [note_headers] + [format_model_for_sheet(n) for n in notes]
+        bulk_overwrite_sheet("Note", note_matrix)
 
         logger.info("Backup Pipeline completed successfully.")
         log_data_control(db, "Backup", "Backup", action_type, "Success")
