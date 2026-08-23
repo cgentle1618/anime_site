@@ -17,6 +17,14 @@ import { MediaScopeLine, specialLabel } from "./WatchOrderGuide";
 // ITEM_IMPORTANCE in app/services/domain/watch_order.py, which validates them.
 export const ITEM_IMPORTANCE = ["Essential", "Normal", "Optional"];
 
+// The selected rung's colors, matching the guide's badges so a step looks the
+// same in the editor as it does on the page.
+const IMPORTANCE_ACTIVE_CLASS = {
+  Essential: "bg-white text-emerald-600 shadow-sm",
+  Normal: "bg-white text-gray-700 shadow-sm",
+  Optional: "bg-white text-amber-600 shadow-sm",
+};
+
 export const LIST_TYPES = [
   "Custom",
   "Chronological",
@@ -164,22 +172,38 @@ function ItemRow({
           leave blank for the whole entry
         </span>
 
-        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 select-none ml-auto">
-          Importance
-          <select
-            value={item.importance || "Normal"}
-            onChange={(e) =>
-              onPatch(item.system_id, { importance: e.target.value })
-            }
-            className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
-          >
-            {ITEM_IMPORTANCE.map((level) => (
-              <option key={level} value={level}>
+        {/*
+          Three buttons rather than a dropdown: the whole ladder is visible at
+          a glance while scanning a list of steps, and setting a rung costs one
+          click instead of two. The active colors are the guide's badge colors,
+          so a step reads the same in the editor as it does on the page.
+        */}
+        <div
+          role="group"
+          aria-label="Importance"
+          className="inline-flex items-center gap-0.5 ml-auto p-0.5 rounded-lg bg-gray-100"
+        >
+          {ITEM_IMPORTANCE.map((level) => {
+            const active = (item.importance || "Normal") === level;
+            return (
+              <button
+                key={level}
+                type="button"
+                aria-pressed={active}
+                onClick={() =>
+                  onPatch(item.system_id, { importance: level })
+                }
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-md transition-colors ${
+                  active
+                    ? IMPORTANCE_ACTIVE_CLASS[level]
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
                 {level}
-              </option>
-            ))}
-          </select>
-        </label>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {!readOnly && (

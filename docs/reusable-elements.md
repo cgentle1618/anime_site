@@ -1196,9 +1196,10 @@ optional `onListChanged` callback. Deliberately does **not** reuse
 `WatchOrderGuide`: an editable row needs inputs where the guide needs links.
 
 Covers order metadata (name, type, note, default flag), an entry picker fed by
-`GET /api/watch-order/candidates`, per-step episode range / importance /
-note, and reordering by drag or up/down buttons. Text and number inputs commit
-on blur, not per keystroke; reorder commits the full id sequence through
+`GET /api/watch-order/candidates`, per-step episode range / importance
+(three buttons rather than a dropdown, so the whole ladder stays visible while
+scanning a list of steps) / note, and reordering by drag or up/down buttons.
+Text and number inputs commit on blur, not per keystroke; reorder commits the full id sequence through
 `PUT /lists/{id}/reorder` and is applied locally first so a dragged row does not
 snap back mid-request.
 
