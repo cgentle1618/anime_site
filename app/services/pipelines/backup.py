@@ -23,6 +23,7 @@ from app.models import (
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
+    MediaRelation,
     Quote,
     Meme,
     Note,
@@ -79,7 +80,6 @@ from app.services.domain import (
     tv_show_post_processing,
     derive_related_anime,
     derive_related_cartoon,
-    derive_related_manga,
     derive_related_tv_show,
     resolve_anime_movie_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
@@ -209,6 +209,18 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(w) for w in watch_order_items
         ]
         bulk_overwrite_sheet("Watch Order Item", watch_order_item_matrix)
+
+        # Relations come after every media tab for the same reason quotes do:
+        # both endpoints are FK-less (media_type, entry_id) pairs, so on
+        # restore the rows they point at must already exist.
+        media_relations = db.query(MediaRelation).all()
+        media_relation_headers = [
+            c.name for c in MediaRelation.__table__.columns
+        ]
+        media_relation_matrix = [media_relation_headers] + [
+            format_model_for_sheet(r) for r in media_relations
+        ]
+        bulk_overwrite_sheet("Media Relation", media_relation_matrix)
 
         # Quotes are written after every media tab: each row points at an entry
         # via a FK-less (media_type, entry_id) pair, so on restore those rows

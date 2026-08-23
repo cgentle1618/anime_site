@@ -198,6 +198,30 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_media_relation_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Media Relation sheet into typed data
+    ready for the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "from_type": parse_from_sheet(raw.get("from_type"), str),
+        # Neither endpoint has a foreign key - each points at whichever media
+        # table its *_type names - so an unparseable cell becomes None and the
+        # row shows up in the admin page as a missing endpoint rather than
+        # failing the whole Pull.
+        "from_id": _uuid_or_none(raw.get("from_id")),
+        # Preserved as written, not coerced: a kind added in a newer version
+        # must survive a round trip through an older one.
+        "relation_type": parse_from_sheet(raw.get("relation_type"), str),
+        "to_type": parse_from_sheet(raw.get("to_type"), str),
+        "to_id": _uuid_or_none(raw.get("to_id")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_franchise_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Franchise sheet into typed data ready for the Database.
@@ -325,9 +349,6 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "distributor_tw": parse_from_sheet(raw.get("distributor_tw"), str),
         "genre_main": parse_from_sheet(raw.get("genre_main"), str),
         "genre_sub": parse_from_sheet(raw.get("genre_sub"), str),
-        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
-        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
-        "alternative": parse_from_sheet(raw.get("alternative"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -418,9 +439,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "release_date_usa": parse_from_sheet(raw.get("release_date_usa"), str),
         "release_date_tw": parse_from_sheet(raw.get("release_date_tw"), str),
         "director": parse_from_sheet(raw.get("director"), str),
-        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
-        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
-        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
@@ -458,9 +476,6 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "release_date": parse_from_sheet(raw.get("release_date"), str),
-        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
-        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
-        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
@@ -499,9 +514,6 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "release_date": parse_from_sheet(raw.get("release_date"), str),
-        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
-        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
-        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
@@ -519,7 +531,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
 def parse_manga_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Manga sheet into typed data ready for the Database.
-    franchise_id, series_id, prequel_id, sequel_id may be a UUID or a raw string name.
+    franchise_id and series_id may be a UUID or a raw string name.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
@@ -553,9 +565,6 @@ def parse_manga_from_sheet(raw: dict) -> dict:
             raw.get("serialization_platform"), str
         ),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
-        "derive_related": parse_from_sheet(raw.get("derive_related"), bool),
-        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
-        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
         "watch_order": parse_from_sheet(raw.get("watch_order"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
@@ -574,7 +583,7 @@ def parse_manga_from_sheet(raw: dict) -> dict:
 def parse_novel_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Novel sheet into typed data ready for the Database.
-    franchise_id, series_id, prequel_id, sequel_id may be a UUID or a raw string name.
+    franchise_id and series_id may be a UUID or a raw string name.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
@@ -611,9 +620,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "release_year": parse_from_sheet(raw.get("release_year"), int),
         "end_year": parse_from_sheet(raw.get("end_year"), int),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
-        "prequel_id": parse_from_sheet(raw.get("prequel_id"), UUID),
-        "sequel_id": parse_from_sheet(raw.get("sequel_id"), UUID),
-        "alternative": parse_from_sheet(raw.get("alternative"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "read_order": parse_from_sheet(raw.get("read_order"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
