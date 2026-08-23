@@ -15,6 +15,7 @@ from app.models.cartoon import Cartoon
 from app.models.manga import Manga
 from app.models.novel import Novel
 from app.models.watch_order import WatchOrderList, WatchOrderItem
+from app.models.media_relation import MediaRelation
 from app.models.quote import Quote
 from app.models.meme import Meme
 from app.models.note import Note
@@ -43,6 +44,7 @@ __all__ = [
     "Novel",
     "WatchOrderList",
     "WatchOrderItem",
+    "MediaRelation",
     "Quote",
     "Meme",
     "Note",
