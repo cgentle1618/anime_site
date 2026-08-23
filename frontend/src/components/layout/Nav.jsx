@@ -481,6 +481,11 @@ export default function Nav() {
                         Watch Orders
                       </NavLink>
                     )}
+                    {isAdmin && (
+                      <NavLink to="/relations" icon="fas fa-diagram-project">
+                        Relations
+                      </NavLink>
+                    )}
                   </>
                 }
               />
@@ -538,6 +543,20 @@ export default function Nav() {
                       >
                         <i className="fas fa-sliders-h w-6 text-center text-blue-400 mr-1"></i>
                         Form Defaults
+                      </Link>
+                      <Link
+                        to="/relations"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-purple-50 hover:text-purple-600 transition"
+                      >
+                        <i className="fas fa-diagram-project w-6 text-center text-purple-400 mr-1"></i>
+                        Relations
+                      </Link>
+                      <Link
+                        to="/watch-orders"
+                        className="flex items-center px-3 py-2 text-sm font-bold text-gray-700 rounded-md hover:bg-amber-50 hover:text-amber-600 transition"
+                      >
+                        <i className="fas fa-list-ol w-6 text-center text-amber-400 mr-1"></i>
+                        Watch Orders
                       </Link>
                     </>
                   }
@@ -873,6 +892,15 @@ export default function Nav() {
                     className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                   >
                     Watch Orders
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    to="/relations"
+                    onClick={() => setMobileOpen(false)}
+                    className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                  >
+                    Relations
                   </Link>
                 )}
               </div>
