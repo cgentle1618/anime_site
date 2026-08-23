@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard, { InfoRow } from "../../components/info/InfoCard";
@@ -182,33 +183,6 @@ export default function Anime() {
     ? series.series_name_cn || series.series_name_en || series.series_name_alt
     : null;
 
-  const relatedAnime = [];
-  if (anime.prequel_id) {
-    const p = allAnime.find((a) => a.system_id === anime.prequel_id);
-    if (p)
-      relatedAnime.push({ anime: p, tag: "Prequel", color: "text-orange-500" });
-  }
-  if (anime.sequel_id) {
-    const s = allAnime.find((a) => a.system_id === anime.sequel_id);
-    if (s)
-      relatedAnime.push({ anime: s, tag: "Sequel", color: "text-green-500" });
-  }
-  if (anime.alternative) {
-    String(anime.alternative)
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean)
-      .forEach((altId) => {
-        const a = allAnime.find((x) => x.system_id === altId);
-        if (a)
-          relatedAnime.push({
-            anime: a,
-            tag: "Alternative",
-            color: "text-blue-500",
-          });
-      });
-  }
-
   const releaseSeasonYear =
     anime.release_season && anime.release_year
       ? `${anime.release_season} ${anime.release_year}`
@@ -354,47 +328,7 @@ export default function Anime() {
             </div>
           </div>
 
-          {/* Related Entries (hidden if none) */}
-          {relatedAnime.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-                <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
-              </h3>
-              <div className="flex flex-col gap-3">
-                {relatedAnime.map(({ anime: rel, tag, color }) => (
-                  <div
-                    key={`${tag}-${rel.system_id}`}
-                    onClick={() => navigate(`/anime/${rel.system_id}`)}
-                    className="bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 cursor-pointer hover:bg-brand/5 hover:border-brand/30 transition"
-                  >
-                    <img
-                      src={getCoverUrl(rel.cover_image_file)}
-                      className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
-                      onError={(e) => {
-                        e.target.src = FALLBACK_SVG;
-                      }}
-                      alt=""
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div
-                        className={`text-[9px] font-bold uppercase tracking-wider ${color} mb-0.5`}
-                      >
-                        {tag}
-                      </div>
-                      <div className="text-sm font-bold text-gray-900 truncate">
-                        {rel.anime_name_cn ||
-                          rel.anime_name_en ||
-                          rel.anime_name_roman}
-                      </div>
-                      <div className="text-[11px] text-gray-500">
-                        {rel.airing_type || "TV"} · {rel.release_year || "TBA"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <RelationsSection mediaType="anime" entryId={anime.system_id} />
 
           {/* System Info — admin only */}
           {isAdmin && (

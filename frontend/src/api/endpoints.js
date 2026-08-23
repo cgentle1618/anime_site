@@ -76,6 +76,15 @@ export const endpoints = {
     backfillRelease: () => "/api/watch-order/lists/release/backfill",
   },
 
+  mediaRelation: {
+    kinds: () => "/api/media-relation/kinds",
+    forEntry: () => "/api/media-relation/for-entry",
+    inScope: () => "/api/media-relation/",
+    create: () => "/api/media-relation/",
+    patch: (id) => `/api/media-relation/${id}`,
+    remove: (id) => `/api/media-relation/${id}`,
+  },
+
   formDefaults: {
     list: () => "/api/form-defaults/",
     detail: (type) => `/api/form-defaults/${type}`,

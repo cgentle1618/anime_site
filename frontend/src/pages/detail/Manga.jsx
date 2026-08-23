@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -316,12 +317,6 @@ export default function Manga() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMangaQuery = useMediaList("manga", LIST_OPTIONS);
-  const prequelQuery = useMediaItem("manga", manga?.prequel_id, {
-    enabled: !!manga?.prequel_id,
-  });
-  const sequelQuery = useMediaItem("manga", manga?.sequel_id, {
-    enabled: !!manga?.sequel_id,
-  });
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
     "manga",
     system_id,
@@ -347,8 +342,6 @@ export default function Manga() {
         : null,
     [manga?.series_id, seriesList],
   );
-  const prequel = prequelQuery.data || null;
-  const sequel = sequelQuery.data || null;
   const loading =
     mangaQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
   const error =
@@ -429,20 +422,6 @@ export default function Manga() {
       franchise.franchise_name_en ||
       franchise.franchise_name_roman
     : null;
-
-  const relatedEntries = [];
-  if (prequel)
-    relatedEntries.push({
-      entry: prequel,
-      tag: "Prequel",
-      color: "text-orange-500",
-    });
-  if (sequel)
-    relatedEntries.push({
-      entry: sequel,
-      tag: "Sequel",
-      color: "text-green-500",
-    });
 
   // Extract twitter from source_other so SourcesCard renders it as a dedicated button
   const rawSourceOther = manga.source_other || {};
@@ -579,55 +558,7 @@ export default function Manga() {
           )}
 
           {/* Related Entries */}
-          {relatedEntries.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-                <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
-              </h3>
-              <div className="flex flex-col gap-3">
-                {relatedEntries.map(({ entry: rel, tag, color }) => {
-                  const relTitle =
-                    rel.manga_name_cn ||
-                    rel.manga_name_en ||
-                    rel.manga_name_roman ||
-                    rel.manga_name_jp ||
-                    rel.manga_name_alt ||
-                    "Unknown";
-                  return (
-                    <div
-                      key={`${tag}-${rel.system_id}`}
-                      onClick={() => navigate(`/manga/${rel.system_id}`)}
-                      className="bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 cursor-pointer hover:bg-brand/5 hover:border-brand/30 transition"
-                    >
-                      <img
-                        src={getCoverUrl(rel.cover_image_file)}
-                        className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
-                        onError={(e) => {
-                          e.target.src = FALLBACK_SVG;
-                        }}
-                        alt=""
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className={`text-[9px] font-bold uppercase tracking-wider ${color} mb-0.5`}
-                        >
-                          {tag}
-                        </div>
-                        <div className="text-sm font-bold text-gray-900 truncate">
-                          {relTitle}
-                        </div>
-                        {rel.release_year && (
-                          <div className="text-[10px] text-gray-500">
-                            {rel.release_year}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <RelationsSection mediaType="manga" entryId={manga.system_id} />
 
           {/* System Info — admin only */}
           {isAdmin && (

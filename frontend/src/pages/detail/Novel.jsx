@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
@@ -371,6 +372,8 @@ export default function Novel() {
             }
           />
 
+          <RelationsSection mediaType="novel" entryId={novel.system_id} />
+
           {/* System Info — admin only */}
           {isAdmin && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -527,16 +530,6 @@ export default function Novel() {
                       novel.end_year != null ? String(novel.end_year) : null,
                   },
                 ],
-                ...(novel.alternative
-                  ? [
-                      [
-                        {
-                          label: "Alternative IDs",
-                          value: novel.alternative,
-                        },
-                      ],
-                    ]
-                  : []),
                 [
                   {
                     label: "Vol Total (Original)",
