@@ -65,6 +65,32 @@ def test_kind_rejected_where_no_dropdown_declared():
         )
 
 
+def test_highlight_kind_is_accepted_where_the_owner_has_the_dropdown():
+    validate_note_payload(_payload(section="highlights", episode="ep 6", kind="神片段"))
+    validate_note_payload(_payload(section="highlights", episode="ep 6", kind="神篇章"))
+    validate_note_payload(
+        _payload(
+            owner_type="tv-show",
+            section="highlight_episodes",
+            episode="ep 6",
+            kind="神片段",
+        )
+    )
+
+
+def test_highlight_kind_rejected_for_manga():
+    # highlight_episodes offers the dropdown to tv-show and cartoon only.
+    with pytest.raises(ValueError, match="takes no kind"):
+        validate_note_payload(
+            _payload(
+                owner_type="manga",
+                section="highlight_episodes",
+                episode="ch 6",
+                kind="神片段",
+            )
+        )
+
+
 def test_desc_required_section_rejects_empty_content():
     with pytest.raises(ValueError, match="requires content"):
         validate_note_payload(_payload(section="adaptation", content="   "))

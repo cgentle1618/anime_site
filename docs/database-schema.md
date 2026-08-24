@@ -1113,7 +1113,7 @@ a series, franchise, or collection — the same ten `owner_type` values.
 | `owner_id`   | UUID     | Yes      | **No FK** — points at whichever of the ten tables `owner_type` names, indexed |
 | `section`    | String   | Yes      | Names an entry in `NOTE_SECTIONS`; that entry declares the shape, indexed    |
 | `episode`    | String   | Yes      | Free text, so `"ep 3"`, `"ep 3-5"` and `"ch 12"` all fit one column          |
-| `kind`       | String   | Yes      | Only populated where the section declares `kinds`                            |
+| `kind`       | String   | Yes      | Only populated where the section declares `kinds` for this owner type — `highlight_episodes` has them on tv-show/cartoon but not manga |
 | `title`      | String   | Yes      | The name half of a `name_links` item                                          |
 | `content`    | Text     | Yes      | The body text                                                                 |
 | `links`      | JSONB    | Yes      | List of URLs — a list even where the old shape held one                      |

@@ -39,6 +39,24 @@ def test_only_declared_sections_have_kinds():
     assert with_kinds == ["highlights", "op_ed_changes"]
 
 
+def test_highlight_kinds_cover_episode_moment_and_arc():
+    assert ns.HIGHLIGHT_KINDS == ("神回", "神片段", "神篇章")
+    assert ns.section_by_key("highlights").kinds == ns.HIGHLIGHT_KINDS
+
+
+def test_kinds_for_gives_tv_and_cartoon_a_highlight_dropdown():
+    sec = ns.section_by_key("highlight_episodes")
+    assert ns.kinds_for(sec, "tv-show") == ns.HIGHLIGHT_KINDS
+    assert ns.kinds_for(sec, "cartoon") == ns.HIGHLIGHT_KINDS
+    # Manga highlights are always 神回, so a chooser there would have one choice.
+    assert ns.kinds_for(sec, "manga") == ()
+
+
+def test_kinds_for_falls_back_to_the_section_default():
+    assert ns.kinds_for(ns.section_by_key("highlights"), "anime") == ns.HIGHLIGHT_KINDS
+    assert ns.kinds_for(ns.section_by_key("extended_episodes"), "anime") == ()
+
+
 def test_op_ed_kinds_exclude_retired_values():
     sec = ns.section_by_key("op_ed_changes")
     assert "回顧" not in sec.kinds

@@ -430,10 +430,11 @@ entry: `key`, `shape`, `label`, `kinds`, `episode_placeholder`, `singleton`,
 
 **The registry is the contract.** `app/utils/note_sections.py` is the single
 authority on what a section is; `/sections` is how the frontend learns it, so
-the page names no section keys of its own. `label`, `episode_placeholder` and
-`desc_required` arrive already resolved for the requested owner — manga reads
-"神回" and "Chapter(s), e.g. ch 6" where TV reads the defaults — so the client
-needs no per-owner branching.
+the page names no section keys of its own. `label`, `kinds`,
+`episode_placeholder` and `desc_required` arrive already resolved for the
+requested owner — on `highlight_episodes`, manga reads "神回", "Chapter(s), e.g.
+ch 6" and an empty `kinds`, where TV and cartoon read the defaults plus the
+神回/神片段/神篇章 dropdown — so the client needs no per-owner branching.
 
 **Ordering.** A listing sorts by the section's position in the registry first,
 then `sort_index` within it, which is exactly the page's render order.

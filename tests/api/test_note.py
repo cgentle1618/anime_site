@@ -59,8 +59,20 @@ def test_sections_carry_kinds_and_placeholders(client):
         "變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED",
     ]
     assert by_key["extended_episodes"]["kinds"] == []
+    assert by_key["highlights"]["kinds"] == ["神回", "神片段", "神篇章"]
     assert by_key["remark"]["singleton"] is True
     assert by_key["adaptation"]["desc_required"] is True
+
+
+def test_highlight_dropdown_is_resolved_per_owner(client):
+    for owner_type in ("tv-show", "cartoon"):
+        r = client.get("/api/notes/sections", params={"owner_type": owner_type})
+        by_key = {s["key"]: s for s in r.json()}
+        assert by_key["highlight_episodes"]["kinds"] == ["神回", "神片段", "神篇章"]
+
+    r = client.get("/api/notes/sections", params={"owner_type": "manga"})
+    by_key = {s["key"]: s for s in r.json()}
+    assert by_key["highlight_episodes"]["kinds"] == []
 
 
 # --- List -----------------------------------------------------------------

@@ -369,16 +369,21 @@ Anime, TV Show and Cartoon. Which OP/ED a given episode did something unusual wi
 | `特殊OP`  |         | A one-off special OP            |
 | `特殊ED`  |         | A one-off special ED            |
 
-### `highlights` (神回/神片段)
+### `highlights` / `highlight_episodes` (神回/神片段)
 
-Anime only. The stored data distinguishes a great episode from a great arc, so
-this section keeps a dropdown even though its siblings (`highlight_episodes`,
-`highlight_passages`) do not.
+Anime (`highlights`), plus TV Show and Cartoon (`highlight_episodes`). The
+stored data distinguishes a great episode from a great moment inside one and a
+great arc across several, so these sections carry a dropdown.
 
-| Value    | Default | Notes                        |
-| -------- | ------- | ---------------------------- |
-| `神回`   |         | A standout single episode    |
-| `神篇章` |         | A standout arc               |
+| Value    | Default | Notes                                  |
+| -------- | ------- | -------------------------------------- |
+| `神回`   |         | A standout single episode              |
+| `神片段` |         | A standout moment within an episode     |
+| `神篇章` |         | A standout arc spanning several episodes |
+
+Manga also uses `highlight_episodes`, but with **no** dropdown: its highlights
+are always 神回, which is why the section is labelled that on manga. `novel`'s
+`highlight_passages` has no kind either.
 
 ### Retired: `回顧` and `其他`
 

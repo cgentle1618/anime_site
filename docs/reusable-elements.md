@@ -812,7 +812,8 @@ owner types; `pages/detail/*Notes.jsx` are thin wrappers that pass
 `GET /api/notes/sections?owner_type=…` once on mount and renders whatever comes
 back, in the order it comes back. The frontend names no section keys and hard-codes
 no labels, so the backend can add, drop, relabel or reorder a section — or change
-manga's "神回" and `Chapter(s), e.g. ch 6` wording — with no frontend change.
+manga's "神回" and `Chapter(s), e.g. ch 6` wording, or hand TV and cartoon the
+神回/神片段/神篇章 dropdown manga does not get — with no frontend change.
 Rows come from `GET /api/notes?owner_type=…&owner_id=…`; each edit writes a single
 row through `/api/notes` rather than re-saving the whole entry, which is the point
 of the table replacing the old per-entry `notes` JSONB blob.

@@ -56,6 +56,10 @@ class NoteSection:
     labels: dict[str, str] = field(default_factory=dict)
     # Allowed values for note.kind. Empty means the section has no dropdown.
     kinds: tuple[str, ...] = ()
+    # Per-owner kind overrides; `kinds` is the fallback. A section may offer a
+    # dropdown to some owners and none to others - manga highlights are always
+    # 神回, so a chooser there would have one choice.
+    kinds_by_owner: dict[str, tuple[str, ...]] = field(default_factory=dict)
     episode_placeholder: str | None = None
     # Per-owner episode-placeholder overrides; `episode_placeholder` is the
     # fallback. Manga counts chapters, not episodes.
@@ -67,6 +71,11 @@ class NoteSection:
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
+
+# A standout episode, a standout moment inside one, and a standout arc across
+# several. Shared by the two episode-shaped highlight sections so they cannot
+# drift apart.
+HIGHLIGHT_KINDS = ("神回", "神片段", "神篇章")
 
 # Order here is display order.
 NOTE_SECTIONS: tuple[NoteSection, ...] = (
@@ -120,9 +129,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="神回/神片段 Highlights",
         owners=("anime",),
         episode_placeholder="Episode(s), e.g. ep 6",
-        # The stored data distinguishes a great episode from a great arc, so the
-        # section keeps a dropdown even though its siblings do not.
-        kinds=("神回", "神篇章"),
+        # The stored data distinguishes a great episode from a great moment or
+        # arc, so the section keeps a dropdown even though its siblings do not.
+        kinds=HIGHLIGHT_KINDS,
     ),
     NoteSection(
         key="highlight_episodes",
@@ -130,6 +139,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="神回/神片段",
         owners=("tv-show", "cartoon", "manga"),
         labels={"manga": "神回"},
+        # TV shows and cartoons draw the same distinction anime does. Manga
+        # does not, so it keeps the plain field.
+        kinds_by_owner={"tv-show": HIGHLIGHT_KINDS, "cartoon": HIGHLIGHT_KINDS},
         episode_placeholder="Episode(s), e.g. ep 3",
         episode_placeholders={"manga": "Chapter(s), e.g. ch 6"},
     ),
@@ -262,6 +274,11 @@ def sections_for(owner_type: str) -> list[NoteSection]:
 def label_for(section: NoteSection, owner_type: str) -> str:
     """This section's label for this owner, falling back to the default."""
     return section.labels.get(owner_type, section.label)
+
+
+def kinds_for(section: NoteSection, owner_type: str) -> tuple[str, ...]:
+    """This section's allowed kinds for this owner, falling back to the default."""
+    return section.kinds_by_owner.get(owner_type, section.kinds)
 
 
 def placeholder_for(section: NoteSection, owner_type: str) -> str | None:

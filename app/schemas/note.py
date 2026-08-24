@@ -12,6 +12,7 @@ from app.utils.note_sections import (
     SHAPE_NAME_LINKS,
     STORED_SHAPES,
     NoteSection,
+    kinds_for,
     label_for,
     placeholder_for,
     section_by_key,
@@ -76,7 +77,7 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         key=section.key,
         shape=section.shape,
         label=label_for(section, owner_type),
-        kinds=list(section.kinds),
+        kinds=list(kinds_for(section, owner_type)),
         episode_placeholder=placeholder_for(section, owner_type),
         singleton=section.singleton,
         desc_required=owner_type in section.desc_required,
@@ -114,9 +115,13 @@ def validate_note_payload(payload: NoteBase) -> None:
         )
 
     if payload.kind:
-        if not section.kinds:
-            raise ValueError(f"Section '{section.key}' takes no kind.")
-        if payload.kind not in section.kinds:
+        allowed = kinds_for(section, owner_type)
+        if not allowed:
+            raise ValueError(
+                f"Section '{section.key}' takes no kind for owner type "
+                f"'{owner_type}'."
+            )
+        if payload.kind not in allowed:
             raise ValueError(
                 f"'{payload.kind}' is not a valid kind for section '{section.key}'."
             )
