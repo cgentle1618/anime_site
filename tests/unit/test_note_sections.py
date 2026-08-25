@@ -191,3 +191,12 @@ def test_public_reviews_is_the_only_text_or_link_section():
 
 def test_personal_reviews_stays_plain_text():
     assert ns.section_by_key("personal_reviews").shape == ns.SHAPE_TEXT
+
+
+def test_episode_comments_is_text_links_with_an_episode_field():
+    # A comment on an episode carries a body and any number of sources, and
+    # still has to say which episode it is about.
+    sec = ns.section_by_key("episode_comments")
+    assert sec.shape == ns.SHAPE_TEXT_LINKS
+    assert ns.placeholder_for(sec, "anime") == "Episode, e.g. ep 1"
+    assert sec.owners == ("anime", "tv-show", "cartoon")

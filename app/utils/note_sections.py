@@ -128,7 +128,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="episode_comments",
-        shape=SHAPE_EPISODE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
         owners=("anime", "tv-show", "cartoon"),
         episode_placeholder="Episode, e.g. ep 1",

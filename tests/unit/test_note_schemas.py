@@ -131,7 +131,7 @@ def test_name_links_row_may_have_only_title():
 def test_episode_text_row_may_have_only_episode():
     # episode_text shape allows episode alone, without content
     validate_note_payload(
-        _payload(section="episode_comments", episode="ep 1", content=None)
+        _payload(section="extended_episodes", episode="ep 1", content=None)
     )
 
 
@@ -139,7 +139,7 @@ def test_episode_text_row_without_episode_and_content_rejected():
     # episode_text shape requires either episode or content
     with pytest.raises(ValueError, match="empty"):
         validate_note_payload(
-            _payload(section="episode_comments", episode=None, content=None)
+            _payload(section="extended_episodes", episode=None, content=None)
         )
 
 
@@ -199,4 +199,44 @@ def test_blank_text_or_link_row_rejected():
     with pytest.raises(ValueError, match="empty"):
         validate_note_payload(
             _payload(section="public_reviews", content="  ", links=None)
+        )
+
+
+# --- episode_comments as text_links -----------------------------------------
+# An episode comment is a comment plus its sources, so it carries an episode,
+# a body and any number of links. The episode alone is not a note.
+
+
+def test_episode_comment_may_be_episode_and_text():
+    validate_note_payload(
+        _payload(section="episode_comments", episode="ep 1", content="開場就定調")
+    )
+
+
+def test_episode_comment_may_carry_several_links():
+    validate_note_payload(
+        _payload(
+            section="episode_comments",
+            episode="ep 1",
+            content=None,
+            links=["https://a.example/1", "https://b.example/2"],
+        )
+    )
+
+
+def test_episode_comment_may_carry_text_and_links_together():
+    validate_note_payload(
+        _payload(
+            section="episode_comments",
+            episode="ep 1",
+            content="開場就定調",
+            links=["https://a.example/1", "https://b.example/2"],
+        )
+    )
+
+
+def test_episode_comment_with_only_an_episode_rejected():
+    with pytest.raises(ValueError, match="empty"):
+        validate_note_payload(
+            _payload(section="episode_comments", episode="ep 1", content=None)
         )
