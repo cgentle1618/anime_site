@@ -24,13 +24,23 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 # shape does not name stay null.
 SHAPE_TEXT = "text"  # content
 SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
+# content XOR one link. Distinct from text_links, which lets one row carry a
+# body AND its sources: a public review is either what someone said or a
+# pointer to where they said it, so mixing the two in one row is ambiguous.
+SHAPE_TEXT_OR_LINK = "text_or_link"  # content or links[0], never both
 SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared
 SHAPE_NAME_LINKS = "name_links"  # title, links
 # Backed by its own table (quote, meme), never by a `note` row.
 SHAPE_EXTERNAL = "external"
 
 STORED_SHAPES = frozenset(
-    {SHAPE_TEXT, SHAPE_TEXT_LINKS, SHAPE_EPISODE_TEXT, SHAPE_NAME_LINKS}
+    {
+        SHAPE_TEXT,
+        SHAPE_TEXT_LINKS,
+        SHAPE_TEXT_OR_LINK,
+        SHAPE_EPISODE_TEXT,
+        SHAPE_NAME_LINKS,
+    }
 )
 
 # --- Owner groups ---------------------------------------------------------
@@ -106,7 +116,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="public_reviews",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_OR_LINK,
         label="大眾評價 Public Reviews",
         owners=ALL_OWNERS,
     ),

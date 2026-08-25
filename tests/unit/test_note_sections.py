@@ -10,6 +10,7 @@ def test_every_section_has_a_known_shape():
     valid = {
         ns.SHAPE_TEXT,
         ns.SHAPE_TEXT_LINKS,
+        ns.SHAPE_TEXT_OR_LINK,
         ns.SHAPE_EPISODE_TEXT,
         ns.SHAPE_NAME_LINKS,
         ns.SHAPE_EXTERNAL,
@@ -173,3 +174,20 @@ def test_labels_use_ascii_solidus():
         assert "／" not in sec.label
         for value in sec.labels.values():
             assert "／" not in value
+
+
+def test_public_reviews_takes_text_or_a_link():
+    # A public review is either something someone said or a pointer to where
+    # they said it, never both in one row.
+    sec = ns.section_by_key("public_reviews")
+    assert sec.shape == ns.SHAPE_TEXT_OR_LINK
+    assert ns.SHAPE_TEXT_OR_LINK in ns.STORED_SHAPES
+
+
+def test_public_reviews_is_the_only_text_or_link_section():
+    keys = [s.key for s in ns.NOTE_SECTIONS if s.shape == ns.SHAPE_TEXT_OR_LINK]
+    assert keys == ["public_reviews"]
+
+
+def test_personal_reviews_stays_plain_text():
+    assert ns.section_by_key("personal_reviews").shape == ns.SHAPE_TEXT

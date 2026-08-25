@@ -1126,9 +1126,13 @@ a series, franchise, or collection — the same ten `owner_type` values.
   The columns above are the union of every shape; columns a shape does not name
   stay null. This is one table on purpose: adding a section costs a registry
   entry and no migration, and adding a new *shape* costs one nullable column.
-- **Four stored shapes**, plus one that is not stored: `text` (content),
-  `text_links` (content, links, optional episode), `episode_text` (episode,
-  content, and kind where declared), and `name_links` (title, links).
+- **Five stored shapes**, plus one that is not stored: `text` (content),
+  `text_links` (content, links, optional episode), `text_or_link` (content
+  XOR one link), `episode_text` (episode, content, and kind where declared),
+  and `name_links` (title, links). `text_or_link` — used only by
+  `public_reviews` — reuses the same two columns as `text_links` but rejects a
+  row holding both: a public review is either what someone said or a pointer to
+  where they said it.
   `external` sections — `quotes` and `memes` — are backed by their own tables
   and never by a `note` row; the registry lists them so the page can render
   them in order alongside the rest.

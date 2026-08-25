@@ -10,6 +10,7 @@ from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
     SHAPE_EPISODE_TEXT,
     SHAPE_NAME_LINKS,
+    SHAPE_TEXT_OR_LINK,
     STORED_SHAPES,
     NoteSection,
     kinds_for,
@@ -136,6 +137,18 @@ def validate_note_payload(payload: NoteBase) -> None:
     if section.shape == SHAPE_NAME_LINKS:
         if not content and not (payload.title or "").strip() and not payload.links:
             raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_TEXT_OR_LINK:
+        links = [l for l in (payload.links or []) if l.strip()]
+        if not content and not links:
+            raise ValueError(f"Section '{section.key}' note is empty.")
+        # The whole point of the shape: one row says one thing. A row carrying
+        # both leaves no answer to "is this the review, or where to find it?".
+        if content and links:
+            raise ValueError(
+                f"Section '{section.key}' takes text or a link, not both."
+            )
+        if len(links) > 1:
+            raise ValueError(f"Section '{section.key}' takes one link per note.")
     elif section.shape == SHAPE_EPISODE_TEXT:
         if not content and not (payload.episode or "").strip():
             raise ValueError(f"Section '{section.key}' note is empty.")

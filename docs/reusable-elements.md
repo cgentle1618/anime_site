@@ -818,12 +818,13 @@ Rows come from `GET /api/notes?owner_type=…&owner_id=…`; each edit writes a 
 row through `/api/notes` rather than re-saving the whole entry, which is the point
 of the table replacing the old per-entry `notes` JSONB blob.
 
-**Four shape components**, picked by the `shape` the registry reports:
+**Five shape components**, picked by the `shape` the registry reports:
 
 | Shape          | Component                  | Renders                                                          |
 | -------------- | -------------------------- | ----------------------------------------------------------------- |
 | `text`         | `TextSection.jsx`          | A list of plain-text items. A `singleton` section (Remark) renders one textarea instead, with a fullscreen overlay sharing the same draft. |
 | `text_links`   | `TextLinksSection.jsx`     | Items of description + any number of links, plus an optional episode input shown when the section declares an `episode_placeholder`. |
+| `text_or_link` | `TextOrLinkSection.jsx`    | A list where each item is either text or a single link. One input per row; `textOrLink.js`'s `classify` sends the value as `content` or as `links[0]` — an explicit `http(s)://` scheme and nothing else makes a link. |
 | `episode_text` | `EpisodeTextSection.jsx`   | Episode-anchored items: episode + content, plus a kind dropdown where the section declares `kinds`. |
 | `name_links`   | `NameLinksSection.jsx`     | Named links (Resources, Unread) — a title plus any number of URLs. |
 
