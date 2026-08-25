@@ -86,6 +86,7 @@ Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and 
 
 - Anime Movie is not the same as Anime with airing_type as "movie". Anime Movie has its own database table anime_movie. Anime with airing_type as "movie" belongs to the database table anime. When mentioning Anime Movie, it is more likely to be referring to the entries in anime_movie database table.
 - Reality franchise is referring to franchise with type as "TV or Movie".
+- "Group" usually refers to the grouping tiers collectively: collection, franchise, and series (as opposed to the individual media entries).
 
 ## Concurrent Claude Code Sessions
 
