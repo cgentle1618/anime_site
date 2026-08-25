@@ -136,10 +136,12 @@ def test_episode_text_row_may_have_only_a_locator():
 
 
 def test_episode_text_row_without_locator_and_content_rejected():
-    # episode_text shape requires either a locator or content. extended_episodes
-    # would trip locator_required first, so this uses a section that does not
-    # demand one.
-    with pytest.raises(ValueError, match="empty"):
+    # No registry section can currently reach the episode_text emptiness check:
+    # every one of them either requires a locator or requires content, and one
+    # of those fires first. The row is still rejected, which is what matters
+    # here; the check stays as the guard for a future section that demands
+    # neither.
+    with pytest.raises(ValueError):
         validate_note_payload(
             _payload(section="questions", locator=None, content=None)
         )
@@ -291,3 +293,23 @@ def test_section_out_reports_the_locator_contract():
 
     out = section_out(section_by_key("foreshadowing"), "anime")
     assert out.locator_required is False
+
+
+def test_question_may_name_its_source():
+    validate_note_payload(
+        _payload(section="questions", locator="ep 3", content="為何不直接說？")
+    )
+
+
+def test_question_needs_no_source():
+    validate_note_payload(
+        _payload(section="questions", locator=None, content="為何不直接說？")
+    )
+
+
+def test_question_with_only_a_source_is_rejected():
+    # The reverse of the locator_required sections: here the body is the point.
+    with pytest.raises(ValueError, match="requires content"):
+        validate_note_payload(
+            _payload(section="questions", locator="ep 3", content=None)
+        )

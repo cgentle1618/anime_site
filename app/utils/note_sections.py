@@ -253,9 +253,16 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="questions",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_EPISODE_TEXT,
         label="Questions",
         owners=ALL_OWNERS,
+        # The locator here is not an episode: it is whatever prompted the
+        # question - an episode, a scene, an interview. Optional, because
+        # plenty of questions are about the work as a whole.
+        locator_placeholder="Source, e.g. ep 3",
+        # The mirror of locator_required: a source with no question attached
+        # says nothing, so the body is what cannot be missing.
+        desc_required=ALL_OWNERS,
     ),
     NoteSection(
         key="quotes",

@@ -56,7 +56,9 @@ function EpisodeTextForm({ val, setVal, section }) {
         value={val.content}
         onChange={(e) => setVal({ ...val, content: e.target.value })}
         rows={2}
-        placeholder="Description"
+        placeholder={
+          section.desc_required ? "Description (required)" : "Description"
+        }
         className={inputCls}
       />
     </div>
@@ -82,6 +84,9 @@ export default function EpisodeTextSection({
   // sees a disabled Save rather than a 422.
   const invalid = (val) => {
     if (section.locator_required && !val.locator.trim()) return true;
+    // The mirror of the above: `questions` takes an optional source but the
+    // question itself is the point.
+    if (section.desc_required && !val.content.trim()) return true;
     return !val.locator.trim() && !val.content.trim();
   };
 

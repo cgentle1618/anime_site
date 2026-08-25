@@ -120,10 +120,11 @@ def test_franchise_is_series_minus_cinematography():
     assert series - franchise == {"cinematography"}
 
 
-def test_episode_sections_never_reach_the_tiers():
-    episode_keys = {
-        s.key for s in ns.NOTE_SECTIONS if s.shape == ns.SHAPE_EPISODE_TEXT
-    }
+def test_episode_anchored_sections_never_reach_the_tiers():
+    # The shape no longer identifies these - `questions` is episode_text too,
+    # and its locator is a source, not an episode, so it belongs everywhere.
+    # What marks a section as genuinely episode-anchored is demanding one.
+    episode_keys = {s.key for s in ns.NOTE_SECTIONS if s.locator_required}
     for tier in ("series", "franchise", "collection"):
         assert not episode_keys & {s.key for s in ns.sections_for(tier)}
 
@@ -243,3 +244,15 @@ def test_locator_stays_optional_where_the_work_may_have_no_anchor():
     # nothing to point at.
     for key in ("cinematography", "foreshadowing", "symmetry"):
         assert not ns.section_by_key(key).locator_required
+
+
+def test_questions_records_where_the_question_came_from():
+    # The locator here is not an episode at all - it is the source that
+    # prompted the question. Same column, section-supplied label.
+    sec = ns.section_by_key("questions")
+    assert sec.shape == ns.SHAPE_EPISODE_TEXT
+    assert ns.locator_for(sec, "anime") == "Source, e.g. ep 3"
+    # Optional: plenty of questions arise from the work as a whole.
+    assert not sec.locator_required
+    # But a source with no question attached is nothing, so the body is not.
+    assert sec.desc_required == ns.ALL_OWNERS
