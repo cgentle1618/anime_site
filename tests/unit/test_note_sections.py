@@ -142,14 +142,14 @@ def test_label_for_falls_back_to_default():
     assert ns.label_for(sec, "tv-show") == "神回/神片段"
 
 
-def test_placeholder_for_falls_back_to_default():
+def test_locator_for_falls_back_to_default():
     sec = ns.section_by_key("highlight_episodes")
-    assert ns.placeholder_for(sec, "manga") == "Chapter(s), e.g. ch 6"
-    assert ns.placeholder_for(sec, "tv-show") == "Episode(s), e.g. ep 3"
+    assert ns.locator_for(sec, "manga") == "Chapter(s), e.g. ch 6"
+    assert ns.locator_for(sec, "tv-show") == "Episode(s), e.g. ep 3"
 
 
-def test_placeholder_for_is_none_without_one():
-    assert ns.placeholder_for(ns.section_by_key("remark"), "anime") is None
+def test_locator_for_is_none_without_one():
+    assert ns.locator_for(ns.section_by_key("remark"), "anime") is None
 
 
 def test_episode_anchored_text_links_offer_an_episode():
@@ -158,7 +158,7 @@ def test_episode_anchored_text_links_offer_an_episode():
     the text_links episode input must actually render for them.
     """
     for key in ("foreshadowing", "symmetry", "cinematography"):
-        assert ns.section_by_key(key).episode_placeholder
+        assert ns.section_by_key(key).locator_placeholder
 
 
 def test_desc_required_is_per_owner():
@@ -196,7 +196,7 @@ def test_episode_comments_is_text_links_with_an_episode_field():
     # still has to say which episode it is about.
     sec = ns.section_by_key("episode_comments")
     assert sec.shape == ns.SHAPE_TEXT_LINKS
-    assert ns.placeholder_for(sec, "anime") == "Episode, e.g. ep 1"
+    assert ns.locator_for(sec, "anime") == "Episode, e.g. ep 1"
     assert sec.owners == ("anime", "tv-show", "cartoon")
 
 
@@ -206,3 +206,40 @@ def test_unread_is_gone():
     # `resources`, so the key must not come back.
     assert ns.section_by_key("unread") is None
     assert "unread" not in {s.key for s in ns.NOTE_SECTIONS}
+
+
+# --- locator ----------------------------------------------------------------
+# The field is not an episode: it may be a scene, a chapter, a timestamp or the
+# source of a question. One free-text column, labelled and required per section.
+
+
+def test_locator_for_labels_the_field_per_section_and_owner():
+    assert (
+        ns.locator_for(ns.section_by_key("episode_comments"), "anime")
+        == "Episode, e.g. ep 1"
+    )
+    # Manga counts chapters, not episodes.
+    assert (
+        ns.locator_for(ns.section_by_key("highlight_episodes"), "manga")
+        == "Chapter(s), e.g. ch 6"
+    )
+    # A section with no anchor at all offers no field.
+    assert ns.locator_for(ns.section_by_key("advantages"), "anime") is None
+
+
+def test_sections_that_are_meaningless_without_an_anchor_require_one():
+    required = {s.key for s in ns.NOTE_SECTIONS if s.locator_required}
+    assert required == {
+        "episode_comments",
+        "highlights",
+        "highlight_episodes",
+        "op_ed_changes",
+        "extended_episodes",
+    }
+
+
+def test_locator_stays_optional_where_the_work_may_have_no_anchor():
+    # These reach movies and the series/franchise tiers, where there is often
+    # nothing to point at.
+    for key in ("cinematography", "foreshadowing", "symmetry"):
+        assert not ns.section_by_key(key).locator_required

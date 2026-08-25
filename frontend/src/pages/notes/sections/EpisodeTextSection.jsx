@@ -1,5 +1,6 @@
-// Frontend: renders one `episode_text`-shaped section - a comment pinned to an
-// episode or chapter, with a kind dropdown where the registry declares one
+// Frontend: renders one `episode_text`-shaped section - a comment pinned to a
+// locator (an episode, a chapter, a scene, a timestamp - the registry supplies
+// the label), with a kind dropdown where the registry declares one
 // (op_ed_changes, highlights) and none where it does not.
 import { useState } from "react";
 
@@ -11,16 +12,16 @@ import {
   inputCls,
 } from "./ui";
 
-const empty = () => ({ episode: "", kind: "", content: "" });
+const empty = () => ({ locator: "", kind: "", content: "" });
 
 const fromNote = (n) => ({
-  episode: n.episode || "",
+  locator: n.locator || "",
   kind: n.kind || "",
   content: n.content || "",
 });
 
 const toFields = (val, section) => ({
-  episode: val.episode.trim() || null,
+  locator: val.locator.trim() || null,
   kind: section.kinds?.length ? val.kind.trim() || null : null,
   content: val.content.trim() || null,
 });
@@ -31,9 +32,9 @@ function EpisodeTextForm({ val, setVal, section }) {
     <div className="space-y-2">
       <div className={hasKinds ? "grid grid-cols-2 gap-2" : ""}>
         <input
-          value={val.episode}
-          onChange={(e) => setVal({ ...val, episode: e.target.value })}
-          placeholder={section.episode_placeholder ?? "Episode"}
+          value={val.locator}
+          onChange={(e) => setVal({ ...val, locator: e.target.value })}
+          placeholder={section.locator_placeholder ?? "Where"}
           className={inputCls}
         />
         {hasKinds && (
@@ -75,8 +76,14 @@ export default function EpisodeTextSection({
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
 
-  // An episode alone is a legitimate note, and so is text alone.
-  const invalid = (val) => !val.episode.trim() && !val.content.trim();
+  // A locator alone is a legitimate note, and so is text alone - except where
+  // the section is only about where it points, and then the locator is the one
+  // part that cannot be missing. Mirrors validate_note_payload so the reader
+  // sees a disabled Save rather than a 422.
+  const invalid = (val) => {
+    if (section.locator_required && !val.locator.trim()) return true;
+    return !val.locator.trim() && !val.content.trim();
+  };
 
   const commit = () => {
     if (invalid(draft)) return;
@@ -116,9 +123,9 @@ export default function EpisodeTextSection({
             <div className="flex gap-2 items-start">
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {n.episode && (
+                  {n.locator && (
                     <span className="text-[11px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded">
-                      {n.episode}
+                      {n.locator}
                     </span>
                   )}
                   {n.kind && (

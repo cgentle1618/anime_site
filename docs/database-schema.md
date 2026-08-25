@@ -1112,7 +1112,7 @@ a series, franchise, or collection — the same ten `owner_type` values.
 | `owner_type` | String   | Yes      | **Ten** values: the seven media types plus `series` / `franchise` / `collection`, indexed |
 | `owner_id`   | UUID     | Yes      | **No FK** — points at whichever of the ten tables `owner_type` names, indexed |
 | `section`    | String   | Yes      | Names an entry in `NOTE_SECTIONS`; that entry declares the shape, indexed    |
-| `episode`    | String   | Yes      | Free text, so `"ep 3"`, `"ep 3-5"` and `"ch 12"` all fit one column          |
+| `locator`    | String   | Yes      | Where in the work the item points: an episode, chapter, scene, timestamp, or the source a question came from. Free text, so `"ep 3"`, `"ep 3-5"`, `"ch 12"` and `"1:14:20"` all fit one column. The section supplies the label (`locator_placeholder`) and whether it is required (`locator_required`) |
 | `kind`       | String   | Yes      | Only populated where the section declares `kinds` for this owner type — `highlight_episodes` has them on tv-show/cartoon but not manga |
 | `title`      | String   | Yes      | The name half of a `name_links` item                                          |
 | `content`    | Text     | Yes      | The body text                                                                 |
@@ -1127,8 +1127,8 @@ a series, franchise, or collection — the same ten `owner_type` values.
   stay null. This is one table on purpose: adding a section costs a registry
   entry and no migration, and adding a new *shape* costs one nullable column.
 - **Five stored shapes**, plus one that is not stored: `text` (content),
-  `text_links` (content, links, optional episode), `text_or_link` (content
-  XOR one link), `episode_text` (episode, content, and kind where declared),
+  `text_links` (content, links, optional locator), `text_or_link` (content
+  XOR one link), `episode_text` (locator, content, and kind where declared),
   and `name_links` (title, links). `text_or_link` — used only by
   `public_reviews` — reuses the same two columns as `text_links` but rejects a
   row holding both: a public review is either what someone said or a pointer to
@@ -1136,6 +1136,14 @@ a series, franchise, or collection — the same ten `owner_type` values.
   `external` sections — `quotes` and `memes` — are backed by their own tables
   and never by a `note` row; the registry lists them so the page can render
   them in order alongside the rest.
+- **One locator column, not one per medium.** `locator` was called `episode`
+  until it had to hold scenes and timestamps too. A column per medium
+  (`episode`, `chapter`, `scene`, `timestamp`) would be null in almost every
+  row and would cost a migration each time a new medium arrives, so the value
+  and its label are separated the way a citation separates a locator from the
+  kind of locator: the string lives here, the label and requiredness live in
+  the section registry. `parse_note_from_sheet` still accepts the old
+  `episode` header so a spreadsheet backed up before the rename still Pulls.
 - `owner_id` carries no foreign key for the same reason `meme.owner_id` does
   not: no single FK spans ten tables. A deleted owner leaves rows that
   `app/utils/media_resolver.py` flags as missing rather than silently dropping.

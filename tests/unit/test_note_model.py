@@ -12,7 +12,7 @@ def test_column_order_is_the_sheet_order():
         "owner_type",
         "owner_id",
         "section",
-        "episode",
+        "locator",
         "kind",
         "title",
         "content",

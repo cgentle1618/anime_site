@@ -425,13 +425,13 @@ grouping tiers — the same ten hyphenated `owner_type` values.
 | `DELETE` | `/{note_id}`   | Admin  | Delete. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.                               |
 
 **Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
-entry: `key`, `shape`, `label`, `kinds`, `episode_placeholder`, `singleton`,
-`desc_required`).
+entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
+`locator_required`, `singleton`, `desc_required`).
 
 **The registry is the contract.** `app/utils/note_sections.py` is the single
 authority on what a section is; `/sections` is how the frontend learns it, so
 the page names no section keys of its own. `label`, `kinds`,
-`episode_placeholder` and `desc_required` arrive already resolved for the
+`locator_placeholder` and `desc_required` arrive already resolved for the
 requested owner — on `highlight_episodes`, manga reads "神回", "Chapter(s), e.g.
 ch 6" and an empty `kinds`, where TV and cartoon read the defaults plus the
 神回/神片段/神篇章 dropdown — so the client needs no per-owner branching.

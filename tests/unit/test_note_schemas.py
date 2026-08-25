@@ -35,7 +35,7 @@ def test_section_not_applicable_to_owner_rejected():
     # episode_comments is entry-only; a franchise may not have one.
     with pytest.raises(ValueError, match="does not apply"):
         validate_note_payload(
-            _payload(owner_type="franchise", section="episode_comments", episode="ep 1")
+            _payload(owner_type="franchise", section="episode_comments", locator="ep 1")
         )
 
 
@@ -48,31 +48,31 @@ def test_external_section_rejected():
 def test_kind_must_be_in_the_dropdown():
     with pytest.raises(ValueError, match="not a valid kind"):
         validate_note_payload(
-            _payload(section="op_ed_changes", episode="ep 3", kind="回顧")
+            _payload(section="op_ed_changes", locator="ep 3", kind="回顧")
         )
 
 
 def test_kind_from_the_dropdown_accepted():
     validate_note_payload(
-        _payload(section="op_ed_changes", episode="ep 3", kind="變化OP")
+        _payload(section="op_ed_changes", locator="ep 3", kind="變化OP")
     )
 
 
 def test_kind_rejected_where_no_dropdown_declared():
     with pytest.raises(ValueError, match="takes no kind"):
         validate_note_payload(
-            _payload(section="extended_episodes", episode="ep 12", kind="加長")
+            _payload(section="extended_episodes", locator="ep 12", kind="加長")
         )
 
 
 def test_highlight_kind_is_accepted_where_the_owner_has_the_dropdown():
-    validate_note_payload(_payload(section="highlights", episode="ep 6", kind="神片段"))
-    validate_note_payload(_payload(section="highlights", episode="ep 6", kind="神篇章"))
+    validate_note_payload(_payload(section="highlights", locator="ep 6", kind="神片段"))
+    validate_note_payload(_payload(section="highlights", locator="ep 6", kind="神篇章"))
     validate_note_payload(
         _payload(
             owner_type="tv-show",
             section="highlight_episodes",
-            episode="ep 6",
+            locator="ep 6",
             kind="神片段",
         )
     )
@@ -85,7 +85,7 @@ def test_highlight_kind_rejected_for_manga():
             _payload(
                 owner_type="manga",
                 section="highlight_episodes",
-                episode="ch 6",
+                locator="ch 6",
                 kind="神片段",
             )
         )
@@ -128,18 +128,20 @@ def test_name_links_row_may_have_only_title():
     )
 
 
-def test_episode_text_row_may_have_only_episode():
-    # episode_text shape allows episode alone, without content
+def test_episode_text_row_may_have_only_a_locator():
+    # episode_text shape allows the locator alone, without content
     validate_note_payload(
-        _payload(section="extended_episodes", episode="ep 1", content=None)
+        _payload(section="extended_episodes", locator="ep 1", content=None)
     )
 
 
-def test_episode_text_row_without_episode_and_content_rejected():
-    # episode_text shape requires either episode or content
+def test_episode_text_row_without_locator_and_content_rejected():
+    # episode_text shape requires either a locator or content. extended_episodes
+    # would trip locator_required first, so this uses a section that does not
+    # demand one.
     with pytest.raises(ValueError, match="empty"):
         validate_note_payload(
-            _payload(section="extended_episodes", episode=None, content=None)
+            _payload(section="questions", locator=None, content=None)
         )
 
 
@@ -209,7 +211,7 @@ def test_blank_text_or_link_row_rejected():
 
 def test_episode_comment_may_be_episode_and_text():
     validate_note_payload(
-        _payload(section="episode_comments", episode="ep 1", content="開場就定調")
+        _payload(section="episode_comments", locator="ep 1", content="開場就定調")
     )
 
 
@@ -217,7 +219,7 @@ def test_episode_comment_may_carry_several_links():
     validate_note_payload(
         _payload(
             section="episode_comments",
-            episode="ep 1",
+            locator="ep 1",
             content=None,
             links=["https://a.example/1", "https://b.example/2"],
         )
@@ -228,7 +230,7 @@ def test_episode_comment_may_carry_text_and_links_together():
     validate_note_payload(
         _payload(
             section="episode_comments",
-            episode="ep 1",
+            locator="ep 1",
             content="開場就定調",
             links=["https://a.example/1", "https://b.example/2"],
         )
@@ -238,7 +240,7 @@ def test_episode_comment_may_carry_text_and_links_together():
 def test_episode_comment_with_only_an_episode_rejected():
     with pytest.raises(ValueError, match="empty"):
         validate_note_payload(
-            _payload(section="episode_comments", episode="ep 1", content=None)
+            _payload(section="episode_comments", locator="ep 1", content=None)
         )
 
 
@@ -247,3 +249,45 @@ def test_unread_section_is_rejected():
     # row no page will ever render.
     with pytest.raises(ValueError, match="Unknown note section"):
         validate_note_payload(_payload(section="unread", title="舊清單"))
+
+
+# --- locator ----------------------------------------------------------------
+
+
+def test_locator_required_section_rejects_a_missing_locator():
+    # An OP/ED change with no episode says nothing about which OP changed.
+    with pytest.raises(ValueError, match="requires"):
+        validate_note_payload(
+            _payload(section="op_ed_changes", locator=None, content="換成劇中曲")
+        )
+
+
+def test_locator_required_section_rejects_a_blank_locator():
+    with pytest.raises(ValueError, match="requires"):
+        validate_note_payload(
+            _payload(section="episode_comments", locator="   ", content="開場就定調")
+        )
+
+
+def test_locator_required_section_passes_with_one():
+    validate_note_payload(
+        _payload(section="episode_comments", locator="ep 1", content="開場就定調")
+    )
+
+
+def test_locator_stays_optional_on_sections_that_do_not_demand_it():
+    validate_note_payload(
+        _payload(section="foreshadowing", locator=None, content="紅圍巾")
+    )
+
+
+def test_section_out_reports_the_locator_contract():
+    from app.schemas.note import section_out
+    from app.utils.note_sections import section_by_key
+
+    out = section_out(section_by_key("episode_comments"), "anime")
+    assert out.locator_placeholder == "Episode, e.g. ep 1"
+    assert out.locator_required is True
+
+    out = section_out(section_by_key("foreshadowing"), "anime")
+    assert out.locator_required is False

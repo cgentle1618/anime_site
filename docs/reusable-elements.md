@@ -823,13 +823,13 @@ of the table replacing the old per-entry `notes` JSONB blob.
 | Shape          | Component                  | Renders                                                          |
 | -------------- | -------------------------- | ----------------------------------------------------------------- |
 | `text`         | `TextSection.jsx`          | A list of plain-text items. A `singleton` section (Remark) renders one textarea instead, with a fullscreen overlay sharing the same draft. |
-| `text_links`   | `TextLinksSection.jsx`     | Items of description + any number of links, plus an optional episode input shown when the section declares an `episode_placeholder`. |
+| `text_links`   | `TextLinksSection.jsx`     | Items of description + any number of links, plus an optional locator input shown when the section declares a `locator_placeholder`. |
 | `text_or_link` | `TextOrLinkSection.jsx`    | A list where each item is either text or a single link. One input per row; `textOrLink.js`'s `classify` sends the value as `content` or as `links[0]` — an explicit `http(s)://` scheme and nothing else makes a link. |
-| `episode_text` | `EpisodeTextSection.jsx`   | Episode-anchored items: episode + content, plus a kind dropdown where the section declares `kinds`. |
+| `episode_text` | `EpisodeTextSection.jsx`   | Locator-anchored items: locator + content, plus a kind dropdown where the section declares `kinds`. |
 | `name_links`   | `NameLinksSection.jsx`     | Named links (Resources) — a title plus any number of URLs. |
 
 Each shape reads only registry-supplied props (`label`, `kinds`,
-`episode_placeholder`, `singleton`, `desc_required`), so a new section of an
+`locator_placeholder`, `locator_required`, `singleton`, `desc_required`), so a new section of an
 existing shape costs one backend registry entry and no frontend work.
 
 **`external` sections are the one documented exception.** `quotes` and `memes`

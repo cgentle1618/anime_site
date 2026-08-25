@@ -748,7 +748,12 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # unlinked rather than failing the import.
         "owner_id": _uuid_or_none(raw.get("owner_id")),
         "section": parse_from_sheet(raw.get("section"), str),
-        "episode": parse_from_sheet(raw.get("episode"), str),
+        # `episode` is the column's pre-rename header. Sheets backed up before
+        # the rename must still Pull, or every anchor in them is lost, so the
+        # old name is accepted where the current one is absent.
+        "locator": parse_from_sheet(
+            raw.get("locator") if raw.get("locator") else raw.get("episode"), str
+        ),
         "kind": parse_from_sheet(raw.get("kind"), str),
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),

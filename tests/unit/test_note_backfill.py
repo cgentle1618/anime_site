@@ -18,7 +18,7 @@ def rows(section, value):
 def test_bare_string_becomes_one_row():
     got = rows("remark", "重看第三次")
     assert got == [
-        {"section": "remark", "content": "重看第三次", "episode": None,
+        {"section": "remark", "content": "重看第三次", "locator": None,
          "kind": None, "title": None, "links": None, "sort_index": 0.0}
     ]
 
@@ -49,7 +49,7 @@ def test_name_link_with_blank_link_stores_no_links():
 
 def test_episode_entry_plural_key():
     got = rows("highlights", [{"episodes": "ep 10", "type": "", "description": "揭露"}])
-    assert got[0]["episode"] == "ep 10"
+    assert got[0]["locator"] == "ep 10"
     assert got[0]["kind"] is None
     assert got[0]["content"] == "揭露"
 
@@ -59,14 +59,14 @@ def test_episode_type_desc_singular_key():
         "highlight_episodes",
         [{"episode": "ep 3", "type": "", "description": "翻轉"}],
     )
-    assert got[0]["episode"] == "ep 3"
+    assert got[0]["locator"] == "ep 3"
     assert got[0]["content"] == "翻轉"
 
 
 def test_episode_comments_object_map_expands():
     got = rows("episode_comments", {"ep 10": "最痛", "ep 3": "翻轉"})
     # Ordered by natural sort of the episode, not by dict key order.
-    assert [r["episode"] for r in got] == ["ep 3", "ep 10"]
+    assert [r["locator"] for r in got] == ["ep 3", "ep 10"]
     assert [r["sort_index"] for r in got] == [0.0, 1.0]
 
 
@@ -147,13 +147,13 @@ def test_blank_string_item_is_not_reported_as_dropped():
 def test_empty_episode_comment_pair_is_reported_not_silently_discarded():
     dropped = []
     got = mod._rows_from_value("episode_comments", {"": "", "ep 1": "有料"}, dropped)
-    assert [r["episode"] for r in got] == ["ep 1"]
+    assert [r["locator"] for r in got] == ["ep 1"]
     assert dropped == [{"": ""}]
 
 
 def test_insert_params_are_stamped_with_backfill_stamp_not_now():
     row = {
-        "section": "remark", "episode": None, "kind": None, "title": None,
+        "section": "remark", "locator": None, "kind": None, "title": None,
         "content": "重看第三次", "links": None, "sort_index": 0.0,
     }
     params = mod._insert_params("anime", 7, row)

@@ -229,7 +229,7 @@ def update_note(
         owner_type=data.get("owner_type", db_note.owner_type),
         owner_id=data.get("owner_id", db_note.owner_id),
         section=data.get("section", db_note.section),
-        episode=data.get("episode", db_note.episode),
+        locator=data.get("locator", db_note.locator),
         kind=data.get("kind", db_note.kind),
         title=data.get("title", db_note.title),
         content=data.get("content", db_note.content),

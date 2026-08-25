@@ -88,7 +88,7 @@ _DIGITS = re.compile(r"\d+")
 def _blank_row(section: str) -> dict:
     return {
         "section": section,
-        "episode": None,
+        "locator": None,
         "kind": None,
         "title": None,
         "content": None,
@@ -145,7 +145,7 @@ def _row_from_item(section: str, item: Any) -> dict | None:
         return None
 
     # episode_entry (episodes) or episode_type_desc (episode)
-    row["episode"] = _clean(item.get("episodes") or item.get("episode"))
+    row["locator"] = _clean(item.get("episodes") or item.get("episode"))
     row["kind"] = _clean(item.get("type"))
     # desc_links / episode shapes use `description`; name_link uses `name`.
     row["content"] = _clean(item.get("description") or item.get("comment"))
@@ -158,7 +158,7 @@ def _row_from_item(section: str, item: Any) -> dict | None:
     row["links"] = _clean_links(links)
 
     if not any(
-        (row["episode"], row["kind"], row["content"], row["title"], row["links"])
+        (row["locator"], row["kind"], row["content"], row["title"], row["links"])
     ):
         return None
     return row
@@ -193,7 +193,7 @@ def _rows_from_value(
         rows = []
         for index, (episode, comment) in enumerate(pairs):
             row = _blank_row(section)
-            row["episode"] = _clean(episode)
+            row["locator"] = _clean(episode)
             row["content"] = _clean(comment)
             row["sort_index"] = float(index)
             rows.append(row)

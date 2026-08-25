@@ -15,7 +15,7 @@ from app.utils.note_sections import (
     NoteSection,
     kinds_for,
     label_for,
-    placeholder_for,
+    locator_for,
     section_by_key,
     sections_for,
 )
@@ -25,7 +25,7 @@ class NoteBase(BaseModel):
     owner_type: Optional[str] = None
     owner_id: Optional[UUID] = None
     section: Optional[str] = None
-    episode: Optional[str] = None
+    locator: Optional[str] = None
     kind: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
@@ -58,7 +58,8 @@ class NoteSectionOut(BaseModel):
     shape: str
     label: str
     kinds: List[str] = []
-    episode_placeholder: Optional[str] = None
+    locator_placeholder: Optional[str] = None
+    locator_required: bool = False
     singleton: bool = False
     desc_required: bool = False
 
@@ -79,7 +80,8 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         shape=section.shape,
         label=label_for(section, owner_type),
         kinds=list(kinds_for(section, owner_type)),
-        episode_placeholder=placeholder_for(section, owner_type),
+        locator_placeholder=locator_for(section, owner_type),
+        locator_required=section.locator_required,
         singleton=section.singleton,
         desc_required=owner_type in section.desc_required,
     )
@@ -131,6 +133,11 @@ def validate_note_payload(payload: NoteBase) -> None:
     if owner_type in section.desc_required and not content:
         raise ValueError(f"Section '{section.key}' requires content.")
 
+    # Some sections are only about where they point: an OP/ED change or a
+    # highlight with no episode names nothing.
+    if section.locator_required and not (payload.locator or "").strip():
+        raise ValueError(f"Section '{section.key}' requires a locator.")
+
     # A row with nothing in it is never worth storing. What counts as "nothing"
     # depends on the shape: a name_links row may carry only a title and a link,
     # and an episode_text row may carry only an episode.
@@ -150,7 +157,7 @@ def validate_note_payload(payload: NoteBase) -> None:
         if len(links) > 1:
             raise ValueError(f"Section '{section.key}' takes one link per note.")
     elif section.shape == SHAPE_EPISODE_TEXT:
-        if not content and not (payload.episode or "").strip():
+        if not content and not (payload.locator or "").strip():
             raise ValueError(f"Section '{section.key}' note is empty.")
     elif not content and not payload.links:
         raise ValueError(f"Section '{section.key}' note is empty.")

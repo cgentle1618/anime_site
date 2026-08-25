@@ -46,8 +46,12 @@ class Note(Base):
     section = Column(String, nullable=True, index=True)
 
     # --- Content, per the section's shape ---
-    # Free text so "ep 3", "ep 3-5" and "ch 12" all fit one column.
-    episode = Column(String, nullable=True)
+    # Where in the work this item points: an episode, a chapter, a scene, a
+    # timestamp, or the source a question came from. One free-text column
+    # rather than one per medium - the section supplies the label (see
+    # `locator_placeholder` in app/utils/note_sections.py) and whether it is
+    # required, the way a citation pairs a locator with the kind of locator.
+    locator = Column(String, nullable=True)
     # Only populated where the section declares `kinds`.
     kind = Column(String, nullable=True)
     # The name half of a name_links item.

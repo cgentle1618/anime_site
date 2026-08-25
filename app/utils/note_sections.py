@@ -70,10 +70,17 @@ class NoteSection:
     # dropdown to some owners and none to others - manga highlights are always
     # 神回, so a chooser there would have one choice.
     kinds_by_owner: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    episode_placeholder: str | None = None
-    # Per-owner episode-placeholder overrides; `episode_placeholder` is the
+    # The label for `note.locator` - what "where in the work" means here. None
+    # means the section has no anchor and shows no field.
+    locator_placeholder: str | None = None
+    # Per-owner locator-placeholder overrides; `locator_placeholder` is the
     # fallback. Manga counts chapters, not episodes.
-    episode_placeholders: dict[str, str] = field(default_factory=dict)
+    locator_placeholders: dict[str, str] = field(default_factory=dict)
+    # Sections whose whole point is the anchor: an OP change with no episode,
+    # or a highlight with no episode, says nothing. Section-level rather than
+    # per-owner, unlike `desc_required` - that is true of every owner the
+    # section has.
+    locator_required: bool = False
     # At most one row per owner.
     singleton: bool = False
     # Owner types where `content` may not be empty.
@@ -128,23 +135,26 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="episode_comments",
+        locator_required=True,
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
         owners=("anime", "tv-show", "cartoon"),
-        episode_placeholder="Episode, e.g. ep 1",
+        locator_placeholder="Episode, e.g. ep 1",
     ),
     NoteSection(
         key="highlights",
+        locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段 Highlights",
         owners=("anime",),
-        episode_placeholder="Episode(s), e.g. ep 6",
+        locator_placeholder="Episode(s), e.g. ep 6",
         # The stored data distinguishes a great episode from a great moment or
         # arc, so the section keeps a dropdown even though its siblings do not.
         kinds=HIGHLIGHT_KINDS,
     ),
     NoteSection(
         key="highlight_episodes",
+        locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段",
         owners=("tv-show", "cartoon", "manga"),
@@ -152,8 +162,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # TV shows and cartoons draw the same distinction anime does. Manga
         # does not, so it keeps the plain field.
         kinds_by_owner={"tv-show": HIGHLIGHT_KINDS, "cartoon": HIGHLIGHT_KINDS},
-        episode_placeholder="Episode(s), e.g. ep 3",
-        episode_placeholders={"manga": "Chapter(s), e.g. ch 6"},
+        locator_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholders={"manga": "Chapter(s), e.g. ch 6"},
     ),
     NoteSection(
         key="highlight_passages",
@@ -172,7 +182,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="分鏡/演出/巧思",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "manga", "series"),
-        episode_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="craft",
@@ -193,7 +203,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
-        episode_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="symmetry",
@@ -208,22 +218,24 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
-        episode_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="op_ed_changes",
+        locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="OP/ED 變動",
         owners=("anime", "tv-show", "cartoon"),
         kinds=OP_ED_KINDS,
-        episode_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="extended_episodes",
+        locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="加長",
         owners=("anime", "tv-show", "cartoon"),
-        episode_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="adaptation",
@@ -285,6 +297,6 @@ def kinds_for(section: NoteSection, owner_type: str) -> tuple[str, ...]:
     return section.kinds_by_owner.get(owner_type, section.kinds)
 
 
-def placeholder_for(section: NoteSection, owner_type: str) -> str | None:
-    """This section's episode placeholder for this owner, else the default."""
-    return section.episode_placeholders.get(owner_type, section.episode_placeholder)
+def locator_for(section: NoteSection, owner_type: str) -> str | None:
+    """This section's locator label for this owner, else the default."""
+    return section.locator_placeholders.get(owner_type, section.locator_placeholder)

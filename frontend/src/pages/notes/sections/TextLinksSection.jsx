@@ -13,10 +13,10 @@ import {
   inputCls,
 } from "./ui";
 
-const empty = () => ({ episode: "", content: "", links: [""] });
+const empty = () => ({ locator: "", content: "", links: [""] });
 
 const fromNote = (n) => ({
-  episode: n.episode || "",
+  locator: n.locator || "",
   content: n.content || "",
   links: n.links?.length ? n.links : [""],
 });
@@ -24,7 +24,7 @@ const fromNote = (n) => ({
 // The row as the API wants it: blank links dropped, blanks sent as null so the
 // backend stores a null column rather than an empty string.
 const toFields = (val, section) => ({
-  episode: section.episode_placeholder ? val.episode.trim() || null : null,
+  locator: section.locator_placeholder ? val.locator.trim() || null : null,
   content: val.content.trim() || null,
   links: (val.links || []).map((l) => l.trim()).filter(Boolean),
 });
@@ -32,11 +32,11 @@ const toFields = (val, section) => ({
 function TextLinksForm({ val, setVal, section }) {
   return (
     <div className="space-y-2">
-      {section.episode_placeholder && (
+      {section.locator_placeholder && (
         <input
-          value={val.episode}
-          onChange={(e) => setVal({ ...val, episode: e.target.value })}
-          placeholder={section.episode_placeholder}
+          value={val.locator}
+          onChange={(e) => setVal({ ...val, locator: e.target.value })}
+          placeholder={section.locator_placeholder}
           className={inputCls}
         />
       )}
@@ -76,6 +76,9 @@ export default function TextLinksSection({
   const invalid = (val) => {
     const content = val.content.trim();
     if (section.desc_required && !content) return true;
+    // An episode comment with no episode names nothing. Mirrors
+    // validate_note_payload so Save is disabled rather than returning a 422.
+    if (section.locator_required && !val.locator.trim()) return true;
     return !content && !(val.links || []).some((l) => l.trim());
   };
 
@@ -116,9 +119,9 @@ export default function TextLinksSection({
           ) : (
             <div className="flex gap-2 items-start">
               <div className="flex-1 space-y-1">
-                {n.episode && (
+                {n.locator && (
                   <span className="text-[11px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded">
-                    {n.episode}
+                    {n.locator}
                   </span>
                 )}
                 {n.content && (

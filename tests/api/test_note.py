@@ -147,7 +147,7 @@ def test_create_rejects_section_not_applicable(admin_client, sample_franchise):
             "owner_type": "franchise",
             "owner_id": str(sample_franchise.system_id),
             "section": "episode_comments",
-            "episode": "ep 1",
+            "locator": "ep 1",
             "content": "x",
         },
     )
@@ -162,7 +162,7 @@ def test_create_rejects_bad_kind(admin_client, sample_anime):
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
             "section": "op_ed_changes",
-            "episode": "ep 3",
+            "locator": "ep 3",
             "kind": "回顧",
             "content": "x",
         },
@@ -260,10 +260,11 @@ def test_admin_updates_one_row(admin_client, anime_note):
 
 def test_update_revalidates_against_registry(admin_client, anime_note):
     r = admin_client.patch(
-        f"/api/notes/{anime_note.system_id}", json={"section": "episode_comments"}
+        f"/api/notes/{anime_note.system_id}", json={"section": "analysis"}
     )
-    # advantages -> episode_comments with no episode and no kind is still valid
-    # for an anime, so this must succeed; the guard is on unknown sections.
+    # advantages -> analysis with no kind is still valid for an anime, so this
+    # must succeed; the guard is on unknown sections. episode_comments would
+    # not do here - it requires a locator the patch does not supply.
     assert r.status_code == 200
     r = admin_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "nope"}
@@ -367,3 +368,27 @@ def test_reorder_rejects_ids_from_another_section(admin_client, sample_anime, an
         },
     )
     assert r.status_code == 400
+
+
+def test_create_rejects_an_episode_comment_with_no_locator(admin_client, sample_anime):
+    # The section is only about where it points, so the anchor is required.
+    r = admin_client.post(
+        "/api/notes",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "section": "episode_comments",
+            "content": "開場就定調",
+        },
+    )
+    assert r.status_code == 422
+    assert "requires a locator" in r.text
+
+
+def test_sections_endpoint_reports_the_locator_contract(admin_client):
+    r = admin_client.get("/api/notes/sections", params={"owner_type": "anime"})
+    by_key = {s["key"]: s for s in r.json()}
+    assert by_key["episode_comments"]["locator_placeholder"] == "Episode, e.g. ep 1"
+    assert by_key["episode_comments"]["locator_required"] is True
+    assert by_key["foreshadowing"]["locator_required"] is False
+    assert by_key["advantages"]["locator_placeholder"] is None

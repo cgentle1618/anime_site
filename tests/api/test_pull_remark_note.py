@@ -24,7 +24,7 @@ NOTE_HEADERS = [
     "owner_type",
     "owner_id",
     "section",
-    "episode",
+    "locator",
     "kind",
     "title",
     "content",
