@@ -1,10 +1,10 @@
 """Media Relation request/response schemas."""
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RelationKindResponse(BaseModel):
@@ -97,3 +97,57 @@ class MediaRelationResolved(BaseModel):
     other: RelationOtherEndpoint
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class RelationGraphNode(BaseModel):
+    """
+    One entry on the canvas.
+
+    `in_scope` separates the franchise's own entries from the ghosts pulled in
+    by a relation that leaves the scope; `missing` marks an endpoint whose row
+    is gone, which stays visible so it can be found and deleted.
+    """
+
+    key: str
+    media_type: str
+    entry_id: Optional[UUID] = None
+    in_scope: bool
+    missing: bool = False
+    display_name: Optional[str] = None
+    # Every title the entry answers to, so the canvas search box finds an entry
+    # displayed under its Chinese title.
+    search_names: List[str] = []
+    cover_image_file: Optional[str] = None
+    franchise_id: Optional[UUID] = None
+    nav_path: Optional[str] = None
+    # The media type's human label ("Anime Movie"), for the node badge.
+    type_label: Optional[str] = None
+
+
+class RelationGraphEdge(BaseModel):
+    """
+    One media_relation row, keyed by the two node keys it joins.
+
+    Both labels travel with the edge - `label` reads the row in the stored
+    direction and `inverse_label` reads it backwards - so the canvas never
+    needs a second copy of RELATION_KINDS to label an edge or its inspector.
+    """
+
+    system_id: UUID
+    # Named `from` in JSON; `from` is a Python keyword, hence the alias.
+    from_key: str = Field(..., alias="from")
+    to_key: str = Field(..., alias="to")
+    relation_type: str
+    label: str
+    inverse_label: str
+    family: str
+    remark: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
+
+class RelationGraphResponse(BaseModel):
+    """Everything one canvas draws, in one request."""
+
+    nodes: List[RelationGraphNode]
+    edges: List[RelationGraphEdge]

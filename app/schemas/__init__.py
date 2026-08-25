@@ -117,6 +117,9 @@ from app.schemas.media_relation import (
     MediaRelationResponse,
     RelationOtherEndpoint,
     MediaRelationResolved,
+    RelationGraphNode,
+    RelationGraphEdge,
+    RelationGraphResponse,
 )
 from app.schemas.quote import (
     QuoteBase,
@@ -236,6 +239,9 @@ __all__ = [
     "MediaRelationResponse",
     "RelationOtherEndpoint",
     "MediaRelationResolved",
+    "RelationGraphNode",
+    "RelationGraphEdge",
+    "RelationGraphResponse",
     "QuoteBase",
     "QuoteCreate",
     "QuoteUpdate",

@@ -23,6 +23,7 @@ from app.dependencies import get_current_admin, get_db
 from app.services.domain.media_relation import (
     entry_exists,
     find_duplicate,
+    graph_for_scope,
     normalize_relation,
     relations_for_entry,
 )
@@ -239,6 +240,42 @@ def list_relations_in_scope(
         )
         .all()
     )
+
+
+@router.get(
+    "/graph",
+    response_model=schemas.RelationGraphResponse,
+    summary="Graph For A Scope",
+)
+def get_relation_graph(
+    franchise_id: Optional[str] = None,
+    collection_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Everything the relations canvas draws for one franchise or collection.
+
+    One request rather than two, because "which nodes does this canvas contain"
+    is a single question whose answer needs the cross-table resolver - the page
+    would otherwise have to synthesize the ghost set by diffing two lists.
+    """
+    if bool(franchise_id) == bool(collection_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of franchise_id or collection_id.",
+        )
+
+    if franchise_id:
+        franchise_ids = [franchise_id]
+    else:
+        franchise_ids = [
+            row[0]
+            for row in db.query(models.Franchise.system_id)
+            .filter(models.Franchise.collection_id == collection_id)
+            .all()
+        ]
+
+    return graph_for_scope(db, franchise_ids)
 
 
 # ==========================================

@@ -19,8 +19,11 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models import MediaRelation
-from app.services.domain.watch_order import entry_exists  # noqa: F401 (re-export)
-from app.utils.media_resolver import entry_ref_for, resolve_entries
+from app.services.domain.watch_order import (
+    entry_exists,  # noqa: F401 (re-export)
+    list_candidate_entries,
+)
+from app.utils.media_resolver import MEDIA_TABLES, entry_ref_for, resolve_entries
 from app.utils.relation_kinds import INPUT_ONLY_KINDS, RELATION_KINDS
 
 
@@ -173,3 +176,128 @@ def relations_for_entry(
             }
         )
     return payload
+
+
+def _node_key(media_type: str, entry_id: UUID) -> str:
+    """
+    The canvas's identity for an entry.
+
+    Type-qualified because each media table has its own system_id space, so an
+    id alone cannot name a node. Matches the "type:id" convention the admin
+    page already uses for its picker.
+    """
+    return f"{media_type}:{entry_id}"
+
+
+def graph_for_scope(db: Session, franchise_ids: List[UUID]) -> Dict[str, Any]:
+    """
+    Every node and edge one relations canvas draws.
+
+    Entries with no relations are included on purpose: you cannot drag a line
+    from a node that is not drawn, and connecting an unconnected entry is the
+    page's main job.
+
+    Relation endpoints falling outside the scope come back as ghost nodes, so a
+    cross-franchise link is visible as structure rather than hidden behind a
+    count. They are resolved in one batch, so a heavily linked franchise never
+    degrades into an N+1.
+    """
+    candidates = list_candidate_entries(db, franchise_ids)
+
+    nodes: List[Dict[str, Any]] = []
+    in_scope: set = set()
+    for c in candidates:
+        endpoint = (c["media_type"], c["entry_id"])
+        in_scope.add(endpoint)
+        ref = MEDIA_TABLES.get(c["media_type"])
+        nodes.append(
+            {
+                "key": _node_key(*endpoint),
+                "media_type": c["media_type"],
+                "entry_id": c["entry_id"],
+                "in_scope": True,
+                "missing": False,
+                "display_name": c["display_name"],
+                "search_names": c["search_names"],
+                "cover_image_file": c["cover_image_file"],
+                "franchise_id": c["franchise_id"],
+                "nav_path": (
+                    f"{ref.nav_path}/{c['entry_id']}"
+                    if ref and ref.nav_path
+                    else None
+                ),
+                "type_label": ref.label if ref else None,
+            }
+        )
+
+    entry_ids = [c["entry_id"] for c in candidates]
+    rows = (
+        db.query(MediaRelation)
+        .filter(
+            or_(
+                MediaRelation.from_id.in_(entry_ids),
+                MediaRelation.to_id.in_(entry_ids),
+            )
+        )
+        .order_by(MediaRelation.created_at)
+        .all()
+        if entry_ids
+        else []
+    )
+    # The id filter above ignores the type discriminator, which SQL cannot
+    # express against seven tables at once. Re-check the pair here so a row
+    # whose id happens to collide across tables is not drawn on this canvas.
+    rows = [
+        row
+        for row in rows
+        if (row.from_type, row.from_id) in in_scope
+        or (row.to_type, row.to_id) in in_scope
+    ]
+
+    # One batched resolve for every endpoint the scope does not already hold.
+    outside: List[Endpoint] = []
+    for row in rows:
+        for endpoint in ((row.from_type, row.from_id), (row.to_type, row.to_id)):
+            if endpoint not in in_scope and endpoint not in outside:
+                outside.append(endpoint)
+
+    resolved = resolve_entries(db, outside)
+    for media_type, entry_id in outside:
+        ref = entry_ref_for(resolved, media_type, entry_id)
+        nodes.append(
+            {
+                "key": _node_key(media_type, entry_id),
+                "media_type": media_type,
+                "entry_id": entry_id,
+                "in_scope": False,
+                "missing": ref.missing,
+                "display_name": ref.display_name,
+                "search_names": [],
+                "cover_image_file": ref.cover_image_file,
+                "franchise_id": ref.franchise_id,
+                "nav_path": ref.nav_path,
+                "type_label": ref.label,
+            }
+        )
+
+    edges: List[Dict[str, Any]] = []
+    for row in rows:
+        kind = RELATION_KINDS.get(row.relation_type)
+        edges.append(
+            {
+                "system_id": row.system_id,
+                "from": _node_key(row.from_type, row.from_id),
+                "to": _node_key(row.to_type, row.to_id),
+                "relation_type": row.relation_type,
+                # A kind restored from a sheet written by a newer version shows
+                # its raw key rather than blanking the edge.
+                "label": kind.label if kind else row.relation_type,
+                "inverse_label": (
+                    kind.inverse_label if kind else row.relation_type
+                ),
+                "family": kind.family if kind else "derivation",
+                "remark": row.remark,
+            }
+        )
+
+    return {"nodes": nodes, "edges": edges}

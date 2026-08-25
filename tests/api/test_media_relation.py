@@ -328,3 +328,173 @@ def test_deleting_an_unknown_id_is_404(admin_client):
     assert admin_client.delete(
         f"/api/media-relation/{uuid.uuid4()}"
     ).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Graph
+# ---------------------------------------------------------------------------
+
+
+def test_graph_lists_every_scope_entry_including_unconnected_ones(
+    client, sample_franchise, sample_anime, second_anime
+):
+    # No relations exist between them, yet both must be drawable: you cannot
+    # drag a line from a node that is not on the canvas.
+    res = client.get(
+        "/api/media-relation/graph",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    keys = {n["key"] for n in body["nodes"]}
+    assert f"anime:{sample_anime.system_id}" in keys
+    assert f"anime:{second_anime.system_id}" in keys
+    assert all(n["in_scope"] for n in body["nodes"])
+    assert body["edges"] == []
+
+
+def test_graph_edges_carry_both_labels_and_the_family(
+    admin_client, client, sample_franchise, sample_anime, second_anime
+):
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(second_anime.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(sample_anime.system_id),
+            "remark": "the direct continuation",
+        },
+    )
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    ).json()
+
+    assert len(body["edges"]) == 1
+    edge = body["edges"][0]
+    assert edge["from"] == f"anime:{second_anime.system_id}"
+    assert edge["to"] == f"anime:{sample_anime.system_id}"
+    assert edge["relation_type"] == "sequel"
+    assert edge["label"] == "Sequel"
+    assert edge["inverse_label"] == "Prequel"
+    assert edge["family"] == "timeline"
+    assert edge["remark"] == "the direct continuation"
+
+
+def test_graph_adds_a_ghost_node_for_an_out_of_scope_endpoint(
+    admin_client, client, db_session, sample_franchise, sample_anime
+):
+    import uuid as _uuid
+
+    from app import models
+
+    other_franchise = models.Franchise(
+        system_id=_uuid.uuid4(), franchise_name_en="Somewhere Else"
+    )
+    db_session.add(other_franchise)
+    db_session.flush()
+    outsider = models.Anime(
+        system_id=_uuid.uuid4(),
+        franchise_id=other_franchise.system_id,
+        anime_name_en="Outside Entry",
+    )
+    db_session.add(outsider)
+    db_session.flush()
+
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(sample_anime.system_id),
+            "kind": "spin_off",
+            "to_type": "anime",
+            "to_id": str(outsider.system_id),
+        },
+    )
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    ).json()
+
+    ghost = next(
+        n for n in body["nodes"] if n["key"] == f"anime:{outsider.system_id}"
+    )
+    assert ghost["in_scope"] is False
+    assert ghost["missing"] is False
+    assert ghost["display_name"] == "Outside Entry"
+    assert ghost["franchise_id"] == str(other_franchise.system_id)
+
+
+def test_graph_marks_a_dangling_target_as_missing(
+    admin_client, client, db_session, sample_franchise, sample_anime
+):
+    import uuid as _uuid
+
+    from app import models
+
+    # Written straight to the table: the API would refuse a nonexistent
+    # endpoint, but a row can be orphaned later by deleting the entry.
+    orphan_id = _uuid.uuid4()
+    db_session.add(
+        models.MediaRelation(
+            system_id=_uuid.uuid4(),
+            from_type="anime",
+            from_id=sample_anime.system_id,
+            relation_type="adaptation",
+            to_type="manga",
+            to_id=orphan_id,
+        )
+    )
+    db_session.flush()
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    ).json()
+
+    ghost = next(n for n in body["nodes"] if n["key"] == f"manga:{orphan_id}")
+    assert ghost["missing"] is True
+    assert ghost["in_scope"] is False
+    assert ghost["display_name"] is None
+
+
+def test_graph_scope_can_be_a_collection(
+    client, db_session, sample_franchise, sample_anime
+):
+    from app import models
+
+    collection = models.Collection(collection_name_en="A Collection")
+    db_session.add(collection)
+    db_session.flush()
+    sample_franchise.collection_id = collection.system_id
+    db_session.flush()
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"collection_id": str(collection.system_id)},
+    ).json()
+
+    assert f"anime:{sample_anime.system_id}" in {n["key"] for n in body["nodes"]}
+
+
+def test_graph_requires_exactly_one_scope(client):
+    assert client.get("/api/media-relation/graph").status_code == 400
+    assert (
+        client.get(
+            "/api/media-relation/graph",
+            params={"franchise_id": str(uuid.uuid4()), "collection_id": str(uuid.uuid4())},
+        ).status_code
+        == 400
+    )
+
+
+def test_graph_is_public(client, sample_franchise):
+    res = client.get(
+        "/api/media-relation/graph",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+    assert res.status_code == 200
