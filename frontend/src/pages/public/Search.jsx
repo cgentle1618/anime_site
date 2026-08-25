@@ -7,6 +7,7 @@ import { cleanString } from "../../utils/media";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
+import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
 
 function getFranchiseTitles(f) {
   const raw = [
@@ -36,6 +37,42 @@ function getSeriesTitles(s) {
   const raw = [s.series_name_cn, s.series_name_en, s.series_name_alt];
   const valid = [...new Set(raw.filter((t) => t && t.trim() !== ""))];
   return { main: valid[0] || "Unknown Series", sub: valid[1] || "" };
+}
+
+/**
+ * The plain text card the collection, franchise, and series sections share.
+ * Entry types get MediaCard instead; these tiers have no cover of their own.
+ */
+function TierCard({ icon, label, labelClass, titles, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+    >
+      <div>
+        <div
+          className={`text-[9px] font-bold uppercase tracking-widest mb-1.5 ${labelClass}`}
+        >
+          <i className={`fas ${icon} mr-1`}></i>
+          {label}
+        </div>
+        <h3
+          className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
+          title={titles.main}
+        >
+          {titles.main}
+        </h3>
+        {titles.sub && (
+          <h4
+            className="text-xs font-medium text-gray-500 truncate"
+            title={titles.sub}
+          >
+            {titles.sub}
+          </h4>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function Search() {
@@ -584,38 +621,19 @@ export default function Search() {
             <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-boxes-stacked text-brand/70"></i> Collections
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {matchedCollections.map((c) => {
-                const t = getCollectionTitles(c);
-                return (
-                  <div
-                    key={c.system_id}
-                    onClick={() => navigate(`/collection/${c.system_id}`)}
-                    className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="text-[9px] font-bold text-fuchsia-600 uppercase tracking-widest mb-1.5">
-                        <i className="fas fa-boxes-stacked mr-1"></i>Collection
-                      </div>
-                      <h3
-                        className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
-                        title={t.main}
-                      >
-                        {t.main}
-                      </h3>
-                      {t.sub && (
-                        <h4
-                          className="text-xs font-medium text-gray-500 truncate"
-                          title={t.sub}
-                        >
-                          {t.sub}
-                        </h4>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <CollapsibleCardGrid
+              items={matchedCollections}
+              renderItem={(c) => (
+                <TierCard
+                  key={c.system_id}
+                  icon="fa-boxes-stacked"
+                  label="Collection"
+                  labelClass="text-fuchsia-600"
+                  titles={getCollectionTitles(c)}
+                  onClick={() => navigate(`/collection/${c.system_id}`)}
+                />
+              )}
+            />
           </div>
         )}
 
@@ -672,39 +690,23 @@ export default function Search() {
             <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-sitemap text-brand/70"></i> Franchises
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {displayFranchises.map((f) => {
-                const t = getFranchiseTitles(f);
-                return (
-                  <div
-                    key={f.system_id}
-                    onClick={() => navigate(`/franchise/${f.system_id}`)}
-                    className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="text-[9px] font-bold text-brand uppercase tracking-widest mb-1.5">
-                        <i className="fas fa-sitemap mr-1"></i>
-                        {f.franchise_type + " Franchise" || "Franchise"}
-                      </div>
-                      <h3
-                        className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
-                        title={t.main}
-                      >
-                        {t.main}
-                      </h3>
-                      {t.sub && (
-                        <h4
-                          className="text-xs font-medium text-gray-500 truncate"
-                          title={t.sub}
-                        >
-                          {t.sub}
-                        </h4>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <CollapsibleCardGrid
+              items={displayFranchises}
+              renderItem={(f) => (
+                <TierCard
+                  key={f.system_id}
+                  icon="fa-sitemap"
+                  label={
+                    f.franchise_type
+                      ? `${f.franchise_type} Franchise`
+                      : "Franchise"
+                  }
+                  labelClass="text-brand"
+                  titles={getFranchiseTitles(f)}
+                  onClick={() => navigate(`/franchise/${f.system_id}`)}
+                />
+              )}
+            />
           </div>
         )}
 
@@ -714,38 +716,19 @@ export default function Search() {
             <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-layer-group text-brand/70"></i> Series
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {displaySeries.map((s) => {
-                const t = getSeriesTitles(s);
-                return (
-                  <div
-                    key={s.system_id}
-                    onClick={() => navigate(`/series/${s.system_id}`)}
-                    className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="text-[9px] font-bold text-brand/70 uppercase tracking-widest mb-1.5">
-                        <i className="fas fa-layer-group mr-1"></i>Series
-                      </div>
-                      <h3
-                        className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
-                        title={t.main}
-                      >
-                        {t.main}
-                      </h3>
-                      {t.sub && (
-                        <h4
-                          className="text-xs font-medium text-gray-500 truncate"
-                          title={t.sub}
-                        >
-                          {t.sub}
-                        </h4>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <CollapsibleCardGrid
+              items={displaySeries}
+              renderItem={(s) => (
+                <TierCard
+                  key={s.system_id}
+                  icon="fa-layer-group"
+                  label="Series"
+                  labelClass="text-brand/70"
+                  titles={getSeriesTitles(s)}
+                  onClick={() => navigate(`/series/${s.system_id}`)}
+                />
+              )}
+            />
           </div>
         )}
 
