@@ -90,7 +90,6 @@ def test_anime_sections_in_registry_order():
         "extended_episodes",
         "adaptation",
         "resources",
-        "unread",
         "questions",
         "quotes",
         "memes",
@@ -100,7 +99,7 @@ def test_anime_sections_in_registry_order():
 def test_collection_gets_the_narrow_set():
     keys = [s.key for s in ns.sections_for("collection")]
     # Registry order, not the order the spec's prose happens to list them in:
-    # `questions` sits after `unread` in NOTE_SECTIONS.
+    # `questions` sits after `resources` in NOTE_SECTIONS.
     assert keys == [
         "remark",
         "advantages",
@@ -110,7 +109,6 @@ def test_collection_gets_the_narrow_set():
         "personal_reviews",
         "analysis",
         "resources",
-        "unread",
         "questions",
         "memes",
     ]
@@ -200,3 +198,11 @@ def test_episode_comments_is_text_links_with_an_episode_field():
     assert sec.shape == ns.SHAPE_TEXT_LINKS
     assert ns.placeholder_for(sec, "anime") == "Episode, e.g. ep 1"
     assert sec.owners == ("anime", "tv-show", "cartoon")
+
+
+def test_unread_is_gone():
+    # Unread was Resources with a different name: same shape, same owners, and
+    # nothing in the row said which list it belonged to. Its rows moved to
+    # `resources`, so the key must not come back.
+    assert ns.section_by_key("unread") is None
+    assert "unread" not in {s.key for s in ns.NOTE_SECTIONS}

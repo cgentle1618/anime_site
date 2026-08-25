@@ -240,3 +240,10 @@ def test_episode_comment_with_only_an_episode_rejected():
         validate_note_payload(
             _payload(section="episode_comments", episode="ep 1", content=None)
         )
+
+
+def test_unread_section_is_rejected():
+    # The section is gone; a client still sending it gets a 422 rather than a
+    # row no page will ever render.
+    with pytest.raises(ValueError, match="Unknown note section"):
+        validate_note_payload(_payload(section="unread", title="舊清單"))

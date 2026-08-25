@@ -240,12 +240,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=ALL_OWNERS,
     ),
     NoteSection(
-        key="unread",
-        shape=SHAPE_NAME_LINKS,
-        label="Unread",
-        owners=ALL_OWNERS,
-    ),
-    NoteSection(
         key="questions",
         shape=SHAPE_TEXT,
         label="Questions",

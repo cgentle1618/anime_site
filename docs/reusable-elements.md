@@ -826,7 +826,7 @@ of the table replacing the old per-entry `notes` JSONB blob.
 | `text_links`   | `TextLinksSection.jsx`     | Items of description + any number of links, plus an optional episode input shown when the section declares an `episode_placeholder`. |
 | `text_or_link` | `TextOrLinkSection.jsx`    | A list where each item is either text or a single link. One input per row; `textOrLink.js`'s `classify` sends the value as `content` or as `links[0]` — an explicit `http(s)://` scheme and nothing else makes a link. |
 | `episode_text` | `EpisodeTextSection.jsx`   | Episode-anchored items: episode + content, plus a kind dropdown where the section declares `kinds`. |
-| `name_links`   | `NameLinksSection.jsx`     | Named links (Resources, Unread) — a title plus any number of URLs. |
+| `name_links`   | `NameLinksSection.jsx`     | Named links (Resources) — a title plus any number of URLs. |
 
 Each shape reads only registry-supplied props (`label`, `kinds`,
 `episode_placeholder`, `singleton`, `desc_required`), so a new section of an
@@ -856,7 +856,7 @@ with no component degrades to `null`.
 (`app/utils/note_sections.py`), not of this page — see `options.md` for the
 vocabulary and `database-schema.md` for the `note` table. Broadly: every owner
 has Remark, Advantages, Disadvantages, 優缺點, Public/Personal Reviews,
-Analysis, Resources, Unread, Questions and Memes; entries and the
+Analysis, Resources, Questions and Memes; entries and the
 series/franchise tiers add Foreshadowing, Symmetry and Adaptation; the
 episode-anchored sections (Episode Comments, Highlights, OP/ED 變動, 加長)
 belong to the serialized types only, and Quotes to media entries only.
