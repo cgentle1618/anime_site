@@ -71,19 +71,35 @@ describe("layoutGraph", () => {
   });
 
   it("ignores an edge whose endpoint is not a node", () => {
+    // Guards more than the array length: an unknown key must never reach
+    // unionFind/dagre, where find() would loop or throw on an undefined
+    // parent. The surviving node must still come out fully positioned.
     const out = layoutGraph({
       nodes: [node("anime:a")],
       edges: [edge("anime:a", "anime:ghost-that-was-not-sent")],
     });
     expect(out).toHaveLength(1);
+    expect(typeof out[0].position.x).toBe("number");
+    expect(typeof out[0].position.y).toBe("number");
+    expect(out[0].section).toBe("tray");
   });
 
-  it("is deterministic for the same input", () => {
-    const input = {
-      nodes: [node("anime:a"), node("anime:b"), node("anime:c")],
-      edges: [edge("anime:b", "anime:a"), edge("anime:c", "anime:b")],
-    };
-    expect(layoutGraph(input)).toEqual(layoutGraph(input));
+  it("is deterministic regardless of input ordering", () => {
+    // Two calls on the very same array would agree even without the sort in
+    // layoutGraph, since Map/Set iteration is insertion-order-stable within
+    // one process. Shuffling the node/edge order is what actually pins the
+    // `rankedRoots = [...ranked].sort()` guard against dagre's own
+    // insertion-order sensitivity.
+    const nodes = [node("anime:a"), node("anime:b"), node("anime:c")];
+    const edges = [edge("anime:b", "anime:a"), edge("anime:c", "anime:b")];
+    const forward = byKey(layoutGraph({ nodes, edges }));
+    const shuffled = byKey(
+      layoutGraph({ nodes: [...nodes].reverse(), edges: [...edges].reverse() }),
+    );
+    for (const key of Object.keys(forward)) {
+      expect(shuffled[key].position).toEqual(forward[key].position);
+      expect(shuffled[key].section).toBe(forward[key].section);
+    }
   });
 });
 
