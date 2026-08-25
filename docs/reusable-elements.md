@@ -818,7 +818,7 @@ Rows come from `GET /api/notes?owner_type=…&owner_id=…`; each edit writes a 
 row through `/api/notes` rather than re-saving the whole entry, which is the point
 of the table replacing the old per-entry `notes` JSONB blob.
 
-**Five shape components**, picked by the `shape` the registry reports:
+**Six shape components**, picked by the `shape` the registry reports:
 
 | Shape          | Component                  | Renders                                                          |
 | -------------- | -------------------------- | ----------------------------------------------------------------- |
@@ -827,6 +827,7 @@ of the table replacing the old per-entry `notes` JSONB blob.
 | `text_or_link` | `TextOrLinkSection.jsx`    | A list where each item is either text or a single link. One input per row; `textOrLink.js`'s `classify` sends the value as `content` or as `links[0]` — an explicit `http(s)://` scheme and nothing else makes a link. |
 | `episode_text` | `EpisodeTextSection.jsx`   | Locator-anchored items: locator + content, plus a kind dropdown where the section declares `kinds`. |
 | `name_links`   | `NameLinksSection.jsx`     | Named links (Resources) — a title plus any number of URLs. |
+| `episode_name_links` | `EpisodeNameLinksSection.jsx` | 插入曲 only: locator + title + description + any number of links. The one shape using all four content columns; only the locator is required. |
 
 Each shape reads only registry-supplied props (`label`, `kinds`,
 `locator_placeholder`, `locator_required`, `singleton`, `desc_required`), so a new section of an
@@ -858,7 +859,7 @@ vocabulary and `database-schema.md` for the `note` table. Broadly: every owner
 has Remark, Advantages, Disadvantages, 優缺點, Public/Personal Reviews,
 Analysis, Resources, Questions and Memes; entries and the
 series/franchise tiers add Foreshadowing, Symmetry and Adaptation; the
-episode-anchored sections (Episode Comments, Highlights, OP/ED 變動, 加長)
+episode-anchored sections (Episode Comments, Highlights, OP/ED 變動, 插入曲, 加長)
 belong to the serialized types only, and Quotes to media entries only.
 
 ---

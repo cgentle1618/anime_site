@@ -1114,7 +1114,7 @@ a series, franchise, or collection — the same ten `owner_type` values.
 | `section`    | String   | Yes      | Names an entry in `NOTE_SECTIONS`; that entry declares the shape, indexed    |
 | `locator`    | String   | Yes      | Where in the work the item points: an episode, chapter, scene, timestamp, or the source a question came from. Free text, so `"ep 3"`, `"ep 3-5"`, `"ch 12"` and `"1:14:20"` all fit one column. The section supplies the label (`locator_placeholder`) and whether it is required (`locator_required`) |
 | `kind`       | String   | Yes      | Only populated where the section declares `kinds` for this owner type — `highlight_episodes` has them on tv-show/cartoon but not manga |
-| `title`      | String   | Yes      | The name half of a `name_links` item                                          |
+| `title`      | String   | Yes      | The name half of a `name_links` item, and the song name of an `episode_name_links` one |
 | `content`    | Text     | Yes      | The body text                                                                 |
 | `links`      | JSONB    | Yes      | List of URLs — a list even where the old shape held one                      |
 | `sort_index` | Float    | Yes      | Manual ordering within one `(owner, section)`                                |
@@ -1126,13 +1126,17 @@ a series, franchise, or collection — the same ten `owner_type` values.
   The columns above are the union of every shape; columns a shape does not name
   stay null. This is one table on purpose: adding a section costs a registry
   entry and no migration, and adding a new *shape* costs one nullable column.
-- **Five stored shapes**, plus one that is not stored: `text` (content),
+- **Six stored shapes**, plus one that is not stored: `text` (content),
   `text_links` (content, links, optional locator), `text_or_link` (content
   XOR one link), `episode_text` (locator, content, and kind where declared),
-  and `name_links` (title, links). `text_or_link` — used only by
+  `name_links` (title, links), and `episode_name_links` (locator, title,
+  content, links). `text_or_link` — used only by
   `public_reviews` — reuses the same two columns as `text_links` but rejects a
   row holding both: a public review is either what someone said or a pointer to
-  where they said it.
+  where they said it. `episode_name_links` — used only by `insert_songs` —
+  is the one shape naming all four content columns, because an insert song is
+  a named thing that plays at a place and can be linked to; no existing shape
+  could say all four.
   `external` sections — `quotes` and `memes` — are backed by their own tables
   and never by a `note` row; the registry lists them so the page can render
   them in order alongside the rest.

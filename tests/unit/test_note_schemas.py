@@ -313,3 +313,56 @@ def test_question_with_only_a_source_is_rejected():
         validate_note_payload(
             _payload(section="questions", locator="ep 3", content=None)
         )
+
+
+def test_insert_song_may_carry_episode_name_description_and_links():
+    validate_note_payload(
+        _payload(
+            section="insert_songs",
+            locator="ep 12",
+            title="Kanashimi wo Yasashisa ni",
+            content="Plays over the rooftop scene.",
+            links=["https://youtu.be/abc"],
+        )
+    )
+
+
+def test_insert_song_may_carry_only_an_episode_and_a_name():
+    # The optional three are genuinely optional: an episode plus a title is a
+    # complete note. The generic "content or links" rule would reject it.
+    validate_note_payload(
+        _payload(section="insert_songs", locator="ep 12", title="Shiroi Kumo", content=None)
+    )
+
+
+def test_insert_song_may_carry_only_an_episode():
+    # A remembered scene often comes before the song's title does.
+    validate_note_payload(_payload(section="insert_songs", locator="ep 12", content=None))
+
+
+def test_insert_song_without_an_episode_rejected():
+    with pytest.raises(ValueError, match="requires a locator"):
+        validate_note_payload(
+            _payload(section="insert_songs", title="Shiroi Kumo", content=None)
+        )
+
+
+def test_insert_song_rejected_for_non_anime_owners():
+    for owner in ("tv-show", "cartoon", "anime-movie", "series"):
+        with pytest.raises(ValueError, match="does not apply"):
+            validate_note_payload(
+                _payload(owner_type=owner, section="insert_songs", locator="ep 12")
+            )
+
+
+def test_section_out_exposes_the_insert_song_contract():
+    from app.schemas.note import section_out
+    from app.utils.note_sections import section_by_key
+
+    out = section_out(section_by_key("insert_songs"), "anime")
+    assert out.shape == "episode_name_links"
+    assert out.label == "插入曲 Insert Song"
+    assert out.locator_required
+    assert out.locator_placeholder == "Episode(s), e.g. ep 3"
+    assert out.kinds == []
+    assert not out.desc_required

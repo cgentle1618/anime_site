@@ -13,6 +13,7 @@ def test_every_section_has_a_known_shape():
         ns.SHAPE_TEXT_OR_LINK,
         ns.SHAPE_EPISODE_TEXT,
         ns.SHAPE_NAME_LINKS,
+        ns.SHAPE_EPISODE_NAME_LINKS,
         ns.SHAPE_EXTERNAL,
     }
     for sec in ns.NOTE_SECTIONS:
@@ -87,6 +88,7 @@ def test_anime_sections_in_registry_order():
         "foreshadowing",
         "symmetry",
         "op_ed_changes",
+        "insert_songs",
         "extended_episodes",
         "adaptation",
         "resources",
@@ -235,6 +237,7 @@ def test_sections_that_are_meaningless_without_an_anchor_require_one():
         "highlights",
         "highlight_episodes",
         "op_ed_changes",
+        "insert_songs",
         "extended_episodes",
     }
 
@@ -256,3 +259,26 @@ def test_questions_records_where_the_question_came_from():
     assert not sec.locator_required
     # But a source with no question attached is nothing, so the body is not.
     assert sec.desc_required == ns.ALL_OWNERS
+
+
+def test_insert_songs_sits_directly_below_op_ed_changes():
+    keys = [s.key for s in ns.NOTE_SECTIONS]
+    assert keys[keys.index("op_ed_changes") + 1] == "insert_songs"
+
+
+def test_insert_songs_is_anime_only():
+    assert ns.section_by_key("insert_songs").owners == ("anime",)
+
+
+def test_insert_songs_pins_a_song_to_an_episode():
+    # An insert song is the one section carrying all four content columns: the
+    # episode it plays in, the song's name, what it does there, and where to
+    # hear it. Only the episode is required - a remembered scene often comes
+    # before the title does.
+    sec = ns.section_by_key("insert_songs")
+    assert sec.shape == ns.SHAPE_EPISODE_NAME_LINKS
+    assert sec.shape in ns.STORED_SHAPES
+    assert sec.locator_required
+    assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
+    assert sec.kinds == ()
+    assert sec.desc_required == ()

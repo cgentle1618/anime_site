@@ -30,6 +30,10 @@ SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
 SHAPE_TEXT_OR_LINK = "text_or_link"  # content or links[0], never both
 SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared
 SHAPE_NAME_LINKS = "name_links"  # title, links
+# The only shape using all four content columns: the episode a song plays in,
+# its name, what it does there, and where to hear it. text_links has no title
+# and name_links has no episode or body, so neither can say all four.
+SHAPE_EPISODE_NAME_LINKS = "episode_name_links"  # episode, title, content, links
 # Backed by its own table (quote, meme), never by a `note` row.
 SHAPE_EXTERNAL = "external"
 
@@ -40,6 +44,7 @@ STORED_SHAPES = frozenset(
         SHAPE_TEXT_OR_LINK,
         SHAPE_EPISODE_TEXT,
         SHAPE_NAME_LINKS,
+        SHAPE_EPISODE_NAME_LINKS,
     }
 )
 
@@ -227,6 +232,17 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="OP/ED 變動",
         owners=("anime", "tv-show", "cartoon"),
         kinds=OP_ED_KINDS,
+        locator_placeholder="Episode(s), e.g. ep 3",
+    ),
+    NoteSection(
+        key="insert_songs",
+        # An insert song with no episode is just a song: where it plays is what
+        # makes it a note. The other three are optional - a remembered scene
+        # often comes before the title does.
+        locator_required=True,
+        shape=SHAPE_EPISODE_NAME_LINKS,
+        label="插入曲 Insert Song",
+        owners=("anime",),
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
