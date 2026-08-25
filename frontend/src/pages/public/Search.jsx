@@ -8,6 +8,7 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
+import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
 
 function getFranchiseTitles(f) {
   const raw = [
@@ -661,7 +662,7 @@ export default function Search() {
 
         {/* Franchise filter pills */}
         {showFranchisePills && (
-          <div className="flex gap-2 flex-wrap">
+          <CollapsiblePillRow>
             <button
               onClick={() => setSelectedFranchise("all")}
               className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === "all" ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
@@ -681,7 +682,7 @@ export default function Search() {
                 </button>
               );
             })}
-          </div>
+          </CollapsiblePillRow>
         )}
 
         {/* Franchise cards */}
