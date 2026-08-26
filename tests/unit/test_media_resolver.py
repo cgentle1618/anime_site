@@ -51,7 +51,7 @@ def make_entry(entry_id, name="Some Entry"):
 
 
 class TestMediaTables:
-    def test_covers_all_seven_media_types(self):
+    def test_covers_all_eight_media_types(self):
         assert set(MEDIA_TYPE_KEYS) == {
             "anime",
             "anime-movie",
@@ -60,6 +60,7 @@ class TestMediaTables:
             "cartoon",
             "manga",
             "novel",
+            "comic",
         }
 
     def test_uses_hyphenated_spelling(self):
@@ -171,6 +172,27 @@ class TestEntryRefPayload:
         assert payload["missing"] is True
         assert payload["entry_display_name"] is None
         assert payload["entry_nav_path"] is None
+
+
+class TestComicIsResolvable:
+    def test_comic_in_media_tables(self):
+        from app.utils.media_resolver import MEDIA_TABLES
+
+        ref = MEDIA_TABLES["comic"]
+        assert ref.key == "comic"
+        assert ref.label == "Comic"
+        assert ref.nav_path == "/comic"
+        assert ref.is_tier is False
+
+    def test_comic_in_media_type_keys(self):
+        from app.utils.media_resolver import MEDIA_TYPE_KEYS
+
+        assert "comic" in MEDIA_TYPE_KEYS
+
+    def test_comic_is_a_valid_meme_owner(self):
+        from app.utils.media_resolver import OWNER_TYPE_KEYS
+
+        assert "comic" in OWNER_TYPE_KEYS
 
 
 def test_every_registry_spec_names_a_real_owner_type():
