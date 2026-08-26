@@ -112,7 +112,9 @@ to be a `notes` JSONB field on the entry payload; they are now rows in the
   header, but it sits *outside* the form: the tab passes only
   `{ system_id }`, and the editor loads and saves itself against `/api/notes`.
   Its edits save immediately and independently — they are not part of Save
-  Changes, and Save Changes never writes notes.
+  Changes, and Save Changes never writes notes. **Comic is the one exception**
+  — `ComicModifyTab` mounts no notes editor, because `ComicNotes.jsx` does not
+  exist yet (see "Modify Comic Entry Form" below).
 - The section list comes from `GET /api/notes/sections`, so the tabs name no
   sections and need no change when the registry does. See
   `reusable-elements.md` for the editor and `options.md` for the kinds.
@@ -892,7 +894,7 @@ modal.
 
 ### Delete Comic Entry Tab
 
-- Search bar → filter by Comic Name EN/CN/Alt; select to show cover thumbnail, Comic Name, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issues, Franchise / Series, Remark, System ID, Delete button.
+- Search bar → filter by Comic Name EN/CN/Alt; select to show cover thumbnail, Comic Name, Volume Label, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issues, Franchise / Series, Remark, System ID, Delete button.
 - **Confirmation modal, orphan series** — offered when the deleted comic is the only remaining entry with that `series_id` across anime, manga, novel and comic (the series-capable ACG-style tier — cartoon, TV show and movie are not counted, matching the pattern novel and manga use).
 - **Confirmation modal, orphan franchise** — offered when the deleted comic is the only remaining comic in its franchise **and** no anime, anime movie, TV show, cartoon, manga or novel entries reference that franchise either (movie is not checked — the same six-table pattern novel's franchise-orphan check uses), and its series (if any) has already been cleared.
 - Deletes: `DELETE /api/comic/:id`
