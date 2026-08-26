@@ -19,6 +19,7 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 - [Music Status](#music-status)
 - [Seiyuu Status](#seiyuu-status)
 - [Movie Type](#movie-type)
+- [Comic Type](#comic-type)
 - [Region (TV Show)](#region-tv-show)
 - [Region (Manga)](#region-manga)
 - [Serialization Status](#serialization-status)
@@ -48,6 +49,17 @@ These categories are stored in the `system_options` table and power dynamic drop
 | `Movie Franchise for Filter` |                                |
 | `Main / Spinoff`             |                                |
 | `Dub Preference`             |                                |
+| `Comic Publisher`            |                                |
+| `Comic Imprint`               |                                |
+| `Comic Continuity`            |                                |
+| `Comic Era`                    |                                |
+| `Comic Event`                  |                                |
+| `Comic Writer`                 |                                |
+| `Comic Artist`                 |                                |
+
+Comic also reuses the existing `Distributor TW` category above (mapped to
+`comic.publisher_tw`), and reuses the Reading Status and Serialization Status
+option lists below rather than defining its own.
 
 ---
 
@@ -248,6 +260,20 @@ Field: `movie_type` _(future)_ — Default: `null`
 | `null`      | Yes     |
 | `Reality`   |         |
 | `Animation` |         |
+
+---
+
+## Comic Type
+
+Field: `comic.comic_type` — Default: `null`
+
+| Value      | Default |
+| ---------- | ------- |
+| `null`     | Yes     |
+| `Ongoing`  |         |
+| `Limited`  |         |
+| `One-Shot` |         |
+| `Annual`   |         |
 
 ---
 

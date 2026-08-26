@@ -16,6 +16,7 @@
   - [cartoons](#cartoons)
   - [manga](#manga)
   - [novel](#novel)
+  - [comic](#comic)
 - [Watch Order Tables](#watch-order-tables)
 - [Media Relation Table](#media-relation-table)
   - [watch_order_list](#watch_order_list)
@@ -39,7 +40,7 @@
 collection  (optional umbrella above franchise — e.g. Marvel, Type-Moon)
   └── franchise  (top-level hub)
         └── series  (optional grouping layer within a franchise)
-              └── single media entry  (granular entry — anime, anime_movies, movies, tv_shows, cartoons, manga, novel)
+              └── single media entry  (granular entry — anime, anime_movies, movies, tv_shows, cartoons, manga, novel, comic)
 ```
 
 - A media entry (e.g. `anime`, `movies`) always belongs to a `franchise` directly via `franchise_id`.
@@ -837,6 +838,102 @@ Light novel and book entries.
 
 ---
 
+### `comic`
+
+Western comic runs, Marvel-focused. One entry is one numbered run; Marvel
+events, storylines and eras are labels carried by a run (`events` / `era`),
+never entries of their own.
+
+**Notes:** `display_name` falls back **EN -> CN -> Alt** — every other media
+entry type in this project leads with CN, but Western comics are known by
+their English titles. Comics are manual-entry: there is no `mal_id` /
+`mal_link` / `anilist_*` column and no external metadata fetch (see
+business-logic.md).
+
+#### Identity & Hierarchy
+
+| Column         | Type | Nullable | Default   | Notes                                |
+| -------------- | ---- | -------- | --------- | ------------------------------------ |
+| `system_id`    | UUID | No       | `uuid4()` | Primary key                          |
+| `franchise_id` | UUID | Yes      | —         | FK -> `franchise.system_id` SET NULL |
+| `series_id`    | UUID | Yes      | —         | FK -> `series.system_id` SET NULL    |
+
+#### Names
+
+| Column           | Type   | Nullable | Notes                                                                                                                                          |
+| ---------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `comic_name_en`  | String | Yes      | Leads the `display_name` fallback (EN -> CN -> Alt)                                                                                              |
+| `comic_name_cn`  | String | Yes      |                                                                                                                                                     |
+| `comic_name_alt` | String | Yes      |                                                                                                                                                     |
+| `volume_label`   | String | Yes      | Run designator, e.g. `"Vol. 5"`, `"(2018)"`, `"Legacy"`. Free text, not numeric — Marvel run labels are not consistently numbered.               |
+
+#### Classification & Status
+
+| Column                 | Type    | Nullable | Default        | Notes                                                                                          |
+| ----------------------- | ------- | -------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| `comic_type`            | String  | Yes      | —              | `Ongoing` / `Limited` / `One-Shot` / `Annual`, null; see options.md                              |
+| `publisher`             | String  | Yes      | —              | category in system_options: Comic Publisher                                                      |
+| `imprint`               | String  | Yes      | —              | category in system_options: Comic Imprint                                                        |
+| `continuity`            | String  | Yes      | —              | category in system_options: Comic Continuity                                                     |
+| `era`                   | String  | Yes      | —              | category in system_options: Comic Era                                                            |
+| `events`                | String  | Yes      | —              | Comma-joined multi-select, same idiom as `franchise.franchise_type`; category in system_options: Comic Event |
+| `serialization_status`  | String  | Yes      | —              | Reuses the existing Serialization Status list — see options.md                                   |
+| `reading_status`        | String  | No       | `"Might Read"` | Reuses the existing Reading Status list — see options.md                                         |
+
+#### Progress Tracking
+
+Comic has exactly one progress mode — issues — so, unlike `manga` and
+`novel`, there is no `progress_display` column selecting among trackers.
+
+| Column        | Type    | Nullable | Default | Notes               |
+| ------------- | ------- | -------- | ------- | -------------------- |
+| `issue_total` | Integer | Yes      | —       | Total issues in the run |
+| `issue_fin`   | Integer | No       | `0`     | Issues read          |
+
+#### Ratings
+
+| Column      | Type   | Nullable | Notes                           |
+| ----------- | ------ | -------- | -------------------------------- |
+| `my_rating` | String | Yes      | S / A+ / A / B / C / D / E / F   |
+
+#### Production & Release
+
+| Column         | Type    | Nullable | Notes                                                                                     |
+| -------------- | ------- | -------- | --------------------------------------------------------------------------------------------- |
+| `writer`       | String  | Yes      | category in system_options: Comic Writer                                                      |
+| `artist`       | String  | Yes      | category in system_options: Comic Artist                                                      |
+| `release_year` | Integer | Yes      | Release year of the run                                                                       |
+| `end_year`     | Integer | Yes      | Release year the run ended                                                                    |
+| `publisher_tw` | String  | Yes      | Taiwan publisher; reuses the existing system_options category: Distributor TW (not comic-specific) |
+
+#### Relational & Ordering
+
+| Column          | Type    | Nullable | Notes                                                                             |
+| --------------- | ------- | -------- | ------------------------------------------------------------------------------------ |
+| `is_main_entry` | Boolean | Yes      | Whether this is the main entry among entries linked by an `alternative` relation     |
+| `read_order`    | Float   | Yes      | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`)                         |
+
+#### External Links
+
+| Column         | Type  | Nullable | Notes |
+| -------------- | ----- | -------- | ----- |
+| `source_other` | JSONB | Yes      |       |
+
+#### Misc
+
+| Column             | Type     | Nullable | Default | Notes                                                                                         |
+| ------------------ | -------- | -------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `read_next`        | Boolean  | Yes      | —       | **No UI yet** — plan pages were out of scope for this backend plan. Created now so adding them later needs no migration. |
+| `to_reread`        | Boolean  | Yes      | `false` | Same as `read_next` — **no UI yet**.                                                              |
+| `cover_image_file` | String   | Yes      | —       | Filename in GCS bucket: `"<system_id>.jpg"`                                                       |
+| `completed_at`     | DateTime | Yes      | —       | When entry was marked completed                                                                   |
+| `created_at`       | DateTime | No       | —       | Auto-set on create                                                                                 |
+| `updated_at`       | DateTime | No       | —       | Auto-updated on save                                                                               |
+
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+
+---
+
 ## Watch Order Tables
 
 Named, ordered, cross-media-type viewing guides. Distinct from the per-entry
@@ -1223,6 +1320,14 @@ Dynamic dropdown/choice list values used in frontend forms. Editable via the adm
 | `Novel Author`              | `novel.author`                                    |
 | `Novel Illustrator`         | `novel.illustrator`                               |
 | `Novel Publisher TW`        | `novel.publisher_tw`                              |
+| `Comic Publisher`           | `comic.publisher`                                 |
+| `Comic Imprint`             | `comic.imprint`                                   |
+| `Comic Continuity`          | `comic.continuity`                                |
+| `Comic Era`                 | `comic.era`                                       |
+| `Comic Event`                | `comic.events`                                    |
+| `Comic Writer`              | `comic.writer`                                    |
+| `Comic Artist`              | `comic.artist`                                    |
+| `Distributor TW`            | also reused by `comic.publisher_tw` (in addition to its existing use) |
 
 ---
 

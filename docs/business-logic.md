@@ -36,7 +36,7 @@ Overwrites all Google Sheets tabs with the current database state.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
 4. Bulk overwrite each tab in this order:
-   - System Options → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → **Watch Order List** → **Watch Order Item** → **Media Relation** → **Quote** → **Meme** → **Note**
+   - System Options → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Comic → **Watch Order List** → **Watch Order Item** → **Media Relation** → **Quote** → **Meme** → **Note**
    - Collection is written before Franchise because `franchise.collection_id` references it.
    - The two Watch Order tabs are written last: their items point at rows in every media tab above, so dumping them afterwards keeps the sheet in the same order Pull restores it.
 5. Log result to `DataControlLog`.
@@ -153,6 +153,21 @@ Fills missing metadata for all novel entries that need it.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
 **Note:** Shows entry being processed by novel entry name (with fallback).
+
+---
+
+#### Fill Comic — `execute_fill_comic(db, request, action_specific, action_type, log_action)` _(SSE)_
+
+Comics are manual-entry, so there is nothing to fetch from an external source.
+This runs system-options extraction only and makes **no external call** — it
+exists so the admin Fill controls behave uniformly across types.
+
+**Steps:**
+
+1. `run_sync_comic` (i.e. `extract_system_options_from_comic`).
+2. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Note:** Not part of `execute_fill_all` — Fill All does not include comic.
 
 ---
 
@@ -327,11 +342,32 @@ Replaces metadata for all novel entries that have a `mal_id` or `mal_link`.
 
 ---
 
+#### Replace for Single Comic Entry — `execute_replace_single_comic(db, comic_id, action_type, log_action)`
+
+Write hook for a single Comic entry, called automatically after `POST`/`PUT`
+on `/api/comic` and by `POST /api/data-control/replace/comic/{comic_id}` (the
+Autofill & Update button). Unlike every other single-replace hook, **it
+fetches nothing**: comics are manual-entry, so there is no external record to
+reconcile against. It exists only so the registry has a uniform `write_hook`
+and so the write is logged like every other type's.
+
+**Steps:**
+
+1. Look up the comic by `comic_id`; 404 if missing.
+2. `run_sync_comic(db)` (i.e. `extract_system_options_from_comic`).
+3. Log to `DataControlLog` and return `{status, message}`.
+
+**No bulk `execute_replace_comic` exists.** Bulk replace re-fetches every
+entry from an external source (MAL ID or IMDb ID); comic has none, so there is
+nothing for a bulk pass to do, and comic is not part of `execute_replace_all`.
+
+---
+
 ### Pull from Sheets
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all tabs in strict dependency order: **System Options → System Configs → Collection → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Watch Order List → Watch Order Item → Media Relation → Quote → Meme → Note → Seasonal**. This order is required to satisfy foreign key constraints — Collection precedes Franchise because `franchise.collection_id` points at it.
+Pulls all tabs in strict dependency order: **System Options → System Configs → Collection → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Comic → Watch Order List → Watch Order Item → Media Relation → Quote → Meme → Note → Seasonal**. This order is required to satisfy foreign key constraints — Collection precedes Franchise because `franchise.collection_id` points at it.
 
 **Collection FK resolution differs deliberately.** Like `franchise_id`/`series_id`, a `collection_id` cell may hold either a UUID or a collection *name*. But where an unresolvable franchise or series name causes the whole row to be **skipped**, an unresolvable collection name only sets `collection_id = NULL` and logs a warning — the franchise still imports. Collection is an optional tier, so an unknown umbrella name must never drop an otherwise valid franchise.
 
@@ -339,7 +375,7 @@ Pulls all tabs in strict dependency order: **System Options → System Configs �
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Watch Order List"`, `"Watch Order Item"`, `"Media Relation"`, `"Quote"`, `"Meme"`, `"Note"`, `"Seasonal"`, `"System Options"`, `"System Configs"`.
+Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Comic"`, `"Watch Order List"`, `"Watch Order Item"`, `"Media Relation"`, `"Quote"`, `"Meme"`, `"Note"`, `"Seasonal"`, `"System Options"`, `"System Configs"`.
 
 **Steps:**
 
@@ -548,6 +584,12 @@ Master orchestrator. Calls all derive-related functions across every eligible me
 ### Sync — `run_sync_novel(db)`
 
 1. `extract_system_options_from_novel`
+
+---
+
+### Sync — `run_sync_comic(db)`
+
+1. `extract_system_options_from_comic`
 
 ---
 
@@ -1353,6 +1395,19 @@ Scans all Novel entries and creates any missing system options entries for relev
 
 ---
 
+### Extract System Options from Comic — `extract_system_options_from_comic(db)`
+
+Scans all Comic entries for values in `publisher`, `imprint`, `continuity`,
+`era`, `events`, `writer`, `artist` and `publisher_tw`, and creates any
+missing `system_options` entries. `events` is comma-joined (same idiom as
+`franchise.franchise_type`), so it is split per value before comparing.
+Maps to categories `Comic Publisher`, `Comic Imprint`, `Comic Continuity`,
+`Comic Era`, `Comic Event`, `Comic Writer`, `Comic Artist`, and the existing
+`Distributor TW` category (for `publisher_tw`, reused rather than a new
+Comic-specific category).
+
+---
+
 ## Other Logics
 
 ### Calculate Cumulative Episode _(computed field, not a function)_
@@ -1399,6 +1454,19 @@ Sets automatically:
 - `vol_fin`, `vol_total_original`, and `vol_total_tw` to the maximum of the three
 - `arc_fin` and `arc_total` to the maximum of the two
 - `ch_fin` and `ch_total` to the maximum of the two
+
+---
+
+### Mark Comic Completed — `mark_comic_completed(entry)`
+
+Sets automatically:
+
+- `serialization_status = "完結"`
+- `reading_status = "Completed"`
+- `issue_fin` snapped to `max(issue_total, issue_fin)` (ignoring whichever
+  side is `None`). `issue_total` is snapped to that same max **only if it was
+  already non-null** — an unknown (`None`) `issue_total` is left `None`
+  rather than being invented.
 
 ---
 

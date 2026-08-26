@@ -23,6 +23,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Cartoon — `/api/cartoon`](#cartoon--apicartoon)
 - [Manga — `/api/manga`](#manga--apimanga)
 - [Novel — `/api/novel`](#novel--apinovel)
+- [Comic — `/api/comic`](#comic--apicomic)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
 - [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
 - [Note — `/api/notes`](#note--apinotes)
@@ -98,7 +99,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
 ---
 
-> **Media entry routers.** `movie`, `tv-shows`, `cartoon`, `manga`, and `novel` share a generated router (`make_media_router` + `MEDIA_REGISTRY`, see `app/routers/_factory.py`) and use `/{entry_id}` for single-entry paths. `anime` and `anime-movie` are hand-written and use `/{system_id}`. All seven expose the same CRUD + `/{…}/complete` shape.
+> **Media entry routers.** `movie`, `tv-shows`, `cartoon`, `manga`, `novel`, and `comic` share a generated router (`make_media_router` + `MEDIA_REGISTRY`, see `app/routers/_factory.py`) and use `/{entry_id}` for single-entry paths. `anime` and `anime-movie` are hand-written and use `/{system_id}`. All eight expose the same CRUD + `/{…}/complete` shape.
 
 ## Anime — `/api/anime`
 
@@ -211,6 +212,25 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
 
 **Response model:** `NovelResponse`
+
+---
+
+## Comic — `/api/comic`
+
+Western comic runs. Manual-entry only — see the Comic Fill/Replace notes under
+Data Control below.
+
+| Method   | Path                   | Auth   | Description                                                                                                                           |
+| -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/`                    | Public | List all comics. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
+| `GET`    | `/{entry_id}`          | Public | Get a single comic entry by UUID.                                                                                                     |
+| `POST`   | `/`                    | Admin  | Create a comic entry. Auto-runs `execute_replace_single_comic` after creation — a no-op for comics (see Data Control). Body: `ComicCreate`. |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update of a comic entry. Auto-runs `execute_replace_single_comic` after update — a no-op for comics. Body: `ComicUpdate`.        |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", serialization status to `完結`, issues finished/total snapped to the higher of the two). |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a comic entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
+
+**Response model:** `ComicResponse`
 
 ---
 
@@ -562,6 +582,7 @@ All endpoints in this router require admin authentication.
 | `POST` | `/fill/cartoon`     | Fill missing metadata for all cartoons from TMDB/OMDb. Streams SSE progress. |
 | `POST` | `/fill/manga`       | Fill missing metadata for all manga from Jikan. Streams SSE progress.        |
 | `POST` | `/fill/novel`       | Fill missing metadata for all novels from Jikan. Streams SSE progress.       |
+| `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
 ### Replace
@@ -582,7 +603,10 @@ All endpoints in this router require admin authentication.
 | `POST` | `/replace/manga/{manga_id}`             | Replace metadata for a single manga entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
 | `POST` | `/replace/novel/{novel_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
+| `POST` | `/replace/comic/{comic_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
+
+**No bulk `/replace/comic`.** Bulk replace exists to re-fetch every entry from an external source (MAL ID for anime/manga/novel, IMDb ID for movie/TV/cartoon). Comic has no external source — no `mal_*`/`anilist_*` columns and no MAL/AniList/TMDB/OMDb involvement — so there is nothing for a bulk pass to re-fetch, and no `execute_replace_comic` or `/replace/comic` route exists.
 
 ### Backup & Pull
 
@@ -592,6 +616,7 @@ All endpoints in this router require admin authentication.
 | `POST` | `/pull`            | Pull all tabs from Google Sheets (System Options → Franchise → Series → Anime). Returns JSON. |
 | `POST` | `/pull/manga`      | Pull Manga tab from Google Sheets. Returns JSON.                                              |
 | `POST` | `/pull/novel`      | Pull Novel tab from Google Sheets. Returns JSON.                                              |
+| `POST` | `/pull/comic`      | Pull Comic tab from Google Sheets. Returns JSON.                                              |
 | `POST` | `/pull/cartoon`    | Pull Cartoon tab from Google Sheets. Returns JSON.                                            |
 | `POST` | `/pull/{tab_name}` | Pull a single tab by name. Returns JSON.                                                      |
 
