@@ -108,7 +108,7 @@ export default function Anime() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Autofill failed");
-      showToast("success", data.message || "Jikan autofill completed");
+      showToast("success", data.message || "Tenrai autofill completed");
       await invalidateMedia();
       await fetchMediaItem();
     } catch (e) {

@@ -299,7 +299,7 @@ function LogsTable({ logs, onRefresh }) {
   );
 }
 
-const JIKAN_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
+const TENRAI_TYPES = ["TV", "ONA", "OVA", "Movie", "Special"];
 
 function CoverImageModal({
   result,

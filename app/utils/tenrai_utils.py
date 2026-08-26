@@ -1,7 +1,7 @@
 """
-jikan_utils.py
+tenrai_utils.py
 Contains domain-specific logic to parse and transform raw JSON data from the
-Jikan (MyAnimeList) API into the formats required by our Anime database model.
+Tenrai (MyAnimeList) API into the formats required by our Anime database model.
 """
 
 import logging
@@ -45,26 +45,26 @@ SEASON_MAP = {
 # ==========================================
 
 
-def _convert_airing_type(jikan_type: Optional[str]) -> Optional[str]:
+def _convert_airing_type(tenrai_type: Optional[str]) -> Optional[str]:
     """
-    Converts Jikan 'type' to our internal Airing Type.
+    Converts Tenrai 'type' to our internal Airing Type.
     Falls back to 'Other' if the type is unrecognized.
     """
-    if not jikan_type:
+    if not tenrai_type:
         return None
-    if jikan_type in ALLOWED_AIRING_TYPES:
-        return jikan_type
+    if tenrai_type in ALLOWED_AIRING_TYPES:
+        return tenrai_type
     return "Other"
 
 
-def _convert_airing_status(jikan_status: Optional[str]) -> Optional[str]:
+def _convert_airing_status(tenrai_status: Optional[str]) -> Optional[str]:
     """
-    Normalizes Jikan's specific phrasing into strict database terminology.
+    Normalizes Tenrai's specific phrasing into strict database terminology.
     """
-    if not jikan_status:
+    if not tenrai_status:
         return None
 
-    lower_status = jikan_status.lower()
+    lower_status = tenrai_status.lower()
     if "finished" in lower_status:
         return "Finished Airing"
     if "currently" in lower_status:
@@ -75,20 +75,20 @@ def _convert_airing_status(jikan_status: Optional[str]) -> Optional[str]:
     return None
 
 
-def _convert_season(jikan_season: Optional[str]) -> Optional[str]:
+def _convert_season(tenrai_season: Optional[str]) -> Optional[str]:
     """
     Maps lowercase season strings to 3-letter uppercase abbreviations.
     """
-    if not jikan_season:
+    if not tenrai_season:
         return None
-    return SEASON_MAP.get(jikan_season.lower())
+    return SEASON_MAP.get(tenrai_season.lower())
 
 
 def _extract_date_parts(
     date_iso: Optional[str],
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Parses Jikan's ISO 8601 date string.
+    Parses Tenrai's ISO 8601 date string.
     Returns discrete Year, Month, and full Date strings.
     """
     if not date_iso:
@@ -133,15 +133,15 @@ def _extract_external_links(
 # ==========================================
 
 
-def map_jikan_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Master orchestration function to parse raw Jikan JSON data and flatten it
+    Master orchestration function to parse raw Tenrai JSON data and flatten it
     into the standardized dictionary format expected by PostgreSQL.
     """
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
 
-    # aired.prop.from.month is unreliable: Jikan defaults it to 1 (January) when
+    # aired.prop.from.month is unreliable: Tenrai defaults it to 1 (January) when
     # MAL only knows the year. The aired.string field is honest — "2026 to ?" means
     # year-only, while "Jan 2026 to ?" means the month is actually known.
     aired = raw_data.get("aired") or {}
@@ -182,10 +182,10 @@ def map_jikan_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_jikan_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+def map_tenrai_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Parses raw Jikan JSON into the flat dict expected by AnimeMovies.
-    Differs from map_jikan_to_anime_data: returns release_date_jp (YYYY-MM-DD),
+    Parses raw Tenrai JSON into the flat dict expected by AnimeMovies.
+    Differs from map_tenrai_to_anime_data: returns release_date_jp (YYYY-MM-DD),
     no season fields.
     """
     airing_type = _convert_airing_type(raw_data.get("type"))
@@ -220,8 +220,8 @@ def map_jikan_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_jikan_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Transforms raw Jikan manga data dict into a flat dict for the Manga model."""
+def map_tenrai_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Transforms raw Tenrai manga data dict into a flat dict for the Manga model."""
     _STATUS_MAP = {
         "Finished": "完結",
         "Publishing": "連載中",
@@ -271,8 +271,8 @@ def map_jikan_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def map_jikan_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Transforms raw Jikan manga data dict into a flat dict for the Novel model."""
+def map_tenrai_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Transforms raw Tenrai manga data dict into a flat dict for the Novel model."""
     _STATUS_MAP = {
         "Finished": "完結",
         "Publishing": "連載中",

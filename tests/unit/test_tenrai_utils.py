@@ -1,12 +1,12 @@
 """
-Unit tests for utils/jikan_utils.py
+Unit tests for utils/tenrai_utils.py
 
-Tests the Jikan API JSON → Anime dict transformation logic.
+Tests the Tenrai API JSON → Anime dict transformation logic.
 """
 
 import pytest
-from app.utils.jikan_utils import (
-    map_jikan_to_anime_data,
+from app.utils.tenrai_utils import (
+    map_tenrai_to_anime_data,
     _convert_airing_type,
     _convert_airing_status,
     _convert_season,
@@ -19,7 +19,7 @@ from app.utils.jikan_utils import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-def make_full_jikan_response():
+def make_full_tenrai_response():
     return {
         "type": "TV",
         "status": "Finished Airing",
@@ -44,15 +44,15 @@ def make_full_jikan_response():
 # ---------------------------------------------------------------------------
 
 class TestConvertAiringType:
-    @pytest.mark.parametrize("jikan_type,expected", [
+    @pytest.mark.parametrize("tenrai_type,expected", [
         ("TV", "TV"),
         ("Movie", "Movie"),
         ("ONA", "ONA"),
         ("OVA", "OVA"),
         ("Special", "Special"),
     ])
-    def test_known_types_pass_through(self, jikan_type, expected):
-        assert _convert_airing_type(jikan_type) == expected
+    def test_known_types_pass_through(self, tenrai_type, expected):
+        assert _convert_airing_type(tenrai_type) == expected
 
     def test_unknown_type_becomes_other(self):
         assert _convert_airing_type("Music") == "Other"
@@ -90,14 +90,14 @@ class TestConvertAiringStatus:
 # ---------------------------------------------------------------------------
 
 class TestConvertSeason:
-    @pytest.mark.parametrize("jikan_season,expected", [
+    @pytest.mark.parametrize("tenrai_season,expected", [
         ("winter", "WIN"),
         ("spring", "SPR"),
         ("summer", "SUM"),
         ("fall", "FAL"),
     ])
-    def test_lowercase_season_maps_correctly(self, jikan_season, expected):
-        assert _convert_season(jikan_season) == expected
+    def test_lowercase_season_maps_correctly(self, tenrai_season, expected):
+        assert _convert_season(tenrai_season) == expected
 
     def test_uppercase_input_is_normalized(self):
         assert _convert_season("WINTER") == "WIN"
@@ -168,13 +168,13 @@ class TestExtractExternalLinks:
 
 
 # ---------------------------------------------------------------------------
-# map_jikan_to_anime_data (full integration of above)
+# map_tenrai_to_anime_data (full integration of above)
 # ---------------------------------------------------------------------------
 
-class TestMapJikanToAnimeData:
+class TestMapTenraiToAnimeData:
     def test_full_response_mapped_correctly(self):
-        raw = make_full_jikan_response()
-        result = map_jikan_to_anime_data(raw)
+        raw = make_full_tenrai_response()
+        result = map_tenrai_to_anime_data(raw)
 
         assert result["airing_type"] == "TV"
         assert result["airing_status"] == "Finished Airing"
@@ -189,30 +189,30 @@ class TestMapJikanToAnimeData:
         assert result["cover_image_url"] == "https://example.com/img.webp"
 
     def test_webp_preferred_over_jpg(self):
-        raw = make_full_jikan_response()
-        result = map_jikan_to_anime_data(raw)
+        raw = make_full_tenrai_response()
+        result = map_tenrai_to_anime_data(raw)
         assert "webp" in result["cover_image_url"]
 
     def test_falls_back_to_jpg_when_no_webp(self):
-        raw = make_full_jikan_response()
+        raw = make_full_tenrai_response()
         raw["images"]["webp"] = {}
-        result = map_jikan_to_anime_data(raw)
+        result = map_tenrai_to_anime_data(raw)
         assert result["cover_image_url"] == "https://example.com/img.jpg"
 
     def test_missing_fields_return_none(self):
-        result = map_jikan_to_anime_data({})
+        result = map_tenrai_to_anime_data({})
         assert result["airing_type"] is None
         assert result["mal_rating"] is None
         assert result["cover_image_url"] is None
 
     def test_rank_none_stays_none(self):
-        raw = make_full_jikan_response()
+        raw = make_full_tenrai_response()
         raw["rank"] = None
-        result = map_jikan_to_anime_data(raw)
+        result = map_tenrai_to_anime_data(raw)
         assert result["mal_rank"] is None
 
     def test_rank_int_coerced_to_string(self):
-        raw = make_full_jikan_response()
+        raw = make_full_tenrai_response()
         raw["rank"] = 100
-        result = map_jikan_to_anime_data(raw)
+        result = map_tenrai_to_anime_data(raw)
         assert result["mal_rank"] == "100"

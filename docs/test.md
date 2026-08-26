@@ -3,7 +3,7 @@
 > **Status (as of 2026-08-01):** Tiers 1, part of Tier 2, and part of Tier 3 are implemented. Tiers 4–7 and the rest of Tier 3 are planned but not yet written. See the directory layout below — files marked _(planned)_ do not exist yet.
 >
 > Two failures predate the current work and are unrelated to it:
-> `tests/unit/test_jikan_utils.py::test_full_response_mapped_correctly` (expects
+> `tests/unit/test_tenrai_utils.py::test_full_response_mapped_correctly` (expects
 > `release_year == "2023"`, gets `None`) and `frontend/src/utils/anime.test.js`
 > (imports `./anime.js`, which does not exist — the utilities moved to `lib/`).
 
@@ -22,7 +22,7 @@ This document is the canonical reference for the CG1618 Media Tracker test suite
 | `httpx`          | FastAPI `AsyncClient` for HTTP-level tests |
 | `pytest-cov`     | Coverage reports                           |
 | `freezegun`      | Freeze/travel time for JWT expiry tests    |
-| `responses`      | Mock `requests.get` calls to Jikan API     |
+| `responses`      | Mock `requests.get` calls to Tenrai API     |
 | `factory-boy`    | Test data factories for SQLAlchemy models  |
 
 Install: `pip install -r requirements-dev.txt`
@@ -49,7 +49,7 @@ tests/                          ← backend tests
   conftest.py                   ← sets test-DB env vars before any app import
   unit/
     test_utils.py               ← validate_episode_math, extract_mal_id_anime, etc.
-    test_jikan_utils.py         ← map_jikan_to_anime_data
+    test_tenrai_utils.py         ← map_tenrai_to_anime_data
     test_formatter.py           ← format_model_for_sheet, parse_*_from_sheet  (planned)
     test_security.py            ← hashing, JWT sign/verify/expiry
     test_derivations.py         ← derive_watch_order_anime, ep_previous, prequel/sequel
@@ -71,7 +71,7 @@ tests/                          ← backend tests
     test_seasonal.py            (planned)
     test_system.py              (planned)
   services/
-    test_jikan_service.py       ← Jikan HTTP client + rate limiter  (planned)
+    test_tenrai_service.py       ← Tenrai HTTP client + rate limiter  (planned)
     test_image_manager.py       ← GCS / local cover image abstraction  (planned)
     test_sheets.py              ← Google Sheets sync  (planned)
     test_pipelines.py           ← Fill / Replace / Pull / Backup pipelines  (planned)
@@ -106,9 +106,9 @@ Tests for stateless functions with no DB or network dependencies.
 - `extract_mal_id_anime`: valid MAL URL → ID; invalid → `None`
 - `extract_season_from_title`: season string patterns
 
-### `tests/unit/test_jikan_utils.py` → `app/utils/jikan_utils.py`
+### `tests/unit/test_tenrai_utils.py` → `app/utils/tenrai_utils.py`
 
-- `map_jikan_to_anime_data`: full response → correct dict; webp preferred over jpg; type/status/season/date mappings; official/twitter link extraction
+- `map_tenrai_to_anime_data`: full response → correct dict; webp preferred over jpg; type/status/season/date mappings; official/twitter link extraction
 
 ### `tests/unit/test_formatter.py` → `app/utils/formatter.py`
 
@@ -234,7 +234,7 @@ Test the full HTTP request → response cycle with an in-memory SQLite DB. No ex
 
 Verify business logic pipelines with all network calls mocked.
 
-### `tests/services/test_jikan_service.py`
+### `tests/services/test_tenrai_service.py`
 
 - Mock `requests.get` → returns mapped dict; 404 → `None`; 429 → `RateLimitExceeded`; 500 → `None`
 - Rate limiter: 30th call succeeds; 31st blocks (`time.sleep` asserted)
@@ -253,7 +253,7 @@ Verify business logic pipelines with all network calls mocked.
 
 ### `tests/services/test_pipelines.py`
 
-- `execute_fill_anime`: mocked Jikan → missing fields updated; SSE events have correct shape
+- `execute_fill_anime`: mocked Tenrai → missing fields updated; SSE events have correct shape
 - `execute_pull_specific`: string FK name → UUID resolved; parent auto-created if missing; duplicate skipped
 - `execute_backup`: `bulk_overwrite_sheet` called for each of 4 tabs
 

@@ -98,7 +98,7 @@ logger = logging.getLogger(__name__)
 async def execute_replace_single_anime(
     db: Session, anime_id: str, action_type: str = "Manual", log_action: bool = True
 ) -> dict:
-    """Fetches Jikan data for a single entry, runs post-processing, derives related, and syncs."""
+    """Fetches Tenrai data for a single entry, runs post-processing, derives related, and syncs."""
     logger.info(f"Starting Single Replace Pipeline for anime ID: {anime_id}")
     action_specific = "Replace for single anime entry"
 
@@ -158,7 +158,7 @@ async def execute_replace_single_anime_movie(
     action_type: str = "Manual",
     log_action: bool = True,
 ) -> dict:
-    """Fetches Jikan data for a single AnimeMovies entry, runs post-processing, and syncs."""
+    """Fetches Tenrai data for a single AnimeMovies entry, runs post-processing, and syncs."""
     logger.info(
         f"Starting Single Replace Pipeline for anime movie ID: {anime_movie_id}"
     )
@@ -394,7 +394,7 @@ async def execute_replace_single_manga(
     action_type: str = "Manual",
     log_action: bool = True,
 ) -> dict:
-    """Fetches Jikan data for a single Manga entry, runs post-processing, derives related, and syncs."""
+    """Fetches Tenrai data for a single Manga entry, runs post-processing, derives related, and syncs."""
     logger.info(f"Starting Single Replace Pipeline for Manga ID: {manga_id}")
     action_specific = "Replace for single manga entry"
 
@@ -452,7 +452,7 @@ async def execute_replace_single_novel(
     action_type: str = "Manual",
     log_action: bool = True,
 ) -> dict:
-    """Fetches Jikan data for a single Novel entry and syncs."""
+    """Fetches Tenrai data for a single Novel entry and syncs."""
     logger.info(f"Starting Single Replace Pipeline for Novel ID: {novel_id}")
     action_specific = "Replace for single novel entry"
 
@@ -1077,7 +1077,7 @@ async def execute_replace_manga(
     action_type: str = "Manual",
     log_action: bool = True,
 ):
-    """Async Generator (SSE). Replace all manga entries with Jikan data."""
+    """Async Generator (SSE). Replace all manga entries with Tenrai data."""
     logger.info(f"Starting {action_specific} Pipeline...")
 
     processed_count = 0
@@ -1177,7 +1177,7 @@ async def execute_replace_novel(
     action_type: str = "Manual",
     log_action: bool = True,
 ):
-    """Async Generator (SSE). Replace all novel entries with Jikan data."""
+    """Async Generator (SSE). Replace all novel entries with Tenrai data."""
     logger.info(f"Starting {action_specific} Pipeline...")
 
     processed_count = 0

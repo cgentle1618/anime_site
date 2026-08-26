@@ -19,11 +19,11 @@
 | `passlib`              | 1.7.4        | Password utility library (legacy; bcrypt is used directly)                      |
 | `gspread`              | 5.12.0       | Google Sheets API client — Backup and Pull pipelines                            |
 | `google-auth`          | 2.23.3       | Google authentication — service account credentials for Sheets and GCS          |
-| `requests`             | 2.31.0       | HTTP client — Jikan API calls and cover image downloads                         |
+| `requests`             | 2.31.0       | HTTP client — Tenrai API calls and cover image downloads                         |
 | `google-cloud-storage` | 2.14.0       | Google Cloud Storage client — cover image upload and retrieval                  |
 | `python-dotenv`        | 1.0.0        | Backs pydantic-settings' `.env` file loading for local development              |
 | `pytz`                 | 2023.3.post1 | Timezone utilities — provides Asia/Taipei timezone for `get_taipei_now()`       |
-| `tenacity`             | ≥8.0.0       | Retry decorator — exponential backoff for Jikan API calls                       |
+| `tenacity`             | ≥8.0.0       | Retry decorator — exponential backoff for Tenrai API calls                       |
 
 ---
 

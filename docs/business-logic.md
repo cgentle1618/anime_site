@@ -965,13 +965,13 @@ For anime with `cover_image_file = None`, sets it to `"<system_id>.jpg"` if the 
 
 ### MAL Autofill Anime — `autofill_anime_from_mal(anime, force_replace_ratings=True)`
 
-Enriches a single Anime entry with Jikan API data. Does not commit — caller is responsible.
+Enriches a single Anime entry with Tenrai API data. Does not commit — caller is responsible.
 
 **Steps:**
 
 1. Resolve `mal_id` from `anime.mal_id`. Return if no ID.
-2. Call `fetch_jikan_anime_data(mal_id)`.
-3. Map response via `map_jikan_to_anime_data()`.
+2. Call `fetch_tenrai_anime_data(mal_id)`.
+3. Map response via `map_tenrai_to_anime_data()`.
 4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `ep_total`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
@@ -980,13 +980,13 @@ Enriches a single Anime entry with Jikan API data. Does not commit — caller is
 
 ### MAL Autofill Anime Movie — `autofill_anime_movie_from_mal(anime, force_replace_ratings=True)`
 
-Enriches a single Anime Movie entry with Jikan API data. Does not commit — caller is responsible.
+Enriches a single Anime Movie entry with Tenrai API data. Does not commit — caller is responsible.
 
 **Steps:**
 
 1. Resolve `mal_id` from `anime_movie.mal_id`. Return if no ID.
-2. Call `fetch_jikan_anime_data(mal_id)`.
-3. Map response via `map_jikan_to_anime_data()`.
+2. Call `fetch_tenrai_anime_data(mal_id)`.
+3. Map response via `map_tenrai_to_anime_data()`.
 4. Fill each field **only if currently None**: `airing_status`, `release_year_jp`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
@@ -995,13 +995,13 @@ Enriches a single Anime Movie entry with Jikan API data. Does not commit — cal
 
 ### MAL Autofill Manga — `autofill_manga_from_mal(manga, force_replace_ratings=True)`
 
-Enriches a single Manga entry with Jikan API data. Does not commit — caller is responsible.
+Enriches a single Manga entry with Tenrai API data. Does not commit — caller is responsible.
 
 **Steps:**
 
 1. Resolve `mal_id` from `manga.mal_id`. Return if no ID.
-2. Call `fetch_jikan_manga_novel_data(mal_id)`.
-3. Map response via `map_jikan_to_manga_data()`.
+2. Call `fetch_tenrai_manga_novel_data(mal_id)`.
+3. Map response via `map_tenrai_to_manga_data()`.
 4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total`, `ch_total`.
    - Exception: `vol_total` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite (replace, not fill-only).
@@ -1011,13 +1011,13 @@ Enriches a single Manga entry with Jikan API data. Does not commit — caller is
 
 ### MAL Autofill Novel — `autofill_novel_from_mal(novel, force_replace_ratings=True)`
 
-Enriches a single Novel entry with Jikan API data. Does not commit — caller is responsible.
+Enriches a single Novel entry with Tenrai API data. Does not commit — caller is responsible.
 
 **Steps:**
 
 1. Resolve `mal_id` from `novel.mal_id`. Return if no ID.
-2. Call `fetch_jikan_manga_novel_data(mal_id)`.
-3. Map response via `map_jikan_to_novel_data()`.
+2. Call `fetch_tenrai_manga_novel_data(mal_id)`.
+3. Map response via `map_tenrai_to_novel_data()`.
 4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total_original`, `ch_total`.
    - Exception: `vol_total_original` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite (replace, not fill-only).
@@ -1101,29 +1101,29 @@ The autofill path branches on `airing_type`:
 
 ## MAL Data Helpers
 
-### MAL Fetch Anime — `fetch_jikan_anime_data(mal_id)` in `app/services/integrations/jikan.py`
+### MAL Fetch Anime — `fetch_tenrai_anime_data(mal_id)` in `app/services/integrations/tenrai.py`
 
-Fetches `GET https://api.jikan.moe/v4/anime/{mal_id}/full`.
+Fetches `GET https://api.tenrai.org/v1/anime/{mal_id}/full`.
 
-**Rate limiting:** Global `JikanRateLimiter` singleton — sliding window, default 30 requests / 60 seconds. Blocks before each request until under the limit.
+**Rate limiting:** Global `TenraiRateLimiter` singleton — sliding window, default 30 requests / 60 seconds. Blocks before each request until under the limit.
 
 **Retry:** 5 attempts, exponential backoff 2-10s. Retries on `RequestException` or `RateLimitExceeded` (HTTP 429). Returns `None` on 404 or >= 500.
 
 ---
 
-### MAL Fetch Manga — `fetch_jikan_manga_novel_data(mal_id)` in `app/services/integrations/jikan.py`
+### MAL Fetch Manga — `fetch_tenrai_manga_novel_data(mal_id)` in `app/services/integrations/tenrai.py`
 
-Fetches `GET https://api.jikan.moe/v4/manga/{mal_id}/full`. If `mal_id` is null, returns `None`.
+Fetches `GET https://api.tenrai.org/v1/manga/{mal_id}/full`. If `mal_id` is null, returns `None`.
 
-Uses the same `JikanRateLimiter` and retry configuration as `fetch_jikan_anime_data`.
+Uses the same `TenraiRateLimiter` and retry configuration as `fetch_tenrai_anime_data`.
 
 ---
 
-### MAL Conversion for Manga — `map_jikan_to_manga_data(raw_data)` in `app/utils/jikan_utils.py`
+### MAL Conversion for Manga — `map_tenrai_to_manga_data(raw_data)` in `app/utils/tenrai_utils.py`
 
-Transforms raw Jikan manga `data` dict to a flat standardized dict.
+Transforms raw Tenrai manga `data` dict to a flat standardized dict.
 
-| Output Field           | Jikan Source / Mapping                                                                                                                                 |
+| Output Field           | Tenrai Source / Mapping                                                                                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `serialization_status` | `status` — `"Finished"` → `"完結"`, `"Publishing"` → `"連載中"`, `"On Hiatus"` → `"停更"`, `"Discontinued"` → `"腰斬"`, `"Not yet published"` → `null` |
 | `release_year`         | `published.from` (ISO date parsed — year only)                                                                                                         |
@@ -1136,11 +1136,11 @@ Transforms raw Jikan manga `data` dict to a flat standardized dict.
 
 ---
 
-### MAL Conversion for Novel — `map_jikan_to_novel_data(raw_data)` in `app/utils/jikan_utils.py`
+### MAL Conversion for Novel — `map_tenrai_to_novel_data(raw_data)` in `app/utils/tenrai_utils.py`
 
-Transforms raw Jikan manga `data` dict to a flat standardized dict for novel entries.
+Transforms raw Tenrai manga `data` dict to a flat standardized dict for novel entries.
 
-| Output Field           | Jikan Source / Mapping                                                                                                      |
+| Output Field           | Tenrai Source / Mapping                                                                                                      |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `serialization_status` | `status` — `"Finished"` → `"完結"`, `"Publishing"` → `"連載中"`, `"On Hiatus"` → `"停更"`, `"Not yet published"` → `"未出"` |
 | `release_year`         | `published.from` (ISO date parsed — year only)                                                                              |
@@ -1153,11 +1153,11 @@ Transforms raw Jikan manga `data` dict to a flat standardized dict for novel ent
 
 ---
 
-### MAL Conversion for Anime — `map_jikan_to_anime_data(raw_data)` in `app/utils/jikan_utils.py`
+### MAL Conversion for Anime — `map_tenrai_to_anime_data(raw_data)` in `app/utils/tenrai_utils.py`
 
-Transforms raw Jikan `data` dict to a flat standardized dict.
+Transforms raw Tenrai `data` dict to a flat standardized dict.
 
-| Output Field      | Jikan Source                                                                                                  |
+| Output Field      | Tenrai Source                                                                                                  |
 | ----------------- | ------------------------------------------------------------------------------------------------------------- |
 | `airing_type`     | `type` — normalized; `"Other"` if not in allowed set                                                          |
 | `airing_status`   | `status` — "Finished..." → `"Finished Airing"`, "Currently..." → `"Airing"`, "Not yet..." → `"Not Yet Aired"` |
@@ -1485,7 +1485,7 @@ Returns all cover image filenames from GCS (Cloud Run) or `static/covers/` (loca
 
 ### Download Missing Covers — `bulk_download_missing_covers(db, system_ids=None)`
 
-Re-downloads cover images for entries whose `cover_image_file` is set but the file is missing. Method: clears `cover_image_file`, calls `autofill_anime_from_mal(force_replace_ratings=False)` to trigger a fresh Jikan fetch and download without overwriting ratings. Skips entries with `airing_type` not in `ALLOWED_AIRING_TYPES = {TV, Movie, ONA, OVA, Special}`.
+Re-downloads cover images for entries whose `cover_image_file` is set but the file is missing. Method: clears `cover_image_file`, calls `autofill_anime_from_mal(force_replace_ratings=False)` to trigger a fresh Tenrai fetch and download without overwriting ratings. Skips entries with `airing_type` not in `ALLOWED_AIRING_TYPES = {TV, Movie, ONA, OVA, Special}`.
 
 ---
 

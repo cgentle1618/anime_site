@@ -48,7 +48,7 @@ app/
 │   │                    derivation, autofill, duplicates, remarks, seasonal,
 │   │                    options_extraction, post_processing)
 │   ├── pipelines/       fill / replace / pull / backup
-│   ├── integrations/    external API clients (jikan, tmdb, omdb, imdb, sheets, image_manager)
+│   ├── integrations/    external API clients (tenrai, tmdb, omdb, imdb, sheets, image_manager)
 │   ├── calculation.py
 │   └── security.py
 └── utils/               formatters, parsers, gcp/id helpers, constants
@@ -226,7 +226,7 @@ are hand-curated on `/relations`. See `business-logic.md`.
 
 **External API fill:**
 
-- `autofill_{anime|anime_movie|manga|novel}_from_mal(...)` — fetch MAL data via Jikan, fill missing fields, and download cover images.
+- `autofill_{anime|anime_movie|manga|novel}_from_mal(...)` — fetch MAL data via Tenrai, fill missing fields, and download cover images.
 - `autofill_{movie|tv_show|cartoon}_from_imdb(...)` — fetch IMDb details via TMDB/OMDb, fill missing fields, and download cover images.
 
 **Season inference:**
@@ -257,7 +257,7 @@ Called by `run_calculate_all(db)` (triggered from Admin page):
 - `verify_password(plain, hashed)` — constant-time comparison via `bcrypt.checkpw()`
 - `create_access_token(data, expires_delta)` — encodes JWT with `exp` claim; signs with `JWT_SECRET_KEY` + HS256
 
-### `jikan.py` — Jikan API Client
+### `tenrai.py` — Tenrai API Client
 
 See [integrations.md](integrations.md).
 
@@ -275,7 +275,7 @@ See [integrations.md](integrations.md).
 
 | File                    | Purpose                                                                                      |
 | ----------------------- | -------------------------------------------------------------------------------------------- |
-| `jikan_utils.py`        | Parse Jikan JSON → DB field dict; date/season/link extraction logic                          |
+| `tenrai_utils.py`        | Parse Tenrai JSON → DB field dict; date/season/link extraction logic                          |
 | `gcp_utils.py`          | Initialize GCS client; branch between Cloud Run IAM and local service account credentials    |
 | `utils.py`              | Regex patterns, episode math helpers, MAL ID extraction, season/month inference              |
 | `data_control_utils.py` | Write `DataControlLog` entries; stage `deleted_record` entries                               |

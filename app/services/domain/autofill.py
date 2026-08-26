@@ -44,15 +44,15 @@ from app.utils.utils import (
     validate_ch_math,
 )
 from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
-from app.services.integrations.jikan import fetch_jikan_anime_data, fetch_jikan_manga_novel_data
+from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.services.integrations.image_manager import download_cover_image
-from app.utils.jikan_utils import (
-    map_jikan_to_anime_data,
-    map_jikan_to_anime_movie_data,
-    map_jikan_to_manga_data,
-    map_jikan_to_novel_data,
+from app.utils.tenrai_utils import (
+    map_tenrai_to_anime_data,
+    map_tenrai_to_anime_movie_data,
+    map_tenrai_to_manga_data,
+    map_tenrai_to_novel_data,
 )
 from app.utils.imdb_utils import (
     _parse_season_number,
@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) -> None:
     """
-    Dedicated logic to fetch MAL data via Jikan and enrich a single Anime entry.
+    Dedicated logic to fetch MAL data via Tenrai and enrich a single Anime entry.
     Fills empty fields and overwrites ratings/rankings if instructed.
     """
     mal_id = anime.mal_id
@@ -78,12 +78,12 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
 
     try:
         # MAL Fetch Anime and Anime Movies
-        raw_data = fetch_jikan_anime_data(mal_id)
+        raw_data = fetch_tenrai_anime_data(mal_id)
         if not raw_data:
             return
 
         # MAL Conversion for Anime
-        j_data = map_jikan_to_anime_data(raw_data)
+        j_data = map_tenrai_to_anime_data(raw_data)
 
         # Fill Missing Data
         if anime.airing_type is None:
@@ -135,7 +135,7 @@ def autofill_anime_movie_from_mal(
     anime_movie: AnimeMovies, force_replace_ratings: bool = True
 ) -> None:
     """
-    Fetches Jikan data for a single AnimeMovies entry and fills/overwrites fields.
+    Fetches Tenrai data for a single AnimeMovies entry and fills/overwrites fields.
     Does not commit — caller is responsible.
     """
     mal_id = anime_movie.mal_id
@@ -143,11 +143,11 @@ def autofill_anime_movie_from_mal(
         return
 
     try:
-        raw_data = fetch_jikan_anime_data(mal_id)
+        raw_data = fetch_tenrai_anime_data(mal_id)
         if not raw_data:
             return
 
-        j_data = map_jikan_to_anime_movie_data(raw_data)
+        j_data = map_tenrai_to_anime_movie_data(raw_data)
 
         if anime_movie.airing_status is None:
             anime_movie.airing_status = j_data.get("airing_status")
@@ -179,7 +179,7 @@ def autofill_anime_movie_from_mal(
 
 def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) -> None:
     """
-    Enriches a single Manga entry with Jikan API data. Does not commit — caller is responsible.
+    Enriches a single Manga entry with Tenrai API data. Does not commit — caller is responsible.
     Fill-only: serialization_status, release_year, end_year.
     vol_total and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
@@ -189,11 +189,11 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
         return
 
     try:
-        raw_data = fetch_jikan_manga_novel_data(mal_id)
+        raw_data = fetch_tenrai_manga_novel_data(mal_id)
         if not raw_data:
             return
 
-        j_data = map_jikan_to_manga_data(raw_data)
+        j_data = map_tenrai_to_manga_data(raw_data)
 
         if manga.serialization_status is None:
             manga.serialization_status = j_data.get("serialization_status")
@@ -229,7 +229,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
 
 def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) -> None:
     """
-    Enriches a single Novel entry with Jikan API data. Does not commit — caller is responsible.
+    Enriches a single Novel entry with Tenrai API data. Does not commit — caller is responsible.
     Fill-only: serialization_status, release_year, end_year.
     vol_total_original and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
@@ -239,11 +239,11 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
         return
 
     try:
-        raw_data = fetch_jikan_manga_novel_data(mal_id)
+        raw_data = fetch_tenrai_manga_novel_data(mal_id)
         if not raw_data:
             return
 
-        j_data = map_jikan_to_novel_data(raw_data)
+        j_data = map_tenrai_to_novel_data(raw_data)
 
         if novel.serialization_status is None:
             novel.serialization_status = j_data.get("serialization_status")

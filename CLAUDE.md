@@ -18,7 +18,7 @@ Reference these files in `/docs` for deep technical context (note that the docum
 - **`pages.md`**: Frontend pages — what each loads and key components used.
 - **`admin-forms.md`**: Frontend form interaction logic for Add, Modify, and Delete admin pages — prefill behavior, franchise/series modal flows, form defaults, and post-submit pipeline triggers.
 - **`reusable-elements.md`**: Shared React components and JS utilities.
-- **`integrations.md`**: Jikan API throttling, OMDb API fetch, Google Sheets sync flow, GCS bucket setup.
+- **`integrations.md`**: Tenrai API throttling, OMDb API fetch, Google Sheets sync flow, GCS bucket setup.
 - **`architecture.md`**: Request flow, service layer details, auth flow, deployment.
 - **`dependencies.md`**: Python and NPM packages and their purpose.
 - **`test.md`**: Include testing.
@@ -31,7 +31,7 @@ Reference these files in `/docs` for deep technical context (note that the docum
 - **CSS**: Tailwind CSS v4
 - **Auth**: JWT in HTTP-Only cookie; RBAC via `Depends(get_current_admin)` in `app/dependencies.py`
 - **Migrations**: Alembic
-- **External Services**: Jikan v4 API (MAL metadata), TMDB API (cover/release/director via themoviedb.org), OMDb API (IMDb rating via omdbapi.com), Google Sheets (backup/restore), Google Cloud Storage (cover images)
+- **External Services**: Tenrai v1 API (MAL metadata), TMDB API (cover/release/director via themoviedb.org), OMDb API (IMDb rating via omdbapi.com), Google Sheets (backup/restore), Google Cloud Storage (cover images)
 - **Deployment**: Docker → GCP Cloud Run + Cloud SQL (PostgreSQL via Unix socket)
 
 ## Development Commands

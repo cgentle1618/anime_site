@@ -2,22 +2,23 @@
 
 ---
 
-## Jikan API (MyAnimeList Metadata)
+## Tenrai API (MyAnimeList Metadata)
 
-**Service file:** `app/services/integrations/jikan.py`  
-**Utils file:** `app/utils/jikan_utils.py`
+**Service file:** `app/services/integrations/tenrai.py`  
+**Utils file:** `app/utils/tenrai_utils.py`
 
-Jikan v4 is a public REST API that mirrors MyAnimeList data. It is used to auto-populate anime metadata fields (Fill pipeline) and to refresh existing entries (Replace pipeline).
+Tenrai v1 is a public REST API that mirrors MyAnimeList data. It is used to auto-populate anime metadata fields (Fill pipeline) and to refresh existing entries (Replace pipeline).
 
 ### HTTP Client
 
+- Base URL: `https://api.tenrai.org/v1` (`TENRAI_BASE_URL`)
 - Library: `requests` (synchronous)
 - Timeout: 15 seconds per request
 - User-Agent: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — required to avoid MAL-level 403 rejections
 
 ### Rate Limiter
 
-Class: `JikanRateLimiter` — sliding window, **30 requests per 60-second window**.
+Class: `TenraiRateLimiter` — sliding window, **30 requests per 60-second window**.
 
 `wait_if_needed()` is called before every request:
 
@@ -38,10 +39,10 @@ Library: `tenacity`
 
 ### Endpoint Called
 
-Only one Jikan endpoint is used:
+Only one Tenrai endpoint is used:
 
 ```
-GET /v4/anime/{mal_id}/full
+GET /v1/anime/{mal_id}/full
 ```
 
 Returns full anime metadata including images, external links, and episode count.
@@ -49,12 +50,12 @@ Returns full anime metadata including images, external links, and episode count.
 ### MAL ID Resolution
 
 1. Extract MAL ID from the `mal_link` field via regex: `/anime/(\d+)/`
-2. Call `fetch_jikan_anime_data(mal_id)`.
-3. Map response through `map_jikan_to_anime_data()`.
+2. Call `fetch_tenrai_anime_data(mal_id)`.
+3. Map response through `map_tenrai_to_anime_data()`.
 
-### Field Mappings (Jikan → Database)
+### Field Mappings (Tenrai → Database)
 
-| Jikan field                   | DB field                                        | Transformation                                                                              |
+| Tenrai field                   | DB field                                        | Transformation                                                                              |
 | ----------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `type`                        | `airing_type`                                   | TV/Movie/ONA/OVA/Special kept as-is; anything else → "Other"                                |
 | `status`                      | `airing_status`                                 | "currently airing"→Airing, "finished airing"→Finished Airing, "not yet aired"→Not Yet Aired |
@@ -272,10 +273,10 @@ GCS stores media entry cover images. Locally, images are saved to `static/covers
 ### Image Upload Flow
 
 1. Check if image already exists in GCS (production) or `static/covers/` (local).
-2. If missing: download from source URL via `requests.get()` (15s timeout, same User-Agent as Jikan client).
+2. If missing: download from source URL via `requests.get()` (15s timeout, same User-Agent as Tenrai client).
 3. Production: upload bytes to GCS with `Content-Type: image/jpeg`.
 4. Local: write bytes to `static/covers/{system_id}.jpg`.
-5. No resizing or format conversion — images are stored as downloaded (Jikan provides WebP preferred, JPEG fallback).
+5. No resizing or format conversion — images are stored as downloaded (Tenrai provides WebP preferred, JPEG fallback).
 
 ### Storage Format
 

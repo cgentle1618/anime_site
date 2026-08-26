@@ -1,6 +1,6 @@
 """
-jikan.py
-Handles all HTTP interactions with the external Jikan v4 API.
+tenrai.py
+Handles all HTTP interactions with the external Tenrai v1 API.
 Strictly responsible for fetching raw external JSON data and handling rate limits (429).
 """
 
@@ -19,10 +19,10 @@ from tenacity import (
 logger = logging.getLogger(__name__)
 
 # Constants for MyAnimeList's Unofficial API
-JIKAN_BASE_URL = "https://api.jikan.moe/v4"
+TENRAI_BASE_URL = "https://api.tenrai.org/v1"
 
 
-class JikanRateLimiter:
+class TenraiRateLimiter:
     def __init__(self, max_requests: int = 30, time_window: int = 60):
         self.max_requests = max_requests
         self.time_window = time_window
@@ -40,7 +40,7 @@ class JikanRateLimiter:
             sleep_time = self.time_window - (now - self.request_timestamps[0])
             if sleep_time > 0:
                 logger.info(
-                    f"Jikan Rate Limiter: Maximum requests ({self.max_requests}) reached. Pausing for {sleep_time:.2f} seconds."
+                    f"Tenrai Rate Limiter: Maximum requests ({self.max_requests}) reached. Pausing for {sleep_time:.2f} seconds."
                 )
                 time.sleep(sleep_time)
 
@@ -48,7 +48,7 @@ class JikanRateLimiter:
 
 
 # Global instance shared across the application
-jikan_rate_limiter = JikanRateLimiter()
+tenrai_rate_limiter = TenraiRateLimiter()
 
 
 class RateLimitExceeded(Exception):
@@ -64,9 +64,9 @@ class RateLimitExceeded(Exception):
     ),
     reraise=False,
 )
-def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
+def fetch_tenrai_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
     """
-    Fetches raw anime details from Jikan.
+    Fetches raw anime details from Tenrai.
     Works for anime and anime movie entries.
     Includes sliding window throttling and exponential backoff retry mechanism.
     """
@@ -74,9 +74,9 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
         return None
 
     # Proactive Throttling
-    jikan_rate_limiter.wait_if_needed()
+    tenrai_rate_limiter.wait_if_needed()
 
-    url = f"{JIKAN_BASE_URL}/anime/{mal_id}/full"
+    url = f"{TENRAI_BASE_URL}/anime/{mal_id}/full"
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
@@ -86,16 +86,16 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
-            logger.warning(f"Jikan Rate Limit (429) for MAL ID {mal_id}.")
+            logger.warning(f"Tenrai Rate Limit (429) for MAL ID {mal_id}.")
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code == 404:
-            logger.warning(f"Anime not found (404) on Jikan for MAL ID {mal_id}")
+            logger.warning(f"Anime not found (404) on Tenrai for MAL ID {mal_id}")
             return None
 
         if response.status_code >= 500:
             logger.warning(
-                f"Jikan server error ({response.status_code}) for MAL ID {mal_id} — skipping retries."
+                f"Tenrai server error ({response.status_code}) for MAL ID {mal_id} — skipping retries."
             )
             return None
 
@@ -105,7 +105,7 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
 
     except requests.exceptions.RequestException as e:
         logger.error(
-            f"Network/Timeout Error connecting to Jikan for MAL ID {mal_id}: {e}"
+            f"Network/Timeout Error connecting to Tenrai for MAL ID {mal_id}: {e}"
         )
         # Raise to trigger tenacity's reactive Exponential Backoff
         raise
@@ -120,17 +120,17 @@ def fetch_jikan_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
     ),
     reraise=False,
 )
-def fetch_jikan_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
+def fetch_tenrai_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
     """
-    Fetches raw manga details from Jikan.
-    Uses the same JikanRateLimiter and retry configuration as fetch_jikan_anime_data.
+    Fetches raw manga details from Tenrai.
+    Uses the same TenraiRateLimiter and retry configuration as fetch_tenrai_anime_data.
     """
     if not mal_id:
         return None
 
-    jikan_rate_limiter.wait_if_needed()
+    tenrai_rate_limiter.wait_if_needed()
 
-    url = f"{JIKAN_BASE_URL}/manga/{mal_id}/full"
+    url = f"{TENRAI_BASE_URL}/manga/{mal_id}/full"
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
@@ -140,16 +140,16 @@ def fetch_jikan_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
-            logger.warning(f"Jikan Rate Limit (429) for Manga MAL ID {mal_id}.")
+            logger.warning(f"Tenrai Rate Limit (429) for Manga MAL ID {mal_id}.")
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code == 404:
-            logger.warning(f"Manga not found (404) on Jikan for MAL ID {mal_id}")
+            logger.warning(f"Manga not found (404) on Tenrai for MAL ID {mal_id}")
             return None
 
         if response.status_code >= 500:
             logger.warning(
-                f"Jikan server error ({response.status_code}) for Manga MAL ID {mal_id} — skipping retries."
+                f"Tenrai server error ({response.status_code}) for Manga MAL ID {mal_id} — skipping retries."
             )
             return None
 
@@ -159,6 +159,6 @@ def fetch_jikan_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
 
     except requests.exceptions.RequestException as e:
         logger.error(
-            f"Network/Timeout Error connecting to Jikan for Manga MAL ID {mal_id}: {e}"
+            f"Network/Timeout Error connecting to Tenrai for Manga MAL ID {mal_id}: {e}"
         )
         raise

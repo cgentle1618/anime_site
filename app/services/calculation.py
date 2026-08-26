@@ -8,7 +8,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.utils.jikan_utils import ALLOWED_AIRING_TYPES
+from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
 from app.utils.data_control_utils import log_data_control
 
 from app.models import (
@@ -370,7 +370,7 @@ def bulk_download_missing_covers(
         db.commit()
     parts = [f"Downloaded {downloaded} of {total} missing cover images."]
     if skipped:
-        parts.append(f"{skipped} skipped (no Jikan source for this type).")
+        parts.append(f"{skipped} skipped (no Tenrai source for this type).")
     return {"status": "success", "message": " ".join(parts)}
 
 

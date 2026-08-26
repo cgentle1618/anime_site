@@ -501,7 +501,7 @@ Three sections, mirroring Franchise's layout:
 2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
 3. Auto-create any missing system options — see below.
 4. Auto-generate `system_id`, `created_at`, `updated_at`.
-5. `POST /api/comic/`. Comic has no Jikan/AniList/IMDb enrichment pipeline —
+5. `POST /api/comic/`. Comic has no Tenrai/AniList/IMDb enrichment pipeline —
    comics are manual-entry, so nothing external runs after submit.
 
 **Franchise Generation modal**

@@ -1405,7 +1405,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter
 - **Source Availability:** Baha dropdown (shows as 巴哈姆特動畫瘋), Baha Link, Netflix dropdown, Add Source button (other sources as `{name: link}`)
 - **Notes & Other:** Music Status (OP/ED/Insert/OST), Seiyuu, Cover Image File, Remark
-- Duplicate detection modal; Jikan enrichment after submit via `POST /api/data-control/replace/anime/:id`
+- Duplicate detection modal; Tenrai enrichment after submit via `POST /api/data-control/replace/anime/:id`
 
 #### Add New Anime Movie Entry Tab
 
@@ -1468,7 +1468,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Relational & Timeline:** Prequel ID, Sequel ID, Is Main Entry checkbox, Watch Order, Derive Related dropdown
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter, Add Source button (other sources as `{name: link}`)
 - **Notes & Other:** Cover Image File, Remark
-- Duplicate detection modal; Jikan enrichment after submit via `POST /api/data-control/replace/manga/:id`
+- Duplicate detection modal; Tenrai enrichment after submit via `POST /api/data-control/replace/manga/:id`
 
 #### Add New Novel Entry Tab
 
@@ -1527,7 +1527,7 @@ Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit butt
 - After selecting: Other Entries in franchise block (grouped by series), then full edit form
 - Form mirrors Add Anime tab, plus System ID (immutable), Entry Name CN with fallback (immutable), and **`AnimeNotes`** — the shared notes tab (see the detail page).
 
-Writes: `PATCH /api/anime/:id`; Jikan enrichment via `POST /api/data-control/replace/anime/:id`
+Writes: `PATCH /api/anime/:id`; Tenrai enrichment via `POST /api/data-control/replace/anime/:id`
 
 #### Modify Anime Movie Entry Tab
 

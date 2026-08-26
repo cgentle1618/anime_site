@@ -575,13 +575,13 @@ All endpoints in this router require admin authentication.
 
 | Method | Path                | Description                                                                  |
 | ------ | ------------------- | ---------------------------------------------------------------------------- |
-| `POST` | `/fill/anime`       | Fill missing metadata for all anime from Jikan. Streams SSE progress.        |
-| `POST` | `/fill/anime-movie` | Fill missing metadata for all anime movies from Jikan. Streams SSE progress. |
+| `POST` | `/fill/anime`       | Fill missing metadata for all anime from Tenrai. Streams SSE progress.        |
+| `POST` | `/fill/anime-movie` | Fill missing metadata for all anime movies from Tenrai. Streams SSE progress. |
 | `POST` | `/fill/movie`       | Fill missing metadata for all movies from TMDB/OMDb. Streams SSE progress.   |
 | `POST` | `/fill/tv-show`     | Fill missing metadata for all TV shows from TMDB/OMDb. Streams SSE progress. |
 | `POST` | `/fill/cartoon`     | Fill missing metadata for all cartoons from TMDB/OMDb. Streams SSE progress. |
-| `POST` | `/fill/manga`       | Fill missing metadata for all manga from Jikan. Streams SSE progress.        |
-| `POST` | `/fill/novel`       | Fill missing metadata for all novels from Jikan. Streams SSE progress.       |
+| `POST` | `/fill/manga`       | Fill missing metadata for all manga from Tenrai. Streams SSE progress.        |
+| `POST` | `/fill/novel`       | Fill missing metadata for all novels from Tenrai. Streams SSE progress.       |
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 

@@ -78,7 +78,7 @@ def download_cover_image(image_url: str, system_id: str) -> Optional[str]:
             if os.path.exists(filepath):
                 return filename
 
-        # MAL/Jikan requires a User-Agent to prevent 403 Forbidden errors
+        # MAL's image CDN requires a User-Agent to prevent 403 Forbidden errors
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
         }
