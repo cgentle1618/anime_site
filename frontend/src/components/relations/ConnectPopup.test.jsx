@@ -11,6 +11,7 @@ import ConnectPopup from "./ConnectPopup";
 const KINDS = [
   { key: "prequel", label: "Prequel", family: "timeline", symmetric: false },
   { key: "sequel", label: "Sequel", family: "timeline", symmetric: false },
+  { key: "alternative", label: "Alternative", family: "equivalence", symmetric: true },
   { key: "adaptation", label: "Adaptation", family: "derivation", symmetric: false },
 ];
 
@@ -23,6 +24,7 @@ function setup(props = {}) {
       source={{ key: "anime:a", display_name: "Fate/Zero" }}
       target={{ key: "anime:b", display_name: "Fate/stay night" }}
       position={{ x: 100, y: 100 }}
+      group="middle"
       onConfirm={onConfirm}
       onCancel={onCancel}
       {...props}
@@ -100,6 +102,43 @@ describe("ConnectPopup", () => {
     await userEvent.click(screen.getByRole("button", { name: /^add relation$/i }));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ from: "anime:b", to: "anime:a" }),
+    );
+  });
+
+  it("offers only the timeline kinds off a left/right handle", () => {
+    // The handle is the choice: a drag along the spine cannot become an
+    // adaptation, so those kinds are not on offer to misclick.
+    setup({ group: "timeline" });
+    expect(screen.getByRole("button", { name: /^prequel$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^sequel$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^adaptation$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^alternative$/i })).toBeNull();
+  });
+
+  it("offers every non-timeline kind off a top/bottom handle", () => {
+    setup({ group: "middle" });
+    expect(screen.getByRole("button", { name: /^adaptation$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^alternative$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^prequel$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^sequel$/i })).toBeNull();
+  });
+
+  it("defaults to Prequel on a timeline handle", async () => {
+    // "What came before" stays the commonest edit along the spine.
+    const { onConfirm } = setup({ group: "timeline" });
+    await userEvent.click(screen.getByRole("button", { name: /^add relation$/i }));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "prequel" }),
+    );
+  });
+
+  it("defaults to the first offered kind on a middle handle", async () => {
+    // Prequel is gone from this group, so the old hardcoded default would have
+    // submitted a kind the popup never showed.
+    const { onConfirm } = setup({ group: "middle" });
+    await userEvent.click(screen.getByRole("button", { name: /^add relation$/i }));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "alternative" }),
     );
   });
 

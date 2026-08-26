@@ -22,6 +22,15 @@ import ConnectPopup from "./ConnectPopup";
 import EdgeInspector from "./EdgeInspector";
 import NodePanel from "./NodePanel";
 import { layoutGraph, mergePositions } from "../../lib/relationLayout";
+import {
+  familyGroup,
+  handleGroup,
+  MIDDLE,
+  MIDDLE_SOURCE,
+  MIDDLE_TARGET,
+  TIMELINE_SOURCE,
+  TIMELINE_TARGET,
+} from "../../lib/relationHandles";
 
 const nodeTypes = { relation: RelationNode };
 
@@ -47,6 +56,10 @@ function toFlowEdges(edges, hiddenFamilies) {
     .filter((e) => !hiddenFamilies.has(e.family))
     .map((e) => {
       const style = FAMILY_STYLE[e.family] || FAMILY_STYLE.derivation;
+      // Which pair of handles the edge lands on, and so which way it reads.
+      // Timeline runs across on left/right; the other three families hang
+      // down on top/bottom, matching how layoutGraph now places them.
+      const middle = familyGroup(e.family) === MIDDLE;
       return {
         id: String(e.system_id),
         // Reversed, matching layoutGraph: a row reads "`from` is the {label}
@@ -55,6 +68,8 @@ function toFlowEdges(edges, hiddenFamilies) {
         // derivative, left to right along the timeline.
         source: e.to,
         target: e.from,
+        sourceHandle: middle ? MIDDLE_SOURCE : TIMELINE_SOURCE,
+        targetHandle: middle ? MIDDLE_TARGET : TIMELINE_TARGET,
         // A sequel arrow already says which way the row reads; the other
         // families are ambiguous without their name.
         label: style.showLabel ? e.label : undefined,
@@ -254,6 +269,16 @@ function GraphCanvas({
     return { x: point.x - rect.left, y: point.y - rect.top };
   }
 
+  // A timeline handle may only meet a timeline handle. Refusing the pair here
+  // rather than in the popup means a cross-group drag never snaps, so the
+  // rule is visible while dragging instead of arriving as an error afterwards.
+  const isValidConnection = useCallback(
+    (connection) =>
+      handleGroup(connection.sourceHandle) ===
+      handleGroup(connection.targetHandle),
+    [],
+  );
+
   // Drop on a node: both endpoints are known, so the popup only needs a kind.
   const onConnect = useCallback(
     (connection) => {
@@ -263,6 +288,9 @@ function GraphCanvas({
         attemptId: attemptIdRef.current,
         source: nodeByKey(connection.source),
         target: nodeByKey(connection.target),
+        // isValidConnection has already refused a mismatched pair, so either
+        // end names the same group.
+        group: handleGroup(connection.sourceHandle),
         position: toContainerPoint(lastDropRef.current),
       });
     },
@@ -288,6 +316,11 @@ function GraphCanvas({
         attemptId: attemptIdRef.current,
         source: nodeByKey(fromKey),
         target: null,
+        // No far end to agree with, so the handle the drag started from is the
+        // only thing that says which kinds this can become. A backwards drag
+        // off a top handle reports `middle-target`, which handleGroup reads
+        // the same as `middle-source`.
+        group: handleGroup(connectionState?.fromHandle?.id),
         position: toContainerPoint(point),
       });
     },
@@ -566,6 +599,7 @@ function GraphCanvas({
           onEdgeClick={onEdgeClick}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
+          isValidConnection={isValidConnection}
           fitView
           minZoom={0.15}
           proOptions={{ hideAttribution: false }}
@@ -638,6 +672,7 @@ function GraphCanvas({
           kinds={kinds}
           source={pending.source}
           target={pending.target}
+          group={pending.group}
           position={pending.position}
           error={connectError}
           busy={writing}

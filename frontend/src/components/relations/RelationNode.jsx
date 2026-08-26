@@ -4,9 +4,19 @@
 // relationLayout, so a node that renders taller than NODE_HEIGHT would overlap
 // its neighbours. Width and height are set inline rather than in Tailwind
 // classes so the two numbers cannot drift apart.
+//
+// Four handles in two groups, see lib/relationHandles: left/right carry the
+// timeline, top/bottom carry everything else. The pairing is what makes a
+// sequel read across and an adaptation read down.
 import { Handle, Position } from "@xyflow/react";
 
 import { getCoverUrl } from "../../lib/covers";
+import {
+  MIDDLE_SOURCE,
+  MIDDLE_TARGET,
+  TIMELINE_SOURCE,
+  TIMELINE_TARGET,
+} from "../../lib/relationHandles";
 import { mediaTypeChip } from "../../config/mediaTypeColors";
 import FittedName from "../layout/FittedName";
 import { NODE_HEIGHT, NODE_WIDTH } from "../../lib/relationLayout";
@@ -48,10 +58,21 @@ export default function RelationNode({ data, selected }) {
         selected ? "ring-2 ring-brand" : ""
       } ${opacity}`}
     >
+      {/* The timeline pair is brand-coloured because a sequel is the spine of
+          the graph. The middle pair is deliberately neutral: it stands for
+          three families drawn in three different colours, so borrowing any
+          one of them would be a lie about the other two. */}
       <Handle
+        id={TIMELINE_TARGET}
         type="target"
         position={Position.Left}
         className="!h-3 !w-3 !bg-brand"
+      />
+      <Handle
+        id={MIDDLE_TARGET}
+        type="target"
+        position={Position.Top}
+        className="!h-3 !w-3 !bg-gray-400"
       />
 
       {data.missing ? (
@@ -82,9 +103,16 @@ export default function RelationNode({ data, selected }) {
       </div>
 
       <Handle
+        id={TIMELINE_SOURCE}
         type="source"
         position={Position.Right}
         className="!h-3 !w-3 !bg-brand"
+      />
+      <Handle
+        id={MIDDLE_SOURCE}
+        type="source"
+        position={Position.Bottom}
+        className="!h-3 !w-3 !bg-gray-400"
       />
     </div>
   );

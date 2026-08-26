@@ -3,11 +3,16 @@
 // Pure functions, no DOM: layout is what decides whether a franchise reads as
 // a story or as a hairball, so it is testable on its own.
 //
-// Three passes, because the four relation families mean different things
-// spatially. Equivalence ("the same work, another version") must not spread
-// along the timeline, so those nodes are contracted into one layout node and
-// re-expanded as a column afterwards. Timeline drives the left-to-right flow;
-// branch and derivation bend off the spine at lower weight.
+// Three passes, because only one of the four relation families is horizontal.
+// Timeline is the spine and the only thing that ranks left to right: a sequel
+// is a later work and earns a column of its own. The other three - a version
+// of the same work, a branch off it, a work derived from it - all share their
+// source's place on that timeline rather than extending it, so they are
+// contracted into one layout node and re-expanded beneath it as a column.
+//
+// That split is the same one the canvas draws: a column is exactly the set of
+// nodes joined through the top/bottom handles, and a rank is what the
+// left/right handles connect. See lib/relationHandles.
 import dagre from "@dagrejs/dagre";
 
 // Nodes are fixed-size because dagre reserves space from declared dimensions -
@@ -22,10 +27,6 @@ const TRAY_TOP_GAP = 120;
 const TRAY_COLUMNS = 4;
 const TRAY_GAP_X = 24;
 const TRAY_GAP_Y = 20;
-
-// How hard each family pulls on the left-to-right ranking. Timeline is the
-// spine; a spin-off or an adaptation should bend off it rather than stretch it.
-const FAMILY_WEIGHT = { timeline: 4, branch: 2, derivation: 1 };
 
 function unionFind(keys) {
   const parent = new Map(keys.map((k) => [k, k]));
@@ -49,6 +50,50 @@ function unionFind(keys) {
 }
 
 /**
+ * Orders one column so an original sits above the work derived from it.
+ *
+ * Every row reads "`from` is the {label} of `to`", which makes `to` the
+ * earlier, parent or source work - so within a column an edge points to->from
+ * and `to` belongs on top. Without this the order is whatever the server sent,
+ * and an adaptation could render above its own source while the edge drawn
+ * between them still runs downwards.
+ *
+ * Kahn's algorithm rather than a walk from the roots, so a node with two
+ * parents cannot be placed above one of them. The queue is kept sorted so the
+ * same column always comes out the same way, and anything left unvisited - a
+ * cycle the user managed to build - is appended rather than dropped, because a
+ * node missing from `members` would never be positioned at all.
+ */
+function orderColumn(memberKeys, edges) {
+  const set = new Set(memberKeys);
+  const children = new Map(memberKeys.map((k) => [k, []]));
+  const indegree = new Map(memberKeys.map((k) => [k, 0]));
+  for (const e of edges) {
+    // Timeline edges rank the columns; they say nothing about order inside one.
+    if (e.family === "timeline") continue;
+    if (!set.has(e.from) || !set.has(e.to) || e.from === e.to) continue;
+    children.get(e.to).push(e.from);
+    indegree.set(e.from, indegree.get(e.from) + 1);
+  }
+
+  const queue = memberKeys.filter((k) => indegree.get(k) === 0).sort();
+  const ordered = [];
+  while (queue.length) {
+    const key = queue.shift();
+    ordered.push(key);
+    for (const child of children.get(key)) {
+      indegree.set(child, indegree.get(child) - 1);
+      if (indegree.get(child) === 0) queue.push(child);
+    }
+    queue.sort();
+  }
+  for (const key of memberKeys) {
+    if (!ordered.includes(key)) ordered.push(key);
+  }
+  return ordered;
+}
+
+/**
  * Positions every node, splitting them into the ranked graph and the tray of
  * entries no relation touches.
  *
@@ -64,10 +109,12 @@ export function layoutGraph({ nodes, edges }) {
     (e) => known.has(e.from) && known.has(e.to),
   );
 
-  // Pass 1: contract equivalence-linked nodes into version groups.
+  // Pass 1: contract every non-timeline link into a column. An alternative, a
+  // spin-off and an adaptation are all "not a later work", so none of them may
+  // consume a rank - they belong under whatever they came from.
   const { find, union } = unionFind(keys);
   for (const e of usable) {
-    if (e.family === "equivalence") union(e.from, e.to);
+    if (e.family !== "timeline") union(e.from, e.to);
   }
   const members = new Map();
   for (const key of keys) {
@@ -75,9 +122,15 @@ export function layoutGraph({ nodes, edges }) {
     if (!members.has(root)) members.set(root, []);
     members.get(root).push(key);
   }
+  // Ordered so the column reads top to bottom, rather than in whatever order
+  // the server happened to send the nodes.
+  for (const [root, group] of members) {
+    if (group.length > 1) members.set(root, orderColumn(group, usable));
+  }
 
-  // Cross-group edges are the only ones that rank; an equivalence edge inside
-  // a group has already been absorbed by the contraction.
+  // Cross-group edges are the only ones that rank, which after the contraction
+  // above means exactly the timeline edges: every other family has had its two
+  // endpoints merged into one group already.
   const crossEdges = usable.filter(
     (e) => find(e.from) !== find(e.to),
   );
@@ -117,12 +170,12 @@ export function layoutGraph({ nodes, edges }) {
     // every sequel to the LEFT of its prequel. The canvas draws the same
     // reversal (see toFlowEdges), so one rule holds throughout: an arrow runs
     // from the original to the work derived from it.
-    g.setEdge(to, from, { weight: FAMILY_WEIGHT[e.family] ?? 1 });
+    g.setEdge(to, from);
   }
   dagre.layout(g);
 
-  // Pass 3: expand each group back into a column of real nodes. dagre reports
-  // centres; React Flow wants top-left corners.
+  // Pass 3: expand each group back into its column of real nodes, in the order
+  // pass 1 settled. dagre reports centres; React Flow wants top-left corners.
   const positions = new Map();
   let deepest = 0;
   for (const root of rankedRoots) {

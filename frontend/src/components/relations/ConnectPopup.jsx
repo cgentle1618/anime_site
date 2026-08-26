@@ -8,9 +8,16 @@
 // row, so the node the drag started from is not necessarily the stored row's
 // `from`. Reading "A is the ___ of B" is what makes the direction unambiguous
 // regardless of how it is stored.
+//
+// `group` is which pair of handles the drag came off, and it gates the kinds
+// on offer: a drag along the left/right spine can only become a Sequel or a
+// Prequel, and one off the top/bottom handles can become anything else. The
+// handle is therefore a real choice made before the popup opens, which is why
+// there is no "wrong kind for this direction" error to recover from.
 import { useEffect, useMemo, useState } from "react";
 
 import { useGlobalMediaSearch } from "../../hooks/useGlobalMediaSearch";
+import { kindsForGroup, TIMELINE } from "../../lib/relationHandles";
 import FittedName from "../layout/FittedName";
 
 export default function ConnectPopup({
@@ -18,12 +25,16 @@ export default function ConnectPopup({
   source,
   target,
   position,
+  group = TIMELINE,
   error = null,
   busy = false,
   onConfirm,
   onCancel,
 }) {
-  const [kind, setKind] = useState("prequel");
+  // Null until the user picks, so the default can follow the group rather than
+  // being frozen at mount - a hardcoded "prequel" would submit a kind the
+  // middle group never even displays.
+  const [chosenKind, setChosenKind] = useState(null);
   const [remark, setRemark] = useState("");
   const [swapped, setSwapped] = useState(false);
   const [query, setQuery] = useState("");
@@ -43,20 +54,24 @@ export default function ConnectPopup({
   }, [onCancel]);
 
   const far = target || picked;
-  // Prequel first: "what came before" is the commonest edit.
+  // Prequel first: "what came before" is the commonest edit. It only survives
+  // the filter in the timeline group, so the middle group simply falls through
+  // to its own first kind.
   const ordered = useMemo(() => {
-    const rest = kinds.filter((k) => k.key !== "prequel");
-    const prequel = kinds.filter((k) => k.key === "prequel");
+    const allowed = kindsForGroup(kinds, group);
+    const rest = allowed.filter((k) => k.key !== "prequel");
+    const prequel = allowed.filter((k) => k.key === "prequel");
     return [...prequel, ...rest];
-  }, [kinds]);
+  }, [kinds, group]);
 
+  const kind = chosenKind ?? ordered[0]?.key ?? "";
   const subject = swapped ? far : source;
   const object = swapped ? source : far;
   const label = ordered.find((k) => k.key === kind)?.label || kind;
 
   function submit(e) {
     e.preventDefault();
-    if (!far) return;
+    if (!far || !kind) return;
     onConfirm({
       kind,
       from: subject.key,
@@ -130,7 +145,7 @@ export default function ConnectPopup({
           <button
             key={k.key}
             type="button"
-            onClick={() => setKind(k.key)}
+            onClick={() => setChosenKind(k.key)}
             className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
               kind === k.key
                 ? "bg-brand text-white"
@@ -173,7 +188,7 @@ export default function ConnectPopup({
         </button>
         <button
           type="submit"
-          disabled={busy || !far}
+          disabled={busy || !far || !kind}
           className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-40"
         >
           Add relation

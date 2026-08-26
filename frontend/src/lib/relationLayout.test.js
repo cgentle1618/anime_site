@@ -46,6 +46,62 @@ describe("layoutGraph", () => {
     ).toBeGreaterThanOrEqual(NODE_HEIGHT);
   });
 
+  it("hangs an adaptation below its source rather than beside it", () => {
+    // An adaptation is not a later work, so it must not consume a rank on the
+    // timeline. It shares its source's slot and drops beneath it, which is
+    // what the node's top/bottom handles draw.
+    const out = byKey(
+      layoutGraph({
+        nodes: [node("anime:a"), node("manga:a")],
+        edges: [edge("manga:a", "anime:a", "derivation", "adaptation")],
+      }),
+    );
+    expect(out["manga:a"].position.x).toBe(out["anime:a"].position.x);
+    expect(out["manga:a"].position.y).toBeGreaterThanOrEqual(
+      out["anime:a"].position.y + NODE_HEIGHT,
+    );
+  });
+
+  it("puts the original above the work derived from it", () => {
+    // The column is read top to bottom, so input order must not decide which
+    // end of a derivation lands on top. "manga:a is the Adaptation of anime:a"
+    // is stored manga:a -> anime:a, making anime:a the original.
+    const out = byKey(
+      layoutGraph({
+        nodes: [node("manga:a"), node("anime:a")],
+        edges: [edge("manga:a", "anime:a", "derivation", "adaptation")],
+      }),
+    );
+    expect(out["anime:a"].position.y).toBeLessThan(out["manga:a"].position.y);
+  });
+
+  it("keeps a spin-off out of the timeline ranking", () => {
+    // The spine stays pure timeline: A -> B is the only thing that earns a
+    // second column, so the spin-off must not push C to a rank of its own.
+    const out = byKey(
+      layoutGraph({
+        nodes: [node("anime:a"), node("anime:b"), node("anime:c")],
+        edges: [
+          edge("anime:b", "anime:a"),
+          edge("anime:c", "anime:a", "branch", "spin_off"),
+        ],
+      }),
+    );
+    expect(out["anime:c"].position.x).toBe(out["anime:a"].position.x);
+    expect(out["anime:a"].position.x).toBeLessThan(out["anime:b"].position.x);
+  });
+
+  it("keeps an entry linked only by an adaptation out of the tray", () => {
+    const out = byKey(
+      layoutGraph({
+        nodes: [node("anime:a"), node("manga:a")],
+        edges: [edge("manga:a", "anime:a", "derivation", "adaptation")],
+      }),
+    );
+    expect(out["anime:a"].section).toBe("graph");
+    expect(out["manga:a"].section).toBe("graph");
+  });
+
   it("sends an entry with no relations to the tray", () => {
     // A franchise with thirty entries and four relations would otherwise be
     // mostly empty ranks.
