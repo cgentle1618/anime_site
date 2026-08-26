@@ -82,7 +82,6 @@ and publisher fields use.
 | --- | --- | --- |
 | `issue_total` | Integer, nullable | null means unknown or ongoing |
 | `issue_fin` | Integer, not null, default 0 | |
-| `progress_display` | String, nullable | derived, e.g. `74/93 issues` |
 | `serialization_status` | String, nullable | reuses the existing option list |
 | `reading_status` | String, not null, default `Might Read` | reuses the existing Reading Status list |
 | `read_order` | Float, nullable | reading order within the franchise |
@@ -124,8 +123,18 @@ registry entry rather than getting a hand-written router.
   `issue_fin` snapped to `issue_total`).
 - **`services/pipelines/replace.py`** — `execute_replace_single_comic`, the
   registry's `write_hook`.
-- **`services/pipelines/fill.py`** — a comic path that computes derived fields
-  only: `progress_display`, completion state, remarks. No external API call.
+- **`services/pipelines/fill.py`** — `execute_fill_comic`, which extracts system
+  options and nothing else. There is no external source to fill from, so unlike
+  the Novel path it has no fetch queue and no per-entry progress loop.
+
+**Amendment (2026-08-26, during planning):** the original draft gave comic a
+`progress_display` column "derived, e.g. `74/93 issues`". That was wrong on two
+counts. Nothing in the backend derives `progress_display` — on Novel it is a
+user-set *mode selector* (`VOL_TW`, `VOL`, `ARC`, `CH`) that the frontend
+switches on in `getNovelProgress`, and the string is built client-side. Comic
+has exactly one progress mode, issues, so a mode selector would always hold the
+same value. The column is dropped; `getComicProgress` formats
+`issue_fin`/`issue_total` directly.
 - **`utils/media_resolver.py`** — `MEDIA_TABLES` gains
   `MediaRef("comic", "Comic", models.Comic, "/comic")`, which is what lets
   notes, remarks, quotes and memes point at comic entries.
