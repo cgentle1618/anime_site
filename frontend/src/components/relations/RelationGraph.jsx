@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import RelationNode from "./RelationNode";
+import ConnectPopup from "./ConnectPopup";
 import { layoutGraph, mergePositions } from "../../lib/relationLayout";
 
 const nodeTypes = { relation: RelationNode };
@@ -63,7 +64,14 @@ function toFlowEdges(edges, hiddenFamilies) {
     });
 }
 
-function GraphCanvas({ scopeType, scopeId, onPickGhostFranchise, refreshKey }) {
+function GraphCanvas({
+  scopeType,
+  scopeId,
+  onPickGhostFranchise,
+  refreshKey,
+  kinds,
+  onWrote,
+}) {
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
   const [hiddenFamilies, setHiddenFamilies] = useState(new Set());
@@ -71,17 +79,29 @@ function GraphCanvas({ scopeType, scopeId, onPickGhostFranchise, refreshKey }) {
   const [loading, setLoading] = useState(false);
   // Coordinates survive a refetch: only nodes new to the canvas get laid out.
   const positionsRef = useRef({});
+  const wrapperRef = useRef(null);
+  const lastDropRef = useRef({ x: 0, y: 0 });
+
+  // The pending connection: set on drop, cleared on confirm or cancel. Holding
+  // it here rather than writing immediately is the whole point of the popup.
+  const [pending, setPending] = useState(null); // {source, target, position}
+  const [connectError, setConnectError] = useState(null);
+  const [writing, setWriting] = useState(false);
+  // Bumped every time a drag is dropped, so a second drag that re-points the
+  // still-mounted popup at a new pair forces React to remount ConnectPopup
+  // instead of reusing its internal kind/remark/swapped/query/picked state.
+  const attemptIdRef = useRef(0);
 
   useEffect(() => {
     // A scope change is a different canvas, so nothing carries over.
     positionsRef.current = {};
   }, [scopeType, scopeId]);
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
     if (!scopeId) {
       setNodes([]);
       setGraphEdges([]);
-      return;
+      return () => {};
     }
     let cancelled = false;
     setLoading(true);
@@ -118,7 +138,98 @@ function GraphCanvas({ scopeType, scopeId, onPickGhostFranchise, refreshKey }) {
     return () => {
       cancelled = true;
     };
+  }, [scopeType, scopeId]);
+
+  useEffect(() => {
+    const cancel = refetch();
+    return cancel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeType, scopeId, refreshKey]);
+
+  const nodeByKey = useCallback(
+    (key) => nodes.find((n) => n.id === key)?.data || null,
+    [nodes],
+  );
+
+  function toContainerPoint(point) {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (!rect) return point;
+    return { x: point.x - rect.left, y: point.y - rect.top };
+  }
+
+  // Drop on a node: both endpoints are known, so the popup only needs a kind.
+  const onConnect = useCallback(
+    (connection) => {
+      setConnectError(null);
+      attemptIdRef.current += 1;
+      setPending({
+        attemptId: attemptIdRef.current,
+        source: nodeByKey(connection.source),
+        target: nodeByKey(connection.target),
+        position: toContainerPoint(lastDropRef.current),
+      });
+    },
+    [nodeByKey],
+  );
+
+  // Drop on empty canvas: the far endpoint is unknown, so the popup opens with
+  // a global search. This is how a link that leaves the franchise gets made.
+  const onConnectEnd = useCallback(
+    (event, connectionState) => {
+      const point = {
+        x: event.clientX ?? event.changedTouches?.[0]?.clientX ?? 0,
+        y: event.clientY ?? event.changedTouches?.[0]?.clientY ?? 0,
+      };
+      lastDropRef.current = point;
+      // A valid drop is onConnect's job; only the miss lands here.
+      if (connectionState?.isValid) return;
+      const fromKey = connectionState?.fromNode?.id;
+      if (!fromKey) return;
+      setConnectError(null);
+      attemptIdRef.current += 1;
+      setPending({
+        attemptId: attemptIdRef.current,
+        source: nodeByKey(fromKey),
+        target: null,
+        position: toContainerPoint(point),
+      });
+    },
+    [nodeByKey],
+  );
+
+  // A 409 (duplicate or self-relation) leaves the popup open with the message:
+  // closing it back to the canvas would lose the kind and remark just typed.
+  async function createRelation({ kind, from, to, remark }) {
+    const [fromType, fromId] = from.split(":");
+    const [toType, toId] = to.split(":");
+    setWriting(true);
+    setConnectError(null);
+    try {
+      const res = await fetch(endpoints.mediaRelation.create(), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from_type: fromType,
+          from_id: fromId,
+          kind,
+          to_type: toType,
+          to_id: toId,
+          remark,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setConnectError(data?.detail || res.statusText);
+        return;
+      }
+      setPending(null);
+      onWrote?.();
+      refetch();
+    } finally {
+      setWriting(false);
+    }
+  }
 
   const onNodesChange = useCallback((changes) => {
     setNodes((current) => {
@@ -179,7 +290,7 @@ function GraphCanvas({ scopeType, scopeId, onPickGhostFranchise, refreshKey }) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={wrapperRef} className="relative flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
@@ -216,6 +327,8 @@ function GraphCanvas({ scopeType, scopeId, onPickGhostFranchise, refreshKey }) {
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
+          onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
           fitView
           minZoom={0.15}
           proOptions={{ hideAttribution: false }}
@@ -228,6 +341,23 @@ function GraphCanvas({ scopeType, scopeId, onPickGhostFranchise, refreshKey }) {
 
       {loading ? (
         <p className="text-xs font-bold text-gray-400">Loading graph…</p>
+      ) : null}
+
+      {pending ? (
+        <ConnectPopup
+          key={pending.attemptId}
+          kinds={kinds}
+          source={pending.source}
+          target={pending.target}
+          position={pending.position}
+          error={connectError}
+          busy={writing}
+          onConfirm={createRelation}
+          onCancel={() => {
+            setPending(null);
+            setConnectError(null);
+          }}
+        />
       ) : null}
     </div>
   );

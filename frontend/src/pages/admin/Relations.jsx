@@ -487,6 +487,11 @@ export default function Relations() {
           <RelationGraph
             scopeType={scopeType}
             scopeId={scopeId}
+            kinds={kinds}
+            onWrote={() => {
+              loadScope();
+              loadRelations();
+            }}
             onPickGhostFranchise={(franchiseId) => {
               // A ghost lives in another franchise; following it moves the lens.
               setScopeType("franchise");
