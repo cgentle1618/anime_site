@@ -212,7 +212,11 @@ export default function Relations() {
               No entries in this {scopeType}.
             </p>
           ) : (
-            <div className="flex flex-col gap-4">
+            // Capped at the canvas height so a franchise with a hundred
+            // entries scrolls its own list instead of stretching the page and
+            // pushing the graph out of view. pr-1 keeps the scrollbar off the
+            // rows' right edge, where the relation counts sit.
+            <div className="flex max-h-[36rem] flex-col gap-4 overflow-y-auto pr-1">
               {grouped.map(([mediaType, rows]) => (
                 <div key={mediaType}>
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
