@@ -13,6 +13,7 @@ from app.services.domain.hierarchy import (
     resolve_cartoon_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_novel_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
 )
 
 from app.services.domain.watch_order import (
@@ -46,6 +47,7 @@ from app.services.domain.completion import (
     mark_movie_completed,
     mark_reading_completed,
     mark_novel_completed,
+    mark_comic_completed,
     apply_completion_timestamp,
 )
 
@@ -139,6 +141,7 @@ __all__ = [
     "resolve_cartoon_parent_hierarchy",
     "resolve_manga_parent_hierarchy",
     "resolve_novel_parent_hierarchy",
+    "resolve_comic_parent_hierarchy",
     "apply_validate_episode_math",
     "apply_validate_vol_math",
     "apply_validate_ch_math",
@@ -157,6 +160,7 @@ __all__ = [
     "mark_movie_completed",
     "mark_reading_completed",
     "mark_novel_completed",
+    "mark_comic_completed",
     "apply_completion_timestamp",
     "find_all_remarks",
     "REMARK_SECTION",

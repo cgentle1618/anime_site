@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -162,6 +163,19 @@ def mark_novel_completed(entry: Novel) -> None:
         entry.ch_fin = ch_max
         if entry.ch_total is not None:
             entry.ch_total = ch_max
+
+
+def mark_comic_completed(entry: Comic) -> None:
+    """Sets a comic entry to a fully finished reading state."""
+    entry.serialization_status = "完結"
+    entry.reading_status = "Completed"
+
+    issue_vals = [v for v in [entry.issue_total, entry.issue_fin] if v is not None]
+    if issue_vals:
+        issue_max = max(issue_vals)
+        entry.issue_fin = issue_max
+        if entry.issue_total is not None:
+            entry.issue_total = issue_max
 
 
 def apply_completion_timestamp(entry, status_value: Optional[str]) -> None:

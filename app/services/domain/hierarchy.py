@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -612,6 +613,84 @@ def resolve_novel_parent_hierarchy(
             final_franchise_id = new_fran.system_id
             logger.info(
                 f"Auto-created missing Franchise for Novel: {final_franchise_id}"
+            )
+
+    final_series_id = series_id
+    if isinstance(series_id, str):
+        if series_id.strip():
+            series_obj = (
+                db.query(Series)
+                .filter(
+                    or_(
+                        Series.series_name_en == series_id,
+                        Series.series_name_cn == series_id,
+                        Series.series_name_alt == series_id,
+                    )
+                )
+                .first()
+            )
+            final_series_id = series_obj.system_id if series_obj else None
+        else:
+            final_series_id = None
+
+    return final_franchise_id, final_series_id
+
+
+def resolve_comic_parent_hierarchy(
+    db: Session, franchise_id: Any, series_id: Any, names: Dict[str, Any]
+) -> Tuple[Any, Any]:
+    """
+    Ensures valid franchise_id and series_id UUIDs for a Comic entry.
+    Franchise: valid UUID pass-through; null/string → search by name across all name fields;
+    not found → auto-create with franchise_type="Comic".
+    Series: non-string pass-through; non-empty string → search by name; not found → set null.
+    Returns (final_franchise_id, final_series_id).
+    """
+    if franchise_id and not isinstance(franchise_id, str):
+        final_franchise_id = franchise_id
+    else:
+        valid_names = set()
+        for lang_key in ["en", "cn", "alt"]:
+            name_val = names.get(lang_key)
+            if name_val and str(name_val).strip():
+                valid_names.add(str(name_val).strip())
+
+        search_conditions = []
+        for name_str in valid_names:
+            search_conditions.extend(
+                [
+                    Franchise.franchise_name_en.ilike(name_str),
+                    Franchise.franchise_name_cn.ilike(name_str),
+                    Franchise.franchise_name_roman.ilike(name_str),
+                    Franchise.franchise_name_jp.ilike(name_str),
+                    Franchise.franchise_name_alt.ilike(name_str),
+                ]
+            )
+
+        existing = None
+        if search_conditions:
+            existing = db.query(Franchise).filter(or_(*search_conditions)).first()
+
+        if existing:
+            final_franchise_id = existing.system_id
+            logger.info(
+                f"Auto-resolved existing Franchise for Comic: {final_franchise_id}"
+            )
+        else:
+            new_fran = Franchise(
+                system_id=str(uuid.uuid4()),
+                franchise_type=FranchiseType.COMIC,
+                franchise_name_en=names.get("en"),
+                franchise_name_cn=names.get("cn"),
+                franchise_name_alt=names.get("alt"),
+                created_at=get_taipei_now(),
+                updated_at=get_taipei_now(),
+            )
+            db.add(new_fran)
+            db.flush()
+            final_franchise_id = new_fran.system_id
+            logger.info(
+                f"Auto-created missing Franchise for Comic: {final_franchise_id}"
             )
 
     final_series_id = series_id
