@@ -76,3 +76,15 @@ export function getSortName(item, type) {
     ""
   );
 }
+
+// Shorten a name from the middle instead of the end: "beginning…end" keeps the
+// tail, which is where a sequel's season or part number lives - the very piece
+// a plain end-truncation ("beginning middle…") throws away.
+export function middleTruncate(name, max) {
+  const text = String(name ?? "");
+  if (max <= 1 || text.length <= max) return text;
+  const keep = max - 1; // the ellipsis costs one character
+  const head = Math.ceil(keep / 2);
+  const tail = keep - head;
+  return `${text.slice(0, head).trimEnd()}…${tail ? text.slice(-tail).trimStart() : ""}`;
+}

@@ -8,10 +8,18 @@ import { Handle, Position } from "@xyflow/react";
 
 import { getCoverUrl } from "../../lib/covers";
 import { mediaTypeChip } from "../../config/mediaTypeColors";
+import FittedName from "../layout/FittedName";
 import { NODE_HEIGHT, NODE_WIDTH } from "../../lib/relationLayout";
+
+// The title gets the two lines line-clamp-2 allows.
+const TITLE_LINES = 2;
 
 export default function RelationNode({ data, selected }) {
   const { display_name, media_type, type_label, cover_image_file } = data;
+
+  const label = data.missing
+    ? `Missing ${media_type} ${String(data.entry_id).slice(0, 8)}…`
+    : display_name || "";
 
   // Three states, three treatments: a scope entry is solid, a ghost from
   // another franchise is dashed and dimmed, and an endpoint whose row is gone
@@ -59,11 +67,11 @@ export default function RelationNode({ data, selected }) {
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-xs font-black leading-tight text-gray-800">
-          {data.missing
-            ? `Missing ${media_type} ${String(data.entry_id).slice(0, 8)}…`
-            : display_name}
-        </p>
+        <FittedName
+          name={label}
+          lines={TITLE_LINES}
+          className="line-clamp-2 text-xs font-black leading-tight text-gray-800"
+        />
         <span
           className={`mt-1 inline-block rounded-full px-1.5 text-[9px] font-black uppercase tracking-wide ${mediaTypeChip(
             media_type,

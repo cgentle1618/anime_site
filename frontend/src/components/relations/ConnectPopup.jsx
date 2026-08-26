@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useGlobalMediaSearch } from "../../hooks/useGlobalMediaSearch";
+import FittedName from "../layout/FittedName";
 
 export default function ConnectPopup({
   kinds,
@@ -110,7 +111,10 @@ export default function ConnectPopup({
                     picked?.key === hit.key ? "bg-brand/10 text-brand" : "text-gray-700"
                   }`}
                 >
-                  <span className="truncate">{hit.display_name}</span>
+                  <FittedName
+                    name={hit.display_name}
+                    className="min-w-0 flex-1 truncate"
+                  />
                   <span className="shrink-0 text-[9px] uppercase text-gray-400">
                     {hit.media_type}
                   </span>

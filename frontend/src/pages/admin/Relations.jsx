@@ -15,6 +15,7 @@ import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
 import ComboBox from "../../components/forms/ComboBox";
+import FittedName from "../../components/layout/FittedName";
 import RelationGraph from "../../components/relations/RelationGraph";
 
 export default function Relations() {
@@ -246,7 +247,10 @@ export default function Relations() {
                               : "text-gray-700 hover:bg-gray-100"
                           }`}
                         >
-                          <span className="truncate">{c.display_name}</span>
+                          <FittedName
+                            name={c.display_name}
+                            className="min-w-0 flex-1 truncate"
+                          />
                           {counts[key] ? (
                             <span className="shrink-0 rounded-full bg-gray-200 px-2 text-[10px] font-black text-gray-600">
                               {counts[key]}
