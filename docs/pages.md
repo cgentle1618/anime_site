@@ -174,7 +174,7 @@ Full detail page for a single anime entry.
 - `GET /api/anime/:system_id`
 - `GET /api/franchise/`
 - `GET /api/series/`
-- `GET /api/anime/` (for relation linking)
+- `GET /api/anime/` (for prequel/sequel linking)
 
 **Admin Controls Block** (admin only):
 
@@ -591,7 +591,7 @@ Default active tab: first tab in the above order that has entries; the Extras ta
 **Anime tab:**
 
 - Sort: Watch Order / Title / Release Date (default) / My Rating / MAL Rating
-  - A "main" badge shows on entries with `is_main_entry`, under every sort
+  - Watch Order: entries without `watch_order` go to bottom; shows `#N` badge and "main" badge when `is_main_entry`
 - Filters: Airing Type (TV / Movie / ONA / OVA / Special), Airing Status (Airing / Finished Airing / Not Yet Aired), Watching Status (Planned / Watching / Completed / Dropped / Might Watch), Baha Only checkbox
 - Group by Series toggle (default on)
 - Cards: **Anime Entry Card 2** (`AnimeCard.jsx`)
