@@ -19,6 +19,8 @@ import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import RelationNode from "./RelationNode";
 import ConnectPopup from "./ConnectPopup";
+import EdgeInspector from "./EdgeInspector";
+import NodePanel from "./NodePanel";
 import { layoutGraph, mergePositions } from "../../lib/relationLayout";
 
 const nodeTypes = { relation: RelationNode };
@@ -71,12 +73,21 @@ function GraphCanvas({
   refreshKey,
   kinds,
   onWrote,
+  onError,
+  focusKey,
 }) {
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
   const [hiddenFamilies, setHiddenFamilies] = useState(new Set());
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  // Selection is one-at-a-time: an edge and a node never both hold a panel.
+  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+  const [selectedNodeKey, setSelectedNodeKey] = useState(null);
+  // Isolate is a separate gesture from selection - a click that both selects
+  // and dims the canvas is two actions on one gesture - so it lives in its
+  // own state, toggled from the node panel.
+  const [isolatedKey, setIsolatedKey] = useState(null);
   // Coordinates survive a refetch: only nodes new to the canvas get laid out.
   const positionsRef = useRef({});
   const wrapperRef = useRef(null);
@@ -125,7 +136,18 @@ function GraphCanvas({
   useEffect(() => {
     // A scope change is a different canvas, so nothing carries over.
     positionsRef.current = {};
+    setSelectedEdgeId(null);
+    setSelectedNodeKey(null);
+    setIsolatedKey(null);
   }, [scopeType, scopeId]);
+
+  // The left pane picks an entry by "type:id"; the canvas answers by opening
+  // that node's panel.
+  useEffect(() => {
+    if (!focusKey) return;
+    setSelectedEdgeId(null);
+    setSelectedNodeKey(focusKey);
+  }, [focusKey]);
 
   const refetch = useCallback(() => {
     // A new request supersedes whatever was previously in flight - whether
@@ -286,23 +308,127 @@ function GraphCanvas({
     });
   }, []);
 
+  // Isolate keeps the node and everything one hop from it; the rest dims.
+  const neighbours = useMemo(() => {
+    if (!isolatedKey) return null;
+    const set = new Set([isolatedKey]);
+    for (const e of graphEdges) {
+      if (e.from === isolatedKey) set.add(e.to);
+      if (e.to === isolatedKey) set.add(e.from);
+    }
+    return set;
+  }, [isolatedKey, graphEdges]);
+
   const needle = query.trim().toLowerCase();
   const displayNodes = useMemo(
     () =>
-      nodes.map((n) => ({
-        ...n,
-        data: {
-          ...n.data,
-          dimmed:
-            needle.length > 0 &&
-            ![n.data.display_name || "", ...(n.data.search_names || [])]
-              .join(" ")
-              .toLowerCase()
-              .includes(needle),
-        },
-      })),
-    [nodes, needle],
+      nodes.map((n) => {
+        const missesNeedle =
+          needle.length > 0 &&
+          ![n.data.display_name || "", ...(n.data.search_names || [])]
+            .join(" ")
+            .toLowerCase()
+            .includes(needle);
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            // Either reason dims: outside the isolated neighbourhood, or
+            // missed by the search box.
+            dimmed: missesNeedle || (neighbours ? !neighbours.has(n.id) : false),
+          },
+        };
+      }),
+    [nodes, needle, neighbours],
   );
+
+  const selectedNode = useMemo(
+    () => nodes.find((n) => n.id === selectedNodeKey)?.data || null,
+    [nodes, selectedNodeKey],
+  );
+
+  // Labelled for the side being viewed: a row reads "from is the {label} of
+  // to", so from this node's side the far entry carries the inverse label.
+  const selectedNodeRelations = useMemo(() => {
+    if (!selectedNodeKey) return [];
+    const name = (key) =>
+      nodes.find((n) => n.id === key)?.data?.display_name || "a missing entry";
+    return graphEdges
+      .filter((e) => e.from === selectedNodeKey || e.to === selectedNodeKey)
+      .map((e) => {
+        const forward = e.from === selectedNodeKey;
+        return {
+          system_id: e.system_id,
+          label: forward ? e.inverse_label : e.label,
+          otherName: name(forward ? e.to : e.from),
+          family: e.family,
+        };
+      });
+  }, [graphEdges, selectedNodeKey, nodes]);
+
+  // Both endpoint names travel with the edge, for the inspector's sentence.
+  const selectedEdge = useMemo(() => {
+    const found = graphEdges.find((e) => String(e.system_id) === selectedEdgeId);
+    if (!found) return null;
+    const name = (key) =>
+      nodes.find((n) => n.id === key)?.data?.display_name || "a missing entry";
+    return { ...found, sourceName: name(found.from), targetName: name(found.to) };
+  }, [graphEdges, selectedEdgeId, nodes]);
+
+  async function patchRelation(body) {
+    if (writing || !selectedEdge) return;
+    setWriting(true);
+    try {
+      const res = await fetch(
+        endpoints.mediaRelation.patch(selectedEdge.system_id),
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        onError?.(data?.detail || res.statusText);
+        return;
+      }
+      onWrote?.();
+      refetch();
+    } catch (e) {
+      onError?.(e?.message || "Could not reach the server.");
+    } finally {
+      setWriting(false);
+    }
+  }
+
+  async function deleteRelation() {
+    if (writing || !selectedEdge) return;
+    if (
+      !window.confirm(
+        `Remove the "${selectedEdge.label}" link between ${selectedEdge.sourceName} and ${selectedEdge.targetName}? The entries themselves are not touched.`,
+      )
+    )
+      return;
+    setWriting(true);
+    try {
+      const res = await fetch(
+        endpoints.mediaRelation.remove(selectedEdge.system_id),
+        { method: "DELETE", credentials: "include" },
+      );
+      if (!res.ok) {
+        onError?.(res.statusText);
+        return;
+      }
+      setSelectedEdgeId(null);
+      onWrote?.();
+      refetch();
+    } catch (e) {
+      onError?.(e?.message || "Could not reach the server.");
+    } finally {
+      setWriting(false);
+    }
+  }
 
   const flowEdges = useMemo(
     () => toFlowEdges(graphEdges, hiddenFamilies),
@@ -322,7 +448,15 @@ function GraphCanvas({
     // A ghost belongs to another franchise; clicking it moves the lens there.
     if (!node.data.in_scope && node.data.franchise_id) {
       onPickGhostFranchise?.(node.data.franchise_id);
+      return;
     }
+    setSelectedEdgeId(null);
+    setSelectedNodeKey(node.id);
+  }
+
+  function onEdgeClick(_event, edge) {
+    setSelectedNodeKey(null);
+    setSelectedEdgeId(edge.id);
   }
 
   if (!scopeId) {
@@ -373,6 +507,7 @@ function GraphCanvas({
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
           fitView
@@ -387,6 +522,32 @@ function GraphCanvas({
 
       {loading ? (
         <p className="text-xs font-bold text-gray-400">Loading graph…</p>
+      ) : null}
+
+      {selectedNode ? (
+        <NodePanel
+          node={selectedNode}
+          relations={selectedNodeRelations}
+          isolated={isolatedKey === selectedNodeKey}
+          onToggleIsolate={() =>
+            setIsolatedKey((k) => (k === selectedNodeKey ? null : selectedNodeKey))
+          }
+          onClose={() => setSelectedNodeKey(null)}
+        />
+      ) : null}
+
+      {selectedEdge ? (
+        <EdgeInspector
+          // A kind change rewrites the row, so the inspector's uncontrolled
+          // remark box has to re-seed from the refetched edge.
+          key={String(selectedEdge.system_id) + selectedEdge.relation_type}
+          edge={selectedEdge}
+          kinds={kinds}
+          busy={writing}
+          onPatch={patchRelation}
+          onDelete={deleteRelation}
+          onClose={() => setSelectedEdgeId(null)}
+        />
       ) : null}
 
       {pending ? (
