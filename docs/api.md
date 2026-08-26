@@ -244,7 +244,7 @@ per-entry `watch_order` Float column, which this router never touches.
 | -------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `search_query`, `limit` (≤2000), `offset`. Sorted default-first. |
 | `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data.                                                                                             |
-| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the seven media tables, in the resolver's shape (`display_name`, `cover_image_file`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. |
+| `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the eight media tables, in the resolver's shape (`display_name`, `cover_image_file`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. |
 | `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
 | `POST`   | `/lists/release`              | Admin  | Give one owner a built-in order (`franchise_id`, `collection_id` or `series_id`; `anime_only=true` for the anime variant). Idempotent per kind. 400 below 2 entries in scope, or for a collection that opts out. |
 | `POST`   | `/lists/release/backfill`     | Admin  | Give every franchise, series and collection its built-in orders, skipping owners that already have them, those below 2 entries, and opted-out collections. Safe to re-run; returns `created`, `skipped_too_small` and `skipped_opted_out`. |
@@ -303,7 +303,7 @@ endpoint gets it and `item_count` for every row in one grouped query.
 `WatchOrderCandidate`.
 
 **Item resolution.** `watch_order_item` stores only `(media_type, entry_id)` —
-no foreign key spans seven tables — so the detail endpoint enriches each item
+no foreign key spans eight tables — so the detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
 per media type present, never one per item. An item whose entry no longer
@@ -389,7 +389,7 @@ a derived `meme_id` when the quote is also a line of a meme),
 `QuoteGroup` (an entry header plus its `quotes`).
 
 **Entry resolution.** `quote` stores only `(media_type, entry_id)` — no foreign
-key spans seven tables — so every read enriches rows through
+key spans eight tables — so every read enriches rows through
 `app/utils/media_resolver.py`. That issues one query per media type present,
 never one per quote. A quote whose entry no longer exists comes back with
 `missing: true` rather than being dropped, so the dangling row stays fixable.
@@ -421,7 +421,7 @@ fields — `owner_display_name`, `owner_label`, `owner_is_tier`, `owner_nav_path
 `MemeGroup` (an owner header plus its `memes`).
 
 **Resolution.** `meme` stores only `(owner_type, owner_id)`, resolved through
-`app/utils/media_resolver.py` against **`OWNER_TABLES`** — the seven media
+`app/utils/media_resolver.py` against **`OWNER_TABLES`** — the eight media
 tables plus Series, Franchise and Collection — one query per table present.
 Quote and watch-order pass the narrower default map, so they keep rejecting a
 tier. `quote_id` is hydrated in a single batched query for the whole response,
@@ -442,7 +442,7 @@ episode comment. Replaces the `notes` JSONB column that used to sit on the
 seven media tables. Reads are public; every write is admin-only.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
-grouping tiers — the same ten hyphenated `owner_type` values.
+grouping tiers — the same eleven hyphenated `owner_type` values.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
