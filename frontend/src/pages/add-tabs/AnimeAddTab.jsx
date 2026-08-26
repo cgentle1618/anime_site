@@ -541,16 +541,6 @@ export default function AnimeAddTab({
             </span>
           </label>
         </Field>
-        <Field label="Watch Order">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={af.watch_order}
-            onChange={(e) => ua("watch_order", e.target.value)}
-            placeholder="e.g. 1, 1.5, 2"
-          />
-        </Field>
       </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />

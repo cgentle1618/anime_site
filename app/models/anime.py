@@ -85,8 +85,6 @@ class Anime(Base, NameFallbackMixin):
     genre_main = Column(String, nullable=True)
     genre_sub = Column(String, nullable=True)
 
-    watch_order = Column(Float, nullable=True)
-
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
     anilist_link = Column(String, nullable=True)

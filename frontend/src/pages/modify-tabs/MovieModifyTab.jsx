@@ -261,20 +261,6 @@ export default function MovieModifyTab({
         </Field>
       </div>
 
-      <SectionHeader icon="fa-link" title="Relational & Timeline" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={mmf.watch_order}
-            onChange={(e) => umm("watch_order", e.target.value)}
-            placeholder="e.g. 1, 1.5, 2"
-          />
-        </Field>
-      </div>
-
       <SectionHeader icon="fa-link" title="IMDb & Sources" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="IMDb ID">

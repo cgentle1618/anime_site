@@ -45,9 +45,7 @@ from app.services.domain import (
     cartoon_post_processing,
     tv_show_post_processing,
     manga_post_processing,
-    derive_related_anime,
-    derive_related_cartoon,
-    derive_related_tv_show,
+    derive_ep_previous_all_anime,
 )
 
 # ==========================================
@@ -411,13 +409,16 @@ def run_post_processing(db: Session) -> dict:
     }
 
 
-def run_derive_related(db: Session) -> dict:
-    derive_related_anime(db)
-    derive_related_tv_show(db)
-    derive_related_cartoon(db)
+def run_derive_ep_previous(db: Session) -> dict:
+    """Anime only: it is the one type with a franchise-wide derived field left.
+
+    TV shows and cartoons had a step here too, but watch order was all it
+    assigned, and that moved to watch_order_list where it is curated by hand.
+    """
+    derive_ep_previous_all_anime(db)
     return {
         "status": "success",
-        "message": "Derived watch order and ep_previous for all franchises.",
+        "message": "Derived ep_previous for all acg franchises.",
     }
 
 
@@ -496,7 +497,7 @@ def run_sync_comic(db: Session) -> dict:
 def run_calculate_all(db: Session) -> dict:
     try:
         run_post_processing(db)
-        run_derive_related(db)
+        run_derive_ep_previous(db)
         run_sync(db)
         bulk_check_cover_image(db)
         log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")

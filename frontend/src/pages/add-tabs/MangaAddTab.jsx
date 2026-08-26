@@ -441,20 +441,6 @@ export default function MangaAddTab({
         </Field>
       </div>
 
-      <SectionHeader icon="fa-link" title="Relational & Timeline" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={mgf.watch_order}
-            onChange={(e) => umg("watch_order", e.target.value)}
-            placeholder="e.g. 1, 1.5, 2"
-          />
-        </Field>
-      </div>
-
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="MAL ID">

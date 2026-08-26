@@ -12,7 +12,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.services.domain import (
-    derive_watch_order_anime,
     derive_ep_previous_anime,
     derive_season_1_anime,
 )
@@ -35,7 +34,6 @@ def make_anime(**kwargs):
         airing_type="TV",
         airing_status="Finished Airing",
         season_part="Season 1",
-        watch_order=None,
         ep_previous=None,
         ep_total=12,
         ep_special=None,
@@ -79,52 +77,6 @@ def mock_db_returns(anime_list, series_list=None):
 
     db.query.side_effect = query_side_effect
     return db
-
-
-# ---------------------------------------------------------------------------
-# derive_watch_order_anime
-# ---------------------------------------------------------------------------
-
-
-class TestDeriveWatchOrder:
-    def test_single_eligible_entry_gets_order_1(self):
-        anime = make_anime(season_part="Season 1", airing_type="TV", watch_order=None)
-        db = mock_db_returns([anime])
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        assert anime.watch_order == 1.0
-
-    def test_already_assigned_order_not_overwritten(self):
-        anime = make_anime(season_part="Season 1", watch_order=5.0)
-        db = mock_db_returns([anime])
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        assert anime.watch_order == 5.0  # untouched
-
-    def test_multiple_entries_assigned_sequential_order(self):
-        a1 = make_anime(season_part="Season 1", airing_type="TV", watch_order=None)
-        a2 = make_anime(season_part="Season 2", airing_type="TV", watch_order=None)
-        db = mock_db_returns([a1, a2])
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        orders = sorted([a1.watch_order, a2.watch_order])
-        assert orders == [1.0, 2.0]
-
-    def test_none_franchise_id_is_a_noop(self):
-        anime = make_anime(watch_order=None)
-        db = mock_db_returns([anime])
-        derive_watch_order_anime(db, None)
-        # db.query should never be called with None franchise_id
-        assert anime.watch_order is None
-
-    def test_empty_eligible_list_is_noop(self):
-        db = mock_db_returns([])
-        # Should not raise
-        derive_watch_order_anime(db, FRANCHISE_ID)
-
-    def test_tv_comes_before_ova_in_same_season(self):
-        tv = make_anime(season_part="Season 1", airing_type="TV", watch_order=None)
-        ova = make_anime(season_part="Season 1", airing_type="OVA", watch_order=None)
-        db = mock_db_returns([ova, tv])  # OVA listed first, TV should still win
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        assert tv.watch_order < ova.watch_order
 
 
 # ---------------------------------------------------------------------------

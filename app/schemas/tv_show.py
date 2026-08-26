@@ -29,8 +29,6 @@ class TVShowBase(BaseModel):
     imdb_rating: Optional[str] = None
     release_date: Optional[str] = None
 
-    watch_order: Optional[float] = None
-
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
 

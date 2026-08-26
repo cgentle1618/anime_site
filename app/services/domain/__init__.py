@@ -81,9 +81,6 @@ from app.services.domain.derivation import (
     apply_extract_imdb_id,
     apply_extract_season_from_title,
     apply_calculate_seasonal_from_month,
-    derive_watch_order_anime,
-    derive_watch_order_tv_show,
-    derive_watch_order_cartoon,
     derive_ep_previous_anime,
     derive_season_1_anime,
     derive_season_1_tv_show,
@@ -128,9 +125,7 @@ from app.services.domain.post_processing import (
     tv_show_post_processing,
     cartoon_post_processing,
     manga_post_processing,
-    derive_related_anime,
-    derive_related_tv_show,
-    derive_related_cartoon,
+    derive_ep_previous_all_anime,
 )
 
 __all__ = [
@@ -189,9 +184,6 @@ __all__ = [
     "list_candidate_entries",
     "entry_exists",
     "get_entry_franchise_id",
-    "derive_watch_order_anime",
-    "derive_watch_order_tv_show",
-    "derive_watch_order_cartoon",
     "derive_ep_previous_anime",
     "derive_season_1_anime",
     "derive_season_1_tv_show",
@@ -224,7 +216,5 @@ __all__ = [
     "tv_show_post_processing",
     "cartoon_post_processing",
     "manga_post_processing",
-    "derive_related_anime",
-    "derive_related_tv_show",
-    "derive_related_cartoon",
+    "derive_ep_previous_all_anime",
 ]

@@ -153,7 +153,6 @@ export const COMMON_FIELD_META = {
   length_min: { label: "Length (min)", control: "number", group: "Release" },
 
   // ---- Derivation ------------------------------------------------------
-  watch_order: { label: "Watch Order", control: "number", group: "Derivation" },
   read_order: { label: "Read Order", control: "number", group: "Derivation" },
 
   // ---- Links -----------------------------------------------------------

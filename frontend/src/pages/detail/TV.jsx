@@ -265,18 +265,6 @@ export default function TV() {
             imdbLink={show.imdb_link}
           />
 
-          {/* Watch Order */}
-          {show.watch_order != null && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
-                <i className="fas fa-sort-numeric-up mr-1.5"></i>Watch Order
-              </h3>
-              <div className="text-2xl font-black text-brand text-center py-1">
-                #{show.watch_order}
-              </div>
-            </div>
-          )}
-
           {/* Related Entries */}
           <RelationsSection mediaType="tv-show" entryId={show.system_id} />
 

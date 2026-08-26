@@ -389,8 +389,6 @@ export default function SeriesPage() {
       return true;
     });
     result.sort((a, b) => {
-      if (animeSort === "watch_order")
-        return (a.watch_order ?? 999999) - (b.watch_order ?? 999999);
       if (animeSort === "release_date") {
         const diff = animeDateScore(a) - animeDateScore(b);
         if (diff !== 0) return diff;
@@ -956,7 +954,6 @@ export default function SeriesPage() {
               onChange={(e) => setAnimeSort(e.target.value)}
               className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
             >
-              <option value="watch_order">Sort: Watch Order</option>
               <option value="title">Sort: Title</option>
               <option value="release_date">Sort: Release Date</option>
               <option value="my_rating">Sort: My Rating</option>
@@ -1033,16 +1030,11 @@ export default function SeriesPage() {
             <div className={GRID_CLS}>
               {filteredAndSortedAnime.map((a) => (
                 <div key={a.system_id} className="flex flex-col gap-1">
-                  {animeSort === "watch_order" && a.watch_order != null && (
+                  {a.is_main_entry && (
                     <div className="flex items-center justify-center gap-1">
-                      <span className="text-[10px] font-black text-brand/70 uppercase tracking-widest">
-                        #{a.watch_order}
+                      <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
+                        main
                       </span>
-                      {a.is_main_entry && (
-                        <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                          main
-                        </span>
-                      )}
                     </div>
                   )}
                   <MediaCard

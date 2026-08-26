@@ -46,7 +46,7 @@ collection  (optional umbrella above franchise — e.g. Marvel, Type-Moon)
 - A media entry (e.g. `anime`, `movies`) always belongs to a `franchise` directly via `franchise_id`.
 - A `series` is an optional intermediate grouping; `series_id` may be null on media entries.
 - A `collection` is an optional umbrella grouping several distinct franchises under one IP or creator; `collection_id` may be null on `franchise`, and most franchises have none. **No media table references a collection** — media reaches it only through `franchise.collection_id`.
-- Collection is deliberately inert: it takes no part in watch-order/prequel-sequel derivation, duplicate detection, or statistics.
+- Collection is deliberately inert: it takes no part in duplicate detection or statistics.
 - `franchise`, `series`, and all media entry tables use UUID primary keys. `seasonal`, `system_options`, `system_configs`, `users`, `data_control_logs`, and `deleted_record` use integer or string PKs.
 
 ---
@@ -259,7 +259,6 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 
 | Column           | Type    | Nullable | Notes                                                                       |
 | ---------------- | ------- | -------- | --------------------------------------------------------------------------- |
-| `watch_order`    | Float   | Yes      | Explicit chronological watch order within the franchise (e.g. `1.0`, `1.5`) |
 
 #### External Links
 
@@ -435,7 +434,6 @@ Live-action and animated movie entries.
 
 | Column           | Type    | Nullable | Notes                                                         |
 | ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `watch_order`    | Float   | Yes      | Explicit chronological watch order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
 
@@ -519,7 +517,6 @@ Live-action and scripted TV show entries.
 
 | Column           | Type    | Nullable | Notes                                                         |
 | ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `watch_order`    | Float   | Yes      | Explicit chronological watch order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
 
@@ -604,7 +601,6 @@ Western animated TV show entries.
 
 | Column           | Type    | Nullable | Notes                                                         |
 | ---------------- | ------- | -------- | ------------------------------------------------------------- |
-| `watch_order`    | Float   | Yes      | Explicit chronological watch order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
 
@@ -704,7 +700,6 @@ Manga, manhwa, and manhua entries.
 
 | Column           | Type    | Nullable | Notes                                                        |
 | ---------------- | ------- | -------- | ------------------------------------------------------------ |
-| `watch_order`    | Float   | Yes      | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`) |
 
 #### External Links
 
@@ -936,12 +931,12 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 ## Watch Order Tables
 
-Named, ordered, cross-media-type viewing guides. Distinct from the per-entry
-`watch_order` Float column on `anime` / `tv_shows` / `cartoons` / `movies` /
-`manga`, which numbers entries inside a single table and still drives
-prequel/sequel derivation and the sort dropdowns. These tables exist because
-that column cannot span media types, cannot hold more than one order per
-franchise, and cannot express a guide that splits an entry.
+Named, ordered, cross-media-type viewing guides, and the only place ordering
+now lives. They replaced a per-entry `watch_order` Float on `anime` /
+`tv_shows` / `cartoons` / `movies` / `manga`, which could not span media types,
+could not hold more than one order per franchise, and could not express a guide
+that splits an entry. That column and the derivation that filled it were
+dropped in `drop_entry_watch_order`.
 
 ### `watch_order_list`
 
@@ -1066,7 +1061,7 @@ The vocabulary lives in `app/utils/relation_kinds.py` and is served over HTTP
 at `GET /api/media-relation/kinds`, so the admin dropdown keeps no second copy.
 
 Relations are **hand-curated** on the `/relations` admin page. Nothing derives
-them: chaining a franchise by `watch_order` cannot tell a sequel from a side
+them: chaining a franchise by release order cannot tell a sequel from a side
 story.
 
 ---

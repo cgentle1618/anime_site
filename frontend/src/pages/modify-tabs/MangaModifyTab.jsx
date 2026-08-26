@@ -361,19 +361,6 @@ export default function MangaModifyTab({
         </Field>
       </div>
 
-      <SectionHeader icon="fa-link" title="Relational & Timeline" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Watch Order">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cmgf.watch_order ?? ""}
-            onChange={(e) => umg("watch_order", e.target.value)}
-          />
-        </Field>
-      </div>
-
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="MAL ID">

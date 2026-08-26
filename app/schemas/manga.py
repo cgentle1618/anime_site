@@ -41,8 +41,6 @@ class MangaBase(BaseModel):
     serialization_platform: Optional[str] = None
     publisher_tw: Optional[str] = None
 
-    watch_order: Optional[float] = None
-
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
     anilist_link: Optional[str] = None

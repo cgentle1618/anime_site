@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
+import { getSortName } from "../../lib/naming";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
@@ -519,6 +520,10 @@ export default function Index() {
     (item) => item.airing_status === "Airing" && item.my_watch_day,
   );
 
+  // _ui_type is a display label ("TV Show"); getSortName wants the slug.
+  const sortSlug = (item) =>
+    item._ui_type === "TV Show" ? "tv-show" : (item._ui_type || "").toLowerCase();
+
   const sorted = [...animeTagged, ...tvTagged, ...cartoonTagged].sort(
     (a, b) => {
       const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
@@ -526,7 +531,12 @@ export default function Index() {
       const tA = fA ? fA.franchise_name_cn || fA.franchise_name_en || "" : "";
       const tB = fB ? fB.franchise_name_cn || fB.franchise_name_en || "" : "";
       if (tA !== tB) return tA.localeCompare(tB);
-      return (a.watch_order ?? 999) - (b.watch_order ?? 999);
+      // Within one franchise the tie-break used to be the per-entry
+      // watch_order column, which has been dropped. Name keeps the order
+      // stable and predictable instead of leaving it to array position.
+      // getSortName is needed rather than a plain field: this list mixes
+      // three media types, and each keeps its title under its own prefix.
+      return getSortName(a, sortSlug(a)).localeCompare(getSortName(b, sortSlug(b)));
     },
   );
 

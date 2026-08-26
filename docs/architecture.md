@@ -206,18 +206,16 @@ Key functions:
 - `apply_validate_vol_math(manga)` / `apply_validate_ch_math(manga)` — validates manga volumes and chapters
 - `derive_ep_previous_anime(db, franchise_id)` — computes cumulative episode offset for sequential TV/ONA entries within a series
 
-**Watch order & relations:**
+**Master derive:** `derive_ep_previous_all_anime(db)` — runs
+`derive_ep_previous_anime` for every ACG franchise. Anime is the only media
+type with a franchise-wide derived field left.
 
-- `derive_watch_order_anime(db, franchise_id)` — assigns `watch_order` to eligible anime entries; groups by series, orders within group by season/part then airing type (TV→ONA→Special→OVA→OAD); only fills `None` fields
-- `derive_watch_order_tv_show(db, franchise_id)` / `derive_watch_order_cartoon(db, franchise_id)` — assigns watch order for TV shows and cartoons
+Neither watch order nor prequel/sequel is derived any more. Relations live in
+`media_relation` and ordering in `watch_order_list`, both hand-curated on
+`/relations` and `/watch-orders`. See `business-logic.md`.
 
-**Master derive:** `derive_related_{anime|tv_show|cartoon}(db)` — calls the corresponding watch order and episode previous derivation functions.
-
-Prequel/sequel derivation was retired: relations live in `media_relation` and
-are hand-curated on `/relations`. See `business-logic.md`.
-
-**Watch order guides (`domain/watch_order.py`)** — a separate concern from the
-`watch_order` Float column above, which these functions never touch:
+**Watch order guides (`domain/watch_order.py`)** — the only ordering there is,
+since the per-entry `watch_order` Float column was dropped:
 
 - `MEDIA_TYPE_MODELS` — media-type slug → model, mirroring `frontend/src/config/mediaRegistry.js`
 - `resolve_items(db, items)` — enriches `watch_order_item` rows with the referenced entry's display data; one query per media type present, never one per item. Items whose `entry_id` no longer resolves come back `missing=True` instead of being dropped
@@ -247,7 +245,7 @@ are hand-curated on `/relations`. See `business-logic.md`.
 Called by `run_calculate_all(db)` (triggered from Admin page):
 
 1. `run_post_processing(db)` — post-process all media entries (Anime, TV Shows, Cartoons, Manga, Novels, etc.)
-2. `run_derive_related(db)` — derive watch order and ep_previous for all applicable media types across all franchises
+2. `run_derive_ep_previous(db)` — derive ep_previous across all ACG franchises
 3. `run_sync(db)` — triggers type-specific sync functions (`run_sync_anime`, `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_tv_show`, `run_sync_manga`, `run_sync_novel`) to build seasonal configs, counts, and extract system options
 4. Cover image utilities: `bulk_check_cover_image`, `bulk_set_cover_image_fields`, `bulk_delete_orphaned_cover_images`, and `bulk_download_missing_covers`
 

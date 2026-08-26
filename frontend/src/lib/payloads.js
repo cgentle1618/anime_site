@@ -97,7 +97,6 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     music: af.music || null,
     distributor_tw: af.distributor_tw || null,
     is_main_entry: af.is_main_entry || null,
-    watch_order: af.watch_order !== "" ? parseFloat(af.watch_order) : null,
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
     anilist_link: af.anilist_link || null,

@@ -137,7 +137,7 @@ Current progress page. Shows all actively tracked media.
 
 **Watching division** (Anime · TV Show · Cartoon) — three sub-sections: Active Watching / Passive Watching / Paused.
 
-- All entries sorted globally by franchise name (CN → EN fallback) then `watch_order`, then divided by `watching_status`.
+- All entries sorted globally by franchise name (CN → EN fallback) then entry name, then divided by `watching_status`.
 - Within each sub-section, entries grouped by type (Anime / TV Show / Cartoon) and sorted by `my_rating` within each type group.
 - All entry types rendered via **Anime Entry Card 1** (`DashboardCard.jsx`) using the `_ui_type` tag
 - Admin: inline episode progress editing — `PATCH /api/anime/:id` / `PATCH /api/tv-shows/:id` / `PATCH /api/cartoon/:id` depending on entry type
@@ -174,7 +174,7 @@ Full detail page for a single anime entry.
 - `GET /api/anime/:system_id`
 - `GET /api/franchise/`
 - `GET /api/series/`
-- `GET /api/anime/` (for prequel/sequel linking)
+- `GET /api/anime/` (for relation linking)
 
 **Admin Controls Block** (admin only):
 
@@ -591,7 +591,7 @@ Default active tab: first tab in the above order that has entries; the Extras ta
 **Anime tab:**
 
 - Sort: Watch Order / Title / Release Date (default) / My Rating / MAL Rating
-  - Watch Order: entries without `watch_order` go to bottom; shows `#N` badge and "main" badge when `is_main_entry`
+  - A "main" badge shows on entries with `is_main_entry`, under every sort
 - Filters: Airing Type (TV / Movie / ONA / OVA / Special), Airing Status (Airing / Finished Airing / Not Yet Aired), Watching Status (Planned / Watching / Completed / Dropped / Might Watch), Baha Only checkbox
 - Group by Series toggle (default on)
 - Cards: **Anime Entry Card 2** (`AnimeCard.jsx`)

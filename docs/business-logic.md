@@ -65,7 +65,7 @@ Fills missing metadata for all anime entries that need it.
 2. Build queue: entries where `has_missing_values_anime()` returns `True`.
 3. For each queued entry: call `autofill_anime_from_mal(force_replace_ratings=True)`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
-5. After loop: `run_anime_post_processing`, `run_derive_related_anime`, `run_sync_anime`.
+5. After loop: `run_anime_post_processing`, `derive_ep_previous_all_anime`, `run_sync_anime`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
 **Note:** Shows entry being processed by anime name (with fallback).
@@ -115,7 +115,7 @@ Fills missing metadata for all TV show entries that need it.
 2. Build queue: entries where `has_missing_values_tv_show()` returns `True`.
 3. For each queued entry: call `autofill_tv_show_from_imdb()`.
 4. Check `request.is_disconnected()` after each entry — if disconnected, rollback and log as "Aborted".
-5. After loop: `run_tv_show_post_processing`, `run_derive_related_tv_show`, `run_sync_tv_show`.
+5. After loop: `run_tv_show_post_processing`, `run_sync_tv_show`.
 6. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
 
 **Note:** Shows entry being processed by TV show name (with fallback).
@@ -186,8 +186,8 @@ Replaces metadata for all anime entries that have a `mal_id` or `mal_link`.
 **Steps:**
 
 1. Query all anime with `mal_id` or `mal_link` set. Return early if queue is empty.
-2. For each entry: call `apply_single_replace_anime(bulk=True)` — skips per-entry `derive_related`.
-3. After loop: call `run_derive_related_anime(db)` once for all franchises.
+2. For each entry: call `apply_single_replace_anime(bulk=True)` — skips the per-entry ep_previous pass.
+3. After loop: call `derive_ep_previous_all_anime(db)` once for all franchises.
 4. Call `run_sync_anime(db)`.
 
 **Note:** Shows entry being processed by title (with fallback).
@@ -229,7 +229,7 @@ Replaces metadata for all TV show entries that have an `imdb_id` or `imdb_link`.
 
 1. Query all TV shows with `imdb_id` or `imdb_link` set. Return early if queue is empty.
 2. For each entry: call `apply_single_replace_tv_show(bulk=True)`.
-3. After loop: call `run_derive_related_tv_show(db)`.
+3. After loop: nothing is derived franchise-wide for TV shows.
 4. Call `run_sync_tv_show(db)`.
 
 **Note:** Shows entry being processed by TV show name (with fallback).
@@ -260,7 +260,7 @@ Replaces metadata for all manga entries that have a `mal_id` or `mal_link`.
 1. `apply_extract_mal_id_anime`
 2. `autofill_anime_from_mal`
 3. `anime_post_processing`
-4. If `bulk=False`: call `run_derive_related_anime(db)` inline. If `bulk=True`: caller handles `run_derive_related_anime` after the loop.
+4. If `bulk=False`: call `derive_ep_previous_all_anime(db)` inline. If `bulk=True`: the caller does it once after the loop.
 
 ---
 
@@ -299,7 +299,7 @@ Replaces metadata for all manga entries that have a `mal_id` or `mal_link`.
 1. `apply_extract_imdb_id`
 2. `autofill_tv_show_from_imdb`
 3. `tv_show_post_processing`
-4. If `bulk=False`: call `run_derive_related_tv_show(db)` inline. If `bulk=True`: caller handles `run_derive_related_tv_show` after the loop.
+4. Nothing is derived franchise-wide for TV shows, so `bulk` changes nothing here.
 
 ---
 
@@ -489,52 +489,22 @@ Master orchestrator. Calls all post-processing functions across every media type
 
 ---
 
-### Derive Related Anime — `derive_related_anime(db, franchise_id)`
+### Derive Ep Previous — `derive_ep_previous_all_anime(db)`
 
-Runs watch order and episode previous derivation for every ACG franchise in the DB.
+Runs `derive_ep_previous_anime` for every ACG franchise in the DB, using the
+`_SERIES_UNSET` sentinel so each series group is processed independently.
+Commits after all franchises are processed.
 
-**Per franchise_id:**
-
-1. `derive_watch_order_anime`
-2. `derive_ep_previous_anime` (uses `_SERIES_UNSET` sentinel to process all series groups independently)
-
-Commits after all franchises processed.
-
----
-
-### Derive Related TV Show — `derive_related_tv_show(db, franchise_id)`
-
-Runs watch order derivation for every TV or Movie franchise in the DB.
-
-**Per franchise_id:**
-
-1. `derive_watch_order_tv_show`
-
-Commits after all franchises processed.
+Was `derive_related_anime`, which also assigned `watch_order`. The TV show and
+cartoon equivalents did nothing *but* assign `watch_order`, so both were
+removed outright when that column was dropped — anime is the one media type
+with a franchise-wide derived field left.
 
 ---
 
-### Derive Related Cartoon — `derive_related_cartoon(db, franchise_id)`
+### Run Derive Ep Previous — `run_derive_ep_previous(db)`
 
-Runs watch order derivation for every Cartoon franchise in the DB.
-
-**Per franchise_id:**
-
-1. `derive_watch_order_cartoon`
-
-Commits after all franchises processed.
-
----
-
-### Run Derive Related — `run_derive_related(db)`
-
-Master orchestrator. Calls all derive-related functions across every eligible media type.
-
-**Steps:**
-
-1. `run_derive_related_anime`
-2. `run_derive_related_tv_show`
-3. `run_derive_related_cartoon`
+Calls `derive_ep_previous_all_anime(db)`. Was `run_derive_related`.
 
 ---
 
@@ -597,7 +567,7 @@ Master orchestrator. Calls all derive-related functions across every eligible me
 ### Calculate All — `run_calculate_all(db)`
 
 1. `run_post_processing`
-2. `run_derive_related`
+2. `run_derive_ep_previous`
 3. `run_sync`
 4. `bulk_check_cover_image`
 5. Log to `DataControlLog` (Success or Failed).
@@ -838,62 +808,10 @@ Accepts both string abbreviations (`"APR"`) and numeric strings (`"4"`, `"04"`).
 
 ---
 
-### Derive Watch Order Anime — `derive_watch_order_anime(db, franchise_id)`
-
-Assigns consecutive `watch_order` floats (starting at 1.0) to eligible entries within a franchise.
-
-**Eligibility:** `airing_type` is not null or `"Other"`, and `season_part` is set.
-
-**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
-
-**Sort algorithm per series group:**
-
-1. Season number (from `season_part`)
-2. Part number (from `season_part`)
-3. Airing type priority: TV(0) → ONA(1) → Special(2) → OVA(3) → OAD(4)
-
-**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
-
----
-
-### Derive Watch Order TV Show — `derive_watch_order_tv_show(db, franchise_id)`
-
-Assigns consecutive `watch_order` floats (starting at 1.0) to eligible TV show entries within a franchise.
-
-**Eligibility:** `season_part` is set.
-
-**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
-
-**Sort algorithm per series group:** Season number (from `season_part`), then part number.
-
-**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
-
----
-
-### Derive Watch Order Cartoon — `derive_watch_order_cartoon(db, franchise_id)`
-
-Assigns consecutive `watch_order` floats (starting at 1.0) to eligible Cartoon entries within a franchise.
-
-**Eligibility:** `airing_type == "TV"` and `season_part` is set.
-
-**Only fills entries where `watch_order` is currently `None`** — never overwrites existing values.
-
-**Sort algorithm per series group:** Season number (from `season_part`), then part number.
-
-**Final ordering:** Series groups first (sorted by series `display_name`), no-series entries appended last.
-
----
-
-### Derive Watch Order Movie — `derive_watch_order_movie(db, franchise_id)`
-
-TBD.
-
----
-
 ### Media Relations — hand-curated, not derived
 
 Prequel/sequel derivation was retired when relations moved to the
-`media_relation` table. Chaining a franchise by `watch_order` cannot tell a
+`media_relation` table. Chaining a franchise by release order cannot tell a
 sequel from a side story, and once Side Story, Spin-off and Adaptation exist it
 guessed wrong often enough not to be worth keeping.
 

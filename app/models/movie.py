@@ -5,7 +5,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
     String,
@@ -52,8 +51,6 @@ class Movies(Base, NameFallbackMixin):
     release_date_usa = Column(String, nullable=True)
     release_date_tw = Column(String, nullable=True)
     director = Column(String, nullable=True)
-
-    watch_order = Column(Float, nullable=True)
 
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)

@@ -91,7 +91,6 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     music: anime.music || "",
     distributor_tw: anime.distributor_tw || "",
     is_main_entry: anime.is_main_entry === true,
-    watch_order: anime.watch_order ?? "",
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
     anilist_link: anime.anilist_link || "",
@@ -485,7 +484,6 @@ export default function Modify() {
       release_date_usa: m.release_date_usa || "",
       release_date_tw: m.release_date_tw || "",
       director: m.director || "",
-      watch_order: m.watch_order ?? "",
       imdb_id: m.imdb_id ?? "",
       imdb_link: m.imdb_link || "",
       source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
@@ -523,7 +521,6 @@ export default function Modify() {
       my_rating: t.my_rating || "",
       imdb_rating: t.imdb_rating || "",
       release_date: t.release_date || "",
-      watch_order: t.watch_order ?? "",
       imdb_id: t.imdb_id ?? "",
       imdb_link: t.imdb_link || "",
       watch_next: t.watch_next ?? false,
@@ -562,7 +559,6 @@ export default function Modify() {
       length_ep_min: c.length_ep_min ?? "",
       source_official: c.source_official || "",
       release_date: c.release_date || "",
-      watch_order: c.watch_order ?? "",
       imdb_id: c.imdb_id ?? "",
       imdb_link: c.imdb_link || "",
       source_other: Array.isArray(c.source_other)
@@ -613,7 +609,6 @@ export default function Modify() {
       anime_studio: m.anime_studio || "",
       serialization_platform: m.serialization_platform || "",
       publisher_tw: m.publisher_tw || "",
-      watch_order: m.watch_order ?? "",
       mal_id: m.mal_id ?? "",
       mal_link: m.mal_link || "",
       anilist_link: m.anilist_link || "",
@@ -1222,7 +1217,6 @@ export default function Modify() {
       release_date_usa: mmf.release_date_usa || null,
       release_date_tw: mmf.release_date_tw || null,
       director: mmf.director || null,
-      watch_order: mmf.watch_order !== "" ? parseFloat(mmf.watch_order) : null,
       imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
       source_other:
@@ -1353,8 +1347,6 @@ export default function Modify() {
       my_rating: tvmf.my_rating || null,
       imdb_rating: tvmf.imdb_rating || null,
       release_date: tvmf.release_date || null,
-      watch_order:
-        tvmf.watch_order !== "" ? parseFloat(tvmf.watch_order) : null,
       imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
       imdb_link: tvmf.imdb_link || null,
       source_other:
@@ -1487,7 +1479,6 @@ export default function Modify() {
         cmf.length_ep_min !== "" ? parseInt(cmf.length_ep_min) : null,
       source_official: cmf.source_official || null,
       release_date: cmf.release_date || null,
-      watch_order: cmf.watch_order !== "" ? parseFloat(cmf.watch_order) : null,
       imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
       imdb_link: cmf.imdb_link || null,
       source_other:
@@ -1638,8 +1629,6 @@ export default function Modify() {
       anime_studio: cmgf.anime_studio || null,
       serialization_platform: cmgf.serialization_platform || null,
       publisher_tw: cmgf.publisher_tw || null,
-      watch_order:
-        cmgf.watch_order !== "" ? parseFloat(cmgf.watch_order) : null,
       mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
       mal_link: cmgf.mal_link || null,
       anilist_link: cmgf.anilist_link || null,

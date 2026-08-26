@@ -361,20 +361,6 @@ export default function CartoonAddTab({
         />
       </Field>
 
-      <SectionHeader icon="fa-link" title="Relational & Timeline" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Watch Order" hint="e.g. 1, 1.5, 2">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cf.watch_order}
-            onChange={(e) => uc("watch_order", e.target.value)}
-            placeholder="e.g. 1, 1.5, 2"
-          />
-        </Field>
-      </div>
-
       <SectionHeader icon="fa-link" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="IMDb ID" hint="Full IMDb ID (e.g. tt1234567)">

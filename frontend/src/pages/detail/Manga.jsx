@@ -543,18 +543,6 @@ export default function Manga() {
             }
           />
 
-          {/* Watch Order */}
-          {manga.watch_order != null && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
-                <i className="fas fa-sort-numeric-up mr-1.5"></i>Read Order
-              </h3>
-              <div className="text-2xl font-black text-brand text-center py-1">
-                #{manga.watch_order}
-              </div>
-            </div>
-          )}
-
           {/* Related Entries */}
           <RelationsSection mediaType="manga" entryId={manga.system_id} />
 

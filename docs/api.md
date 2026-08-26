@@ -237,8 +237,8 @@ Data Control below.
 ## Watch Order — `/api/watch-order`
 
 Named, ordered, cross-media-type viewing guides owned by a franchise or a
-collection. Reads are public; every write is admin-only. Unrelated to the
-per-entry `watch_order` Float column, which this router never touches.
+collection. Reads are public; every write is admin-only. These replaced the
+per-entry `watch_order` Float column, which has been dropped.
 
 | Method   | Path                          | Auth   | Description                                                                                                                                        |
 | -------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |

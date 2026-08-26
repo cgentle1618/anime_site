@@ -631,7 +631,7 @@ Novel Sources Card
 ### Related Entries Card
 
 - Enable navigation for each entry.
-- Listing order: prequel, sequel, alternatives
+- Listing order: by relation family — timeline, equivalence, branch, derivation
 
 Anime Related Entries Card, show the following for each entry:
 
@@ -978,7 +978,7 @@ buildAutofillPatch(source, type, fieldKeys, { allFranchises, allSeries, defaults
 ```
 
 Drives all eight Add-tab auto-fill searches. Handles franchise/series `_id` + `_text`
-pair resolution, boolean→tristate coercion for `derive_related`, boolean/array coercion,
+pair resolution, boolean/array coercion,
 and the `autofillFallback: "default"` marker (currently only Movie's `airing_status`).
 
 ### `components/forms/DefaultValueControl.jsx`

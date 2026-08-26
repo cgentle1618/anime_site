@@ -1117,7 +1117,6 @@ export default function Add() {
       release_date_usa: mf.release_date_usa || null,
       release_date_tw: mf.release_date_tw || null,
       director: mf.director || null,
-      watch_order: mf.watch_order !== "" ? parseFloat(mf.watch_order) : null,
       imdb_id: mf.imdb_id !== "" ? mf.imdb_id : null,
       imdb_link: mf.imdb_link || null,
       source_other:
@@ -1278,7 +1277,6 @@ export default function Add() {
       my_rating: tvf.my_rating || null,
       imdb_rating: tvf.imdb_rating || null,
       release_date: tvf.release_date || null,
-      watch_order: tvf.watch_order !== "" ? parseFloat(tvf.watch_order) : null,
       imdb_id: tvf.imdb_id !== "" ? tvf.imdb_id : null,
       imdb_link: tvf.imdb_link || null,
       source_other:
@@ -1422,7 +1420,6 @@ export default function Add() {
         cf.length_ep_min !== "" ? parseInt(cf.length_ep_min) : null,
       source_official: cf.source_official || null,
       release_date: cf.release_date || null,
-      watch_order: cf.watch_order !== "" ? parseFloat(cf.watch_order) : null,
       imdb_id: cf.imdb_id !== "" ? cf.imdb_id : null,
       imdb_link: cf.imdb_link || null,
       source_other:
@@ -1579,7 +1576,6 @@ export default function Add() {
       anime_studio: mgf.anime_studio || null,
       serialization_platform: mgf.serialization_platform || null,
       publisher_tw: mgf.publisher_tw || null,
-      watch_order: mgf.watch_order !== "" ? parseFloat(mgf.watch_order) : null,
       mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
       mal_link: mgf.mal_link || null,
       anilist_link: mgf.anilist_link || null,

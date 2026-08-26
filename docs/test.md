@@ -52,7 +52,7 @@ tests/                          ← backend tests
     test_tenrai_utils.py         ← map_tenrai_to_anime_data
     test_formatter.py           ← format_model_for_sheet, parse_*_from_sheet  (planned)
     test_security.py            ← hashing, JWT sign/verify/expiry
-    test_derivations.py         ← derive_watch_order_anime, ep_previous, prequel/sequel
+    test_derivations.py         ← ep_previous, season_1
     test_checking_rules.py      ← has_missing_values_anime, check_is_tv_completed
     test_formatter_watch_order.py ← Watch Order List/Item sheet parsers
     test_watch_order_resolver.py  ← resolve_items batching, missing entries
@@ -123,7 +123,6 @@ Tests for stateless functions with no DB or network dependencies.
 
 ### `tests/unit/test_derivations.py` → `app/services/domain/derivation.py`
 
-- `derive_watch_order_anime`: sequential assignment; null `season_part` skipped; airing type priority (TV before OVA); series grouping
 - `derive_ep_previous_anime`: Season 1 → `0`; Season 2 → `S1.ep_total`; different series isolated
 - Media relations are covered separately — see `tests/unit/test_relation_kinds.py`,
   `tests/unit/test_formatter_media_relation.py`, `tests/api/test_media_relation_model.py`,
@@ -151,7 +150,6 @@ replaced, so a behavior change fails the test rather than shipping silently.
 
 - Per-type parity: anime, cartoon, manga, novel, tv-show, movie field sets
 - Franchise/series `_id` + display-name `_text` resolved together
-- `derive_related` boolean → `"true"` / `"false"` / `""`
 - Movie `airing_status` falls back to the configured default (was a pinned literal)
 - Configured `[]` copies nothing; unknown keys ignored; boolean flags coerced
 

@@ -55,8 +55,6 @@ class AnimeBase(BaseModel):
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
 
-    watch_order: Optional[float] = None
-
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
     anilist_link: Optional[str] = None

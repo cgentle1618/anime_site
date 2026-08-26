@@ -5,7 +5,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
     String,
@@ -55,8 +54,6 @@ class Cartoon(Base, NameFallbackMixin):
     my_rating = Column(String, nullable=True)
     imdb_rating = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
-
-    watch_order = Column(Float, nullable=True)
 
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)

@@ -71,9 +71,7 @@ from app.services.domain import (
     cartoon_post_processing,
     manga_post_processing,
     tv_show_post_processing,
-    derive_related_anime,
-    derive_related_cartoon,
-    derive_related_tv_show,
+    derive_ep_previous_all_anime,
     resolve_anime_movie_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_manga_parent_hierarchy,
@@ -619,11 +617,11 @@ async def execute_replace_anime(
 
             await asyncio.sleep(1)
 
-        # Derive Related
+        # Derive ep_previous
         if await request.is_disconnected():
             raise asyncio.CancelledError()
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        derive_related_anime(db)
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving episode counts...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
+        derive_ep_previous_all_anime(db)
 
         # Sync
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing seasonal data...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
@@ -916,11 +914,6 @@ async def execute_replace_tv_show(
 
             await asyncio.sleep(0)
 
-        if await request.is_disconnected():
-            raise asyncio.CancelledError()
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        derive_related_tv_show(db)
-
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
         run_sync_tv_show(db)
 
@@ -1020,11 +1013,6 @@ async def execute_replace_cartoon(
 
             await asyncio.sleep(0)
 
-        if await request.is_disconnected():
-            raise asyncio.CancelledError()
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-        derive_related_cartoon(db)
-
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
         run_sync_cartoon(db)
 
@@ -1123,8 +1111,6 @@ async def execute_replace_manga(
 
         if await request.is_disconnected():
             raise asyncio.CancelledError()
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Deriving related entries...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
-
         yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': total_in_queue, 'total': total_in_queue})}\n\n"
         run_sync_manga(db)
 

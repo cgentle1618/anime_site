@@ -73,8 +73,6 @@ class Manga(Base, NameFallbackMixin):
     serialization_platform = Column(String, nullable=True)
     publisher_tw = Column(String, nullable=True)
 
-    watch_order = Column(Float, nullable=True)
-
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
     anilist_link = Column(String, nullable=True)

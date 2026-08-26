@@ -71,9 +71,6 @@ from app.services.domain.derivation import (
     derive_season_1_anime,
     derive_season_1_cartoon,
     derive_season_1_tv_show,
-    derive_watch_order_anime,
-    derive_watch_order_cartoon,
-    derive_watch_order_tv_show,
 )
 from app.services.domain.autofill import (
     autofill_anime_from_mal,
@@ -91,15 +88,16 @@ def apply_single_replace_anime(
 ) -> None:
     """
     Core 'Replace' logic for a single anime entry.
-    When bulk=False (single-entry update), also derives related entries.
-    When bulk=True (batch replace), caller handles derive_related after the loop.
+    When bulk=False (single-entry update), also derives ep_previous across every
+    acg franchise. When bulk=True (batch replace), the caller does that once
+    after the loop instead of per entry.
     """
     apply_extract_mal_id_anime(anime)
     autofill_anime_from_mal(anime, force_replace_ratings=force_replace_ratings)
     anime_post_processing(anime, db)
 
     if not bulk:
-        derive_related_anime(db)
+        derive_ep_previous_all_anime(db)
 
 
 def apply_single_replace_anime_movie(
@@ -129,15 +127,13 @@ def apply_single_replace_tv_show(
 ) -> None:
     """
     Core 'Replace' logic for a single TVShows entry.
-    When bulk=False, also derives related entries for all TV show franchises.
-    When bulk=True, caller handles derive_related after the loop.
+    Nothing is derived franchise-wide any more - watch order was the only such
+    field and it moved to watch_order_list - so `bulk` no longer changes what
+    this does. It is kept for signature parity with the other media types.
     """
     apply_extract_imdb_id(tv_show)
     autofill_tv_show_from_imdb(tv_show, db)
     tv_show_post_processing(tv_show, db)
-
-    if not bulk:
-        derive_related_tv_show(db)
 
 
 def apply_single_replace_cartoon(
@@ -145,22 +141,20 @@ def apply_single_replace_cartoon(
 ) -> None:
     """
     Core 'Replace' logic for a single Cartoon entry.
-    When bulk=False, also derives related entries for all cartoon franchises.
-    When bulk=True, caller handles derive_related after the loop.
+    Nothing is derived franchise-wide any more - watch order was the only such
+    field and it moved to watch_order_list - so `bulk` no longer changes what
+    this does. It is kept for signature parity with the other media types.
     """
     apply_extract_imdb_id(cartoon)
     autofill_cartoon_from_imdb(cartoon, db)
     cartoon_post_processing(cartoon, db)
 
-    if not bulk:
-        derive_related_cartoon(db)
-
 
 def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single Manga entry.
-    When bulk=False (single-entry update), also derives related entries.
-    When bulk=True (batch replace), caller handles derive_related after the loop.
+    Nothing is derived franchise-wide for manga; `bulk` is accepted for
+    signature parity with the other media types.
     """
     apply_extract_mal_id_manga_novel(manga)
     autofill_manga_from_mal(manga, force_replace_ratings=True)
@@ -171,7 +165,7 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
 def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single Novel entry.
-    No post_processing and no derive_related — novel has neither.
+    No post_processing and nothing derived franchise-wide — novel has neither.
     """
     apply_extract_mal_id_manga_novel(novel)
     autofill_novel_from_mal(novel, force_replace_ratings=True)
@@ -237,8 +231,13 @@ def manga_post_processing(manga: Manga, db: Session) -> None:
         mark_reading_completed(manga)
 
 
-def derive_related_anime(db: Session) -> None:
-    """Derives watch order and ep_previous for all acg franchises."""
+def derive_ep_previous_all_anime(db: Session) -> None:
+    """Derives ep_previous for every acg franchise.
+
+    Was derive_related_anime, which also assigned watch_order. Ordering moved
+    to watch_order_list / watch_order_item, where it is curated rather than
+    guessed, so ep_previous is all that is still derived franchise-wide.
+    """
     rows = (
         db.query(Anime.franchise_id)
         .filter(Anime.franchise_id.isnot(None))
@@ -247,37 +246,8 @@ def derive_related_anime(db: Session) -> None:
     )
     franchise_ids = [r[0] for r in rows]
     for fid in franchise_ids:
-        derive_watch_order_anime(db, fid)
         derive_ep_previous_anime(db, fid)
     if franchise_ids:
         db.commit()
 
 
-def derive_related_tv_show(db: Session) -> None:
-    """Derives watch order for all TV show franchises."""
-    rows = (
-        db.query(TVShows.franchise_id)
-        .filter(TVShows.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_watch_order_tv_show(db, fid)
-    if franchise_ids:
-        db.commit()
-
-
-def derive_related_cartoon(db: Session) -> None:
-    """Derives watch order for all cartoon franchises."""
-    rows = (
-        db.query(Cartoon.franchise_id)
-        .filter(Cartoon.franchise_id.isnot(None))
-        .distinct()
-        .all()
-    )
-    franchise_ids = [r[0] for r in rows]
-    for fid in franchise_ids:
-        derive_watch_order_cartoon(db, fid)
-    if franchise_ids:
-        db.commit()
