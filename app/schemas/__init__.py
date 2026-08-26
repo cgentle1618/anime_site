@@ -73,6 +73,13 @@ from app.schemas.cartoon import (
     CartoonResponse,
     CartoonSheetSync,
 )
+from app.schemas.comic import (
+    ComicBase,
+    ComicCreate,
+    ComicUpdate,
+    ComicResponse,
+    ComicSheetSync,
+)
 from app.schemas.movie import (
     MovieBase,
     MovieCreate,
@@ -204,6 +211,11 @@ __all__ = [
     "CartoonUpdate",
     "CartoonResponse",
     "CartoonSheetSync",
+    "ComicBase",
+    "ComicCreate",
+    "ComicUpdate",
+    "ComicResponse",
+    "ComicSheetSync",
     "MovieBase",
     "MovieCreate",
     "MovieUpdate",
