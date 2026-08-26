@@ -22,6 +22,7 @@ import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
 import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import NovelModifyTab from "../modify-tabs/NovelModifyTab";
+import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
 import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "../modify-tabs/MovieModifyTab";
@@ -242,6 +243,7 @@ export default function Modify() {
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
+  const [allComics, setAllComics] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("anime");
@@ -268,6 +270,7 @@ export default function Modify() {
   const [cmf, setCmf] = useState({});
   const [cmgf, setCmgf] = useState({});
   const [cnvf, setCnvf] = useState({});
+  const [ccmf, setCcmf] = useState({});
   const [optValue, setOptValue] = useState("");
 
   // Admin-configured form defaults, used to fill in fields a saved entry left
@@ -286,6 +289,7 @@ export default function Modify() {
   const uc = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
   const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
+  const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     async function load() {
@@ -302,6 +306,7 @@ export default function Modify() {
           ctRes,
           mgRes,
           nvRes,
+          cmRes,
         ] = await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
@@ -314,6 +319,7 @@ export default function Modify() {
           fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
         // Guarded separately: on failure every form falls back to its built-ins.
         formDefaultsRef.current = await fetchFormDefaults();
@@ -329,6 +335,7 @@ export default function Modify() {
           cartoons,
           mangas,
           novels,
+          comics,
         ] = await Promise.all([
           aRes.json(),
           colRes.json(),
@@ -341,6 +348,7 @@ export default function Modify() {
           ctRes.json(),
           mgRes.json(),
           nvRes.json(),
+          cmRes.json(),
         ]);
         setAllAnime(anime);
         setAllCollections(collections);
@@ -353,6 +361,7 @@ export default function Modify() {
         setAllCartoons(cartoons);
         setAllMangas(mangas);
         setAllNovels(novels);
+        setAllComics(comics);
 
         const urlId = searchParams.get("id");
         const urlType = searchParams.get("type");
@@ -378,6 +387,14 @@ export default function Modify() {
             if (nv) {
               openEditorWith(nv, "novel", franchises, series);
               setActiveTab("novel");
+              return;
+            }
+          }
+          if (urlType === "comic") {
+            const cm = comics.find((x) => x.system_id === urlId);
+            if (cm) {
+              openEditorWith(cm, "comic", franchises, series);
+              setActiveTab("comic");
               return;
             }
           }
@@ -671,6 +688,57 @@ export default function Modify() {
     };
   }
 
+  function comicToForm(c, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === c.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === c.series_id,
+    );
+    return {
+      comic_name_en: c.comic_name_en || "",
+      comic_name_cn: c.comic_name_cn || "",
+      comic_name_alt: c.comic_name_alt || "",
+      franchise_id: c.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: c.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      volume_label: c.volume_label || "",
+      comic_type: c.comic_type || "",
+      publisher: c.publisher || "",
+      imprint: c.imprint || "",
+      continuity: c.continuity || "",
+      era: c.era || "",
+      // Stored comma-joined; the MultiSelect works on an array.
+      events: c.events
+        ? String(c.events)
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : [],
+      serialization_status: c.serialization_status || "",
+      reading_status: c.reading_status || md("comic").reading_status,
+      issue_total: c.issue_total ?? "",
+      issue_fin: c.issue_fin ?? "",
+      my_rating: c.my_rating || "",
+      writer: c.writer || "",
+      artist: c.artist || "",
+      release_year: c.release_year ?? "",
+      end_year: c.end_year ?? "",
+      publisher_tw: c.publisher_tw || "",
+      is_main_entry: c.is_main_entry ?? false,
+      read_order: c.read_order ?? "",
+      source_other: Array.isArray(c.source_other)
+        ? c.source_other
+        : Object.entries(c.source_other || {}).map(([name, url]) => ({
+            name,
+            url: url || "",
+          })),
+      read_next: c.read_next ?? false,
+      to_reread: c.to_reread ?? false,
+      cover_image_file: c.cover_image_file || "",
+      remark: c.remark || "",
+    };
+  }
+
   function openEditorWith(
     item,
     type,
@@ -695,6 +763,7 @@ export default function Modify() {
       setCmf(cartoonToForm(item, franchises, series));
     else if (type === "manga") setCmgf(mangaToForm(item, franchises, series));
     else if (type === "novel") setCnvf(novelToForm(item, franchises, series));
+    else if (type === "comic") setCcmf(comicToForm(item, franchises, series));
     else if (type === "options") setOptValue(item.option_value || "");
     setEditorOpen(true);
   }
@@ -725,6 +794,7 @@ export default function Modify() {
       else if (editingType === "cartoon") await saveCartoon();
       else if (editingType === "manga") await saveManga();
       else if (editingType === "novel") await saveNovel();
+      else if (editingType === "comic") await saveComic();
       else if (editingType === "options") await saveOption();
     } finally {
       setSubmitting(false);
@@ -1823,6 +1893,195 @@ export default function Modify() {
     showToast("success", "Update successful.");
   }
 
+  async function saveComic() {
+    let franchiseId = ccmf.franchise_id;
+    if (!franchiseId && (ccmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Comic",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: ccmf.comic_name_en || null,
+          franchise_name_cn: ccmf.comic_name_cn || null,
+          franchise_name_alt: ccmf.comic_name_alt || null,
+          franchise_type: "Comic",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = ccmf.series_id;
+    if (!seriesId && (ccmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: ccmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: ccmf.comic_name_en || null,
+          series_name_cn: ccmf.comic_name_cn || null,
+          series_name_alt: ccmf.comic_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing system options for every comic option-backed field.
+    {
+      const existingValues = {};
+      for (const o of allOptions) {
+        if (!existingValues[o.category]) existingValues[o.category] = new Set();
+        existingValues[o.category].add(o.option_value);
+      }
+      const toCreate = [];
+      const addMulti = (raw, category) => {
+        for (const v of (raw || "")
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean)) {
+          if (!existingValues[category]?.has(v))
+            toCreate.push({ category, option_value: v });
+        }
+      };
+      const addSingle = (raw, category) => {
+        const v = (raw || "").trim();
+        if (v && !existingValues[category]?.has(v))
+          toCreate.push({ category, option_value: v });
+      };
+      addMulti(ccmf.writer, "Comic Writer");
+      addMulti(ccmf.artist, "Comic Artist");
+      addSingle(ccmf.publisher, "Comic Publisher");
+      addSingle(ccmf.imprint, "Comic Imprint");
+      addSingle(ccmf.continuity, "Comic Continuity");
+      addSingle(ccmf.era, "Comic Era");
+      addSingle(ccmf.publisher_tw, "Distributor TW");
+      for (const ev of Array.isArray(ccmf.events) ? ccmf.events : [])
+        addSingle(ev, "Comic Event");
+      if (toCreate.length > 0) {
+        await Promise.all(
+          toCreate.map((item) =>
+            fetch("/api/options/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item),
+              credentials: "include",
+            }),
+          ),
+        );
+        const oRes = await fetch("/api/options/", { credentials: "include" });
+        if (oRes.ok) setAllOptions(await oRes.json());
+      }
+    }
+
+    const payload = {
+      comic_name_en: ccmf.comic_name_en || null,
+      comic_name_cn: ccmf.comic_name_cn || null,
+      comic_name_alt: ccmf.comic_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      volume_label: ccmf.volume_label || null,
+      comic_type: ccmf.comic_type || null,
+      publisher: ccmf.publisher || null,
+      imprint: ccmf.imprint || null,
+      continuity: ccmf.continuity || null,
+      era: ccmf.era || null,
+      // Comma-joined multi-select, the same idiom as franchise.franchise_type.
+      events: Array.isArray(ccmf.events)
+        ? ccmf.events.filter(Boolean).join(", ") || null
+        : ccmf.events || null,
+      is_main_entry: ccmf.is_main_entry ?? false,
+      writer: ccmf.writer || null,
+      artist: ccmf.artist || null,
+      release_year:
+        ccmf.release_year !== "" ? parseInt(ccmf.release_year) : null,
+      end_year: ccmf.end_year !== "" ? parseInt(ccmf.end_year) : null,
+      publisher_tw: ccmf.publisher_tw || null,
+      issue_total: ccmf.issue_total !== "" ? parseInt(ccmf.issue_total) : null,
+      // NOT NULL in the database, so this one falls back to 0, never null.
+      issue_fin: ccmf.issue_fin !== "" ? parseInt(ccmf.issue_fin) : 0,
+      serialization_status: ccmf.serialization_status || null,
+      reading_status: ccmf.reading_status || md("comic").reading_status,
+      read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
+      my_rating: ccmf.my_rating || null,
+      source_other:
+        (ccmf.source_other || []).filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              (ccmf.source_other || [])
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: ccmf.read_next ?? false,
+      to_reread: ccmf.to_reread ?? false,
+      cover_image_file: ccmf.cover_image_file || null,
+      remark: ccmf.remark || null,
+    };
+    const res = await fetch(`/api/comic/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    setAllComics((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+    setEditingItem(updated);
+    setCcmf(comicToForm(updated, allFranchises, allSeries));
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -1863,6 +2122,13 @@ export default function Modify() {
         item.novel_name_roman ||
         item.novel_name_jp ||
         item.novel_name_alt ||
+        "Unknown"
+      );
+    if (type === "comic")
+      return (
+        item.comic_name_en ||
+        item.comic_name_cn ||
+        item.comic_name_alt ||
         "Unknown"
       );
     if (type === "options") return `${item.category}: ${item.option_value}`;
@@ -1976,6 +2242,14 @@ export default function Modify() {
           ].some((name) => name && cleanString(name).includes(q)),
         )
         .slice(0, 10);
+    if (activeTab === "comic")
+      return allComics
+        .filter((c) =>
+          [c.comic_name_en, c.comic_name_cn, c.comic_name_alt].some(
+            (name) => name && cleanString(name).includes(q),
+          ),
+        )
+        .slice(0, 10);
     return allOptions
       .filter(
         (o) =>
@@ -2002,6 +2276,7 @@ export default function Modify() {
       return [...allCartoons].sort(sort).slice(0, 12);
     if (activeTab === "manga") return [...allMangas].sort(sort).slice(0, 12);
     if (activeTab === "novel") return [...allNovels].sort(sort).slice(0, 12);
+    if (activeTab === "comic") return [...allComics].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -2284,6 +2559,18 @@ export default function Modify() {
       .join(" "),
   }));
 
+  const seriesItemsForComic = (
+    ccmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === ccmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
   const tvRibbonSection = (() => {
     const tvRibbon =
       editingType === "tv-show" && tvmf.franchise_id
@@ -2531,6 +2818,77 @@ export default function Modify() {
         className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
       >
         {n.novel_name_cn || n.novel_name_en || n.novel_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const comicRibbonSection = (() => {
+    const comicRibbon = ccmf.franchise_id
+      ? allComics.filter(
+          (c) =>
+            c.franchise_id === ccmf.franchise_id &&
+            c.system_id !== editingItem?.system_id,
+        )
+      : [];
+    if (!comicRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const c of comicRibbon) {
+      if (c.series_id) {
+        (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
+      } else noSeries.push(c);
+    }
+    const sortByName = (x, y) =>
+      (
+        x.comic_name_en ||
+        x.comic_name_cn ||
+        x.comic_name_alt ||
+        ""
+      ).localeCompare(
+        y.comic_name_en || y.comic_name_cn || y.comic_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
+    noSeries.sort(sortByName);
+    const renderChip = (c) => (
+      <button
+        key={c.system_id}
+        type="button"
+        onClick={() => openEditor(c, "comic")}
+        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+      >
+        {c.comic_name_en || c.comic_name_cn || c.comic_name_alt || "Unknown"}
       </button>
     );
     return (
@@ -2937,6 +3295,20 @@ export default function Modify() {
                 seriesItemsForNovel={seriesItemsForNovel}
                 editingItem={editingItem}
                 ribbonSection={novelRibbonSection}
+                allOptions={allOptions}
+              />
+            )}
+
+            {/* ── COMIC EDITOR ── */}
+            {editingType === "comic" && (
+              <ComicModifyTab
+                franchiseCollections={franchiseCollections}
+                ccmf={ccmf}
+                ucm={ucm}
+                allFranchises={allFranchises}
+                seriesItemsForComic={seriesItemsForComic}
+                editingItem={editingItem}
+                ribbonSection={comicRibbonSection}
                 allOptions={allOptions}
               />
             )}
