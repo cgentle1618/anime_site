@@ -87,6 +87,7 @@ from app.services.calculation import (
     run_sync_cartoon,
     run_sync_manga,
     run_sync_novel,
+    run_sync_comic,
     run_sync_tv_show,
 )
 from app.services.pipelines.backup import execute_backup
@@ -539,6 +540,7 @@ async def execute_replace_single_comic(
             }
 
         db.commit()
+        run_sync_comic(db)
 
         if log_action:
             log_data_control(

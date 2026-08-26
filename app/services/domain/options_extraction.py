@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -315,4 +316,54 @@ def extract_system_options_from_novel(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"Scanned {len(novels)} entries, created {len(new_options)} missing system options.",
+    }
+
+
+_COMIC_OPTION_FIELD_MAP = {
+    "Comic Publisher": "publisher",
+    "Comic Imprint": "imprint",
+    "Comic Continuity": "continuity",
+    "Comic Era": "era",
+    "Comic Event": "events",
+    "Comic Writer": "writer",
+    "Comic Artist": "artist",
+    "Distributor TW": "publisher_tw",
+}
+
+
+def extract_system_options_from_comic(db: Session) -> dict:
+    """
+    Scans all Comic entries for values in publisher, imprint, continuity, era,
+    events, writer, artist and publisher_tw. Any value not already in
+    SystemOption is created. Comma-joined fields (events) are split per value.
+    """
+    existing: dict[str, set] = {}
+    for opt in db.query(SystemOption).all():
+        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+
+    comics = db.query(Comic).all()
+    new_options = []
+
+    for category, field in _COMIC_OPTION_FIELD_MAP.items():
+        for comic in comics:
+            raw = getattr(comic, field, None)
+            if not raw:
+                continue
+            for val in (v.strip() for v in str(raw).split(",") if v.strip()):
+                if val not in existing.get(category, set()):
+                    new_options.append(
+                        SystemOption(category=category, option_value=val)
+                    )
+                    existing.setdefault(category, set()).add(val)
+
+    if new_options:
+        db.add_all(new_options)
+        db.commit()
+        logger.info(
+            f"extract_system_options_from_comic: created {len(new_options)} missing options."
+        )
+
+    return {
+        "status": "success",
+        "message": f"Scanned {len(comics)} entries, created {len(new_options)} missing system options.",
     }

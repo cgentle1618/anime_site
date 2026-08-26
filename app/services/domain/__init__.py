@@ -112,6 +112,7 @@ from app.services.domain.options_extraction import (
     extract_system_options_from_cartoon,
     extract_system_options_from_manga,
     extract_system_options_from_novel,
+    extract_system_options_from_comic,
 )
 
 from app.services.domain.post_processing import (
@@ -210,6 +211,7 @@ __all__ = [
     "extract_system_options_from_cartoon",
     "extract_system_options_from_manga",
     "extract_system_options_from_novel",
+    "extract_system_options_from_comic",
     "apply_single_replace_anime",
     "apply_single_replace_anime_movie",
     "apply_single_replace_movie",

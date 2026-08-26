@@ -23,6 +23,7 @@ from app.services.domain import (
     extract_system_options_from_tv_show,
     extract_system_options_from_manga,
     extract_system_options_from_novel,
+    extract_system_options_from_comic,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_manga_from_mal,
@@ -451,6 +452,14 @@ def run_sync_novel(db: Session) -> dict:
     return {
         "status": "success",
         "message": "System options extracted from novel.",
+    }
+
+
+def run_sync_comic(db: Session) -> dict:
+    extract_system_options_from_comic(db)
+    return {
+        "status": "success",
+        "message": "System options extracted from comic.",
     }
 
 

@@ -19,6 +19,7 @@ from app.services.pipelines import (
     execute_fill_cartoon,
     execute_fill_manga,
     execute_fill_novel,
+    execute_fill_comic,
     execute_fill_movie,
     execute_fill_tv_show,
     execute_fill_all,
@@ -35,6 +36,7 @@ from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_manga,
     execute_replace_single_novel,
+    execute_replace_single_comic,
     execute_replace_single_movie,
     execute_replace_single_tv_show,
 )
@@ -543,6 +545,44 @@ async def trigger_replace_single_novel(novel_id: str, db: Session = Depends(get_
         raise
     except Exception as e:
         logger.error(f"Error in replace single novel: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fill/comic")
+async def trigger_fill_comic(request: Request, db: Session = Depends(get_db)):
+    """Triggers the Fill Pipeline specifically for Comic entries. SSE streaming."""
+    try:
+        return StreamingResponse(
+            execute_fill_comic(
+                db,
+                request,
+                action_specific="Fill Comic",
+                action_type="Manual",
+                log_action=True,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.error(f"Error in fill comic: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace/comic/{comic_id}")
+async def trigger_replace_single_comic(comic_id: str, db: Session = Depends(get_db)):
+    """Triggers the Replace Pipeline for a single comic entry."""
+    try:
+        result = await execute_replace_single_comic(
+            db, comic_id, action_type="Manual", log_action=False
+        )
+        if result.get("status") == "error":
+            raise HTTPException(
+                status_code=result.get("status_code", 400), detail=result.get("message")
+            )
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in replace single comic: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

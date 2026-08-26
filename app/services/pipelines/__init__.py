@@ -16,6 +16,7 @@ from app.services.pipelines.fill import (
     execute_fill_cartoon,
     execute_fill_manga,
     execute_fill_novel,
+    execute_fill_comic,
     execute_fill_all,
 )
 
@@ -52,6 +53,7 @@ __all__ = [
     "execute_fill_cartoon",
     "execute_fill_manga",
     "execute_fill_novel",
+    "execute_fill_comic",
     "execute_fill_all",
     "execute_replace_single_anime",
     "execute_replace_single_anime_movie",

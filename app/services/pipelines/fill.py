@@ -10,6 +10,7 @@ from sqlalchemy import or_, text
 
 from app.models import (
     Cartoon,
+    Comic,
     Franchise,
     Manga,
     Novel,
@@ -86,6 +87,7 @@ from app.services.calculation import (
     run_sync_cartoon,
     run_sync_manga,
     run_sync_novel,
+    run_sync_comic,
     run_sync_tv_show,
 )
 from app.services.pipelines.backup import execute_backup
@@ -791,6 +793,59 @@ async def execute_fill_novel(
             rows_updated=processed_count,
             error_message=str(e),
         )
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+
+async def execute_fill_comic(
+    db: Session,
+    request: Request,
+    action_specific: str = "Fill Comic",
+    action_type: str = "Manual",
+    log_action: bool = True,
+):
+    """
+    Async Generator (SSE) for 'Fill Comic'.
+
+    Comics are manual-entry, so there is nothing to fetch. This extracts system
+    options and returns — it exists so the admin Fill controls behave uniformly
+    across types.
+    """
+    logger.info(f"Starting {action_specific} Pipeline...")
+
+    try:
+        total = db.query(Comic).count()
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': 0, 'total': total})}\n\n"
+        run_sync_comic(db)
+
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Success",
+                rows_updated=total,
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete.', 'total': total, 'processed': total})}\n\n"
+
+    except asyncio.CancelledError:
+        db.rollback()
+        logger.warning(f"{action_specific} cancelled by client.")
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{action_specific} Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Fill",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
 
