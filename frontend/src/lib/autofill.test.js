@@ -150,6 +150,30 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
     });
   });
 
+  it("copies the comic field set, leading with the EN name", () => {
+    const source = {
+      comic_name_en: "Amazing Spider-Man",
+      comic_name_cn: "蜘蛛人",
+      comic_name_alt: "ASM",
+      franchise_id: "f-1",
+      series_id: "s-1",
+      publisher: "Marvel",
+      imprint: "Marvel Knights",
+      continuity: "Earth-616",
+      era: "Modern",
+      issue_fin: 74,
+    };
+
+    const patch = patchFor(source, "comic");
+
+    expect(patch.comic_name_en).toBe("Amazing Spider-Man");
+    expect(patch.comic_name_cn).toBe("蜘蛛人");
+    expect(patch.publisher).toBe("Marvel");
+    expect(patch.continuity).toBe("Earth-616");
+    // Progress is never copied from another entry.
+    expect(patch.issue_fin).toBeUndefined();
+  });
+
   it("copies the tv-show field set", () => {
     const source = {
       tv_name_en: "Severance",

@@ -58,6 +58,8 @@ export const NOVEL_REGIONS = ["JP", "CN", "TW", "KR", "Western"];
 
 export const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
 
+export const COMIC_TYPES = ["Ongoing", "Limited", "One-Shot", "Annual"];
+
 export const MANGA_SERIALIZATION_STATUSES = ["連載中", "停更", "腰斬", "完結"];
 
 export const NOVEL_SERIALIZATION_STATUSES = [

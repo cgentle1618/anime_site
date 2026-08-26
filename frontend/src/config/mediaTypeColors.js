@@ -1,4 +1,4 @@
-// Frontend: one colour per media type, for anywhere seven types share a view.
+// Frontend: one colour per media type, for anywhere eight types share a view.
 //
 // The relations canvas is the first such place: a graph can hold anime, movies
 // and manga side by side, and the type has to be readable at a glance without
@@ -11,6 +11,7 @@ export const MEDIA_TYPE_COLORS = {
   cartoon: { chip: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
   manga: { chip: "bg-sky-100 text-sky-700", dot: "bg-sky-500" },
   novel: { chip: "bg-stone-200 text-stone-700", dot: "bg-stone-500" },
+  comic: { chip: "bg-red-100 text-red-700", dot: "bg-red-500" },
 };
 
 const FALLBACK = { chip: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };

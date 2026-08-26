@@ -34,6 +34,12 @@ export const ADMIN_TABS = [
     label: "Novel Entry",
   },
   {
+    key: "comic",
+    group: "entries",
+    icon: "fa-mask",
+    label: "Comic Entry",
+  },
+  {
     key: "collection",
     group: "structure",
     icon: "fa-boxes-stacked",

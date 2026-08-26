@@ -141,6 +141,7 @@ export function getReadingButtonConfig(status) {
 }
 
 export function getCardStatusConfig(type, status) {
-  if (type === "manga" || type === "novel") return getReadingButtonConfig(status);
+  if (type === "manga" || type === "novel" || type === "comic")
+    return getReadingButtonConfig(status);
   return getStatusButtonConfig(status);
 }

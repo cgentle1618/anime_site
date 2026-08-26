@@ -12,6 +12,7 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     cartoon: "/api/cartoon",
     manga: "/api/manga",
     novel: "/api/novel",
+    comic: "/api/comic",
     franchise: "/api/franchise",
     series: "/api/series",
   };

@@ -26,6 +26,7 @@ import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
   CARTOON_AIRING_TYPES,
+  COMIC_TYPES,
   FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
   IS_MAIN,
@@ -506,6 +507,95 @@ export const TYPE_FIELD_META = {
     },
   },
 
+  comic: {
+    // EN leads: Western comics are known by their English titles.
+    comic_name_en: { label: "Name (EN)", group: "Names" },
+    comic_name_cn: { label: "Name (CN)", group: "Names" },
+    comic_name_alt: { label: "Name (Alt)", group: "Names" },
+    // The run designator: "Vol. 5", "(2018)", "Legacy". Free text — Marvel
+    // run labels are not consistently numbered.
+    volume_label: { label: "Volume Label", group: "Classification" },
+    comic_type: {
+      label: "Comic Type",
+      control: "select",
+      options: COMIC_TYPES,
+      group: "Classification",
+    },
+    continuity: {
+      label: "Continuity",
+      control: "tags",
+      optionsCategory: "Comic Continuity",
+      group: "Classification",
+    },
+    era: {
+      label: "Era",
+      control: "tags",
+      optionsCategory: "Comic Era",
+      group: "Classification",
+    },
+    events: {
+      label: "Events",
+      control: "tags",
+      optionsCategory: "Comic Event",
+      group: "Classification",
+    },
+    serialization_status: {
+      label: "Serialization Status",
+      control: "select",
+      options: MANGA_SERIALIZATION_STATUSES,
+      group: "Status",
+    },
+    issue_total: {
+      label: "Total Issues",
+      control: "number",
+      group: "Progress",
+    },
+    issue_fin: {
+      label: "Issues Finished",
+      control: "number",
+      group: "Progress",
+    },
+    writer: {
+      label: "Writer",
+      control: "tags",
+      optionsCategory: "Comic Writer",
+      group: "Credits",
+    },
+    artist: {
+      label: "Artist",
+      control: "tags",
+      optionsCategory: "Comic Artist",
+      group: "Credits",
+    },
+    publisher: {
+      label: "Publisher",
+      control: "tags",
+      optionsCategory: "Comic Publisher",
+      group: "Credits",
+    },
+    imprint: {
+      label: "Imprint",
+      control: "tags",
+      optionsCategory: "Comic Imprint",
+      group: "Credits",
+    },
+    // Reuses the shared TW distributor category, not a comic-specific one —
+    // this matches the backend's _COMIC_OPTION_FIELD_MAP.
+    publisher_tw: {
+      label: "Publisher TW",
+      control: "tags",
+      optionsCategory: "Distributor TW",
+      group: "Credits",
+    },
+    // is_main_entry has no COMMON_FIELD_META entry — only anime's block
+    // defines it. Copied here rather than promoting it to common.
+    is_main_entry: {
+      label: "Is Main Entry",
+      control: "checkbox",
+      group: "Derivation",
+    },
+  },
+
   collection: {
     collection_name_en: { label: "Name (EN)", group: "Names" },
     collection_name_cn: { label: "Name (CN)", group: "Names" },
@@ -632,6 +722,18 @@ export const BUILTIN_AUTOFILL = {
     "region",
     "type",
     "is_main",
+  ],
+  comic: [
+    "comic_name_en",
+    "comic_name_cn",
+    "comic_name_alt",
+    "franchise_id",
+    "series_id",
+    "publisher",
+    "imprint",
+    "continuity",
+    "era",
+    "comic_type",
   ],
   franchise: [],
   series: [],
