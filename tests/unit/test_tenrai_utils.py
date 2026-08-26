@@ -24,7 +24,16 @@ def make_full_tenrai_response():
         "type": "TV",
         "status": "Finished Airing",
         "season": "winter",
-        "aired": {"from": "2023-01-07T00:00:00+00:00"},
+        # The real shape, verified against api.tenrai.org/v1/anime/{id}/full:
+        # `from` is the ISO timestamp, `prop` the split-out parts, and `string`
+        # the human rendering. The mapper reads year and month from `prop` and
+        # uses `string` to tell a real January from a year-only guess, so a
+        # fixture carrying only `from` leaves both of them None.
+        "aired": {
+            "from": "2023-01-07T00:00:00+00:00",
+            "prop": {"from": {"day": 7, "month": 1, "year": 2023}},
+            "string": "Jan 7, 2023 to Mar 25, 2023",
+        },
         "score": 8.5,
         "rank": 42,
         "episodes": 12,
@@ -187,6 +196,31 @@ class TestMapTenraiToAnimeData:
         assert result["official_link"] == "https://example.com/official"
         assert result["twitter_link"] == "https://twitter.com/exampleshow"
         assert result["cover_image_url"] == "https://example.com/img.webp"
+
+    def test_year_only_aired_string_suppresses_the_month(self):
+        # Tenrai fills prop.from.month with 1 when MAL knows only the year, so
+        # trusting it would record every such entry as a January release.
+        # `string` is what distinguishes the two: "2026 to ?" versus "Jan 2026".
+        raw = make_full_tenrai_response()
+        raw["aired"] = {
+            "from": "2026-01-01T00:00:00+00:00",
+            "prop": {"from": {"day": 1, "month": 1, "year": 2026}},
+            "string": "2026 to ?",
+        }
+        result = map_tenrai_to_anime_data(raw)
+        assert result["release_year"] == "2026"
+        assert result["release_month"] is None
+
+    def test_known_january_still_maps_the_month(self):
+        # The other side of the same rule: a month named in `string` is real.
+        raw = make_full_tenrai_response()
+        raw["aired"] = {
+            "from": "2026-01-12T00:00:00+00:00",
+            "prop": {"from": {"day": 12, "month": 1, "year": 2026}},
+            "string": "Jan 12, 2026 to ?",
+        }
+        result = map_tenrai_to_anime_data(raw)
+        assert result["release_month"] == "JAN"
 
     def test_webp_preferred_over_jpg(self):
         raw = make_full_tenrai_response()

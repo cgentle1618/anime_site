@@ -60,7 +60,9 @@ Returns full anime metadata including images, external links, and episode count.
 | `type`                        | `airing_type`                                   | TV/Movie/ONA/OVA/Special kept as-is; anything else → "Other"                                |
 | `status`                      | `airing_status`                                 | "currently airing"→Airing, "finished airing"→Finished Airing, "not yet aired"→Not Yet Aired |
 | `season`                      | `release_season`                                | Lowercase → 3-letter code: winter→WIN, spring→SPR, summer→SUM, fall→FAL                     |
-| `aired.from`                  | `release_year`, `release_month`, `release_date` | ISO 8601 parsed; month mapped to JAN–DEC abbreviations                                      |
+| `aired.prop.from.year`        | `release_year`                                  | Stringified integer                                                                         |
+| `aired.prop.from.month` + `aired.string` | `release_month`                      | Mapped to JAN–DEC, but **only when `aired.string` names a month**. Tenrai fills `prop.from.month` with 1 when MAL knows just the year, so a leading `"2026 to ?"` suppresses it rather than recording a false January |
+| `aired.from`                  | `release_date`                                  | ISO 8601 parsed to `YYYY-MM-DD`                                                             |
 | `rank`                        | `mal_rank`                                      | Stringified integer                                                                         |
 | `score`                       | `mal_rating`                                    | Float                                                                                       |
 | `episodes`                    | `ep_total`                                      | Integer                                                                                     |
