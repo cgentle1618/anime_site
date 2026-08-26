@@ -33,6 +33,7 @@ from app.routers import (
     manga,
     note,
     novel,
+    comic,
     watch_order,
     media_relation,
     quote,
@@ -149,6 +150,7 @@ app.include_router(tv_show.router)
 app.include_router(manga.router)
 app.include_router(note.router)
 app.include_router(novel.router)
+app.include_router(comic.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)
 app.include_router(quote.router)

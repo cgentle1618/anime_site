@@ -1,6 +1,6 @@
 """
-CRUD smoke tests for the five "regular" media routers (movie, tv_show, cartoon,
-manga, novel). These capture the behavior the router factory must preserve.
+CRUD smoke tests for the six "regular" media routers (movie, tv_show, cartoon,
+manga, novel, comic). These capture the behavior the router factory must preserve.
 
 Entries are created with only a name (no imdb/mal link), so the create/update
 write hook (execute_replace_single_*) is a no-op and no network call is made.
@@ -17,6 +17,7 @@ CASES = [
     ("cartoon", "cartoon_name_en", "watching_status", models.Cartoon),
     ("manga", "manga_name_en", "reading_status", models.Manga),
     ("novel", "novel_name_en", "reading_status", models.Novel),
+    ("comic", "comic_name_en", "reading_status", models.Comic),
 ]
 IDS = [c[0] for c in CASES]
 

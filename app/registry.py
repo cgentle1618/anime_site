@@ -5,7 +5,7 @@ an identical shape. Each MediaTypeSpec holds the per-type facts (model, schemas,
 name fields, filters, and the domain/pipeline callables) that the router factory
 (`app/routers/_factory.py`) uses to build a full router.
 
-Only the five uniform types live here. `anime` and `anime_movie` are genuinely
+Only the six uniform types live here. `anime` and `anime_movie` are genuinely
 different (anime runs a synchronous ep-previous derivation; anime_movie has no
 series and no write hook), so they remain hand-written routers by design.
 """
@@ -20,10 +20,12 @@ from app.services.domain import (
     resolve_cartoon_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_novel_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
     mark_movie_completed,
     mark_tv_completed,
     mark_reading_completed,
     mark_novel_completed,
+    mark_comic_completed,
 )
 from app.services.pipelines import (
     execute_replace_single_movie,
@@ -31,6 +33,7 @@ from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_manga,
     execute_replace_single_novel,
+    execute_replace_single_comic,
 )
 
 
@@ -151,5 +154,22 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_completed,
         write_hook=execute_replace_single_novel,
+    ),
+    "comic": MediaTypeSpec(
+        key="comic",
+        owner_type="comic",
+        label="Comic",
+        route="comic",
+        model=models.Comic,
+        create_schema=schemas.ComicCreate,
+        update_schema=schemas.ComicUpdate,
+        response_schema=schemas.ComicResponse,
+        status_field="reading_status",
+        list_filters=("franchise_id", "series_id", "reading_status", "serialization_status", "to_reread"),
+        hierarchy_names={"en": "comic_name_en", "cn": "comic_name_cn", "alt": "comic_name_alt"},
+        search_fields=("comic_name_en", "comic_name_cn", "comic_name_alt"),
+        resolve_hierarchy=resolve_comic_parent_hierarchy,
+        mark_completed=mark_comic_completed,
+        write_hook=execute_replace_single_comic,
     ),
 }

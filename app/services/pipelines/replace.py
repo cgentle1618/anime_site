@@ -10,6 +10,7 @@ from sqlalchemy import or_, text
 
 from app.models import (
     Cartoon,
+    Comic,
     Franchise,
     Manga,
     Novel,
@@ -490,6 +491,68 @@ async def execute_replace_single_novel(
     except Exception as e:
         db.rollback()
         logger.error(f"Single Replace Novel Error: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Replace",
+                action_specific,
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e), "status_code": 500}
+
+
+async def execute_replace_single_comic(
+    db: Session,
+    comic_id: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+) -> dict:
+    """
+    Write hook for a single Comic entry.
+
+    Unlike the other single-replace hooks this fetches nothing: comics are
+    manual-entry, so there is no external record to reconcile against. It
+    exists so the registry has a uniform write_hook, and so the write is
+    logged like every other type's.
+    """
+    logger.info(f"Starting Single Replace Pipeline for Comic ID: {comic_id}")
+    action_specific = "Replace for single comic entry"
+
+    try:
+        comic = db.query(Comic).filter(Comic.system_id == comic_id).first()
+        if not comic:
+            if log_action:
+                log_data_control(
+                    db,
+                    "Replace",
+                    action_specific,
+                    action_type,
+                    "Failed",
+                    error_message="Comic not found 404",
+                )
+            return {
+                "status": "error",
+                "message": "Comic entry not found",
+                "status_code": 404,
+            }
+
+        db.commit()
+
+        if log_action:
+            log_data_control(
+                db, "Replace", action_specific, action_type, "Success", rows_updated=1
+            )
+
+        return {
+            "status": "success",
+            "message": f"Successfully updated {comic.display_name}.",
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Single Replace Comic Error: {e}")
         if log_action:
             log_data_control(
                 db,
