@@ -26,5 +26,6 @@ class FranchiseType(str, Enum):
     MOVIE = "Movie"
     TV = "TV"
     CARTOON = "Cartoon"
+    COMIC = "Comic"
     ACG = "ACG"
     NOVEL = "Novel"

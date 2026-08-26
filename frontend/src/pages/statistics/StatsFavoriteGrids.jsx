@@ -13,6 +13,11 @@ const GRID_CONFIGS = [
     typeKey: "Cartoon",
     forType: "Cartoon",
   },
+  {
+    title: "Favorite Comic Franchise",
+    typeKey: "Comic",
+    forType: "Comic",
+  },
 ];
 
 function getSlot(f, typeKey) {

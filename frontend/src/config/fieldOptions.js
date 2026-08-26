@@ -103,6 +103,7 @@ export const FRANCHISE_TYPES = [
   "TV",
   "Movie",
   "Cartoon",
+  "Comic",
   "Novel",
 ];
 

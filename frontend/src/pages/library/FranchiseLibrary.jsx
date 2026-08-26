@@ -26,6 +26,7 @@ function getFilterCategories(franchise, animeSet, mangaSet) {
   if (types.includes("Movie")) cats.push("Movie");
   if (types.includes("TV")) cats.push("TV");
   if (types.includes("Cartoon")) cats.push("Cartoon");
+  if (types.includes("Comic")) cats.push("Comic");
   if (cats.length === 0) cats.push("Other");
   return cats;
 }
@@ -314,6 +315,7 @@ export default function FranchiseLibrary() {
                 <FilterTag value="Movie" label="Movie" />
                 <FilterTag value="TV" label="TV" />
                 <FilterTag value="Cartoon" label="Cartoon" />
+                <FilterTag value="Comic" label="Comic" />
                 <FilterTag value="Other" label="Other" />
               </div>
               {activeFilterCount > 0 && (

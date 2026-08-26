@@ -7,6 +7,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
+import { FRANCHISE_TYPES } from "../../config/fieldOptions";
 
 const TYPE_TO_ENTRY_TYPES = {
   ACG: ["anime", "manga"],
@@ -143,31 +144,29 @@ export default function FranchiseModifyTab({
         </Field>
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
-            {["ACG", "Anime Movie", "TV", "Movie", "Cartoon", "Novel"].map(
-              (v) => {
-                const types = parseTypes(ff.franchise_type);
-                const checked = types.includes(v);
-                return (
-                  <label
-                    key={v}
-                    className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        const next = checked
-                          ? types.filter((t) => t !== v)
-                          : [...types, v];
-                        uf("franchise_type", next.join(", "));
-                      }}
-                      className="rounded accent-brand"
-                    />
-                    {v}
-                  </label>
-                );
-              },
-            )}
+            {FRANCHISE_TYPES.map((v) => {
+              const types = parseTypes(ff.franchise_type);
+              const checked = types.includes(v);
+              return (
+                <label
+                  key={v}
+                  className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      const next = checked
+                        ? types.filter((t) => t !== v)
+                        : [...types, v];
+                      uf("franchise_type", next.join(", "));
+                    }}
+                    className="rounded accent-brand"
+                  />
+                  {v}
+                </label>
+              );
+            })}
           </div>
         </Field>
         <Field label="My Rating">

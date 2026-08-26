@@ -179,6 +179,7 @@ Field: `franchise.franchise_type` — Default: `null`
 | `Movie`       |         |
 | `TV`          |         |
 | `Cartoon`     |         |
+| `Comic`       |         |
 | `Novel`       |         |
 
 ---

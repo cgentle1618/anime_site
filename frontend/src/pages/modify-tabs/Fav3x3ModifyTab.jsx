@@ -10,6 +10,7 @@ const GRID_CONFIGS = [
   { title: "Favorite Movie Franchise", typeKey: "Movie", forType: "Movie" },
   { title: "Favorite TV Show Franchise", typeKey: "TV", forType: "TV" },
   { title: "Favorite Cartoon Franchise", typeKey: "Cartoon", forType: "Cartoon" },
+  { title: "Favorite Comic Franchise", typeKey: "Comic", forType: "Comic" },
 ];
 
 function buildDrafts(franchises) {

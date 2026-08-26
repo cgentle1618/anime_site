@@ -145,17 +145,22 @@ export default function StatsFranchiseSummary({
   const { rows: movieRows, ratedCount: movieRatedCount } =
     computeRatingRows(allMovies);
 
-  // TV Show and Cartoon franchise distributions
+  // TV Show, Cartoon and Comic franchise distributions
   const tvFranchises = franchises.filter((f) =>
     parseTypes(f.franchise_type).includes("TV"),
   );
   const cartoonFranchises = franchises.filter((f) =>
     parseTypes(f.franchise_type).includes("Cartoon"),
   );
+  const comicFranchises = franchises.filter((f) =>
+    parseTypes(f.franchise_type).includes("Comic"),
+  );
   const { rows: tvRows, ratedCount: tvRatedCount } =
     computeRatingRows(tvFranchises);
   const { rows: cartoonRows, ratedCount: cartoonRatedCount } =
     computeRatingRows(cartoonFranchises);
+  const { rows: comicRows, ratedCount: comicRatedCount } =
+    computeRatingRows(comicFranchises);
 
   return (
     <>
@@ -225,6 +230,12 @@ export default function StatsFranchiseSummary({
             subtitle="Cartoon Franchise"
             rows={cartoonRows}
             total={cartoonRatedCount}
+          />
+          <RatingDistributionCard
+            title="My Rating"
+            subtitle="Comic Franchise"
+            rows={comicRows}
+            total={comicRatedCount}
           />
         </div>
       </section>
