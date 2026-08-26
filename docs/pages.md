@@ -137,7 +137,7 @@ Current progress page. Shows all actively tracked media.
 
 **Watching division** (Anime · TV Show · Cartoon) — three sub-sections: Active Watching / Passive Watching / Paused.
 
-- All entries sorted globally by franchise name (CN → EN fallback), then divided by `watching_status`.
+- All entries sorted globally by franchise name (CN → EN fallback) then `watch_order`, then divided by `watching_status`.
 - Within each sub-section, entries grouped by type (Anime / TV Show / Cartoon) and sorted by `my_rating` within each type group.
 - All entry types rendered via **Anime Entry Card 1** (`DashboardCard.jsx`) using the `_ui_type` tag
 - Admin: inline episode progress editing — `PATCH /api/anime/:id` / `PATCH /api/tv-shows/:id` / `PATCH /api/cartoon/:id` depending on entry type
