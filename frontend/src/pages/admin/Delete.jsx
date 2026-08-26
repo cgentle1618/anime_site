@@ -63,6 +63,13 @@ function getDisplayTitle(item, type) {
       item.novel_name_alt ||
       "Unknown"
     );
+  if (type === "comic")
+    return (
+      item.comic_name_en ||
+      item.comic_name_cn ||
+      item.comic_name_alt ||
+      "Unknown"
+    );
   if (type === "collection")
     return (
       item.collection_name_cn ||
@@ -158,6 +165,7 @@ export default function Delete() {
     cartoon: [],
     manga: [],
     novel: [],
+    comic: [],
     collection: [],
     franchise: [],
     series: [],
@@ -173,6 +181,7 @@ export default function Delete() {
   const [selectedCartoon, setSelectedCartoon] = useState(null);
   const [selectedManga, setSelectedManga] = useState(null);
   const [selectedNovel, setSelectedNovel] = useState(null);
+  const [selectedComic, setSelectedComic] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -197,6 +206,7 @@ export default function Delete() {
         ctRes,
         mgRes,
         nvRes,
+        cmRes,
       ] =
         await Promise.all([
           fetch("/api/anime/", { credentials: "include" }),
@@ -210,8 +220,9 @@ export default function Delete() {
           fetch("/api/cartoon/", { credentials: "include" }),
           fetch("/api/manga/", { credentials: "include" }),
           fetch("/api/novel/", { credentials: "include" }),
+          fetch("/api/comic/", { credentials: "include" }),
         ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm] = await Promise.all([
         aRes.json(),
         colRes.json(),
         fRes.json(),
@@ -223,6 +234,7 @@ export default function Delete() {
         ctRes.json(),
         mgRes.json(),
         nvRes.json(),
+        cmRes.json(),
       ]);
       setDb({
         anime: a,
@@ -232,6 +244,7 @@ export default function Delete() {
         cartoon: ct,
         manga: mg,
         novel: nv,
+        comic: cm,
         collection: col,
         franchise: f,
         series: s,
@@ -465,6 +478,31 @@ export default function Delete() {
         return;
       }
 
+      if (type === "comic") {
+        const res = await fetch(`/api/comic/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete comic");
+        if (orphanSeriesChecked && item.series_id) {
+          await fetch(`/api/series/${item.series_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedComic(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
       // Cascade deletions
       if (type === "franchise" && cascadeChecked) {
         for (const a of db.anime.filter(
@@ -584,6 +622,7 @@ export default function Delete() {
           setSelectedCartoon(null);
           setSelectedManga(null);
           setSelectedNovel(null);
+          setSelectedComic(null);
           setSelectedFranchise(null);
           setSelectedSeries(null);
           setSelectedOption(null);
@@ -1253,6 +1292,104 @@ export default function Delete() {
         </div>
       )}
 
+      {/* COMIC TAB */}
+      {tab === "comic" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <SearchBox
+              placeholder="Search comic to delete..."
+              items={db.comic}
+              type="comic"
+              onSelect={setSelectedComic}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-gray-800 text-sm">
+                    {getDisplayTitle(item, "comic")}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.comic_type ? ` · ${item.comic_type}` : ""}
+                    {item.release_year ? ` · ${item.release_year}` : ""}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedComic && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedComic.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">
+                    {getDisplayTitle(selectedComic, "comic")}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedComic.volume_label || "-"}
+                  </p>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedComic.comic_type && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedComic.comic_type}
+                      </span>
+                    )}
+                    {selectedComic.publisher && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedComic.publisher}
+                      </span>
+                    )}
+                    {selectedComic.reading_status && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedComic.reading_status}
+                      </span>
+                    )}
+                    {selectedComic.issue_total != null && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedComic.issue_fin ?? 0} / {selectedComic.issue_total} ISSUES
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {getFranchiseTitle(selectedComic.franchise_id)}
+                    {selectedComic.series_id &&
+                      ` / ${getSeriesTitle(selectedComic.series_id)}`}
+                  </p>
+                  {selectedComic.remark && (
+                    <p className="text-xs italic text-gray-400 mt-1">
+                      {selectedComic.remark}
+                    </p>
+                  )}
+                  <p className="text-xs font-mono text-gray-400">
+                    {selectedComic.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedComic(null)}
+                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("comic", selectedComic)}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* FRANCHISE TAB */}
       {tab === "franchise" && (
         <div className="space-y-4">
@@ -1298,6 +1435,10 @@ export default function Delete() {
                   {
                     label: "novel",
                     n: db.novel.filter((n) => n.franchise_id === fid).length,
+                  },
+                  {
+                    label: "comic",
+                    n: db.comic.filter((c) => c.franchise_id === fid).length,
                   },
                 ].filter((x) => x.n > 0);
                 return (
@@ -1349,6 +1490,7 @@ export default function Delete() {
                       { label: "Cartoon", n: db.cartoon.filter((c) => c.franchise_id === selectedFranchise.system_id).length },
                       { label: "Manga", n: db.manga.filter((m) => m.franchise_id === selectedFranchise.system_id).length },
                       { label: "Novel", n: db.novel.filter((n) => n.franchise_id === selectedFranchise.system_id).length },
+                      { label: "Comic", n: db.comic.filter((c) => c.franchise_id === selectedFranchise.system_id).length },
                     ]
                       .filter((x) => x.n > 0)
                       .map((x) => `${x.n} ${x.label}`)
@@ -1405,6 +1547,10 @@ export default function Delete() {
                     label: "novel",
                     n: db.novel.filter((n) => n.series_id === sid).length,
                   },
+                  {
+                    label: "comic",
+                    n: db.comic.filter((c) => c.series_id === sid).length,
+                  },
                 ].filter((x) => x.n > 0);
                 return (
                   <div>
@@ -1449,6 +1595,7 @@ export default function Delete() {
                       { label: "Anime", n: db.anime.filter((a) => a.series_id === selectedSeries.system_id).length },
                       { label: "Manga", n: db.manga.filter((m) => m.series_id === selectedSeries.system_id).length },
                       { label: "Novel", n: db.novel.filter((n) => n.series_id === selectedSeries.system_id).length },
+                      { label: "Comic", n: db.comic.filter((c) => c.series_id === selectedSeries.system_id).length },
                     ]
                       .filter((x) => x.n > 0)
                       .map((x) => `${x.n} ${x.label}`)
@@ -1964,6 +2111,86 @@ export default function Delete() {
                 ).length === 0 &&
                 db.novel.filter(
                   (n) => n.franchise_id === modal.item.franchise_id,
+                ).length === 1 &&
+                (db.series.filter(
+                  (s) => s.franchise_id === modal.item.franchise_id,
+                ).length === 0 ||
+                  orphanSeriesChecked) && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanFranchiseChecked}
+                      onChange={(e) =>
+                        setOrphanFranchiseChecked(e.target.checked)
+                      }
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Franchise
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Franchise Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan series warning (comic) */}
+              {modal.type === "comic" &&
+                modal.item.series_id &&
+                db.anime.filter((a) => a.series_id === modal.item.series_id)
+                  .length +
+                  db.manga.filter((m) => m.series_id === modal.item.series_id)
+                    .length +
+                  db.novel.filter((n) => n.series_id === modal.item.series_id)
+                    .length +
+                  db.comic.filter((c) => c.series_id === modal.item.series_id)
+                    .length ===
+                  1 && (
+                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orphanSeriesChecked}
+                      onChange={(e) => setOrphanSeriesChecked(e.target.checked)}
+                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-orange-800">
+                        <i className="fas fa-link mr-1"></i> Last Entry in
+                        Series
+                      </div>
+                      <div className="text-xs text-orange-700 mt-0.5">
+                        Delete the orphaned Series Hub too.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+              {/* Orphan franchise warning (comic) */}
+              {modal.type === "comic" &&
+                modal.item.franchise_id &&
+                db.anime.filter(
+                  (a) => a.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db["tv-show"].filter(
+                  (t) => t.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.cartoon.filter(
+                  (c) => c.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.manga.filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.novel.filter(
+                  (n) => n.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.comic.filter(
+                  (c) => c.franchise_id === modal.item.franchise_id,
                 ).length === 1 &&
                 (db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
