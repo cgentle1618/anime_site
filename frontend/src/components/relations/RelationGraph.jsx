@@ -374,6 +374,12 @@ function GraphCanvas({
             .includes(needle);
         return {
           ...n,
+          // The ring follows selectedNodeKey rather than React Flow's own
+          // selection, so the two ways of choosing an entry look the same: a
+          // canvas click sets the key through onNodeClick, and a click in the
+          // left pane sets it through focusKey - which used to open the panel
+          // while leaving the node itself unmarked.
+          selected: n.id === selectedNodeKey,
           data: {
             ...n.data,
             // Either reason dims: outside the isolated neighbourhood, or
@@ -382,7 +388,7 @@ function GraphCanvas({
           },
         };
       }),
-    [nodes, needle, neighbours],
+    [nodes, needle, neighbours, selectedNodeKey],
   );
 
   const selectedNode = useMemo(
