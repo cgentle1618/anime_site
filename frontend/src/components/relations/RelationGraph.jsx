@@ -500,7 +500,10 @@ function GraphCanvas({
         })}
       </div>
 
-      <div className="h-[36rem] rounded-2xl border border-gray-200 bg-gray-50">
+      {/* The positioning context for the two panels: anchored here rather
+          than on the outer wrapper, they overlay the canvas only and never
+          cover the toolbar above it, whose height changes as it wraps. */}
+      <div className="relative h-[36rem] rounded-2xl border border-gray-200 bg-gray-50">
         <ReactFlow
           nodes={displayNodes}
           edges={flowEdges}
@@ -518,36 +521,36 @@ function GraphCanvas({
           <Controls showInteractive={false} />
           <MiniMap pannable zoomable />
         </ReactFlow>
+
+        {selectedNode ? (
+          <NodePanel
+            node={selectedNode}
+            relations={selectedNodeRelations}
+            isolated={isolatedKey === selectedNodeKey}
+            onToggleIsolate={() =>
+              setIsolatedKey((k) => (k === selectedNodeKey ? null : selectedNodeKey))
+            }
+            onClose={() => setSelectedNodeKey(null)}
+          />
+        ) : null}
+
+        {selectedEdge ? (
+          <EdgeInspector
+            // A kind change rewrites the row, so the inspector's uncontrolled
+            // remark box has to re-seed from the refetched edge.
+            key={String(selectedEdge.system_id) + selectedEdge.relation_type}
+            edge={selectedEdge}
+            kinds={kinds}
+            busy={writing}
+            onPatch={patchRelation}
+            onDelete={deleteRelation}
+            onClose={() => setSelectedEdgeId(null)}
+          />
+        ) : null}
       </div>
 
       {loading ? (
         <p className="text-xs font-bold text-gray-400">Loading graph…</p>
-      ) : null}
-
-      {selectedNode ? (
-        <NodePanel
-          node={selectedNode}
-          relations={selectedNodeRelations}
-          isolated={isolatedKey === selectedNodeKey}
-          onToggleIsolate={() =>
-            setIsolatedKey((k) => (k === selectedNodeKey ? null : selectedNodeKey))
-          }
-          onClose={() => setSelectedNodeKey(null)}
-        />
-      ) : null}
-
-      {selectedEdge ? (
-        <EdgeInspector
-          // A kind change rewrites the row, so the inspector's uncontrolled
-          // remark box has to re-seed from the refetched edge.
-          key={String(selectedEdge.system_id) + selectedEdge.relation_type}
-          edge={selectedEdge}
-          kinds={kinds}
-          busy={writing}
-          onPatch={patchRelation}
-          onDelete={deleteRelation}
-          onClose={() => setSelectedEdgeId(null)}
-        />
       ) : null}
 
       {pending ? (
