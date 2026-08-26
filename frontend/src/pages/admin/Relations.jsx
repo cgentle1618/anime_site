@@ -229,10 +229,16 @@ export default function Relations() {
                           key={key}
                           type="button"
                           onClick={() =>
-                            setSelected({
+                            // The nonce climbs on every click, including a
+                            // repeat of the entry already selected: closing
+                            // the canvas panel and clicking the same row
+                            // again has to reopen it, and the key alone
+                            // would not have changed.
+                            setSelected((current) => ({
                               media_type: c.media_type,
                               entry_id: c.entry_id,
-                            })
+                              nonce: (current?.nonce ?? 0) + 1,
+                            }))
                           }
                           className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold transition-colors ${
                             active
@@ -272,6 +278,7 @@ export default function Relations() {
             focusKey={
               selected ? `${selected.media_type}:${selected.entry_id}` : null
             }
+            focusNonce={selected?.nonce}
             onPickGhostFranchise={(franchiseId) => {
               // A ghost lives in another franchise; following it moves the lens.
               setScopeType("franchise");

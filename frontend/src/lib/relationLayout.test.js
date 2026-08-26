@@ -112,10 +112,48 @@ describe("mergePositions", () => {
       { key: "anime:new", position: { x: 400, y: 0 }, section: "graph" },
     ];
     const merged = mergePositions(
-      { "anime:a": { x: 123, y: 456 } },
+      { "anime:a": { position: { x: 123, y: 456 }, section: "graph" } },
       positioned,
     );
     expect(merged[0].position).toEqual({ x: 123, y: 456 });
     expect(merged[1].position).toEqual({ x: 400, y: 0 });
+  });
+
+  it("lets a node that just left the tray take its new rank", () => {
+    // The page's main job: drag a tray entry onto the spine. Preserving its
+    // tray coordinate would leave it parked at the bottom on a long tether,
+    // which is exactly what the refetch is supposed to fix.
+    const positioned = [
+      { key: "anime:a", position: { x: 400, y: 20 }, section: "graph" },
+    ];
+    const merged = mergePositions(
+      { "anime:a": { position: { x: 0, y: 900 }, section: "tray" } },
+      positioned,
+    );
+    expect(merged[0].position).toEqual({ x: 400, y: 20 });
+  });
+
+  it("keeps the old position for a node that stays in the graph", () => {
+    const positioned = [
+      { key: "anime:a", position: { x: 400, y: 20 }, section: "graph" },
+    ];
+    const merged = mergePositions(
+      { "anime:a": { position: { x: 123, y: 456 }, section: "graph" } },
+      positioned,
+    );
+    expect(merged[0].position).toEqual({ x: 123, y: 456 });
+  });
+
+  it("keeps the old position for a node that stays in the tray", () => {
+    // A tray entry the admin has hand-dragged somewhere useful must not snap
+    // back to its grid slot just because another relation was written.
+    const positioned = [
+      { key: "anime:a", position: { x: 0, y: 900 }, section: "tray" },
+    ];
+    const merged = mergePositions(
+      { "anime:a": { position: { x: 60, y: 700 }, section: "tray" } },
+      positioned,
+    );
+    expect(merged[0].position).toEqual({ x: 60, y: 700 });
   });
 });

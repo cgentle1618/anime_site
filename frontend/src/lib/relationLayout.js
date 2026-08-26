@@ -160,9 +160,22 @@ export function layoutGraph({ nodes, edges }) {
  *
  * Only nodes new to the canvas get the freshly computed position, so adding a
  * relation does not rearrange the graph under the cursor.
+ *
+ * The one exception is the page's main job: an entry that was parked in the
+ * tray and has just been connected. Its old coordinate is a tray slot far
+ * below the spine, so keeping it would leave the node down there on a long
+ * tether instead of at the rank it just earned. A node whose `section` moved
+ * from "tray" to "graph" therefore takes the freshly computed position.
+ *
+ * `previousByKey` maps key -> {position, section} - the section is what makes
+ * that exception detectable, so a plain {key: position} map is not enough.
  */
 export function mergePositions(previousByKey, positioned) {
-  return positioned.map((n) =>
-    previousByKey[n.key] ? { ...n, position: previousByKey[n.key] } : n,
-  );
+  return positioned.map((n) => {
+    const previous = previousByKey[n.key];
+    if (!previous?.position) return n;
+    // Rejoined the spine: let the new rank win.
+    if (previous.section === "tray" && n.section !== "tray") return n;
+    return { ...n, position: previous.position };
+  });
 }

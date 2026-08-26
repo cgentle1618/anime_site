@@ -3,6 +3,8 @@
 // Changing the kind re-normalizes server-side (a `prequel` becomes a swapped
 // `sequel` row), so this posts the kind as typed and refetches rather than
 // trying to predict the stored direction.
+import { useEffect, useState } from "react";
+
 export default function EdgeInspector({
   edge,
   kinds,
@@ -11,6 +13,23 @@ export default function EdgeInspector({
   onDelete,
   onClose,
 }) {
+  // Controlled, like the kind select above: an uncontrolled box would keep
+  // showing text a rejected PATCH never saved, so the panel would claim a
+  // remark the row does not have. Re-seeds whenever the saved remark changes,
+  // which is how a successful write's refetch lands here.
+  const [remark, setRemark] = useState(edge.remark || "");
+  useEffect(() => {
+    setRemark(edge.remark || "");
+  }, [edge.system_id, edge.remark]);
+
+  async function commitRemark() {
+    const next = remark.trim();
+    if (next === (edge.remark || "")) return;
+    const saved = await onPatch({ remark: next });
+    // Nothing was stored, so nothing should be shown as stored.
+    if (!saved) setRemark(edge.remark || "");
+  }
+
   return (
     <div className="absolute right-3 top-3 z-40 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
       <div className="flex items-start justify-between gap-2">
@@ -49,18 +68,16 @@ export default function EdgeInspector({
       </label>
       <input
         type="text"
-        defaultValue={edge.remark || ""}
+        value={remark}
         disabled={busy}
+        onChange={(e) => setRemark(e.target.value)}
         // On blur, not on every keystroke: a remark is a sentence, not a
         // stream of PATCHes.
         //
         // Cleared to "" rather than null: MediaRelationUpdate ignores a null
         // remark (`if payload.remark is not None`), so posting null would
         // silently leave the old text in the row.
-        onBlur={(e) => {
-          const next = e.target.value.trim();
-          if (next !== (edge.remark || "")) onPatch({ remark: next });
-        }}
+        onBlur={commitRemark}
         placeholder="Optional"
         className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
       />

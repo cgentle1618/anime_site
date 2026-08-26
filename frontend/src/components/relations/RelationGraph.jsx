@@ -70,17 +70,21 @@ function GraphCanvas({
   scopeType,
   scopeId,
   onPickGhostFranchise,
-  refreshKey,
   kinds,
   onWrote,
   onError,
   focusKey,
+  focusNonce,
 }) {
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
   const [hiddenFamilies, setHiddenFamilies] = useState(new Set());
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  // A failed read must not look like an empty scope: the canvas is the whole
+  // right pane, so a blank one otherwise reads as "this franchise has no
+  // entries and no relations".
+  const [loadError, setLoadError] = useState(null);
   // Selection is one-at-a-time: an edge and a node never both hold a panel.
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [selectedNodeKey, setSelectedNodeKey] = useState(null);
@@ -89,7 +93,17 @@ function GraphCanvas({
   // own state, toggled from the node panel.
   const [isolatedKey, setIsolatedKey] = useState(null);
   // Coordinates survive a refetch: only nodes new to the canvas get laid out.
+  // Keyed to {position, section} rather than a bare position, because
+  // mergePositions needs the previous section to spot a node that has just
+  // been connected out of the tray and must take its new rank.
   const positionsRef = useRef({});
+  // refetch() reports failures through onError, which the page re-renders as a
+  // new closure every time; holding it in a ref keeps refetch's identity tied
+  // to the scope alone.
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
   const wrapperRef = useRef(null);
   // The drop point for a node-to-node connection. React Flow's own pointerup
   // handling (see @xyflow/system's onPointerUp) calls onConnect BEFORE
@@ -139,15 +153,21 @@ function GraphCanvas({
     setSelectedEdgeId(null);
     setSelectedNodeKey(null);
     setIsolatedKey(null);
+    // A pending popup still holds two entries from the old canvas; confirming
+    // it after the switch would write a relation between entries that are
+    // nowhere on screen.
+    setPending(null);
+    setConnectError(null);
   }, [scopeType, scopeId]);
 
   // The left pane picks an entry by "type:id"; the canvas answers by opening
-  // that node's panel.
+  // that node's panel. focusNonce, not focusKey alone: closing the panel and
+  // clicking the same entry again must reopen it, and the key has not changed.
   useEffect(() => {
     if (!focusKey) return;
     setSelectedEdgeId(null);
     setSelectedNodeKey(focusKey);
-  }, [focusKey]);
+  }, [focusKey, focusNonce]);
 
   const refetch = useCallback(() => {
     // A new request supersedes whatever was previously in flight - whether
@@ -160,6 +180,7 @@ function GraphCanvas({
     if (!scopeId) {
       setNodes([]);
       setGraphEdges([]);
+      setLoadError(null);
       return () => {
         requestToken.cancelled = true;
       };
@@ -173,7 +194,10 @@ function GraphCanvas({
     fetch(buildUrl(endpoints.mediaRelation.graph(), params), {
       credentials: "include",
     })
-      .then((r) => (r.ok ? r.json() : { nodes: [], edges: [] }))
+      .then((r) => {
+        if (!r.ok) throw new Error(`Could not load the graph (${r.status}).`);
+        return r.json();
+      })
       .then((body) => {
         if (requestToken.cancelled) return;
         const positioned = mergePositions(
@@ -181,7 +205,7 @@ function GraphCanvas({
           layoutGraph(body),
         );
         positionsRef.current = Object.fromEntries(
-          positioned.map((n) => [n.key, n.position]),
+          positioned.map((n) => [n.key, { position: n.position, section: n.section }]),
         );
         setNodes(
           positioned.map((n) => ({
@@ -192,6 +216,19 @@ function GraphCanvas({
           })),
         );
         setGraphEdges(body.edges);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        // A request the scope switched away from is not a failure anyone
+        // needs told about - and its canvas is already gone.
+        if (requestToken.cancelled) return;
+        const message = e?.message || "Could not reach the server.";
+        // Cleared rather than left stale: half a graph from the previous read
+        // sitting under an error banner would be worse than an honest blank.
+        setNodes([]);
+        setGraphEdges([]);
+        setLoadError(message);
+        onErrorRef.current?.(message);
       })
       .finally(() => !requestToken.cancelled && setLoading(false));
 
@@ -204,7 +241,7 @@ function GraphCanvas({
     const cancel = refetch();
     return cancel;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeType, scopeId, refreshKey]);
+  }, [scopeType, scopeId]);
 
   const nodeByKey = useCallback(
     (key) => nodes.find((n) => n.id === key)?.data || null,
@@ -302,8 +339,14 @@ function GraphCanvas({
   const onNodesChange = useCallback((changes) => {
     setNodes((current) => {
       const next = applyNodeChanges(changes, current);
-      // Remember a hand-drag, so it too survives the next refetch.
-      for (const n of next) positionsRef.current[n.id] = n.position;
+      // Remember a hand-drag, so it too survives the next refetch. The
+      // section rides along unchanged: only the server's edges decide it.
+      for (const n of next) {
+        positionsRef.current[n.id] = {
+          position: n.position,
+          section: positionsRef.current[n.id]?.section ?? n.data?.section,
+        };
+      }
       return next;
     });
   }, []);
@@ -375,8 +418,10 @@ function GraphCanvas({
     return { ...found, sourceName: name(found.from), targetName: name(found.to) };
   }, [graphEdges, selectedEdgeId, nodes]);
 
+  // Returns whether the row was actually written, so the inspector can put its
+  // remark box back to the saved text when it was not.
   async function patchRelation(body) {
-    if (writing || !selectedEdge) return;
+    if (writing || !selectedEdge) return false;
     setWriting(true);
     try {
       const res = await fetch(
@@ -391,12 +436,14 @@ function GraphCanvas({
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         onError?.(data?.detail || res.statusText);
-        return;
+        return false;
       }
       onWrote?.();
       refetch();
+      return true;
     } catch (e) {
       onError?.(e?.message || "Could not reach the server.");
+      return false;
     } finally {
       setWriting(false);
     }
@@ -521,6 +568,32 @@ function GraphCanvas({
           <Controls showInteractive={false} />
           <MiniMap pannable zoomable />
         </ReactFlow>
+
+        {/* Three different blanks, three different messages: a read that
+            failed, a scope with nothing in it, and a scope still loading. */}
+        {loadError ? (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-6">
+            <div className="pointer-events-auto max-w-sm rounded-xl border border-red-200 bg-white p-4 text-center shadow-lg">
+              <p className="text-sm font-black text-red-500">
+                Could not load this {scopeType}&apos;s relations.
+              </p>
+              <p className="mt-1 text-xs font-medium text-gray-500">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-3 rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-600 hover:bg-gray-50"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : !loading && nodes.length === 0 ? (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+            <p className="text-sm font-medium text-gray-400">
+              This {scopeType} has no entries yet.
+            </p>
+          </div>
+        ) : null}
 
         {selectedNode ? (
           <NodePanel

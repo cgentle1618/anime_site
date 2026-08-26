@@ -21,14 +21,24 @@ export default function RelationNode({ data, selected }) {
     ? "border-red-300 bg-red-50"
     : data.in_scope
       ? "border-gray-200 bg-white"
-      : "border-dashed border-gray-300 bg-gray-50 opacity-70";
+      : "border-dashed border-gray-300 bg-gray-50";
+
+  // Opacity is decided in one place, not two: a ghost's own opacity-70 and a
+  // dimmed node's opacity-20 are the same Tailwind specificity, so having both
+  // in the class list would let stylesheet order pick the winner - and a
+  // filtered-out ghost would likely stay bright, making isolate look broken.
+  const opacity = data.dimmed
+    ? "opacity-20"
+    : !data.missing && !data.in_scope
+      ? "opacity-70"
+      : "";
 
   return (
     <div
       style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}
       className={`flex items-center gap-2 rounded-xl border px-2 shadow-sm transition-opacity ${tone} ${
         selected ? "ring-2 ring-brand" : ""
-      } ${data.dimmed ? "opacity-20" : ""}`}
+      } ${opacity}`}
     >
       <Handle
         type="target"
