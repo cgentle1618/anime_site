@@ -14,6 +14,7 @@ import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
 import ComboBox from "../../components/forms/ComboBox";
+import RelationGraph from "../../components/relations/RelationGraph";
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Only the display
 // order and headings live here; the kinds themselves come from the API.
@@ -528,6 +529,17 @@ export default function Relations() {
 
         {/* Right: the selected entry's relations */}
         <div className="flex flex-col gap-4">
+          <RelationGraph
+            scopeType={scopeType}
+            scopeId={scopeId}
+            onPickGhostFranchise={(franchiseId) => {
+              // A ghost lives in another franchise; following it moves the lens.
+              setScopeType("franchise");
+              setScopeId(franchiseId);
+              setSelected(null);
+            }}
+          />
+
           {!selected ? (
             <p className="py-16 text-center text-sm font-medium text-gray-400">
               Select an entry to see and edit its relations.

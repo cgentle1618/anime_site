@@ -83,6 +83,7 @@ export const endpoints = {
     create: () => "/api/media-relation/",
     patch: (id) => `/api/media-relation/${id}`,
     remove: (id) => `/api/media-relation/${id}`,
+    graph: () => "/api/media-relation/graph",
   },
 
   formDefaults: {
