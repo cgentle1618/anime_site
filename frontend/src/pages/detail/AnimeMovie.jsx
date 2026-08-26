@@ -9,6 +9,7 @@ import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
+import RelationsSection from "../../components/tracker/RelationsSection";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
@@ -261,6 +262,9 @@ export default function AnimeMovie() {
             officialLink={movie.official_link}
             twitterLink={movie.twitter_link}
           />
+
+          {/* Related Entries */}
+          <RelationsSection mediaType="anime-movie" entryId={movie.system_id} />
 
           {/* System Info — admin only */}
           {isAdmin && (
