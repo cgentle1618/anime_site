@@ -3,7 +3,7 @@
 // The popup exists so a misdrop costs a keystroke instead of a database row,
 // so the tests care most about what it does NOT do: write anything before the
 // user confirms.
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import ConnectPopup from "./ConnectPopup";
@@ -41,8 +41,45 @@ describe("ConnectPopup", () => {
 
   it("writes nothing until the user confirms", async () => {
     const { onConfirm } = setup();
+    // Picking a kind
     await userEvent.click(screen.getByRole("button", { name: /adaptation/i }));
     expect(onConfirm).not.toHaveBeenCalled();
+    // Clicking Swap
+    await userEvent.click(screen.getByRole("button", { name: /swap/i }));
+    expect(onConfirm).not.toHaveBeenCalled();
+    // Typing into remark
+    const remarkInput = screen.getByPlaceholderText(/remark/i);
+    await userEvent.type(remarkInput, "This is a test remark");
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing when picking a search result on empty canvas", async () => {
+    // Stub all seven media-list fetch calls
+    const fetchStub = vi.fn();
+    fetchStub.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { system_id: "xyz" },
+      ],
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchStub;
+
+    try {
+      const { onConfirm } = setup({ target: null });
+      // Type into search (trigger the hook with debounce)
+      const input = screen.getByPlaceholderText(/search every media type/i);
+      await userEvent.type(input, "query");
+
+      // Wait for the search results to appear (debounce 250ms, findBy waits up to 1000ms)
+      const buttons = await screen.findAllByRole("button", { name: /unknown title/i });
+      expect(buttons.length).toBeGreaterThan(0);
+      await userEvent.click(buttons[0]);
+
+      expect(onConfirm).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("confirms with the chosen kind and both node keys", async () => {
