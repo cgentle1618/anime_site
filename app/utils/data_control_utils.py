@@ -317,6 +317,29 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 )
                 franchise_cn = _cn(f, "franchise")
 
+        elif entry_type == "Comic":
+            # Spelled out the way the TV Show branch is, rather than through
+            # the _cn/_en helpers: comic leads with EN, so the helper-based
+            # "only set name_en when a CN name exists" guard would blank the
+            # primary title on an EN-only run, and _en's Alt fallback would put
+            # an alternate title in the EN column. Comic has no roman/JP names.
+            name_cn = (
+                getattr(entry, "comic_name_cn", None)
+                or getattr(entry, "comic_name_en", None)
+                or getattr(entry, "comic_name_alt", None)
+            )
+            name_en = getattr(entry, "comic_name_en", None)
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+
         deleted_log = DeletedRecord(
             type=entry_type,
             name_cn=name_cn,

@@ -546,6 +546,7 @@ Master orchestrator. Calls all derive-related functions across every eligible me
 4. `run_sync_cartoon(db)`
 5. `run_sync_manga(db)`
 6. `run_sync_novel(db)`
+7. `run_sync_comic(db)`
 
 ---
 

@@ -910,7 +910,7 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 | Column          | Type    | Nullable | Notes                                                                             |
 | --------------- | ------- | -------- | ------------------------------------------------------------------------------------ |
-| `is_main_entry` | Boolean | Yes      | Whether this is the main entry among entries linked by an `alternative` relation     |
+| `is_main_entry` | Boolean | Yes      | Whether this run is on the main line rather than a spinoff                           |
 | `read_order`    | Float   | Yes      | Explicit chronological read order (e.g. `1.0`, `1.5`, `2.0`)                         |
 
 #### External Links

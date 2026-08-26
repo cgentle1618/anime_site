@@ -11,7 +11,16 @@ from sqlalchemy.orm import Session
 from app.utils.jikan_utils import ALLOWED_AIRING_TYPES
 from app.utils.data_control_utils import log_data_control
 
-from app.models import Anime, AnimeMovies, Cartoon, Manga, Movies, Novel, TVShows
+from app.models import (
+    Anime,
+    AnimeMovies,
+    Cartoon,
+    Comic,
+    Manga,
+    Movies,
+    Novel,
+    TVShows,
+)
 
 from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
 from app.services.domain import (
@@ -91,6 +100,12 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
             .filter(Novel.cover_image_file.isnot(None))
             .all()
         }
+        | {
+            row[0]
+            for row in db.query(Comic.cover_image_file)
+            .filter(Comic.cover_image_file.isnot(None))
+            .all()
+        }
     )
     entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
     entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
@@ -99,6 +114,7 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
     entry_map.update({str(e.system_id): e for e in db.query(TVShows).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Manga).all()})
     entry_map.update({str(e.system_id): e for e in db.query(Novel).all()})
+    entry_map.update({str(e.system_id): e for e in db.query(Comic).all()})
 
     should_use = []
     orphaned = []
@@ -208,6 +224,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        comics = db.query(Comic).filter(Comic.cover_image_file.isnot(None)).all()
+        for cm in comics:
+            if not cover_image_exists(str(cm.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(cm.system_id),
+                        "name": cm.display_name or str(cm.system_id),
+                        "entry_type": "comic",
+                    }
+                )
+
     total_checked = len(animes) + (
         0
         if entry_type
@@ -217,6 +244,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(tv_shows)
         + len(mangas)
         + len(novels)
+        + len(comics)
     )
     return {
         "status": "success",
@@ -241,6 +269,7 @@ def bulk_set_cover_image_fields(db: Session) -> dict:
         + db.query(Cartoon).filter(Cartoon.cover_image_file.is_(None)).all()
         + db.query(Manga).filter(Manga.cover_image_file.is_(None)).all()
         + db.query(Novel).filter(Novel.cover_image_file.is_(None)).all()
+        + db.query(Comic).filter(Comic.cover_image_file.is_(None)).all()
     )
     for entry in all_entries:
         sid = str(entry.system_id)
@@ -399,6 +428,7 @@ def run_sync(db: Session) -> dict:
     run_sync_cartoon(db)
     run_sync_manga(db)
     run_sync_novel(db)
+    run_sync_comic(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",

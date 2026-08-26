@@ -98,7 +98,7 @@ def make_movie(entry_id, name="Some Movie"):
 
 
 class TestMediaTypeMap:
-    def test_covers_the_seven_media_types(self):
+    def test_covers_the_eight_media_types(self):
         assert VALID_WATCH_ORDER_MEDIA_TYPES == {
             "anime",
             "anime-movie",
@@ -107,10 +107,26 @@ class TestMediaTypeMap:
             "cartoon",
             "manga",
             "novel",
+            "comic",
         }
 
     def test_every_slug_maps_to_a_model(self):
         assert all(model is not None for model in MEDIA_TYPE_MODELS.values())
+
+    def test_every_slug_has_a_status_field(self):
+        from app.services.domain.watch_order import _STATUS_FIELDS
+
+        assert set(_STATUS_FIELDS) == set(MEDIA_TYPE_MODELS)
+
+    def test_every_progress_and_release_field_names_a_real_column(self):
+        from app.services.domain.watch_order import _RELEASE_FIELDS, _TOTAL_FIELDS
+
+        for slug, column in _TOTAL_FIELDS.items():
+            assert hasattr(MEDIA_TYPE_MODELS[slug], column), (slug, column)
+        for slug, columns in _RELEASE_FIELDS.items():
+            assert isinstance(columns, tuple)
+            for column in columns:
+                assert hasattr(MEDIA_TYPE_MODELS[slug], column), (slug, column)
 
 
 class TestResolveItems:

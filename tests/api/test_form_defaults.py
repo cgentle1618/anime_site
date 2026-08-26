@@ -148,6 +148,31 @@ def test_unknown_media_type_rejected(admin_client, method):
     assert res.status_code == 400
 
 
+@pytest.mark.parametrize(
+    "media_type",
+    [
+        "anime",
+        "anime-movie",
+        "movie",
+        "tv-show",
+        "cartoon",
+        "manga",
+        "novel",
+        "comic",
+        "collection",
+        "franchise",
+        "series",
+    ],
+)
+def test_every_form_tab_is_accepted(admin_client, media_type):
+    # Every tab with an Add form must round-trip; a missing slug 400s instead.
+    res = admin_client.put(
+        f"/api/form-defaults/{media_type}", json={"defaults": {"region": "USA"}}
+    )
+    assert res.status_code == 200, res.text
+    assert admin_client.get(f"/api/form-defaults/{media_type}").status_code == 200
+
+
 def test_nested_object_value_rejected(admin_client):
     res = admin_client.put(
         "/api/form-defaults/anime", json={"defaults": {"studio": {"nested": 1}}}

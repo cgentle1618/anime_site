@@ -2,7 +2,7 @@
 Watch Order resolution.
 
 A watch_order_item stores only (media_type, entry_id) - no foreign key can span
-the seven media tables. This module turns those pairs into display data.
+the eight media tables. This module turns those pairs into display data.
 
 Resolution happens on the backend rather than in the page because a
 collection-scoped order spans franchises, so the frontend has no reason to
@@ -21,6 +21,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Movies,
     Novel,
@@ -37,6 +38,7 @@ MEDIA_TYPE_MODELS = {
     "cartoon": Cartoon,
     "manga": Manga,
     "novel": Novel,
+    "comic": Comic,
 }
 
 # Per type: which column holds the progress status, and which holds the unit
@@ -50,6 +52,7 @@ _STATUS_FIELDS = {
     "cartoon": "watching_status",
     "manga": "reading_status",
     "novel": "reading_status",
+    "comic": "reading_status",
 }
 
 _TOTAL_FIELDS = {
@@ -58,6 +61,7 @@ _TOTAL_FIELDS = {
     "cartoon": "ep_total",
     "manga": "ch_total",
     "novel": "ch_total",
+    "comic": "issue_total",
 }
 
 VALID_WATCH_ORDER_MEDIA_TYPES = frozenset(MEDIA_TYPE_MODELS)
@@ -119,7 +123,7 @@ def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
     Enriches watch_order_item rows with their referenced entry's display data.
 
     Issues at most one query per media type present (never one per item), so a
-    200-step guide still costs seven queries. Items whose entry_id no longer
+    200-step guide still costs eight queries. Items whose entry_id no longer
     resolves - the entry was deleted, or the media_type is unknown - come back
     with missing=True rather than being dropped, so the admin can see and
     remove the broken step.
@@ -171,12 +175,12 @@ def list_candidate_entries(
     media_types: List[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Every entry belonging to the given franchises, flattened across the seven
+    Every entry belonging to the given franchises, flattened across the eight
     media tables into one pickable list.
 
     Backs the admin editor's entry picker. A collection-owned order spans
     several franchises, so doing this client-side would mean one request per
-    franchise per media type - seven queries total is cheaper by far.
+    franchise per media type - eight queries total is cheaper by far.
 
     `series_ids` narrows to the middle tier instead. Note anime_movies has no
     series_id column, so that type is simply absent from a series-scoped
@@ -250,6 +254,7 @@ _RELEASE_FIELDS = {
     "cartoon": ("release_date",),
     "manga": ("release_year",),
     "novel": ("release_year",),
+    "comic": ("release_year",),
 }
 
 # Sorts after every real date, so undated entries land at the bottom.

@@ -47,6 +47,7 @@ VALID_MEDIA_TYPES = frozenset(
         "cartoon",
         "manga",
         "novel",
+        "comic",
         "collection",
         "franchise",
         "series",
@@ -65,7 +66,7 @@ def _to_media_type(config_key: str) -> str:
 
 
 def _validate_media_type(media_type: str) -> str:
-    """Rejects media types that aren't one of the nine known form tabs."""
+    """Rejects media types that aren't one of the known form tabs."""
     if media_type not in VALID_MEDIA_TYPES:
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."

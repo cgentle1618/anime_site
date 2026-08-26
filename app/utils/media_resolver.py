@@ -2,14 +2,14 @@
 Shared resolution for tables that reference a row across several tables by a
 (type, id) pair rather than a foreign key.
 
-Two maps are exported. MEDIA_TABLES covers the seven media entry tables and is
+Two maps are exported. MEDIA_TABLES covers the eight media entry tables and is
 what `quote` and `watch_order_item` resolve against. OWNER_TABLES adds the
 three grouping tiers (series, franchise, collection) and is what `meme`
 resolves against, since a meme can belong to a franchise rather than to one
 entry. Passing the map in keeps the wider set from leaking into the tables that
 must stay entry-only.
 
-`app/registry.py` deliberately covers only the five uniform media types, and
+`app/registry.py` deliberately covers only the six uniform media types, and
 each table has its own `system_id` space, so a bare UUID is ambiguous — a
 cross-table reference must carry a type discriminator alongside it. Those pairs
 are stored FK-less, because no single foreign key can span the tables involved,

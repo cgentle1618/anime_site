@@ -675,6 +675,8 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
 
 

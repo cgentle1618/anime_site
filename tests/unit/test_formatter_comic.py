@@ -1,6 +1,7 @@
 """parse_comic_from_sheet — sheet strings in, typed values out."""
 
 import uuid
+from datetime import datetime
 
 from app.utils.formatter import parse_comic_from_sheet
 
@@ -53,6 +54,16 @@ class TestParseComicFromSheet:
 
         parsed = parse_comic_from_sheet({})
         model_cols = {c.name for c in Comic.__table__.columns}
-        # created_at/updated_at are stamped by the DB, not parsed from the sheet.
-        expected = model_cols - {"created_at", "updated_at"}
-        assert expected <= set(parsed.keys())
+        # Every column round-trips, created_at/updated_at included: Backup
+        # writes both to the Comic tab, so Pull has to restore them rather than
+        # letting the model default re-stamp "now" on every restored row.
+        assert model_cols <= set(parsed.keys())
+
+    def test_timestamps_are_restored_from_the_sheet(self):
+        # A restored row must keep its original created_at - the list endpoint
+        # sorts on it, so re-stamping would reshuffle the library.
+        parsed = parse_comic_from_sheet(
+            {"created_at": "2024-03-05 10:11:12", "updated_at": "2025-01-02 03:04:05"}
+        )
+        assert parsed["created_at"] == datetime(2024, 3, 5, 10, 11, 12)
+        assert parsed["updated_at"] == datetime(2025, 1, 2, 3, 4, 5)
