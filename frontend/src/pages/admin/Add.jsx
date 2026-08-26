@@ -23,6 +23,7 @@ import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
+import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
 import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
 import TvShowAddTab, { defaultTvShow } from "../add-tabs/TvShowAddTab";
 import MovieAddTab, { defaultMovie } from "../add-tabs/MovieAddTab";
@@ -53,6 +54,7 @@ export default function Add() {
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
+  const [allComics, setAllComics] = useState([]);
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
   const [formDefaults, setFormDefaults] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
@@ -96,6 +98,11 @@ export default function Add() {
   const [novelFillOpen, setNovelFillOpen] = useState(false);
   const novelFillRef = useRef(null);
 
+  // Comic auto-fill search
+  const [comicFillQuery, setComicFillQuery] = useState("");
+  const [comicFillOpen, setComicFillOpen] = useState(false);
+  const comicFillRef = useRef(null);
+
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
   const [createModal, setCreateModal] = useState(null); // {entityType, text, onConfirm, onCancel}
@@ -112,6 +119,7 @@ export default function Add() {
   const [cf, setCf] = useState(defaultCartoon());
   const [mgf, setMgf] = useState(defaultManga());
   const [nvf, setNvf] = useState(defaultNovel());
+  const [cmf, setCmf] = useState(defaultComic());
   // Quote is not a media entry, so like System Options it keeps its own
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
@@ -134,6 +142,7 @@ export default function Add() {
   const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
   const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
+  const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
 
   // A blank form for `type` with the admin's configured defaults applied.
   const freshForm = (type) => resolveDefaults(type, formDefaults);
@@ -153,6 +162,7 @@ export default function Add() {
           cRes,
           mgRes,
           nvRes,
+          cmRes,
         ] = await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
@@ -165,6 +175,7 @@ export default function Add() {
           fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
         // Guarded separately: a form-defaults failure must not break the page,
         // it just means every form falls back to its built-in values.
@@ -181,6 +192,7 @@ export default function Add() {
           cartoons,
           mangas,
           novels,
+          comics,
         ] = await Promise.all([
           aRes.json(),
           colRes.json(),
@@ -193,6 +205,7 @@ export default function Add() {
           cRes.json(),
           mgRes.json(),
           nvRes.json(),
+          cmRes.json(),
         ]);
         setAllAnime(anime);
         setAllCollections(collections);
@@ -205,6 +218,7 @@ export default function Add() {
         setAllCartoons(cartoons);
         setAllMangas(mangas);
         setAllNovels(novels);
+        setAllComics(comics);
 
         // Seed every form from the configured defaults. Safe to do here rather
         // than in the useState initializers: the page renders a spinner until
@@ -217,6 +231,7 @@ export default function Add() {
         setCf(resolveDefaults("cartoon", fd));
         setMgf(resolveDefaults("manga", fd));
         setNvf(resolveDefaults("novel", fd));
+        setCmf(resolveDefaults("comic", fd));
         setColf(resolveDefaults("collection", fd));
         setFf(resolveDefaults("franchise", fd));
         setSf(resolveDefaults("series", fd));
@@ -287,6 +302,15 @@ export default function Add() {
     function handleClick(e) {
       if (novelFillRef.current && !novelFillRef.current.contains(e.target))
         setNovelFillOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (comicFillRef.current && !comicFillRef.current.contains(e.target))
+        setComicFillOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -364,6 +388,17 @@ export default function Add() {
         .slice(0, 10)
     : [];
 
+  const comicFillResults = comicFillQuery
+    ? allComics
+        .filter((c) =>
+          [c.comic_name_en, c.comic_name_cn, c.comic_name_alt].some(
+            (name) =>
+              name && cleanString(name).includes(cleanString(comicFillQuery)),
+          ),
+        )
+        .slice(0, 10)
+    : [];
+
   const movieFillResults = movieFillQuery
     ? allMovies
         .filter((m) =>
@@ -424,6 +459,12 @@ export default function Add() {
     setNovelFillQuery,
     setNovelFillOpen,
   );
+  const applyComicAutofill = makeApply(
+    setCmf,
+    "comic",
+    setComicFillQuery,
+    setComicFillOpen,
+  );
   const applyMovieAutofill = makeApply(
     setMf,
     "movie",
@@ -452,6 +493,7 @@ export default function Add() {
       else if (activeTab === "cartoon") await submitCartoon();
       else if (activeTab === "manga") await submitManga();
       else if (activeTab === "novel") await submitNovel();
+      else if (activeTab === "comic") await submitComic();
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
@@ -1802,6 +1844,204 @@ export default function Add() {
     setAllNovels((prev) => [...prev, created]);
   }
 
+  async function submitComic() {
+    if (!cmf.comic_name_en && !cmf.comic_name_cn) {
+      showToast("error", "Please provide at least an EN or CN title.");
+      return;
+    }
+    if (!cmf.franchise_id && !cmf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    let franchiseId = cmf.franchise_id;
+    if (!franchiseId && cmf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Comic",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cmf.comic_name_en || null,
+          franchise_name_cn: cmf.comic_name_cn || null,
+          franchise_name_alt: cmf.comic_name_alt || null,
+          franchise_type: "Comic",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = cmf.series_id;
+    if (!seriesId && cmf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cmf.comic_name_en || null,
+          series_name_cn: cmf.comic_name_cn || null,
+          series_name_alt: cmf.comic_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing system options for every comic option-backed field.
+    {
+      const existingValues = {};
+      for (const o of allOptions) {
+        if (!existingValues[o.category]) existingValues[o.category] = new Set();
+        existingValues[o.category].add(o.option_value);
+      }
+      const toCreate = [];
+      const addMulti = (raw, category) => {
+        for (const v of (raw || "")
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean)) {
+          if (!existingValues[category]?.has(v))
+            toCreate.push({ category, option_value: v });
+        }
+      };
+      const addSingle = (raw, category) => {
+        const v = (raw || "").trim();
+        if (v && !existingValues[category]?.has(v))
+          toCreate.push({ category, option_value: v });
+      };
+      addMulti(cmf.writer, "Comic Writer");
+      addMulti(cmf.artist, "Comic Artist");
+      addSingle(cmf.publisher, "Comic Publisher");
+      addSingle(cmf.imprint, "Comic Imprint");
+      addSingle(cmf.continuity, "Comic Continuity");
+      addSingle(cmf.era, "Comic Era");
+      addSingle(cmf.publisher_tw, "Distributor TW");
+      for (const ev of Array.isArray(cmf.events) ? cmf.events : [])
+        addSingle(ev, "Comic Event");
+      if (toCreate.length > 0) {
+        await Promise.all(
+          toCreate.map((item) =>
+            fetch("/api/options/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item),
+              credentials: "include",
+            }),
+          ),
+        );
+        const oRes = await fetch("/api/options/", { credentials: "include" });
+        if (oRes.ok) setAllOptions(await oRes.json());
+      }
+    }
+
+    const payload = {
+      comic_name_en: cmf.comic_name_en || null,
+      comic_name_cn: cmf.comic_name_cn || null,
+      comic_name_alt: cmf.comic_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      volume_label: cmf.volume_label || null,
+      comic_type: cmf.comic_type || null,
+      publisher: cmf.publisher || null,
+      imprint: cmf.imprint || null,
+      continuity: cmf.continuity || null,
+      era: cmf.era || null,
+      // Comma-joined multi-select, the same idiom as franchise.franchise_type.
+      events: Array.isArray(cmf.events)
+        ? cmf.events.filter(Boolean).join(", ") || null
+        : cmf.events || null,
+      is_main_entry: cmf.is_main_entry ?? false,
+      writer: cmf.writer || null,
+      artist: cmf.artist || null,
+      release_year:
+        cmf.release_year !== "" ? parseInt(cmf.release_year, 10) : null,
+      end_year: cmf.end_year !== "" ? parseInt(cmf.end_year, 10) : null,
+      publisher_tw: cmf.publisher_tw || null,
+      issue_total:
+        cmf.issue_total !== "" ? parseInt(cmf.issue_total, 10) : null,
+      issue_fin: cmf.issue_fin !== "" ? parseInt(cmf.issue_fin, 10) : 0,
+      serialization_status: cmf.serialization_status || null,
+      reading_status: cmf.reading_status || freshForm("comic").reading_status,
+      read_order: cmf.read_order !== "" ? parseFloat(cmf.read_order) : null,
+      my_rating: cmf.my_rating || null,
+      source_other:
+        cmf.source_other.filter((e) => e.name.trim()).length > 0
+          ? Object.fromEntries(
+              cmf.source_other
+                .filter((e) => e.name.trim())
+                .map((e) => [e.name.trim(), e.url.trim()]),
+            )
+          : null,
+      read_next: cmf.read_next ?? false,
+      to_reread: cmf.to_reread ?? false,
+      cover_image_file: cmf.cover_image_file || null,
+      remark: cmf.remark || null,
+    };
+
+    const res = await fetch("/api/comic/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    window.scrollTo(0, 0);
+    showToast("success", "Comic appended successfully.");
+    setLastAdded(created.comic_name_en || created.comic_name_cn || "New Comic");
+    setCmf(freshForm("comic"));
+    setAllComics((prev) => [...prev, created]);
+  }
+
   // franchise system_id -> the name of the collection it belongs to, so every
   // tab with a franchise picker can name the wider grouping.
   const franchiseCollections = Object.fromEntries(
@@ -1904,6 +2144,18 @@ export default function Add() {
   const seriesItemsForNovel = (
     nvf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForComic = (
+    cmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cmf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -2091,6 +2343,25 @@ export default function Add() {
             applyNovelAutofill={applyNovelAutofill}
             allFranchises={allFranchises}
             seriesItemsForNovel={seriesItemsForNovel}
+            allOptions={allOptions}
+          />
+        )}
+
+        {/* ═══ COMIC TAB ═══ */}
+        {activeTab === "comic" && (
+          <ComicAddTab
+            franchiseCollections={franchiseCollections}
+            cmf={cmf}
+            ucm={ucm}
+            comicFillQuery={comicFillQuery}
+            setComicFillQuery={setComicFillQuery}
+            comicFillOpen={comicFillOpen}
+            setComicFillOpen={setComicFillOpen}
+            comicFillRef={comicFillRef}
+            comicFillResults={comicFillResults}
+            applyComicAutofill={applyComicAutofill}
+            allFranchises={allFranchises}
+            seriesItemsForComic={seriesItemsForComic}
             allOptions={allOptions}
           />
         )}
