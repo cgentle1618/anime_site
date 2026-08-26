@@ -538,6 +538,10 @@ export const TYPE_FIELD_META = {
       control: "tags",
       optionsCategory: "Comic Event",
       group: "Classification",
+      // Array-shaped in form state; the /defaults tags control emits a
+      // comma-separated string, which coerceToShape would discard. Not
+      // defaultable until the two representations agree.
+      defaultable: false,
     },
     serialization_status: {
       label: "Serialization Status",

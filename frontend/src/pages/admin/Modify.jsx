@@ -270,6 +270,7 @@ export default function Modify() {
   const [cmf, setCmf] = useState({});
   const [cmgf, setCmgf] = useState({});
   const [cnvf, setCnvf] = useState({});
+  // NOTE: cmf is the CARTOON form here; comic is ccmf. Add.jsx uses cmf for comic.
   const [ccmf, setCcmf] = useState({});
   const [optValue, setOptValue] = useState("");
 

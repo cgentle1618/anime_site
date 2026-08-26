@@ -1725,9 +1725,9 @@ Deletes: `DELETE /api/novel/:id`
 #### Delete Comic Entry Tab
 
 - Search bar (matches Comic Name EN/CN/Alt) → **Search Suggestion for Deletion** (reusable)
-- After selecting: cover thumbnail, Comic Name, Volume Label, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issue progress, Franchise / Series, Remark, System ID, Delete button
+- After selecting: cover thumbnail, Comic Name, Volume Label, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issue progress (shown whenever either value is set; an unknown total renders as `?`, e.g. `12 / ? ISSUES`), Franchise / Series, Remark, System ID, Delete button
 - If only entry in series: offer to delete series or keep it (counted across anime, manga, novel and comic — the series-capable tier; cartoon, TV show and movie are not counted)
-- If only entry in franchise: offer to delete franchise or keep it (counted across anime, anime movie, TV show, cartoon, manga, novel and comic)
+- If only entry in franchise: offer to delete franchise or keep it (counted across anime, anime movie, movie, TV show, cartoon, manga, novel and comic)
 
 Deletes: `DELETE /api/comic/:id`
 

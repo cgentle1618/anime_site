@@ -894,7 +894,7 @@ modal.
 
 ### Delete Comic Entry Tab
 
-- Search bar → filter by Comic Name EN/CN/Alt; select to show cover thumbnail, Comic Name, Volume Label, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issues, Franchise / Series, Remark, System ID, Delete button.
+- Search bar → filter by Comic Name EN/CN/Alt; select to show cover thumbnail, Comic Name, Volume Label, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issues (shown whenever either value is set; an unknown total renders as `?`), Franchise / Series, Remark, System ID, Delete button.
 - **Confirmation modal, orphan series** — offered when the deleted comic is the only remaining entry with that `series_id` across anime, manga, novel and comic (the series-capable ACG-style tier — cartoon, TV show and movie are not counted, matching the pattern novel and manga use).
-- **Confirmation modal, orphan franchise** — offered when the deleted comic is the only remaining comic in its franchise **and** no anime, anime movie, TV show, cartoon, manga or novel entries reference that franchise either (movie is not checked — the same six-table pattern novel's franchise-orphan check uses), and its series (if any) has already been cleared.
+- **Confirmation modal, orphan franchise** — offered when the deleted comic is the only remaining comic in its franchise **and** no anime, anime movie, movie, TV show, cartoon, manga or novel entries reference that franchise either, and its series (if any) has already been cleared.
 - Deletes: `DELETE /api/comic/:id`

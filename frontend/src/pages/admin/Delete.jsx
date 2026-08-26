@@ -1350,9 +1350,11 @@ export default function Delete() {
                         {selectedComic.reading_status}
                       </span>
                     )}
-                    {selectedComic.issue_total != null && (
+                    {(selectedComic.issue_fin != null ||
+                      selectedComic.issue_total != null) && (
                       <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedComic.issue_fin ?? 0} / {selectedComic.issue_total} ISSUES
+                        {selectedComic.issue_fin ?? 0} /{" "}
+                        {selectedComic.issue_total ?? "?"} ISSUES
                       </span>
                     )}
                   </div>
@@ -1998,6 +2000,8 @@ export default function Delete() {
                 db.anime.filter((a) => a.series_id === modal.item.series_id)
                   .length +
                   db.manga.filter((m) => m.series_id === modal.item.series_id)
+                    .length +
+                  db.comic.filter((c) => c.series_id === modal.item.series_id)
                     .length ===
                   1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
@@ -2032,6 +2036,9 @@ export default function Delete() {
                   (t) => t.franchise_id === modal.item.franchise_id,
                 ).length === 0 &&
                 db.cartoon.filter(
+                  (c) => c.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.comic.filter(
                   (c) => c.franchise_id === modal.item.franchise_id,
                 ).length === 0 &&
                 db.manga.filter(
@@ -2070,6 +2077,8 @@ export default function Delete() {
                   db.manga.filter((m) => m.series_id === modal.item.series_id)
                     .length +
                   db.novel.filter((n) => n.series_id === modal.item.series_id)
+                    .length +
+                  db.comic.filter((c) => c.series_id === modal.item.series_id)
                     .length ===
                   1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
@@ -2108,6 +2117,9 @@ export default function Delete() {
                 ).length === 0 &&
                 db.manga.filter(
                   (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.comic.filter(
+                  (c) => c.franchise_id === modal.item.franchise_id,
                 ).length === 0 &&
                 db.novel.filter(
                   (n) => n.franchise_id === modal.item.franchise_id,
@@ -2175,6 +2187,9 @@ export default function Delete() {
                   (a) => a.franchise_id === modal.item.franchise_id,
                 ).length === 0 &&
                 db["anime-movie"].filter(
+                  (m) => m.franchise_id === modal.item.franchise_id,
+                ).length === 0 &&
+                db.movie.filter(
                   (m) => m.franchise_id === modal.item.franchise_id,
                 ).length === 0 &&
                 db["tv-show"].filter(
