@@ -11,6 +11,7 @@ from sqlalchemy import or_, text
 from app.models import (
     Cartoon,
     Collection,
+    Comic,
     Franchise,
     Manga,
     Novel,
@@ -41,6 +42,7 @@ from app.utils.formatter import (
     parse_cartoon_from_sheet,
     parse_manga_from_sheet,
     parse_novel_from_sheet,
+    parse_comic_from_sheet,
     parse_movie_from_sheet,
     parse_tv_show_from_sheet,
     parse_system_option_from_sheet,
@@ -93,6 +95,7 @@ from app.services.domain import (
     resolve_cartoon_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_novel_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
@@ -124,6 +127,7 @@ def execute_pull_specific(
         "Cartoons": Cartoon,
         "Manga": Manga,
         "Novel": Novel,
+        "Comic": Comic,
         "Movies": Movies,
         "TV Shows": TVShows,
         "System Options": SystemOption,
@@ -146,6 +150,7 @@ def execute_pull_specific(
         "Cartoons": parse_cartoon_from_sheet,
         "Manga": parse_manga_from_sheet,
         "Novel": parse_novel_from_sheet,
+        "Comic": parse_comic_from_sheet,
         "Movies": parse_movie_from_sheet,
         "TV Shows": parse_tv_show_from_sheet,
         "System Options": parse_system_option_from_sheet,
@@ -240,6 +245,18 @@ def execute_pull_specific(
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_novel_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Comic uses resolve_comic_parent_hierarchy (auto-creates franchise with type "Comic", looks up series)
+        elif tab_name == "Comic" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("comic_name_en"),
+                "cn": clean_header_dict.get("comic_name_cn"),
+                "alt": clean_header_dict.get("comic_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_comic_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
@@ -750,6 +767,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Cartoons",
         "Manga",
         "Novel",
+        "Comic",
         # Lists before Items (FK parent first), and both after every media tab
         # so a freshly restored guide points at rows that already exist.
         "Watch Order List",

@@ -638,6 +638,46 @@ def parse_novel_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_comic_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Comic sheet into typed data ready for the Database.
+    franchise_id and series_id may be a UUID or a raw string name.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "comic_name_en": parse_from_sheet(raw.get("comic_name_en"), str),
+        "comic_name_cn": parse_from_sheet(raw.get("comic_name_cn"), str),
+        "comic_name_alt": parse_from_sheet(raw.get("comic_name_alt"), str),
+        "volume_label": parse_from_sheet(raw.get("volume_label"), str),
+        "comic_type": parse_from_sheet(raw.get("comic_type"), str),
+        "publisher": parse_from_sheet(raw.get("publisher"), str),
+        "imprint": parse_from_sheet(raw.get("imprint"), str),
+        "continuity": parse_from_sheet(raw.get("continuity"), str),
+        "era": parse_from_sheet(raw.get("era"), str),
+        "events": parse_from_sheet(raw.get("events"), str),
+        "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
+        "writer": parse_from_sheet(raw.get("writer"), str),
+        "artist": parse_from_sheet(raw.get("artist"), str),
+        "release_year": parse_from_sheet(raw.get("release_year"), int),
+        "end_year": parse_from_sheet(raw.get("end_year"), int),
+        "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
+        "issue_total": parse_from_sheet(raw.get("issue_total"), int),
+        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int) or 0,
+        "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
+        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
+        or "Might Read",
+        "read_order": parse_from_sheet(raw.get("read_order"), float),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "source_other": _safe_json(raw.get("source_other")),
+        "read_next": parse_from_sheet(raw.get("read_next"), bool),
+        "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.

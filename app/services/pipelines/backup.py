@@ -11,6 +11,7 @@ from sqlalchemy import or_, text
 from app.models import (
     Cartoon,
     Collection,
+    Comic,
     Franchise,
     Manga,
     Novel,
@@ -198,6 +199,13 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(n) for n in novel_entries
         ]
         bulk_overwrite_sheet("Novel", novel_matrix)
+
+        comic_entries = db.query(Comic).all()
+        comic_headers = [c.name for c in Comic.__table__.columns]
+        comic_matrix = [comic_headers] + [
+            format_model_for_sheet(c) for c in comic_entries
+        ]
+        bulk_overwrite_sheet("Comic", comic_matrix)
 
         # Watch orders are written last: their items point at rows in every
         # media tab above, so dumping them afterwards keeps the sheet readable

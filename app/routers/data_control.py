@@ -603,6 +603,23 @@ def trigger_pull_novel(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/pull/comic")
+def trigger_pull_comic(db: Session = Depends(get_db)):
+    """Pulls the Comic tab from Google Sheets into PostgreSQL."""
+    try:
+        result = execute_pull_specific(
+            db, "Comic", action_type="Manual", log_action=True
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in pull comic: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/pull/cartoon")
 def trigger_pull_cartoon(db: Session = Depends(get_db)):
     """Triggers a pull from the Cartoon Google Sheets tab."""
