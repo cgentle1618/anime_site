@@ -80,7 +80,37 @@ function GraphCanvas({
   // Coordinates survive a refetch: only nodes new to the canvas get laid out.
   const positionsRef = useRef({});
   const wrapperRef = useRef(null);
+  // The drop point for a node-to-node connection. React Flow's own pointerup
+  // handling (see @xyflow/system's onPointerUp) calls onConnect BEFORE
+  // onConnectEnd, and onConnect receives no event of its own - so onConnect
+  // cannot read a point onConnectEnd hasn't written yet. Instead this is kept
+  // live by a capture-phase document listener for the same mouseup/touchend
+  // events React Flow listens for (in bubble phase), which therefore always
+  // runs first and leaves the ref holding the actual drop point, correct even
+  // on the very first drag of a fresh page load.
   const lastDropRef = useRef({ x: 0, y: 0 });
+  // The single in-flight graph request that matters: refetch() marks any
+  // request already sitting here as stale before starting its own, so a
+  // scope switch (or another refetch) that races a write-triggered refetch
+  // can never let the older response overwrite newer state.
+  const activeRequestRef = useRef({ cancelled: true });
+
+  useEffect(() => {
+    function captureDropPoint(e) {
+      if (e.type === "touchend") {
+        const t = e.changedTouches?.[0];
+        if (t) lastDropRef.current = { x: t.clientX, y: t.clientY };
+      } else {
+        lastDropRef.current = { x: e.clientX, y: e.clientY };
+      }
+    }
+    document.addEventListener("mouseup", captureDropPoint, true);
+    document.addEventListener("touchend", captureDropPoint, true);
+    return () => {
+      document.removeEventListener("mouseup", captureDropPoint, true);
+      document.removeEventListener("touchend", captureDropPoint, true);
+    };
+  }, []);
 
   // The pending connection: set on drop, cleared on confirm or cancel. Holding
   // it here rather than writing immediately is the whole point of the popup.
@@ -98,12 +128,20 @@ function GraphCanvas({
   }, [scopeType, scopeId]);
 
   const refetch = useCallback(() => {
+    // A new request supersedes whatever was previously in flight - whether
+    // that was this same effect's last run or a write-triggered refetch -
+    // so its response can never land after this one's.
+    activeRequestRef.current.cancelled = true;
+    const requestToken = { cancelled: false };
+    activeRequestRef.current = requestToken;
+
     if (!scopeId) {
       setNodes([]);
       setGraphEdges([]);
-      return () => {};
+      return () => {
+        requestToken.cancelled = true;
+      };
     }
-    let cancelled = false;
     setLoading(true);
     const params =
       scopeType === "franchise"
@@ -115,7 +153,7 @@ function GraphCanvas({
     })
       .then((r) => (r.ok ? r.json() : { nodes: [], edges: [] }))
       .then((body) => {
-        if (cancelled) return;
+        if (requestToken.cancelled) return;
         const positioned = mergePositions(
           positionsRef.current,
           layoutGraph(body),
@@ -133,10 +171,10 @@ function GraphCanvas({
         );
         setGraphEdges(body.edges);
       })
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => !requestToken.cancelled && setLoading(false));
 
     return () => {
-      cancelled = true;
+      requestToken.cancelled = true;
     };
   }, [scopeType, scopeId]);
 
@@ -200,6 +238,9 @@ function GraphCanvas({
   // A 409 (duplicate or self-relation) leaves the popup open with the message:
   // closing it back to the canvas would lose the kind and remark just typed.
   async function createRelation({ kind, from, to, remark }) {
+    // Two Enter presses in the same tick, before writing/disabling the
+    // button re-renders, would otherwise fire two POSTs.
+    if (writing) return;
     const [fromType, fromId] = from.split(":");
     const [toType, toId] = to.split(":");
     setWriting(true);
@@ -226,6 +267,11 @@ function GraphCanvas({
       setPending(null);
       onWrote?.();
       refetch();
+    } catch (e) {
+      // A network failure or offline rejects the fetch outright: without
+      // this, the popup would sit open with no message and a button that
+      // looks dead, and the rejection would escape unhandled.
+      setConnectError(e?.message || "Could not reach the server.");
     } finally {
       setWriting(false);
     }
