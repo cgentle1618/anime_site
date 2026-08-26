@@ -3,10 +3,15 @@
 > **Relations are not edited here.** The Prequel ID, Sequel ID, Alternative IDs
 > and Derive Related fields were removed from every Add and Modify tab when
 > relations moved to the `media_relation` table. They are curated on the
-> `/relations` admin page instead, which links entries by name across every
-> media type rather than by pasted UUID. `Is Main Entry` stays on the Anime and
-> Novel tabs — it flags which entry represents a group in listings, which is a
-> display concern, not a relation.
+> `/relations` admin page instead, by dragging a connection between two nodes
+> on its graph canvas rather than pasting a UUID: drag from a node's handle,
+> drop it on another node (or on empty canvas to search for the far entry
+> across every media type), then name the relation in the popup that opens —
+> nothing is written until it is confirmed, and a duplicate or self-relation
+> leaves the popup open with the server's message. An existing relation is
+> edited or deleted from the edge inspector, not from a form. `Is Main Entry`
+> stays on the Anime and Novel tabs — it flags which entry represents a group
+> in listings, which is a display concern, not a relation.
 
 This document describes the frontend interaction logic for the Add, Modify, and Delete admin pages. All logic is implemented in the React SPA. For the backend pipeline functions triggered on submit (e.g. `execute_replace_single_anime`), see `business-logic.md`.
 

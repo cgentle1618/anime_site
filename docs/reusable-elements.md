@@ -1055,6 +1055,24 @@ A far endpoint that no longer exists renders red with its dangling id rather
 than being dropped, since relation endpoints are FK-less. Editing lives on the
 admin `/relations` page; this component never writes.
 
+### `useGlobalMediaSearch` (`hooks/useGlobalMediaSearch.js`)
+
+Debounced (250ms, 2-character minimum) search across all seven media list
+endpoints at once, merging the results into one hit list tagged with
+`media_type`. Used by `ConnectPopup` on the `/relations` canvas to find a far
+endpoint that may live in any table, since a relation is bound to no tier and
+there is no cross-table search endpoint. Returns `{hits, searching}`; pass
+`{enabled: false}` to skip searching (e.g. while the popup already has a
+target from the drop).
+
+### `mediaTypeColors.js` (`config/mediaTypeColors.js`)
+
+`MEDIA_TYPE_COLORS` — one chip/dot color pair per media type — and
+`mediaTypeChip(mediaType)`, which falls back to a neutral grey chip for a type
+it doesn't recognize. Used by the relations canvas so a node's type reads at a
+glance without reading its badge text, since a graph can hold anime, movies
+and manga side by side.
+
 ---
 
 ### `WatchOrderSection` (`components/tracker/WatchOrderSection.jsx`)

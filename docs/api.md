@@ -302,6 +302,7 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 | `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family`, `symmetric`, `stored_as`. Nine entries — the eight stored kinds plus `prequel`. |
 | `GET`    | `/for-entry?media_type=&entry_id=`       | Public | Every relation touching one entry, from **both** endpoints, each resolved to the far entry's display data and labelled for the side being viewed. |
 | `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. |
+| `GET`    | `/graph?franchise_id=` or `?collection_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. |
 | `POST`   | `/`                                      | Admin  | Create. Body is the relation as typed; direction is normalized before writing.                                             |
 | `PATCH`  | `/{system_id}`                           | Admin  | Edit `kind` and/or `remark`. Changing the kind re-normalizes, so Sequel → Prequel flips the stored endpoints.              |
 | `DELETE` | `/{system_id}`                           | Admin  | Delete. Logs to `deleted_record` as type "Media Relation". The two entries are untouched.                                  |
@@ -336,6 +337,14 @@ the Sequel of B, A's page shows B as "Prequel" and B's shows A as "Sequel".
 
 A far endpoint whose row no longer exists comes back with `missing: true` rather
 than being dropped, since endpoints are FK-less.
+
+**Graph response.** `nodes` covers every entry in the scope, including ones
+with no relations, plus a "ghost" node for each relation endpoint outside the
+scope (`in_scope: false`); a ghost whose row no longer exists also carries
+`missing: true`. Each node is keyed `"{media_type}:{entry_id}"`. `edges` mirror
+the stored `media_relation` rows, with `from`/`to` as the same node keys and
+both `label` and `inverse_label` carried along so the canvas can label an edge
+from either end without a second copy of the kind vocabulary.
 
 ---
 

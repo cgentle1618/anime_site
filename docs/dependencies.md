@@ -37,6 +37,8 @@
 | `react-dom`             | ^18.3.0 | React DOM renderer                                                                     |
 | `react-router-dom`      | ^6.27.0 | Client-side routing (`BrowserRouter`, `Routes`, `Link`, `useParams`, etc.)             |
 | `@tanstack/react-query` | ^5.60.0 | Server state management — `QueryClient` is wired up; not actively used for queries yet |
+| `@xyflow/react`         | ^12.11.3 | Relations canvas (`/relations`) — pan/zoom, custom nodes, drag-to-connect edges |
+| `@dagrejs/dagre`        | ^3.1.1  | Layered left-to-right layout for the relations graph                                   |
 
 ### Dev Dependencies
 

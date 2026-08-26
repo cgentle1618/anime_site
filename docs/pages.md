@@ -1732,27 +1732,34 @@ only read them.
 **Data loaded:** `GET /api/media-relation/kinds` (the dropdown vocabulary),
 `/api/franchise/` and `/api/collection/` at `limit=2000` for the scope picker,
 then per scope `GET /api/watch-order/candidates` (reused — it already flattens
-a franchise or collection's entries across all seven media tables) and
-`GET /api/media-relation/?franchise_id=` for the count badges. Selecting an
-entry loads `GET /api/media-relation/for-entry`.
+a franchise or collection's entries across all seven media tables),
+`GET /api/media-relation/?franchise_id=` for the left pane's count badges, and
+`GET /api/media-relation/graph?franchise_id=` for the canvas.
 
 **Scope is a browsing lens, not ownership.** Unlike a watch order, a relation
 belongs to no tier — it links two entries. Collection works as the wider lens
 for free, since it sits strictly above Franchise, and that is where most
 cross-franchise relations live.
 
-**Left pane:** a Franchise / Collection toggle, a typeahead over that tier, a
-text filter, then the scope's entries grouped by media type. Each row badges how
-many relations touch it, counting **both** endpoints — an entry with only
-inbound relations still has relations.
+**Left pane (unchanged):** a Franchise / Collection toggle, a typeahead over
+that tier, a text filter, then the scope's entries grouped by media type. Each
+row badges how many relations touch it, counting **both** endpoints — an entry
+with only inbound relations still has relations. Clicking an entry focuses that
+node on the canvas.
 
-**Right pane:** the selected entry's relations, grouped by family (Timeline,
-Equivalence, Branch, Derivation), each row showing the label for the entry at the
-far end, its media-type badge, its remark, and a delete button behind a confirm.
-A row whose target no longer exists renders red with its dangling id: deletable,
-not clickable. The add form reads "This entry is the *kind* of…" and offers all
-nine labels including Prequel — the flip to a stored `sequel` row happens
-server-side.
+**Right pane:** a `@xyflow/react` graph canvas — `RelationGraph.jsx` —
+replacing the old per-entry relation list. Every scope entry is a node
+(`RelationNode.jsx`), laid out left-to-right by `@dagrejs/dagre`
+(`lib/relationLayout.js`); a relation reaching outside the scope pulls in a
+"ghost" node for its far endpoint. Dragging from a node's handle and dropping
+on another node, or on empty canvas (which opens a global cross-media search
+for the far entry), opens `ConnectPopup.jsx` reading "A is the *kind* of B" —
+nothing is written until Confirm, Escape cancels, and a 409 duplicate/self
+relation leaves the popup open showing the server's message. Clicking an edge
+opens `EdgeInspector.jsx` (change kind, edit remark on blur, delete behind a
+confirm naming both entries). Clicking a node opens `NodePanel.jsx` (cover,
+name, its relation list, an isolate toggle, a link to the entry's detail page).
+Clicking a ghost node switches the page's scope to that node's franchise.
 
 ---
 
