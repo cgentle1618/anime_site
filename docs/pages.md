@@ -1386,7 +1386,7 @@ Admin review queue for entries requiring attention.
 
 Multi-tab form for creating new records. Shows most recently added entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/collection/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`, `/api/form-defaults/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`, `/api/comic/`, `/api/form-defaults/`
 
 The per-field defaults noted below are the **built-in** values from
 `frontend/src/config/formFactories.js`. Any of them can be overridden per media type
@@ -1516,7 +1516,7 @@ Includes auto-fill from existing entry search bar (searches Comic Name EN/CN/Alt
 
 Search-then-edit pattern. Shows most recently modified entry at top. Supports `?id=:uuid` deep-link.
 
-**Data loaded:** `GET /api/anime/`, `/api/collection/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`, `/api/comic/`
 
 Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit button.
 
@@ -1639,7 +1639,7 @@ Writes: `PATCH /api/comic/:id`
 
 Search-then-delete pattern. Shows most recently deleted entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/collection/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`
+**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`, `/api/comic/`
 
 #### Delete Anime Entry Tab (default)
 
@@ -1738,7 +1738,7 @@ Deletes: `DELETE /api/comic/:id`
 **File:** `frontend/src/pages/admin/FormDefaults.jsx`
 
 Configures what the Add form starts with, and what auto-fill copies, per media type.
-Eleven tabs (every Add tab except System Options, Quote and Meme), all rendered by a **single** generic
+Eleven tabs (every Add tab except System Options), all rendered by a **single** generic
 component — `pages/defaults-tabs/DefaultsTab.jsx` — because the layout is driven by the
 field registry rather than hand-written per-type markup.
 
