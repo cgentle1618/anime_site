@@ -224,8 +224,8 @@ Data Control below.
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`                    | Public | List all comics. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
 | `GET`    | `/{entry_id}`          | Public | Get a single comic entry by UUID.                                                                                                     |
-| `POST`   | `/`                    | Admin  | Create a comic entry. Auto-runs `execute_replace_single_comic` after creation — a no-op for comics (see Data Control). Body: `ComicCreate`. |
-| `PUT`    | `/{entry_id}`          | Admin  | Full update of a comic entry. Auto-runs `execute_replace_single_comic` after update — a no-op for comics. Body: `ComicUpdate`.        |
+| `POST`   | `/`                    | Admin  | Create a comic entry. Auto-runs `execute_replace_single_comic` after creation — no external metadata fetch, but it re-extracts system options and logs the write (see Data Control). Body: `ComicCreate`. |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update of a comic entry. Auto-runs `execute_replace_single_comic` after update — same no-fetch/re-extract/log behavior. Body: `ComicUpdate`.        |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", serialization status to `完結`, issues finished/total snapped to the higher of the two). |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete a comic entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |

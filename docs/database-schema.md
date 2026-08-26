@@ -1004,7 +1004,7 @@ One step of a guide.
 
 - The same `entry_id` may appear at several positions in one list. That is how a
   split run is written: *entry A ep 1–10 → entry B → entry A ep 11–12*.
-- No foreign key can span seven tables, so deleting a media entry leaves a
+- No foreign key can span eight tables, so deleting a media entry leaves a
   dangling item. Resolution flags it `missing: true` at read time instead of
   dropping it, so the admin can see and remove the broken step.
 
@@ -1039,7 +1039,7 @@ table), and excluded `anime_movies` entirely.
 - `ix_media_relation_from` on (`from_type`, `from_id`) and
   `ix_media_relation_to` on (`to_type`, `to_id`) — both directions are queried
   on every entry read, so neither endpoint can rely on the other's index.
-- No foreign keys, by necessity: no single FK spans the seven media tables.
+- No foreign keys, by necessity: no single FK spans the eight media tables.
   Both endpoints use the same FK-less `(media_type, entry_id)` contract as
   `watch_order_item`, and a deleted target resolves to `missing: true` rather
   than vanishing.
@@ -1103,7 +1103,7 @@ what the Quote page needs.
 | `updated_at`      | DateTime | Yes      | Auto-updated on save                                                          |
 
 - `entry_id` carries no foreign key for the same reason `watch_order_item` does
-  not: no single FK spans seven tables. A deleted entry leaves a dangling quote,
+  not: no single FK spans eight tables. A deleted entry leaves a dangling quote,
   which read-time resolution flags `missing: true` rather than dropping.
 - `media_type` uses the **hyphenated** spelling (`anime-movie`, `tv-show`),
   matching `watch_order_item`. Note this differs from `MEDIA_REGISTRY`'s
@@ -1130,14 +1130,14 @@ image, or one of each, and carries none of that. A meme can be a single word.
 **A meme's owner is wider than a quote's.** A quote is said in a specific work,
 so it is always tied to one media entry. A running gag often spans a whole
 franchise instead, so a meme's owner may be a media entry *or* a series,
-franchise, or collection — ten `owner_type` values against the quote's seven.
+franchise, or collection — eleven `owner_type` values against the quote's eight.
 That is why the pair is named `owner_*` rather than `media_type`/`entry_id`.
 
 | Column        | Type     | Nullable | Notes                                                                        |
 | ------------- | -------- | -------- | ---------------------------------------------------------------------------- |
 | `system_id`   | UUID     | No       | PK, indexed                                                                  |
-| `owner_type`  | String   | Yes      | **Ten** values: the seven media types plus `series` / `franchise` / `collection`, indexed |
-| `owner_id`    | UUID     | Yes      | **No FK** — points at whichever of the ten tables `owner_type` names, indexed |
+| `owner_type`  | String   | Yes      | **Eleven** values: the eight media types plus `series` / `franchise` / `collection`, indexed |
+| `owner_id`    | UUID     | Yes      | **No FK** — points at whichever of the eleven tables `owner_type` names, indexed |
 | `text`        | Text     | Yes      | The meme itself — one text, never a list. Can be a single word               |
 | `image_file`  | String   | Yes      | Bare filename under `static/quotes/`. **At most one**, local only            |
 | `quote_id`    | UUID     | Yes      | FK → `quote.system_id`, `ON DELETE SET NULL`, **UNIQUE**, indexed            |
@@ -1201,13 +1201,13 @@ frontend config files rather than in the backend.
 
 **Its owner is as wide as `meme`'s.** Notes were entry-only as JSONB; the table
 extends them to the three grouping tiers, so an owner may be a media entry *or*
-a series, franchise, or collection — the same ten `owner_type` values.
+a series, franchise, or collection — the same eleven `owner_type` values.
 
 | Column       | Type     | Nullable | Notes                                                                        |
 | ------------ | -------- | -------- | ---------------------------------------------------------------------------- |
 | `system_id`  | UUID     | No       | PK, indexed                                                                  |
-| `owner_type` | String   | Yes      | **Ten** values: the seven media types plus `series` / `franchise` / `collection`, indexed |
-| `owner_id`   | UUID     | Yes      | **No FK** — points at whichever of the ten tables `owner_type` names, indexed |
+| `owner_type` | String   | Yes      | **Eleven** values: the eight media types plus `series` / `franchise` / `collection`, indexed |
+| `owner_id`   | UUID     | Yes      | **No FK** — points at whichever of the eleven tables `owner_type` names, indexed |
 | `section`    | String   | Yes      | Names an entry in `NOTE_SECTIONS`; that entry declares the shape, indexed    |
 | `locator`    | String   | Yes      | Where in the work the item points: an episode, chapter, scene, timestamp, or the source a question came from. Free text, so `"ep 3"`, `"ep 3-5"`, `"ch 12"` and `"1:14:20"` all fit one column. The section supplies the label (`locator_placeholder`) and whether it is required (`locator_required`) |
 | `kind`       | String   | Yes      | Only populated where the section declares `kinds` for this owner type — `highlight_episodes` has them on tv-show/cartoon but not manga |
@@ -1246,15 +1246,15 @@ a series, franchise, or collection — the same ten `owner_type` values.
   the section registry. `parse_note_from_sheet` still accepts the old
   `episode` header so a spreadsheet backed up before the rename still Pulls.
 - `owner_id` carries no foreign key for the same reason `meme.owner_id` does
-  not: no single FK spans ten tables. A deleted owner leaves rows that
+  not: no single FK spans eleven tables. A deleted owner leaves rows that
   `app/utils/media_resolver.py` flags as missing rather than silently dropping.
 - `owner_type` uses the **hyphenated** spelling (`anime-movie`, `tv-show`),
   matching `meme` and `watch_order_item`.
 - Index `ix_note_owner_section` on `(owner_type, owner_id, section)` covers the
   only read path the notes page uses.
-- **`remark` is a section, not a column, on the ten owner tables.** Each of
+- **`remark` is a section, not a column, on the eleven owner tables.** Each of
   `collection`, `franchise`, `series`, `anime`, `anime_movies`, `movies`,
-  `tv_shows`, `cartoons`, `manga`, and `novel` exposes `remark` as a
+  `tv_shows`, `cartoons`, `manga`, `novel`, and `comic` exposes `remark` as a
   read-only SQLAlchemy `column_property` — a correlated subquery against this
   table for the row where `section = 'remark'` — declared at the bottom of
   `app/models/__init__.py`. It reads like a plain column everywhere a
