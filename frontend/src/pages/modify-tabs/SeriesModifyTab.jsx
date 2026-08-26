@@ -31,6 +31,7 @@ export default function SeriesModifyTab({
   allCartoons,
   allMangas,
   allNovels,
+  allComics,
   editingItem,
 }) {
   const seriesId = editingItem?.system_id;
@@ -56,6 +57,9 @@ export default function SeriesModifyTab({
     ...(allNovels || [])
       .filter((e) => e.series_id === seriesId)
       .map((e) => ({ ...e, _type: "novel" })),
+    ...(allComics || [])
+      .filter((e) => e.series_id === seriesId)
+      .map((e) => ({ ...e, _type: "comic" })),
   ].sort((a, b) => getEntryYear(b) - getEntryYear(a));
 
   function entryOptionLabel(e) {

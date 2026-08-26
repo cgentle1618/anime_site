@@ -412,6 +412,7 @@ export default function Fav3x3ModifyTab({
   allCartoons,
   allMangas,
   allNovels,
+  allComics,
 }) {
   const { showToast } = useToast();
   const [drafts, setDrafts] = useState(() => buildDrafts(allFranchises));
@@ -426,6 +427,7 @@ export default function Fav3x3ModifyTab({
       ...(allCartoons || []).map((e) => ({ ...e, _type: "cartoon" })),
       ...(allMangas || []).map((e) => ({ ...e, _type: "manga" })),
       ...(allNovels || []).map((e) => ({ ...e, _type: "novel" })),
+      ...(allComics || []).map((e) => ({ ...e, _type: "comic" })),
     ];
     const byFranchise = {};
     allEntries.forEach((e) => {
@@ -434,7 +436,7 @@ export default function Fav3x3ModifyTab({
       byFranchise[id].push(e);
     });
     return byFranchise;
-  }, [allAnime, allAnimeMovies, allMovies, allTvShows, allCartoons, allMangas, allNovels]);
+  }, [allAnime, allAnimeMovies, allMovies, allTvShows, allCartoons, allMangas, allNovels, allComics]);
 
   const franchiseOptionsByType = useMemo(() => {
     const result = {};

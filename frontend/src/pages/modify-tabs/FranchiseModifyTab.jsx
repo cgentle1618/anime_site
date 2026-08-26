@@ -16,6 +16,7 @@ const TYPE_TO_ENTRY_TYPES = {
   Movie: ["movie"],
   Cartoon: ["cartoon"],
   Novel: ["novel"],
+  Comic: ["comic"],
 };
 
 function getEntryYear(e) {
@@ -39,6 +40,7 @@ export default function FranchiseModifyTab({
   allCartoons,
   allMangas,
   allNovels,
+  allComics,
   collectionItems,
   editingItem,
 }) {
@@ -66,6 +68,9 @@ export default function FranchiseModifyTab({
     ...(allNovels || [])
       .filter((e) => e.franchise_id === franchiseId)
       .map((e) => ({ ...e, _type: "novel" })),
+    ...(allComics || [])
+      .filter((e) => e.franchise_id === franchiseId)
+      .map((e) => ({ ...e, _type: "comic" })),
   ].sort((a, b) => getEntryYear(b) - getEntryYear(a));
 
   const franchiseTypes = parseTypes(ff.franchise_type);

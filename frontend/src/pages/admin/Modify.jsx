@@ -2976,6 +2976,7 @@ export default function Modify() {
           allCartoons={allCartoons}
           allMangas={allMangas}
           allNovels={allNovels}
+          allComics={allComics}
         />
       )}
 
@@ -3202,6 +3203,7 @@ export default function Modify() {
                 allCartoons={allCartoons}
                 allMangas={allMangas}
                 allNovels={allNovels}
+                allComics={allComics}
                 editingItem={editingItem}
               />
             )}
@@ -3219,6 +3221,7 @@ export default function Modify() {
                 allCartoons={allCartoons}
                 allMangas={allMangas}
                 allNovels={allNovels}
+                allComics={allComics}
                 editingItem={editingItem}
               />
             )}
