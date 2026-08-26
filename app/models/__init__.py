@@ -14,6 +14,7 @@ from app.models.tv_show import TVShows
 from app.models.cartoon import Cartoon
 from app.models.manga import Manga
 from app.models.novel import Novel
+from app.models.comic import Comic
 from app.models.watch_order import WatchOrderList, WatchOrderItem
 from app.models.media_relation import MediaRelation
 from app.models.quote import Quote
@@ -42,6 +43,7 @@ __all__ = [
     "Cartoon",
     "Manga",
     "Novel",
+    "Comic",
     "WatchOrderList",
     "WatchOrderItem",
     "MediaRelation",
@@ -79,6 +81,7 @@ _REMARK_OWNERS = (
     (Cartoon, "cartoon"),
     (Manga, "manga"),
     (Novel, "novel"),
+    (Comic, "comic"),
     (Series, "series"),
     (Franchise, "franchise"),
     (Collection, "collection"),
