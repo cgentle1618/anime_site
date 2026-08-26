@@ -776,8 +776,10 @@ Franchise Hub uses, scoped by `collection_id`.
 
 **Notes** follow it as another section, rendered by `CollectionNotes` over the
 shared `NotesTemplate` with `ownerType="collection"`. Memes live inside it: the
-registry gives `memes` to all ten owners, so the notes section renders them
-alongside the rest rather than the page mounting a second copy.
+registry gives `memes` to all eleven owners (eight media types plus series,
+franchise and collection — comic included, even though it has no notes page of
+its own yet), so the notes section renders them alongside the rest rather than
+the page mounting a second copy.
 
 ---
 
@@ -1384,7 +1386,7 @@ Admin review queue for entries requiring attention.
 
 Multi-tab form for creating new records. Shows most recently added entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`, `/api/form-defaults/`
+**Data loaded:** `GET /api/anime/`, `/api/collection/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`, `/api/form-defaults/`
 
 The per-field defaults noted below are the **built-in** values from
 `frontend/src/config/formFactories.js`. Any of them can be overridden per media type
@@ -1480,6 +1482,30 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Source & Links:** MAL ID, MAL Link, AniList Link, Add Source button (other sources as `{name: link}`)
 - **Notes & Other:** Cover Image File, Remark
 
+#### Add New Comic Entry Tab
+
+Includes auto-fill from existing entry search bar (searches Comic Name EN/CN/Alt only — comic has no Roman/JP name field).
+
+> Comic has no detail page, notes page or library page yet — `Comic.jsx`,
+> `ComicNotes.jsx` and `LibraryComic.jsx` do not exist. There is no nav link,
+> no universal-search entry, and no `MediaCard` for comic either. Admin Add /
+> Modify / Delete are the only surfaces that exist for this media type today;
+> a created comic entry is reachable only by editing it back on `/modify`.
+
+- **Titles & Naming:** Franchise (ComboBox + auto-create modal, filtered to `franchise_type` including `Comic`), Series (ComboBox + auto-create modal), Comic Name EN (primary), then Comic Name CN / Alt — **EN leads**, the only entry type that does not lead with CN
+- **Titles & Naming (cont.):** Volume Label (free text, e.g. "Vol. 5 (2018)"), Comic Type dropdown
+- **Classification:** Continuity, Era (both free-typed ComboBoxes over a system-option category), Events (multi-select, "Marvel events this run is part of")
+- **Status:** Serialization Status dropdown, Reading Status dropdown (default: Might Read), My Rating dropdown
+- **Progress:** Issues Finished, Total Issues — comic tracks **issues**, not episodes/chapters/volumes
+- **Credits:** Writer (multi-select), Artist (multi-select), Publisher, Imprint, Publisher TW (all free-typed ComboBoxes), Release Year, End Year
+- **Relational & Timeline:** Read Order, Main Entry checkbox (`is_main_entry` — a boolean checkbox, unlike Novel's Main/Spinoff string select)
+- **Sources:** Other Sources (Add Source button, `{name: url}` pairs)
+- **Flags:** Read Next checkbox, To Reread checkbox
+- **Notes & Other:** Cover Image File, Remark
+- **No MAL/AniList fields, no Scores section, no `progress_display`** — comics are manual-entry, with no external metadata source to enrich from
+- `POST /api/comic/`; unlike Anime, Manga and Movie, nothing runs after submit — there is no enrichment pipeline for comic
+- Free-typed values in Writer, Artist, Publisher, Imprint, Continuity, Era, Events and Publisher TW are checked against existing system options and auto-created (`POST /api/options/`) before the entry is submitted, under categories `Comic Writer`, `Comic Artist`, `Comic Publisher`, `Comic Imprint`, `Comic Continuity`, `Comic Era`, `Comic Event`, plus the shared `Distributor TW` for Publisher TW
+
 ---
 
 ### Modify (`/modify`)
@@ -1488,7 +1514,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 
 Search-then-edit pattern. Shows most recently modified entry at top. Supports `?id=:uuid` deep-link.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`
+**Data loaded:** `GET /api/anime/`, `/api/collection/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`
 
 Supports `?id=:uuid&type=movie` deep-link from Movie detail page Quick Edit button.
 
@@ -1579,12 +1605,23 @@ Writes: `PATCH /api/manga/:id`
 
 Writes: `PATCH /api/novel/:id`
 
+#### Modify Comic Entry Tab
+
+- Search bar (matches Comic Name EN/CN/Alt); results grouped by franchise/series, shown as Search Suggestion
+- After selecting: a sibling ribbon shows other comic entries in that franchise, grouped by series, then full edit form
+- Form mirrors Add Comic tab, plus System ID (immutable)
+- **No structured notes section** — every other Modify tab mounts a shared notes editor (e.g. `NovelNotes`, `MangaNotes`); the comic tab does not, because `ComicNotes.jsx` does not exist yet
+- Franchise/Series auto-create modals work the same as Add (names from Comic Name EN/CN/Alt, `franchise_type = Comic`)
+- Free-typed Writer/Artist/Publisher/Imprint/Continuity/Era/Events/Publisher TW values are auto-created as system options on save, same as Add
+
+Writes: `PATCH /api/comic/:id`
+
 #### Modify Fav 3×3 Tab
 
 **File:** `frontend/src/pages/modify-tabs/Fav3x3ModifyTab.jsx`
 
 - No search/edit pattern — renders full grid view immediately on tab open; bypasses discovery and editor views
-- Displays all 5 franchise grids: ACG, Novel, Movie, TV Show, Cartoon (matching Statistics page layout)
+- Displays all 6 franchise grids: ACG, Novel, Movie, TV Show, Cartoon, Comic (matching Statistics page layout)
 - Each grid section has two panels:
   - **Left (3×3 visual grid):** Each slot (1–9) shows the assigned franchise's cover image + name overlay + a dropdown below to change the assignment. Dropdown is filtered to franchises of the matching type (sorted by display name). Selecting a franchise removes it from any other slot in the same grid (a franchise can only hold one slot per type).
   - **Right (ranked list):** Slots 1–9 listed in order. Each row shows a drag handle (⠿), slot number, small cover thumbnail, and franchise display name. Rows are draggable via HTML5 DnD — dropping one row onto another swaps their slot assignments. Both panels stay in sync.
@@ -1600,7 +1637,7 @@ Writes: `PATCH /api/novel/:id`
 
 Search-then-delete pattern. Shows most recently deleted entry at top.
 
-**Data loaded:** `GET /api/anime/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/novel/`
+**Data loaded:** `GET /api/anime/`, `/api/collection/`, `/api/franchise/`, `/api/series/`, `/api/options/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`, `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`
 
 #### Delete Anime Entry Tab (default)
 
@@ -1683,6 +1720,15 @@ Deletes: `DELETE /api/manga/:id`
 
 Deletes: `DELETE /api/novel/:id`
 
+#### Delete Comic Entry Tab
+
+- Search bar (matches Comic Name EN/CN/Alt) → **Search Suggestion for Deletion** (reusable)
+- After selecting: cover thumbnail, Comic Name, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issue progress, Franchise / Series, Remark, System ID, Delete button
+- If only entry in series: offer to delete series or keep it (counted across anime, manga, novel and comic — the series-capable tier; cartoon, TV show and movie are not counted)
+- If only entry in franchise: offer to delete franchise or keep it (counted across anime, anime movie, TV show, cartoon, manga, novel and comic)
+
+Deletes: `DELETE /api/comic/:id`
+
 ---
 
 ### Form Defaults (`/defaults`)
@@ -1690,7 +1736,7 @@ Deletes: `DELETE /api/novel/:id`
 **File:** `frontend/src/pages/admin/FormDefaults.jsx`
 
 Configures what the Add form starts with, and what auto-fill copies, per media type.
-Nine tabs (every Add tab except System Options), all rendered by a **single** generic
+Eleven tabs (every Add tab except System Options, Quote and Meme), all rendered by a **single** generic
 component — `pages/defaults-tabs/DefaultsTab.jsx` — because the layout is driven by the
 field registry rather than hand-written per-type markup.
 
@@ -1732,7 +1778,7 @@ only read them.
 **Data loaded:** `GET /api/media-relation/kinds` (the dropdown vocabulary),
 `/api/franchise/` and `/api/collection/` at `limit=2000` for the scope picker,
 then per scope `GET /api/watch-order/candidates` (reused — it already flattens
-a franchise or collection's entries across all seven media tables),
+a franchise or collection's entries across all eight media tables),
 `GET /api/media-relation/?franchise_id=` for the left pane's count badges, and
 `GET /api/media-relation/graph?franchise_id=` for the canvas.
 

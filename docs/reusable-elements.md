@@ -843,11 +843,14 @@ section keeps the exception to that one map: the registry still decides whether
 the section exists, where it sits and what it is called, and an external key
 with no component degrades to `null`.
 
-- **Quotes are entry-only**; **memes span all ten owners**, because a running gag
-  often belongs to a franchise rather than to one episode. The franchise and
-  collection pages therefore do *not* mount `MemeSection` themselves — the
-  registry gives them `memes`, so the notes section already renders it. Mounting
-  it separately is what produced two copies under two different labels.
+- **Quotes are entry-only**; **memes span all eleven owners** (backend
+  registry: eight media types plus series, franchise and collection — comic
+  included, even though it has no notes page of its own yet), because a
+  running gag often belongs to a franchise rather than to one episode. The
+  franchise and collection pages therefore do *not* mount `MemeSection`
+  themselves — the registry gives them `memes`, so the notes section already
+  renders it. Mounting it separately is what produced two copies under two
+  different labels.
 - A meme's text may name the Quote it also is, so such a quote appears in **both**
   sections — under Quotes with its speaker and translation, and inside its meme
   under Memes. The Quotes section marks it with an "in a meme" badge, derived
@@ -929,7 +932,7 @@ The shared machinery behind the Add / Modify forms and the `/defaults` page. See
 
 ### `config/formFactories.js`
 
-The nine `defaultX()` blank-form factories (`defaultAnime`, `defaultMovie`, …), plus
+The eleven `defaultX()` blank-form factories (`defaultAnime`, `defaultMovie`, …), plus
 `FORM_FACTORIES` keyed by media-type slug. These are the **built-in baseline** for every
 form field. They live in `config/` rather than in the add-tab components so the registry
 can derive field keys from them without importing page JSX; each add-tab re-exports its
@@ -974,7 +977,7 @@ buildAutofillPatch(source, type, fieldKeys, { allFranchises, allSeries, defaults
   → partial form object
 ```
 
-Drives all seven Add-tab auto-fill searches. Handles franchise/series `_id` + `_text`
+Drives all eight Add-tab auto-fill searches. Handles franchise/series `_id` + `_text`
 pair resolution, boolean→tristate coercion for `derive_related`, boolean/array coercion,
 and the `autofillFallback: "default"` marker (currently only Movie's `airing_status`).
 
@@ -986,8 +989,8 @@ text. Also exports `describeBuiltIn(field)` for that ghost label.
 
 ### `config/adminTabs.js`
 
-`ADMIN_TABS` (the ten Add tabs), `FORM_TABS` (the nine backed by a form factory), and
-`withVerb(tabs, verb)`. Shared by Add and Form Defaults so their tab lists can't drift.
+`ADMIN_TABS` (the fourteen Add tabs), `FORM_TABS` (the eleven backed by a form factory),
+and `withVerb(tabs, verb)`. Shared by Add and Form Defaults so their tab lists can't drift.
 
 ---
 

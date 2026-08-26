@@ -38,7 +38,7 @@ fallbacks for NULL values. Changing a default never rewrites an existing row.**
 
 Three places consume the resolved values:
 
-1. **Add** seeds all nine forms from them at mount, and resets to them after each
+1. **Add** seeds all eleven forms from them at mount, and resets to them after each
    successful submit. Because the page renders a spinner until its bulk load
    resolves, the form's first paint already has the configured values — there is no
    flash and no risk of clobbering something the admin typed.
@@ -59,7 +59,7 @@ guarded separately from the rest of the bulk load for exactly this reason.
 
 Each Add tab has a search bar that copies fields from an existing entry into the form.
 One shared helper — `frontend/src/lib/autofill.js` `buildAutofillPatch()` — drives all
-seven, replacing what used to be six near-duplicate functions with divergent hardcoded
+eight, replacing what used to be six near-duplicate functions with divergent hardcoded
 field lists.
 
 - **Which fields are copied** comes from the admin's configuration, falling back to
@@ -460,6 +460,95 @@ Three sections, mirroring Franchise's layout:
 
 ---
 
+### Add Comic Entry Tab
+
+**Prefill from existing entry**
+
+- A search box matches Comic Name EN/CN/Alt. Selecting one prefills: Comic Name
+  EN/CN/Alt, Franchise, Series, Publisher, Imprint, Continuity, Era, Comic Type
+  (the built-in autofill set in `config/formFields/fieldMeta.js`).
+
+**Naming order — EN → CN → Alt**
+
+- Comic is the only entry type that leads with the English title rather than
+  Chinese: the field order on the tab is Comic Name EN, then a CN / Alt pair.
+  This mirrors the backend's `display_name` rule for comic (Western comics are
+  known by their English titles) — every other media type leads with CN.
+
+**Franchise field**
+
+- Supports searching existing Comic franchises (`franchise_type` includes
+  `Comic`, or is unset) or typing a new name.
+- A franchise must be chosen or typed before the form can be submitted.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+- Series is optional.
+
+**Form defaults**
+| Field | Default |
+|---|---|
+| Reading Status | Might Read |
+| Main Entry | unchecked |
+| Serialization Status | _(blank)_ |
+
+**On submit**
+
+1. If no existing franchise was selected → show Franchise Generation modal.
+2. If no existing series was selected and the series field is non-blank → show Series Generation modal.
+3. Auto-create any missing system options — see below.
+4. Auto-generate `system_id`, `created_at`, `updated_at`.
+5. `POST /api/comic/`. Comic has no Jikan/AniList/IMDb enrichment pipeline —
+   comics are manual-entry, so nothing external runs after submit.
+
+**Franchise Generation modal**
+
+- User selects Franchise Expectation (default: Low) and optionally adds a remark.
+- Franchise is created using Comic Name EN/CN/Alt (the text typed in the Franchise field is ignored for name generation).
+- `franchise_type` is set to `Comic`.
+
+**Series Generation modal**
+
+- Series is created using Comic Name EN/CN/Alt.
+
+**System-option auto-create**
+
+Before the entry itself is submitted, every free-typed value in these fields is
+checked against the already-loaded options and `POST /api/options/`'d if it is
+new. Seven categories are comic-prefixed; `publisher_tw` reuses the existing
+shared TW-distributor category instead of a comic-specific one:
+
+| Field                     | Category          |
+| ------------------------- | ------------------ |
+| `writer` (multi-select)   | `Comic Writer`      |
+| `artist` (multi-select)   | `Comic Artist`      |
+| `publisher`               | `Comic Publisher`   |
+| `imprint`                 | `Comic Imprint`     |
+| `continuity`               | `Comic Continuity`  |
+| `era`                     | `Comic Era`         |
+| `events` (each value)     | `Comic Event`       |
+| `publisher_tw`            | `Distributor TW` — shared, not comic-prefixed |
+
+**Events field**
+
+- `events` is held as an **array** in form state — `MultiSelect` only speaks
+  comma-separated strings, so `eventsToString()` / `eventsToArray()` in
+  `ComicAddTab.jsx` convert at that boundary. On submit the array is
+  joined into a comma-separated string, the same idiom `franchise.franchise_type`
+  uses; `comicToForm()` on the Modify side splits it back to an array on prefill.
+
+**No MAL/AniList fields, no Scores section, no `progress_display`**
+
+- Comics are manual-entry with no external metadata source, so — unlike
+  Novel — the Add tab has no MAL/AniList ID or rating fields and no Scores
+  section. Progress is Issues Finished / Total Issues (`issue_fin` /
+  `issue_total`); there is no computed `progress_display` field either.
+  `issue_fin` is `NOT NULL` in the database, so the payload builder falls back
+  to `0`, never `null`, when the field is blank.
+
+---
+
 ### Add Quote Tab
 
 Quote is not a media entry, so — like the System Option tab — it keeps its own
@@ -573,7 +662,7 @@ Same three sections as the Add tab, plus a Main Cover control:
 - **Cover Images:** Main Cover, To Rewatch, Remark.
 - The Franchise field supports searching existing franchises of any type (ACG, Movie, TV, Cartoon) or typing a new name.
 - A franchise must be chosen before the form can be submitted.
-- **Main Cover** appears here, not on Add, because only an existing series has entries to choose from. The dropdown builds a combined list from `allAnime` / `allMovies` / `allTvShows` / `allCartoons` / `allMangas` / `allNovels`, filtered to `series_id === editingItem.system_id`, tagged with `_type`, sorted newest-first. `allAnimeMovies` is excluded — `anime_movies` has no `series_id` column, so no anime movie can ever belong to a series. Blank option is `— Auto (latest with cover) —`.
+- **Main Cover** appears here, not on Add, because only an existing series has entries to choose from. The dropdown builds a combined list from `allAnime` / `allMovies` / `allTvShows` / `allCartoons` / `allMangas` / `allNovels` / `allComics`, filtered to `series_id === editingItem.system_id`, tagged with `_type`, sorted newest-first. `allAnimeMovies` is excluded — `anime_movies` has no `series_id` column, so no anime movie can ever belong to a series. Blank option is `— Auto (latest with cover) —`.
 - On submit: update all fields and refresh `updated_at`.
 
 ---
@@ -709,6 +798,37 @@ same shared editor every Modify tab mounts, and it is not part of the form paylo
 
 ---
 
+### Modify Comic Entry Form
+
+**Franchise field**
+
+- Supports searching existing Comic franchises or typing a new name.
+- When an existing franchise is selected, a sibling ribbon shows all other comic entries in that franchise, grouped by series.
+
+**Series field**
+
+- Supports searching existing series or typing a new name.
+
+**On submit**
+
+1. If no existing franchise was selected and franchise text is non-blank → show Franchise Generation modal.
+2. If no existing series was selected and series text is non-blank → show Series Generation modal.
+3. Auto-create any missing system options — same eight categories as Add (see above).
+4. `PATCH /api/comic/:id`. Update all fields; `issue_fin` falls back to `0` (never `null`) when blank, same as Add.
+
+**Franchise Generation modal** — same logic as Add (names from Comic Name EN/CN/Alt, `franchise_type = Comic`).
+
+**Series Generation modal** — same logic as Add (names from Comic Name EN/CN/Alt).
+
+**No structured notes section**
+
+- Unlike every other Modify tab, `ComicModifyTab` mounts no notes editor —
+  `ComicNotes.jsx` does not exist yet. This is a known gap, not an oversight
+  in this pass: comic currently has no highlight section either, while manga
+  has `highlight_episodes` and novel has `highlight_passages`.
+
+---
+
 ### Modify Quote Tab
 
 Bypasses the search-then-edit pattern the media tabs use: a quote has no cover,
@@ -769,3 +889,10 @@ modal.
 - Search bar → filter by Movie Name CN/EN/Alt; select to show cover thumbnail, Movie Name CN/EN, Airing Status, Watching Status, Franchise Name, System ID, Delete button.
 - **Confirmation modal** — if the deleted movie is the only entry in its franchise (no anime, anime movies, other movies, or series), offers option to also delete the orphaned Franchise Hub.
 - Deletes: `DELETE /api/movies/:id`
+
+### Delete Comic Entry Tab
+
+- Search bar → filter by Comic Name EN/CN/Alt; select to show cover thumbnail, Comic Name, Comic Type, Publisher, Reading Status, `issue_fin / issue_total` issues, Franchise / Series, Remark, System ID, Delete button.
+- **Confirmation modal, orphan series** — offered when the deleted comic is the only remaining entry with that `series_id` across anime, manga, novel and comic (the series-capable ACG-style tier — cartoon, TV show and movie are not counted, matching the pattern novel and manga use).
+- **Confirmation modal, orphan franchise** — offered when the deleted comic is the only remaining comic in its franchise **and** no anime, anime movie, TV show, cartoon, manga or novel entries reference that franchise either (movie is not checked — the same six-table pattern novel's franchise-orphan check uses), and its series (if any) has already been cleared.
+- Deletes: `DELETE /api/comic/:id`
