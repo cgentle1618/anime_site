@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
+import { useGlobalMediaSearch } from "../../hooks/useGlobalMediaSearch";
 import { getDisplayName } from "../../utils/media";
 import ComboBox from "../../components/forms/ComboBox";
 import RelationGraph from "../../components/relations/RelationGraph";
@@ -26,19 +27,6 @@ const FAMILY_LABELS = {
   derivation: "Derivation",
 };
 
-// The seven media list endpoints, each of which supports ?search_query=.
-// Mirrors TYPE_JOBS in components/layout/Nav.jsx, minus the grouping tiers -
-// a relation always links two entries, never a franchise or collection.
-const SEARCH_ENDPOINTS = [
-  ["/api/anime", "anime"],
-  ["/api/anime-movie", "anime-movie"],
-  ["/api/movies", "movie"],
-  ["/api/tv-shows", "tv-show"],
-  ["/api/cartoon", "cartoon"],
-  ["/api/manga", "manga"],
-  ["/api/novel", "novel"],
-];
-
 function AddRelationForm({ kinds, candidates, onCreate, busy }) {
   // Prequel first: adding "what came before" is the commonest edit, and the
   // API stores it as a swapped sequel row.
@@ -51,42 +39,9 @@ function AddRelationForm({ kinds, candidates, onCreate, busy }) {
   // franchise with no collection at all.
   const [searchAll, setSearchAll] = useState(false);
   const [globalQuery, setGlobalQuery] = useState("");
-  const [globalHits, setGlobalHits] = useState([]);
-
-  useEffect(() => {
-    const q = globalQuery.trim();
-    if (!searchAll || q.length < 2) {
-      setGlobalHits([]);
-      return;
-    }
-    let cancelled = false;
-    // Debounced: seven requests per keystroke would be seven too many.
-    const timer = setTimeout(async () => {
-      const results = await Promise.all(
-        SEARCH_ENDPOINTS.map(([endpoint, type]) =>
-          fetch(
-            `${endpoint}/?search_query=${encodeURIComponent(q)}&limit=10`,
-            { credentials: "include" }
-          )
-            .then((r) => (r.ok ? r.json() : []))
-            .then((rows) =>
-              rows.map((row) => ({
-                media_type: type,
-                entry_id: row.system_id,
-                display_name: getDisplayName(row, type),
-              }))
-            )
-            .catch(() => [])
-        )
-      );
-      if (!cancelled) setGlobalHits(results.flat());
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchAll, globalQuery]);
+  const { hits: globalHits } = useGlobalMediaSearch(globalQuery, {
+    enabled: searchAll,
+  });
 
   // Candidates are keyed by "type:id" because entry_id alone is ambiguous -
   // each media table has its own system_id space.
