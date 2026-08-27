@@ -57,7 +57,11 @@ from app.utils.formatter import (
 )
 from app.utils.data_control_utils import log_data_control
 
-from app.services.integrations.sheets import bulk_overwrite_sheet, get_all_raw_rows
+from app.services.integrations.sheets import (
+    bulk_overwrite_sheet,
+    get_all_raw_rows,
+    SheetsUnavailableError,
+)
 from app.services.domain import (
     has_missing_values_anime,
     has_missing_values_anime_movie,
@@ -166,7 +170,28 @@ def execute_pull_specific(
 
     logger.info(f"Starting Pull Pipeline for '{tab_name}'...")
 
-    raw_matrix = get_all_raw_rows(tab_name)
+    try:
+        raw_matrix = get_all_raw_rows(tab_name)
+    except SheetsUnavailableError as e:
+        # A tab we could not read is not a tab with nothing in it. Reporting
+        # this as "no data / Success" is how a Google outage used to slip
+        # through a full Pull with the tab silently skipped.
+        logger.error(f"Pull aborted for '{tab_name}': {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Pull",
+                f"Pull {tab_name}",
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {
+            "status": "error",
+            "message": str(e),
+            "reason": "sheet_unavailable",
+        }
+
     if not raw_matrix or len(raw_matrix) < 2:
         logger.info(f"No data found in '{tab_name}' to pull.")
         if log_action:
@@ -800,6 +825,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     ]
 
     results = {}
+    unread_tabs = {}
     total_added = 0
     total_updated = 0
 
@@ -808,24 +834,20 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             res = execute_pull_specific(db, tab, action_type="Manual", log_action=True)
 
             if res.get("status") == "error":
+                # A Sheets outage on one tab says nothing about the next one,
+                # so carry on and report the gap at the end rather than losing
+                # a twenty-tab restore to a blip. Any other error is about the
+                # data or the DB and stops the run where it stands.
+                if res.get("reason") == "sheet_unavailable":
+                    logger.error(f"Tab '{tab}' could not be read: {res.get('message')}")
+                    unread_tabs[tab] = res.get("message")
+                    continue
+
                 raise Exception(f"Pull failed on tab {tab}: {res.get('message')}")
 
             total_added += res.get("rows_added", 0)
             total_updated += res.get("rows_updated", 0)
             results[tab] = res.get("processed", 0)
-
-        logger.info("Full Pull Pipeline completed successfully.")
-        log_data_control(
-            db,
-            "Pull",
-            "Pull All",
-            action_type,
-            "Success",
-            rows_added=total_added,
-            rows_updated=total_updated,
-            details_json=json.dumps(results),
-        )
-        return {"status": "success", "details": results}
 
     except Exception as e:
         logger.error(f"Full Pull Pipeline crashed: {e}")
@@ -833,3 +855,35 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             db, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
         )
         raise e
+
+    if unread_tabs:
+        summary = (
+            "Full Pull Pipeline incomplete. Tabs not pulled: "
+            f"{', '.join(unread_tabs)}"
+        )
+        logger.error(summary)
+        log_data_control(
+            db,
+            "Pull",
+            "Pull All",
+            action_type,
+            "Failed",
+            rows_added=total_added,
+            rows_updated=total_updated,
+            error_message=summary,
+            details_json=json.dumps({"pulled": results, "unread": unread_tabs}),
+        )
+        raise SheetsUnavailableError(summary)
+
+    logger.info("Full Pull Pipeline completed successfully.")
+    log_data_control(
+        db,
+        "Pull",
+        "Pull All",
+        action_type,
+        "Success",
+        rows_added=total_added,
+        rows_updated=total_updated,
+        details_json=json.dumps(results),
+    )
+    return {"status": "success", "details": results}

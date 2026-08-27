@@ -340,8 +340,25 @@ already exist.
 
 ### Error Handling
 
-- Quota errors (HTTP 429): exponential backoff, wait `60 × (attempt + 1)` seconds, max 3 retries.
+`_execute_with_retry()` classifies by HTTP status (`_status_code()` reads gspread's
+`APIError.code`, falling back to the `[503]`-style code in the rendered message when
+a proxy-level error body was not JSON):
+
+- Quota errors (HTTP 429): backoff, wait `60 × (attempt + 1)` seconds, max 3 attempts.
+- Transient errors (HTTP 500 / 502 / 503 / 504): exponential backoff, wait `2 ^ (attempt + 1)`
+  seconds, max 3 attempts. No sleep after the final attempt.
 - Other errors: raised immediately.
+- Retries exhausted: raises `SheetsUnavailableError`.
+
+`get_all_raw_rows()` raises `SheetsUnavailableError` for a tab it could not read, and
+returns `[]` only for a tab that is genuinely empty. Pull relies on that distinction:
+
+- `execute_pull_specific()` returns `{"status": "error", "reason": "sheet_unavailable"}`
+  and logs the tab as **Failed**, instead of logging "no data found" as a Success.
+- `execute_pull_all()` skips an unreadable tab, finishes the remaining tabs, then logs
+  Pull All as **Failed** naming the tabs that were not pulled and raises
+  `SheetsUnavailableError`. Any other per-tab error still stops the run where it stands,
+  since it points at the data or the DB rather than at Google.
 
 ---
 

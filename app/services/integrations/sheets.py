@@ -7,8 +7,9 @@ Contains zero database logic or data parsing to ensure strict separation of conc
 
 import json
 import logging
+import re
 import time
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 
 import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
@@ -18,36 +19,88 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Google answers with these when its own backend is momentarily unwell rather
+# than when anything is wrong with the request, so they are safe to repeat.
+TRANSIENT_STATUS_CODES = (500, 502, 503, 504)
+
+
+class SheetsUnavailableError(RuntimeError):
+    """
+    Raised when a Sheets call fails for a reason unrelated to the data itself
+    (an outage, a quota wall, a revoked credential).
+
+    Callers must be able to tell this apart from a tab that is genuinely empty:
+    the two used to be indistinguishable, so a 503 read as "nothing to pull"
+    and the pipeline reported success while quietly skipping the tab.
+    """
+
+
 # ==========================================
 # HELPER FUNCTIONS
 # ==========================================
 
 
+def _status_code(error: Exception) -> Optional[int]:
+    """
+    Digs the HTTP status out of a gspread APIError.
+
+    gspread copies it onto `.code`, but only when it managed to parse the JSON
+    error body; a proxy-level 503 often arrives as HTML instead, leaving `.code`
+    at -1 with the status visible only in the rendered message.
+    """
+    code = getattr(error, "code", None)
+    if isinstance(code, int) and code > 0:
+        return code
+
+    match = re.search(r"\[(\d{3})\]", str(error))
+    return int(match.group(1)) if match else None
+
+
 def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -> Any:
     """
-    Wraps Google Sheets API calls with an exponential backoff retry mechanism.
-    Primarily used to handle '429 Quota Exceeded' errors safely.
+    Wraps Google Sheets API calls with a backoff retry mechanism.
+
+    Two retryable families, with very different pacing: a 429 means we spent the
+    per-minute quota and have to sit out most of a minute, while a 5xx is a blip
+    that usually clears in seconds. Everything else is a real error about the
+    request and is raised on the spot.
     """
+    last_error: Optional[Exception] = None
+
     for attempt in range(max_retries):
         try:
             return func(*args, **kwargs)
         except APIError as e:
-            if "429" in str(e):
+            status = _status_code(e)
+            last_error = e
+
+            if status == 429:
                 wait_time = 60 * (attempt + 1)
                 logger.warning(
                     f"Google API Quota Exceeded (429). Attempt {attempt + 1}/{max_retries}. "
                     f"Pausing for {wait_time}s..."
                 )
-                time.sleep(wait_time)
+            elif status in TRANSIENT_STATUS_CODES:
+                wait_time = 2 ** (attempt + 1)
+                logger.warning(
+                    f"Google Sheets is temporarily unavailable ({status}). "
+                    f"Attempt {attempt + 1}/{max_retries}. Retrying in {wait_time}s..."
+                )
             else:
                 logger.error(f"Google Sheets API Error: {e}")
                 raise e
+
+            # No point sleeping through the backoff of an attempt we will not make.
+            if attempt < max_retries - 1:
+                time.sleep(wait_time)
         except Exception as e:
             logger.error(f"Unexpected error during Sheets API call: {e}")
             raise e
 
     logger.error("Max retries exceeded for Google Sheets API.")
-    return None
+    raise SheetsUnavailableError(
+        f"Max retries exceeded for Google Sheets API: {last_error}"
+    )
 
 
 # ==========================================
@@ -124,14 +177,22 @@ def get_all_raw_rows(tab_name: str) -> List[List[str]]:
     """
     Reads all cell values from a tab and returns them as a list of lists.
     Used as the data source for Pull pipelines.
+
+    An empty list means the tab is empty. A tab we could not read raises
+    SheetsUnavailableError instead, so the caller never mistakes an outage for
+    a tab with nothing in it.
     """
     try:
         worksheet = get_google_sheet_tab(tab_name)
         raw_data = _execute_with_retry(worksheet.get_all_values)
         return raw_data if raw_data else []
+    except SheetsUnavailableError:
+        raise
     except Exception as e:
         logger.error(f"Failed to retrieve data from tab '{tab_name}': {e}")
-        return []
+        raise SheetsUnavailableError(
+            f"Failed to retrieve data from tab '{tab_name}': {e}"
+        ) from e
 
 
 def bulk_overwrite_sheet(tab_name: str, data_matrix: List[List[Any]]) -> bool:
