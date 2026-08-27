@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import RelationNode from "./RelationNode";
+import FanEdge from "./FanEdge";
 import ConnectPopup from "./ConnectPopup";
 import EdgeInspector from "./EdgeInspector";
 import NodePanel from "./NodePanel";
@@ -39,6 +40,7 @@ import {
 } from "../../lib/relationHandles";
 
 const nodeTypes = { relation: RelationNode };
+const edgeTypes = { fan: FanEdge };
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Only the styling
 // lives here; the kinds themselves come from the API.
@@ -65,9 +67,36 @@ function scopeParams(scopeType, scopeId) {
   return { franchise_id: scopeId };
 }
 
+/**
+ * Numbers each branch connector within the fan leaving its source.
+ *
+ * Returns key -> {index, count}, keyed by system_id. Ordered by the target's
+ * key because that is the order layoutGraph fans them across the row, so line
+ * 1 goes to the leftmost branch and the lines never cross each other. A
+ * hand-dragged node can of course be moved out from under its own line.
+ */
+export function fanPositions(middleEdges) {
+  const bySource = new Map();
+  for (const e of middleEdges) {
+    if (!bySource.has(e.to)) bySource.set(e.to, []);
+    bySource.get(e.to).push(e);
+  }
+  const fan = new Map();
+  for (const group of bySource.values()) {
+    const ordered = [...group].sort((a, b) => (a.from < b.from ? -1 : 1));
+    ordered.forEach((e, index) =>
+      fan.set(e.system_id, { index, count: ordered.length }),
+    );
+  }
+  return fan;
+}
+
 function toFlowEdges(edges, hiddenFamilies) {
-  return edges
-    .filter((e) => !hiddenFamilies.has(e.family))
+  const shown = edges.filter((e) => !hiddenFamilies.has(e.family));
+  // Numbered across what is actually drawn: hiding a family must renumber the
+  // fan, or the visible lines keep gaps where the hidden ones were.
+  const fan = fanPositions(shown.filter((e) => familyGroup(e.family) === MIDDLE));
+  return shown
     .map((e) => {
       const style = FAMILY_STYLE[e.family] || FAMILY_STYLE.derivation;
       // Which pair of handles the edge lands on, and so which way it reads.
@@ -76,12 +105,12 @@ function toFlowEdges(edges, hiddenFamilies) {
       const middle = familyGroup(e.family) === MIDDLE;
       return {
         id: String(e.system_id),
-        // Orthogonal, not the default bezier. The two handle pairs already
-        // commit each family to one axis - timeline across, the rest down -
-        // so a curve only bows away from an axis the edge is meant to state.
-        // smoothstep keeps the right angles but rounds the corner, which
-        // reads less like a circuit diagram than a hard step.
-        type: "smoothstep",
+        // Timeline runs flat along its row, where a step is exactly right and
+        // costs nothing. Every other family fans out of one work towards
+        // several, and a step would draw each of those at the same gutter
+        // height, on top of one another - so those get FanEdge, which spreads
+        // them by angle instead. See FanEdge for why that is the fix.
+        type: middle ? "fan" : "smoothstep",
         // Reversed, matching layoutGraph: a row reads "`from` is the {label}
         // of `to`", so `to` is the original and `from` the work derived from
         // it. Drawing to->from makes every arrow run from the original to the
@@ -95,8 +124,22 @@ function toFlowEdges(edges, hiddenFamilies) {
         label: style.showLabel ? e.label : undefined,
         markerEnd: style.arrow ? { type: "arrowclosed", color: style.stroke } : undefined,
         style: { stroke: style.stroke, strokeWidth: 2, strokeDasharray: style.dash },
-        labelStyle: { fontSize: 10, fontWeight: 800, fill: style.stroke },
-        data: e,
+        // FanEdge renders its label as HTML rather than SVG, so it wants a
+        // colour rather than a fill; both are handed over and each edge type
+        // reads the one it understands.
+        labelStyle: {
+          fontSize: 10,
+          fontWeight: 800,
+          fill: style.stroke,
+          color: style.stroke,
+        },
+        data: middle
+          ? {
+              ...e,
+              fanIndex: fan.get(e.system_id)?.index ?? 0,
+              fanCount: fan.get(e.system_id)?.count ?? 1,
+            }
+          : e,
       };
     });
 }
@@ -737,6 +780,7 @@ function GraphCanvas({
           nodes={displayNodes}
           edges={flowEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}

@@ -1,6 +1,6 @@
 // Frontend: one entry as it appears on the relations canvas.
 //
-// Fixed-size on purpose: dagre reserves space from the dimensions declared in
+// Fixed-size on purpose: the layout computes its slot pitch from the numbers in
 // relationLayout, so a node that renders taller than NODE_HEIGHT would overlap
 // its neighbours. Width and height are set inline rather than in Tailwind
 // classes so the two numbers cannot drift apart.

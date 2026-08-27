@@ -8,6 +8,7 @@ import {
   layoutGraph,
   mergePositions,
   NODE_HEIGHT,
+  NODE_WIDTH,
 } from "./relationLayout";
 
 function node(key, extra = {}) {
@@ -133,8 +134,9 @@ describe("layoutGraph", () => {
 
   it("ignores an edge whose endpoint is not a node", () => {
     // Guards more than the array length: an unknown key must never reach
-    // unionFind/dagre, where find() would loop or throw on an undefined
-    // parent. The surviving node must still come out fully positioned.
+    // unionFind or the adjacency maps, where find() would loop and the walk
+    // would read an entry that was never built. The surviving node must still
+    // come out fully positioned.
     const out = layoutGraph({
       nodes: [node("anime:a")],
       edges: [edge("anime:a", "anime:ghost-that-was-not-sent")],
@@ -149,8 +151,8 @@ describe("layoutGraph", () => {
     // Two calls on the very same array would agree even without the sort in
     // layoutGraph, since Map/Set iteration is insertion-order-stable within
     // one process. Shuffling the node/edge order is what actually pins the
-    // `rankedRoots = [...ranked].sort()` guard against dagre's own
-    // insertion-order sensitivity.
+    // sorts the walk relies on to pick the same start node and the same
+    // sibling order every time.
     const nodes = [node("anime:a"), node("anime:b"), node("anime:c")];
     const edges = [edge("anime:b", "anime:a"), edge("anime:c", "anime:b")];
     const forward = byKey(layoutGraph({ nodes, edges }));
@@ -163,11 +165,148 @@ describe("layoutGraph", () => {
     }
   });
 
+  // One realistic franchise, asserted from several angles: a spine with a
+  // manga above it, two branches below, and a side story that has a sequel of
+  // its own. Every earlier bug in this layout showed up on a shape like this
+  // and on none of the two-node cases above.
+  describe("a spine with branches hanging off it", () => {
+    const GRAPH = {
+      nodes: [
+        node("anime:lost1"),
+        node("anime:lost2"),
+        node("anime:s1"),
+        node("anime:s2"),
+        node("manga:t"),
+        node("anime:school"),
+        node("anime:wall1"),
+        node("anime:wall2"),
+      ],
+      edges: [
+        edge("anime:lost2", "anime:lost1"),
+        edge("anime:s1", "anime:lost2"),
+        edge("anime:s2", "anime:s1"),
+        edge("anime:s1", "manga:t", "derivation", "adaptation"),
+        edge("anime:school", "anime:s1", "branch", "spin_off"),
+        edge("anime:wall1", "anime:s1", "branch", "side_story"),
+        edge("anime:wall2", "anime:wall1"),
+      ],
+    };
+
+    it("runs the whole spine along one straight line", () => {
+      // The failure this pins: a column is as tall as its branches, so
+      // centring it on the rank drops the spine member below the neighbours
+      // it should line up with, and the timeline stair-steps across the page.
+      const out = byKey(layoutGraph(GRAPH));
+      const spine = ["anime:lost1", "anime:lost2", "anime:s1", "anime:s2"];
+      const ys = new Set(spine.map((k) => out[k].position.y));
+      expect([...ys]).toHaveLength(1);
+    });
+
+    it("puts the source above the spine and the branches below it", () => {
+      const out = byKey(layoutGraph(GRAPH));
+      const spineY = out["anime:s1"].position.y;
+      expect(out["manga:t"].position.y).toBeLessThan(spineY);
+      expect(out["anime:school"].position.y).toBeGreaterThan(spineY);
+      expect(out["anime:wall1"].position.y).toBeGreaterThan(spineY);
+      // All three share the spine member's rank rather than earning one.
+      expect(out["manga:t"].position.x).toBe(out["anime:s1"].position.x);
+      expect(out["anime:school"].position.x).toBe(out["anime:s1"].position.x);
+    });
+
+    it("keeps a side story's own sequel in the side story's lane", () => {
+      // Ranking can only join columns, so "Part Two is the sequel of Part
+      // One" used to read as "the sequel of the whole spine column" and threw
+      // Part Two up beside the spine, with its edge cutting across the graph.
+      const out = byKey(layoutGraph(GRAPH));
+      expect(out["anime:wall2"].position.y).toBe(out["anime:wall1"].position.y);
+      expect(out["anime:wall2"].position.y).not.toBe(out["anime:s1"].position.y);
+      expect(out["anime:wall2"].position.x).toBeGreaterThan(
+        out["anime:wall1"].position.x,
+      );
+    });
+
+    it("overlaps nothing", () => {
+      // The lane sweep is the only thing keeping two branches that want the
+      // same height at the same rank apart.
+      const out = layoutGraph(GRAPH);
+      for (const a of out) {
+        for (const b of out) {
+          if (a.key >= b.key) continue;
+          const apart =
+            Math.abs(a.position.x - b.position.x) >= NODE_WIDTH ||
+            Math.abs(a.position.y - b.position.y) >= NODE_HEIGHT;
+          expect(apart, `${a.key} overlaps ${b.key}`).toBe(true);
+        }
+      }
+    });
+  });
+
+  // The case the vertical stack could not survive: one work that many others
+  // hang off, which is the normal shape for the anime a franchise is named
+  // after. Stacking put the fourth branch four rows down and drew its
+  // connector straight through the three above it.
+  describe("many branches off one work", () => {
+    const GRAPH = {
+      nodes: [
+        node("anime:s1"),
+        node("manga:t"),
+        node("anime:school"),
+        node("anime:wall1"),
+        node("anime:ova"),
+        node("anime:short"),
+      ],
+      edges: [
+        edge("anime:s1", "manga:t", "derivation", "adaptation"),
+        edge("anime:school", "anime:s1", "branch", "spin_off"),
+        edge("anime:wall1", "anime:s1", "branch", "side_story"),
+        edge("anime:ova", "anime:s1", "branch", "side_story"),
+        edge("anime:short", "anime:s1", "branch", "spin_off"),
+      ],
+    };
+    const BRANCHES = ["anime:school", "anime:wall1", "anime:ova", "anime:short"];
+
+    it("fans siblings across one row instead of stacking them", () => {
+      const out = byKey(layoutGraph(GRAPH));
+      const ys = new Set(BRANCHES.map((k) => out[k].position.y));
+      const xs = new Set(BRANCHES.map((k) => out[k].position.x));
+      expect([...ys]).toHaveLength(1);
+      expect([...xs]).toHaveLength(BRANCHES.length);
+    });
+
+    it("leaves no node between a work and its branches", () => {
+      // This is the whole reason siblings share a row. A connector turns at
+      // the midpoint between its two ends, so as long as nothing sits in
+      // between, that turn happens in an empty gutter and crosses nothing.
+      const out = layoutGraph(GRAPH);
+      const byName = byKey(out);
+      const sourceY = byName["anime:s1"].position.y;
+      const branchY = byName["anime:school"].position.y;
+      expect(branchY).toBeGreaterThan(sourceY);
+      const between = out.filter(
+        (n) => n.position.y > sourceY && n.position.y < branchY,
+      );
+      expect(between).toEqual([]);
+    });
+
+    it("keeps the first branch directly under its source", () => {
+      // The fan starts at the source's own rank, so the common case - a work
+      // with exactly one branch - still reads as a plain vertical drop.
+      const out = byKey(layoutGraph(GRAPH));
+      const first = BRANCHES.map((k) => out[k].position.x).sort((a, b) => a - b)[0];
+      expect(first).toBe(out["anime:s1"].position.x);
+    });
+
+    it("puts the source it was adapted from above, not in the fan", () => {
+      const out = byKey(layoutGraph(GRAPH));
+      expect(out["manga:t"].position.y).toBeLessThan(out["anime:s1"].position.y);
+      expect(out["manga:t"].position.x).toBe(out["anime:s1"].position.x);
+    });
+  });
+
   it("puts every node on the grid, ranked and trayed alike", () => {
-    // dagre centres a rank on the tallest group in it, so raw output lands on
-    // half-pixel offsets that read as a wobble down the canvas. The canvas
-    // snaps dragging to this same GRID, so a computed position off it could
-    // never be matched by hand.
+    // Slot pitches are whole multiples of GRID, so this holds by construction -
+    // it is pinned because the canvas snaps dragging to this same GRID, and a
+    // computed position off the lattice could never be matched by hand.
     const out = layoutGraph({
       nodes: [node("anime:a"), node("anime:b"), node("manga:a"), node("movie:z")],
       edges: [
