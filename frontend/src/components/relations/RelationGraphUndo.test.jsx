@@ -26,6 +26,22 @@ beforeEach(() => {
 
 const EMPTY_GRAPH = { nodes: [], edges: [] };
 
+// The media-type chips are derived from the nodes, so proving the toolbar
+// rendered needs a canvas with something on it.
+const ONE_NODE_GRAPH = {
+  nodes: [
+    {
+      key: "anime:a",
+      entry_id: "a",
+      media_type: "anime",
+      type_label: "Anime",
+      display_name: "A",
+      in_scope: true,
+    },
+  ],
+  edges: [],
+};
+
 function mockFetch(graph = EMPTY_GRAPH) {
   const fetchMock = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(graph) }),
@@ -67,12 +83,12 @@ describe("RelationGraph toolbar buttons", () => {
   });
 
   it("omits Undo entirely on a read-only canvas", async () => {
-    mockFetch();
+    mockFetch(ONE_NODE_GRAPH);
     render(<RelationGraph readOnly scopeType="series" scopeId="s1" />);
-    // The family filters prove the toolbar rendered, so a missing Undo is a
+    // The media-type chip proves the toolbar rendered, so a missing Undo is a
     // real absence rather than a canvas that never mounted.
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /^anime$/i })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("button", { name: /undo/i })).toBeNull();
   });
@@ -80,7 +96,7 @@ describe("RelationGraph toolbar buttons", () => {
   it("offers Tidy on a writable canvas and omits it on a read-only one", async () => {
     // Tidy drops hand-placed positions; a read-only canvas never had any, so
     // the button would reset nothing.
-    mockFetch();
+    mockFetch(ONE_NODE_GRAPH);
     const { unmount } = render(
       <RelationGraph scopeType="franchise" scopeId="f1" kinds={[]} />,
     );
@@ -91,7 +107,7 @@ describe("RelationGraph toolbar buttons", () => {
 
     render(<RelationGraph readOnly scopeType="series" scopeId="s1" />);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /^anime$/i })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("button", { name: /tidy/i })).toBeNull();
   });

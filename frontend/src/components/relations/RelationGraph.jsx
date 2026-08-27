@@ -16,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { buildUrl } from "../../api/client";
+import { MEDIA_TYPE_COLORS } from "../../config/mediaTypeColors";
 import { endpoints } from "../../api/endpoints";
 import RelationNode from "./RelationNode";
 import FanEdge from "./FanEdge";
@@ -47,6 +48,15 @@ import {
 const nodeTypes = { relation: RelationNode };
 const edgeTypes = { fan: FanEdge };
 
+// Matches RelationNode's opacity-20 for a dimmed node, so an edge fades to
+// exactly the same depth as the entries it joins.
+const DIMMED_OPACITY = 0.2;
+
+// The order the type chips sit in. Taken from the palette rather than from the
+// graph, so the row keeps its shape as nodes arrive and as the scope changes -
+// a chip that moved every refetch would be clicked by mistake.
+const TYPE_ORDER = Object.keys(MEDIA_TYPE_COLORS);
+
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Only the styling
 // lives here; the kinds themselves come from the API.
 export const FAMILY_STYLE = {
@@ -55,13 +65,6 @@ export const FAMILY_STYLE = {
   equivalence: { stroke: "#0ea5e9", dash: "6 4", arrow: false, showLabel: true },
   branch: { stroke: "#10b981", dash: undefined, arrow: true, showLabel: true },
   derivation: { stroke: "#f59e0b", dash: "2 4", arrow: true, showLabel: true },
-};
-
-export const FAMILY_LABELS = {
-  timeline: "Timeline",
-  equivalence: "Equivalence",
-  branch: "Branch",
-  derivation: "Derivation",
 };
 
 // Which query parameter the graph endpoint wants for this tier. All three are
@@ -101,12 +104,9 @@ export function fanPositions(middleEdges) {
   return fan;
 }
 
-function toFlowEdges(edges, hiddenFamilies) {
-  const shown = edges.filter((e) => !hiddenFamilies.has(e.family));
-  // Numbered across what is actually drawn: hiding a family must renumber the
-  // fan, or the visible lines keep gaps where the hidden ones were.
-  const fan = fanPositions(shown.filter((e) => familyGroup(e.family) === MIDDLE));
-  return shown
+function toFlowEdges(edges) {
+  const fan = fanPositions(edges.filter((e) => familyGroup(e.family) === MIDDLE));
+  return edges
     .map((e) => {
       const style = FAMILY_STYLE[e.family] || FAMILY_STYLE.derivation;
       // Which pair of handles the edge lands on, and so which way it reads.
@@ -169,7 +169,10 @@ function GraphCanvas({
 }) {
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
-  const [hiddenFamilies, setHiddenFamilies] = useState(new Set());
+  // Which media types the toolbar has toggled off. They dim rather than
+  // disappear: a graph whose layout has been arranged by hand must not
+  // reshuffle every time a type is switched on and off.
+  const [hiddenTypes, setHiddenTypes] = useState(new Set());
   const [loading, setLoading] = useState(false);
   // A failed read must not look like an empty scope: the canvas is the whole
   // right pane, so a blank one otherwise reads as "this franchise has no
@@ -543,6 +546,39 @@ function GraphCanvas({
     return set;
   }, [isolatedKey, graphEdges]);
 
+  // One chip per media type actually on the canvas, labelled the way the node
+  // badge labels it. Deriving the row from the graph rather than from all
+  // eight known types keeps it from offering a toggle that dims nothing.
+  const presentTypes = useMemo(() => {
+    const labels = new Map();
+    for (const n of nodes) {
+      const type = n.data?.media_type;
+      if (!type || labels.has(type)) continue;
+      labels.set(type, n.data?.type_label || type);
+    }
+    const known = TYPE_ORDER.filter((t) => labels.has(t));
+    // A type the palette has not been taught about still gets a chip, after
+    // the ones it knows, rather than silently losing its filter.
+    const rest = [...labels.keys()].filter((t) => !TYPE_ORDER.includes(t));
+    return [...known, ...rest].map((type) => ({ type, label: labels.get(type) }));
+  }, [nodes]);
+
+  // Switching scope can retire a type entirely. Dropping it from the hidden
+  // set as it goes stops a toggle made in one franchise from silently dimming
+  // another the moment the same type reappears there.
+  useEffect(() => {
+    const present = new Set(presentTypes.map((t) => t.type));
+    setHiddenTypes((current) => {
+      const next = new Set([...current].filter((t) => present.has(t)));
+      return next.size === current.size ? current : next;
+    });
+  }, [presentTypes]);
+
+  const typeOfNode = useMemo(
+    () => new Map(nodes.map((n) => [n.id, n.data?.media_type])),
+    [nodes],
+  );
+
   const displayNodes = useMemo(
     () =>
       nodes.map((n) => ({
@@ -555,12 +591,16 @@ function GraphCanvas({
         selected: n.id === selectedNodeKey,
         data: {
           ...n.data,
-          // Isolate is the only thing that dims: finding an entry is the left
-          // pane's filter, which scrolls the list and focuses the node.
-          dimmed: neighbours ? !neighbours.has(n.id) : false,
+          // Two gestures dim, and they compose: isolate drops everything more
+          // than a hop away, the type chips drop a whole media type. Finding
+          // an entry is neither - that is the left pane's filter, which
+          // scrolls the list and focuses the node.
+          dimmed:
+            (neighbours ? !neighbours.has(n.id) : false) ||
+            hiddenTypes.has(n.data.media_type),
         },
       })),
-    [nodes, neighbours, selectedNodeKey],
+    [nodes, neighbours, selectedNodeKey, hiddenTypes],
   );
 
   const selectedNode = useMemo(
@@ -676,16 +716,25 @@ function GraphCanvas({
     }
   }
 
-  const flowEdges = useMemo(
-    () => toFlowEdges(graphEdges, hiddenFamilies),
-    [graphEdges, hiddenFamilies],
-  );
+  const flowEdges = useMemo(() => {
+    const hidden = (key) => hiddenTypes.has(typeOfNode.get(key));
+    return toFlowEdges(graphEdges).map((e) => {
+      // An edge is only as visible as the entries it joins: dimming a type
+      // while its lines stay solid leaves the canvas as busy as before.
+      if (!hidden(e.source) && !hidden(e.target)) return e;
+      return {
+        ...e,
+        style: { ...e.style, opacity: DIMMED_OPACITY },
+        labelStyle: { ...e.labelStyle, opacity: DIMMED_OPACITY },
+      };
+    });
+  }, [graphEdges, hiddenTypes, typeOfNode]);
 
-  function toggleFamily(family) {
-    setHiddenFamilies((current) => {
+  function toggleType(mediaType) {
+    setHiddenTypes((current) => {
       const next = new Set(current);
-      if (next.has(family)) next.delete(family);
-      else next.add(family);
+      if (next.has(mediaType)) next.delete(mediaType);
+      else next.add(mediaType);
       return next;
     });
   }
@@ -761,22 +810,25 @@ function GraphCanvas({
           </button>
         )}
 
-        {Object.keys(FAMILY_LABELS).map((family) => {
-          const on = !hiddenFamilies.has(family);
+        {presentTypes.map(({ type, label }) => {
+          const on = !hiddenTypes.has(type);
           return (
             <button
-              key={family}
+              key={type}
               type="button"
-              onClick={() => toggleFamily(family)}
+              aria-pressed={on}
+              onClick={() => toggleType(type)}
+              title={`${on ? "Dim" : "Restore"} every ${label} on the canvas`}
               className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition-opacity ${
                 on ? "border-gray-200 text-gray-600" : "border-gray-100 text-gray-300"
               }`}
             >
               <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: FAMILY_STYLE[family].stroke }}
+                className={`h-2 w-2 rounded-full ${
+                  (MEDIA_TYPE_COLORS[type] || {}).dot || "bg-gray-400"
+                } ${on ? "" : "opacity-40"}`}
               />
-              {FAMILY_LABELS[family]}
+              {label}
             </button>
           );
         })}
