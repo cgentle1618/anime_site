@@ -46,8 +46,10 @@ cd frontend && npm run dev
 # Build the bundle uvicorn serves on :8000 (writes frontend_dist/)
 cd frontend && npm run build
 
-# Run FastAPI dev server (backend code lives in the app/ package)
-uvicorn app.main:app --reload
+# Run FastAPI dev server (backend code lives in the app/ package).
+# --reload-dir app keeps the watcher off tests/ and alembic/: without it,
+# editing a test file restarts the server and every page reload goes cold.
+uvicorn app.main:app --reload --reload-dir app
 
 # Database migrations
 alembic upgrade head
