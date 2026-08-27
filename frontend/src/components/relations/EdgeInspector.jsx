@@ -11,7 +11,8 @@ import { useEffect, useState } from "react";
 
 export default function EdgeInspector({
   edge,
-  kinds,
+  // Absent on a read-only surface, which renders no kind control at all.
+  kinds = [],
   busy = false,
   readOnly = false,
   onPatch,
@@ -26,6 +27,12 @@ export default function EdgeInspector({
   useEffect(() => {
     setRemark(edge.remark || "");
   }, [edge.system_id, edge.remark]);
+
+  // A symmetric kind sorts its endpoints server-side, so a swap would come
+  // back as the row that went in. The button says so rather than appearing to
+  // work and changing nothing.
+  const symmetric =
+    kinds.find((k) => k.key === edge.relation_type)?.symmetric === true;
 
   async function commitRemark() {
     const next = remark.trim();
@@ -83,6 +90,21 @@ export default function EdgeInspector({
               </option>
             ))}
           </select>
+
+          <button
+            type="button"
+            disabled={busy || symmetric}
+            onClick={() => onPatch({ swap: true })}
+            title={
+              symmetric
+                ? `A ${edge.label} reads the same both ways, so there is nothing to swap`
+                : `Make ${edge.targetName} the ${edge.label} of ${edge.sourceName} instead`
+            }
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 text-[10px] font-black uppercase text-gray-500 disabled:opacity-40"
+          >
+            <i className="fas fa-right-left"></i>
+            Swap direction
+          </button>
 
           <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
             Remark

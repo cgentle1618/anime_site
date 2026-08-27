@@ -5,13 +5,15 @@
 // hubs, where nothing may write. So the tests care most about which controls
 // exist in each mode.
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import EdgeInspector from "./EdgeInspector";
 
 const KINDS = [
-  { key: "prequel", label: "Prequel" },
-  { key: "sequel", label: "Sequel" },
-  { key: "adaptation", label: "Adaptation" },
+  { key: "prequel", label: "Prequel", symmetric: false },
+  { key: "sequel", label: "Sequel", symmetric: false },
+  { key: "adaptation", label: "Adaptation", symmetric: false },
+  { key: "alternative", label: "Alternative", symmetric: true },
 ];
 
 const EDGE = {
@@ -59,6 +61,21 @@ describe("EdgeInspector", () => {
     );
   });
 
+  it("swaps which entry is the origin, keeping the kind", async () => {
+    // The only way to turn a kind with no second name around: Adaptation has
+    // no Prequel-style inverse to retype it as.
+    const { onPatch } = setup({ edge: { ...EDGE, relation_type: "adaptation" } });
+    await userEvent.click(screen.getByRole("button", { name: /^swap/i }));
+    expect(onPatch).toHaveBeenCalledWith({ swap: true });
+  });
+
+  it("refuses to swap a symmetric kind, which reads the same both ways", () => {
+    setup({
+      edge: { ...EDGE, relation_type: "alternative", label: "Alternative" },
+    });
+    expect(screen.getByRole("button", { name: /^swap/i })).toBeDisabled();
+  });
+
   it("drops every writing control when read-only", () => {
     setup({ readOnly: true });
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -66,6 +83,7 @@ describe("EdgeInspector", () => {
     expect(
       screen.queryByRole("button", { name: /remove relation/i }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^swap/i })).not.toBeInTheDocument();
   });
 
   it("still shows the sentence and the remark when read-only", () => {

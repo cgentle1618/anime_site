@@ -39,13 +39,19 @@ class MediaRelationCreate(BaseModel):
 
 
 class MediaRelationUpdate(BaseModel):
-    """Only the kind and the remark are editable.
+    """Only the kind, the direction and the remark are editable.
 
     Repointing a relation at a different entry means deleting it and adding the
     right one, which keeps this endpoint from having to re-validate endpoints.
+    `swap` is the exception that needs no such check: it reuses the two
+    endpoints already stored, so neither can have gone missing.
     """
 
     kind: Optional[str] = None
+    # Trades the two endpoints over, keeping the kind: the way to say an
+    # Adaptation runs the other way round. Prequel already expresses this for
+    # Sequel, but the other kinds have no such second name.
+    swap: bool = False
     remark: Optional[str] = None
 
 

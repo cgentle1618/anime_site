@@ -90,6 +90,18 @@ export function undoRequest(entry) {
     };
   }
 
+  // A swap reverses itself. Replaying the kind cannot do it: only Sequel has
+  // a second name that stores flipped, so patching a swapped Adaptation with
+  // `adaptation` would normalize to the flipped row again and the press would
+  // appear to do nothing.
+  if (entry.swap) {
+    return {
+      method: "PATCH",
+      id: String(entry.id),
+      body: { swap: true, remark: entry.before.remark || "" },
+    };
+  }
+
   // Kind and remark go back together: an edit that changed both would
   // otherwise take two presses to fully reverse, which is not what the button
   // claims to do.

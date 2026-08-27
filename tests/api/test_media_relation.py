@@ -307,6 +307,116 @@ def test_patching_only_the_remark_leaves_direction_alone(
     assert row.from_id == second_anime.system_id
 
 
+def test_swapping_flips_the_stored_endpoints(
+    admin_client, db_session, sample_anime, sample_manga_entry
+):
+    # Adaptation has no inverse input kind, so a swap is the only way to say
+    # the derivation runs the other way.
+    created = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "adaptation",
+            "to_type": "manga", "to_id": str(sample_manga_entry.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{created['system_id']}",
+        json={"swap": True},
+    )
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    row = db_session.query(models.MediaRelation).one()
+    assert row.relation_type == "adaptation"
+    assert (row.from_type, row.from_id) == ("manga", sample_manga_entry.system_id)
+    assert (row.to_type, row.to_id) == ("anime", sample_anime.system_id)
+
+
+def test_swapping_a_symmetric_kind_leaves_the_row_alone(
+    admin_client, db_session, sample_anime, second_anime
+):
+    # Alternative sorts its endpoints, so both directions are the same row.
+    # The swap normalizes straight back rather than erroring.
+    created = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "alternative",
+            "to_type": "anime", "to_id": str(second_anime.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{created['system_id']}",
+        json={"swap": True},
+    )
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    row = db_session.query(models.MediaRelation).one()
+    assert str(row.from_id) == created["from_id"]
+    assert str(row.to_id) == created["to_id"]
+
+
+def test_swapping_into_an_existing_relation_is_refused(
+    admin_client, db_session, sample_anime, sample_manga_entry
+):
+    # The flipped row would duplicate one already stored, which the unique
+    # index would otherwise turn into a 500.
+    kept = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "manga", "from_id": str(sample_manga_entry.system_id),
+            "kind": "adaptation",
+            "to_type": "anime", "to_id": str(sample_anime.system_id),
+        },
+    ).json()
+    other = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "adaptation",
+            "to_type": "manga", "to_id": str(sample_manga_entry.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{other['system_id']}",
+        json={"swap": True},
+    )
+    assert res.status_code == 409
+
+    db_session.expire_all()
+    assert db_session.query(models.MediaRelation).count() == 2
+    assert kept["system_id"] != other["system_id"]
+
+
+def test_swapping_and_changing_the_kind_together(
+    admin_client, db_session, sample_anime, sample_manga_entry
+):
+    created = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "adaptation",
+            "to_type": "manga", "to_id": str(sample_manga_entry.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{created['system_id']}",
+        json={"swap": True, "kind": "side_story"},
+    )
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    row = db_session.query(models.MediaRelation).one()
+    assert row.relation_type == "side_story"
+    assert (row.from_type, row.from_id) == ("manga", sample_manga_entry.system_id)
+
+
 def test_deleting_removes_the_row(
     admin_client, db_session, sample_anime, second_anime
 ):

@@ -109,6 +109,24 @@ describe("undoRequest", () => {
     });
   });
 
+  it("undoes a swap by swapping back, whatever the kind", () => {
+    // Replaying the kind cannot reverse a swap: Adaptation has no second name
+    // storing as it, so a plain kind PATCH would normalize to the flipped row
+    // again and the undo would do nothing.
+    const request = undoRequest({
+      action: "edit",
+      id: "r1",
+      kind: "adaptation",
+      swap: true,
+      before: { ...BEFORE, relation_type: "adaptation" },
+    });
+    expect(request).toEqual({
+      method: "PATCH",
+      id: "r1",
+      body: { swap: true, remark: "old note" },
+    });
+  });
+
   it("sends an empty remark rather than null when the old row had none", () => {
     // MediaRelationUpdate ignores a null remark, so null would silently keep
     // the text the undo is meant to remove.

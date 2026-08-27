@@ -667,6 +667,9 @@ function GraphCanvas({
           action: "edit",
           id: after.system_id,
           kind: restoringKind(before, after, kinds),
+          // A swap is reversed by swapping back, not by replaying a kind -
+          // see undoRequest for why the two cannot be the same request.
+          swap: body.swap === true,
           before,
           label,
           sourceName,
