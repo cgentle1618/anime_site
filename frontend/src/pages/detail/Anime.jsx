@@ -185,10 +185,6 @@ export default function Anime() {
       ? `${anime.release_month} ${anime.release_year}`
       : anime.release_month || anime.release_year || null;
 
-  const selectDisabledCls = !isAdmin
-    ? "bg-gray-50 text-gray-500 cursor-not-allowed"
-    : "";
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       {/* Breadcrumb */}
@@ -496,42 +492,10 @@ export default function Anime() {
 
           </div>
 
-          {/* Notes & Remarks */}
-          {anime.remark && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <h3 className="font-bold text-gray-800">
-                  <i className="fas fa-sticky-note text-brand mr-2"></i>Rough
-                  Notes & Remarks
-                </h3>
-              </div>
-              <div className="p-4">
-                <textarea
-                  key={anime.system_id}
-                  defaultValue={anime.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin &&
-                    performUpdate({ remark: e.target.value }, "Remark saved")
-                  }
-                  rows={5}
-                  placeholder="Add private overview notes, specific remarks, etc."
-                  className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                ></textarea>
-              </div>
-            </div>
-          )}
-
           {/* Structured Notes */}
-          {/* The dedicated remark textarea above renders only when a remark
-              exists; hide the notes page's `remark` section exactly then, so
-              the singleton row never has two editors on one screen. */}
-          <AnimeNotes
-            key={anime.system_id}
-            anime={anime}
-            isAdmin={isAdmin}
-            hideSections={anime.remark ? ["remark"] : []}
-          />
+          {/* No dedicated remark editor on this page: the remark is the first
+              section inside the Notes card, so there is nothing to suppress. */}
+          <AnimeNotes key={anime.system_id} anime={anime} isAdmin={isAdmin} />
         </div>
       </div>
 
