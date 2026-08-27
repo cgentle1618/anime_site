@@ -21,6 +21,7 @@ import TV from "./pages/detail/TV";
 import Cartoon from "./pages/detail/Cartoon";
 import Manga from "./pages/detail/Manga";
 import Novel from "./pages/detail/Novel";
+import Comic from "./pages/detail/Comic";
 import WatchOrder from "./pages/detail/WatchOrder";
 import SeasonalDetail from "./pages/public/SeasonalDetail";
 
@@ -106,6 +107,7 @@ export default function App() {
                 <Route path="/library/manga" element={<LibraryManga />} />
                 <Route path="/novel/:system_id" element={<Novel />} />
                 <Route path="/library/novel" element={<LibraryNovel />} />
+                <Route path="/comic/:system_id" element={<Comic />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />
