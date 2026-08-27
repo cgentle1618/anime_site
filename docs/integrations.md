@@ -18,13 +18,14 @@ Tenrai v1 is a public REST API that mirrors MyAnimeList data. It is used to auto
 
 ### Rate Limiter
 
-Class: `TenraiRateLimiter` — sliding window, **30 requests per 60-second window**.
+Class: `TenraiRateLimiter` — sliding windows, **4 requests per 1-second window** and **120 requests per 60-second window** (Tenrai enforces both at once). Windows live in `TenraiRateLimiter.DEFAULT_LIMITS` as `(max_requests, time_window_seconds)` pairs and can be overridden via the `limits` constructor argument.
 
 `wait_if_needed()` is called before every request:
 
-1. Remove timestamps older than 60 seconds from the queue.
-2. If queue length ≥ 30, calculate `sleep_time = 60 − (now − oldest_timestamp)` and sleep.
-3. Append current timestamp to queue and proceed.
+1. Remove timestamps older than the widest window (60 seconds) from the queue.
+2. For each window, if it already holds its maximum, compute how long until its oldest blocking request expires; sleep for the longest such wait.
+3. Re-check every window after sleeping (a short sleep can leave a wider window still full), repeating until all windows have room.
+4. Append current timestamp to queue and proceed.
 
 ### Retry Strategy
 

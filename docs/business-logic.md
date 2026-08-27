@@ -1029,7 +1029,7 @@ The autofill path branches on `airing_type`:
 
 Fetches `GET https://api.tenrai.org/v1/anime/{mal_id}/full`.
 
-**Rate limiting:** Global `TenraiRateLimiter` singleton — sliding window, default 30 requests / 60 seconds. Blocks before each request until under the limit.
+**Rate limiting:** Global `TenraiRateLimiter` singleton — dual sliding windows, default 4 requests / 1 second and 120 requests / 60 seconds. Blocks before each request until every window is under its limit.
 
 **Retry:** 5 attempts, exponential backoff 2-10s. Retries on `RequestException` or `RateLimitExceeded` (HTTP 429). Returns `None` on 404 or >= 500.
 
