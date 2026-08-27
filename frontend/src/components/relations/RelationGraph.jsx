@@ -22,7 +22,12 @@ import FanEdge from "./FanEdge";
 import ConnectPopup from "./ConnectPopup";
 import EdgeInspector from "./EdgeInspector";
 import NodePanel from "./NodePanel";
-import { GRID, layoutGraph, mergePositions } from "../../lib/relationLayout";
+import {
+  GRID,
+  kindRank,
+  layoutGraph,
+  mergePositions,
+} from "../../lib/relationLayout";
 import {
   describeEntry,
   restoringKind,
@@ -70,9 +75,10 @@ function scopeParams(scopeType, scopeId) {
 /**
  * Numbers each branch connector within the fan leaving its source.
  *
- * Returns key -> {index, count}, keyed by system_id. Ordered by the target's
- * key because that is the order layoutGraph fans them across the row, so line
- * 1 goes to the leftmost branch and the lines never cross each other. A
+ * Returns key -> {index, count}, keyed by system_id. Ordered by kind and then
+ * by the target's key, which is exactly the order layoutGraph fans the nodes
+ * themselves across the row - the two have to agree, or line 1 reaches past
+ * its neighbours to a branch further along and the fan crosses over itself. A
  * hand-dragged node can of course be moved out from under its own line.
  */
 export function fanPositions(middleEdges) {
@@ -83,7 +89,11 @@ export function fanPositions(middleEdges) {
   }
   const fan = new Map();
   for (const group of bySource.values()) {
-    const ordered = [...group].sort((a, b) => (a.from < b.from ? -1 : 1));
+    const ordered = [...group].sort(
+      (a, b) =>
+        kindRank(a.relation_type) - kindRank(b.relation_type) ||
+        (a.from < b.from ? -1 : 1),
+    );
     ordered.forEach((e, index) =>
       fan.set(e.system_id, { index, count: ordered.length }),
     );

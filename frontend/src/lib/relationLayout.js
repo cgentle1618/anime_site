@@ -31,6 +31,19 @@
 // inside the node in between - which is a line drawn straight through an
 // unrelated entry, at every branch count above one.
 //
+// ROWS ARE OPENED, NOT SKIPPED. A work that is itself a branch has branches of
+// its own - a novel adapted into an anime, with its own side stories - and the
+// row it would hang them from is already the anime's. Scanning on for the next
+// free row puts them on the far side of the anime's whole spine and draws
+// their connectors across it, so the row is made instead: everything from
+// there outwards moves over by one.
+//
+// That stretches the relations which already spanned the row - the novel is
+// now two rows above the anime, not one - so before anything is placed in a
+// newly opened row, the column each of those connectors passes down is
+// reserved. It is why a fan of side stories starts one column right of the
+// work it hangs off rather than directly beneath it.
+//
 // No layout library: ranks come out of the traversal below, and the one thing
 // dagre was still doing - centring a column on its rank - is exactly what bent
 // the spine out of line.
@@ -55,6 +68,36 @@ export const NODE_HEIGHT = 72; // 3 * GRID
 // six relations that reads as one. The height is what lets the fan open.
 export const ROW_PITCH = NODE_HEIGHT + 96; // 168
 const RANK_PITCH = NODE_WIDTH + 96; // 288
+
+/**
+ * Where a relation kind sits in a fan, lowest first.
+ *
+ * Mirrors the key order of RELATION_KINDS in app/utils/relation_kinds.py, so
+ * this is the vocabulary's own ordering rather than a second opinion about it:
+ * another version of the same work first, then a story told beside it, then
+ * the work it was adapted from. A Director's Cut is a version of the anime and
+ * a Side Story is not, so the cut is the nearer of the two.
+ *
+ * Exported because the canvas numbers its connectors in this same order (see
+ * fanPositions) - the lines and the nodes have to agree or the fan crosses
+ * over itself. An unknown kind sorts last rather than throwing, so a kind
+ * added server-side lands at the end of a fan until it is listed here.
+ */
+const KIND_ORDER = [
+  "sequel",
+  "alternative",
+  "renew",
+  "directors_cut",
+  "extended",
+  "side_story",
+  "spin_off",
+  "adaptation",
+];
+
+export function kindRank(kind) {
+  const at = KIND_ORDER.indexOf(kind);
+  return at === -1 ? KIND_ORDER.length : at;
+}
 
 // Where the unconnected tray starts, below the deepest placed node.
 const TRAY_TOP_GAP = 120;
@@ -110,8 +153,8 @@ function adjacency(keys, usable) {
       forward.get(e.to).push(e.from);
       backward.get(e.from).push(e.to);
     } else {
-      sideways.get(e.to).push({ other: e.from, dir: 1 });
-      sideways.get(e.from).push({ other: e.to, dir: -1 });
+      sideways.get(e.to).push({ other: e.from, dir: 1, kind: e.relation_type });
+      sideways.get(e.from).push({ other: e.to, dir: -1, kind: e.relation_type });
     }
   }
   return { forward, backward, sideways, linked };
@@ -155,19 +198,75 @@ function chainLengths(keys, forward) {
  */
 function walkCluster(cluster, { forward, backward, sideways }, chain) {
   const slots = new Map();
+  // Columns kept clear for a connector to pass down, rather than for a node.
+  const reserved = [];
   const taken = new Set();
   const slotKey = (row, rank) => `${row}:${rank}`;
   const free = (row, rank) => !taken.has(slotKey(row, rank));
+
+  function remember() {
+    taken.clear();
+    for (const { rank, row } of slots.values()) taken.add(slotKey(row, rank));
+    for (const { rank, row } of reserved) taken.add(slotKey(row, rank));
+  }
 
   function take(key, rank, row) {
     slots.set(key, { rank, row });
     taken.add(slotKey(row, rank));
   }
 
-  // The first row in `dir` whose slot at `rank` is still empty.
-  function freeRow(row, dir, rank) {
-    let candidate = row + dir;
-    while (!free(candidate, rank)) candidate += dir;
+  // Everything from `from` outwards in `dir` moves one row further out,
+  // leaving `from` itself empty.
+  function shiftRows(from, dir) {
+    for (const slot of [...slots.values(), ...reserved]) {
+      if (dir > 0 ? slot.row >= from : slot.row <= from) slot.row += dir;
+    }
+    remember();
+  }
+
+  /**
+   * Keeps a column of `row` clear for every connector that now crosses it.
+   *
+   * Opening a row stretches the relations that already spanned it - the novel
+   * a series was adapted from stops being one row above it and becomes two -
+   * and their connectors are then drawn straight through whatever the new row
+   * puts in the way. So the rank each of them passes through is reserved
+   * before anything is placed there, which is what moves a fan of side stories
+   * one column right of the work they hang off instead of on top of the line
+   * running down past them.
+   */
+  function reserveCrossings(row) {
+    for (const [key, at] of slots) {
+      for (const { other } of sideways.get(key)) {
+        const far = slots.get(other);
+        // One end each side of the new row, and counted once per pair.
+        if (!far || key > other) continue;
+        if (at.row === far.row || at.row > row === far.row > row) continue;
+        const along = (row - at.row) / (far.row - at.row);
+        reserved.push({
+          row,
+          rank: Math.round(at.rank + (far.rank - at.rank) * along),
+        });
+      }
+    }
+    remember();
+  }
+
+  /**
+   * The row one step in `dir`, opened up first if something is already there.
+   *
+   * Not "the first free row in that direction". A branch has to land exactly
+   * one row from the work it hangs off: a connector turns at the midpoint
+   * between its two ends, so at one row that turn falls in the empty gutter,
+   * and at two it falls inside whatever row was skipped over. Skipping is how
+   * a novel's side stories ended up on the far side of the anime spine, with
+   * their connectors drawn straight across it.
+   */
+  function openRow(row, dir, rank) {
+    const candidate = row + dir;
+    if (free(candidate, rank)) return candidate;
+    shiftRows(candidate, dir);
+    reserveCrossings(candidate);
     return candidate;
   }
 
@@ -196,6 +295,13 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
       (a < b ? -1 : 1),
   )[0];
 
+  // A node's own row is read back rather than remembered. Opening a row for
+  // something further down the walk moves every row beyond it, this work's
+  // included, so a row captured before recursing is stale afterwards - and
+  // placing a branch against a stale row is how it lands in the wrong lane.
+  // Ranks are never shifted, so those are safe to carry.
+  const rowOf = (key) => slots.get(key).row;
+
   function place(key, rank, row) {
     take(key, rank, row);
 
@@ -208,7 +314,8 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
       .forEach((next, i) => {
         if (slots.has(next)) return; // placed by an earlier sibling's subtree
         const at = rank + 1;
-        place(next, at, i === 0 && free(row, at) ? row : freeRow(row, 1, at));
+        const here = rowOf(key);
+        place(next, at, i === 0 && free(here, at) ? here : openRow(here, 1, at));
       });
 
     // A prequel reached from its sequel, which happens when the walk started
@@ -216,23 +323,35 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
     for (const prev of backward.get(key).filter((k) => !slots.has(k)).sort()) {
       if (slots.has(prev)) continue;
       const at = rank - 1;
-      place(prev, at, free(row, at) ? row : freeRow(row, 1, at));
+      const here = rowOf(key);
+      place(prev, at, free(here, at) ? here : openRow(here, 1, at));
     }
 
     // Branches. One row per direction, however many there are, fanned across
     // it from this work's own rank rightwards - see the header: a sibling two
     // rows down would have its connector drawn through the node between them.
     for (const dir of [-1, 1]) {
+      // Ordered by kind before key, so the fan reads outwards from the closest
+      // relation to the loosest rather than alphabetically: a Director's Cut
+      // of a work sits nearer to it than a side story does.
       const kids = sideways
         .get(key)
         .filter((s) => s.dir === dir && !slots.has(s.other))
-        .map((s) => s.other)
-        .sort();
+        .sort(
+          (a, b) =>
+            kindRank(a.kind) - kindRank(b.kind) || (a.other < b.other ? -1 : 1),
+        )
+        .map((s) => s.other);
       if (!kids.length) continue;
-      const row_ = freeRow(row, dir, rank);
+      let lane = openRow(rowOf(key), dir, rank);
+      let first = null;
       for (const kid of kids) {
         if (slots.has(kid)) continue;
-        place(kid, freeRank(row_, rank), row_);
+        // Read back off a sibling already in the lane, for the same reason
+        // rowOf exists: one kid's own subtree can open a row underneath it.
+        if (first) lane = rowOf(first);
+        place(kid, freeRank(lane, rank), lane);
+        first = first ?? kid;
       }
     }
   }
