@@ -341,6 +341,27 @@ def test_insert_song_may_carry_only_an_episode():
     validate_note_payload(_payload(section="insert_songs", locator="ep 12", content=None))
 
 
+def test_insert_song_carries_a_tracking_status():
+    # The section absorbed the music_track `insert` section, so it tracks a song
+    # the same Need/Pending/Done way OP, ED and OST do.
+    validate_note_payload(
+        _payload(section="insert_songs", locator="ep 12", status="Need", content=None)
+    )
+    with pytest.raises(ValueError, match="not a valid status"):
+        validate_note_payload(
+            _payload(section="insert_songs", locator="ep 12", status="Someday")
+        )
+
+
+def test_insert_song_takes_no_type():
+    # An insert song is whatever cut plays in that episode, so "which version"
+    # has no answer separate from the episode itself.
+    with pytest.raises(ValueError, match="takes no kind"):
+        validate_note_payload(
+            _payload(section="insert_songs", locator="ep 12", kind="normal")
+        )
+
+
 def test_insert_song_without_an_episode_rejected():
     with pytest.raises(ValueError, match="requires a locator"):
         validate_note_payload(
@@ -363,10 +384,19 @@ def test_section_out_exposes_the_insert_song_contract():
     out = section_out(section_by_key("insert_songs"), "anime")
     assert out.shape == "episode_name_links"
     assert out.label == "插入曲 Insert Song"
+    assert out.group == "music"
     assert out.locator_required
     assert out.locator_placeholder == "Episode(s), e.g. ep 3"
+    # One dropdown, not two: the status the frontend renders, and no type.
+    assert out.statuses == ["Need", "Pending", "Done"]
     assert out.kinds == []
+    assert out.default_kind is None
     assert not out.desc_required
+
+
+def test_the_music_track_insert_section_is_no_longer_a_section():
+    with pytest.raises(ValueError, match="Unknown note section"):
+        validate_note_payload(_payload(section="insert", content="anything"))
 
 
 # --- music_track shape ----------------------------------------------------

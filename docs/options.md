@@ -230,10 +230,12 @@ Field: `franchise.franchise_expectation` — Default: `Low`
 
 Field: `note.status` — Default: `null`
 
-The `op`, `ed`, `insert` and `ost` note sections (anime only). These were the
-`anime.op` / `anime.ed` / `anime.insert_ost` columns until revision
+The `op`, `ed`, `insert_songs` and `ost` note sections (anime only). These
+were the `anime.op` / `anime.ed` / `anime.insert_ost` columns until revision
 `m1u2s3i4c5t6` moved them onto note rows, so the status is now per song rather
-than per entry. `note.status` exists for this dropdown alone.
+than per entry. `insert_songs` is `episode_name_links`-shaped rather than
+`music_track`-shaped, but it tracks a song the same way, so it offers the same
+values. `note.status` exists for this dropdown alone.
 
 | Value     | Default |
 | --------- | ------- |
@@ -401,11 +403,15 @@ Anime, TV Show and Cartoon. Which OP/ED a given episode did something unusual wi
 | `特殊OP`  |         | A one-off special OP            |
 | `特殊ED`  |         | A one-off special ED            |
 
-### `op` / `ed` / `insert` / `ost` (音樂 Music)
+### `op` / `ed` / `ost` (音樂 Music)
 
 Anime only. Which cut of a theme song a row is about. The one dropdown with a
 default: a new row starts on `normal`, so the type alone never makes a row
 worth storing — it needs a name, a status, a link or a remark as well.
+
+`insert_songs` deliberately has **no** type: an insert song is whatever cut
+plays in that episode, so "which version" has no answer separate from the
+episode itself.
 
 | Value                   | Default | Notes                                    |
 | ----------------------- | ------- | ---------------------------------------- |

@@ -277,11 +277,13 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 | `seiyuu` | String | Yes      | `"Need"`, `"Done"`, null |
 
 `op`, `ed` and `insert_ost` used to sit here, one Need/Pending/Done value per
-entry. They are now `note` rows in the `op` / `ed` / `insert` / `ost` sections,
-one row per song, with the status on `note.status` — see the `note` table below.
-Revision `m1u2s3i4c5t6` moved the data and dropped the columns; `insert_ost`
-seeded both `insert` and `ost` with the same value, since nothing in the one
-column said which it meant.
+entry. They are now `note` rows in the `op` / `ed` / `insert_songs` / `ost`
+sections, one row per song, with the status on `note.status` — see the `note`
+table below. Revision `m1u2s3i4c5t6` moved the data and dropped the columns;
+`insert_ost` seeded both `insert` and `ost` with the same value, since nothing
+in the one column said which it meant. Revision `i1n2s3e4r5t6` then folded
+`insert` into `insert_songs` and deleted its rows — the `ost` copy of each
+seeded value remains.
 
 #### Sources & Streaming
 
@@ -1230,13 +1232,16 @@ a series, franchise, or collection — the same eleven `owner_type` values.
   `text_links` (content, links, optional locator), `text_or_link` (content
   XOR one link), `episode_text` (locator, content, and kind where declared),
   `name_links` (title, links), and `episode_name_links` (locator, title,
-  content, links). `text_or_link` — used only by
+  content, links, status). `text_or_link` — used only by
   `public_reviews` — reuses the same two columns as `text_links` but rejects a
   row holding both: a public review is either what someone said or a pointer to
   where they said it. `episode_name_links` — used only by `insert_songs` —
-  is the one shape naming all four content columns, because an insert song is
-  a named thing that plays at a place and can be linked to; no existing shape
-  could say all four. `music_track` — used by `op`, `ed`, `insert` and `ost` —
+  is the widest shape, because an insert song is a named thing that plays at a
+  place, can be linked to, and is tracked Need/Pending/Done like any other
+  theme song; no existing shape could say all of it. It carries a status but
+  **no** kind: an insert song is whatever cut plays in that episode, so "which
+  version" has no answer separate from the episode. `music_track` — used by
+  `op`, `ed` and `ost` —
   is one song of a work: `title` (optional), `kind` (the type: `normal` /
   `different version` / `all inclusive version`, prefilled with `normal`),
   `status`, one `links` entry, and `content` as the remark. It is the only
@@ -1270,7 +1275,7 @@ a series, franchise, or collection — the same eleven `owner_type` values.
   | ----- | ----- | -------- |
   | `reviews` | 評論 Reviews and Comments | `advantages`, `disadvantages`, `double_edged`, `public_reviews`, `personal_reviews`, `episode_comments` |
   | `analysis_group` | 解析 Analysis and Cinematography | `analysis`, `cinematography`, `craft`, `foreshadowing`, `symmetry` |
-  | `music` | 音樂 Music | `op`, `ed`, `insert`, `ost`, `op_ed_changes`, `insert_songs` |
+  | `music` | 音樂 Music | `op`, `ed`, `insert_songs`, `ost`, `op_ed_changes` |
   | `quotes_memes` | 名言/梗 Quotes and Memes | `quotes`, `memes` |
 
   A group's card holds only the subsections that apply to the owner: of the
@@ -1282,10 +1287,15 @@ a series, franchise, or collection — the same eleven `owner_type` values.
   section out of the Notes card the same way a group does, but gives it no
   shared card — one header instead of two stacked ones. `resources` and
   `questions` set it. `group` and `standalone` are mutually exclusive.
-- **`insert` and `insert_songs` are different sections on purpose.**
-  `insert_songs` (`episode_name_links`) pins one song to the episode it plays
-  in; `insert` (`music_track`) tracks the insert songs as works, the way `op`
-  and `ed` are tracked, and carries no episode.
+- **`insert_songs` is the only insert-song section.** A `music_track`-shaped
+  `insert` section sat beside it until revision `i1n2s3e4r5t6`, tracking the
+  same songs as a list of works with no episode. Two lists for one thing, and
+  the episode is the useful half — an insert song is identified by where it
+  plays, not by which cut it is. `insert_songs` absorbed it: it gained the
+  status the other music sections carry, kept its required episode, and takes
+  no type. It sits directly after `ed`, in the slot `insert` held. The
+  revision deleted the `insert` rows; nothing unique was lost, since
+  `m1u2s3i4c5t6` had seeded `ost` from the same `anime.insert_ost` column.
 - **`remark` is a section, not a column, on the eleven owner tables.** Each of
   `collection`, `franchise`, `series`, `anime`, `anime_movies`, `movies`,
   `tv_shows`, `cartoons`, `manga`, `novel`, and `comic` exposes `remark` as a

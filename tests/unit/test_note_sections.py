@@ -43,13 +43,12 @@ def test_only_declared_sections_have_kinds():
         "highlights",
         "op",
         "ed",
-        "insert",
         "ost",
         "op_ed_changes",
     ]
 
 
-MUSIC_SECTIONS = ("op", "ed", "insert", "ost")
+MUSIC_SECTIONS = ("op", "ed", "ost")
 
 
 def test_music_sections_are_music_track_shaped_and_anime_only():
@@ -69,9 +68,13 @@ def test_music_sections_offer_both_dropdowns_and_default_to_normal():
         assert sec.default_kind in sec.kinds
 
 
-def test_only_music_track_sections_carry_a_status():
+def test_only_the_music_sections_carry_a_status():
+    # insert_songs tracks a song the same way OP, ED and OST do; its shape is
+    # the only difference. Nothing outside the music group has a status.
     with_status = [s.key for s in ns.NOTE_SECTIONS if s.statuses]
-    assert with_status == list(MUSIC_SECTIONS)
+    assert with_status == ["op", "ed", "insert_songs", "ost"]
+    for key in with_status:
+        assert ns.section_by_key(key).statuses == ns.MUSIC_STATUSES
 
 
 def test_every_group_is_a_known_group():
@@ -125,15 +128,14 @@ def test_no_section_is_both_grouped_and_standalone():
         assert not (sec.group and sec.standalone), f"{sec.key} sets both"
 
 
-def test_the_music_group_holds_the_six_music_sections():
+def test_the_music_group_holds_the_five_music_sections():
     grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "music"]
     assert grouped == [
         "op",
         "ed",
-        "insert",
+        "insert_songs",
         "ost",
         "op_ed_changes",
-        "insert_songs",
     ]
 
 
@@ -203,10 +205,9 @@ def test_anime_sections_in_registry_order():
         "symmetry",
         "op",
         "ed",
-        "insert",
+        "insert_songs",
         "ost",
         "op_ed_changes",
-        "insert_songs",
         "extended_episodes",
         "adaptation",
         "resources",
@@ -379,9 +380,17 @@ def test_questions_records_where_the_question_came_from():
     assert sec.desc_required == ns.ALL_OWNERS
 
 
-def test_insert_songs_sits_directly_below_op_ed_changes():
+def test_insert_songs_sits_directly_below_ed():
+    # It replaced the music_track `insert` section, which sat there, and it is
+    # read as the third theme-song list rather than as an afterthought.
     keys = [s.key for s in ns.NOTE_SECTIONS]
-    assert keys[keys.index("op_ed_changes") + 1] == "insert_songs"
+    assert keys[keys.index("ed") + 1] == "insert_songs"
+
+
+def test_the_music_track_insert_section_is_gone():
+    # Folded into insert_songs: one list, anchored to the episode. Revision
+    # i1n2s3e4r5t6 deleted its rows.
+    assert ns.section_by_key("insert") is None
 
 
 def test_insert_songs_is_anime_only():
@@ -389,14 +398,23 @@ def test_insert_songs_is_anime_only():
 
 
 def test_insert_songs_pins_a_song_to_an_episode():
-    # An insert song is the one section carrying all four content columns: the
-    # episode it plays in, the song's name, what it does there, and where to
-    # hear it. Only the episode is required - a remembered scene often comes
-    # before the title does.
+    # An insert song is the widest section: the episode it plays in, the song's
+    # name, what it does there, where to hear it, and how far tracking it has
+    # got. Only the episode is required - a remembered scene often comes before
+    # the title does.
     sec = ns.section_by_key("insert_songs")
     assert sec.shape == ns.SHAPE_EPISODE_NAME_LINKS
     assert sec.shape in ns.STORED_SHAPES
     assert sec.locator_required
     assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
-    assert sec.kinds == ()
     assert sec.desc_required == ()
+
+
+def test_insert_songs_tracks_status_but_not_type():
+    # It absorbed the music_track `insert` section, so it carries the same
+    # Need/Pending/Done. It takes no type: an insert song is whatever cut plays
+    # in that episode, so "which version" has no answer of its own.
+    sec = ns.section_by_key("insert_songs")
+    assert sec.statuses == ns.MUSIC_STATUSES
+    assert sec.kinds == ()
+    assert sec.default_kind is None

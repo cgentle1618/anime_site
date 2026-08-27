@@ -1,11 +1,15 @@
 // Frontend: renders one `episode_name_links`-shaped section - 插入曲, a song
-// pinned to the episode it plays in. The only shape carrying all four content
-// columns: episode, song name, what the song does there, and where to hear it.
+// pinned to the episode it plays in. The widest shape: episode, song name, what
+// the song does there, where to hear it, and how far tracking it has got.
 // `text_links` has no title and `name_links` has no episode or body, so neither
-// could say all four - hence a shape of its own rather than a flag on one.
+// could say all of it - hence a shape of its own rather than a flag on one.
+//
+// The status is the same Need/Pending/Done OP, ED and OST carry: an insert song
+// is tracked like any other theme song, it just also names an episode. There is
+// no type dropdown - an insert song is whatever cut plays in that episode.
 //
 // Only the episode is required. A song remembered by its scene before its title
-// is still worth a row, so name, description and links all stay optional.
+// is still worth a row, so name, status, description and links stay optional.
 import { useState } from "react";
 
 import {
@@ -18,11 +22,18 @@ import {
   inputCls,
 } from "./ui";
 
-const empty = () => ({ locator: "", title: "", content: "", links: [""] });
+const empty = () => ({
+  locator: "",
+  title: "",
+  status: "",
+  content: "",
+  links: [""],
+});
 
 const fromNote = (n) => ({
   locator: n.locator || "",
   title: n.title || "",
+  status: n.status || "",
   content: n.content || "",
   links: n.links?.length ? n.links : [""],
 });
@@ -31,14 +42,17 @@ const fromNote = (n) => ({
 const toFields = (val) => ({
   locator: val.locator.trim() || null,
   title: val.title.trim() || null,
+  status: val.status || null,
   content: val.content.trim() || null,
   links: (val.links || []).map((l) => l.trim()).filter(Boolean),
 });
 
+const selectCls = inputCls + " bg-white";
+
 function EpisodeNameLinksForm({ val, setVal, section }) {
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <input
           value={val.locator}
           onChange={(e) => setVal({ ...val, locator: e.target.value })}
@@ -49,8 +63,20 @@ function EpisodeNameLinksForm({ val, setVal, section }) {
           value={val.title}
           onChange={(e) => setVal({ ...val, title: e.target.value })}
           placeholder="Song name (optional)"
-          className={inputCls}
+          className={inputCls + " col-span-2"}
         />
+        <select
+          value={val.status}
+          onChange={(e) => setVal({ ...val, status: e.target.value })}
+          className={selectCls}
+        >
+          <option value="">Status</option>
+          {(section.statuses || []).map((st) => (
+            <option key={st} value={st}>
+              {st}
+            </option>
+          ))}
+        </select>
       </div>
       <textarea
         value={val.content}
@@ -131,6 +157,11 @@ export default function EpisodeNameLinksSection({
                   {n.title && (
                     <span className="text-sm font-semibold text-gray-800">
                       {n.title}
+                    </span>
+                  )}
+                  {n.status && (
+                    <span className="text-[11px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                      {n.status}
                     </span>
                   )}
                 </div>

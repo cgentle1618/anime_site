@@ -190,13 +190,14 @@ def validate_note_payload(payload: NoteBase) -> None:
         if not content and not (payload.locator or "").strip():
             raise ValueError(f"Section '{section.key}' note is empty.")
     elif section.shape == SHAPE_EPISODE_NAME_LINKS:
-        # Any one of the four columns carries the row. The episode alone is
-        # enough - and `locator_required` above has already insisted on it -
-        # so an insert song named later is still storable now.
+        # Any one of the columns carries the row. The episode alone is enough -
+        # and `locator_required` above has already insisted on it - so an insert
+        # song named later is still storable now.
         if (
             not content
             and not (payload.locator or "").strip()
             and not (payload.title or "").strip()
+            and not (payload.status or "").strip()
             and not payload.links
         ):
             raise ValueError(f"Section '{section.key}' note is empty.")

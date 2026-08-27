@@ -30,10 +30,14 @@ SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
 SHAPE_TEXT_OR_LINK = "text_or_link"  # content or links[0], never both
 SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared
 SHAPE_NAME_LINKS = "name_links"  # title, links
-# The only shape using all four content columns: the episode a song plays in,
-# its name, what it does there, and where to hear it. text_links has no title
-# and name_links has no episode or body, so neither can say all four.
-SHAPE_EPISODE_NAME_LINKS = "episode_name_links"  # episode, title, content, links
+# The widest shape: the episode a song plays in, its name, what it does there,
+# where to hear it, and how far tracking it has got. text_links has no title and
+# name_links has no episode or body, so neither can say all of it. The status is
+# the same Need/Pending/Done the music_track sections use - an insert song is
+# tracked like an OP, it just also has an episode.
+SHAPE_EPISODE_NAME_LINKS = (
+    "episode_name_links"  # episode, title, content, links, status
+)
 # One theme song of a work: its name, which cut it is, how far tracking it has
 # got, where to hear it, and a remark. The only shape with two dropdowns - the
 # type is a property of the song, the status is a property of my work on it -
@@ -119,8 +123,8 @@ class NoteSection:
     kinds: tuple[str, ...] = ()
     # Which kind a new row starts on. None starts blank.
     default_kind: str | None = None
-    # Allowed values for note.status - the second dropdown, used by music_track
-    # alone. Empty means the section has no status field.
+    # Allowed values for note.status - how far tracking has got. Used by the
+    # music_track sections and by insert_songs. Empty means no status field.
     statuses: tuple[str, ...] = ()
     # Per-owner kind overrides; `kinds` is the fallback. A section may offer a
     # dropdown to some owners and none to others - manga highlights are always
@@ -145,12 +149,13 @@ class NoteSection:
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
 
-# Which cut of a theme song a row is about. Shared by the four music_track
+# Which cut of a theme song a row is about. Shared by the three music_track
 # sections so OP and ED cannot drift apart.
 MUSIC_TYPES = ("normal", "different version", "all inclusive version")
 
 # How far I have got with a song: the same three values the anime.op / ed /
-# insert_ost columns held before they became note rows.
+# insert_ost columns held before they became note rows. Every music section
+# offers it, insert_songs included - it is the one thing they all track.
 MUSIC_STATUSES = ("Need", "Pending", "Done")
 
 # A standout episode, a standout moment inside one, and a standout arc across
@@ -296,12 +301,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="analysis_group",
     ),
     # --- 音樂 Music -------------------------------------------------------
-    # The four sections below plus op_ed_changes and insert_songs form the
-    # music group, and the page renders that run inside one card. They stay
-    # separate registry entries rather than one section with an OP/ED/insert/
-    # OST dropdown: a work has its own list of OP rows, and folding four lists
-    # into one would make "which OPs do I still need?" a filter rather than a
-    # section.
+    # The five sections below form the music group, and the page renders that
+    # run inside one card. They stay separate registry entries rather than one
+    # section with an OP/ED/OST dropdown: a work has its own list of OP rows,
+    # and folding the lists into one would make "which OPs do I still need?" a
+    # filter rather than a section.
     NoteSection(
         key="op",
         shape=SHAPE_MUSIC_TRACK,
@@ -322,18 +326,22 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         default_kind="normal",
         statuses=MUSIC_STATUSES,
     ),
-    # Distinct from `insert_songs` below, which pins one song to the episode it
-    # plays in. This one tracks the insert songs as a list of works, the way OP
-    # and ED are tracked, and carries no episode.
     NoteSection(
-        key="insert",
-        shape=SHAPE_MUSIC_TRACK,
-        label="Insert",
+        key="insert_songs",
+        # An insert song with no episode is just a song: where it plays is what
+        # makes it a note. Everything else is optional - a remembered scene
+        # often comes before the title does.
+        locator_required=True,
+        shape=SHAPE_EPISODE_NAME_LINKS,
+        label="插入曲 Insert Song",
         owners=("anime",),
         group="music",
-        kinds=MUSIC_TYPES,
-        default_kind="normal",
+        # The only tracking dropdown this section needs, and the same one OP,
+        # ED and OST offer. There is no type: an insert song is whatever cut
+        # plays in that episode, so "which version" has no answer separate from
+        # the episode itself.
         statuses=MUSIC_STATUSES,
+        locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
         key="ost",
@@ -353,18 +361,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("anime", "tv-show", "cartoon"),
         group="music",
         kinds=OP_ED_KINDS,
-        locator_placeholder="Episode(s), e.g. ep 3",
-    ),
-    NoteSection(
-        key="insert_songs",
-        # An insert song with no episode is just a song: where it plays is what
-        # makes it a note. The other three are optional - a remembered scene
-        # often comes before the title does.
-        locator_required=True,
-        shape=SHAPE_EPISODE_NAME_LINKS,
-        label="插入曲 Insert Song",
-        owners=("anime",),
-        group="music",
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
