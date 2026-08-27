@@ -23,6 +23,12 @@ import EdgeInspector from "./EdgeInspector";
 import NodePanel from "./NodePanel";
 import { layoutGraph, mergePositions } from "../../lib/relationLayout";
 import {
+  describeEntry,
+  restoringKind,
+  storedTupleFromEdge,
+  undoRequest,
+} from "../../lib/relationUndo";
+import {
   familyGroup,
   handleGroup,
   MIDDLE,
@@ -168,6 +174,11 @@ function GraphCanvas({
   const [pending, setPending] = useState(null); // {source, target, position}
   const [connectError, setConnectError] = useState(null);
   const [writing, setWriting] = useState(false);
+  // The session's writes, newest last, each holding the one request that
+  // reverses it. Deliberately survives a scope switch - a relation belongs to
+  // no tier, so the row undo would act on is often not the canvas you are
+  // looking at - and deliberately dies with the page.
+  const [history, setHistory] = useState([]);
   // Bumped every time a drag is dropped, so a second drag that re-points the
   // still-mounted popup at a new pair forces React to remount ConnectPopup
   // instead of reusing its internal kind/remark/swapped/query/picked state.
@@ -337,9 +348,66 @@ function GraphCanvas({
     [nodeByKey, readOnly],
   );
 
+  // A read-only canvas never writes, so it never records; guarding here keeps
+  // every call site from having to remember that.
+  function push(entry) {
+    if (readOnly) return;
+    setHistory((stack) => [...stack, entry]);
+  }
+
+  const lastEntry = history[history.length - 1] || null;
+
+  /**
+   * Reverse the newest write.
+   *
+   * The entry is dropped whatever the outcome. A failure here means the row
+   * moved on beneath us - someone else deleted it, or the reverse would now
+   * duplicate an existing relation - and neither gets better on a retry, so
+   * leaving it on the stack would only let the button promise something it
+   * cannot do.
+   */
+  async function undoLast() {
+    if (writing || !lastEntry) return;
+    const request = undoRequest(lastEntry);
+    setHistory((stack) => stack.slice(0, -1));
+    setWriting(true);
+    try {
+      const url =
+        request.method === "DELETE"
+          ? endpoints.mediaRelation.remove(request.id)
+          : request.method === "PATCH"
+            ? endpoints.mediaRelation.patch(request.id)
+            : endpoints.mediaRelation.create();
+      const res = await fetch(url, {
+        method: request.method,
+        credentials: "include",
+        ...(request.body
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(request.body),
+            }
+          : {}),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        onError?.(data?.detail || res.statusText);
+        return;
+      }
+      // The edge the inspector was showing may be the one just reversed, and
+      // a panel describing a row that no longer exists is worse than none.
+      setSelectedEdgeId(null);
+      onWrote?.();
+      refetch();
+    } catch (e) {
+      onError?.(e?.message || "Could not reach the server.");
+    } finally {
+      setWriting(false);
+    }
+  }
+
   // A 409 (duplicate or self-relation) leaves the popup open with the message:
   // closing it back to the canvas would lose the kind and remark just typed.
-  async function createRelation({ kind, from, to, remark }) {
+  async function createRelation({ kind, from, to, remark, label, fromName, toName }) {
     // Two Enter presses in the same tick, before writing/disabling the
     // button re-renders, would otherwise fire two POSTs.
     if (writing) return;
@@ -365,6 +433,18 @@ function GraphCanvas({
         const data = await res.json().catch(() => null);
         setConnectError(data?.detail || res.statusText);
         return;
+      }
+      // The response carries the new system_id, which is the only handle undo
+      // has on a row it just made.
+      const created = await res.json().catch(() => null);
+      if (created) {
+        push({
+          action: "create",
+          created,
+          label: label || kind,
+          sourceName: fromName || "an entry",
+          targetName: toName || "an entry",
+        });
       }
       setPending(null);
       onWrote?.();
@@ -471,6 +551,9 @@ function GraphCanvas({
   // remark box back to the saved text when it was not.
   async function patchRelation(body) {
     if (writing || !selectedEdge) return false;
+    // Read before the write: once it lands, the row that was there is gone.
+    const before = storedTupleFromEdge(selectedEdge);
+    const { sourceName, targetName, label } = selectedEdge;
     setWriting(true);
     try {
       const res = await fetch(
@@ -486,6 +569,20 @@ function GraphCanvas({
         const data = await res.json().catch(() => null);
         onError?.(data?.detail || res.statusText);
         return false;
+      }
+      // The updated row comes back, so the restoring kind is settled here
+      // rather than left to depend on whatever is on canvas at undo time.
+      const after = await res.json().catch(() => null);
+      if (after) {
+        push({
+          action: "edit",
+          id: after.system_id,
+          kind: restoringKind(before, after, kinds),
+          before,
+          label,
+          sourceName,
+          targetName,
+        });
       }
       onWrote?.();
       refetch();
@@ -506,6 +603,9 @@ function GraphCanvas({
       )
     )
       return;
+    // Everything undo needs to post the row back, read while it still exists.
+    const before = storedTupleFromEdge(selectedEdge);
+    const { sourceName, targetName, label } = selectedEdge;
     setWriting(true);
     try {
       const res = await fetch(
@@ -516,6 +616,7 @@ function GraphCanvas({
         onError?.(res.statusText);
         return;
       }
+      push({ action: "delete", before, label, sourceName, targetName });
       setSelectedEdgeId(null);
       onWrote?.();
       refetch();
@@ -575,6 +676,27 @@ function GraphCanvas({
           placeholder="Highlight an entry…"
           className="flex-1 min-w-[12rem] rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
         />
+        {readOnly ? null : (
+          <button
+            type="button"
+            onClick={undoLast}
+            disabled={!lastEntry || writing}
+            // Spelt out rather than "Undo last change": the stack outlives a
+            // scope switch, so the row being reversed is not always one the
+            // current canvas shows.
+            title={describeEntry(lastEntry)}
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <i className="fas fa-rotate-left"></i>
+            Undo
+            {history.length > 1 ? (
+              <span className="rounded-full bg-gray-200 px-1.5 text-[9px] text-gray-600">
+                {history.length}
+              </span>
+            ) : null}
+          </button>
+        )}
+
         {Object.keys(FAMILY_LABELS).map((family) => {
           const on = !hiddenFamilies.has(family);
           return (
