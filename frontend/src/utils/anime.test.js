@@ -1,23 +1,20 @@
-// Frontend: unit test file for anime.test.
+// Frontend: unit tests for the pure media helpers.
 /**
- * Unit tests for src/utils/anime.js
- *
- * Tests all pure utility functions. No network calls or DB required.
+ * These used to live in src/utils/anime.js. That module was split across lib/
+ * in 407a510 and the barrel src/utils/media.js now re-exports the pieces, so
+ * the imports below name the specific modules the barrel points at rather than
+ * the barrel itself. No network calls or DB required.
  */
 
 import { describe, it, expect } from "vitest";
+import { FALLBACK_SVG, getCoverUrl } from "../lib/covers";
+import { getDisplayName, getSortName } from "../lib/naming";
 import {
-  getCoverUrl,
-  getDisplayName,
-  getSortName,
-  isBaha,
   getStatusButtonConfig,
   getStatusStyle,
   getNextStatus,
-  getReleaseFallback,
-  getRatingWeight,
-  FALLBACK_SVG,
-} from "./anime.js";
+} from "../lib/status";
+import { isBaha, getReleaseFallback, getRatingWeight } from "../lib/formatters";
 
 // ---------------------------------------------------------------------------
 // getCoverUrl
