@@ -14,6 +14,7 @@ import {
   getReadingButtonConfig,
   getReleaseFallback,
   formatLength,
+  parseTypes,
   MEDIA_CONFIG,
 } from "../../utils/media";
 
@@ -147,6 +148,19 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
       {(type === "manga" || type === "novel") && data.region && (
         <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
           {data.region}
+        </div>
+      )}
+      {type === "comic" && data.is_main_entry && (
+        <div
+          className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-amber-400/90 text-amber-950 backdrop-blur-sm shadow-sm z-10 border border-white/30"
+          title="On the main line"
+        >
+          <i className="fas fa-star text-[8px]"></i>
+        </div>
+      )}
+      {type === "comic" && data.comic_type && (
+        <div className="absolute bottom-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+          {data.comic_type}
         </div>
       )}
       {bahaFlag && (
@@ -306,6 +320,52 @@ function LibraryMeta({ type, data }) {
     );
   }
 
+  if (type === "comic") {
+    // events is a comma-joined multi-select sharing franchise_type's idiom;
+    // show the first and count the rest.
+    const events = parseTypes(data.events);
+    return (
+      <div className="text-[10px] text-gray-500 font-medium mb-1 flex flex-col gap-0.5 min-w-0">
+        {data.comic_name_cn && (
+          <span className="truncate text-gray-400" title={data.comic_name_cn}>
+            {data.comic_name_cn}
+          </span>
+        )}
+        <div className="flex items-center justify-between gap-1">
+          {data.volume_label && (
+            <span className="shrink-0 font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+              {data.volume_label}
+            </span>
+          )}
+          <span className="truncate">
+            {data.release_year || "?"}
+            {data.end_year && data.end_year !== data.release_year
+              ? ` – ${data.end_year}`
+              : ""}
+          </span>
+        </div>
+        {data.era && (
+          <span className="self-start shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-red-50 text-red-700 border border-red-100">
+            {data.era}
+          </span>
+        )}
+        {events.length > 0 && (
+          <div
+            className="flex items-center gap-1 min-w-0"
+            title={events.join(", ")}
+          >
+            <span className="truncate">{events[0]}</span>
+            {events.length > 1 && (
+              <span className="shrink-0 text-gray-400">
+                +{events.length - 1}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -427,6 +487,19 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     );
   }
 
+  if (type === "comic") {
+    const issFin = data.issue_fin ?? 0;
+    const issTotal = data.issue_total != null ? data.issue_total : "?";
+    return (
+      <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
+        {issFin} <span className="text-gray-400">/</span> {issTotal}
+        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+          ISS
+        </span>
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -490,7 +563,14 @@ function FutureMeta({ type, data }) {
 // Types whose bolt action also offers to move the watching status along.
 const BOLT_PROMPTS_WATCHING = new Set(["anime", "tv-show", "cartoon"]);
 
-const HAS_PROGRESS = new Set(["anime", "tv-show", "cartoon", "manga", "novel"]);
+const HAS_PROGRESS = new Set([
+  "anime",
+  "tv-show",
+  "cartoon",
+  "manga",
+  "novel",
+  "comic",
+]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
 
 export default function MediaCard({
