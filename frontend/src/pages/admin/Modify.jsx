@@ -2321,8 +2321,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2408,8 +2408,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2595,8 +2595,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2669,8 +2669,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2740,8 +2740,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2811,8 +2811,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2882,8 +2882,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
