@@ -190,6 +190,22 @@ def execute_pull_specific(
         raw_header_dict = parse_row_to_dict(headers, row)
         clean_header_dict = parser(raw_header_dict)
 
+        # Keep only the columns the sheet header actually carried. Every parser
+        # emits its full key set regardless of the incoming header, so a tab
+        # whose header row predates a migration would otherwise arrive as
+        # {"new_col": None} and the setattr loop below would null a perfectly
+        # good DB value on every Pull. parse_row_to_dict builds raw_header_dict
+        # purely from the header row, so membership in it is an exact "was this
+        # column in the sheet?" test.
+        #
+        # A blank cell is deliberately NOT filtered: the column is present, it
+        # parses to None, and that still means "clear this value".
+        clean_header_dict = {
+            key: value
+            for key, value in clean_header_dict.items()
+            if key in raw_header_dict
+        }
+
         # Resolve String Foreign Keys -> Actual UUIDs
         # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
         if tab_name == "TV Shows" and "franchise_id" in clean_header_dict:
@@ -600,39 +616,6 @@ def execute_pull_specific(
                 clean_header_dict.pop(pk_field, None)
                 pk_value = None
 
-        # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors)
-        if tab_name == "Anime":
-            if clean_header_dict.get("watching_status") is None:
-                clean_header_dict["watching_status"] = "Haven't Started"
-            if clean_header_dict.get("airing_status") is None:
-                clean_header_dict["airing_status"] = ""
-            if clean_header_dict.get("airing_type") is None:
-                clean_header_dict["airing_type"] = ""
-        elif tab_name in ("Movies", "Anime Movies", "TV Shows", "Cartoons"):
-            if clean_header_dict.get("watching_status") is None:
-                clean_header_dict["watching_status"] = "Might Watch"
-            if clean_header_dict.get("created_at") is None:
-                clean_header_dict["created_at"] = get_taipei_now()
-            if clean_header_dict.get("updated_at") is None:
-                clean_header_dict["updated_at"] = get_taipei_now()
-        elif tab_name == "Manga":
-            if clean_header_dict.get("reading_status") is None:
-                clean_header_dict["reading_status"] = "Might Read"
-            if clean_header_dict.get("created_at") is None:
-                clean_header_dict["created_at"] = get_taipei_now()
-            if clean_header_dict.get("updated_at") is None:
-                clean_header_dict["updated_at"] = get_taipei_now()
-        elif tab_name in ("Collection", "Franchise", "Series"):
-            # The sheet's tier tabs may not yet carry every model column (e.g.
-            # a Series tab pulled before the first Backup widens it with the
-            # new columns), so created_at/updated_at can come back NULL. Both
-            # are non-nullable on these models, so they need the same
-            # sanitizing the entry tabs already get above.
-            if clean_header_dict.get("created_at") is None:
-                clean_header_dict["created_at"] = get_taipei_now()
-            if clean_header_dict.get("updated_at") is None:
-                clean_header_dict["updated_at"] = get_taipei_now()
-
         # A remark note is a singleton per owner - ix_note_one_remark_per_owner
         # forbids a second row - so a blind INSERT is fatal to the WHOLE tab:
         # the IntegrityError surfaces at db.commit() below, which rolls back
@@ -660,24 +643,58 @@ def execute_pull_specific(
                     clean_header_dict.pop(pk_field, None)
                     pk_value = local_remark.system_id
 
-        # UPSERT LOGIC
+        # Resolve the target row BEFORE sanitizing. The defaults below exist to
+        # make an INSERT valid, so applying them to an UPDATE would overwrite a
+        # good DB value with a default every time the sheet omits that column -
+        # the same silent wipe the header filter above prevents for every other
+        # column. A missing PK, or a PK with no local row, means INSERT.
+        existing = None
         if pk_value:
             existing = (
                 db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
             )
 
-            if existing:
-                # Update existing record
-                for key, value in clean_header_dict.items():
-                    setattr(existing, key, value)
-                rows_updated += 1
-            else:
-                # Create new record (UUID provided but record missing locally)
-                new_record = Model(**clean_header_dict)
-                db.add(new_record)
-                rows_added += 1
+        # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors).
+        # INSERT-only: an UPDATE keeps whatever the row already holds.
+        if existing is None:
+            if tab_name == "Anime":
+                if clean_header_dict.get("watching_status") is None:
+                    clean_header_dict["watching_status"] = "Haven't Started"
+                if clean_header_dict.get("airing_status") is None:
+                    clean_header_dict["airing_status"] = ""
+                if clean_header_dict.get("airing_type") is None:
+                    clean_header_dict["airing_type"] = ""
+            elif tab_name in ("Movies", "Anime Movies", "TV Shows", "Cartoons"):
+                if clean_header_dict.get("watching_status") is None:
+                    clean_header_dict["watching_status"] = "Might Watch"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name == "Manga":
+                if clean_header_dict.get("reading_status") is None:
+                    clean_header_dict["reading_status"] = "Might Read"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name in ("Collection", "Franchise", "Series"):
+                # created_at/updated_at are non-nullable on these models, so a
+                # tier tab that never carried them still needs a stamp to
+                # insert at all.
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+
+        # UPSERT LOGIC
+        if existing is not None:
+            # Update existing record
+            for key, value in clean_header_dict.items():
+                setattr(existing, key, value)
+            rows_updated += 1
         else:
-            # Create new record (UUID missing, let DB generate it)
+            # Create new record (PK missing, or provided but absent locally)
             new_record = Model(**clean_header_dict)
             db.add(new_record)
             rows_added += 1

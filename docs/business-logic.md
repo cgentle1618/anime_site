@@ -371,7 +371,11 @@ Pulls all tabs in strict dependency order: **System Options → System Configs �
 
 **Collection FK resolution differs deliberately.** Like `franchise_id`/`series_id`, a `collection_id` cell may hold either a UUID or a collection *name*. But where an unresolvable franchise or series name causes the whole row to be **skipped**, an unresolvable collection name only sets `collection_id = NULL` and logs a warning — the franchise still imports. Collection is an optional tier, so an unknown umbrella name must never drop an otherwise valid franchise.
 
-**Inert-pull safeguard.** `parse_franchise_from_sheet` emits the `collection_id` key *only* when the incoming sheet row actually has that column. Emitting it unconditionally would set `collection_id = None` on every franchise whenever someone pulls a Franchise tab whose header row predates the Collection tier — a silent wipe.
+**Inert-pull safeguard (now general).** Parsers emit their full key set regardless of the incoming header, so a tab whose header row predates a migration used to arrive as `{"new_col": None}` and null a good DB value on every Pull. `execute_pull_specific` now filters the parsed dict down to the columns the sheet header actually carried (`key in raw_header_dict`) before anything else touches it, so an absent column is left alone on all tabs.
+
+A **blank cell is not** an absent column: the column is present, parses to `None`, survives the filter, and still means "clear this value". Only a missing *header* is ignored.
+
+`parse_franchise_from_sheet` (`collection_id`) and `parse_collection_from_sheet` (`no_built_in_orders`) keep their hand-written `if "col" in raw:` guards. They are now redundant with the central filter but harmless, and they keep the parsers correct for any caller outside the Pull pipeline.
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
@@ -383,9 +387,11 @@ Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`,
 2. For each data row:
    - Map row to dict via `parse_row_to_dict(headers, row)`.
    - Apply tab-specific parser to get typed dict.
+   - **Drop keys the sheet header did not have** (see the inert-pull safeguard above).
    - Resolve string foreign keys: if `franchise_id` or `series_id` is a string name (not a valid UUID), look up by name fields in DB. Skip row if not found.
    - **Smart PK logic**: if `pk_value` is empty, search by name fields to find an existing record (prevents duplicates on re-import).
-   - For Anime: sanitize `watching_status`, `airing_status`, `airing_type` (apply defaults if null).
+   - Look up the target row by PK to decide UPDATE vs INSERT.
+   - **INSERT only**, sanitize the non-nullable columns (Anime `watching_status`/`airing_status`/`airing_type`, the `Might Watch`/`Might Read` statuses, `created_at`/`updated_at`). These defaults exist to make an INSERT valid; applying them on UPDATE would overwrite a good DB value with a default whenever the sheet omits the column.
    - Update existing record if found; otherwise create new.
    - Flush every 50 rows so the DB generates new UUIDs.
 3. Commit batch. Reset `system_options` sequence after import.
