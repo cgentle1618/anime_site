@@ -111,6 +111,19 @@ NOVEL_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# Only the fields Comic Vine actually returns for a volume. imprint, continuity,
+# era, events, end_year and publisher_tw are deliberately excluded: Comic Vine
+# models none of them, so listing them here would leave every entry permanently
+# "needs filling" and re-request it on every run.
+COMIC_FIELDS_TO_FILL = [
+    "publisher",
+    "writer",
+    "artist",
+    "release_year",
+    "issue_total",
+    "cover_image_file",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================

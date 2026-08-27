@@ -364,10 +364,18 @@ exec uvicorn app.main:app \
 ```
 docker-compose up -d       # PostgreSQL on port 5432
 cd frontend && npm run dev  # Vite dev server on port 5173 (proxies /api → :8000)
-uvicorn app.main:app --reload   # FastAPI on port 8000
+uvicorn app.main:app --reload --reload-dir app   # FastAPI on port 8000
 ```
 
 `docker-compose.yml` defines a single `postgres:15` service with a named volume (`postgres_anime_data`). The FastAPI server runs outside Docker locally.
+
+`--reload-dir app` scopes the watcher to the package the server actually
+imports. Bare `--reload` watches every `*.py` under the working directory, so
+editing a test or a migration restarts the app for nothing - and the restart is
+not free: the next request waits on re-import, a fresh Postgres connection and
+the admin-verification startup hook. On Windows the reloader stops its child
+with a `KeyboardInterrupt`, so a shutdown prints a `multiprocessing` traceback
+after "Application shutdown complete" - noise, not a failure.
 
 ---
 

@@ -25,6 +25,17 @@ export function getDisplayName(item, type) {
       "Unknown Series"
     );
   }
+  // EN first, matching Comic.display_name on the backend and NAMING_CONFIGS:
+  // Western comics are known by their English titles. Every other type here
+  // leads with CN.
+  if (type === "comic") {
+    return (
+      item.comic_name_en ||
+      item.comic_name_cn ||
+      item.comic_name_alt ||
+      "Unknown Title"
+    );
+  }
   return (
     item[`${prefix}_name_cn`] ||
     item[`${prefix}_name_en`] ||

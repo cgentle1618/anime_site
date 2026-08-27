@@ -189,7 +189,11 @@ def _node_key(media_type: str, entry_id: UUID) -> str:
     return f"{media_type}:{entry_id}"
 
 
-def graph_for_scope(db: Session, franchise_ids: List[UUID]) -> Dict[str, Any]:
+def graph_for_scope(
+    db: Session,
+    franchise_ids: List[UUID],
+    series_ids: Optional[List[UUID]] = None,
+) -> Dict[str, Any]:
     """
     Every node and edge one relations canvas draws.
 
@@ -201,8 +205,13 @@ def graph_for_scope(db: Session, franchise_ids: List[UUID]) -> Dict[str, Any]:
     cross-franchise link is visible as structure rather than hidden behind a
     count. They are resolved in one batch, so a heavily linked franchise never
     degrades into an N+1.
+
+    `series_ids` narrows the node set to the middle tier, which is what the
+    series hub's read-only graph draws. Scoping that tightly makes ghosts the
+    normal case rather than the exception: a sibling series in the same
+    franchise is out of scope, so a link into it arrives as a ghost node.
     """
-    candidates = list_candidate_entries(db, franchise_ids)
+    candidates = list_candidate_entries(db, franchise_ids, series_ids=series_ids)
 
     nodes: List[Dict[str, Any]] = []
     in_scope: set = set()

@@ -7,6 +7,7 @@ import { getRatingWeight } from "../../utils/media";
 import { getSortName } from "../../lib/naming";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
+import ComicDashboardCard from "../../components/tracker/ComicDashboardCard";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
@@ -25,6 +26,24 @@ const RATING_WEIGHT = {
   F: 7,
   Unrated: 8,
 };
+
+// The Reading section mixes three media types, each keeping its title under a
+// different prefix. Kept here rather than delegated to getSortName because
+// manga's fallback order puts jp ahead of cn, which getSortName reverses.
+function readingSortName(item) {
+  if (item._ui_type === "Novel")
+    return item.novel_name_en || item.novel_name_roman || item.novel_name_cn || "";
+  if (item._ui_type === "Comic")
+    return item.comic_name_en || item.comic_name_cn || item.comic_name_alt || "";
+  return (
+    item.manga_name_en ||
+    item.manga_name_roman ||
+    item.manga_name_jp ||
+    item.manga_name_cn ||
+    item.manga_name_alt ||
+    ""
+  );
+}
 
 const TOC_ITEMS = [
   { id: "announcements", label: "Announcements", icon: "fa-bullhorn", level: 1 },
@@ -186,8 +205,9 @@ function ReadingSection({
   isAdmin,
   onChChange,
   onNovelProgressChange,
+  onComicProgressChange,
 }) {
-  const typeIcons = { Manga: "fa-book", Novel: "fa-scroll" };
+  const typeIcons = { Manga: "fa-book", Novel: "fa-scroll", Comic: "fa-book-open" };
 
   return (
     <div id={id}>
@@ -210,7 +230,7 @@ function ReadingSection({
         </div>
       ) : (
         <div className="pt-4 space-y-6">
-          {["Manga", "Novel"].map((type) => {
+          {["Manga", "Novel", "Comic"].map((type) => {
             const typeItems = items.filter((i) => i._ui_type === type);
             if (!typeItems.length) return null;
             const sorted = [...typeItems].sort((a, b) => {
@@ -218,23 +238,7 @@ function ReadingSection({
                 (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
                 (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
               if (ratingDiff !== 0) return ratingDiff;
-              const nameA =
-                (type === "Novel"
-                  ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
-                  : a.manga_name_en ||
-                    a.manga_name_roman ||
-                    a.manga_name_jp ||
-                    a.manga_name_cn ||
-                    a.manga_name_alt) || "";
-              const nameB =
-                (type === "Novel"
-                  ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
-                  : b.manga_name_en ||
-                    b.manga_name_roman ||
-                    b.manga_name_jp ||
-                    b.manga_name_cn ||
-                    b.manga_name_alt) || "";
-              return nameA.localeCompare(nameB);
+              return readingSortName(a).localeCompare(readingSortName(b));
             });
             return (
               <div key={type} className="space-y-6">
@@ -251,7 +255,17 @@ function ReadingSection({
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {sorted.map((item) =>
-                    item._ui_type === "Novel" ? (
+                    item._ui_type === "Comic" ? (
+                      <ComicDashboardCard
+                        key={item.system_id}
+                        comic={item}
+                        franchise={franchiseData.find(
+                          (f) => f.system_id === item.franchise_id,
+                        )}
+                        isAdmin={isAdmin}
+                        onProgressChange={onComicProgressChange}
+                      />
+                    ) : item._ui_type === "Novel" ? (
                       <NovelDashboardCard
                         key={item.system_id}
                         novel={item}
@@ -295,6 +309,7 @@ export default function Index() {
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const comicQuery = useMediaList("comic", LIST_OPTIONS);
   // Announcements are intentionally kept out of the combined loading/error state
   // below — a failed board must never block the rest of the dashboard.
   const announcementQuery = useApiQuery(
@@ -308,13 +323,15 @@ export default function Index() {
   const cartoonData = cartoonQuery.data || [];
   const mangaData = mangaQuery.data || [];
   const novelData = novelQuery.data || [];
+  const comicData = comicQuery.data || [];
   const loading =
     animeQuery.isLoading ||
     franchiseQuery.isLoading ||
     tvQuery.isLoading ||
     cartoonQuery.isLoading ||
     mangaQuery.isLoading ||
-    novelQuery.isLoading;
+    novelQuery.isLoading ||
+    comicQuery.isLoading;
   const error =
     animeQuery.error?.message ||
     franchiseQuery.error?.message ||
@@ -322,6 +339,7 @@ export default function Index() {
     cartoonQuery.error?.message ||
     mangaQuery.error?.message ||
     novelQuery.error?.message ||
+    comicQuery.error?.message ||
     null;
   const [activeSection, setActiveSection] = useState("announcements");
 
@@ -500,11 +518,37 @@ export default function Index() {
     }
   }
 
+  async function handleComicProgressChange(
+    sysId,
+    fieldUpdates,
+    prevFieldUpdates,
+  ) {
+    updateCachedList("comic", (c) =>
+      c.system_id === sysId ? { ...c, ...fieldUpdates } : c,
+    );
+    try {
+      const res = await fetch(`/api/comic/${sysId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fieldUpdates),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to sync");
+      showToast("success", "Progress updated!");
+    } catch {
+      updateCachedList("comic", (c) =>
+        c.system_id === sysId ? { ...c, ...prevFieldUpdates } : c,
+      );
+      showToast("error", "Network error. Progress reverted.");
+    }
+  }
+
   const animeTagged = animeData.map((a) => ({ ...a, _ui_type: "Anime" }));
   const tvTagged = tvData.map((t) => ({ ...t, _ui_type: "TV Show" }));
   const cartoonTagged = cartoonData.map((c) => ({ ...c, _ui_type: "Cartoon" }));
   const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
   const novelTagged = novelData.map((n) => ({ ...n, _ui_type: "Novel" }));
+  const comicTagged = comicData.map((c) => ({ ...c, _ui_type: "Comic" }));
 
   // Weekly schedule sources. `_media_type` is a MEDIA_CONFIG key, which the
   // schedule uses for display names and detail links. Append other media types
@@ -546,29 +590,15 @@ export default function Index() {
   );
   const paused = sorted.filter((a) => a.watching_status === "Paused");
 
-  const readingSorted = [...mangaTagged, ...novelTagged].sort((a, b) => {
-    const ratingDiff =
-      (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
-      (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
-    if (ratingDiff !== 0) return ratingDiff;
-    const nameA =
-      (a._ui_type === "Novel"
-        ? a.novel_name_en || a.novel_name_roman || a.novel_name_cn
-        : a.manga_name_en ||
-          a.manga_name_roman ||
-          a.manga_name_jp ||
-          a.manga_name_cn ||
-          a.manga_name_alt) || "";
-    const nameB =
-      (b._ui_type === "Novel"
-        ? b.novel_name_en || b.novel_name_roman || b.novel_name_cn
-        : b.manga_name_en ||
-          b.manga_name_roman ||
-          b.manga_name_jp ||
-          b.manga_name_cn ||
-          b.manga_name_alt) || "";
-    return nameA.localeCompare(nameB);
-  });
+  const readingSorted = [...mangaTagged, ...novelTagged, ...comicTagged].sort(
+    (a, b) => {
+      const ratingDiff =
+        (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
+        (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
+      if (ratingDiff !== 0) return ratingDiff;
+      return readingSortName(a).localeCompare(readingSortName(b));
+    },
+  );
   const activeReading = readingSorted.filter(
     (m) => m.reading_status === "Active Reading",
   );
@@ -737,6 +767,7 @@ export default function Index() {
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
+                onComicProgressChange={handleComicProgressChange}
               />
               <ReadingSection
                 id="reading-passive"
@@ -748,6 +779,7 @@ export default function Index() {
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
+                onComicProgressChange={handleComicProgressChange}
               />
               <ReadingSection
                 id="reading-paused"
@@ -759,6 +791,7 @@ export default function Index() {
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
+                onComicProgressChange={handleComicProgressChange}
               />
             </div>
           </div>

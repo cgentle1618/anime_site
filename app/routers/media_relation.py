@@ -59,7 +59,7 @@ def _get_relation_or_404(db: Session, system_id: str) -> models.MediaRelation:
 
 def _validate_kind(value: str) -> None:
     """
-    Rejects a kind outside the nine the dropdown offers.
+    Rejects a kind outside the ten the dropdown offers.
 
     Refused rather than coerced: unlike a blank importance cell from Sheets,
     a bad kind from the editor is a bug worth surfacing.
@@ -132,7 +132,7 @@ def get_relation_kinds():
     """
     The vocabulary, so the admin dropdown has exactly one source of truth.
 
-    Returns the eight stored kinds plus `prequel`, which the create endpoint
+    Returns the nine stored kinds plus `prequel`, which the create endpoint
     accepts and records as a swapped `sequel` row.
     """
     payload = [
@@ -250,20 +250,33 @@ def list_relations_in_scope(
 def get_relation_graph(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
-    Everything the relations canvas draws for one franchise or collection.
+    Everything the relations canvas draws for one group, at any of the three
+    tiers.
 
     One request rather than two, because "which nodes does this canvas contain"
     is a single question whose answer needs the cross-table resolver - the page
     would otherwise have to synthesize the ghost set by diffing two lists.
+
+    A series scope resolves against series_id directly rather than widening to
+    the parent franchise, so the graph holds that series alone. Note anime_movie
+    carries no series_id, so an anime movie can only ever appear on a series
+    graph as a ghost.
     """
-    if bool(franchise_id) == bool(collection_id):
+    scopes = [franchise_id, collection_id, series_id]
+    if sum(1 for value in scopes if value) != 1:
         raise HTTPException(
             status_code=400,
-            detail="Provide exactly one of franchise_id or collection_id.",
+            detail=(
+                "Provide exactly one of franchise_id, collection_id or series_id."
+            ),
         )
+
+    if series_id:
+        return graph_for_scope(db, [], series_ids=[series_id])
 
     if franchise_id:
         franchise_ids = [franchise_id]
@@ -342,17 +355,29 @@ def update_relation(
     admin=Depends(get_current_admin),
 ):
     """
-    Edits the kind or the remark.
+    Edits the kind, the direction or the remark.
 
     Changing the kind re-runs normalization, so switching Sequel to Prequel
     flips the stored endpoints rather than inventing an unstorable kind.
+    `swap` trades the endpoints over directly, which is the only way to turn a
+    kind that has no second name - an Adaptation, a Spin-off - around.
+
+    Both go through one normalization, so swapping and re-kinding in one
+    request cannot land in a state neither rewrite would allow on its own. A
+    symmetric kind sorts its endpoints, so swapping one is a no-op rather than
+    an error: the row genuinely reads the same both ways.
     """
     row = _get_relation_or_404(db, system_id)
 
-    if payload.kind is not None:
-        _validate_kind(payload.kind)
+    if payload.kind is not None or payload.swap:
+        kind = payload.kind if payload.kind is not None else row.relation_type
+        if payload.kind is not None:
+            _validate_kind(payload.kind)
+        pair = (row.from_type, row.from_id, row.to_type, row.to_id)
+        if payload.swap:
+            pair = (row.to_type, row.to_id, row.from_type, row.from_id)
         from_type, from_id, relation_type, to_type, to_id = normalize_relation(
-            row.from_type, row.from_id, payload.kind, row.to_type, row.to_id
+            pair[0], pair[1], kind, pair[2], pair[3]
         )
         _reject_self_and_duplicate(
             db,

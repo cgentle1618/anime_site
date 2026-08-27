@@ -2002,6 +2002,7 @@ export default function Add() {
       reading_status: cmf.reading_status || freshForm("comic").reading_status,
       read_order: cmf.read_order !== "" ? parseFloat(cmf.read_order) : null,
       my_rating: cmf.my_rating || null,
+      comicvine_link: cmf.comicvine_link || null,
       source_other:
         cmf.source_other.filter((e) => e.name.trim()).length > 0
           ? Object.fromEntries(

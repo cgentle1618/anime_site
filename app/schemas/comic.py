@@ -38,6 +38,9 @@ class ComicBase(BaseModel):
 
     my_rating: Optional[str] = None
 
+    comicvine_id: Optional[int] = None
+    comicvine_link: Optional[str] = None
+
     source_other: Optional[dict] = None
 
     read_next: Optional[bool] = None

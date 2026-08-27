@@ -1,4 +1,4 @@
-"""External-source enrichment (MAL / IMDb) for single entries."""
+"""External-source enrichment (MAL / IMDb / Comic Vine) for single entries."""
 
 import logging
 import uuid
@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -47,7 +48,9 @@ from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
 from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
+from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.image_manager import download_cover_image
+from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
@@ -476,4 +479,42 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
     except Exception as e:
         logger.error(
             f"IMDb Autofill failed for Cartoon ID {cartoon.system_id} (IMDb {cartoon.imdb_id}): {e}"
+        )
+
+
+def autofill_comic_from_comicvine(comic: Comic) -> None:
+    """
+    Enriches a single Comic entry with Comic Vine volume data. Does not commit —
+    caller is responsible.
+
+    Fill-only throughout: nothing already set by the admin is replaced. That
+    includes comic_name_en, which is the entry's identity and often a deliberate
+    shorthand, so it is never touched at all.
+    """
+    comicvine_id = comic.comicvine_id
+    if not comicvine_id:
+        return
+
+    try:
+        raw_data = fetch_comicvine_volume(comicvine_id)
+        if not raw_data:
+            return
+
+        cv_data = map_comicvine_to_comic_data(raw_data)
+
+        for field in ("publisher", "writer", "artist", "release_year", "issue_total", "volume_label"):
+            if getattr(comic, field, None) is None:
+                setattr(comic, field, cv_data.get(field))
+
+        if not comic.cover_image_file and cv_data.get("cover_image_url"):
+            filename = download_cover_image(
+                cv_data.get("cover_image_url"), str(comic.system_id)
+            )
+            if filename:
+                comic.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"Comic Vine Autofill failed for Comic ID {comic.system_id} "
+            f"(Volume {comicvine_id}): {e}"
         )

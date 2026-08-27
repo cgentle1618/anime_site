@@ -14,7 +14,7 @@ from app.utils.relation_kinds import (
 )
 
 
-def test_eight_stored_kinds():
+def test_nine_stored_kinds():
     assert set(RELATION_KEYS) == {
         "sequel",
         "alternative",
@@ -23,6 +23,7 @@ def test_eight_stored_kinds():
         "extended",
         "side_story",
         "spin_off",
+        "setting",
         "adaptation",
     }
 
@@ -60,6 +61,17 @@ def test_prequel_is_input_only_and_maps_to_sequel():
     assert "prequel" in ACCEPTED_INPUT_KINDS
 
 
-def test_accepted_input_kinds_covers_the_nine_user_facing_choices():
-    assert len(ACCEPTED_INPUT_KINDS) == 9
+def test_accepted_input_kinds_covers_the_ten_user_facing_choices():
+    assert len(ACCEPTED_INPUT_KINDS) == 10
     assert set(RELATION_KEYS).issubset(set(ACCEPTED_INPUT_KINDS))
+
+
+def test_setting_is_a_directional_branch_kind():
+    # A 設定集 / art book hangs off the work it documents, the way a spin-off
+    # does, and never the other way round - so it sits in branch and is not
+    # symmetric.
+    setting = RELATION_KINDS["setting"]
+    assert setting.family == "branch"
+    assert setting.label == "Setting"
+    assert setting.inverse_label == "Main Story"
+    assert setting.symmetric is False

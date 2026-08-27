@@ -16,12 +16,25 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { buildUrl } from "../../api/client";
+import { MEDIA_TYPE_COLORS } from "../../config/mediaTypeColors";
 import { endpoints } from "../../api/endpoints";
 import RelationNode from "./RelationNode";
+import FanEdge from "./FanEdge";
 import ConnectPopup from "./ConnectPopup";
 import EdgeInspector from "./EdgeInspector";
 import NodePanel from "./NodePanel";
-import { layoutGraph, mergePositions } from "../../lib/relationLayout";
+import {
+  GRID,
+  kindRank,
+  layoutGraph,
+  mergePositions,
+} from "../../lib/relationLayout";
+import {
+  describeEntry,
+  restoringKind,
+  storedTupleFromEdge,
+  undoRequest,
+} from "../../lib/relationUndo";
 import {
   familyGroup,
   handleGroup,
@@ -33,6 +46,16 @@ import {
 } from "../../lib/relationHandles";
 
 const nodeTypes = { relation: RelationNode };
+const edgeTypes = { fan: FanEdge };
+
+// Matches RelationNode's opacity-20 for a dimmed node, so an edge fades to
+// exactly the same depth as the entries it joins.
+const DIMMED_OPACITY = 0.2;
+
+// The order the type chips sit in. Taken from the palette rather than from the
+// graph, so the row keeps its shape as nodes arrive and as the scope changes -
+// a chip that moved every refetch would be clicked by mistake.
+const TYPE_ORDER = Object.keys(MEDIA_TYPE_COLORS);
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Only the styling
 // lives here; the kinds themselves come from the API.
@@ -44,16 +67,46 @@ export const FAMILY_STYLE = {
   derivation: { stroke: "#f59e0b", dash: "2 4", arrow: true, showLabel: true },
 };
 
-export const FAMILY_LABELS = {
-  timeline: "Timeline",
-  equivalence: "Equivalence",
-  branch: "Branch",
-  derivation: "Derivation",
-};
+// Which query parameter the graph endpoint wants for this tier. All three are
+// mutually exclusive server-side, so exactly one key is ever sent.
+function scopeParams(scopeType, scopeId) {
+  if (scopeType === "series") return { series_id: scopeId };
+  if (scopeType === "collection") return { collection_id: scopeId };
+  return { franchise_id: scopeId };
+}
 
-function toFlowEdges(edges, hiddenFamilies) {
+/**
+ * Numbers each branch connector within the fan leaving its source.
+ *
+ * Returns key -> {index, count}, keyed by system_id. Ordered by kind and then
+ * by the target's key, which is exactly the order layoutGraph fans the nodes
+ * themselves across the row - the two have to agree, or line 1 reaches past
+ * its neighbours to a branch further along and the fan crosses over itself. A
+ * hand-dragged node can of course be moved out from under its own line.
+ */
+export function fanPositions(middleEdges) {
+  const bySource = new Map();
+  for (const e of middleEdges) {
+    if (!bySource.has(e.to)) bySource.set(e.to, []);
+    bySource.get(e.to).push(e);
+  }
+  const fan = new Map();
+  for (const group of bySource.values()) {
+    const ordered = [...group].sort(
+      (a, b) =>
+        kindRank(a.relation_type) - kindRank(b.relation_type) ||
+        (a.from < b.from ? -1 : 1),
+    );
+    ordered.forEach((e, index) =>
+      fan.set(e.system_id, { index, count: ordered.length }),
+    );
+  }
+  return fan;
+}
+
+function toFlowEdges(edges) {
+  const fan = fanPositions(edges.filter((e) => familyGroup(e.family) === MIDDLE));
   return edges
-    .filter((e) => !hiddenFamilies.has(e.family))
     .map((e) => {
       const style = FAMILY_STYLE[e.family] || FAMILY_STYLE.derivation;
       // Which pair of handles the edge lands on, and so which way it reads.
@@ -62,6 +115,12 @@ function toFlowEdges(edges, hiddenFamilies) {
       const middle = familyGroup(e.family) === MIDDLE;
       return {
         id: String(e.system_id),
+        // Timeline runs flat along its row, where a step is exactly right and
+        // costs nothing. Every other family fans out of one work towards
+        // several, and a step would draw each of those at the same gutter
+        // height, on top of one another - so those get FanEdge, which spreads
+        // them by angle instead. See FanEdge for why that is the fix.
+        type: middle ? "fan" : "smoothstep",
         // Reversed, matching layoutGraph: a row reads "`from` is the {label}
         // of `to`", so `to` is the original and `from` the work derived from
         // it. Drawing to->from makes every arrow run from the original to the
@@ -75,8 +134,22 @@ function toFlowEdges(edges, hiddenFamilies) {
         label: style.showLabel ? e.label : undefined,
         markerEnd: style.arrow ? { type: "arrowclosed", color: style.stroke } : undefined,
         style: { stroke: style.stroke, strokeWidth: 2, strokeDasharray: style.dash },
-        labelStyle: { fontSize: 10, fontWeight: 800, fill: style.stroke },
-        data: e,
+        // FanEdge renders its label as HTML rather than SVG, so it wants a
+        // colour rather than a fill; both are handed over and each edge type
+        // reads the one it understands.
+        labelStyle: {
+          fontSize: 10,
+          fontWeight: 800,
+          fill: style.stroke,
+          color: style.stroke,
+        },
+        data: middle
+          ? {
+              ...e,
+              fanIndex: fan.get(e.system_id)?.index ?? 0,
+              fanCount: fan.get(e.system_id)?.count ?? 1,
+            }
+          : e,
       };
     });
 }
@@ -85,16 +158,21 @@ function GraphCanvas({
   scopeType,
   scopeId,
   onPickGhostFranchise,
-  kinds,
+  // Only the two writing surfaces read the vocabulary, so a read-only canvas
+  // is not asked to fetch it.
+  kinds = [],
   onWrote,
   onError,
   focusKey,
   focusNonce,
+  readOnly = false,
 }) {
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
-  const [hiddenFamilies, setHiddenFamilies] = useState(new Set());
-  const [query, setQuery] = useState("");
+  // Which media types the toolbar has toggled off. They dim rather than
+  // disappear: a graph whose layout has been arranged by hand must not
+  // reshuffle every time a type is switched on and off.
+  const [hiddenTypes, setHiddenTypes] = useState(new Set());
   const [loading, setLoading] = useState(false);
   // A failed read must not look like an empty scope: the canvas is the whole
   // right pane, so a blank one otherwise reads as "this franchise has no
@@ -157,6 +235,11 @@ function GraphCanvas({
   const [pending, setPending] = useState(null); // {source, target, position}
   const [connectError, setConnectError] = useState(null);
   const [writing, setWriting] = useState(false);
+  // The session's writes, newest last, each holding the one request that
+  // reverses it. Deliberately survives a scope switch - a relation belongs to
+  // no tier, so the row undo would act on is often not the canvas you are
+  // looking at - and deliberately dies with the page.
+  const [history, setHistory] = useState([]);
   // Bumped every time a drag is dropped, so a second drag that re-points the
   // still-mounted popup at a new pair forces React to remount ConnectPopup
   // instead of reusing its internal kind/remark/swapped/query/picked state.
@@ -201,10 +284,7 @@ function GraphCanvas({
       };
     }
     setLoading(true);
-    const params =
-      scopeType === "franchise"
-        ? { franchise_id: scopeId }
-        : { collection_id: scopeId };
+    const params = scopeParams(scopeType, scopeId);
 
     fetch(buildUrl(endpoints.mediaRelation.graph(), params), {
       credentials: "include",
@@ -282,6 +362,7 @@ function GraphCanvas({
   // Drop on a node: both endpoints are known, so the popup only needs a kind.
   const onConnect = useCallback(
     (connection) => {
+      if (readOnly) return;
       setConnectError(null);
       attemptIdRef.current += 1;
       setPending({
@@ -294,7 +375,7 @@ function GraphCanvas({
         position: toContainerPoint(lastDropRef.current),
       });
     },
-    [nodeByKey],
+    [nodeByKey, readOnly],
   );
 
   // Drop on empty canvas: the far endpoint is unknown, so the popup opens with
@@ -306,6 +387,7 @@ function GraphCanvas({
         y: event.clientY ?? event.changedTouches?.[0]?.clientY ?? 0,
       };
       lastDropRef.current = point;
+      if (readOnly) return;
       // A valid drop is onConnect's job; only the miss lands here.
       if (connectionState?.isValid) return;
       const fromKey = connectionState?.fromNode?.id;
@@ -324,12 +406,69 @@ function GraphCanvas({
         position: toContainerPoint(point),
       });
     },
-    [nodeByKey],
+    [nodeByKey, readOnly],
   );
+
+  // A read-only canvas never writes, so it never records; guarding here keeps
+  // every call site from having to remember that.
+  function push(entry) {
+    if (readOnly) return;
+    setHistory((stack) => [...stack, entry]);
+  }
+
+  const lastEntry = history[history.length - 1] || null;
+
+  /**
+   * Reverse the newest write.
+   *
+   * The entry is dropped whatever the outcome. A failure here means the row
+   * moved on beneath us - someone else deleted it, or the reverse would now
+   * duplicate an existing relation - and neither gets better on a retry, so
+   * leaving it on the stack would only let the button promise something it
+   * cannot do.
+   */
+  async function undoLast() {
+    if (writing || !lastEntry) return;
+    const request = undoRequest(lastEntry);
+    setHistory((stack) => stack.slice(0, -1));
+    setWriting(true);
+    try {
+      const url =
+        request.method === "DELETE"
+          ? endpoints.mediaRelation.remove(request.id)
+          : request.method === "PATCH"
+            ? endpoints.mediaRelation.patch(request.id)
+            : endpoints.mediaRelation.create();
+      const res = await fetch(url, {
+        method: request.method,
+        credentials: "include",
+        ...(request.body
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(request.body),
+            }
+          : {}),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        onError?.(data?.detail || res.statusText);
+        return;
+      }
+      // The edge the inspector was showing may be the one just reversed, and
+      // a panel describing a row that no longer exists is worse than none.
+      setSelectedEdgeId(null);
+      onWrote?.();
+      refetch();
+    } catch (e) {
+      onError?.(e?.message || "Could not reach the server.");
+    } finally {
+      setWriting(false);
+    }
+  }
 
   // A 409 (duplicate or self-relation) leaves the popup open with the message:
   // closing it back to the canvas would lose the kind and remark just typed.
-  async function createRelation({ kind, from, to, remark }) {
+  async function createRelation({ kind, from, to, remark, label, fromName, toName }) {
     // Two Enter presses in the same tick, before writing/disabling the
     // button re-renders, would otherwise fire two POSTs.
     if (writing) return;
@@ -355,6 +494,18 @@ function GraphCanvas({
         const data = await res.json().catch(() => null);
         setConnectError(data?.detail || res.statusText);
         return;
+      }
+      // The response carries the new system_id, which is the only handle undo
+      // has on a row it just made.
+      const created = await res.json().catch(() => null);
+      if (created) {
+        push({
+          action: "create",
+          created,
+          label: label || kind,
+          sourceName: fromName || "an entry",
+          targetName: toName || "an entry",
+        });
       }
       setPending(null);
       onWrote?.();
@@ -395,33 +546,61 @@ function GraphCanvas({
     return set;
   }, [isolatedKey, graphEdges]);
 
-  const needle = query.trim().toLowerCase();
+  // One chip per media type actually on the canvas, labelled the way the node
+  // badge labels it. Deriving the row from the graph rather than from all
+  // eight known types keeps it from offering a toggle that dims nothing.
+  const presentTypes = useMemo(() => {
+    const labels = new Map();
+    for (const n of nodes) {
+      const type = n.data?.media_type;
+      if (!type || labels.has(type)) continue;
+      labels.set(type, n.data?.type_label || type);
+    }
+    const known = TYPE_ORDER.filter((t) => labels.has(t));
+    // A type the palette has not been taught about still gets a chip, after
+    // the ones it knows, rather than silently losing its filter.
+    const rest = [...labels.keys()].filter((t) => !TYPE_ORDER.includes(t));
+    return [...known, ...rest].map((type) => ({ type, label: labels.get(type) }));
+  }, [nodes]);
+
+  // Switching scope can retire a type entirely. Dropping it from the hidden
+  // set as it goes stops a toggle made in one franchise from silently dimming
+  // another the moment the same type reappears there.
+  useEffect(() => {
+    const present = new Set(presentTypes.map((t) => t.type));
+    setHiddenTypes((current) => {
+      const next = new Set([...current].filter((t) => present.has(t)));
+      return next.size === current.size ? current : next;
+    });
+  }, [presentTypes]);
+
+  const typeOfNode = useMemo(
+    () => new Map(nodes.map((n) => [n.id, n.data?.media_type])),
+    [nodes],
+  );
+
   const displayNodes = useMemo(
     () =>
-      nodes.map((n) => {
-        const missesNeedle =
-          needle.length > 0 &&
-          ![n.data.display_name || "", ...(n.data.search_names || [])]
-            .join(" ")
-            .toLowerCase()
-            .includes(needle);
-        return {
-          ...n,
-          // The ring follows selectedNodeKey rather than React Flow's own
-          // selection, so the two ways of choosing an entry look the same: a
-          // canvas click sets the key through onNodeClick, and a click in the
-          // left pane sets it through focusKey - which used to open the panel
-          // while leaving the node itself unmarked.
-          selected: n.id === selectedNodeKey,
-          data: {
-            ...n.data,
-            // Either reason dims: outside the isolated neighbourhood, or
-            // missed by the search box.
-            dimmed: missesNeedle || (neighbours ? !neighbours.has(n.id) : false),
-          },
-        };
-      }),
-    [nodes, needle, neighbours, selectedNodeKey],
+      nodes.map((n) => ({
+        ...n,
+        // The ring follows selectedNodeKey rather than React Flow's own
+        // selection, so the two ways of choosing an entry look the same: a
+        // canvas click sets the key through onNodeClick, and a click in the
+        // left pane sets it through focusKey - which used to open the panel
+        // while leaving the node itself unmarked.
+        selected: n.id === selectedNodeKey,
+        data: {
+          ...n.data,
+          // Two gestures dim, and they compose: isolate drops everything more
+          // than a hop away, the type chips drop a whole media type. Finding
+          // an entry is neither - that is the left pane's filter, which
+          // scrolls the list and focuses the node.
+          dimmed:
+            (neighbours ? !neighbours.has(n.id) : false) ||
+            hiddenTypes.has(n.data.media_type),
+        },
+      })),
+    [nodes, neighbours, selectedNodeKey, hiddenTypes],
   );
 
   const selectedNode = useMemo(
@@ -461,6 +640,9 @@ function GraphCanvas({
   // remark box back to the saved text when it was not.
   async function patchRelation(body) {
     if (writing || !selectedEdge) return false;
+    // Read before the write: once it lands, the row that was there is gone.
+    const before = storedTupleFromEdge(selectedEdge);
+    const { sourceName, targetName, label } = selectedEdge;
     setWriting(true);
     try {
       const res = await fetch(
@@ -476,6 +658,23 @@ function GraphCanvas({
         const data = await res.json().catch(() => null);
         onError?.(data?.detail || res.statusText);
         return false;
+      }
+      // The updated row comes back, so the restoring kind is settled here
+      // rather than left to depend on whatever is on canvas at undo time.
+      const after = await res.json().catch(() => null);
+      if (after) {
+        push({
+          action: "edit",
+          id: after.system_id,
+          kind: restoringKind(before, after, kinds),
+          // A swap is reversed by swapping back, not by replaying a kind -
+          // see undoRequest for why the two cannot be the same request.
+          swap: body.swap === true,
+          before,
+          label,
+          sourceName,
+          targetName,
+        });
       }
       onWrote?.();
       refetch();
@@ -496,6 +695,9 @@ function GraphCanvas({
       )
     )
       return;
+    // Everything undo needs to post the row back, read while it still exists.
+    const before = storedTupleFromEdge(selectedEdge);
+    const { sourceName, targetName, label } = selectedEdge;
     setWriting(true);
     try {
       const res = await fetch(
@@ -506,6 +708,7 @@ function GraphCanvas({
         onError?.(res.statusText);
         return;
       }
+      push({ action: "delete", before, label, sourceName, targetName });
       setSelectedEdgeId(null);
       onWrote?.();
       refetch();
@@ -516,16 +719,25 @@ function GraphCanvas({
     }
   }
 
-  const flowEdges = useMemo(
-    () => toFlowEdges(graphEdges, hiddenFamilies),
-    [graphEdges, hiddenFamilies],
-  );
+  const flowEdges = useMemo(() => {
+    const hidden = (key) => hiddenTypes.has(typeOfNode.get(key));
+    return toFlowEdges(graphEdges).map((e) => {
+      // An edge is only as visible as the entries it joins: dimming a type
+      // while its lines stay solid leaves the canvas as busy as before.
+      if (!hidden(e.source) && !hidden(e.target)) return e;
+      return {
+        ...e,
+        style: { ...e.style, opacity: DIMMED_OPACITY },
+        labelStyle: { ...e.labelStyle, opacity: DIMMED_OPACITY },
+      };
+    });
+  }, [graphEdges, hiddenTypes, typeOfNode]);
 
-  function toggleFamily(family) {
-    setHiddenFamilies((current) => {
+  function toggleType(mediaType) {
+    setHiddenTypes((current) => {
       const next = new Set(current);
-      if (next.has(family)) next.delete(family);
-      else next.add(family);
+      if (next.has(mediaType)) next.delete(mediaType);
+      else next.add(mediaType);
       return next;
     });
   }
@@ -545,6 +757,15 @@ function GraphCanvas({
     setSelectedEdgeId(edge.id);
   }
 
+  // Throws away every hand-dragged coordinate and takes the computed layout
+  // again. mergePositions only preserves what the ref holds, so emptying it is
+  // the whole reset - without this a drag is permanent, since a refetch keeps
+  // the old position on purpose so adding a relation cannot shuffle the canvas.
+  function tidy() {
+    positionsRef.current = {};
+    refetch();
+  }
+
   if (!scopeId) {
     return (
       <div className="flex h-[36rem] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
@@ -558,29 +779,59 @@ function GraphCanvas({
   return (
     <div ref={wrapperRef} className="relative flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Highlight an entry…"
-          className="flex-1 min-w-[12rem] rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-        />
-        {Object.keys(FAMILY_LABELS).map((family) => {
-          const on = !hiddenFamilies.has(family);
+        {readOnly ? null : (
+          <button
+            type="button"
+            onClick={undoLast}
+            disabled={!lastEntry || writing}
+            // Spelt out rather than "Undo last change": the stack outlives a
+            // scope switch, so the row being reversed is not always one the
+            // current canvas shows.
+            title={describeEntry(lastEntry)}
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <i className="fas fa-rotate-left"></i>
+            Undo
+            {history.length > 1 ? (
+              <span className="rounded-full bg-gray-200 px-1.5 text-[9px] text-gray-600">
+                {history.length}
+              </span>
+            ) : null}
+          </button>
+        )}
+
+        {readOnly ? null : (
+          <button
+            type="button"
+            onClick={tidy}
+            disabled={writing || loading || nodes.length === 0}
+            title="Drop every hand-placed position and re-run the automatic layout"
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <i className="fas fa-wand-magic-sparkles"></i>
+            Tidy
+          </button>
+        )}
+
+        {presentTypes.map(({ type, label }) => {
+          const on = !hiddenTypes.has(type);
           return (
             <button
-              key={family}
+              key={type}
               type="button"
-              onClick={() => toggleFamily(family)}
+              aria-pressed={on}
+              onClick={() => toggleType(type)}
+              title={`${on ? "Dim" : "Restore"} every ${label} on the canvas`}
               className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition-opacity ${
                 on ? "border-gray-200 text-gray-600" : "border-gray-100 text-gray-300"
               }`}
             >
               <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: FAMILY_STYLE[family].stroke }}
+                className={`h-2 w-2 rounded-full ${
+                  (MEDIA_TYPE_COLORS[type] || {}).dot || "bg-gray-400"
+                } ${on ? "" : "opacity-40"}`}
               />
-              {FAMILY_LABELS[family]}
+              {label}
             </button>
           );
         })}
@@ -594,17 +845,28 @@ function GraphCanvas({
           nodes={displayNodes}
           edges={flowEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
           isValidConnection={isValidConnection}
+          // A read-only canvas is a fixed picture: the layout is the graph's
+          // own statement about how these entries relate, so neither dragging
+          // a node nor starting a connection from one is offered.
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          // The same lattice layoutGraph computes on and Background draws, so
+          // a dragged node lines up with the ones it was dropped beside
+          // instead of landing a few pixels off every neighbour.
+          snapToGrid
+          snapGrid={[GRID, GRID]}
           fitView
           minZoom={0.15}
           proOptions={{ hideAttribution: false }}
         >
-          <Background gap={24} />
+          <Background gap={GRID} />
           <Controls showInteractive={false} />
           <MiniMap pannable zoomable />
         </ReactFlow>
@@ -655,6 +917,7 @@ function GraphCanvas({
             edge={selectedEdge}
             kinds={kinds}
             busy={writing}
+            readOnly={readOnly}
             onPatch={patchRelation}
             onDelete={deleteRelation}
             onClose={() => setSelectedEdgeId(null)}
@@ -666,7 +929,7 @@ function GraphCanvas({
         <p className="text-xs font-bold text-gray-400">Loading graph…</p>
       ) : null}
 
-      {pending ? (
+      {pending && !readOnly ? (
         <ConnectPopup
           key={pending.attemptId}
           kinds={kinds}

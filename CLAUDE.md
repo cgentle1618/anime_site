@@ -31,7 +31,7 @@ Reference these files in `/docs` for deep technical context (note that the docum
 - **CSS**: Tailwind CSS v4
 - **Auth**: JWT in HTTP-Only cookie; RBAC via `Depends(get_current_admin)` in `app/dependencies.py`
 - **Migrations**: Alembic
-- **External Services**: Tenrai v1 API (MAL metadata), TMDB API (cover/release/director via themoviedb.org), OMDb API (IMDb rating via omdbapi.com), Google Sheets (backup/restore), Google Cloud Storage (cover images)
+- **External Services**: Tenrai v1 API (MAL metadata), TMDB API (cover/release/director via themoviedb.org), OMDb API (IMDb rating via omdbapi.com), Comic Vine API (comic run metadata + covers via comicvine.gamespot.com), Google Sheets (backup/restore), Google Cloud Storage (cover images)
 - **Deployment**: Docker → GCP Cloud Run + Cloud SQL (PostgreSQL via Unix socket)
 
 ## Development Commands
@@ -46,8 +46,10 @@ cd frontend && npm run dev
 # Build the bundle uvicorn serves on :8000 (writes frontend_dist/)
 cd frontend && npm run build
 
-# Run FastAPI dev server (backend code lives in the app/ package)
-uvicorn app.main:app --reload
+# Run FastAPI dev server (backend code lives in the app/ package).
+# --reload-dir app keeps the watcher off tests/ and alembic/: without it,
+# editing a test file restarts the server and every page reload goes cold.
+uvicorn app.main:app --reload --reload-dir app
 
 # Database migrations
 alembic upgrade head
@@ -78,6 +80,7 @@ If a frontend change appears missing on one port only, suspect a stale build bef
 | `GCP_BUCKET_NAME`                                     | GCS bucket for cover images                                   |
 | `TMDB_API_KEY`                                        | TMDB API key for IMDb metadata fetch (free at themoviedb.org) |
 | `OMDB_API_KEY`                                        | OMDb API key for IMDb rating fetch (free at omdbapi.com)      |
+| `COMICVINE_API_KEY`                                   | Comic Vine API key for comic metadata + cover fetch (free)     |
 | `INSTANCE_CONNECTION_NAME`                            | Cloud SQL connection name (Cloud Run only)                    |
 
 Cloud Run auto-sets `K_SERVICE`, which the app uses to switch between local and production behaviors (secure cookies, IAM auth for GCS, Cloud SQL socket routing).

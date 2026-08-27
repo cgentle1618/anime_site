@@ -18,13 +18,14 @@ Tenrai v1 is a public REST API that mirrors MyAnimeList data. It is used to auto
 
 ### Rate Limiter
 
-Class: `TenraiRateLimiter` — sliding window, **30 requests per 60-second window**.
+Class: `TenraiRateLimiter` — sliding windows, **4 requests per 1-second window** and **120 requests per 60-second window** (Tenrai enforces both at once). Windows live in `TenraiRateLimiter.DEFAULT_LIMITS` as `(max_requests, time_window_seconds)` pairs and can be overridden via the `limits` constructor argument.
 
 `wait_if_needed()` is called before every request:
 
-1. Remove timestamps older than 60 seconds from the queue.
-2. If queue length ≥ 30, calculate `sleep_time = 60 − (now − oldest_timestamp)` and sleep.
-3. Append current timestamp to queue and proceed.
+1. Remove timestamps older than the widest window (60 seconds) from the queue.
+2. For each window, if it already holds its maximum, compute how long until its oldest blocking request expires; sleep for the longest such wait.
+3. Re-check every window after sleeping (a short sleep can leave a wider window still full), repeating until all windows have room.
+4. Append current timestamp to queue and proceed.
 
 ### Retry Strategy
 
@@ -184,6 +185,97 @@ Same as TMDB: `imdb_tt_id = f"tt{imdb_id:07d}"`
 | OMDb field   | DB field      | Model(s)                   | Transformation                 |
 | ------------ | ------------- | -------------------------- | ------------------------------ |
 | `imdbRating` | `imdb_rating` | movies, tv_shows, cartoons | String as-is; `"N/A"` → `None` |
+
+---
+
+## Comic Vine API (Comic Runs + Covers)
+
+**Service file:** `app/services/integrations/comicvine.py`
+**Utils file:** `app/utils/comicvine_utils.py`
+
+Comic Vine is the only external source for the `comic` table. A Comic Vine
+"volume" is one numbered run, which is exactly what one comic row represents,
+and it carries the cover on the same object as the run metadata — so one request
+fills the row and the image together.
+
+Chosen over the Marvel Comics API, which Marvel shut down around November 2025,
+and over Metron, whose `series` resource has no image field (covers live on
+issues, costing a second request per cover).
+
+### HTTP Client
+
+- Library: `requests` (synchronous)
+- Timeout: 15 seconds per request
+- Authentication: `COMICVINE_API_KEY` env var — passed as the `api_key` query parameter
+- `User-Agent` is mandatory: Comic Vine rejects default client agents outright.
+  Sent as `CG1618-Media-Tracker/1.0`.
+- `field_list` is always sent so responses stay small
+
+### Rate Limiter
+
+Class: `ComicVineRateLimiter` — sliding window, **200 requests per hour**. Far
+tighter than TMDB's 40/10s, so it also exposes `has_capacity()`: `execute_fill_comic`
+checks it before each entry and stops the run when the budget is exhausted rather
+than blocking for the remainder of the hour. The SSE success message reports how
+many entries were left for the next run.
+
+### Retry Strategy
+
+Library: `tenacity`
+
+| Setting      | Value                                                                              |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Max attempts | 5                                                                                  |
+| Backoff      | Exponential: min 2s, max 10s, multiplier 1                                         |
+| Retried on   | `requests.exceptions.RequestException`, `RateLimitExceeded` (HTTP 420 and 429)     |
+| Not retried  | HTTP 401 (bad key), HTTP 5xx, body `status_code != 1` — all logged, return `None`  |
+
+HTTP 420 is Comic Vine's non-standard rate-limit code. Application errors are
+reported in the body with HTTP 200, so `status_code` is checked on every response.
+
+### Endpoints Called
+
+```
+GET https://comicvine.gamespot.com/api/volume/4050-{volume_id}/   # fetch_comicvine_volume
+GET https://comicvine.gamespot.com/api/search/?resources=volume   # search_comicvine_volumes
+```
+
+`4050` is Comic Vine's volume resource prefix. `extract_comicvine_id` matches it
+literally when parsing a pasted URL, so an issue URL (`4000-…`) is rejected rather
+than silently stored as a volume.
+
+### Field Mappings (Comic Vine → Database)
+
+| Comic Vine field                     | DB field           | Transformation                              |
+| ------------------------------------ | ------------------ | ------------------------------------------- |
+| `name`                               | `comic_name_en`    | Mapped, but never written — see below       |
+| `start_year`                         | `release_year`     | String → Integer                            |
+| `start_year`                         | `volume_label`     | `2018` → `"(2018)"`                         |
+| `publisher.name`                     | `publisher`        | As-is                                       |
+| `count_of_issues`                    | `issue_total`      | As-is                                       |
+| `person_credits` role `writer`       | `writer`           | Comma-joined names, deduplicated            |
+| `person_credits` role penciler/artist| `artist`           | Comma-joined names, deduplicated            |
+| `image.original_url`                 | `cover_image_file` | Downloaded via `download_cover_image()`     |
+
+Roles match on whole comma-separated tokens, so `inker` never satisfies a search
+for a penciler.
+
+`end_year` is deliberately unmapped: the volume's `last_issue` carries no cover
+date, so deriving it would cost a second request per entry. `imprint`,
+`continuity`, `era`, `events`, `comic_type` and `publisher_tw` are collection-specific
+classifications Comic Vine does not model. All stay manual, and none appear in
+`COMIC_FIELDS_TO_FILL` — listing them would leave every entry permanently "needs
+filling".
+
+### Fill Semantics
+
+`autofill_comic_from_comicvine` is fill-only: it never replaces a value the admin
+has already set. `comic_name_en` is never written at all — it is the entry's
+identity and often a deliberate shorthand.
+
+Comic Vine serves a stock placeholder image rather than omitting `image`, so
+`_pick_cover_url` rejects URLs containing `blank.png` or `image_not_available` —
+otherwise every unmatched entry would share the same grey square.
 
 ---
 

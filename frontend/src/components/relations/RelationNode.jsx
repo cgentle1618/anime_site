@@ -1,6 +1,6 @@
 // Frontend: one entry as it appears on the relations canvas.
 //
-// Fixed-size on purpose: dagre reserves space from the dimensions declared in
+// Fixed-size on purpose: the layout computes its slot pitch from the numbers in
 // relationLayout, so a node that renders taller than NODE_HEIGHT would overlap
 // its neighbours. Width and height are set inline rather than in Tailwind
 // classes so the two numbers cannot drift apart.
@@ -24,7 +24,16 @@ import { NODE_HEIGHT, NODE_WIDTH } from "../../lib/relationLayout";
 // The title gets the two lines line-clamp-2 allows.
 const TITLE_LINES = 2;
 
-export default function RelationNode({ data, selected }) {
+// `isConnectable` comes from React Flow, and is false for every node once the
+// canvas is rendered read-only. The handles then go invisible and inert rather
+// than unmounting: React Flow resolves each edge's endpoints from the mounted
+// handle carrying that id, so a node with no handles drops every edge attached
+// to it - the relations would vanish along with the dots.
+export default function RelationNode({ data, selected, isConnectable = true }) {
+  // Kept in the layout either way, so the edges still land where they did.
+  const handleCls = isConnectable
+    ? ""
+    : " !pointer-events-none !opacity-0";
   const { display_name, media_type, type_label, cover_image_file } = data;
 
   const label = data.missing
@@ -66,13 +75,15 @@ export default function RelationNode({ data, selected }) {
         id={TIMELINE_TARGET}
         type="target"
         position={Position.Left}
-        className="!h-3 !w-3 !bg-brand"
+        isConnectable={isConnectable}
+        className={`!h-3 !w-3 !bg-brand${handleCls}`}
       />
       <Handle
         id={MIDDLE_TARGET}
         type="target"
         position={Position.Top}
-        className="!h-3 !w-3 !bg-gray-400"
+        isConnectable={isConnectable}
+        className={`!h-3 !w-3 !bg-gray-400${handleCls}`}
       />
 
       {data.missing ? (
@@ -106,13 +117,15 @@ export default function RelationNode({ data, selected }) {
         id={TIMELINE_SOURCE}
         type="source"
         position={Position.Right}
-        className="!h-3 !w-3 !bg-brand"
+        isConnectable={isConnectable}
+        className={`!h-3 !w-3 !bg-brand${handleCls}`}
       />
       <Handle
         id={MIDDLE_SOURCE}
         type="source"
         position={Position.Bottom}
-        className="!h-3 !w-3 !bg-gray-400"
+        isConnectable={isConnectable}
+        className={`!h-3 !w-3 !bg-gray-400${handleCls}`}
       />
     </div>
   );

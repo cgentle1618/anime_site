@@ -158,14 +158,22 @@ Fills missing metadata for all novel entries that need it.
 
 #### Fill Comic — `execute_fill_comic(db, request, action_specific, action_type, log_action)` _(SSE)_
 
-Comics are manual-entry, so there is nothing to fetch from an external source.
-This runs system-options extraction only and makes **no external call** — it
-exists so the admin Fill controls behave uniformly across types.
+Enriches comic entries from Comic Vine by volume ID.
 
 **Steps:**
 
-1. `run_sync_comic` (i.e. `extract_system_options_from_comic`).
-2. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+1. `apply_extract_comicvine_id` on every comic — derives `comicvine_id` from
+   `comicvine_link`. An unparseable link leaves any existing ID untouched.
+2. Queue = entries with a `comicvine_id` **and** `has_missing_values_comic` true.
+3. Per entry: `autofill_comic_from_comicvine` (fill-only), commit, sleep 1s.
+   A failure on one entry rolls back and is logged; the run continues.
+4. `run_sync_comic` (i.e. `extract_system_options_from_comic`).
+5. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Rate-limit stop:** before each entry the pipeline checks
+`comicvine_rate_limiter.has_capacity()`. Comic Vine allows only ~200 requests per
+hour, so when the budget is exhausted the run stops and the success message names
+how many entries were skipped, rather than blocking for the rest of the hour.
 
 **Note:** Not part of `execute_fill_all` — Fill All does not include comic.
 
@@ -347,9 +355,11 @@ Replaces metadata for all novel entries that have a `mal_id` or `mal_link`.
 Write hook for a single Comic entry, called automatically after `POST`/`PUT`
 on `/api/comic` and by `POST /api/data-control/replace/comic/{comic_id}` (the
 Autofill & Update button). Unlike every other single-replace hook, **it
-fetches nothing**: comics are manual-entry, so there is no external record to
-reconcile against. It exists only so the registry has a uniform `write_hook`
-and so the write is logged like every other type's.
+fetches nothing** — even though Fill Comic now does. Comic Vine's ~200
+requests/hour budget is tight enough that spending one on every comic write
+would starve the bulk backfill, so enrichment is left to Fill Comic. This hook
+exists so the registry has a uniform `write_hook` and so the write is logged
+like every other type's.
 
 **Steps:**
 
@@ -371,7 +381,11 @@ Pulls all tabs in strict dependency order: **System Options → System Configs �
 
 **Collection FK resolution differs deliberately.** Like `franchise_id`/`series_id`, a `collection_id` cell may hold either a UUID or a collection *name*. But where an unresolvable franchise or series name causes the whole row to be **skipped**, an unresolvable collection name only sets `collection_id = NULL` and logs a warning — the franchise still imports. Collection is an optional tier, so an unknown umbrella name must never drop an otherwise valid franchise.
 
-**Inert-pull safeguard.** `parse_franchise_from_sheet` emits the `collection_id` key *only* when the incoming sheet row actually has that column. Emitting it unconditionally would set `collection_id = None` on every franchise whenever someone pulls a Franchise tab whose header row predates the Collection tier — a silent wipe.
+**Inert-pull safeguard (now general).** Parsers emit their full key set regardless of the incoming header, so a tab whose header row predates a migration used to arrive as `{"new_col": None}` and null a good DB value on every Pull. `execute_pull_specific` now filters the parsed dict down to the columns the sheet header actually carried (`key in raw_header_dict`) before anything else touches it, so an absent column is left alone on all tabs.
+
+A **blank cell is not** an absent column: the column is present, parses to `None`, survives the filter, and still means "clear this value". Only a missing *header* is ignored.
+
+`parse_franchise_from_sheet` (`collection_id`) and `parse_collection_from_sheet` (`no_built_in_orders`) keep their hand-written `if "col" in raw:` guards. They are now redundant with the central filter but harmless, and they keep the parsers correct for any caller outside the Pull pipeline.
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
@@ -383,9 +397,11 @@ Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`,
 2. For each data row:
    - Map row to dict via `parse_row_to_dict(headers, row)`.
    - Apply tab-specific parser to get typed dict.
+   - **Drop keys the sheet header did not have** (see the inert-pull safeguard above).
    - Resolve string foreign keys: if `franchise_id` or `series_id` is a string name (not a valid UUID), look up by name fields in DB. Skip row if not found.
    - **Smart PK logic**: if `pk_value` is empty, search by name fields to find an existing record (prevents duplicates on re-import).
-   - For Anime: sanitize `watching_status`, `airing_status`, `airing_type` (apply defaults if null).
+   - Look up the target row by PK to decide UPDATE vs INSERT.
+   - **INSERT only**, sanitize the non-nullable columns (Anime `watching_status`/`airing_status`/`airing_type`, the `Might Watch`/`Might Read` statuses, `created_at`/`updated_at`). These defaults exist to make an INSERT valid; applying them on UPDATE would overwrite a good DB value with a default whenever the sheet omits the column.
    - Update existing record if found; otherwise create new.
    - Flush every 50 rows so the DB generates new UUIDs.
 3. Commit batch. Reset `system_options` sequence after import.
@@ -1023,7 +1039,7 @@ The autofill path branches on `airing_type`:
 
 Fetches `GET https://api.tenrai.org/v1/anime/{mal_id}/full`.
 
-**Rate limiting:** Global `TenraiRateLimiter` singleton — sliding window, default 30 requests / 60 seconds. Blocks before each request until under the limit.
+**Rate limiting:** Global `TenraiRateLimiter` singleton — dual sliding windows, default 4 requests / 1 second and 120 requests / 60 seconds. Blocks before each request until every window is under its limit.
 
 **Retry:** 5 attempts, exponential backoff 2-10s. Retries on `RequestException` or `RateLimitExceeded` (HTTP 429). Returns `None` on 404 or >= 500.
 

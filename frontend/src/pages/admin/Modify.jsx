@@ -722,6 +722,7 @@ export default function Modify() {
       publisher_tw: c.publisher_tw || "",
       is_main_entry: c.is_main_entry ?? false,
       read_order: c.read_order ?? "",
+      comicvine_link: c.comicvine_link || "",
       source_other: Array.isArray(c.source_other)
         ? c.source_other
         : Object.entries(c.source_other || {}).map(([name, url]) => ({
@@ -2035,6 +2036,7 @@ export default function Modify() {
       reading_status: ccmf.reading_status || md("comic").reading_status,
       read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
       my_rating: ccmf.my_rating || null,
+      comicvine_link: ccmf.comicvine_link || null,
       source_other:
         (ccmf.source_other || []).filter((e) => e.name.trim()).length > 0
           ? Object.fromEntries(
@@ -2321,8 +2323,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2408,8 +2410,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2595,8 +2597,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2669,8 +2671,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2740,8 +2742,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2811,8 +2813,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2882,8 +2884,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {

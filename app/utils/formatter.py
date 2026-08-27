@@ -665,6 +665,8 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         or "Might Read",
         "read_order": parse_from_sheet(raw.get("read_order"), float),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
+        "comicvine_link": parse_from_sheet(raw.get("comicvine_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
         "read_next": parse_from_sheet(raw.get("read_next"), bool),
         "to_reread": parse_from_sheet(raw.get("to_reread"), bool),

@@ -40,11 +40,11 @@ def sample_manga_entry(db_session, sample_franchise):
 # ---------------------------------------------------------------------------
 
 
-def test_kinds_lists_the_nine_user_facing_choices(client):
+def test_kinds_lists_the_ten_user_facing_choices(client):
     res = client.get("/api/media-relation/kinds")
     assert res.status_code == 200
     body = res.json()
-    assert len(body) == 9
+    assert len(body) == 10
     keys = {k["key"] for k in body}
     assert "prequel" in keys
     prequel = next(k for k in body if k["key"] == "prequel")
@@ -307,6 +307,116 @@ def test_patching_only_the_remark_leaves_direction_alone(
     assert row.from_id == second_anime.system_id
 
 
+def test_swapping_flips_the_stored_endpoints(
+    admin_client, db_session, sample_anime, sample_manga_entry
+):
+    # Adaptation has no inverse input kind, so a swap is the only way to say
+    # the derivation runs the other way.
+    created = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "adaptation",
+            "to_type": "manga", "to_id": str(sample_manga_entry.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{created['system_id']}",
+        json={"swap": True},
+    )
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    row = db_session.query(models.MediaRelation).one()
+    assert row.relation_type == "adaptation"
+    assert (row.from_type, row.from_id) == ("manga", sample_manga_entry.system_id)
+    assert (row.to_type, row.to_id) == ("anime", sample_anime.system_id)
+
+
+def test_swapping_a_symmetric_kind_leaves_the_row_alone(
+    admin_client, db_session, sample_anime, second_anime
+):
+    # Alternative sorts its endpoints, so both directions are the same row.
+    # The swap normalizes straight back rather than erroring.
+    created = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "alternative",
+            "to_type": "anime", "to_id": str(second_anime.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{created['system_id']}",
+        json={"swap": True},
+    )
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    row = db_session.query(models.MediaRelation).one()
+    assert str(row.from_id) == created["from_id"]
+    assert str(row.to_id) == created["to_id"]
+
+
+def test_swapping_into_an_existing_relation_is_refused(
+    admin_client, db_session, sample_anime, sample_manga_entry
+):
+    # The flipped row would duplicate one already stored, which the unique
+    # index would otherwise turn into a 500.
+    kept = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "manga", "from_id": str(sample_manga_entry.system_id),
+            "kind": "adaptation",
+            "to_type": "anime", "to_id": str(sample_anime.system_id),
+        },
+    ).json()
+    other = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "adaptation",
+            "to_type": "manga", "to_id": str(sample_manga_entry.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{other['system_id']}",
+        json={"swap": True},
+    )
+    assert res.status_code == 409
+
+    db_session.expire_all()
+    assert db_session.query(models.MediaRelation).count() == 2
+    assert kept["system_id"] != other["system_id"]
+
+
+def test_swapping_and_changing_the_kind_together(
+    admin_client, db_session, sample_anime, sample_manga_entry
+):
+    created = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "adaptation",
+            "to_type": "manga", "to_id": str(sample_manga_entry.system_id),
+        },
+    ).json()
+
+    res = admin_client.patch(
+        f"/api/media-relation/{created['system_id']}",
+        json={"swap": True, "kind": "side_story"},
+    )
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    row = db_session.query(models.MediaRelation).one()
+    assert row.relation_type == "side_story"
+    assert (row.from_type, row.from_id) == ("manga", sample_manga_entry.system_id)
+
+
 def test_deleting_removes_the_row(
     admin_client, db_session, sample_anime, second_anime
 ):
@@ -481,12 +591,66 @@ def test_graph_scope_can_be_a_collection(
     assert f"anime:{sample_anime.system_id}" in {n["key"] for n in body["nodes"]}
 
 
+def test_graph_scope_can_be_a_series(
+    client, db_session, sample_series, sample_anime, second_anime
+):
+    # Only the first anime joins the series; the second stays franchise-only,
+    # so a series graph must draw one node and not the other.
+    sample_anime.series_id = sample_series.system_id
+    db_session.flush()
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"series_id": str(sample_series.system_id)},
+    ).json()
+
+    keys = {n["key"] for n in body["nodes"]}
+    assert f"anime:{sample_anime.system_id}" in keys
+    assert f"anime:{second_anime.system_id}" not in keys
+
+
+def test_graph_series_scope_ghosts_a_sibling_outside_the_series(
+    admin_client, client, db_session, sample_series, sample_anime, second_anime
+):
+    # A relation to an entry in the same franchise but a different series is
+    # out of scope here, so it has to arrive as a ghost rather than vanish.
+    sample_anime.series_id = sample_series.system_id
+    db_session.flush()
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(second_anime.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(sample_anime.system_id),
+        },
+    )
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"series_id": str(sample_series.system_id)},
+    ).json()
+
+    ghost = next(n for n in body["nodes"] if not n["in_scope"])
+    assert ghost["key"] == f"anime:{second_anime.system_id}"
+    assert ghost["missing"] is False
+    assert len(body["edges"]) == 1
+
+
 def test_graph_requires_exactly_one_scope(client):
     assert client.get("/api/media-relation/graph").status_code == 400
     assert (
         client.get(
             "/api/media-relation/graph",
             params={"franchise_id": str(uuid.uuid4()), "collection_id": str(uuid.uuid4())},
+        ).status_code
+        == 400
+    )
+    assert (
+        client.get(
+            "/api/media-relation/graph",
+            params={"franchise_id": str(uuid.uuid4()), "series_id": str(uuid.uuid4())},
         ).status_code
         == 400
     )

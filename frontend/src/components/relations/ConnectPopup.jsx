@@ -72,11 +72,17 @@ export default function ConnectPopup({
   function submit(e) {
     e.preventDefault();
     if (!far || !kind) return;
+    // The labels ride along because only the popup knows them: the far entry
+    // may have come from the global search and so is not on the canvas yet,
+    // which leaves the undo stack no way to name what it would reverse.
     onConfirm({
       kind,
       from: subject.key,
       to: object.key,
       remark: remark.trim() || null,
+      label,
+      fromName: subject.display_name,
+      toName: object.display_name,
     });
   }
 

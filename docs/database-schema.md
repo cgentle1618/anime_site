@@ -910,9 +910,11 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 #### External Links
 
-| Column         | Type  | Nullable | Notes |
-| -------------- | ----- | -------- | ----- |
-| `source_other` | JSONB | Yes      |       |
+| Column            | Type    | Nullable | Notes                                                                                                    |
+| ----------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `comicvine_id`    | Integer | Yes      | Comic Vine volume ID. Derived from `comicvine_link`; the handle Fill Comic fetches on                    |
+| `comicvine_link`  | String  | Yes      | Comic Vine volume URL, e.g. `https://comicvine.gamespot.com/…/4050-2127/`. The only one the admin types  |
+| `source_other`    | JSONB   | Yes      |                                                                                                          |
 
 #### Misc
 
@@ -1055,6 +1057,7 @@ one row.
 | `extended`             | A is the Extended version of B | Original | equivalence |
 | `side_story`           | A is a side story of B | Parent Story | branch      |
 | `spin_off`             | A is a spin-off of B  | Main Story    | branch      |
+| `setting`              | A is the setting book (設定集) of B | Main Story | branch |
 | `adaptation`           | A is an adaptation of B | Source      | derivation  |
 
 The vocabulary lives in `app/utils/relation_kinds.py` and is served over HTTP

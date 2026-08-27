@@ -33,6 +33,7 @@ import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
+import RelationGraph from "../../components/relations/RelationGraph";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -121,6 +122,7 @@ export default function FranchisePage() {
   const [cartoonList, setCartoonList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
   const [novelList, setNovelList] = useState([]);
+  const [comicList, setComicList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -168,6 +170,17 @@ export default function FranchisePage() {
     region: new Set(),
   });
 
+  // ── Comic tab state ───────────────────────────────────────────────────────
+  // Grouping defaults on: a comic franchise is a shelf of many short runs, so
+  // the series rail is what makes the tab readable.
+  const [comicSort, setComicSort] = useState("release_year");
+  const [comicGroupBySeries, setComicGroupBySeries] = useState(true);
+  const [comicFilters, setComicFilters] = useState({
+    comicType: new Set(),
+    readingStatus: new Set(),
+    era: new Set(),
+  });
+
   // ── Movies tab state ──────────────────────────────────────────────────────
   const [movSort, setMovSort] = useState("release_date");
   const [movGroupBySeries, setMovGroupBySeries] = useState(true);
@@ -197,7 +210,7 @@ export default function FranchisePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] =
+        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes] =
           await Promise.all([
             fetch(endpoints.resource("franchise").detail(system_id), { credentials: "include" }),
             fetch(buildUrl(endpoints.resource("series").list(), { franchise_id: system_id }), {
@@ -224,9 +237,12 @@ export default function FranchisePage() {
             fetch(buildUrl(endpoints.resource("novel").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
+            fetch(buildUrl(endpoints.resource("comic").list(), { franchise_id: system_id }), {
+              credentials: "include",
+            }),
           ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, am, m, tv, c, mg, nv] = await Promise.all([
+        const [f, s, a, am, m, tv, c, mg, nv, cm] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
@@ -236,6 +252,7 @@ export default function FranchisePage() {
           cRes.json(),
           mgRes.json(),
           nvRes.json(),
+          cmRes.json(),
         ]);
         setFranchise(f);
         setSeriesList(s);
@@ -246,6 +263,7 @@ export default function FranchisePage() {
         setCartoonList(c);
         setMangaList(mg);
         setNovelList(nv);
+        setComicList(cm);
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
         setWatchNextGroup(f.watch_next_group || "");
@@ -278,6 +296,7 @@ export default function FranchisePage() {
   const hasMovie = useMemo(() => types.includes("Movie"), [types]);
   const hasTV = useMemo(() => types.includes("TV"), [types]);
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
+  const hasComic = useMemo(() => types.includes("Comic"), [types]);
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below, because mixing the two in one
@@ -289,6 +308,7 @@ export default function FranchisePage() {
       (hasACG || hasAnimeMovie) && animeMovieList.length && "Anime Movies",
       hasACGFull && mangaList.length && "Manga",
       hasNovel && novelList.length && "Novel",
+      hasComic && comicList.length && "Comic",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -298,6 +318,7 @@ export default function FranchisePage() {
     hasACG,
     hasACGFull,
     hasNovel,
+    hasComic,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -306,6 +327,7 @@ export default function FranchisePage() {
     animeMovieList,
     mangaList,
     novelList,
+    comicList,
     movieList,
     tvShowList,
     cartoonList,
@@ -315,7 +337,7 @@ export default function FranchisePage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (franchise ? ["Watch Order", "Notes"] : []),
+    () => (franchise ? ["Watch Order", "Relations", "Notes"] : []),
     [franchise],
   );
 
@@ -366,6 +388,11 @@ export default function FranchisePage() {
   const handleNovelUpdated = useCallback(
     (u) =>
       setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
+    [],
+  );
+  const handleComicUpdated = useCallback(
+    (u) =>
+      setComicList((p) => p.map((c) => (c.system_id === u.system_id ? u : c))),
     [],
   );
 
@@ -656,6 +683,73 @@ export default function FranchisePage() {
     return result;
   }, [filteredAndSortedNovel, seriesList]);
 
+  // ── Comic memos ───────────────────────────────────────────────────────────
+  // Era is user-defined in system_options, so the filter row is built from
+  // what the franchise actually holds rather than a hardcoded list.
+  const comicEras = useMemo(
+    () =>
+      [...new Set(comicList.map((c) => c.era).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [comicList],
+  );
+
+  const filteredAndSortedComic = useMemo(() => {
+    let result = comicList.filter((c) => {
+      if (
+        comicFilters.comicType.size > 0 &&
+        !comicFilters.comicType.has(c.comic_type || "")
+      )
+        return false;
+      if (comicFilters.era.size > 0 && !comicFilters.era.has(c.era || ""))
+        return false;
+      if (comicFilters.readingStatus.size > 0) {
+        const rs = c.reading_status || "Might Read";
+        let group = "Might Read";
+        if (rs === "Plan to Read") group = "Planned";
+        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
+          group = "Reading";
+        else if (rs === "Completed") group = "Completed";
+        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
+          group = "Dropped";
+        if (!comicFilters.readingStatus.has(group)) return false;
+      }
+      return true;
+    });
+    result.sort((a, b) => {
+      if (comicSort === "my_rating")
+        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+      if (comicSort === "release_year") {
+        const diff =
+          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0);
+        if (diff !== 0) return diff;
+      }
+      return (a.comic_name_en || a.comic_name_cn || "").localeCompare(
+        b.comic_name_en || b.comic_name_cn || "",
+      );
+    });
+    return result;
+  }, [comicList, comicFilters, comicSort]);
+
+  const comicSeriesGroups = useMemo(() => {
+    const sm = Object.fromEntries(seriesList.map((s) => [s.system_id, s]));
+    const grouped = {};
+    const standalone = [];
+    filteredAndSortedComic.forEach((c) => {
+      if (c.series_id && sm[c.series_id]) {
+        (grouped[c.series_id] = grouped[c.series_id] || []).push(c);
+      } else standalone.push(c);
+    });
+    const result = [];
+    seriesList.forEach((s) => {
+      if (grouped[s.system_id]?.length > 0)
+        result.push({ type: "series", series: s, comics: grouped[s.system_id] });
+    });
+    if (standalone.length > 0)
+      result.push({ type: "standalone", comics: standalone });
+    return result;
+  }, [filteredAndSortedComic, seriesList]);
+
   // ── Movies memos ──────────────────────────────────────────────────────────
   const filteredAndSortedMovies = useMemo(() => {
     let result = movieList.filter((m) => {
@@ -879,10 +973,12 @@ export default function FranchisePage() {
     ],
     [animeList, animeMovieList, movieList, tvShowList, cartoonList],
   );
-  const totalEntries = allWatchable.length + mangaList.length;
+  const totalEntries =
+    allWatchable.length + mangaList.length + comicList.length;
   const completedCount =
     allWatchable.filter((e) => e.watching_status === "Completed").length +
-    mangaList.filter((m) => m.reading_status === "Completed").length;
+    mangaList.filter((m) => m.reading_status === "Completed").length +
+    comicList.filter((c) => c.reading_status === "Completed").length;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
@@ -892,6 +988,7 @@ export default function FranchisePage() {
       "Anime Movies": animeMovieList.length,
       Manga: mangaList.length,
       Novel: novelList.length,
+      Comic: comicList.length,
       Movies: movieList.length,
       "TV Shows": tvShowList.length,
       Cartoons: cartoonList.length,
@@ -1713,6 +1810,140 @@ export default function FranchisePage() {
           </div>
         )}
 
+      {/* ── Comic tab content ─────────────────────────────────────────────── */}
+      {activeTab === "Comic" && comicList.length > 0 && (
+        <div>
+          <SectionHeader
+            icon="fa-book-open"
+            title="Comic"
+            subtitle="Runs, limited series &amp; one-shots"
+            count={filteredAndSortedComic.length}
+          />
+
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={comicSort}
+              onChange={(e) => setComicSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+            >
+              <option value="release_year">Sort: Release Year</option>
+              <option value="title">Sort: Title</option>
+              <option value="my_rating">Sort: My Rating</option>
+            </select>
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {["Ongoing", "Limited", "One-Shot", "Annual"].map((v) => (
+              <button
+                key={v}
+                onClick={() =>
+                  toggleSetFilter(setComicFilters, "comicType", v)
+                }
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.comicType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {v}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() =>
+                    toggleSetFilter(setComicFilters, "readingStatus", v)
+                  }
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+
+            {comicEras.length > 0 && (
+              <>
+                <div className="w-px h-5 bg-gray-200"></div>
+                {comicEras.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => toggleSetFilter(setComicFilters, "era", v)}
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.era.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </>
+            )}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            <button
+              onClick={() => setComicGroupBySeries((v) => !v)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            >
+              <i className="fas fa-layer-group mr-1"></i>Group by Series
+            </button>
+          </div>
+
+          {filteredAndSortedComic.length === 0 ? (
+            <FilterEmpty />
+          ) : comicGroupBySeries ? (
+            <div className="space-y-10">
+              {comicSeriesGroups.map((group) => {
+                const label =
+                  group.type === "series"
+                    ? getDisplayName(group.series, "series") || "Unknown Series"
+                    : "Standalone";
+                return (
+                  <section
+                    key={
+                      group.type === "series"
+                        ? group.series.system_id
+                        : "standalone"
+                    }
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <i
+                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book-open"} text-brand/70`}
+                        ></i>
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {group.comics.length}
+                      </span>
+                      <div className="flex-1 border-t border-gray-100"></div>
+                    </div>
+                    <div className={GRID_CLS}>
+                      {group.comics.map((c) => (
+                        <MediaCard
+                          key={c.system_id}
+                          type="comic"
+                          data={c}
+                          onUpdated={handleComicUpdated}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={GRID_CLS}>
+              {filteredAndSortedComic.map((c) => (
+                <MediaCard
+                  key={c.system_id}
+                  type="comic"
+                  data={c}
+                  onUpdated={handleComicUpdated}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Movies tab content ────────────────────────────────────────────── */}
       {activeTab === "Movies" &&
         movieList.length > 0 && (
@@ -2136,6 +2367,21 @@ export default function FranchisePage() {
             subtitle="Ordered viewing guide across every media type"
           />
           <WatchOrderSection franchiseId={system_id} />
+        </div>
+      )}
+
+      {/* ── Relations tab content ────────────────────────────────────────── */}
+      {activeTab === "Relations" && (
+        <div>
+          <SectionHeader
+            icon="fa-diagram-project"
+            title="Relations"
+            subtitle="How this franchise's entries connect - prequels, alternatives, side stories and adaptations"
+          />
+          {/* Read-only everywhere outside the admin Relations page, for admins
+              too: this is a view of the structure, and curating it belongs in
+              one place rather than scattered across every hub. */}
+          <RelationGraph readOnly scopeType="franchise" scopeId={system_id} />
         </div>
       )}
 

@@ -23,26 +23,49 @@ TENRAI_BASE_URL = "https://api.tenrai.org/v1"
 
 
 class TenraiRateLimiter:
-    def __init__(self, max_requests: int = 30, time_window: int = 60):
-        self.max_requests = max_requests
-        self.time_window = time_window
+    """
+    Sliding-window throttle for the Tenrai v1 API.
+
+    Tenrai enforces two limits at once — 4 requests per second and 120 requests
+    per minute — so one window is not enough. Every window is checked before each
+    request and the caller sleeps until all of them have room.
+    """
+
+    # (max_requests, time_window_seconds)
+    DEFAULT_LIMITS = ((4, 1), (120, 60))
+
+    def __init__(self, limits=None):
+        self.limits = tuple(limits) if limits else self.DEFAULT_LIMITS
+        self.max_window = max(window for _, window in self.limits)
         self.request_timestamps = []
 
-    def wait_if_needed(self):
-        now = time.time()
-        # Remove timestamps older than the time window (60s)
-        self.request_timestamps = [
-            t for t in self.request_timestamps if now - t < self.time_window
-        ]
+    def _sleep_time(self, now: float) -> float:
+        """Longest wait any window demands before another request may go out."""
+        sleep_time = 0.0
+        for max_requests, window in self.limits:
+            recent = [t for t in self.request_timestamps if now - t < window]
+            if len(recent) >= max_requests:
+                # The request that must expire before this window frees a slot.
+                blocking = recent[len(recent) - max_requests]
+                sleep_time = max(sleep_time, window - (now - blocking))
+        return sleep_time
 
-        if len(self.request_timestamps) >= self.max_requests:
-            # Calculate how long to wait until the oldest request expires
-            sleep_time = self.time_window - (now - self.request_timestamps[0])
-            if sleep_time > 0:
-                logger.info(
-                    f"Tenrai Rate Limiter: Maximum requests ({self.max_requests}) reached. Pausing for {sleep_time:.2f} seconds."
-                )
-                time.sleep(sleep_time)
+    def wait_if_needed(self):
+        while True:
+            now = time.time()
+            # Drop timestamps older than the widest window — they constrain nothing.
+            self.request_timestamps = [
+                t for t in self.request_timestamps if now - t < self.max_window
+            ]
+
+            sleep_time = self._sleep_time(now)
+            if sleep_time <= 0:
+                break
+
+            logger.info(
+                f"Tenrai Rate Limiter: limit reached. Pausing for {sleep_time:.2f} seconds."
+            )
+            time.sleep(sleep_time)
 
         self.request_timestamps.append(time.time())
 

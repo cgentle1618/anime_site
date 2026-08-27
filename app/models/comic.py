@@ -71,6 +71,11 @@ class Comic(Base, NameFallbackMixin):
 
     my_rating = Column(String, nullable=True)
 
+    # Comic Vine volume handle. The ID is derived from the link (same idiom as
+    # manga.mal_id / mal_link) and is what the Fill pipeline fetches on.
+    comicvine_id = Column(Integer, nullable=True)
+    comicvine_link = Column(String, nullable=True)
+
     source_other = Column(JSONB, default=None, nullable=True)
 
     # No UI this pass (plan pages are out of scope), but created now so adding

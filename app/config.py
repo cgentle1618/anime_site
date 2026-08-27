@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     # --- External metadata APIs ---
     tmdb_api_key: Optional[str] = None
     omdb_api_key: Optional[str] = None
+    comicvine_api_key: Optional[str] = None
 
     # --- Google integrations ---
     google_credentials_json: Optional[str] = None

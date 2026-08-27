@@ -93,6 +93,11 @@ describe("ConnectPopup", () => {
       from: "anime:a",
       to: "anime:b",
       remark: null,
+      // Carried for the undo stack, which has to name a far entry that may
+      // not be on the canvas yet.
+      label: "Adaptation",
+      fromName: "Fate/Zero",
+      toName: "Fate/stay night",
     });
   });
 

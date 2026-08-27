@@ -1,7 +1,7 @@
 """
 The vocabulary of `media_relation.relation_type`.
 
-Nine user-facing labels compress to eight stored kinds, because Prequel is
+Ten user-facing labels compress to nine stored kinds, because Prequel is
 Sequel read backwards. Storing both directions as distinct kinds would let one
 fact exist as two rows that no unique index could catch, so `prequel` is
 accepted on write and immediately normalized into a `sequel` row with the two
@@ -72,6 +72,13 @@ RELATION_KINDS: dict[str, RelationKind] = {
     "spin_off": RelationKind(
         "spin_off", "Spin-off", "Main Story", "branch"
     ),
+    # A companion volume about a work rather than a story in it: 設定集, 公式書,
+    # 畫冊. It documents the main story and is never documented by it, so it is
+    # directional, and it shares Spin-off's inverse for the same reason - what
+    # it points at is the Main Story.
+    "setting": RelationKind(
+        "setting", "Setting", "Main Story", "branch"
+    ),
     "adaptation": RelationKind(
         "adaptation", "Adaptation", "Source", "derivation"
     ),
@@ -84,6 +91,6 @@ RELATION_KEYS: tuple[str, ...] = tuple(RELATION_KINDS)
 # choosing A writes the row A -sequel-> B.
 INPUT_ONLY_KINDS: dict[str, str] = {"prequel": "sequel"}
 
-# What POST /api/media-relation and PATCH will accept as `kind`: the eight
-# stored kinds plus `prequel`, which is the nine choices the dropdown offers.
+# What POST /api/media-relation and PATCH will accept as `kind`: the nine
+# stored kinds plus `prequel`, which is the ten choices the dropdown offers.
 ACCEPTED_INPUT_KINDS: tuple[str, ...] = RELATION_KEYS + tuple(INPUT_ONLY_KINDS)

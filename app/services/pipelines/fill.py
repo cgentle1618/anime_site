@@ -46,6 +46,7 @@ from app.services.domain import (
     has_missing_values_anime_movie,
     has_missing_values_cartoon,
     has_missing_values_manga,
+    has_missing_values_comic,
     has_missing_values_novel,
     has_missing_values_movie,
     has_missing_values_tv_show,
@@ -53,6 +54,7 @@ from app.services.domain import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_manga_from_mal,
+    autofill_comic_from_comicvine,
     autofill_novel_from_mal,
     autofill_movie_from_imdb,
     autofill_tv_show_from_imdb,
@@ -65,6 +67,7 @@ from app.services.domain import (
     apply_single_replace_tv_show,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_comicvine_id,
     apply_extract_imdb_id,
     anime_post_processing,
     anime_movie_post_processing,
@@ -88,6 +91,7 @@ from app.services.calculation import (
     run_sync_comic,
     run_sync_tv_show,
 )
+from app.services.integrations.comicvine import comicvine_rate_limiter
 from app.services.pipelines.backup import execute_backup
 
 logger = logging.getLogger(__name__)
@@ -790,18 +794,61 @@ async def execute_fill_comic(
     log_action: bool = True,
 ):
     """
-    Async Generator (SSE) for 'Fill Comic'.
+    Async Generator (SSE) for 'Fill Comic'. Supports graceful frontend abort.
 
-    Comics are manual-entry, so there is nothing to fetch. This extracts system
-    options and returns — it exists so the admin Fill controls behave uniformly
-    across types.
+    Enriches entries from Comic Vine by volume ID. Comic Vine allows only ~200
+    requests/hour, so a large backfill will not finish in one run: the pipeline
+    stops when the hourly budget is exhausted and reports how many entries were
+    left rather than blocking for the remainder of the hour.
     """
     logger.info(f"Starting {action_specific} Pipeline...")
 
-    try:
-        total = db.query(Comic).count()
+    processed_count = 0
+    total_in_queue = 0
+    skipped_rate_limited = 0
 
-        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': 0, 'total': total})}\n\n"
+    try:
+        all_comics = db.query(Comic).all()
+        for comic in all_comics:
+            apply_extract_comicvine_id(comic)
+        db.commit()
+
+        queue_to_process = [
+            c
+            for c in all_comics
+            if c.comicvine_id is not None and has_missing_values_comic(c)
+        ]
+        total_in_queue = len(queue_to_process)
+
+        if total_in_queue > 0:
+            for index, comic in enumerate(queue_to_process, start=1):
+                if await request.is_disconnected():
+                    raise asyncio.CancelledError()
+
+                if not comicvine_rate_limiter.has_capacity():
+                    skipped_rate_limited = total_in_queue - index + 1
+                    logger.warning(
+                        f"Comic Vine hourly budget exhausted. "
+                        f"{skipped_rate_limited} entries left for the next run."
+                    )
+                    break
+
+                name = comic.display_name or "Unknown Comic"
+                yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
+
+                try:
+                    autofill_comic_from_comicvine(comic)
+                    db.commit()
+                    processed_count += 1
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"Comic Vine Autofill failed for {name}: {e}")
+
+                await asyncio.sleep(1)
+        else:
+            yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'No entries need filling. Running post-processing...', 'processed': 0, 'total': 0})}\n\n"
+
+        yield f"data: {json.dumps({'status': 'processing', 'current_entry': 'Syncing system options...', 'processed': processed_count, 'total': total_in_queue})}\n\n"
         run_sync_comic(db)
 
         if log_action:
@@ -811,10 +858,17 @@ async def execute_fill_comic(
                 action_specific,
                 action_type,
                 "Success",
-                rows_updated=total,
+                rows_updated=processed_count,
             )
 
-        yield f"data: {json.dumps({'status': 'success', 'message': f'{action_specific} complete.', 'total': total, 'processed': total})}\n\n"
+        message = f"{action_specific} complete."
+        if skipped_rate_limited:
+            message += (
+                f" {skipped_rate_limited} entries skipped — Comic Vine's hourly "
+                f"limit was reached. Run again later to finish."
+            )
+
+        yield f"data: {json.dumps({'status': 'success', 'message': message, 'total': total_in_queue, 'processed': processed_count})}\n\n"
 
     except asyncio.CancelledError:
         db.rollback()

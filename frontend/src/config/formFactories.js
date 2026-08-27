@@ -295,6 +295,7 @@ export const defaultComic = () => ({
   publisher_tw: "",
   is_main_entry: false,
   read_order: "",
+  comicvine_link: "",
   source_other: [],
   read_next: false,
   to_reread: false,
