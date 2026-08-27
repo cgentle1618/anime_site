@@ -15,8 +15,15 @@
   --color-brand: #2563eb;
   --color-brand-hover: #1d4ed8;
 
+  /* Nav "drawer front" — the ink surface the identity row is cut from.
+     Paired with the page's gray-50, which the active nav tab merges into. */
+  --color-ink: #0f172a;
+
   /* Typography */
   --font-noto-sans: "Noto Sans TC", "Roboto", sans-serif;
+  /* Fira Code is already loaded in index.html; point `font-mono` at it so the
+     nav's catalog labels use it rather than the browser's default mono. */
+  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Shadows */
   --shadow-neon:
