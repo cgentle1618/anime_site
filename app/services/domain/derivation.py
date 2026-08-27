@@ -20,6 +20,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -50,6 +51,7 @@ from app.utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
+from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,17 @@ def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
     mal_id = extract_mal_id_manga_novel(entry.mal_link)
     if mal_id:
         entry.mal_id = mal_id
+        return True
+    return False
+
+
+def apply_extract_comicvine_id(entry: Comic) -> bool:
+    """Extracts the Comic Vine volume ID from comicvine_link and writes it to
+    comicvine_id. Returns True if set. An unparseable link leaves any existing
+    ID untouched — the ID is the fill pipeline's only handle on the entry."""
+    comicvine_id = extract_comicvine_id(entry.comicvine_link)
+    if comicvine_id:
+        entry.comicvine_id = comicvine_id
         return True
     return False
 

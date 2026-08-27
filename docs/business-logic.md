@@ -158,14 +158,22 @@ Fills missing metadata for all novel entries that need it.
 
 #### Fill Comic — `execute_fill_comic(db, request, action_specific, action_type, log_action)` _(SSE)_
 
-Comics are manual-entry, so there is nothing to fetch from an external source.
-This runs system-options extraction only and makes **no external call** — it
-exists so the admin Fill controls behave uniformly across types.
+Enriches comic entries from Comic Vine by volume ID.
 
 **Steps:**
 
-1. `run_sync_comic` (i.e. `extract_system_options_from_comic`).
-2. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+1. `apply_extract_comicvine_id` on every comic — derives `comicvine_id` from
+   `comicvine_link`. An unparseable link leaves any existing ID untouched.
+2. Queue = entries with a `comicvine_id` **and** `has_missing_values_comic` true.
+3. Per entry: `autofill_comic_from_comicvine` (fill-only), commit, sleep 1s.
+   A failure on one entry rolls back and is logged; the run continues.
+4. `run_sync_comic` (i.e. `extract_system_options_from_comic`).
+5. Yields SSE JSON messages: `{status, current_entry, processed, total}`.
+
+**Rate-limit stop:** before each entry the pipeline checks
+`comicvine_rate_limiter.has_capacity()`. Comic Vine allows only ~200 requests per
+hour, so when the budget is exhausted the run stops and the success message names
+how many entries were skipped, rather than blocking for the rest of the hour.
 
 **Note:** Not part of `execute_fill_all` — Fill All does not include comic.
 
@@ -347,9 +355,11 @@ Replaces metadata for all novel entries that have a `mal_id` or `mal_link`.
 Write hook for a single Comic entry, called automatically after `POST`/`PUT`
 on `/api/comic` and by `POST /api/data-control/replace/comic/{comic_id}` (the
 Autofill & Update button). Unlike every other single-replace hook, **it
-fetches nothing**: comics are manual-entry, so there is no external record to
-reconcile against. It exists only so the registry has a uniform `write_hook`
-and so the write is logged like every other type's.
+fetches nothing** — even though Fill Comic now does. Comic Vine's ~200
+requests/hour budget is tight enough that spending one on every comic write
+would starve the bulk backfill, so enrichment is left to Fill Comic. This hook
+exists so the registry has a uniform `write_hook` and so the write is logged
+like every other type's.
 
 **Steps:**
 

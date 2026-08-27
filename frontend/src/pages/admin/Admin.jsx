@@ -1982,6 +1982,10 @@ export default function Admin() {
                 { label: "Cartoon", url: "/api/data-control/fill/cartoon" },
                 { label: "Manga", url: "/api/data-control/fill/manga" },
                 { label: "Novel", url: "/api/data-control/fill/novel" },
+                // Deliberately absent from Fill All: Comic Vine allows only
+                // ~200 requests/hour, so a bulk comic fill is triggered on
+                // purpose rather than riding along with every full run.
+                { label: "Comic", url: "/api/data-control/fill/comic" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}
@@ -2052,6 +2056,7 @@ export default function Admin() {
                   <option value="Cartoons">Cartoon</option>
                   <option value="Manga">Manga</option>
                   <option value="Novel">Novel</option>
+                  <option value="Comic">Comic</option>
                   <option value="Collection">Collection</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>

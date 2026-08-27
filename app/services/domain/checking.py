@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -32,6 +33,7 @@ from app.utils.utils import (
     CARTOON_MOVIE_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
     NOVEL_FIELDS_TO_FILL,
+    COMIC_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     extract_mal_id_anime,
@@ -201,6 +203,20 @@ def has_missing_values_novel(novel: Novel) -> bool:
 
     if novel.serialization_status == "完結":
         if novel.vol_total_original is None and novel.ch_total is None:
+            return True
+
+    return False
+
+
+def has_missing_values_comic(comic: Comic) -> bool:
+    """
+    Returns True if any Comic Vine-fillable field is blank.
+    Only COMIC_FIELDS_TO_FILL are considered — imprint, continuity, era, events,
+    end_year and publisher_tw are manual classifications Comic Vine does not model.
+    """
+    for field in COMIC_FIELDS_TO_FILL:
+        val = getattr(comic, field, None)
+        if val is None or str(val).strip() == "":
             return True
 
     return False

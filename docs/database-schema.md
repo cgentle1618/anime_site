@@ -910,9 +910,11 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 #### External Links
 
-| Column         | Type  | Nullable | Notes |
-| -------------- | ----- | -------- | ----- |
-| `source_other` | JSONB | Yes      |       |
+| Column            | Type    | Nullable | Notes                                                                                                    |
+| ----------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `comicvine_id`    | Integer | Yes      | Comic Vine volume ID. Derived from `comicvine_link`; the handle Fill Comic fetches on                    |
+| `comicvine_link`  | String  | Yes      | Comic Vine volume URL, e.g. `https://comicvine.gamespot.com/…/4050-2127/`. The only one the admin types  |
+| `source_other`    | JSONB   | Yes      |                                                                                                          |
 
 #### Misc
 

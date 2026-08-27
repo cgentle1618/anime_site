@@ -67,3 +67,22 @@ class TestParseComicFromSheet:
         )
         assert parsed["created_at"] == datetime(2024, 3, 5, 10, 11, 12)
         assert parsed["updated_at"] == datetime(2025, 1, 2, 3, 4, 5)
+
+    def test_parses_the_comicvine_handle(self):
+        """
+        Pull rebuilds rows from the sheet wholesale, so a field the parser omits
+        is silently wiped on every restore.
+        """
+        parsed = parse_comic_from_sheet(
+            {
+                "comicvine_id": "2127",
+                "comicvine_link": "https://comicvine.gamespot.com/asm/4050-2127/",
+            }
+        )
+        assert parsed["comicvine_id"] == 2127
+        assert parsed["comicvine_link"] == "https://comicvine.gamespot.com/asm/4050-2127/"
+
+    def test_comicvine_handle_is_none_when_absent(self):
+        parsed = parse_comic_from_sheet({})
+        assert parsed["comicvine_id"] is None
+        assert parsed["comicvine_link"] is None

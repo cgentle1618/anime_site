@@ -217,8 +217,8 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
 ## Comic — `/api/comic`
 
-Western comic runs. Manual-entry only — see the Comic Fill/Replace notes under
-Data Control below.
+Western comic runs. Enriched from Comic Vine by volume ID — see the Comic
+Fill/Replace notes under Data Control below.
 
 | Method   | Path                   | Auth   | Description                                                                                                                           |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -229,6 +229,7 @@ Data Control below.
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", serialization status to `完結`, issues finished/total snapped to the higher of the two). |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete a comic entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
+| `GET`    | `/search-comicvine`   | Admin  | Search Comic Vine volumes by name so the right run can be identified. Params: `q` (required), `limit` (1-50, default 10). Returns `comicvine_id`, `name`, `start_year`, `publisher`, `issue_total`, `comicvine_link`, `cover_image_url`. |
 
 **Response model:** `ComicResponse`
 

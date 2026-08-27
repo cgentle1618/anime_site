@@ -597,6 +597,12 @@ export const TYPE_FIELD_META = {
       control: "checkbox",
       group: "Derivation",
     },
+    // The Fill pipeline reads comicvine_id, which the backend derives from
+    // this link — so the link is the only one the admin ever types.
+    comicvine_link: {
+      label: "Comic Vine Link",
+      group: "Sources",
+    },
   },
 
   collection: {

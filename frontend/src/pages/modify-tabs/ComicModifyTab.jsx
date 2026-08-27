@@ -343,6 +343,17 @@ export default function ComicModifyTab({
       </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Sources" />
+      <Field
+        label="Comic Vine Link"
+        hint="Volume URL — Fill Comic pulls publisher, credits, issue count and the cover from it"
+      >
+        <input
+          className={inputCls}
+          value={ccmf.comicvine_link || ""}
+          onChange={(e) => ucm("comicvine_link", e.target.value)}
+          placeholder="https://comicvine.gamespot.com/.../4050-2127/"
+        />
+      </Field>
       <div>
         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
           Other Sources
