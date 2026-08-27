@@ -111,7 +111,6 @@ function GraphCanvas({
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
   const [hiddenFamilies, setHiddenFamilies] = useState(new Set());
-  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   // A failed read must not look like an empty scope: the canvas is the whole
   // right pane, so a blank one otherwise reads as "this franchise has no
@@ -485,33 +484,24 @@ function GraphCanvas({
     return set;
   }, [isolatedKey, graphEdges]);
 
-  const needle = query.trim().toLowerCase();
   const displayNodes = useMemo(
     () =>
-      nodes.map((n) => {
-        const missesNeedle =
-          needle.length > 0 &&
-          ![n.data.display_name || "", ...(n.data.search_names || [])]
-            .join(" ")
-            .toLowerCase()
-            .includes(needle);
-        return {
-          ...n,
-          // The ring follows selectedNodeKey rather than React Flow's own
-          // selection, so the two ways of choosing an entry look the same: a
-          // canvas click sets the key through onNodeClick, and a click in the
-          // left pane sets it through focusKey - which used to open the panel
-          // while leaving the node itself unmarked.
-          selected: n.id === selectedNodeKey,
-          data: {
-            ...n.data,
-            // Either reason dims: outside the isolated neighbourhood, or
-            // missed by the search box.
-            dimmed: missesNeedle || (neighbours ? !neighbours.has(n.id) : false),
-          },
-        };
-      }),
-    [nodes, needle, neighbours, selectedNodeKey],
+      nodes.map((n) => ({
+        ...n,
+        // The ring follows selectedNodeKey rather than React Flow's own
+        // selection, so the two ways of choosing an entry look the same: a
+        // canvas click sets the key through onNodeClick, and a click in the
+        // left pane sets it through focusKey - which used to open the panel
+        // while leaving the node itself unmarked.
+        selected: n.id === selectedNodeKey,
+        data: {
+          ...n.data,
+          // Isolate is the only thing that dims: finding an entry is the left
+          // pane's filter, which scrolls the list and focuses the node.
+          dimmed: neighbours ? !neighbours.has(n.id) : false,
+        },
+      })),
+    [nodes, neighbours, selectedNodeKey],
   );
 
   const selectedNode = useMemo(
@@ -669,13 +659,6 @@ function GraphCanvas({
   return (
     <div ref={wrapperRef} className="relative flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Highlight an entry…"
-          className="flex-1 min-w-[12rem] rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-        />
         {readOnly ? null : (
           <button
             type="button"
