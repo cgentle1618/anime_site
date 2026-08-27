@@ -15,18 +15,32 @@
 // left/right handles connect. See lib/relationHandles.
 import dagre from "@dagrejs/dagre";
 
+// The lattice every position lands on. Shared with the canvas, which draws it
+// as the Background dots and snaps dragging to it - so a hand-placed node and
+// a computed one sit on the same rhythm instead of two unrelated ones.
+//
+// Every gap below is a multiple of it, which is what makes the distance
+// between two nodes a fixed number rather than whatever dagre happened to
+// centre them at.
+export const GRID = 24;
+
 // Nodes are fixed-size because dagre reserves space from declared dimensions -
 // RelationNode must render at exactly these numbers or the spacing lies.
-export const NODE_WIDTH = 200;
-export const NODE_HEIGHT = 72;
+export const NODE_WIDTH = 192; // 8 * GRID
+export const NODE_HEIGHT = 72; // 3 * GRID
+
+// Rounds a coordinate onto the grid.
+function snap(v) {
+  return Math.round(v / GRID) * GRID;
+}
 
 // Vertical gap between the members of one version group.
-const GROUP_GAP = 12;
+const GROUP_GAP = 24;
 // Where the unconnected tray starts, below the deepest ranked node.
 const TRAY_TOP_GAP = 120;
 const TRAY_COLUMNS = 4;
 const TRAY_GAP_X = 24;
-const TRAY_GAP_Y = 20;
+const TRAY_GAP_Y = 24;
 
 function unionFind(keys) {
   const parent = new Map(keys.map((k) => [k, k]));
@@ -147,7 +161,7 @@ export function layoutGraph({ nodes, edges }) {
 
   // Pass 2: rank the groups left to right.
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", ranksep: 90, nodesep: 40, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: "LR", ranksep: 96, nodesep: 48, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(() => ({}));
 
   const groupHeight = (root) => {
@@ -176,15 +190,23 @@ export function layoutGraph({ nodes, edges }) {
 
   // Pass 3: expand each group back into its column of real nodes, in the order
   // pass 1 settled. dagre reports centres; React Flow wants top-left corners.
+  //
+  // The corner is snapped, not the centre: dagre centres a rank on the tallest
+  // group in it, so a two-node column and a five-node one land on half-pixel
+  // offsets that read as a wobble down the canvas. Snapping the group's top
+  // once and stepping by a whole multiple of GRID keeps the column's own pitch
+  // exact - snapping each member separately could not, since rounding twice
+  // inside one column may shift its members by different amounts.
   const positions = new Map();
   let deepest = 0;
   for (const root of rankedRoots) {
     const box = g.node(root);
     const height = groupHeight(root);
-    const top = box.y - height / 2;
+    const top = snap(box.y - height / 2);
+    const x = snap(box.x - NODE_WIDTH / 2);
     members.get(root).forEach((key, i) => {
       const y = top + i * (NODE_HEIGHT + GROUP_GAP);
-      positions.set(key, { x: box.x - NODE_WIDTH / 2, y });
+      positions.set(key, { x, y });
       deepest = Math.max(deepest, y + NODE_HEIGHT);
     });
   }
@@ -192,7 +214,9 @@ export function layoutGraph({ nodes, edges }) {
   // The tray: everything no relation touches, in a wrapped grid below the
   // graph. Still full drag sources - it is where most connecting starts.
   const trayKeys = keys.filter((k) => !positions.has(k));
-  const trayTop = deepest + TRAY_TOP_GAP;
+  // Snapped defensively: every term is already a multiple of GRID, but the
+  // tray is the one block whose top depends on the ranked graph above it.
+  const trayTop = snap(deepest + TRAY_TOP_GAP);
   trayKeys.forEach((key, i) => {
     positions.set(key, {
       x: (i % TRAY_COLUMNS) * (NODE_WIDTH + TRAY_GAP_X),

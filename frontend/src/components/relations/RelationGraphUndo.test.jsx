@@ -1,9 +1,11 @@
-// Frontend: tests for the undo button's presence and gating.
+// Frontend: tests for the canvas toolbar buttons - Undo and Tidy - covering
+// their presence and gating.
 //
 // The reversal rules themselves are unit-tested in lib/relationUndo; what is
-// worth checking here is that the button exists only where writing is
+// worth checking here is that each button exists only where writing is
 // possible, and never offers to undo nothing.
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import RelationGraph from "./RelationGraph";
 
@@ -24,9 +26,9 @@ beforeEach(() => {
 
 const EMPTY_GRAPH = { nodes: [], edges: [] };
 
-function mockFetch() {
+function mockFetch(graph = EMPTY_GRAPH) {
   const fetchMock = vi.fn(() =>
-    Promise.resolve({ ok: true, json: () => Promise.resolve(EMPTY_GRAPH) }),
+    Promise.resolve({ ok: true, json: () => Promise.resolve(graph) }),
   );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -36,7 +38,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("RelationGraph undo button", () => {
+describe("RelationGraph toolbar buttons", () => {
   it("offers Undo on a writable canvas", async () => {
     mockFetch();
     render(<RelationGraph scopeType="franchise" scopeId="f1" kinds={[]} />);
@@ -73,6 +75,60 @@ describe("RelationGraph undo button", () => {
       expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("button", { name: /undo/i })).toBeNull();
+  });
+
+  it("offers Tidy on a writable canvas and omits it on a read-only one", async () => {
+    // Tidy drops hand-placed positions; a read-only canvas never had any, so
+    // the button would reset nothing.
+    mockFetch();
+    const { unmount } = render(
+      <RelationGraph scopeType="franchise" scopeId="f1" kinds={[]} />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /tidy/i })).toBeInTheDocument(),
+    );
+    unmount();
+
+    render(<RelationGraph readOnly scopeType="series" scopeId="s1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: /tidy/i })).toBeNull();
+  });
+
+  it("disables Tidy on an empty canvas, which has nothing to re-lay-out", async () => {
+    mockFetch();
+    render(<RelationGraph scopeType="franchise" scopeId="f1" kinds={[]} />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /tidy/i })).toBeDisabled(),
+    );
+  });
+
+  it("re-reads the graph when Tidy is clicked", async () => {
+    // The reset itself is mergePositions dropping an emptied ref, which is
+    // unit-tested in lib/relationLayout. What this proves is the button is
+    // wired to the refetch that re-runs the layout at all.
+    const fetchMock = mockFetch({
+      nodes: [
+        {
+          key: "anime:a",
+          entry_id: "a",
+          media_type: "anime",
+          display_name: "A",
+          in_scope: true,
+        },
+      ],
+      edges: [],
+    });
+    render(<RelationGraph scopeType="franchise" scopeId="f1" kinds={[]} />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /tidy/i })).toBeEnabled(),
+    );
+    const before = fetchMock.mock.calls.length;
+    await userEvent.click(screen.getByRole("button", { name: /tidy/i }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(before),
+    );
   });
 
   it("asks the graph endpoint for the right scope key", async () => {

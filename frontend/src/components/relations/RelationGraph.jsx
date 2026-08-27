@@ -21,7 +21,7 @@ import RelationNode from "./RelationNode";
 import ConnectPopup from "./ConnectPopup";
 import EdgeInspector from "./EdgeInspector";
 import NodePanel from "./NodePanel";
-import { layoutGraph, mergePositions } from "../../lib/relationLayout";
+import { GRID, layoutGraph, mergePositions } from "../../lib/relationLayout";
 import {
   describeEntry,
   restoringKind,
@@ -76,6 +76,12 @@ function toFlowEdges(edges, hiddenFamilies) {
       const middle = familyGroup(e.family) === MIDDLE;
       return {
         id: String(e.system_id),
+        // Orthogonal, not the default bezier. The two handle pairs already
+        // commit each family to one axis - timeline across, the rest down -
+        // so a curve only bows away from an axis the edge is meant to state.
+        // smoothstep keeps the right angles but rounds the corner, which
+        // reads less like a circuit diagram than a hard step.
+        type: "smoothstep",
         // Reversed, matching layoutGraph: a row reads "`from` is the {label}
         // of `to`", so `to` is the original and `from` the work derived from
         // it. Drawing to->from makes every arrow run from the original to the
@@ -646,6 +652,15 @@ function GraphCanvas({
     setSelectedEdgeId(edge.id);
   }
 
+  // Throws away every hand-dragged coordinate and takes the computed layout
+  // again. mergePositions only preserves what the ref holds, so emptying it is
+  // the whole reset - without this a drag is permanent, since a refetch keeps
+  // the old position on purpose so adding a relation cannot shuffle the canvas.
+  function tidy() {
+    positionsRef.current = {};
+    refetch();
+  }
+
   if (!scopeId) {
     return (
       <div className="flex h-[36rem] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
@@ -677,6 +692,19 @@ function GraphCanvas({
                 {history.length}
               </span>
             ) : null}
+          </button>
+        )}
+
+        {readOnly ? null : (
+          <button
+            type="button"
+            onClick={tidy}
+            disabled={writing || loading || nodes.length === 0}
+            title="Drop every hand-placed position and re-run the automatic layout"
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <i className="fas fa-wand-magic-sparkles"></i>
+            Tidy
           </button>
         )}
 
@@ -720,11 +748,16 @@ function GraphCanvas({
           // a node nor starting a connection from one is offered.
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
+          // The same lattice layoutGraph computes on and Background draws, so
+          // a dragged node lines up with the ones it was dropped beside
+          // instead of landing a few pixels off every neighbour.
+          snapToGrid
+          snapGrid={[GRID, GRID]}
           fitView
           minZoom={0.15}
           proOptions={{ hideAttribution: false }}
         >
-          <Background gap={24} />
+          <Background gap={GRID} />
           <Controls showInteractive={false} />
           <MiniMap pannable zoomable />
         </ReactFlow>

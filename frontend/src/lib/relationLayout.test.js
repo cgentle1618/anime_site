@@ -3,7 +3,12 @@
 // Layout is where the graph either reads as a story or reads as a hairball, so
 // it lives in pure functions and gets tested directly rather than through the
 // canvas.
-import { layoutGraph, mergePositions, NODE_HEIGHT } from "./relationLayout";
+import {
+  GRID,
+  layoutGraph,
+  mergePositions,
+  NODE_HEIGHT,
+} from "./relationLayout";
 
 function node(key, extra = {}) {
   return { key, media_type: "anime", in_scope: true, display_name: key, ...extra };
@@ -156,6 +161,46 @@ describe("layoutGraph", () => {
       expect(shuffled[key].position).toEqual(forward[key].position);
       expect(shuffled[key].section).toBe(forward[key].section);
     }
+  });
+
+  it("puts every node on the grid, ranked and trayed alike", () => {
+    // dagre centres a rank on the tallest group in it, so raw output lands on
+    // half-pixel offsets that read as a wobble down the canvas. The canvas
+    // snaps dragging to this same GRID, so a computed position off it could
+    // never be matched by hand.
+    const out = layoutGraph({
+      nodes: [node("anime:a"), node("anime:b"), node("manga:a"), node("movie:z")],
+      edges: [
+        edge("anime:b", "anime:a"),
+        edge("manga:a", "anime:a", "derivation", "adaptation"),
+      ],
+    });
+    // movie:z is trayed and the other three are ranked, so this covers both
+    // blocks rather than only the graph.
+    expect(out.map((n) => n.section)).toContain("tray");
+    for (const n of out) {
+      expect(n.position.x % GRID).toBe(0);
+      expect(n.position.y % GRID).toBe(0);
+    }
+  });
+
+  it("spaces a column by a fixed pitch", () => {
+    // Three deep, so the gap is checked across two consecutive pairs rather
+    // than one: snapping each member on its own would round them apart.
+    const out = byKey(
+      layoutGraph({
+        nodes: [node("anime:a"), node("manga:a"), node("novel:a")],
+        edges: [
+          edge("manga:a", "anime:a", "derivation", "adaptation"),
+          edge("novel:a", "manga:a", "derivation", "adaptation"),
+        ],
+      }),
+    );
+    const ys = ["anime:a", "manga:a", "novel:a"]
+      .map((k) => out[k].position.y)
+      .sort((a, b) => a - b);
+    expect(ys[1] - ys[0]).toBe(ys[2] - ys[1]);
+    expect((ys[1] - ys[0]) % GRID).toBe(0);
   });
 });
 
