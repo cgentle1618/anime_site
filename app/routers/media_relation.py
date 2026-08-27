@@ -250,20 +250,33 @@ def list_relations_in_scope(
 def get_relation_graph(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
-    Everything the relations canvas draws for one franchise or collection.
+    Everything the relations canvas draws for one group, at any of the three
+    tiers.
 
     One request rather than two, because "which nodes does this canvas contain"
     is a single question whose answer needs the cross-table resolver - the page
     would otherwise have to synthesize the ghost set by diffing two lists.
+
+    A series scope resolves against series_id directly rather than widening to
+    the parent franchise, so the graph holds that series alone. Note anime_movie
+    carries no series_id, so an anime movie can only ever appear on a series
+    graph as a ghost.
     """
-    if bool(franchise_id) == bool(collection_id):
+    scopes = [franchise_id, collection_id, series_id]
+    if sum(1 for value in scopes if value) != 1:
         raise HTTPException(
             status_code=400,
-            detail="Provide exactly one of franchise_id or collection_id.",
+            detail=(
+                "Provide exactly one of franchise_id, collection_id or series_id."
+            ),
         )
+
+    if series_id:
+        return graph_for_scope(db, [], series_ids=[series_id])
 
     if franchise_id:
         franchise_ids = [franchise_id]

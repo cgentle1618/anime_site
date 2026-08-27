@@ -33,6 +33,7 @@ import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
+import RelationGraph from "../../components/relations/RelationGraph";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -315,7 +316,7 @@ export default function FranchisePage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (franchise ? ["Watch Order", "Notes"] : []),
+    () => (franchise ? ["Watch Order", "Relations", "Notes"] : []),
     [franchise],
   );
 
@@ -2136,6 +2137,21 @@ export default function FranchisePage() {
             subtitle="Ordered viewing guide across every media type"
           />
           <WatchOrderSection franchiseId={system_id} />
+        </div>
+      )}
+
+      {/* ── Relations tab content ────────────────────────────────────────── */}
+      {activeTab === "Relations" && (
+        <div>
+          <SectionHeader
+            icon="fa-diagram-project"
+            title="Relations"
+            subtitle="How this franchise's entries connect - prequels, alternatives, side stories and adaptations"
+          />
+          {/* Read-only everywhere outside the admin Relations page, for admins
+              too: this is a view of the structure, and curating it belongs in
+              one place rather than scattered across every hub. */}
+          <RelationGraph readOnly scopeType="franchise" scopeId={system_id} />
         </div>
       )}
 

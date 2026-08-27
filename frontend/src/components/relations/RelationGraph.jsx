@@ -51,6 +51,14 @@ export const FAMILY_LABELS = {
   derivation: "Derivation",
 };
 
+// Which query parameter the graph endpoint wants for this tier. All three are
+// mutually exclusive server-side, so exactly one key is ever sent.
+function scopeParams(scopeType, scopeId) {
+  if (scopeType === "series") return { series_id: scopeId };
+  if (scopeType === "collection") return { collection_id: scopeId };
+  return { franchise_id: scopeId };
+}
+
 function toFlowEdges(edges, hiddenFamilies) {
   return edges
     .filter((e) => !hiddenFamilies.has(e.family))
@@ -85,11 +93,14 @@ function GraphCanvas({
   scopeType,
   scopeId,
   onPickGhostFranchise,
-  kinds,
+  // Only the two writing surfaces read the vocabulary, so a read-only canvas
+  // is not asked to fetch it.
+  kinds = [],
   onWrote,
   onError,
   focusKey,
   focusNonce,
+  readOnly = false,
 }) {
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
@@ -201,10 +212,7 @@ function GraphCanvas({
       };
     }
     setLoading(true);
-    const params =
-      scopeType === "franchise"
-        ? { franchise_id: scopeId }
-        : { collection_id: scopeId };
+    const params = scopeParams(scopeType, scopeId);
 
     fetch(buildUrl(endpoints.mediaRelation.graph(), params), {
       credentials: "include",
@@ -282,6 +290,7 @@ function GraphCanvas({
   // Drop on a node: both endpoints are known, so the popup only needs a kind.
   const onConnect = useCallback(
     (connection) => {
+      if (readOnly) return;
       setConnectError(null);
       attemptIdRef.current += 1;
       setPending({
@@ -294,7 +303,7 @@ function GraphCanvas({
         position: toContainerPoint(lastDropRef.current),
       });
     },
-    [nodeByKey],
+    [nodeByKey, readOnly],
   );
 
   // Drop on empty canvas: the far endpoint is unknown, so the popup opens with
@@ -306,6 +315,7 @@ function GraphCanvas({
         y: event.clientY ?? event.changedTouches?.[0]?.clientY ?? 0,
       };
       lastDropRef.current = point;
+      if (readOnly) return;
       // A valid drop is onConnect's job; only the miss lands here.
       if (connectionState?.isValid) return;
       const fromKey = connectionState?.fromNode?.id;
@@ -324,7 +334,7 @@ function GraphCanvas({
         position: toContainerPoint(point),
       });
     },
-    [nodeByKey],
+    [nodeByKey, readOnly],
   );
 
   // A 409 (duplicate or self-relation) leaves the popup open with the message:
@@ -600,6 +610,11 @@ function GraphCanvas({
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
           isValidConnection={isValidConnection}
+          // A read-only canvas is a fixed picture: the layout is the graph's
+          // own statement about how these entries relate, so neither dragging
+          // a node nor starting a connection from one is offered.
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
           fitView
           minZoom={0.15}
           proOptions={{ hideAttribution: false }}
@@ -655,6 +670,7 @@ function GraphCanvas({
             edge={selectedEdge}
             kinds={kinds}
             busy={writing}
+            readOnly={readOnly}
             onPatch={patchRelation}
             onDelete={deleteRelation}
             onClose={() => setSelectedEdgeId(null)}
@@ -666,7 +682,7 @@ function GraphCanvas({
         <p className="text-xs font-bold text-gray-400">Loading graph…</p>
       ) : null}
 
-      {pending ? (
+      {pending && !readOnly ? (
         <ConnectPopup
           key={pending.attemptId}
           kinds={kinds}

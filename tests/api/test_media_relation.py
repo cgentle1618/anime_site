@@ -481,12 +481,66 @@ def test_graph_scope_can_be_a_collection(
     assert f"anime:{sample_anime.system_id}" in {n["key"] for n in body["nodes"]}
 
 
+def test_graph_scope_can_be_a_series(
+    client, db_session, sample_series, sample_anime, second_anime
+):
+    # Only the first anime joins the series; the second stays franchise-only,
+    # so a series graph must draw one node and not the other.
+    sample_anime.series_id = sample_series.system_id
+    db_session.flush()
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"series_id": str(sample_series.system_id)},
+    ).json()
+
+    keys = {n["key"] for n in body["nodes"]}
+    assert f"anime:{sample_anime.system_id}" in keys
+    assert f"anime:{second_anime.system_id}" not in keys
+
+
+def test_graph_series_scope_ghosts_a_sibling_outside_the_series(
+    admin_client, client, db_session, sample_series, sample_anime, second_anime
+):
+    # A relation to an entry in the same franchise but a different series is
+    # out of scope here, so it has to arrive as a ghost rather than vanish.
+    sample_anime.series_id = sample_series.system_id
+    db_session.flush()
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(second_anime.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(sample_anime.system_id),
+        },
+    )
+
+    body = client.get(
+        "/api/media-relation/graph",
+        params={"series_id": str(sample_series.system_id)},
+    ).json()
+
+    ghost = next(n for n in body["nodes"] if not n["in_scope"])
+    assert ghost["key"] == f"anime:{second_anime.system_id}"
+    assert ghost["missing"] is False
+    assert len(body["edges"]) == 1
+
+
 def test_graph_requires_exactly_one_scope(client):
     assert client.get("/api/media-relation/graph").status_code == 400
     assert (
         client.get(
             "/api/media-relation/graph",
             params={"franchise_id": str(uuid.uuid4()), "collection_id": str(uuid.uuid4())},
+        ).status_code
+        == 400
+    )
+    assert (
+        client.get(
+            "/api/media-relation/graph",
+            params={"franchise_id": str(uuid.uuid4()), "series_id": str(uuid.uuid4())},
         ).status_code
         == 400
     )

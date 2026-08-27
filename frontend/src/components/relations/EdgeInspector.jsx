@@ -3,12 +3,17 @@
 // Changing the kind re-normalizes server-side (a `prequel` becomes a swapped
 // `sequel` row), so this posts the kind as typed and refetches rather than
 // trying to predict the stored direction.
+//
+// `readOnly` is what the group hubs render: the same panel with the kind
+// select, the remark box and Remove replaced by plain text, so a visitor reads
+// exactly what an admin sees without a control that could write.
 import { useEffect, useState } from "react";
 
 export default function EdgeInspector({
   edge,
   kinds,
   busy = false,
+  readOnly = false,
   onPatch,
   onDelete,
   onClose,
@@ -47,49 +52,67 @@ export default function EdgeInspector({
         </button>
       </div>
 
-      <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
-        Kind
-      </label>
-      <select
-        value={edge.relation_type}
-        disabled={busy}
-        onChange={(e) => onPatch({ kind: e.target.value })}
-        className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-      >
-        {kinds.map((k) => (
-          <option key={k.key} value={k.key}>
-            {k.label}
-          </option>
-        ))}
-      </select>
+      {readOnly ? (
+        // A relation with no remark has nothing left to show: the sentence
+        // above already names both entries and the kind, so an empty
+        // "Remark" heading would be the only content under it.
+        edge.remark ? (
+          <>
+            <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-gray-400">
+              Remark
+            </p>
+            <p className="mt-1 text-sm font-medium text-gray-600">
+              {edge.remark}
+            </p>
+          </>
+        ) : null
+      ) : (
+        <>
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
+            Kind
+          </label>
+          <select
+            value={edge.relation_type}
+            disabled={busy}
+            onChange={(e) => onPatch({ kind: e.target.value })}
+            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+          >
+            {kinds.map((k) => (
+              <option key={k.key} value={k.key}>
+                {k.label}
+              </option>
+            ))}
+          </select>
 
-      <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
-        Remark
-      </label>
-      <input
-        type="text"
-        value={remark}
-        disabled={busy}
-        onChange={(e) => setRemark(e.target.value)}
-        // On blur, not on every keystroke: a remark is a sentence, not a
-        // stream of PATCHes.
-        //
-        // Cleared to "" rather than null: MediaRelationUpdate ignores a null
-        // remark (`if payload.remark is not None`), so posting null would
-        // silently leave the old text in the row.
-        onBlur={commitRemark}
-        placeholder="Optional"
-        className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-      />
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
+            Remark
+          </label>
+          <input
+            type="text"
+            value={remark}
+            disabled={busy}
+            onChange={(e) => setRemark(e.target.value)}
+            // On blur, not on every keystroke: a remark is a sentence, not a
+            // stream of PATCHes.
+            //
+            // Cleared to "" rather than null: MediaRelationUpdate ignores a null
+            // remark (`if payload.remark is not None`), so posting null would
+            // silently leave the old text in the row.
+            onBlur={commitRemark}
+            placeholder="Optional"
+            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+          />
 
-      <button
-        type="button"
-        disabled={busy}
-        onClick={onDelete}
-        className="mt-3 w-full rounded-lg border border-red-200 px-2 py-1.5 text-[11px] font-black uppercase text-red-500 disabled:opacity-40"
-      >
-        Remove relation
-      </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onDelete}
+            className="mt-3 w-full rounded-lg border border-red-200 px-2 py-1.5 text-[11px] font-black uppercase text-red-500 disabled:opacity-40"
+          >
+            Remove relation
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import { getFranchiseCover, getCollectionCover } from "../../lib/covers";
 import TierBadge from "../../components/layout/TierBadge";
 import SectionHeader from "../../components/hub/SectionHeader";
 import HubTabBar from "../../components/hub/HubTabBar";
+import RelationGraph from "../../components/relations/RelationGraph";
 import {
   HubShell,
   HubBreadcrumb,
@@ -342,7 +343,7 @@ export default function CollectionPage() {
       <HubTabBar
         groups={[
           { label: "Members", tabs: ["Franchises"], counted: true },
-          { label: "Extras", tabs: ["Watch Order", "Notes"] },
+          { label: "Extras", tabs: ["Watch Order", "Relations", "Notes"] },
         ]}
         activeTab={activeTab}
         onSelect={setActiveTab}
@@ -397,6 +398,21 @@ export default function CollectionPage() {
         registry gives `memes` to every owner, so the Notes tab renders them
         alongside the rest.
       */}
+      {/* ── Relations tab content ────────────────────────────────────────── */}
+      {activeTab === "Relations" && (
+        <div>
+          <SectionHeader
+            icon="fa-diagram-project"
+            title="Relations"
+            subtitle="How this collection's entries connect - prequels, alternatives, side stories and adaptations"
+          />
+          {/* Read-only everywhere outside the admin Relations page, for admins
+              too: this is a view of the structure, and curating it belongs in
+              one place rather than scattered across every hub. */}
+          <RelationGraph readOnly scopeType="collection" scopeId={system_id} />
+        </div>
+      )}
+
       {activeTab === "Notes" && (
         <div>
           <SectionHeader
