@@ -34,6 +34,11 @@ SHAPE_NAME_LINKS = "name_links"  # title, links
 # its name, what it does there, and where to hear it. text_links has no title
 # and name_links has no episode or body, so neither can say all four.
 SHAPE_EPISODE_NAME_LINKS = "episode_name_links"  # episode, title, content, links
+# One theme song of a work: its name, which cut it is, how far tracking it has
+# got, where to hear it, and a remark. The only shape with two dropdowns - the
+# type is a property of the song, the status is a property of my work on it -
+# which is why `note` carries a `status` column alongside `kind`.
+SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, links, content
 # Backed by its own table (quote, meme), never by a `note` row.
 SHAPE_EXTERNAL = "external"
 
@@ -45,6 +50,7 @@ STORED_SHAPES = frozenset(
         SHAPE_EPISODE_TEXT,
         SHAPE_NAME_LINKS,
         SHAPE_EPISODE_NAME_LINKS,
+        SHAPE_MUSIC_TRACK,
     }
 )
 
@@ -60,6 +66,38 @@ _SERIES_AND_UP = ("series", "franchise")
 
 
 @dataclass(frozen=True)
+class NoteGroup:
+    """A run of sections the page renders inside one collapsible card."""
+
+    key: str
+    label: str
+    icon: str
+
+
+# Grouping is display-only: a grouped section is still an ordinary registry
+# entry with its own rows, and `group` is the only thing that puts it inside a
+# card. The page renders that card BESIDE the Notes card rather than within it,
+# so a group is a peer of Notes, not a section of it. Sections sharing a group
+# are kept adjacent in NOTE_SECTIONS below - the page no longer needs them to
+# be, but the order is what a reader uses to see a group whole.
+NOTE_GROUPS: tuple[NoteGroup, ...] = (
+    NoteGroup(key="reviews", label="評論 Reviews and Comments", icon="fa-comments"),
+    # The key is not `analysis` because a section already owns that key. The two
+    # namespaces are separate dicts, but a reader scanning for "analysis" should
+    # not have to work out which one a bare key means.
+    NoteGroup(
+        key="analysis_group",
+        label="解析 Analysis and Cinematography",
+        icon="fa-clapperboard",
+    ),
+    NoteGroup(key="music", label="音樂 Music", icon="fa-music"),
+    NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
+)
+
+_GROUPS_BY_KEY = {g.key: g for g in NOTE_GROUPS}
+
+
+@dataclass(frozen=True)
 class NoteSection:
     """One section of the notes page."""
 
@@ -69,8 +107,21 @@ class NoteSection:
     owners: tuple[str, ...]
     # Per-owner label overrides; `label` is the fallback.
     labels: dict[str, str] = field(default_factory=dict)
+    # The group whose card this section renders inside. None renders flat.
+    group: str | None = None
+    # Render this section as its own top-level card instead of inside the Notes
+    # card. Every shape component already draws its own SectionCard, so a
+    # standalone section needs no wrapper - it is simply lifted out. This is for
+    # a section that stands alone; a section that belongs with others gets a
+    # `group`, and setting both is meaningless (a test forbids it).
+    standalone: bool = False
     # Allowed values for note.kind. Empty means the section has no dropdown.
     kinds: tuple[str, ...] = ()
+    # Which kind a new row starts on. None starts blank.
+    default_kind: str | None = None
+    # Allowed values for note.status - the second dropdown, used by music_track
+    # alone. Empty means the section has no status field.
+    statuses: tuple[str, ...] = ()
     # Per-owner kind overrides; `kinds` is the fallback. A section may offer a
     # dropdown to some owners and none to others - manga highlights are always
     # 神回, so a chooser there would have one choice.
@@ -94,6 +145,14 @@ class NoteSection:
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
 
+# Which cut of a theme song a row is about. Shared by the four music_track
+# sections so OP and ED cannot drift apart.
+MUSIC_TYPES = ("normal", "different version", "all inclusive version")
+
+# How far I have got with a song: the same three values the anime.op / ed /
+# insert_ost columns held before they became note rows.
+MUSIC_STATUSES = ("Need", "Pending", "Done")
+
 # A standout episode, a standout moment inside one, and a standout arc across
 # several. Shared by the two episode-shaped highlight sections so they cannot
 # drift apart.
@@ -113,30 +172,35 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="優點 Advantages",
         owners=ALL_OWNERS,
+        group="reviews",
     ),
     NoteSection(
         key="disadvantages",
         shape=SHAPE_TEXT,
         label="缺點 Disadvantages",
         owners=ALL_OWNERS,
+        group="reviews",
     ),
     NoteSection(
         key="double_edged",
         shape=SHAPE_TEXT,
         label="優缺點",
         owners=ALL_OWNERS,
+        group="reviews",
     ),
     NoteSection(
         key="public_reviews",
         shape=SHAPE_TEXT_OR_LINK,
         label="大眾評價 Public Reviews",
         owners=ALL_OWNERS,
+        group="reviews",
     ),
     NoteSection(
         key="personal_reviews",
         shape=SHAPE_TEXT,
         label="我的評價 Personal Reviews",
         owners=ALL_OWNERS,
+        group="reviews",
     ),
     NoteSection(
         key="episode_comments",
@@ -145,6 +209,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="各集評論 Episode Comments",
         owners=("anime", "tv-show", "cartoon"),
         locator_placeholder="Episode, e.g. ep 1",
+        group="reviews",
     ),
     NoteSection(
         key="highlights",
@@ -181,6 +246,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="解析 Analysis",
         owners=ALL_OWNERS,
+        group="analysis_group",
     ),
     NoteSection(
         key="cinematography",
@@ -188,12 +254,14 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="分鏡/演出/巧思",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "manga", "series"),
         locator_placeholder="Episode(s), e.g. ep 3",
+        group="analysis_group",
     ),
     NoteSection(
         key="craft",
         shape=SHAPE_TEXT_LINKS,
         label="巧思",
         owners=("novel",),
+        group="analysis_group",
     ),
     NoteSection(
         key="foreshadowing",
@@ -209,6 +277,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         )
         + _SERIES_AND_UP,
         locator_placeholder="Episode(s), e.g. ep 3",
+        group="analysis_group",
     ),
     NoteSection(
         key="symmetry",
@@ -224,6 +293,57 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         )
         + _SERIES_AND_UP,
         locator_placeholder="Episode(s), e.g. ep 3",
+        group="analysis_group",
+    ),
+    # --- 音樂 Music -------------------------------------------------------
+    # The four sections below plus op_ed_changes and insert_songs form the
+    # music group, and the page renders that run inside one card. They stay
+    # separate registry entries rather than one section with an OP/ED/insert/
+    # OST dropdown: a work has its own list of OP rows, and folding four lists
+    # into one would make "which OPs do I still need?" a filter rather than a
+    # section.
+    NoteSection(
+        key="op",
+        shape=SHAPE_MUSIC_TRACK,
+        label="OP",
+        owners=("anime",),
+        group="music",
+        kinds=MUSIC_TYPES,
+        default_kind="normal",
+        statuses=MUSIC_STATUSES,
+    ),
+    NoteSection(
+        key="ed",
+        shape=SHAPE_MUSIC_TRACK,
+        label="ED",
+        owners=("anime",),
+        group="music",
+        kinds=MUSIC_TYPES,
+        default_kind="normal",
+        statuses=MUSIC_STATUSES,
+    ),
+    # Distinct from `insert_songs` below, which pins one song to the episode it
+    # plays in. This one tracks the insert songs as a list of works, the way OP
+    # and ED are tracked, and carries no episode.
+    NoteSection(
+        key="insert",
+        shape=SHAPE_MUSIC_TRACK,
+        label="Insert",
+        owners=("anime",),
+        group="music",
+        kinds=MUSIC_TYPES,
+        default_kind="normal",
+        statuses=MUSIC_STATUSES,
+    ),
+    NoteSection(
+        key="ost",
+        shape=SHAPE_MUSIC_TRACK,
+        label="OST",
+        owners=("anime",),
+        group="music",
+        kinds=MUSIC_TYPES,
+        default_kind="normal",
+        statuses=MUSIC_STATUSES,
     ),
     NoteSection(
         key="op_ed_changes",
@@ -231,6 +351,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="OP/ED 變動",
         owners=("anime", "tv-show", "cartoon"),
+        group="music",
         kinds=OP_ED_KINDS,
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
@@ -243,6 +364,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_NAME_LINKS,
         label="插入曲 Insert Song",
         owners=("anime",),
+        group="music",
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
@@ -266,6 +388,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_NAME_LINKS,
         label="Resources",
         owners=ALL_OWNERS,
+        standalone=True,
     ),
     NoteSection(
         key="questions",
@@ -279,6 +402,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # The mirror of locator_required: a source with no question attached
         # says nothing, so the body is what cannot be missing.
         desc_required=ALL_OWNERS,
+        standalone=True,
     ),
     NoteSection(
         key="quotes",
@@ -287,6 +411,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # A quote is said in a specific work, so it stays entry-only - see the
         # class docstring in app/models/quote.py.
         owners=ENTRY_OWNERS,
+        group="quotes_memes",
     ),
     NoteSection(
         key="memes",
@@ -294,6 +419,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="梗/迷因 Memes",
         # A running gag often spans a franchise, so meme already allows all ten.
         owners=ALL_OWNERS,
+        group="quotes_memes",
     ),
 )
 
@@ -318,6 +444,11 @@ def label_for(section: NoteSection, owner_type: str) -> str:
 def kinds_for(section: NoteSection, owner_type: str) -> tuple[str, ...]:
     """This section's allowed kinds for this owner, falling back to the default."""
     return section.kinds_by_owner.get(owner_type, section.kinds)
+
+
+def group_by_key(key: str) -> NoteGroup | None:
+    """The group with this key, or None if it is not a known group."""
+    return _GROUPS_BY_KEY.get(key)
 
 
 def locator_for(section: NoteSection, owner_type: str) -> str | None:

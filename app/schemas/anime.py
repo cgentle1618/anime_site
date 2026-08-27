@@ -61,9 +61,6 @@ class AnimeBase(BaseModel):
     official_link: Optional[str] = None
     twitter_link: Optional[str] = None
 
-    op: Optional[str] = None
-    ed: Optional[str] = None
-    insert_ost: Optional[str] = None
     seiyuu: Optional[str] = None
 
     source_baha: Optional[bool] = None

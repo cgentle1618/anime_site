@@ -14,6 +14,7 @@ def test_column_order_is_the_sheet_order():
         "section",
         "locator",
         "kind",
+        "status",
         "title",
         "content",
         "links",

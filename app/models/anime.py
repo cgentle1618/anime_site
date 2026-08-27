@@ -91,9 +91,6 @@ class Anime(Base, NameFallbackMixin):
     official_link = Column(String, nullable=True)
     twitter_link = Column(String, nullable=True)
 
-    op = Column(String, nullable=True)
-    ed = Column(String, nullable=True)
-    insert_ost = Column(String, nullable=True)
     seiyuu = Column(String, nullable=True)
 
     source_baha = Column(Boolean, default=None, nullable=True)

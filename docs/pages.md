@@ -212,7 +212,6 @@ Full detail page for a single anime entry.
 - **Information Card** (reusable): Season/Part, Airing Type, Airing Status, Release Season, Release Date, Total Ep (+ cumulative), Genre Main, Genre Sub
 - **Production Card** (reusable): Studio, Distributor TW, Director, Producer, Music/Composer
 - Characters & Cast Card (TBD)
-- Music Card (admin editable): OP, ED, Insert/OST dropdowns
 - Remarks — shown when not null
 - **`AnimeNotes`** (`frontend/src/pages/detail/AnimeNotes.jsx`) — the notes tab, a thin wrapper over the shared `NotesTemplate`; always rendered at the bottom. Sections come from `GET /api/notes/sections`, rows from `GET /api/notes`, and each edit writes one row via `/api/notes` rather than re-saving the whole entry.
 
@@ -1404,7 +1403,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 - **Relational & Timeline:** Prequel ID, Sequel ID, Alternative IDs (comma-separated), Is Main Entry checkbox, Watch Order, Derive Related dropdown
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter
 - **Source Availability:** Baha dropdown (shows as 巴哈姆特動畫瘋), Baha Link, Netflix dropdown, Add Source button (other sources as `{name: link}`)
-- **Notes & Other:** Music Status (OP/ED/Insert/OST), Seiyuu, Cover Image File, Remark
+- **Notes & Other:** Seiyuu, Cover Image File, Remark
 - Duplicate detection modal; Tenrai enrichment after submit via `POST /api/data-control/replace/anime/:id`
 
 #### Add New Anime Movie Entry Tab

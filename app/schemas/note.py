@@ -10,10 +10,12 @@ from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
     SHAPE_EPISODE_NAME_LINKS,
     SHAPE_EPISODE_TEXT,
+    SHAPE_MUSIC_TRACK,
     SHAPE_NAME_LINKS,
     SHAPE_TEXT_OR_LINK,
     STORED_SHAPES,
     NoteSection,
+    group_by_key,
     kinds_for,
     label_for,
     locator_for,
@@ -28,6 +30,7 @@ class NoteBase(BaseModel):
     section: Optional[str] = None
     locator: Optional[str] = None
     kind: Optional[str] = None
+    status: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
     links: Optional[List[str]] = None
@@ -58,7 +61,17 @@ class NoteSectionOut(BaseModel):
     key: str
     shape: str
     label: str
+    # The group card this section renders inside, resolved for the frontend so
+    # the page never has to know what a group key means. None renders flat.
+    group: Optional[str] = None
+    group_label: Optional[str] = None
+    group_icon: Optional[str] = None
+    # Render as its own top-level card rather than inside the Notes card.
+    # Mutually exclusive with `group`, which is the same lift plus a shared card.
+    standalone: bool = False
     kinds: List[str] = []
+    default_kind: Optional[str] = None
+    statuses: List[str] = []
     locator_placeholder: Optional[str] = None
     locator_required: bool = False
     singleton: bool = False
@@ -76,11 +89,18 @@ class NoteReorder(BaseModel):
 
 def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
     """Resolve a registry entry for one owner type."""
+    group = group_by_key(section.group or "")
     return NoteSectionOut(
         key=section.key,
         shape=section.shape,
         label=label_for(section, owner_type),
+        group=group.key if group else None,
+        group_label=group.label if group else None,
+        group_icon=group.icon if group else None,
+        standalone=section.standalone,
         kinds=list(kinds_for(section, owner_type)),
+        default_kind=section.default_kind,
+        statuses=list(section.statuses),
         locator_placeholder=locator_for(section, owner_type),
         locator_required=section.locator_required,
         singleton=section.singleton,
@@ -130,6 +150,15 @@ def validate_note_payload(payload: NoteBase) -> None:
                 f"'{payload.kind}' is not a valid kind for section '{section.key}'."
             )
 
+    if payload.status:
+        if not section.statuses:
+            raise ValueError(f"Section '{section.key}' takes no status.")
+        if payload.status not in section.statuses:
+            raise ValueError(
+                f"'{payload.status}' is not a valid status for section "
+                f"'{section.key}'."
+            )
+
     content = (payload.content or "").strip()
     if owner_type in section.desc_required and not content:
         raise ValueError(f"Section '{section.key}' requires content.")
@@ -169,6 +198,21 @@ def validate_note_payload(payload: NoteBase) -> None:
             and not (payload.locator or "").strip()
             and not (payload.title or "").strip()
             and not payload.links
+        ):
+            raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_MUSIC_TRACK:
+        links = [l for l in (payload.links or []) if l.strip()]
+        if len(links) > 1:
+            raise ValueError(f"Section '{section.key}' takes one link per note.")
+        # `kind` defaults to "normal" and so is always set, which would make
+        # every row non-empty; the row has to say something of its own. A
+        # status alone is enough - "I still need the OP" is a real note before
+        # the song has a name.
+        if (
+            not content
+            and not (payload.title or "").strip()
+            and not (payload.status or "").strip()
+            and not links
         ):
             raise ValueError(f"Section '{section.key}' note is empty.")
     elif not content and not payload.links:

@@ -228,7 +228,12 @@ Field: `franchise.franchise_expectation` — Default: `Low`
 
 ## Music Status
 
-Fields: `anime.op`, `anime.ed`, `anime.insert_ost` — Default: `null`
+Field: `note.status` — Default: `null`
+
+The `op`, `ed`, `insert` and `ost` note sections (anime only). These were the
+`anime.op` / `anime.ed` / `anime.insert_ost` columns until revision
+`m1u2s3i4c5t6` moved them onto note rows, so the status is now per song rather
+than per entry. `note.status` exists for this dropdown alone.
 
 | Value     | Default |
 | --------- | ------- |
@@ -382,7 +387,6 @@ Field: `note.kind` — Default: `null`
 A dropdown only where the section declares one. `kinds` is a property of the
 section in `app/utils/note_sections.py`, and the API rejects a value the
 section does not list, so this vocabulary is enforced rather than advisory.
-Only two sections carry kinds.
 
 ### `op_ed_changes` (OP/ED 變動)
 
@@ -396,6 +400,18 @@ Anime, TV Show and Cartoon. Which OP/ED a given episode did something unusual wi
 | `無ED`    |         | No ED this episode              |
 | `特殊OP`  |         | A one-off special OP            |
 | `特殊ED`  |         | A one-off special ED            |
+
+### `op` / `ed` / `insert` / `ost` (音樂 Music)
+
+Anime only. Which cut of a theme song a row is about. The one dropdown with a
+default: a new row starts on `normal`, so the type alone never makes a row
+worth storing — it needs a name, a status, a link or a remark as well.
+
+| Value                   | Default | Notes                                    |
+| ----------------------- | ------- | ---------------------------------------- |
+| `normal`                | Yes     | The standard version                     |
+| `different version`     |         | A reworked cut of the same song          |
+| `all inclusive version` |         | The full version covering every variant  |
 
 ### `highlights` / `highlight_episodes` (神回/神片段)
 

@@ -12,8 +12,10 @@ import TextOrLinkSection from "./sections/TextOrLinkSection";
 import EpisodeTextSection from "./sections/EpisodeTextSection";
 import NameLinksSection from "./sections/NameLinksSection";
 import EpisodeNameLinksSection from "./sections/EpisodeNameLinksSection";
+import MusicTrackSection from "./sections/MusicTrackSection";
 import QuoteSection from "./sections/QuoteSection";
 import MemeSection from "./sections/MemeSection";
+import { GroupCard } from "./sections/ui";
 
 const SHAPES = {
   text: TextSection,
@@ -22,6 +24,7 @@ const SHAPES = {
   episode_text: EpisodeTextSection,
   name_links: NameLinksSection,
   episode_name_links: EpisodeNameLinksSection,
+  music_track: MusicTrackSection,
 };
 
 // The first of two deliberate, scoped exceptions to "the frontend never names
@@ -56,6 +59,43 @@ const EXTERNAL_SHAPES = {
     />
   ),
 };
+
+// Split the flat registry into what the page renders: the Notes card holds
+// every ungrouped section, and each group becomes a card of its own BESIDE it -
+// 音樂 Music is a peer of Notes, not a section inside it. Groups keep registry
+// order, and a group's members need not be adjacent for this split (the page no
+// longer walks a run), though the registry keeps them adjacent anyway so the
+// order stays readable.
+//
+// `standalone` is the same lift without the shared card: Resources and
+// Questions each stand on their own, so wrapping either in a GroupCard would
+// put its label in two stacked headers. Every shape component already draws its
+// own SectionCard, so lifting one out of `flat` is all a standalone card is.
+function splitBlocks(sections) {
+  const flat = [];
+  const groups = [];
+  const standalone = [];
+  const byKey = new Map();
+  for (const section of sections) {
+    if (!section.group) {
+      (section.standalone ? standalone : flat).push(section);
+      continue;
+    }
+    let group = byKey.get(section.group);
+    if (!group) {
+      group = {
+        key: section.group,
+        label: section.group_label,
+        icon: section.group_icon,
+        sections: [],
+      };
+      byKey.set(section.group, group);
+      groups.push(group);
+    }
+    group.sections.push(section);
+  }
+  return { flat, groups, standalone };
+}
 
 // The second scoped exception to "the frontend never names sections":
 // `hideSections` lets an embedding screen suppress sections it already renders
@@ -170,49 +210,80 @@ export default function NotesTemplate({
     [ownerType, ownerId, reloadNotes],
   );
 
+  const { flat, groups, standalone } = useMemo(
+    () => splitBlocks(visibleSections),
+    [visibleSections],
+  );
+
+  const renderSection = (section) => {
+    if (section.shape === "external") {
+      const External = EXTERNAL_SHAPES[section.key];
+      if (!External) return null;
+      return (
+        <External
+          key={section.key}
+          label={section.label}
+          ownerType={ownerType}
+          ownerId={ownerId}
+          isAdmin={isAdmin}
+        />
+      );
+    }
+    const Component = SHAPES[section.shape];
+    if (!Component) return null;
+    return (
+      <Component
+        key={section.key}
+        section={section}
+        notes={bySection[section.key] || []}
+        isAdmin={isAdmin}
+        {...handlers}
+      />
+    );
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-        <h3 className="font-bold text-gray-800">
-          <i className="fas fa-book-open text-brand mr-2"></i>Notes
-        </h3>
+    <>
+      {/* Above both cards, not inside Notes: a group card is a sibling of the
+          Notes card, so an error raised by a section in one would otherwise
+          report itself in the other. */}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+          {error}
+        </p>
+      )}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+          <h3 className="font-bold text-gray-800">
+            <i className="fas fa-book-open text-brand mr-2"></i>Notes
+          </h3>
+        </div>
+        <div className="p-4 space-y-3">
+          {loading ? (
+            <div className="py-10 text-center text-gray-400">
+              <i className="fas fa-circle-notch fa-spin text-xl"></i>
+              <p className="text-xs mt-2">Loading notes...</p>
+            </div>
+          ) : (
+            flat.map(renderSection)
+          )}
+        </div>
       </div>
-      <div className="p-4 space-y-3">
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {loading ? (
-          <div className="py-10 text-center text-gray-400">
-            <i className="fas fa-circle-notch fa-spin text-xl"></i>
-            <p className="text-xs mt-2">Loading notes...</p>
-          </div>
-        ) : (
-          visibleSections.map((section) => {
-            if (section.shape === "external") {
-              const External = EXTERNAL_SHAPES[section.key];
-              if (!External) return null;
-              return (
-                <External
-                  key={section.key}
-                  label={section.label}
-                  ownerType={ownerType}
-                  ownerId={ownerId}
-                  isAdmin={isAdmin}
-                />
-              );
-            }
-            const Component = SHAPES[section.shape];
-            if (!Component) return null;
-            return (
-              <Component
-                key={section.key}
-                section={section}
-                notes={bySection[section.key] || []}
-                isAdmin={isAdmin}
-                {...handlers}
-              />
-            );
-          })
-        )}
-      </div>
-    </div>
+      {!loading &&
+        groups.map((group) => (
+          <GroupCard
+            key={group.key}
+            label={group.label}
+            icon={group.icon}
+            count={group.sections.reduce(
+              (n, sec) => n + (bySection[sec.key] || []).length,
+              0,
+            )}
+          >
+            {group.sections.map(renderSection)}
+          </GroupCard>
+        ))}
+      {!loading && standalone.map(renderSection)}
+    </>
   );
 }

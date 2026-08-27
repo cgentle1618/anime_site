@@ -225,16 +225,17 @@ def update_note(
     # may change owner_type/owner_id: data.get(..., current) picks up an
     # incoming owner if one is supplied, so section-applicability is checked
     # against the NEW owner.
+    # Built from NoteUpdate's own field list rather than a hand-written one:
+    # every field of the schema is also a column of `note`, so a field added to
+    # the shape (the `status` dropdown was the first) is merged here without
+    # this function being touched. The hand-written list silently dropped
+    # `status`, which made a PATCH on a status-only music row - every row the
+    # op/ed/insert/ost migration created - validate as empty and 422.
     merged = schemas.NoteUpdate(
-        owner_type=data.get("owner_type", db_note.owner_type),
-        owner_id=data.get("owner_id", db_note.owner_id),
-        section=data.get("section", db_note.section),
-        locator=data.get("locator", db_note.locator),
-        kind=data.get("kind", db_note.kind),
-        title=data.get("title", db_note.title),
-        content=data.get("content", db_note.content),
-        links=data.get("links", db_note.links),
-        sort_index=data.get("sort_index", db_note.sort_index),
+        **{
+            name: data.get(name, getattr(db_note, name))
+            for name in schemas.NoteUpdate.model_fields
+        }
     )
     _validate_or_422(merged)
     _reject_second_singleton(db, merged, exclude_id=note_id)

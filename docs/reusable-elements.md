@@ -818,7 +818,7 @@ Rows come from `GET /api/notes?owner_type=…&owner_id=…`; each edit writes a 
 row through `/api/notes` rather than re-saving the whole entry, which is the point
 of the table replacing the old per-entry `notes` JSONB blob.
 
-**Six shape components**, picked by the `shape` the registry reports:
+**Seven shape components**, picked by the `shape` the registry reports:
 
 | Shape          | Component                  | Renders                                                          |
 | -------------- | -------------------------- | ----------------------------------------------------------------- |
@@ -828,10 +828,46 @@ of the table replacing the old per-entry `notes` JSONB blob.
 | `episode_text` | `EpisodeTextSection.jsx`   | Locator-anchored items: locator + content, plus a kind dropdown where the section declares `kinds`. |
 | `name_links`   | `NameLinksSection.jsx`     | Named links (Resources) — a title plus any number of URLs. |
 | `episode_name_links` | `EpisodeNameLinksSection.jsx` | 插入曲 only: locator + title + description + any number of links. The one shape using all four content columns; only the locator is required. |
+| `music_track`  | `MusicTrackSection.jsx`    | OP / ED / Insert / OST: one song per row — optional name, a type dropdown prefilled from `default_kind`, a status dropdown (`statuses`), one link and a remark. The only shape with two dropdowns, which is what `note.status` exists for; the prefilled type never makes a row saveable on its own. |
 
-Each shape reads only registry-supplied props (`label`, `kinds`,
-`locator_placeholder`, `locator_required`, `singleton`, `desc_required`), so a new section of an
-existing shape costs one backend registry entry and no frontend work.
+Each shape reads only registry-supplied props (`label`, `kinds`, `default_kind`,
+`statuses`, `locator_placeholder`, `locator_required`, `singleton`, `desc_required`),
+so a new section of an existing shape costs one backend registry entry and no
+frontend work.
+
+**Groups.** A section may report a `group` (with `group_label` and `group_icon`).
+`NotesTemplate` returns the Notes card plus **one sibling `GroupCard` per group**:
+a group is a peer of Notes, not a section inside it, and wears the same chrome as
+the Notes card. Its children are ordinary collapsible section cards, so the group
+collapses as a unit and each subsection collapses on its own. Every ungrouped
+section stays inside the Notes card. Because the template returns a fragment, an
+embedding page must place it in a container that spaces its children (the detail
+pages use `space-y-8`).
+
+There are four groups, rendered in registry order after the Notes card:
+
+| Group | Label | Icon | Sections |
+| ----- | ----- | ---- | -------- |
+| `reviews` | 評論 Reviews and Comments | `fa-comments` | 優點, 缺點, 優缺點, 大眾評價, 我的評價, 各集評論 |
+| `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` | 解析, 分鏡/演出/巧思, 巧思 (novel), Foreshadowing, 對稱 |
+| `music` | 音樂 Music | `fa-music` | OP, ED, Insert, OST, OP/ED 變動, 插入曲 |
+| `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` | 名言 Quotes, 梗/迷因 Memes |
+
+The group key is `analysis_group`, not `analysis`, because a section already owns
+the key `analysis`; sections and groups are separate namespaces, but the suffix
+keeps a bare key unambiguous to read.
+
+**Standalone sections.** A section may instead report `standalone: true`, which
+lifts it out of the Notes card without giving it a shared card — the same peer
+placement, one header instead of two stacked ones. `resources` and `questions`
+use it: each stands on its own, so a `GroupCard` around either would print its
+label twice. Every shape component already draws its own `SectionCard`, so a
+standalone section is just that card rendered as a sibling; the page renders
+these after the group cards. `group` and `standalone` are mutually exclusive
+(a registry test enforces it).
+
+What remains inside the Notes card is 備註 Remark, the 神回/神片段 highlight
+sections, 加長 and 改編 Adaptation.
 
 **`external` sections are the one documented exception.** `quotes` and `memes`
 are backed by their own tables, endpoints and long-lived components, so they
@@ -863,7 +899,8 @@ has Remark, Advantages, Disadvantages, 優缺點, Public/Personal Reviews,
 Analysis, Resources, Questions and Memes; entries and the
 series/franchise tiers add Foreshadowing, Symmetry and Adaptation; the
 episode-anchored sections (Episode Comments, Highlights, OP/ED 變動, 插入曲, 加長)
-belong to the serialized types only, and Quotes to media entries only.
+belong to the serialized types only, Quotes to media entries only, and the four
+music_track sections (OP, ED, Insert, OST) to anime alone.
 
 ---
 

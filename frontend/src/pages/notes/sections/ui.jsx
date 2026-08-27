@@ -48,6 +48,40 @@ export function SectionCard({ label, count, isAdmin, onAdd, children }) {
   );
 }
 
+// The card a group of sections renders inside - 音樂 Music holds OP, ED,
+// Insert, OST, OP/ED 變動 and 插入曲. It is a sibling of the Notes card, not a
+// section within it, so it wears the same chrome as that card: a group is a
+// peer of Notes, and nesting one card two deep read as a subsection of it.
+// Each child is still its own SectionCard, so a group collapses as a unit and
+// its subsections collapse individually.
+export function GroupCard({ label, icon, count, children }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div
+        className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between cursor-pointer select-none"
+        onClick={() => setCollapsed((v) => !v)}
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="font-bold text-gray-800">
+            {icon && <i className={`fas ${icon} text-brand mr-2`}></i>}
+            {label}
+          </h3>
+          {count > 0 && (
+            <span className="text-[10px] font-black bg-brand/10 text-brand rounded-full px-1.5 py-0.5">
+              {count}
+            </span>
+          )}
+        </div>
+        <i
+          className={`fas fa-chevron-${collapsed ? "down" : "up"} text-gray-400 text-xs`}
+        ></i>
+      </div>
+      {!collapsed && <div className="p-4 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
 export function ItemActions({ isAdmin, onEdit, onDelete }) {
   if (!isAdmin) return null;
   return (

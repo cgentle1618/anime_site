@@ -54,3 +54,130 @@ describe("NotesTemplate hideSections", () => {
     expect(screen.queryByDisplayValue("keep me")).not.toBeInTheDocument();
   });
 });
+
+// Grouping: sections sharing a `group` render inside one card BESIDE the Notes
+// card, not within it, and every ungrouped section stays inside Notes.
+const GROUPED = [
+  { key: "overview", shape: "text", label: "Overview", kinds: [] },
+  {
+    key: "op",
+    shape: "music_track",
+    label: "OP",
+    kinds: ["normal"],
+    default_kind: "normal",
+    statuses: ["Need"],
+    group: "music",
+    group_label: "音樂 Music",
+    group_icon: "fa-music",
+  },
+  {
+    key: "ed",
+    shape: "music_track",
+    label: "ED",
+    kinds: ["normal"],
+    default_kind: "normal",
+    statuses: ["Need"],
+    group: "music",
+    group_label: "音樂 Music",
+    group_icon: "fa-music",
+  },
+  { key: "trivia", shape: "text", label: "Trivia", kinds: [] },
+];
+
+describe("NotesTemplate groups", () => {
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue(GROUPED);
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { system_id: "m1", section: "op", title: "紅蓮華", status: "Need" },
+    ]);
+  });
+
+  it("renders one group card holding its sections, once", async () => {
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
+    );
+    expect(screen.getAllByText("音樂 Music")).toHaveLength(1);
+    expect(screen.getByText("OP")).toBeInTheDocument();
+    expect(screen.getByText("ED")).toBeInTheDocument();
+    // A grouped row still renders through its shape component.
+    expect(screen.getByText("紅蓮華")).toBeInTheDocument();
+  });
+
+  it("leaves ungrouped sections outside the card", async () => {
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("Overview")).toBeInTheDocument(),
+    );
+    const group = screen.getByText("音樂 Music").closest("div.bg-white");
+    expect(group).not.toBeNull();
+    expect(group.textContent).not.toContain("Trivia");
+    expect(screen.getByText("Trivia")).toBeInTheDocument();
+  });
+
+  it("renders the group card beside the Notes card, not inside it", async () => {
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
+    );
+    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    expect(notesCard.textContent).not.toContain("音樂 Music");
+    expect(notesCard.textContent).toContain("Overview");
+    // Peers under one parent, so the page lays them out with equal weight.
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-white");
+    expect(groupCard.parentElement).toBe(notesCard.parentElement);
+  });
+});
+
+// Standalone: a section that names no group but sets `standalone` renders as
+// its own top-level card. Resources and Questions each stand alone, so wrapping
+// either in a GroupCard would stack its label in two headers.
+const STANDALONE = [
+  { key: "overview", shape: "text", label: "Overview", kinds: [] },
+  {
+    key: "op",
+    shape: "text",
+    label: "OP",
+    kinds: [],
+    group: "music",
+    group_label: "音樂 Music",
+    group_icon: "fa-music",
+  },
+  {
+    key: "resources",
+    shape: "text",
+    label: "Resources",
+    kinds: [],
+    standalone: true,
+  },
+];
+
+describe("NotesTemplate standalone sections", () => {
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue(STANDALONE);
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+  });
+
+  it("renders a standalone section outside the Notes card and outside every group", async () => {
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("Resources")).toBeInTheDocument(),
+    );
+    expect(screen.getAllByText("Resources")).toHaveLength(1);
+    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    expect(notesCard.textContent).toContain("Overview");
+    expect(notesCard.textContent).not.toContain("Resources");
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-white");
+    expect(groupCard.textContent).not.toContain("Resources");
+  });
+
+  it("renders it as a peer of the Notes and group cards", async () => {
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("Resources")).toBeInTheDocument(),
+    );
+    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    const solo = screen.getByText("Resources").closest("div.bg-white");
+    expect(solo.parentElement).toBe(notesCard.parentElement);
+  });
+});

@@ -392,3 +392,63 @@ def test_sections_endpoint_reports_the_locator_contract(admin_client):
     assert by_key["episode_comments"]["locator_required"] is True
     assert by_key["foreshadowing"]["locator_required"] is False
     assert by_key["advantages"]["locator_placeholder"] is None
+
+
+# --- music_track rows over the wire ---------------------------------------
+
+
+def _create_music(admin_client, sample_anime, **kw):
+    body = dict(
+        owner_type="anime",
+        owner_id=str(sample_anime.system_id),
+        section="op",
+        kind="normal",
+        status="Need",
+    )
+    body.update(kw)
+    r = admin_client.post("/api/notes", json=body)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_admin_edits_a_song_that_carries_only_a_status(
+    admin_client, sample_anime
+):
+    # The rows revision m1u2s3i4c5t6 migrated look exactly like this: a status
+    # and the default type, no name yet. Editing one must not 422.
+    note = _create_music(admin_client, sample_anime)
+    r = admin_client.patch(
+        f"/api/notes/{note['system_id']}",
+        json={"status": "Done", "title": None, "content": None, "links": []},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "Done"
+
+
+def test_admin_names_a_song_while_clearing_its_status(
+    admin_client, sample_anime
+):
+    note = _create_music(admin_client, sample_anime)
+    r = admin_client.patch(
+        f"/api/notes/{note['system_id']}",
+        json={"status": None, "title": "紅蓮華"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["title"] == "紅蓮華" and r.json()["status"] is None
+
+
+def test_patch_rejects_an_unknown_status(admin_client, sample_anime):
+    note = _create_music(admin_client, sample_anime)
+    r = admin_client.patch(
+        f"/api/notes/{note['system_id']}", json={"status": "Someday"}
+    )
+    assert r.status_code == 422
+
+
+def test_patch_that_empties_a_music_row_is_rejected(admin_client, sample_anime):
+    note = _create_music(admin_client, sample_anime, title="紅蓮華")
+    r = admin_client.patch(
+        f"/api/notes/{note['system_id']}",
+        json={"status": None, "title": None, "content": None, "links": []},
+    )
+    assert r.status_code == 422

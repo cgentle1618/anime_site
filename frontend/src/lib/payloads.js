@@ -123,9 +123,6 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
               .map((e) => [e.name.trim(), e.url.trim()]),
           )
         : null,
-    op: af.op || null,
-    ed: af.ed || null,
-    insert_ost: af.insert_ost || null,
     seiyuu: af.seiyuu || null,
     cover_image_file: af.cover_image_file || null,
     remark: af.remark || null,

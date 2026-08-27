@@ -14,6 +14,7 @@ def test_every_section_has_a_known_shape():
         ns.SHAPE_EPISODE_TEXT,
         ns.SHAPE_NAME_LINKS,
         ns.SHAPE_EPISODE_NAME_LINKS,
+        ns.SHAPE_MUSIC_TRACK,
         ns.SHAPE_EXTERNAL,
     }
     for sec in ns.NOTE_SECTIONS:
@@ -38,7 +39,120 @@ def test_only_remark_is_singleton():
 
 def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
-    assert with_kinds == ["highlights", "op_ed_changes"]
+    assert with_kinds == [
+        "highlights",
+        "op",
+        "ed",
+        "insert",
+        "ost",
+        "op_ed_changes",
+    ]
+
+
+MUSIC_SECTIONS = ("op", "ed", "insert", "ost")
+
+
+def test_music_sections_are_music_track_shaped_and_anime_only():
+    for key in MUSIC_SECTIONS:
+        sec = ns.section_by_key(key)
+        assert sec is not None, f"{key} is missing from the registry"
+        assert sec.shape == ns.SHAPE_MUSIC_TRACK
+        assert sec.owners == ("anime",)
+
+
+def test_music_sections_offer_both_dropdowns_and_default_to_normal():
+    for key in MUSIC_SECTIONS:
+        sec = ns.section_by_key(key)
+        assert sec.kinds == ns.MUSIC_TYPES
+        assert sec.statuses == ns.MUSIC_STATUSES
+        assert sec.default_kind == "normal"
+        assert sec.default_kind in sec.kinds
+
+
+def test_only_music_track_sections_carry_a_status():
+    with_status = [s.key for s in ns.NOTE_SECTIONS if s.statuses]
+    assert with_status == list(MUSIC_SECTIONS)
+
+
+def test_every_group_is_a_known_group():
+    for sec in ns.NOTE_SECTIONS:
+        if sec.group:
+            assert ns.group_by_key(sec.group), f"{sec.key} names unknown group"
+
+
+def test_the_reviews_group_holds_every_evaluative_section():
+    grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "reviews"]
+    assert grouped == [
+        "advantages",
+        "disadvantages",
+        "double_edged",
+        "public_reviews",
+        "personal_reviews",
+        "episode_comments",
+    ]
+
+
+def test_the_analysis_group_holds_cinematography_and_its_novel_twin():
+    # `craft` is the novel-only counterpart of `cinematography`, so the two
+    # belong to the same card even though they stay separate sections.
+    grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "analysis_group"]
+    assert grouped == [
+        "analysis",
+        "cinematography",
+        "craft",
+        "foreshadowing",
+        "symmetry",
+    ]
+
+
+def test_the_quotes_memes_group_holds_both_external_sections():
+    grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "quotes_memes"]
+    assert grouped == ["quotes", "memes"]
+    assert all(s.shape == ns.SHAPE_EXTERNAL for s in ns.NOTE_SECTIONS if s.group == "quotes_memes")
+
+
+def test_resources_and_questions_are_the_standalone_sections():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.standalone] == [
+        "resources",
+        "questions",
+    ]
+
+
+def test_no_section_is_both_grouped_and_standalone():
+    # Both lift a section out of the Notes card; a group additionally shares one
+    # card with its siblings. Setting both says nothing the page can honour.
+    for sec in ns.NOTE_SECTIONS:
+        assert not (sec.group and sec.standalone), f"{sec.key} sets both"
+
+
+def test_the_music_group_holds_the_six_music_sections():
+    grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "music"]
+    assert grouped == [
+        "op",
+        "ed",
+        "insert",
+        "ost",
+        "op_ed_changes",
+        "insert_songs",
+    ]
+
+
+def test_grouped_sections_are_adjacent():
+    # The page no longer walks a consecutive run, but a group scattered through
+    # the order hides what belongs together from anyone reading the registry.
+    runs = []
+    for sec in ns.NOTE_SECTIONS:
+        if sec.group and (not runs or runs[-1] != sec.group):
+            runs.append(sec.group)
+        elif not sec.group and runs and runs[-1] is not None:
+            runs.append(None)
+    named = [g for g in runs if g]
+    assert len(named) == len(set(named))
+
+
+def test_a_tv_show_sees_only_the_grouped_section_that_applies_to_it():
+    keys = [s.key for s in ns.sections_for("tv-show") if s.group == "music"]
+    assert keys == ["op_ed_changes"]
 
 
 def test_highlight_kinds_cover_episode_moment_and_arc():
@@ -87,6 +201,10 @@ def test_anime_sections_in_registry_order():
         "cinematography",
         "foreshadowing",
         "symmetry",
+        "op",
+        "ed",
+        "insert",
+        "ost",
         "op_ed_changes",
         "insert_songs",
         "extended_episodes",

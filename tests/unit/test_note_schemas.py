@@ -3,7 +3,8 @@
 import uuid
 import pytest
 
-from app.schemas.note import NoteCreate, validate_note_payload
+from app.schemas.note import NoteCreate, section_out, validate_note_payload
+from app.utils.note_sections import section_by_key
 
 
 def _payload(**kw):
@@ -366,3 +367,79 @@ def test_section_out_exposes_the_insert_song_contract():
     assert out.locator_placeholder == "Episode(s), e.g. ep 3"
     assert out.kinds == []
     assert not out.desc_required
+
+
+# --- music_track shape ----------------------------------------------------
+
+
+def _music(**kw):
+    base = dict(section="op", kind="normal", status="Need", content=None)
+    base.update(kw)
+    return _payload(**base)
+
+
+def test_music_row_with_only_a_status_passes():
+    # "I still need the OP" is a real note before the song has a name.
+    validate_note_payload(_music())
+
+
+def test_music_row_with_only_a_title_passes():
+    validate_note_payload(_music(status=None, title="紅蓮華"))
+
+
+def test_music_row_with_only_the_default_type_is_empty():
+    # kind is prefilled, so it cannot be what makes a row worth storing.
+    with pytest.raises(ValueError, match="is empty"):
+        validate_note_payload(_music(status=None))
+
+
+def test_music_row_rejects_an_unknown_status():
+    with pytest.raises(ValueError, match="not a valid status"):
+        validate_note_payload(_music(status="Someday"))
+
+
+def test_music_row_rejects_an_unknown_type():
+    with pytest.raises(ValueError, match="not a valid kind"):
+        validate_note_payload(_music(kind="acoustic"))
+
+
+def test_music_row_takes_one_link():
+    validate_note_payload(_music(links=["https://youtu.be/a"]))
+    with pytest.raises(ValueError, match="one link per note"):
+        validate_note_payload(
+            _music(links=["https://youtu.be/a", "https://youtu.be/b"])
+        )
+
+
+def test_music_sections_are_anime_only():
+    with pytest.raises(ValueError, match="does not apply"):
+        validate_note_payload(_music(owner_type="tv-show"))
+
+
+def test_a_non_music_section_takes_no_status():
+    with pytest.raises(ValueError, match="takes no status"):
+        validate_note_payload(_payload(status="Done"))
+
+
+def test_section_out_carries_the_group_and_both_dropdowns():
+    out = section_out(section_by_key("ost"), "anime")
+    assert out.group == "music"
+    assert out.group_label == "音樂 Music"
+    assert out.group_icon == "fa-music"
+    assert out.default_kind == "normal"
+    assert out.statuses == ["Need", "Pending", "Done"]
+
+
+def test_an_ungrouped_section_reports_no_group():
+    out = section_out(section_by_key("adaptation"), "anime")
+    assert out.group is None and out.group_label is None
+    assert out.standalone is False
+    assert out.statuses == []
+
+
+def test_section_out_carries_standalone():
+    # Resources renders as its own top-level card, so the page needs to be told
+    # to lift it out of the Notes card even though it names no group.
+    out = section_out(section_by_key("resources"), "anime")
+    assert out.standalone is True
+    assert out.group is None

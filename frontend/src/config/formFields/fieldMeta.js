@@ -304,9 +304,6 @@ export const TYPE_FIELD_META = {
       control: "checkbox",
       group: "Derivation",
     },
-    op: { label: "Opening Theme", group: "Music" },
-    ed: { label: "Ending Theme", group: "Music" },
-    insert_ost: { label: "Insert / OST", group: "Music" },
   },
 
   "anime-movie": {
@@ -759,7 +756,6 @@ export const GROUP_ORDER = [
   "Release",
   "Schedule",
   "Credits",
-  "Music",
   "Derivation",
   "Links",
   "Sources",

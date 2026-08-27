@@ -270,14 +270,18 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 | `official_link` | String  | Yes      |
 | `twitter_link`  | String  | Yes      |
 
-#### Music & Cast
+#### Cast
 
-| Column       | Type   | Nullable | Notes                                 |
-| ------------ | ------ | -------- | ------------------------------------- |
-| `op`         | String | Yes      | `"Need"`, `"Pending"`, `"Done"`, null |
-| `ed`         | String | Yes      | `"Need"`, `"Pending"`, `"Done"`, null |
-| `insert_ost` | String | Yes      | `"Need"`, `"Pending"`, `"Done"`, null |
-| `seiyuu`     | String | Yes      | `"Need"`, `"Done"`, null              |
+| Column   | Type   | Nullable | Notes                    |
+| -------- | ------ | -------- | ------------------------ |
+| `seiyuu` | String | Yes      | `"Need"`, `"Done"`, null |
+
+`op`, `ed` and `insert_ost` used to sit here, one Need/Pending/Done value per
+entry. They are now `note` rows in the `op` / `ed` / `insert` / `ost` sections,
+one row per song, with the status on `note.status` — see the `note` table below.
+Revision `m1u2s3i4c5t6` moved the data and dropped the columns; `insert_ost`
+seeded both `insert` and `ost` with the same value, since nothing in the one
+column said which it meant.
 
 #### Sources & Streaming
 
@@ -1209,6 +1213,7 @@ a series, franchise, or collection — the same eleven `owner_type` values.
 | `section`    | String   | Yes      | Names an entry in `NOTE_SECTIONS`; that entry declares the shape, indexed    |
 | `locator`    | String   | Yes      | Where in the work the item points: an episode, chapter, scene, timestamp, or the source a question came from. Free text, so `"ep 3"`, `"ep 3-5"`, `"ch 12"` and `"1:14:20"` all fit one column. The section supplies the label (`locator_placeholder`) and whether it is required (`locator_required`) |
 | `kind`       | String   | Yes      | Only populated where the section declares `kinds` for this owner type — `highlight_episodes` has them on tv-show/cartoon but not manga |
+| `status`     | String   | Yes      | The second dropdown, used by `music_track` alone: `"Need"`, `"Pending"`, `"Done"`, null. Separate from `kind` because the two answer different questions — `kind` is a property of the song, `status` a property of the work on it |
 | `title`      | String   | Yes      | The name half of a `name_links` item, and the song name of an `episode_name_links` one |
 | `content`    | Text     | Yes      | The body text                                                                 |
 | `links`      | JSONB    | Yes      | List of URLs — a list even where the old shape held one                      |
@@ -1221,7 +1226,7 @@ a series, franchise, or collection — the same eleven `owner_type` values.
   The columns above are the union of every shape; columns a shape does not name
   stay null. This is one table on purpose: adding a section costs a registry
   entry and no migration, and adding a new *shape* costs one nullable column.
-- **Six stored shapes**, plus one that is not stored: `text` (content),
+- **Seven stored shapes**, plus one that is not stored: `text` (content),
   `text_links` (content, links, optional locator), `text_or_link` (content
   XOR one link), `episode_text` (locator, content, and kind where declared),
   `name_links` (title, links), and `episode_name_links` (locator, title,
@@ -1231,7 +1236,11 @@ a series, franchise, or collection — the same eleven `owner_type` values.
   where they said it. `episode_name_links` — used only by `insert_songs` —
   is the one shape naming all four content columns, because an insert song is
   a named thing that plays at a place and can be linked to; no existing shape
-  could say all four.
+  could say all four. `music_track` — used by `op`, `ed`, `insert` and `ost` —
+  is one song of a work: `title` (optional), `kind` (the type: `normal` /
+  `different version` / `all inclusive version`, prefilled with `normal`),
+  `status`, one `links` entry, and `content` as the remark. It is the only
+  shape with two dropdowns, which is what `note.status` exists for.
   `external` sections — `quotes` and `memes` — are backed by their own tables
   and never by a `note` row; the registry lists them so the page can render
   them in order alongside the rest.
@@ -1250,6 +1259,33 @@ a series, franchise, or collection — the same eleven `owner_type` values.
   matching `meme` and `watch_order_item`.
 - Index `ix_note_owner_section` on `(owner_type, owner_id, section)` covers the
   only read path the notes page uses.
+- **Sections may be grouped for display.** `NOTE_GROUPS` in the registry
+  declares a group; a section naming one renders inside that group's card, which
+  the page places **beside** the Notes card rather than within it, and each
+  subsection still collapses on its own. Grouping is display-only — a grouped
+  section is an ordinary registry entry with ordinary rows. Members are kept
+  **adjacent** in `NOTE_SECTIONS` so the order stays readable.
+
+  | Group | Label | Sections |
+  | ----- | ----- | -------- |
+  | `reviews` | 評論 Reviews and Comments | `advantages`, `disadvantages`, `double_edged`, `public_reviews`, `personal_reviews`, `episode_comments` |
+  | `analysis_group` | 解析 Analysis and Cinematography | `analysis`, `cinematography`, `craft`, `foreshadowing`, `symmetry` |
+  | `music` | 音樂 Music | `op`, `ed`, `insert`, `ost`, `op_ed_changes`, `insert_songs` |
+  | `quotes_memes` | 名言/梗 Quotes and Memes | `quotes`, `memes` |
+
+  A group's card holds only the subsections that apply to the owner: of the
+  music group only `op_ed_changes` applies to tv-show and cartoon, so their card
+  holds one subsection, and `craft` is novel-only while `cinematography` is not.
+  The group key is `analysis_group` rather than `analysis` because a section
+  already owns that key.
+- **`standalone` is grouping for a section with no siblings.** It lifts the
+  section out of the Notes card the same way a group does, but gives it no
+  shared card — one header instead of two stacked ones. `resources` and
+  `questions` set it. `group` and `standalone` are mutually exclusive.
+- **`insert` and `insert_songs` are different sections on purpose.**
+  `insert_songs` (`episode_name_links`) pins one song to the episode it plays
+  in; `insert` (`music_track`) tracks the insert songs as works, the way `op`
+  and `ed` are tracked, and carries no episode.
 - **`remark` is a section, not a column, on the eleven owner tables.** Each of
   `collection`, `franchise`, `series`, `anime`, `anime_movies`, `movies`,
   `tv_shows`, `cartoons`, `manga`, `novel`, and `comic` exposes `remark` as a

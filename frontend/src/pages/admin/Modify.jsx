@@ -112,9 +112,6 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     source_other: Object.entries(anime.source_other || {}).map(
       ([name, url]) => ({ name, url: url || "" }),
     ),
-    op: anime.op || "",
-    ed: anime.ed || "",
-    insert_ost: anime.insert_ost || "",
     seiyuu: anime.seiyuu || "",
     cover_image_file: anime.cover_image_file || "",
     remark: anime.remark || "",

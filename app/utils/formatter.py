@@ -367,9 +367,6 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
-        "op": parse_from_sheet(raw.get("op"), str),
-        "ed": parse_from_sheet(raw.get("ed"), str),
-        "insert_ost": parse_from_sheet(raw.get("insert_ost"), str),
         "source_baha": parse_from_sheet(raw.get("source_baha"), bool),
         "baha_link": parse_from_sheet(raw.get("baha_link"), str),
         "source_netflix": parse_from_sheet(raw.get("source_netflix"), bool) or False,
@@ -794,6 +791,7 @@ def parse_note_from_sheet(raw: dict) -> dict:
             raw.get("locator") if raw.get("locator") else raw.get("episode"), str
         ),
         "kind": parse_from_sheet(raw.get("kind"), str),
+        "status": parse_from_sheet(raw.get("status"), str),
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),
         "links": json.loads(raw["links"]) if raw.get("links") else None,

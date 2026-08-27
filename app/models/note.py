@@ -54,6 +54,11 @@ class Note(Base):
     locator = Column(String, nullable=True)
     # Only populated where the section declares `kinds`.
     kind = Column(String, nullable=True)
+    # The second dropdown, used by the music_track shape alone: how far the
+    # tracking of one song has got. Separate from `kind` because the two answer
+    # different questions - `kind` is a property of the song (which cut it is),
+    # `status` a property of my work on it - and one row needs both.
+    status = Column(String, nullable=True)
     # The name half of a name_links item.
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)

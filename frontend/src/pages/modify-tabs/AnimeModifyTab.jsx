@@ -613,50 +613,8 @@ export default function AnimeModifyTab({
         </div>
       </div>
 
-      <SectionHeader icon="fa-music" title="Notes & Other" />
+      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Field label="OP">
-          <select
-            className={selectCls}
-            value={af.op}
-            onChange={(e) => ua("op", e.target.value)}
-          >
-            <option value="">—</option>
-            {["Pending", "Need", "Done"].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="ED">
-          <select
-            className={selectCls}
-            value={af.ed}
-            onChange={(e) => ua("ed", e.target.value)}
-          >
-            <option value="">—</option>
-            {["Pending", "Need", "Done"].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Insert / OST">
-          <select
-            className={selectCls}
-            value={af.insert_ost}
-            onChange={(e) => ua("insert_ost", e.target.value)}
-          >
-            <option value="">—</option>
-            {["Pending", "Need", "Done"].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field label="Seiyuu">
           <select
             className={selectCls}

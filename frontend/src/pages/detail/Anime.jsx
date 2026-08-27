@@ -30,7 +30,6 @@ const WATCHING_STATUSES = [
   "Completed",
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
-const MUSIC_OPTIONS = ["Pending", "Need", "Done"];
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -473,8 +472,8 @@ export default function Anime() {
             />
           </div>
 
-          {/* Notes Section: Cast & Characters + Music */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Notes Section: Cast & Characters */}
+          <div className="grid grid-cols-1 gap-6">
             {/* Cast & Characters (Under Development) */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
               <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 shrink-0">
@@ -495,50 +494,6 @@ export default function Anime() {
               </div>
             </div>
 
-            {/* Music & OP/ED */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-                <h3 className="font-bold text-gray-800">
-                  <i className="fas fa-music text-brand mr-2"></i>Music & OP/ED
-                </h3>
-              </div>
-              <div className="p-5 space-y-4">
-                {[
-                  { label: "OP (Opening)", field: "op", value: anime.op },
-                  { label: "ED (Ending)", field: "ed", value: anime.ed },
-                  {
-                    label: "Insert / OST",
-                    field: "insert_ost",
-                    value: anime.insert_ost,
-                  },
-                ].map(({ label, field, value }) => (
-                  <div key={field} className="space-y-1">
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                      {label}
-                    </label>
-                    <select
-                      value={value || ""}
-                      disabled={!isAdmin}
-                      onChange={(e) =>
-                        isAdmin &&
-                        performUpdate(
-                          { [field]: e.target.value },
-                          `${label} saved`,
-                        )
-                      }
-                      className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                    >
-                      <option value="">-</option>
-                      {MUSIC_OPTIONS.map((o) => (
-                        <option key={o} value={o}>
-                          {o}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Notes & Remarks */}
