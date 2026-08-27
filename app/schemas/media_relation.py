@@ -26,7 +26,7 @@ class RelationKindResponse(BaseModel):
 class MediaRelationCreate(BaseModel):
     """A relation as the admin typed it, before normalization.
 
-    `kind` accepts the nine user-facing choices, including `prequel`, which is
+    `kind` accepts the ten user-facing choices, including `prequel`, which is
     never stored under that name.
     """
 

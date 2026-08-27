@@ -40,11 +40,11 @@ def sample_manga_entry(db_session, sample_franchise):
 # ---------------------------------------------------------------------------
 
 
-def test_kinds_lists_the_nine_user_facing_choices(client):
+def test_kinds_lists_the_ten_user_facing_choices(client):
     res = client.get("/api/media-relation/kinds")
     assert res.status_code == 200
     body = res.json()
-    assert len(body) == 9
+    assert len(body) == 10
     keys = {k["key"] for k in body}
     assert "prequel" in keys
     prequel = next(k for k in body if k["key"] == "prequel")

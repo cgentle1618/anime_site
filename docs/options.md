@@ -364,6 +364,7 @@ one fact is always one row.
 | Extended       | `extended`      | Original      | equivalence |
 | Side Story     | `side_story`    | Parent Story  | branch      |
 | Spin-off       | `spin_off`      | Main Story    | branch      |
+| Setting        | `setting`       | Main Story    | branch      |
 | Adaptation     | `adaptation`    | Source        | derivation  |
 
 Families group the rows on the admin page and on each detail page's Related

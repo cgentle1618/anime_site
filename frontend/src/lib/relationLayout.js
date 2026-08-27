@@ -91,6 +91,7 @@ const KIND_ORDER = [
   "extended",
   "side_story",
   "spin_off",
+  "setting",
   "adaptation",
 ];
 

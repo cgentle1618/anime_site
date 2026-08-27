@@ -1055,6 +1055,7 @@ one row.
 | `extended`             | A is the Extended version of B | Original | equivalence |
 | `side_story`           | A is a side story of B | Parent Story | branch      |
 | `spin_off`             | A is a spin-off of B  | Main Story    | branch      |
+| `setting`              | A is the setting book (設定集) of B | Main Story | branch |
 | `adaptation`           | A is an adaptation of B | Source      | derivation  |
 
 The vocabulary lives in `app/utils/relation_kinds.py` and is served over HTTP

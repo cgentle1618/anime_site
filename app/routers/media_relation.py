@@ -59,7 +59,7 @@ def _get_relation_or_404(db: Session, system_id: str) -> models.MediaRelation:
 
 def _validate_kind(value: str) -> None:
     """
-    Rejects a kind outside the nine the dropdown offers.
+    Rejects a kind outside the ten the dropdown offers.
 
     Refused rather than coerced: unlike a blank importance cell from Sheets,
     a bad kind from the editor is a bug worth surfacing.
@@ -132,7 +132,7 @@ def get_relation_kinds():
     """
     The vocabulary, so the admin dropdown has exactly one source of truth.
 
-    Returns the eight stored kinds plus `prequel`, which the create endpoint
+    Returns the nine stored kinds plus `prequel`, which the create endpoint
     accepts and records as a swapped `sequel` row.
     """
     payload = [
