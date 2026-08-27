@@ -181,13 +181,12 @@ export default function Comic() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      {/* Breadcrumb — there is no comic library page yet, so the trail runs
-          back through the parent franchise instead. */}
+      {/* Breadcrumb */}
       <nav className="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
         <ol className="inline-flex items-center space-x-2">
           <li>
-            <Link to="/library/franchise" className="hover:text-brand transition">
-              <i className="fas fa-book-open mr-1.5"></i>Franchise Library
+            <Link to="/library/comic" className="hover:text-brand transition">
+              <i className="fas fa-book-open mr-1.5"></i>Comic
             </Link>
           </li>
           {franchise && (

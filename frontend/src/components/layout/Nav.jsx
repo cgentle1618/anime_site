@@ -445,6 +445,9 @@ export default function Nav() {
                     <NavLink to="/library/cartoon" icon="fas fa-laugh-squint">
                       Cartoon
                     </NavLink>
+                    <NavLink to="/library/comic" icon="fas fa-book-open">
+                      Comic Library
+                    </NavLink>
                   </>
                 }
               />
@@ -819,6 +822,13 @@ export default function Nav() {
                   className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
                 >
                   Cartoon Library
+                </Link>
+                <Link
+                  to="/library/comic"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-bold text-gray-700 hover:text-brand"
+                >
+                  Comic Library
                 </Link>
               </div>
             </details>

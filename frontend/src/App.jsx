@@ -42,6 +42,7 @@ import LibraryTV from "./pages/library/LibraryTV";
 import LibraryCartoon from "./pages/library/LibraryCartoon";
 import LibraryManga from "./pages/library/LibraryManga";
 import LibraryNovel from "./pages/library/LibraryNovel";
+import LibraryComic from "./pages/library/LibraryComic";
 
 import Admin from "./pages/admin/Admin";
 import Add from "./pages/admin/Add";
@@ -108,6 +109,7 @@ export default function App() {
                 <Route path="/novel/:system_id" element={<Novel />} />
                 <Route path="/library/novel" element={<LibraryNovel />} />
                 <Route path="/comic/:system_id" element={<Comic />} />
+                <Route path="/library/comic" element={<LibraryComic />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />
