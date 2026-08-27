@@ -5,7 +5,7 @@
 //
 // It moved out of NotesTemplate when that component became registry-driven;
 // the franchise and collection pages mount it directly.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import MemeForm, {
@@ -22,6 +22,7 @@ export default function MemeSection({
   ownerType,
   ownerId,
   isAdmin,
+  onCount,
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["memes-by-owner", ownerType, ownerId];
@@ -32,6 +33,14 @@ export default function MemeSection({
     enabled: !!ownerType && !!ownerId,
     staleTime: 30_000,
   });
+
+  // This section owns its rows, so the page cannot count them from the notes
+  // it fetched. Reporting the count up is what lets the enclosing group card
+  // know whether it is empty, and null says "still loading" so the group stays
+  // open rather than collapsing on a count it does not have yet.
+  useEffect(() => {
+    onCount?.(isLoading ? null : items.length);
+  }, [onCount, isLoading, items.length]);
 
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(emptyMeme());
@@ -96,7 +105,7 @@ export default function MemeSection({
   return (
     <SectionCard
       label={label}
-      count={items.length}
+      count={isLoading ? null : items.length}
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >

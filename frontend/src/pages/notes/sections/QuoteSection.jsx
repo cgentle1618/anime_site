@@ -4,7 +4,7 @@
 // the page renders it like every other section.
 //
 // It moved out of NotesTemplate when that component became registry-driven.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import QuoteForm, {
@@ -21,6 +21,7 @@ export default function QuoteSection({
   mediaType,
   entryId,
   isAdmin,
+  onCount,
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["quotes-by-entry", mediaType, entryId];
@@ -31,6 +32,14 @@ export default function QuoteSection({
     enabled: !!mediaType && !!entryId,
     staleTime: 30_000,
   });
+
+  // This section owns its rows, so the page cannot count them from the notes
+  // it fetched. Reporting the count up is what lets the enclosing group card
+  // know whether it is empty, and null says "still loading" so the group stays
+  // open rather than collapsing on a count it does not have yet.
+  useEffect(() => {
+    onCount?.(isLoading ? null : items.length);
+  }, [onCount, isLoading, items.length]);
 
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(emptyQuote());
@@ -93,7 +102,7 @@ export default function QuoteSection({
   return (
     <SectionCard
       label={label}
-      count={items.length}
+      count={isLoading ? null : items.length}
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >

@@ -7,7 +7,7 @@
 // silently reverting, or (when the entry had no remark at load) deleting it.
 // So the embedding screens pass hideSections={["remark"]}, and the section must
 // disappear without taking any other section with it.
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import NotesTemplate from "./NotesTemplate";
 import * as api from "./api";
@@ -87,8 +87,11 @@ const GROUPED = [
 describe("NotesTemplate groups", () => {
   beforeEach(() => {
     vi.mocked(api.fetchSections).mockResolvedValue(GROUPED);
+    // Both cards need a row: an empty card opens collapsed, which would hide
+    // the very sections these tests are placing.
     vi.mocked(api.fetchNotes).mockResolvedValue([
       { system_id: "m1", section: "op", title: "紅蓮華", status: "Need" },
+      { system_id: "o1", section: "overview", content: "an overview" },
     ]);
   });
 
@@ -155,7 +158,10 @@ const STANDALONE = [
 describe("NotesTemplate standalone sections", () => {
   beforeEach(() => {
     vi.mocked(api.fetchSections).mockResolvedValue(STANDALONE);
-    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    // A row in the Notes card, so it does not open collapsed over Overview.
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { system_id: "o1", section: "overview", content: "an overview" },
+    ]);
   });
 
   it("renders a standalone section outside the Notes card and outside every group", async () => {
@@ -179,5 +185,83 @@ describe("NotesTemplate standalone sections", () => {
     const notesCard = screen.getByText("Notes").closest("div.bg-white");
     const solo = screen.getByText("Resources").closest("div.bg-white");
     expect(solo.parentElement).toBe(notesCard.parentElement);
+  });
+});
+
+// Collapse defaults: a card with no rows opens collapsed, so a page of mostly
+// empty sections reads as a list of headers instead of a wall of "No entries.".
+// The header always renders - only the body is hidden - which is why every
+// assertion below is about the body, not the label.
+describe("NotesTemplate collapse-when-empty", () => {
+  const COLLAPSE = [
+    { key: "overview", shape: "text", label: "Overview", kinds: [] },
+    { key: "trivia", shape: "text", label: "Trivia", kinds: [] },
+    {
+      key: "op",
+      shape: "text",
+      label: "OP",
+      kinds: [],
+      group: "music",
+      group_label: "音樂 Music",
+      group_icon: "fa-music",
+    },
+  ];
+
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue(COLLAPSE);
+  });
+
+  it("collapses an empty section and leaves a filled one open", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { system_id: "n1", section: "overview", content: "an overview" },
+    ]);
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("an overview")).toBeInTheDocument(),
+    );
+    // Trivia has no rows, so its "No entries." hint stays behind the header.
+    const trivia = screen.getByText("Trivia").closest("div.bg-white");
+    expect(trivia.textContent).not.toContain("No entries.");
+  });
+
+  it("collapses the Notes card and the group card when both are empty", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    expect(notesCard.textContent).not.toContain("Overview");
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-white");
+    expect(groupCard.textContent).not.toContain("OP");
+  });
+
+  it("keeps a group open when one of its sections has rows", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { system_id: "n1", section: "op", content: "紅蓮華" },
+    ]);
+    renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("紅蓮華")).toBeInTheDocument();
+  });
+
+  it("opens a collapsed card when it is clicked", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Notes"));
+    expect(screen.getByText("Overview")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Overview"));
+    expect(screen.getByText("No entries.")).toBeInTheDocument();
+  });
+
+  it("opens an empty section when Add is clicked, so the draft row shows", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Notes"));
+    const trivia = screen.getByText("Trivia").closest("div.bg-white");
+    fireEvent.click(within(trivia).getByRole("button", { name: /Add/ }));
+    expect(within(trivia).getByRole("textbox")).toBeInTheDocument();
   });
 });

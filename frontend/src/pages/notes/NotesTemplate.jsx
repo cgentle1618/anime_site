@@ -3,7 +3,7 @@
 // The page no longer knows what a section is: it fetches the registry from
 // /api/notes/sections and dispatches on each section's shape. That is why the
 // seven configs/*.js files are gone - the backend owns the structure now.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import * as api from "./api";
 import TextSection from "./sections/TextSection";
@@ -42,20 +42,22 @@ const SHAPES = {
 // rather than rewritten. media_type/entry_id and owner_type/owner_id are the
 // same hyphenated owner keys the notes API uses.
 const EXTERNAL_SHAPES = {
-  quotes: ({ label, ownerType, ownerId, isAdmin }) => (
+  quotes: ({ label, ownerType, ownerId, isAdmin, onCount }) => (
     <QuoteSection
       label={label}
       mediaType={ownerType}
       entryId={ownerId}
       isAdmin={isAdmin}
+      onCount={onCount}
     />
   ),
-  memes: ({ label, ownerType, ownerId, isAdmin }) => (
+  memes: ({ label, ownerType, ownerId, isAdmin, onCount }) => (
     <MemeSection
       label={label}
       ownerType={ownerType}
       ownerId={ownerId}
       isAdmin={isAdmin}
+      onCount={onCount}
     />
   ),
 };
@@ -117,6 +119,11 @@ export default function NotesTemplate({
 }) {
   const [sections, setSections] = useState([]);
   const [notes, setNotes] = useState([]);
+  // Quotes and memes live in their own tables, so their rows never arrive in
+  // `notes` and the page cannot count them itself. Each external section
+  // reports its own count here, which is the only way a card holding one can
+  // know whether it is empty.
+  const [externalCounts, setExternalCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -161,6 +168,15 @@ export default function NotesTemplate({
       cancelled = true;
     };
   }, [ownerType, ownerId]);
+
+  const reportCount = useCallback((key, n) => {
+    setExternalCounts((prev) => (prev[key] === n ? prev : { ...prev, [key]: n }));
+  }, []);
+  // One stable callback per section key: an inline lambda would change identity
+  // every render and re-fire the reporting effect in every external section.
+  const reporters = useRef({});
+  const reporterFor = (key) =>
+    (reporters.current[key] ||= (n) => reportCount(key, n));
 
   // Callers pass a fresh array literal on every render, so the join keeps this
   // memo from recomputing on identity alone.
@@ -215,6 +231,24 @@ export default function NotesTemplate({
     [visibleSections],
   );
 
+  // How many rows a card holds, which is what decides whether it opens
+  // collapsed. null means "not known yet": an external section that has not
+  // finished loading leaves the whole card unknown, so it stays open rather
+  // than collapsing on a count that is about to change.
+  const blockCount = (secs) => {
+    let total = 0;
+    for (const sec of secs) {
+      if (sec.shape === "external") {
+        const n = externalCounts[sec.key];
+        if (n == null) return null;
+        total += n;
+      } else {
+        total += (bySection[sec.key] || []).length;
+      }
+    }
+    return total;
+  };
+
   const renderSection = (section) => {
     if (section.shape === "external") {
       const External = EXTERNAL_SHAPES[section.key];
@@ -226,6 +260,7 @@ export default function NotesTemplate({
           ownerType={ownerType}
           ownerId={ownerId}
           isAdmin={isAdmin}
+          onCount={reporterFor(section.key)}
         />
       );
     }
@@ -252,33 +287,41 @@ export default function NotesTemplate({
           {error}
         </p>
       )}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-          <h3 className="font-bold text-gray-800">
-            <i className="fas fa-book-open text-brand mr-2"></i>Notes
-          </h3>
-        </div>
-        <div className="p-4 space-y-3">
-          {loading ? (
+      {/* The Notes card wears the group chrome so it collapses when empty like
+          every other card - minus the count badge, which it has never had. The
+          spinner keeps the plain card: a GroupCard counting zero rows would
+          collapse over it while the fetch is still in flight. */}
+      {loading ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+            <h3 className="font-bold text-gray-800">
+              <i className="fas fa-book-open text-brand mr-2"></i>Notes
+            </h3>
+          </div>
+          <div className="p-4 space-y-3">
             <div className="py-10 text-center text-gray-400">
               <i className="fas fa-circle-notch fa-spin text-xl"></i>
               <p className="text-xs mt-2">Loading notes...</p>
             </div>
-          ) : (
-            flat.map(renderSection)
-          )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <GroupCard
+          label="Notes"
+          icon="fa-book-open"
+          count={blockCount(flat)}
+          showCount={false}
+        >
+          {flat.map(renderSection)}
+        </GroupCard>
+      )}
       {!loading &&
         groups.map((group) => (
           <GroupCard
             key={group.key}
             label={group.label}
             icon={group.icon}
-            count={group.sections.reduce(
-              (n, sec) => n + (bySection[sec.key] || []).length,
-              0,
-            )}
+            count={blockCount(group.sections)}
           >
             {group.sections.map(renderSection)}
           </GroupCard>
