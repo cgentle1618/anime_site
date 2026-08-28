@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -726,6 +727,95 @@ def find_duplicate_novel(db: Session) -> list[list[dict]]:
     return result
 
 
+def find_duplicate_comic(db: Session) -> list[list[dict]]:
+    """
+    Finds Comic entries that share the same (franchise_id, series_id,
+    is_main_entry) and either at least one identical name field
+    (case-insensitive) or the same Comic Vine volume ID. Uses union-find for
+    transitive closure.
+
+    The ID arm has no counterpart in the other types' checks, and it is the one
+    that matters most here: Marvel volume titles collide constantly - "Avengers"
+    names dozens of distinct runs - so a shared name is weak evidence on its own
+    while a shared comicvine_id is conclusive. Two rows pointing at one volume
+    are the same run entered twice, whatever they are titled.
+    """
+    comics = db.query(Comic).filter(Comic.franchise_id.isnot(None)).all()
+
+    def _key(c: Comic) -> tuple:
+        return (
+            str(c.franchise_id),
+            str(c.series_id) if c.series_id else None,
+            c.is_main_entry,
+        )
+
+    by_key: dict[tuple, list] = {}
+    for c in comics:
+        by_key.setdefault(_key(c), []).append(c)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        root = x
+        while parent.get(root, root) != root:
+            root = parent[root]
+        while parent.get(x, x) != root:
+            nxt = parent.get(x, x)
+            parent[x] = root
+            x = nxt
+        return root
+
+    def union(x: str, y: str) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    comic_map = {str(c.system_id): c for c in comics}
+
+    for group in by_key.values():
+        for i in range(len(group)):
+            a_names = group[i].get_all_names()
+            a_cv = group[i].comicvine_id
+            for j in range(i + 1, len(group)):
+                same_name = bool(a_names & group[j].get_all_names())
+                # `is not None` on both sides: two unfilled rows share a NULL
+                # comicvine_id, and that is the absence of evidence, not a match.
+                same_volume = (
+                    a_cv is not None and a_cv == group[j].comicvine_id
+                )
+                if same_name or same_volume:
+                    union(str(group[i].system_id), str(group[j].system_id))
+
+    clusters: dict[str, list[str]] = {}
+    for cid in comic_map:
+        clusters.setdefault(find(cid), []).append(cid)
+
+    result = []
+    for members in clusters.values():
+        if len(members) > 1:
+            result.append(
+                [
+                    {
+                        "system_id": cid,
+                        "franchise_id": str(comic_map[cid].franchise_id),
+                        "series_id": (
+                            str(comic_map[cid].series_id)
+                            if comic_map[cid].series_id
+                            else None
+                        ),
+                        "is_main_entry": comic_map[cid].is_main_entry,
+                        "comicvine_id": comic_map[cid].comicvine_id,
+                        "comic_name_en": comic_map[cid].comic_name_en,
+                        "comic_name_cn": comic_map[cid].comic_name_cn,
+                        "comic_name_alt": comic_map[cid].comic_name_alt,
+                    }
+                    for cid in members
+                ]
+            )
+
+    return result
+
+
 def find_all_duplicates(db: Session) -> dict:
     """Runs all duplicate checks and returns a combined report."""
     return {
@@ -738,5 +828,6 @@ def find_all_duplicates(db: Session) -> dict:
         "tv_show": find_duplicate_tv_show(db),
         "manga": find_duplicate_manga(db),
         "novel": find_duplicate_novel(db),
+        "comic": find_duplicate_comic(db),
         "system_options": find_duplicate_system_options(db),
     }

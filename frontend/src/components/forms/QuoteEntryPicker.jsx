@@ -16,6 +16,7 @@ export const MEDIA_TYPE_OPTIONS = [
   { value: "cartoon", label: "Cartoon" },
   { value: "manga", label: "Manga" },
   { value: "novel", label: "Novel" },
+  { value: "comic", label: "Comic" },
 ];
 
 export function configKeyFor(mediaType) {

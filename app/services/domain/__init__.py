@@ -73,6 +73,7 @@ from app.services.domain.duplicates import (
     find_duplicate_cartoon,
     find_duplicate_manga,
     find_duplicate_novel,
+    find_duplicate_comic,
     find_all_duplicates,
 )
 
@@ -176,6 +177,7 @@ __all__ = [
     "find_duplicate_cartoon",
     "find_duplicate_manga",
     "find_duplicate_novel",
+    "find_duplicate_comic",
     "find_all_duplicates",
     "apply_extract_mal_id_anime",
     "apply_extract_mal_id_manga_novel",

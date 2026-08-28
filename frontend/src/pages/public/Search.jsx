@@ -93,6 +93,7 @@ export default function Search() {
   const needsCartoon = scope === "all" || scope === "cartoon";
   const needsManga = scope === "all" || scope === "manga";
   const needsNovel = scope === "all" || scope === "novel";
+  const needsComic = scope === "all" || scope === "comic";
   const needsSeries = scope === "all" || scope === "series";
   const needsSeasonal = scope === "all" || scope === "seasonal";
   const needsCollection = scope === "all" || scope === "collection";
@@ -144,6 +145,10 @@ export default function Search() {
     params: { limit: 2000 },
     enabled: hasQuery && needsNovel,
   });
+  const comicQuery = useMediaList("comic", {
+    params: { limit: 2000 },
+    enabled: hasQuery && needsComic,
+  });
   const activeQueries = [
     needsFranchise && franchiseQuery,
     needsAnime && animeQuery,
@@ -156,6 +161,7 @@ export default function Search() {
     needsCartoon && cartoonQuery,
     needsManga && mangaQuery,
     needsNovel && novelQuery,
+    needsComic && comicQuery,
   ].filter(Boolean);
   const loading =
     hasQuery && activeQueries.some((queryResult) => queryResult.isLoading);
@@ -172,6 +178,7 @@ export default function Search() {
   const [matchedCartoons, setMatchedCartoons] = useState([]);
   const [matchedMangas, setMatchedMangas] = useState([]);
   const [matchedNovels, setMatchedNovels] = useState([]);
+  const [matchedComics, setMatchedComics] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [matchedCollections, setMatchedCollections] = useState([]);
   const [allAnime, setAllAnime] = useState([]);
@@ -181,6 +188,7 @@ export default function Search() {
   const [allCartoons, setAllCartoons] = useState([]);
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
+  const [allComics, setAllComics] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
@@ -209,6 +217,7 @@ export default function Search() {
       setMatchedCartoons([]);
       setMatchedMangas([]);
       setMatchedNovels([]);
+      setMatchedComics([]);
       return;
     }
     if (loading || error) return;
@@ -224,6 +233,7 @@ export default function Search() {
     const cartoonResults = cartoonQuery.data || [];
     const mangaResults = mangaQuery.data || [];
     const novelResults = novelQuery.data || [];
+    const comicResults = comicQuery.data || [];
     setAllAnime(all);
     setAllAnimeMovies(animeMovieResults);
     setAllMovies(movieResults);
@@ -231,6 +241,7 @@ export default function Search() {
     setAllCartoons(cartoonResults);
     setAllMangas(mangaResults);
     setAllNovels(novelResults);
+    setAllComics(comicResults);
 
     const qClean = cleanString(query);
 
@@ -391,6 +402,19 @@ export default function Search() {
         (a.novel_name_cn || "").localeCompare(b.novel_name_cn || ""),
       );
 
+    // Comic. Sorted on the English title, not the Chinese one every other
+    // section sorts by: comic's display name falls back EN -> CN -> Alt, so
+    // sorting on CN would order the list by a name most rows do not show.
+    const mcm = comicResults
+      .filter((c) =>
+        [c.comic_name_en, c.comic_name_cn, c.comic_name_alt].some((n) =>
+          cleanString(n).includes(qClean),
+        ),
+      )
+      .sort((a, b) =>
+        (a.comic_name_en || "").localeCompare(b.comic_name_en || ""),
+      );
+
     setMatchedSeasonal(msea);
     setMatchedCollections(mcol);
     setMatchedFranchises(mf);
@@ -403,7 +427,9 @@ export default function Search() {
     setMatchedCartoons(mc);
     setMatchedMangas(mm);
     setMatchedNovels(mnv);
+    setMatchedComics(mcm);
   }, [
+    comicQuery.data,
     animeMovieQuery.data,
     animeQuery.data,
     cartoonQuery.data,
@@ -484,6 +510,15 @@ export default function Search() {
     );
   }, []);
 
+  const handleComicUpdated = useCallback((updated) => {
+    setMatchedComics((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+    setAllComics((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+  }, []);
+
   const showSeasonal = scope === "all" || scope === "seasonal";
   const showCollection = scope === "all" || scope === "collection";
   const showFranchise = scope === "all" || scope === "franchise";
@@ -495,6 +530,7 @@ export default function Search() {
   const showCartoon = scope === "all" || scope === "cartoon";
   const showManga = scope === "all" || scope === "manga";
   const showNovel = scope === "all" || scope === "novel";
+  const showComic = scope === "all" || scope === "comic";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -539,6 +575,7 @@ export default function Search() {
     showCartoon && ["cartoons", matchedCartoons.length],
     showManga && ["manga", matchedMangas.length],
     showNovel && ["novel", matchedNovels.length],
+    showComic && ["comics", matchedComics.length],
   ].filter((entry) => entry && entry[1] > 0);
 
   const SCOPE_LABELS = {
@@ -553,6 +590,7 @@ export default function Search() {
     cartoon: "Cartoon",
     manga: "Manga",
     novel: "Novel",
+    comic: "Comic",
     seasonal: "Seasonal",
   };
 
@@ -975,6 +1013,38 @@ export default function Search() {
                   type="novel"
                   data={n}
                   onUpdated={handleNovelUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Comic */}
+        {showComic && matchedComics.length > 0 && (
+          <div>
+            <div
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              style={{ top: sectionHeaderTop }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                <i className="fas fa-book-bookmark text-brand"></i>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                  Comic
+                </h2>
+              </div>
+              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                {matchedComics.length} results
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {matchedComics.map((c) => (
+                <MediaCard
+                  key={c.system_id}
+                  type="comic"
+                  data={c}
+                  onUpdated={handleComicUpdated}
                 />
               ))}
             </div>

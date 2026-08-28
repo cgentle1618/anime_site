@@ -106,3 +106,76 @@ Tests: `tests/unit/test_comicvine_utils.py` (28), `test_comic_fill_gate.py` (14)
    `l1o2c3a4t5o6` while already carrying the `comic` table, so the chain fails before
    reaching this revision — that drift predates this work and needs resolving first.
 3. Paste a Comic Vine volume URL onto each entry, then run Fill Comic.
+
+
+---
+
+## Comic Feature Parity
+
+### Context
+
+Comic landed with full CRUD, a detail page, notes page, library page, admin
+tabs and the Comic Vine integration above. What it did not get is the
+cross-cutting features that enumerate media types by hand — those silently omit
+any type not added to their list.
+
+An audit (every file mentioning `manga` but not `comic`, each hit verified)
+found seven such gaps plus one display bug.
+
+Spec: `docs/superpowers/specs/2026-08-28-comic-feature-parity-design.md`
+Plan: `docs/superpowers/plans/2026-08-28-comic-feature-parity.md`
+
+### Already correct — checked, not touched
+
+- **Relations graph** — driven by `MEDIA_TABLES`, which includes comic.
+- **Watch order backend** — `MEDIA_TYPE_MODELS`, `_STATUS_FIELDS`,
+  `_TOTAL_FIELDS` (→ `issue_total`) and the `release_year` sort key all carry
+  comic.
+- **`FranchisePage.jsx`** and **`StatsFranchiseSummary.jsx`** — both already
+  handle comic.
+- **`watch_order_item.ep_start` / `ep_end`** — generic Integers, and
+  `supportsEpisodeRange` is a blocklist comic is not in, so comic ranges
+  already persisted end to end. No migration was needed anywhere in this pass.
+
+### Status
+
+**Implemented.**
+
+| Item | Where |
+| --- | --- |
+| Watch order labels + issue unit (`#`) | `WatchOrderGuide.jsx`, `WatchOrderEditor.jsx` |
+| Empty Notes card suppressed | `NotesTemplate.jsx` |
+| Nav search box | `NavSearch.jsx` |
+| Relations far-endpoint search | `useGlobalMediaSearch.js` |
+| `/search` page scope + results | `Search.jsx` |
+| Series page tab | `SeriesPage.jsx` |
+| Collection page + library | `CollectionPage.jsx`, `CollectionLibrary.jsx` |
+| Statistics + Completions tab | `useStatisticsData.js`, `statsUtils.js`, `StatsCompletions.jsx`, `Completions.jsx` |
+| Meme / quote owner pickers | `MemeOwnerPicker.jsx`, `QuoteEntryPicker.jsx`, `GroupedEntryPage.jsx` |
+| Duplicate detection | `find_duplicate_comic` in `duplicates.py` |
+| Remarks payload | `remarks.py` |
+| Review queue + data history | `ReviewQueue.jsx`, `DataHistory.jsx` |
+
+Tests: `tests/unit/test_comic_duplicates.py` (9), plus a comic case in
+`frontend/src/components/tracker/watchOrderRange.test.js`.
+
+### Decisions worth remembering
+
+- **A comic watch-order step supports an issue range** (`# 1-12`), unlike
+  manga and novel, which cover their entry whole. Comic runs are stepped
+  through by issue.
+- **The Notes-card fix is general, not comic-specific.** `NotesTemplate` now
+  holds the card back when it owns no visible section. Comic hit it because
+  `remark` is its only ungrouped section and the detail page hides that one
+  whenever a remark exists.
+- **Comic's Completions tab groups by publisher, derived from the data.**
+  Every other tab groups on a closed set; `publisher` is filled from Comic Vine
+  and is open-ended, so a hardcoded list would drop the first run from an
+  unseen publisher.
+- **No note sections were added or removed.** Comic keeps the twelve it
+  inherits from `ALL_OWNERS`.
+
+### Still deferred
+
+The plan pages. `comic.read_next` and `comic.to_reread` remain columns with no
+UI, as they were when the table was created.

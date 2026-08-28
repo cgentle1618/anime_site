@@ -19,6 +19,7 @@ const TYPE_LABELS = {
   cartoon: "Cartoon",
   manga: "Manga",
   novel: "Novel",
+  comic: "Comic",
 };
 
 // Types a step always covers whole, so an admin is never offered a from/to.
@@ -30,10 +31,16 @@ const WHOLE_ONLY_TYPES = new Set(["movie", "anime-movie", "manga", "novel"]);
 export const supportsEpisodeRange = (mediaType) =>
   !WHOLE_ONLY_TYPES.has(mediaType);
 
-/** "Ep 1-10", "Ep 5", "Ch 1-40" — or nothing when the step is the whole entry. */
+// The unit a step's from/to pair is counted in. Manga and novels store chapter
+// numbers, a comic run stores issue numbers, and everything else stores
+// episodes. An unlisted or null type falls back to "Ep", matching the label
+// those steps have always carried.
+const RANGE_UNITS = { manga: "Ch", novel: "Ch", comic: "#" };
+
+/** "Ep 1-10", "Ep 5", "Ch 1-40", "# 1-12" — or nothing when the step is the whole entry. */
 function rangeLabel(item) {
   if (item.ep_start == null && item.ep_end == null) return null;
-  const unit = item.media_type === "manga" || item.media_type === "novel" ? "Ch" : "Ep";
+  const unit = RANGE_UNITS[item.media_type] || "Ep";
   if (item.ep_start != null && item.ep_end != null) {
     return item.ep_start === item.ep_end
       ? `${unit} ${item.ep_start}`

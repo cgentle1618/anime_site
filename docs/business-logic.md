@@ -766,9 +766,16 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 | `find_duplicate_cartoon`        | Same `(franchise_id, series_id, season_part, is_main)` + at least one matching name                          |
 | `find_duplicate_manga`          | Same `(franchise_id, series_id, is_main)` + at least one matching manga name                                 |
 | `find_duplicate_novel`          | Same `(franchise_id, series_id, is_main, type)` + at least one matching novel name                           |
+| `find_duplicate_comic`          | Same `(franchise_id, series_id, is_main_entry)` + either a matching comic name **or** the same `comicvine_id` |
 | `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
 
-`find_all_duplicates` runs all of them: returns `{franchise, series, anime, anime_movie, movie, tv_show, cartoon, manga, novel, system_options}`.
+`find_all_duplicates` runs all of them: returns `{franchise, series, anime, anime_movie, movie, tv_show, cartoon, manga, novel, comic, system_options}`.
+
+Comic is the only table whose key has an ID arm. Marvel volume titles collide
+constantly — "Avengers" names dozens of distinct runs — so a shared name is weak
+evidence on its own, while a shared `comicvine_id` is conclusive. Two NULL
+`comicvine_id`s are **not** a match: that is the absence of evidence, not
+agreement.
 
 ---
 

@@ -1485,13 +1485,15 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 
 Includes auto-fill from existing entry search bar (searches Comic Name EN/CN/Alt only — comic has no Roman/JP name field).
 
-> Comic has no detail page, notes page or library page yet — `Comic.jsx`,
-> `ComicNotes.jsx` and `LibraryComic.jsx` do not exist. There is no nav link,
-> no universal-search entry, and no `MediaCard` for comic either. Admin Add /
-> Modify / Delete are the only **entry-level** surfaces that exist for comic
-> today — the Comic *franchise* type is already surfaced elsewhere (the
-> Franchise Library's type filter, the Favorite Franchise 3×3 grid) — so a
-> created comic entry itself is reachable only by editing it back on `/modify`.
+> Comic now has the full entry-level surface: `Comic.jsx`, `ComicNotes.jsx`
+> and `LibraryComic.jsx` all exist, along with a nav link, a `MediaCard`, and
+> entries in both the nav search box and the `/search` page. It also appears on
+> the Series and Collection pages, in the watch order editor and guide, in the
+> Statistics and Completions tabs, in the meme and quote owner pickers, and in
+> the Review Queue's remarks tabs.
+>
+> Still absent by decision: the plan pages. `comic.read_next` and
+> `comic.to_reread` exist as columns with no UI behind them.
 
 - **Titles & Naming:** Franchise (ComboBox + auto-create modal, filtered to `franchise_type` including `Comic`), Series (ComboBox + auto-create modal), Comic Name EN (primary), then Comic Name CN / Alt — **EN leads**, the only entry type that does not lead with CN
 - **Titles & Naming (cont.):** Volume Label (free text, e.g. "Vol. 5 (2018)"), Comic Type dropdown

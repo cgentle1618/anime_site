@@ -11,6 +11,7 @@ export default function StatsCompletions({
   allCartoons,
   allManga,
   allNovel,
+  allComic,
   franchiseMap,
 }) {
   const [completionsTab, setCompletionsTab] = useState("anime");
@@ -32,6 +33,7 @@ export default function StatsCompletions({
   const [cartoonCompletionPages, setCartoonCompletionPages] = useState({});
   const [mangaCompletionPages, setMangaCompletionPages] = useState({});
   const [novelCompletionPages, setNovelCompletionPages] = useState({});
+  const [comicCompletionPages, setComicCompletionPages] = useState({});
 
   return (
     <section>
@@ -73,6 +75,12 @@ export default function StatsCompletions({
             },
             { key: "manga", label: "Manga", icon: "fa-book", dev: false },
             { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
+            {
+              key: "comic",
+              label: "Comic",
+              icon: "fa-book-bookmark",
+              dev: false,
+            },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -1224,6 +1232,170 @@ export default function StatsCompletions({
           );
         })()}
 
+      {/* Comic tab */}
+      {completionsTab === "comic" &&
+        (() => {
+          const completed = (allComic || [])
+            .filter((c) => c.reading_status === "Completed" && c.completed_at)
+            .sort(
+              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+            );
+
+          // Grouped by publisher, and the groups are derived rather than
+          // declared. Every other tab groups on a closed set (airing type,
+          // region), but `publisher` is filled from Comic Vine and is open -
+          // a fixed list would silently drop the first run from a publisher
+          // the collection had not seen before. Largest group first, with the
+          // unattributed runs last so an empty field never leads.
+          const byPublisher = {};
+          completed.forEach((c) => {
+            const key = (c.publisher || "").trim() || "Others";
+            if (!byPublisher[key]) byPublisher[key] = [];
+            byPublisher[key].push(c);
+          });
+          const COMIC_GROUPS = Object.keys(byPublisher)
+            .sort((a, b) => {
+              if (a === "Others") return 1;
+              if (b === "Others") return -1;
+              const sizeDiff = byPublisher[b].length - byPublisher[a].length;
+              return sizeDiff !== 0 ? sizeDiff : a.localeCompare(b);
+            })
+            .map((key) => ({ key, label: key }));
+
+          if (completed.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                <i className="fas fa-check-circle text-3xl text-gray-300 mb-3"></i>
+                <p className="text-gray-500 font-medium">
+                  No comic completions recorded yet.
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-8">
+              {COMIC_GROUPS.map(({ key, label }) => {
+                const items = byPublisher[key];
+                if (items.length === 0) return null;
+                const PAGE_SIZE = 10;
+                const page = comicCompletionPages[key] ?? 0;
+                const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                const pageItems = items.slice(
+                  page * PAGE_SIZE,
+                  (page + 1) * PAGE_SIZE,
+                );
+                const setPage = (p) =>
+                  setComicCompletionPages((prev) => ({ ...prev, [key]: p }));
+
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
+                      <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                        {label}
+                      </h3>
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                        {items.length}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                      {pageItems.map((c, idx) => {
+                        const globalIdx = page * PAGE_SIZE + idx;
+                        const franchise = franchiseMap[String(c.franchise_id)];
+                        // EN first: comic's display name falls back
+                        // EN -> CN -> Alt, unlike every other type here.
+                        const baseName =
+                          c.comic_name_en || c.comic_name_cn || "—";
+                        const name = c.volume_label
+                          ? `${baseName} ${c.volume_label}`
+                          : baseName;
+                        const franchiseName = franchise
+                          ? franchise.franchise_name_cn ||
+                            franchise.franchise_name_en ||
+                            franchise.franchise_name_roman
+                          : null;
+                        const dateStr = new Date(
+                          c.completed_at,
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        });
+                        return (
+                          <Link
+                            key={c.system_id}
+                            to={`/comic/${c.system_id}`}
+                            className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+                              idx < pageItems.length - 1
+                                ? "border-b border-gray-100"
+                                : ""
+                            }`}
+                          >
+                            <span className="text-xs font-black text-gray-300 w-6 text-center shrink-0">
+                              {globalIdx + 1}
+                            </span>
+                            <div className="w-9 h-12 rounded-md overflow-hidden bg-gray-100 shrink-0">
+                              <img
+                                src={getCoverUrl(c.cover_image_file)}
+                                alt={name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = FALLBACK_SVG;
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 truncate">
+                                {name}
+                              </p>
+                              {franchiseName && (
+                                <p className="text-xs text-gray-400 font-medium truncate">
+                                  {franchiseName}
+                                </p>
+                              )}
+                            </div>
+                            {c.my_rating && (
+                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
+                                {c.my_rating}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-400 font-medium shrink-0 hidden sm:block">
+                              {dateStr}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-3 px-1">
+                        <button
+                          onClick={() => setPage(page - 1)}
+                          disabled={page === 0}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                        >
+                          <i className="fas fa-chevron-left text-[10px]"></i>
+                          Prev
+                        </button>
+                        <span className="text-xs text-gray-400 font-medium">
+                          Page {page + 1} of {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setPage(page + 1)}
+                          disabled={page >= totalPages - 1}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                        >
+                          Next
+                          <i className="fas fa-chevron-right text-[10px]"></i>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
       {/* Under-development tabs */}
       {![
         "anime",
@@ -1233,6 +1405,7 @@ export default function StatsCompletions({
         "cartoon",
         "manga",
         "novel",
+        "comic",
       ].includes(completionsTab) && (
         <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
           <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">

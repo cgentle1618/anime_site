@@ -50,6 +50,7 @@ const TYPE_LABELS = {
   cartoon: "Cartoon",
   manga: "Manga",
   novel: "Novel",
+  comic: "Comic",
 };
 
 function ItemRow({
@@ -230,6 +231,8 @@ function ItemRow({
         {/*
           A movie, manga or novel step covers its entry whole, so the from/to
           pair is omitted rather than disabled - there is nothing to fill in.
+          A comic run is not in that set: its steps are numbered by issue, so
+          it keeps the pair the way the episodic types do.
           Any range already stored on such a step is left alone and still
           renders in the guide; silently clearing it would delete the admin's
           data to satisfy a display rule.

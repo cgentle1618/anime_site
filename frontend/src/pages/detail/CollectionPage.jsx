@@ -93,6 +93,7 @@ export default function CollectionPage() {
           fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
 
         if (responses[0].status === 404) throw new Error("Collection not found");
@@ -108,6 +109,7 @@ export default function CollectionPage() {
           cartoons,
           mangas,
           novels,
+          comics,
         ] = await Promise.all(responses.map((r) => r.json()));
 
         const allEntries = [
@@ -118,6 +120,7 @@ export default function CollectionPage() {
           ...cartoons,
           ...mangas,
           ...novels,
+          ...comics,
         ];
 
         setCollection(collectionData);

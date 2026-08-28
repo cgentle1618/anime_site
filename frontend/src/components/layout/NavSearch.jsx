@@ -20,6 +20,7 @@ const SCOPES = [
   { key: "cartoon", label: "Cartoon" },
   { key: "manga", label: "Manga" },
   { key: "novel", label: "Novel" },
+  { key: "comic", label: "Comic" },
   { key: "seasonal", label: "Seasonal" },
 ];
 
@@ -34,6 +35,7 @@ const TYPE_BADGE = {
   cartoon: { label: "CARTOON", cls: "bg-orange-50 text-orange-600" },
   manga: { label: "MANGA", cls: "bg-rose-50 text-rose-600" },
   novel: { label: "NOVEL", cls: "bg-teal-50 text-teal-600" },
+  comic: { label: "COMIC", cls: "bg-red-50 text-red-600" },
   seasonal: { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
 };
 
@@ -80,6 +82,13 @@ function getDisplayName(item) {
       item.novel_name_roman ||
       item.novel_name_jp ||
       "—"
+    );
+  // EN first, then CN, then Alt. Every other type in this list leads with CN;
+  // comic does not, because these are Western runs whose English title is the
+  // one they are known by.
+  if (item.type === "comic")
+    return (
+      item.comic_name_en || item.comic_name_cn || item.comic_name_alt || "—"
     );
   if (item.type === "anime-movie")
     return (
@@ -183,6 +192,7 @@ export default function NavSearch() {
         ["/api/cartoon", "cartoon", 5],
         ["/api/manga", "manga", 5],
         ["/api/novel", "novel", 5],
+        ["/api/comic", "comic", 5],
       ];
 
       const fetchType = async (endpoint, type) => {
@@ -269,6 +279,12 @@ export default function NavSearch() {
                 item.novel_name_en,
                 item.novel_name_roman,
               ];
+            if (item.type === "comic")
+              return [
+                item.comic_name_en,
+                item.comic_name_cn,
+                item.comic_name_alt,
+              ];
             if (item.type === "anime-movie")
               return [
                 item.anime_movie_name_cn,
@@ -344,6 +360,7 @@ export default function NavSearch() {
     else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
     else if (item.type === "manga") navigate(`/manga/${item.system_id}`);
     else if (item.type === "novel") navigate(`/novel/${item.system_id}`);
+    else if (item.type === "comic") navigate(`/comic/${item.system_id}`);
     else if (item.type === "anime-movie")
       navigate(`/anime-movie/${item.system_id}`);
     else if (item.type === "movie") navigate(`/movie/${item.system_id}`);

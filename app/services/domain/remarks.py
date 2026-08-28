@@ -13,6 +13,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Comic,
     Manga,
     Novel,
     Movies,
@@ -135,5 +136,18 @@ def find_all_remarks(db: Session) -> dict:
                 "remark": e.remark,
             }
             for e in _query(Novel)
+        ],
+        "comic": [
+            {
+                "system_id": str(e.system_id),
+                # EN first: comic's display name falls back EN -> CN -> Alt,
+                # and `volume_label` disambiguates two runs sharing a title.
+                "comic_name_en": e.comic_name_en,
+                "comic_name_cn": e.comic_name_cn,
+                "volume_label": e.volume_label,
+                "reading_status": e.reading_status,
+                "remark": e.remark,
+            }
+            for e in _query(Comic)
         ],
     }

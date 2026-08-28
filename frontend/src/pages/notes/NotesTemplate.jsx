@@ -290,7 +290,13 @@ export default function NotesTemplate({
       {/* The Notes card wears the group chrome so it collapses when empty like
           every other card - minus the count badge, which it has never had. The
           spinner keeps the plain card: a GroupCard counting zero rows would
-          collapse over it while the fetch is still in flight. */}
+          collapse over it while the fetch is still in flight.
+
+          Held back entirely when it owns no section. An owner type whose only
+          ungrouped section is `remark` - comic is the one today - ends up with
+          nothing here once an embedding page hides `remark` via hideSections,
+          and a headed card with no body inside it reads as a bug beside the
+          group cards that do have one. */}
       {loading ? (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
@@ -306,14 +312,16 @@ export default function NotesTemplate({
           </div>
         </div>
       ) : (
-        <GroupCard
-          label="Notes"
-          icon="fa-book-open"
-          count={blockCount(flat)}
-          showCount={false}
-        >
-          {flat.map(renderSection)}
-        </GroupCard>
+        flat.length > 0 && (
+          <GroupCard
+            label="Notes"
+            icon="fa-book-open"
+            count={blockCount(flat)}
+            showCount={false}
+          >
+            {flat.map(renderSection)}
+          </GroupCard>
+        )
       )}
       {!loading &&
         groups.map((group) => (

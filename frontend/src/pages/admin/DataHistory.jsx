@@ -47,6 +47,15 @@ function getTitle(item, type) {
       item.novel_name_alt ||
       "Unknown"
     );
+  // EN first, unlike every other type above: Western comic runs are known by
+  // their English titles.
+  if (type === "comic")
+    return (
+      item.comic_name_en ||
+      item.comic_name_cn ||
+      item.comic_name_alt ||
+      "Unknown"
+    );
   return "Unknown";
 }
 
@@ -259,6 +268,7 @@ export default function DataHistory() {
     franchises: [],
     series: [],
     novels: [],
+    comics: [],
   });
 
   const loadDeleted = useCallback(async () => {
@@ -274,17 +284,19 @@ export default function DataHistory() {
 
   const loadHistory = useCallback(async () => {
     try {
-      const [aRes, fRes, sRes, nvRes] = await Promise.all([
+      const [aRes, fRes, sRes, nvRes, cmRes] = await Promise.all([
         fetch("/api/anime/", { credentials: "include" }),
         fetch("/api/franchise/", { credentials: "include" }),
         fetch("/api/series/", { credentials: "include" }),
         fetch("/api/novel/", { credentials: "include" }),
+        fetch("/api/comic/", { credentials: "include" }),
       ]);
       const anime = aRes.ok ? await aRes.json() : [];
       const franchises = fRes.ok ? await fRes.json() : [];
       const series = sRes.ok ? await sRes.json() : [];
       const novels = nvRes.ok ? await nvRes.json() : [];
-      setHistoryData({ anime, franchises, series, novels });
+      const comics = cmRes.ok ? await cmRes.json() : [];
+      setHistoryData({ anime, franchises, series, novels, comics });
     } catch {
       /* ignore */
     }
@@ -328,6 +340,12 @@ export default function DataHistory() {
       __type: "Novel",
       __name: getTitle(n, "novel"),
       __link: `/novel/${n.system_id}`,
+    })),
+    ...(historyData.comics || []).map((c) => ({
+      ...c,
+      __type: "Comic",
+      __name: getTitle(c, "comic"),
+      __link: `/comic/${c.system_id}`,
     })),
   ]
     .filter((i) => i.created_at)

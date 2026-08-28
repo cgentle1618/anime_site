@@ -1,8 +1,8 @@
 // Frontend: search every media table at once.
 //
 // A relation is bound to no tier, so its far endpoint may live in any of the
-// seven tables and in any franchise. There is no cross-table search endpoint,
-// so this fans out across the seven list endpoints and merges the results.
+// eight tables and in any franchise. There is no cross-table search endpoint,
+// so this fans out across the eight list endpoints and merges the results.
 import { useEffect, useState } from "react";
 
 import { getDisplayName } from "../utils/media";
@@ -17,6 +17,7 @@ const SEARCH_ENDPOINTS = [
   ["/api/cartoon", "cartoon"],
   ["/api/manga", "manga"],
   ["/api/novel", "novel"],
+  ["/api/comic", "comic"],
 ];
 
 const MIN_QUERY = 2;
@@ -39,7 +40,7 @@ export function useGlobalMediaSearch(query, { enabled = true } = {}) {
     }
     let cancelled = false;
     setSearching(true);
-    // Debounced: seven requests per keystroke would be seven too many.
+    // Debounced: eight requests per keystroke would be eight too many.
     const timer = setTimeout(async () => {
       const results = await Promise.all(
         SEARCH_ENDPOINTS.map(([endpoint, type]) =>

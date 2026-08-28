@@ -14,6 +14,7 @@ export default function Completions() {
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const queries = [
     franchiseQuery,
     animeQuery,
@@ -23,6 +24,7 @@ export default function Completions() {
     cartoonQuery,
     mangaQuery,
     novelQuery,
+    comicQuery,
   ];
   const firstError = queries.find((query) => query.error)?.error;
   const isLoading = queries.some((query) => query.isLoading);
@@ -68,6 +70,7 @@ export default function Completions() {
         allCartoons={cartoonQuery.data || []}
         allManga={mangaQuery.data || []}
         allNovel={novelQuery.data || []}
+        allComic={comicQuery.data || []}
         franchiseMap={franchiseMap}
       />
     </div>

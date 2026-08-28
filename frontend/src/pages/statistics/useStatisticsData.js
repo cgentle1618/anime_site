@@ -16,6 +16,7 @@ export default function useStatisticsData() {
   const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
+  const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/");
   const currentSeasonQuery = useApiQuery(
     ["api", "seasonal", "current-season"],
@@ -30,6 +31,7 @@ export default function useStatisticsData() {
   const allCartoons = cartoonQuery.data || [];
   const allManga = mangaQuery.data || [];
   const allNovel = novelQuery.data || [];
+  const allComic = comicQuery.data || [];
 
   const franchiseMap = useMemo(
     () =>
@@ -48,6 +50,7 @@ export default function useStatisticsData() {
       ...allCartoons.map((entry) => ({ ...entry, _type: "cartoon" })),
       ...allManga.map((entry) => ({ ...entry, _type: "manga" })),
       ...allNovel.map((entry) => ({ ...entry, _type: "novel" })),
+      ...allComic.map((entry) => ({ ...entry, _type: "comic" })),
     ];
     const byFranchise = {};
     allEntries.forEach((entry) => {
@@ -64,6 +67,7 @@ export default function useStatisticsData() {
     allCartoons,
     allManga,
     allNovel,
+    allComic,
   ]);
 
   const seasonals = useMemo(
@@ -87,6 +91,7 @@ export default function useStatisticsData() {
     cartoonQuery,
     mangaQuery,
     novelQuery,
+    comicQuery,
     seasonalQuery,
     currentSeasonQuery,
   ];
@@ -101,6 +106,7 @@ export default function useStatisticsData() {
     allCartoons,
     allManga,
     allNovel,
+    allComic,
     seasonals,
     currentSeason: currentSeasonQuery.data?.current_season || null,
     allEntriesByFranchise,

@@ -36,6 +36,7 @@ export default function CollectionLibrary() {
           fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
         if (responses.some((r) => !r.ok)) throw new Error("Failed to load data");
 
@@ -49,6 +50,7 @@ export default function CollectionLibrary() {
           cartoons,
           mangas,
           novels,
+          comics,
         ] = await Promise.all(responses.map((r) => r.json()));
 
         const allEntries = [
@@ -59,6 +61,7 @@ export default function CollectionLibrary() {
           ...cartoons,
           ...mangas,
           ...novels,
+          ...comics,
         ];
 
         setAllCollections(collections);

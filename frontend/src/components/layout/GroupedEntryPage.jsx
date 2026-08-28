@@ -29,6 +29,7 @@ export const MEDIA_TYPE_FILTERS = [
   { value: "cartoon", label: "Cartoon" },
   { value: "manga", label: "Manga" },
   { value: "novel", label: "Novel" },
+  { value: "comic", label: "Comic" },
 ];
 
 export function Pill({ children, tone = "gray" }) {

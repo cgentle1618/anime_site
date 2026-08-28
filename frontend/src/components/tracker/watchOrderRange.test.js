@@ -9,6 +9,12 @@ describe("supportsEpisodeRange", () => {
     expect(supportsEpisodeRange("cartoon")).toBe(true);
   });
 
+  // A comic run is stepped through by issue, not covered whole the way manga
+  // and novels are, so it keeps the from/to pair.
+  it("allows a range for comic", () => {
+    expect(supportsEpisodeRange("comic")).toBe(true);
+  });
+
   it("refuses a range for types that are watched or read as a whole", () => {
     expect(supportsEpisodeRange("movie")).toBe(false);
     expect(supportsEpisodeRange("anime-movie")).toBe(false);

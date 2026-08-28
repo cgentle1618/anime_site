@@ -18,6 +18,10 @@ function RemarksSection({ results, loading, onRefresh }) {
         { key: "cartoon", label: "Cartoon", entries: results.cartoon },
         { key: "manga", label: "Manga", entries: results.manga },
         { key: "novel", label: "Novel", entries: results.novel },
+        // `|| []` on this one alone: comic joined the remarks payload after
+        // the others, so a response from a backend that predates it would
+        // otherwise crash the reduce below on an undefined.
+        { key: "comic", label: "Comic", entries: results.comic || [] },
       ]
     : [];
 
@@ -296,6 +300,51 @@ function RemarksSection({ results, loading, onRefresh }) {
                   {e.manga_name_en || "—"}
                 </td>
                 <td className={cellClass}>{e.is_main || "—"}</td>
+                <td className={cellClass}>{e.reading_status || "—"}</td>
+                <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
+                  {e.remark}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    if (tab === "comic") {
+      return (
+        <table className="w-full text-sm text-left">
+          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-white">
+            <tr>
+              {/* EN leads: comic's display name falls back EN -> CN -> Alt,
+                  the reverse of every other tab here. */}
+              <th className={colClass}>Name (EN)</th>
+              <th className={colClass}>Name (CN)</th>
+              <th className={colClass}>Volume</th>
+              <th className={colClass}>Reading</th>
+              <th className="px-5 py-3">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {entries.map((e, i) => (
+              <tr
+                key={i}
+                className="hover:bg-amber-50/40 transition cursor-pointer"
+                onClick={() => (window.location.href = `/comic/${e.system_id}`)}
+              >
+                <td
+                  className="px-5 py-3 font-bold text-gray-800 max-w-[180px] truncate whitespace-nowrap"
+                  title={e.comic_name_en}
+                >
+                  {e.comic_name_en || "—"}
+                </td>
+                <td
+                  className="px-5 py-3 text-gray-600 max-w-[180px] truncate whitespace-nowrap text-xs"
+                  title={e.comic_name_cn}
+                >
+                  {e.comic_name_cn || "—"}
+                </td>
+                <td className={cellClass}>{e.volume_label || "—"}</td>
                 <td className={cellClass}>{e.reading_status || "—"}</td>
                 <td className="px-5 py-3 text-gray-700 text-xs max-w-[400px]">
                   {e.remark}

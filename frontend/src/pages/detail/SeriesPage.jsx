@@ -120,6 +120,7 @@ export default function SeriesPage() {
   const [cartoonList, setCartoonList] = useState([]);
   const [mangaList, setMangaList] = useState([]);
   const [novelList, setNovelList] = useState([]);
+  const [comicList, setComicList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -160,6 +161,14 @@ export default function SeriesPage() {
     region: new Set(),
   });
 
+  // ── Comic tab state ───────────────────────────────────────────────────────
+  // No `region`: comic has no such column - every run is Western by definition.
+  const [comicSort, setComicSort] = useState("title");
+  const [comicFilters, setComicFilters] = useState({
+    serializationStatus: new Set(),
+    readingStatus: new Set(),
+  });
+
   // ── Movies tab state ──────────────────────────────────────────────────────
   const [movSort, setMovSort] = useState("release_date");
   const [movFilters, setMovFilters] = useState({
@@ -183,12 +192,13 @@ export default function SeriesPage() {
   });
 
   // ── fetch ─────────────────────────────────────────────────────────────────
-  // Six entry lists, not seven: anime_movies has no series_id column, so an
+  // Seven entry lists, not eight: anime_movies has no series_id column, so an
   // anime movie can only ever be reached through its franchise.
   useEffect(() => {
     async function load() {
       try {
-        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes] = await Promise.all([
+        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes] =
+          await Promise.all([
           fetch(endpoints.resource("series").detail(system_id), {
             credentials: "include",
           }),
@@ -210,6 +220,9 @@ export default function SeriesPage() {
           fetch(buildUrl(endpoints.resource("novel").list(), { series_id: system_id }), {
             credentials: "include",
           }),
+          fetch(buildUrl(endpoints.resource("comic").list(), { series_id: system_id }), {
+            credentials: "include",
+          }),
         ]);
         if (!sRes.ok) throw new Error("Series not found");
         // The series itself is load-bearing, so a missing one still throws to
@@ -217,8 +230,8 @@ export default function SeriesPage() {
         // body into a list state would hand the filter memos a non-array and
         // blank the whole page, so each list degrades to empty instead.
         const s = await sRes.json();
-        const [a, m, tv, c, mg, nv] = await Promise.all(
-          [aRes, mRes, tvRes, cRes, mgRes, nvRes].map(asList),
+        const [a, m, tv, c, mg, nv, cm] = await Promise.all(
+          [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes].map(asList),
         );
         setSeries(s);
         setAnimeList(a);
@@ -227,6 +240,7 @@ export default function SeriesPage() {
         setCartoonList(c);
         setMangaList(mg);
         setNovelList(nv);
+        setComicList(cm);
         setRating(s.my_rating || "");
         setExpectation(s.series_expectation || "");
         setToRewatch(s.to_rewatch || false);
@@ -249,11 +263,21 @@ export default function SeriesPage() {
       animeList.length && "Anime",
       mangaList.length && "Manga",
       novelList.length && "Novel",
+      comicList.length && "Comic",
       movieList.length && "Movies",
       tvShowList.length && "TV Shows",
       cartoonList.length && "Cartoons",
     ].filter(Boolean);
-  }, [series, animeList, mangaList, novelList, movieList, tvShowList, cartoonList]);
+  }, [
+    series,
+    animeList,
+    mangaList,
+    novelList,
+    comicList,
+    movieList,
+    tvShowList,
+    cartoonList,
+  ]);
 
   // Always offered, and never dependent on the entry lists: each section
   // reports whether it holds anything, and an admin needs the entry point
@@ -298,6 +322,12 @@ export default function SeriesPage() {
   const handleNovelUpdated = useCallback(
     (u) =>
       setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
+    [],
+  );
+
+  const handleComicUpdated = useCallback(
+    (u) =>
+      setComicList((p) => p.map((c) => (c.system_id === u.system_id ? u : c))),
     [],
   );
 
@@ -499,6 +529,46 @@ export default function SeriesPage() {
     });
     return result;
   }, [novelList, novelFilters, novelSort]);
+
+  // ── Comic memos ───────────────────────────────────────────────────────────
+  // Mirrors the manga memo minus the two things comic has no column for: no
+  // region filter, and no MAL rating to sort on. The title sort leads with the
+  // English name because comic's display name falls back EN -> CN -> Alt.
+  const filteredAndSortedComic = useMemo(() => {
+    let result = comicList.filter((c) => {
+      if (
+        comicFilters.serializationStatus.size > 0 &&
+        !comicFilters.serializationStatus.has(c.serialization_status || "")
+      )
+        return false;
+      if (comicFilters.readingStatus.size > 0) {
+        const rs = c.reading_status || "Might Read";
+        let group = "Might Read";
+        if (rs === "Plan to Read") group = "Planned";
+        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
+          group = "Reading";
+        else if (rs === "Completed") group = "Completed";
+        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
+          group = "Dropped";
+        if (!comicFilters.readingStatus.has(group)) return false;
+      }
+      return true;
+    });
+    result.sort((a, b) => {
+      if (comicSort === "my_rating")
+        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+      if (comicSort === "release_year")
+        return (
+          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0)
+        );
+      if (comicSort === "end_year")
+        return (parseInt(a.end_year) || 0) - (parseInt(b.end_year) || 0);
+      return (a.comic_name_en || a.comic_name_cn || "").localeCompare(
+        b.comic_name_en || b.comic_name_cn || "",
+      );
+    });
+    return result;
+  }, [comicList, comicFilters, comicSort]);
 
   // ── Movies memos ──────────────────────────────────────────────────────────
   const filteredAndSortedMovies = useMemo(() => {
@@ -1210,6 +1280,77 @@ export default function SeriesPage() {
                   type="novel"
                   data={n}
                   onUpdated={handleNovelUpdated}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Comic tab content ─────────────────────────────────────────────── */}
+      {activeTab === "Comic" && comicList.length > 0 && (
+        <div>
+          <SectionHeader
+            icon="fa-book-bookmark"
+            title="Comic"
+            subtitle="Western comic runs"
+            count={filteredAndSortedComic.length}
+          />
+
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <select
+              value={comicSort}
+              onChange={(e) => setComicSort(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+            >
+              <option value="title">Sort: Title</option>
+              <option value="my_rating">Sort: My Rating</option>
+              <option value="release_year">Sort: Release Year</option>
+              <option value="end_year">Sort: End Year</option>
+            </select>
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {["連載中", "完結", "腰斬", "停更"].map((v) => (
+              <button
+                key={v}
+                onClick={() =>
+                  toggleSetFilter(setComicFilters, "serializationStatus", v)
+                }
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {v}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-gray-200"></div>
+
+            {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() =>
+                    toggleSetFilter(setComicFilters, "readingStatus", v)
+                  }
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+          </div>
+
+          {filteredAndSortedComic.length === 0 ? (
+            <FilterEmpty />
+          ) : (
+            <div className={GRID_CLS}>
+              {filteredAndSortedComic.map((c) => (
+                <MediaCard
+                  key={c.system_id}
+                  type="comic"
+                  data={c}
+                  isAdmin={isAdmin}
+                  onUpdated={handleComicUpdated}
                 />
               ))}
             </div>
