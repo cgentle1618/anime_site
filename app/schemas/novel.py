@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
+from app.schemas.release_date_field import release_date_validator
+
 
 class NovelBase(BaseModel):
     franchise_id: Optional[UUID] = None
@@ -49,8 +51,8 @@ class NovelBase(BaseModel):
 
     author: Optional[str] = None
     illustrator: Optional[str] = None
-    release_year: Optional[int] = None
-    end_year: Optional[int] = None
+    release_date: Optional[str] = None
+    end_date: Optional[str] = None
     publisher_tw: Optional[str] = None
 
     is_main_entry: Optional[bool] = None
@@ -67,6 +69,8 @@ class NovelBase(BaseModel):
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
+
+    _validate_release_dates = release_date_validator("release_date", "end_date")
 
 
 class NovelCreate(NovelBase):

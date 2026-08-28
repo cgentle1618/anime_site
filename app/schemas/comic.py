@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
+from app.schemas.release_date_field import release_date_validator
+
 
 class ComicBase(BaseModel):
     franchise_id: Optional[UUID] = None
@@ -26,8 +28,8 @@ class ComicBase(BaseModel):
 
     writer: Optional[str] = None
     artist: Optional[str] = None
-    release_year: Optional[int] = None
-    end_year: Optional[int] = None
+    release_date: Optional[str] = None
+    end_date: Optional[str] = None
     publisher_tw: Optional[str] = None
 
     issue_total: Optional[int] = None
@@ -48,6 +50,8 @@ class ComicBase(BaseModel):
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
+
+    _validate_release_dates = release_date_validator("release_date", "end_date")
 
 
 class ComicCreate(ComicBase):

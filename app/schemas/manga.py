@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
+from app.schemas.release_date_field import release_date_validator
+
 
 class MangaBase(BaseModel):
     franchise_id: Optional[UUID] = None
@@ -35,8 +37,8 @@ class MangaBase(BaseModel):
 
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
-    release_year: Optional[str] = None
-    end_year: Optional[str] = None
+    release_date: Optional[str] = None
+    end_date: Optional[str] = None
     anime_studio: Optional[str] = None
     serialization_platform: Optional[str] = None
     publisher_tw: Optional[str] = None
@@ -52,6 +54,8 @@ class MangaBase(BaseModel):
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
+
+    _validate_release_dates = release_date_validator("release_date", "end_date")
 
 
 class MangaCreate(MangaBase):

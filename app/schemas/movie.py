@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
+from app.schemas.release_date_field import release_date_validator
+
 
 class MovieBase(BaseModel):
     franchise_id: Optional[UUID] = None
@@ -37,6 +39,8 @@ class MovieBase(BaseModel):
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
+
+    _validate_release_dates = release_date_validator("release_date_usa", "release_date_tw")
 
 
 class MovieCreate(MovieBase):

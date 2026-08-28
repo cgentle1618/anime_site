@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
+from app.schemas.release_date_field import release_date_validator
+
 
 class AnimeBase(BaseModel):
     """
@@ -39,9 +41,8 @@ class AnimeBase(BaseModel):
     mal_rank: Optional[str] = None
     anilist_rating: Optional[str] = None
 
-    release_month: Optional[str] = None
     release_season: Optional[str] = None
-    release_year: Optional[str] = None
+    release_date: Optional[str] = None
 
     broadcast_day: Optional[str] = None
     broadcast_time: Optional[time] = None
@@ -70,6 +71,8 @@ class AnimeBase(BaseModel):
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
+
+    _validate_release_dates = release_date_validator("release_date")
 
 
 class AnimeCreate(AnimeBase):
