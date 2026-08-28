@@ -719,6 +719,51 @@ function GraphCanvas({
     }
   }
 
+  /**
+   * Clears every relation in the scope, in one request.
+   *
+   * Server-side rather than a loop of deletes over graphEdges: a loop that
+   * fails partway leaves a half-reset scope and no record of which half, and
+   * the canvas draws relations reaching out to entries it does not itself
+   * hold, which the scope query on the server already accounts for.
+   *
+   * Not undoable, by decision, so the stack is emptied rather than pushed to:
+   * undo replays inverses against live rows, and after this every row it
+   * remembers is gone. The deleted-record log is where a mistaken reset is
+   * recovered from.
+   */
+  async function resetScope() {
+    if (writing || graphEdges.length === 0) return;
+    const count = graphEdges.length;
+    if (
+      !window.confirm(
+        `Remove all ${count} relation${count === 1 ? "" : "s"} in this ${scopeType}? ` +
+          "The entries themselves are not touched, and this cannot be undone.",
+      )
+    )
+      return;
+    setWriting(true);
+    try {
+      const res = await fetch(
+        buildUrl(endpoints.mediaRelation.resetScope(), scopeParams(scopeType, scopeId)),
+        { method: "DELETE", credentials: "include" },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        onError?.(data?.detail || res.statusText);
+        return;
+      }
+      setHistory([]);
+      setSelectedEdgeId(null);
+      onWrote?.();
+      refetch();
+    } catch (e) {
+      onError?.(e?.message || "Could not reach the server.");
+    } finally {
+      setWriting(false);
+    }
+  }
+
   const flowEdges = useMemo(() => {
     const hidden = (key) => hiddenTypes.has(typeOfNode.get(key));
     return toFlowEdges(graphEdges).map((e) => {
@@ -810,6 +855,19 @@ function GraphCanvas({
           >
             <i className="fas fa-wand-magic-sparkles"></i>
             Tidy
+          </button>
+        )}
+
+        {readOnly ? null : (
+          <button
+            type="button"
+            onClick={resetScope}
+            disabled={writing || loading || graphEdges.length === 0}
+            title={`Remove every relation in this ${scopeType}. The entries are not touched, and this cannot be undone`}
+            className="flex items-center gap-1.5 rounded-full border border-red-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-red-500 transition-opacity hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <i className="fas fa-trash"></i>
+            Reset
           </button>
         )}
 

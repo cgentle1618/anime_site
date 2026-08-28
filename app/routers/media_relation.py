@@ -400,6 +400,86 @@ def update_relation(
     return row
 
 
+# Declared BEFORE /{system_id}: routes are matched in definition order, so the
+# other way round a reset arrives as a delete of the relation whose id is the
+# literal string "scope" and 404s.
+@router.delete("/scope", summary="Reset Every Relation In A Scope")
+def reset_scope(
+    franchise_id: Optional[str] = None,
+    collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    admin=Depends(get_current_admin),
+):
+    """
+    Clears a whole canvas: every relation the /graph endpoint would draw for
+    this scope, gone in one transaction. The entries themselves are untouched.
+
+    The scope is resolved exactly as /graph resolves it - a collection through
+    its franchises, a series against series_id directly - so what the button
+    removes is what you were looking at, at whichever tier you were looking.
+
+    A row with only one endpoint in scope goes too. The canvas draws those as
+    ghost links, so leaving them would mean pressing Reset and still seeing
+    lines on the screen.
+
+    One commit for the lot, rather than the page firing N deletes: a failure
+    halfway through that loop leaves a half-reset scope and no way to tell
+    which half. Every row is written to the deleted-record log first, which is
+    where a reset pressed by mistake is recovered from - it is deliberately
+    not undoable on the page.
+    """
+    scopes = [franchise_id, collection_id, series_id]
+    if sum(1 for value in scopes if value) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Provide exactly one of franchise_id, collection_id or series_id."
+            ),
+        )
+
+    if series_id:
+        candidates = list_candidate_entries(db, [], series_ids=[series_id])
+    else:
+        if franchise_id:
+            franchise_ids = [franchise_id]
+        else:
+            franchise_ids = [
+                row[0]
+                for row in db.query(models.Franchise.system_id)
+                .filter(models.Franchise.collection_id == collection_id)
+                .all()
+            ]
+        candidates = list_candidate_entries(db, franchise_ids)
+
+    entry_ids = [c["entry_id"] for c in candidates]
+    if not entry_ids:
+        return {"status": "success", "deleted": 0, "message": "Nothing to remove."}
+
+    rows = (
+        db.query(models.MediaRelation)
+        .filter(
+            or_(
+                models.MediaRelation.from_id.in_(entry_ids),
+                models.MediaRelation.to_id.in_(entry_ids),
+            )
+        )
+        .all()
+    )
+    for row in rows:
+        # Does not commit - the single commit below covers the whole reset.
+        log_deleted_record(db, row, "Media Relation")
+        db.delete(row)
+    db.commit()
+
+    logger.info("Reset %s relation(s) in scope.", len(rows))
+    return {
+        "status": "success",
+        "deleted": len(rows),
+        "message": f"Removed {len(rows)} relation(s).",
+    }
+
+
 @router.delete("/{system_id}", summary="Delete Relation")
 def delete_relation(
     system_id: str,

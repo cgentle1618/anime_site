@@ -1808,6 +1808,17 @@ confirm naming both entries). Clicking a node opens `NodePanel.jsx` (cover,
 name, its relation list, an isolate toggle, a link to the entry's detail page).
 Clicking a ghost node switches the page's scope to that node's franchise.
 
+**Canvas toolbar (admin only — the read-only graphs on the Franchise, Series
+and Collection hubs show none of it):** **Undo** reverses the last write by
+replaying its inverse (`lib/relationUndo.js`); the stack is in memory, outlives
+a scope switch and dies with the page. **Tidy** drops every hand-dragged
+position and re-runs the layout. **Reset** removes every relation in the
+current scope through one `DELETE /api/media-relation/scope` call, behind a
+confirm naming the count — it is disabled on a canvas with no relations, is
+**not** undoable (it empties the undo stack, since those rows are gone), and is
+recovered only from the deleted-record log. Then one chip per media type
+present, toggling that type's nodes and their lines to dimmed.
+
 ---
 
 ### Watch Orders (`/watch-orders`)

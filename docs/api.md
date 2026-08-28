@@ -327,6 +327,7 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 | `POST`   | `/`                                      | Admin  | Create. Body is the relation as typed; direction is normalized before writing.                                             |
 | `PATCH`  | `/{system_id}`                           | Admin  | Edit `kind`, `swap` and/or `remark`. Changing the kind re-normalizes, so Sequel → Prequel flips the stored endpoints; `swap: true` trades the endpoints over keeping the kind, which is the only way to turn an Adaptation or a Spin-off around. Swapping a symmetric kind is a no-op, and one that would duplicate an existing row is a 409. |
 | `DELETE` | `/{system_id}`                           | Admin  | Delete. Logs to `deleted_record` as type "Media Relation". The two entries are untouched.                                  |
+| `DELETE` | `/scope?franchise_id=`, `?collection_id=` or `?series_id=` | Admin  | Reset: every relation the `/graph` endpoint would draw for that scope, deleted in one transaction. Returns `{status, deleted, message}`. Rows with only one endpoint in scope (the canvas's ghost links) go too. Each is logged to `deleted_record`, which is the only way back — the page offers no undo for it. Exactly one scope param, else 400. Declared above `/{system_id}` so the path is not read as a relation id. |
 
 **Create body**
 

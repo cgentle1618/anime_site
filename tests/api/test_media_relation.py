@@ -662,3 +662,209 @@ def test_graph_is_public(client, sample_franchise):
         params={"franchise_id": str(sample_franchise.system_id)},
     )
     assert res.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Reset a whole scope
+# ---------------------------------------------------------------------------
+
+
+def test_resetting_a_franchise_clears_every_relation_it_draws(
+    admin_client, db_session, sample_franchise, sample_anime, second_anime
+):
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(second_anime.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(sample_anime.system_id),
+        },
+    )
+
+    res = admin_client.delete(
+        "/api/media-relation/scope",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+
+    assert res.status_code == 200
+    assert res.json()["deleted"] == 1
+    assert db_session.query(models.MediaRelation).count() == 0
+
+
+def test_resetting_removes_a_link_reaching_out_of_the_scope(
+    admin_client, db_session, sample_franchise, sample_anime
+):
+    # A cross-franchise link is drawn on this canvas as a ghost, so Reset has
+    # to take it too - otherwise the press leaves a line still on screen.
+    other_franchise = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_type="Anime",
+        franchise_name_en="Other Franchise",
+    )
+    db_session.add(other_franchise)
+    db_session.flush()
+    outsider = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=other_franchise.system_id,
+        anime_name_en="Outsider",
+    )
+    db_session.add(outsider)
+    db_session.flush()
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(outsider.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(sample_anime.system_id),
+        },
+    )
+
+    res = admin_client.delete(
+        "/api/media-relation/scope",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+
+    assert res.json()["deleted"] == 1
+    assert db_session.query(models.MediaRelation).count() == 0
+
+
+def test_resetting_one_scope_leaves_an_unrelated_franchise_alone(
+    admin_client, db_session, sample_franchise, sample_anime, second_anime
+):
+    other = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_type="Anime",
+        franchise_name_en="Untouched Franchise",
+    )
+    db_session.add(other)
+    db_session.flush()
+    left = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=other.system_id,
+        anime_name_en="Untouched One",
+    )
+    right = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=other.system_id,
+        anime_name_en="Untouched Two",
+    )
+    db_session.add_all([left, right])
+    db_session.flush()
+    for pair in ((second_anime, sample_anime), (right, left)):
+        admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime",
+                "from_id": str(pair[0].system_id),
+                "kind": "sequel",
+                "to_type": "anime",
+                "to_id": str(pair[1].system_id),
+            },
+        )
+
+    res = admin_client.delete(
+        "/api/media-relation/scope",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+
+    assert res.json()["deleted"] == 1
+    remaining = db_session.query(models.MediaRelation).all()
+    assert len(remaining) == 1
+    assert str(remaining[0].to_id) == str(left.system_id)
+
+
+def test_resetting_a_series_takes_only_that_series(
+    admin_client, db_session, sample_series, sample_anime, second_anime
+):
+    # second_anime shares the franchise but not the series, so the row is
+    # drawn on the series canvas as a ghost link and goes with the reset.
+    sample_anime.series_id = sample_series.system_id
+    db_session.flush()
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(second_anime.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(sample_anime.system_id),
+        },
+    )
+
+    res = admin_client.delete(
+        "/api/media-relation/scope",
+        params={"series_id": str(sample_series.system_id)},
+    )
+
+    assert res.json()["deleted"] == 1
+    assert db_session.query(models.MediaRelation).count() == 0
+
+
+def test_resetting_a_collection_covers_its_franchises(
+    admin_client, db_session, sample_collection, sample_collected_franchise
+):
+    first = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_collected_franchise.system_id,
+        anime_name_en="Collected One",
+    )
+    second = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_collected_franchise.system_id,
+        anime_name_en="Collected Two",
+    )
+    db_session.add_all([first, second])
+    db_session.flush()
+    admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime",
+            "from_id": str(second.system_id),
+            "kind": "sequel",
+            "to_type": "anime",
+            "to_id": str(first.system_id),
+        },
+    )
+
+    res = admin_client.delete(
+        "/api/media-relation/scope",
+        params={"collection_id": str(sample_collection.system_id)},
+    )
+
+    assert res.json()["deleted"] == 1
+    assert db_session.query(models.MediaRelation).count() == 0
+
+
+def test_resetting_an_empty_scope_is_not_an_error(admin_client, sample_franchise):
+    res = admin_client.delete(
+        "/api/media-relation/scope",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+    assert res.status_code == 200
+    assert res.json()["deleted"] == 0
+
+
+def test_reset_requires_exactly_one_scope(admin_client):
+    assert admin_client.delete("/api/media-relation/scope").status_code == 400
+    assert (
+        admin_client.delete(
+            "/api/media-relation/scope",
+            params={
+                "franchise_id": str(uuid.uuid4()),
+                "series_id": str(uuid.uuid4()),
+            },
+        ).status_code
+        == 400
+    )
+
+
+def test_reset_requires_admin(client, sample_franchise):
+    res = client.delete(
+        "/api/media-relation/scope",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+    assert res.status_code in (401, 403)
