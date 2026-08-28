@@ -51,6 +51,7 @@ from app.utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
+from app.utils import release_date
 from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
 
@@ -119,16 +120,32 @@ def apply_extract_season_from_title(entry: Union[Anime, TVShows, Cartoon]) -> bo
 
 
 def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
-    if (
-        anime.release_season is None
-        and anime.release_month is not None
-        and anime.airing_type in ("TV", "ONA")
-    ):
-        season = calculate_seasonal_from_month(anime.release_month)
-        if season:
-            anime.release_season = season
-            return True
-    return False
+    """
+    Fills release_season from the month component of release_date.
+
+    Only fires when release_date carries month-or-better precision and no
+    season is already set. A year-only date leaves the season exactly as it
+    is: autofill writes release_season straight from the Tenrai response,
+    independently of any month, so an anime can legitimately carry a season
+    it never had a month for. Clearing that would destroy real data.
+
+    Returns True only when it actually wrote a value.
+    """
+    if anime.release_season is not None:
+        return False
+    if not anime.release_date or len(str(anime.release_date)) < 7:
+        return False
+
+    key = release_date.sort_key(anime.release_date)
+    if key is None:
+        return False
+
+    season = calculate_seasonal_from_month(f"{key[1]:02d}")
+    if season is None:
+        return False
+
+    anime.release_season = season
+    return True
 
 
 _SERIES_UNSET = object()

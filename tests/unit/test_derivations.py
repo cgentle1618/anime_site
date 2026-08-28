@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.services.domain import (
+    apply_calculate_seasonal_from_month,
     derive_ep_previous_anime,
     derive_season_1_anime,
 )
@@ -177,3 +178,41 @@ class TestDeriveSeason1:
 
         derive_season_1_anime(anime, db)
         assert anime.season_part is None  # Not changed
+
+
+# ---------------------------------------------------------------------------
+# apply_calculate_seasonal_from_month — now reading release_date
+# ---------------------------------------------------------------------------
+
+class TestCalculateSeasonalFromReleaseDate:
+    def test_month_precision_derives_the_season(self):
+        anime = types.SimpleNamespace(release_date="2024-07", release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is True
+        assert anime.release_season == "SUM"
+
+    def test_day_precision_derives_the_season_too(self):
+        anime = types.SimpleNamespace(release_date="2024-10-05", release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is True
+        assert anime.release_season == "FAL"
+
+    def test_year_only_precision_leaves_an_existing_season_untouched(self):
+        # Tenrai fills release_season directly, independent of any month.
+        # Clearing it here would destroy real data.
+        anime = types.SimpleNamespace(release_date="2024", release_season="WIN")
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season == "WIN"
+
+    def test_year_only_precision_does_not_invent_a_season(self):
+        anime = types.SimpleNamespace(release_date="2024", release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season is None
+
+    def test_an_existing_season_is_never_overwritten(self):
+        anime = types.SimpleNamespace(release_date="2024-07", release_season="WIN")
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season == "WIN"
+
+    def test_a_missing_date_derives_nothing(self):
+        anime = types.SimpleNamespace(release_date=None, release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season is None
