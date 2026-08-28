@@ -7,12 +7,12 @@ Tests the Tenrai API JSON → Anime dict transformation logic.
 import pytest
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
+    map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
     _convert_airing_type,
     _convert_airing_status,
     _convert_season,
-    _extract_date_parts,
     _extract_external_links,
 )
 
@@ -118,33 +118,6 @@ class TestConvertSeason:
 
 
 # ---------------------------------------------------------------------------
-# _extract_date_parts
-# ---------------------------------------------------------------------------
-
-class TestExtractDateParts:
-    def test_iso_date_parsed_correctly(self):
-        year, month, date = _extract_date_parts("2023-01-07T00:00:00+00:00")
-        assert year == "2023"
-        assert month == "JAN"
-        assert date == "2023-01-07"
-
-    def test_z_suffix_handled(self):
-        year, month, _ = _extract_date_parts("2023-04-01T00:00:00Z")
-        assert year == "2023"
-        assert month == "APR"
-
-    def test_october_maps_to_oct(self):
-        year, month, _ = _extract_date_parts("2023-10-01T00:00:00+00:00")
-        assert month == "OCT"
-
-    def test_none_input_returns_triple_none(self):
-        assert _extract_date_parts(None) == (None, None, None)
-
-    def test_invalid_string_returns_triple_none(self):
-        assert _extract_date_parts("not-a-date") == (None, None, None)
-
-
-# ---------------------------------------------------------------------------
 # _extract_external_links
 # ---------------------------------------------------------------------------
 
@@ -190,7 +163,7 @@ class TestMapTenraiToAnimeData:
         assert result["airing_type"] == "TV"
         assert result["airing_status"] == "Finished Airing"
         assert result["release_season"] == "WIN"
-        assert result["release_date"] == "2023-01"
+        assert result["release_date"] == "2023-01-07"
         assert result["mal_rating"] == 8.5
         assert result["mal_rank"] == "42"
         assert result["ep_total"] == 12
@@ -211,8 +184,8 @@ class TestMapTenraiToAnimeData:
         result = map_tenrai_to_anime_data(raw)
         assert result["release_date"] == "2026"
 
-    def test_known_january_still_maps_the_month(self):
-        # The other side of the same rule: a month named in `string` is real.
+    def test_a_named_day_is_kept(self):
+        # The other side of the same rule: what `string` names is real.
         raw = make_full_tenrai_response()
         raw["aired"] = {
             "from": "2026-01-12T00:00:00+00:00",
@@ -220,7 +193,7 @@ class TestMapTenraiToAnimeData:
             "string": "Jan 12, 2026 to ?",
         }
         result = map_tenrai_to_anime_data(raw)
-        assert result["release_date"] == "2026-01"
+        assert result["release_date"] == "2026-01-12"
 
     def test_webp_preferred_over_jpg(self):
         raw = make_full_tenrai_response()
@@ -257,11 +230,25 @@ class TestMapTenraiToAnimeData:
 # ---------------------------------------------------------------------------
 
 class TestAnimeReleaseDateIsISO:
-    def test_a_known_month_maps_to_month_precision(self):
+    def test_a_named_day_maps_to_day_precision(self):
+        raw = {
+            "aired": {
+                "string": "Jul 6, 2026 to Sep 28, 2026",
+                "prop": {"from": {"year": 2026, "month": 7, "day": 6}},
+            },
+            "season": "summer",
+        }
+        mapped = map_tenrai_to_anime_data(raw)
+        assert mapped["release_date"] == "2026-07-06"
+        assert mapped["release_season"] == "SUM"
+
+    def test_a_month_with_no_named_day_stops_at_the_month(self):
+        # MAL pads prop.from.day to 1 the same way it pads the month, so a
+        # string naming no day must not produce one.
         raw = {
             "aired": {
                 "string": "Jan 2026 to ?",
-                "prop": {"from": {"year": 2026, "month": 1}},
+                "prop": {"from": {"year": 2026, "month": 1, "day": 1}},
             },
             "season": "winter",
         }
@@ -270,12 +257,12 @@ class TestAnimeReleaseDateIsISO:
         assert mapped["release_season"] == "WIN"
 
     def test_an_unreliable_month_maps_to_year_precision(self):
-        # aired.prop.from.month defaults to 1 when MAL only knows the year; the
-        # aired.string is the honest signal.
+        # aired.prop.from defaults to 1 January when MAL only knows the year;
+        # the aired.string is the honest signal.
         raw = {
             "aired": {
                 "string": "2026 to ?",
-                "prop": {"from": {"year": 2026, "month": 1}},
+                "prop": {"from": {"year": 2026, "month": 1, "day": 1}},
             },
             "season": "winter",
         }
@@ -344,3 +331,31 @@ class TestMangaAndNovelReleaseDatesAreISO:
         assert "release_year" not in mapped
         assert "end_year" not in mapped
         assert mapped["end_date"] is None
+
+
+class TestAnimeMovieReleaseDateIsHonest:
+    def test_a_named_day_is_kept(self):
+        raw = {
+            "type": "Movie",
+            "aired": {
+                "from": "2018-09-01T00:00:00+00:00",
+                "prop": {"from": {"day": 1, "month": 9, "year": 2018}},
+                "string": "Sep 1, 2018",
+            },
+        }
+        assert map_tenrai_to_anime_movie_data(raw)["release_date_jp"] == "2018-09-01"
+
+    def test_a_year_only_entry_does_not_gain_a_first_of_january(self):
+        # aired.from pads to 2001-01-01 here; reading it would invent a day.
+        raw = {
+            "type": "Movie",
+            "aired": {
+                "from": "2001-01-01T00:00:00+00:00",
+                "prop": {"from": {"day": 1, "month": 1, "year": 2001}},
+                "string": "2001",
+            },
+        }
+        assert map_tenrai_to_anime_movie_data(raw)["release_date_jp"] == "2001"
+
+    def test_a_missing_aired_block_yields_no_date(self):
+        assert map_tenrai_to_anime_movie_data({})["release_date_jp"] is None

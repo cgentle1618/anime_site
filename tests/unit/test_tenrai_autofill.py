@@ -118,13 +118,13 @@ class TestAnimeReleaseDateFill:
     def test_fills_the_iso_release_date(self, patched_anime):
         anime = make_anime()
         autofill_anime_from_mal(anime)
-        assert anime.release_date == "2023-01"
+        assert anime.release_date == "2023-01-07"
         assert anime.release_season == "WIN"
 
     def test_does_not_overwrite_an_admin_entered_date(self, patched_anime):
-        anime = make_anime(release_date="2023-01-07")
+        anime = make_anime(release_date="2023-01")
         autofill_anime_from_mal(anime)
-        assert anime.release_date == "2023-01-07"
+        assert anime.release_date == "2023-01"
 
     def test_no_longer_writes_the_split_year_and_month(self, patched_anime):
         anime = make_anime()

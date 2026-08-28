@@ -6,7 +6,6 @@ Tenrai (MyAnimeList) API into the formats required by our Anime database model.
 
 import logging
 import re
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -14,21 +13,6 @@ logger = logging.getLogger(__name__)
 # ==========================================
 # CONSTANTS & MAPPINGS
 # ==========================================
-
-MONTH_MAP = {
-    1: "JAN",
-    2: "FEB",
-    3: "MAR",
-    4: "APR",
-    5: "MAY",
-    6: "JUN",
-    7: "JUL",
-    8: "AUG",
-    9: "SEP",
-    10: "OCT",
-    11: "NOV",
-    12: "DEC",
-}
 
 ALLOWED_AIRING_TYPES = {"TV", "Movie", "ONA", "OVA", "Special"}
 
@@ -84,27 +68,6 @@ def _convert_season(tenrai_season: Optional[str]) -> Optional[str]:
     return SEASON_MAP.get(tenrai_season.lower())
 
 
-def _extract_date_parts(
-    date_iso: Optional[str],
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    """
-    Parses Tenrai's ISO 8601 date string.
-    Returns discrete Year, Month, and full Date strings.
-    """
-    if not date_iso:
-        return None, None, None
-
-    try:
-        # Standardize the 'Z' UTC suffix to +00:00 for Python's fromisoformat
-        dt = datetime.fromisoformat(date_iso.replace("Z", "+00:00"))
-        year = str(dt.year)
-        month = MONTH_MAP.get(dt.month)
-        full_date = dt.strftime("%Y-%m-%d")
-        return year, month, full_date
-    except (ValueError, TypeError):
-        return None, None, None
-
-
 def _iso_from_prop(prop_part: Optional[Dict[str, Any]]) -> Optional[str]:
     """
     A canonical release date from Tenrai's split `published.prop.from` / `.to`
@@ -155,6 +118,44 @@ def _extract_external_links(
     return official_link, twitter_link
 
 
+def _aired_release_date(aired: Optional[Dict[str, Any]]) -> Optional[str]:
+    """
+    A canonical release date from Tenrai's `aired` block, at the precision MAL
+    actually knows.
+
+    `aired.from` and `aired.prop.from` are both padded: an anime MAL knows only
+    the year for still arrives as "2026-01-01T00:00:00+00:00" with
+    `prop.from = {day: 1, month: 1, year: 2026}`. Reading either alone would
+    record a false 1 January every time. `aired.string` is the honest signal,
+    because MAL renders exactly what it knows:
+
+        "Jul 6, 2026 to Sep 28, 2026"  -> day known
+        "Jul 2026 to ?"                -> month known, day not
+        "2026 to ?"                    -> year only
+
+    So the string decides the precision and `prop` supplies the numbers.
+    """
+    aired = aired or {}
+    prop_from = (aired.get("prop") or {}).get("from") or {}
+    year = prop_from.get("year")
+    if not year:
+        return None
+
+    text = (aired.get("string") or "").strip()
+    month = prop_from.get("month")
+    day = prop_from.get("day")
+
+    # "Jul 6, 2026 ..." — a month name followed by a day number.
+    if month and day and re.match(r"^[A-Za-z]{3,} \d{1,2},", text):
+        return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+
+    # "Jul 2026 ..." — a month name with no day.
+    if month and re.match(r"^[A-Za-z]{3,} \d{4}", text):
+        return f"{int(year):04d}-{int(month):02d}"
+
+    return f"{int(year):04d}"
+
+
 # ==========================================
 # MASTER ORCHESTRATOR
 # ==========================================
@@ -168,21 +169,7 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
 
-    # aired.prop.from.month is unreliable: Tenrai defaults it to 1 (January) when
-    # MAL only knows the year. The aired.string field is honest — "2026 to ?" means
-    # year-only, while "Jan 2026 to ?" means the month is actually known.
-    aired = raw_data.get("aired") or {}
-    aired_string = aired.get("string") or ""
-    prop_from = (aired.get("prop") or {}).get("from") or {}
-    prop_year = prop_from.get("year")
-    prop_month = prop_from.get("month")
-    month_is_known = prop_month and not re.match(r"^\d{4}", aired_string)
-    if prop_year and month_is_known:
-        release_date = f"{int(prop_year):04d}-{int(prop_month):02d}"
-    elif prop_year:
-        release_date = f"{int(prop_year):04d}"
-    else:
-        release_date = None
+    release_date = _aired_release_date(raw_data.get("aired"))
     release_season = _convert_season(raw_data.get("season"))
 
     raw_rank = raw_data.get("rank")
@@ -215,14 +202,13 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 def map_tenrai_to_anime_movie_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parses raw Tenrai JSON into the flat dict expected by AnimeMovies.
-    Differs from map_tenrai_to_anime_data: returns release_date_jp (YYYY-MM-DD),
-    no season fields.
+    Differs from map_tenrai_to_anime_data: returns release_date_jp instead of
+    release_date, and no season fields.
     """
     airing_type = _convert_airing_type(raw_data.get("type"))
     airing_status = _convert_airing_status(raw_data.get("status"))
 
-    aired_from = raw_data.get("aired", {}).get("from")
-    _, _, release_date_jp = _extract_date_parts(aired_from)
+    release_date_jp = _aired_release_date(raw_data.get("aired"))
 
     raw_rank = raw_data.get("rank")
     mal_rank = str(raw_rank) if raw_rank is not None else None

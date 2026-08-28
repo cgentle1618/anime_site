@@ -34,6 +34,23 @@ ordering. Missing precision resolves to the FIRST of the period for ordering
 (`"2024"` sorts as 2024-01-01) but is **never** filled in for display —
 display shows the stored string verbatim.
 
+**Reading a date out of MAL.** Both `aired.from` and `aired.prop.from` are
+padded: an anime MAL knows only the year for still arrives as
+`"2026-01-01T00:00:00+00:00"` with `prop.from = {day: 1, month: 1, year: 2026}`.
+Reading either alone records a false 1 January. `aired.string` is the honest
+signal, because MAL renders exactly what it knows, so
+`_aired_release_date()` takes the precision from the string and the numbers
+from `prop`:
+
+| `aired.string`                 | Stored       |
+| ------------------------------ | ------------ |
+| `"Jul 6, 2026 to Sep 28, 2026"` | `2026-07-06` |
+| `"Jul 2026 to ?"`               | `2026-07`    |
+| `"2026 to ?"`                   | `2026`       |
+
+Manga and novel follow the same principle against `published.prop`, whose
+components are simply absent when MAL does not know them.
+
 **Release priority.** Which column represents an entry, most preferred first,
 lives in `release_date.RELEASE_PRIORITY`:
 
@@ -1139,8 +1156,8 @@ Transforms raw Tenrai `data` dict to a flat standardized dict.
 | `airing_type`     | `type` — normalized; `"Other"` if not in allowed set                                                          |
 | `airing_status`   | `status` — "Finished..." → `"Finished Airing"`, "Currently..." → `"Airing"`, "Not yet..." → `"Not Yet Aired"` |
 | `release_season`  | `season` — winter/spring/summer/fall → WIN/SPR/SUM/FAL                                                        |
-| `release_date`    | `aired.prop.from` year, plus the month only when `aired.string` names one                                     |
-| `release_date_jp` | `aired.from` (ISO date parsed)                                                                                |
+| `release_date`    | `_aired_release_date(aired)` — see below                                                                     |
+| `release_date_jp` | `_aired_release_date(aired)` — the anime movie mapper reads it the same way                                   |
 
 | `mal_rating` | `score` |
 | `mal_rank` | `rank` (as string) |
