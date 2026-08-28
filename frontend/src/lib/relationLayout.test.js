@@ -165,6 +165,31 @@ describe("layoutGraph", () => {
     }
   });
 
+  it("does not leave a fan's worth of room between unrelated clusters", () => {
+    // Three sequel pairs that share nothing. Nothing is ever drawn in the gap
+    // between two clusters, so it only has to separate them - spacing them by
+    // whole rows read as if each pair had branches nobody had added, which is
+    // what this pins. The gap still has to beat the 96px gutter used inside a
+    // cluster, or two clusters read as one.
+    const pairs = ["a", "b", "c"];
+    const out = byKey(
+      layoutGraph({
+        nodes: pairs.flatMap((p) => [node(`tv:${p}1`), node(`tv:${p}2`)]),
+        edges: pairs.map((p) => edge(`tv:${p}2`, `tv:${p}1`)),
+      }),
+    );
+    const tops = pairs.map((p) => out[`tv:${p}1`].position.y).sort((x, y) => x - y);
+    for (let i = 1; i < tops.length; i += 1) {
+      const gap = tops[i] - tops[i - 1] - NODE_HEIGHT;
+      expect(gap).toBeGreaterThan(96);
+      expect(gap).toBeLessThan(NODE_HEIGHT + 96);
+    }
+    // Both members of a pair stay level: the gap goes between clusters only.
+    for (const p of pairs) {
+      expect(out[`tv:${p}2`].position.y).toBe(out[`tv:${p}1`].position.y);
+    }
+  });
+
   // One realistic franchise, asserted from several angles: a spine with a
   // manga above it, two branches below, and a side story that has a sequel of
   // its own. Every earlier bug in this layout showed up on a shape like this

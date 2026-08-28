@@ -69,6 +69,14 @@ export const NODE_HEIGHT = 72; // 3 * GRID
 export const ROW_PITCH = NODE_HEIGHT + 96; // 168
 const RANK_PITCH = NODE_WIDTH + 96; // 288
 
+// The gap between one cluster and the next, measured edge to edge rather than
+// in rows. No connector ever runs between two clusters, so none of the gutter
+// a fan needs applies there - spacing them by whole rows left a scope of three
+// unrelated sequel pairs reading as if each had branches hanging off it, with
+// the empty rows to prove it. Still comfortably wider than the 96px gutter
+// inside a cluster, which is what keeps two of them from reading as one.
+const CLUSTER_GAP = 144; // 6 * GRID
+
 /**
  * Where a relation kind sits in a fan, lowest first.
  *
@@ -399,7 +407,7 @@ export function layoutGraph({ nodes, edges }) {
   }
 
   const positions = new Map();
-  let band = 0;
+  let bandTop = 0;
   // Sorted so the same input always produces the same canvas.
   for (const root of [...clusters.keys()].sort()) {
     const slots = walkCluster(clusters.get(root), { forward, backward, sideways }, chain);
@@ -413,11 +421,13 @@ export function layoutGraph({ nodes, edges }) {
     for (const [key, { rank, row }] of slots) {
       positions.set(key, {
         x: (rank - firstRank) * RANK_PITCH,
-        y: (row - topRow + band) * ROW_PITCH,
+        y: bandTop + (row - topRow) * ROW_PITCH,
       });
     }
-    // One empty row between clusters, so two of them never read as one.
-    band += Math.max(...rows) - topRow + 2;
+    // A fixed gap below this cluster's own last row, so a cluster one row tall
+    // is not spaced as though it had a fan to make room for.
+    bandTop +=
+      (Math.max(...rows) - topRow) * ROW_PITCH + NODE_HEIGHT + CLUSTER_GAP;
   }
 
   let deepest = 0;
