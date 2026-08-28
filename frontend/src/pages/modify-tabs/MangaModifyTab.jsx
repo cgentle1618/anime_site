@@ -197,6 +197,7 @@ export default function MangaModifyTab({
               "Passive Reading",
               "Paused",
               "Completed",
+              "Completed (解說)",
               "Temp Dropped",
               "Dropped",
               "Won't Read",

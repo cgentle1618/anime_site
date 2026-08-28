@@ -76,6 +76,7 @@ Field: `anime.watching_status` — Default: `Might Watch`
 | `Passive Watching` |         |
 | `Paused`           |         |
 | `Completed`        |         |
+| `Completed (解說)` |         |
 | `Temp Dropped`     |         |
 | `Dropped`          |         |
 | `Won't Watch`      |         |
@@ -91,7 +92,7 @@ Used in UI filters only — not a database field.
 | `Might Watch` | Might Watch                               |
 | `Planned`     | Plan to Watch, Watch When Airs            |
 | `Watching`    | Active Watching, Passive Watching, Paused |
-| `Completed`   | Completed                                 |
+| `Completed`   | Completed, Completed (解說)               |
 | `Dropped`     | Temp Dropped, Dropped, Won't Watch        |
 
 ---
@@ -108,6 +109,7 @@ Field: `reading_status` _(future)_ — Default: `Might Read`
 | `Passive Reading` |         |
 | `Paused`          |         |
 | `Completed`       |         |
+| `Completed (解說)`|         |
 | `Temp Dropped`    |         |
 | `Dropped`         |         |
 | `Won't Read`      |         |
@@ -155,6 +157,8 @@ Field: `anime.airing_status` — Default: `Not Yet Aired`
 | `Not Yet Aired`   | Yes     |
 | `Airing`          |         |
 | `Finished Airing` |         |
+| `Canceled`        |         |
+| `Rumored`         |         |
 
 ---
 

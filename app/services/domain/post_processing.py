@@ -43,7 +43,13 @@ from app.utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.utils.constants import (
+    COMPLETED_READ_STATUSES,
+    COMPLETED_WATCH_STATUSES,
+    AnimeAiringType,
+    FranchiseType,
+    WatchStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +182,10 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
     apply_check_baha(anime)
 
-    if check_is_tv_completed(anime) and anime.watching_status != "Completed":
+    if (
+        check_is_tv_completed(anime)
+        and anime.watching_status not in COMPLETED_WATCH_STATUSES
+    ):
         mark_tv_completed(anime)
 
     if (
@@ -195,7 +204,7 @@ def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
     apply_check_baha(anime_movie)
     if (
         check_is_movie_completed(anime_movie)
-        and anime_movie.watching_status != "Completed"
+        and anime_movie.watching_status not in COMPLETED_WATCH_STATUSES
     ):
         mark_movie_completed(anime_movie)
 
@@ -203,7 +212,10 @@ def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
 def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
     apply_validate_episode_math(tv_show)
 
-    if check_is_tv_completed(tv_show) and tv_show.watching_status != "Completed":
+    if (
+        check_is_tv_completed(tv_show)
+        and tv_show.watching_status not in COMPLETED_WATCH_STATUSES
+    ):
         mark_tv_completed(tv_show)
 
     if tv_show.season_part is None:
@@ -214,7 +226,10 @@ def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
 def cartoon_post_processing(cartoon: Cartoon, db: Session) -> None:
     apply_validate_episode_math(cartoon)
 
-    if check_is_tv_completed(cartoon) and cartoon.watching_status != "Completed":
+    if (
+        check_is_tv_completed(cartoon)
+        and cartoon.watching_status not in COMPLETED_WATCH_STATUSES
+    ):
         mark_tv_completed(cartoon)
 
     if cartoon.season_part is None:
@@ -227,7 +242,10 @@ def manga_post_processing(manga: Manga, db: Session) -> None:
     apply_validate_vol_math(manga)
     apply_validate_ch_math(manga)
 
-    if check_is_reading_completed(manga) and manga.reading_status != "Completed":
+    if (
+        check_is_reading_completed(manga)
+        and manga.reading_status not in COMPLETED_READ_STATUSES
+    ):
         mark_reading_completed(manga)
 
 

@@ -63,7 +63,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
       key: "airingStatus",
       label: "Airing Status",
       type: "set",
-      options: ["Airing", "Finished Airing", "Not Yet Aired"],
+      options: ["Airing", "Finished Airing", "Not Yet Aired", "Canceled", "Rumored"],
       match: (item, active) => active.has(item.airing_status),
     },
     {

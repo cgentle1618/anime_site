@@ -3,7 +3,12 @@
 // but this keeps existing "../utils/media" imports working.
 export { MEDIA_CONFIG } from "../config/mediaRegistry";
 export { NAMING_CONFIGS } from "../config/namingConfigs";
-export { WATCHING_STATUS_GROUP, READING_STATUS_GROUP, AIRING_STATUS_CLS } from "../config/statusGroups";
+export {
+  WATCHING_STATUS_GROUP,
+  READING_STATUS_GROUP,
+  AIRING_STATUS_CLS,
+  COMPLETED_STATUSES,
+} from "../config/statusGroups";
 export { FALLBACK_SVG, getCoverUrl } from "../lib/covers";
 export { cleanString, getDisplayName, getNamingFields, getSortName } from "../lib/naming";
 export {

@@ -20,7 +20,7 @@ const SECTIONS = [
     key: "completed",
     label: "Completed",
     icon: "fa-check-circle",
-    statuses: ["Completed"],
+    statuses: ["Completed", "Completed (解說)"],
   },
   {
     key: "watching",
@@ -76,6 +76,7 @@ const NEXT_SECTIONS = [
       "Passive Watching",
       "Paused",
       "Completed",
+      "Completed (解說)",
       "Temp Dropped",
     ],
   },

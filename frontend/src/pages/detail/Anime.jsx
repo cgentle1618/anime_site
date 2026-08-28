@@ -29,6 +29,7 @@ const WATCHING_STATUSES = [
   "Dropped",
   "Won't Watch",
   "Completed",
+  "Completed (解說)",
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -167,6 +168,11 @@ export default function Anime() {
   else if (anime.airing_status === "Not Yet Aired")
     airingStatusColor =
       "bg-orange-100 text-orange-700 border border-orange-200";
+  else if (anime.airing_status === "Canceled")
+    airingStatusColor = "bg-red-100 text-red-700 border border-red-200";
+  else if (anime.airing_status === "Rumored")
+    airingStatusColor =
+      "bg-purple-100 text-purple-700 border border-purple-200";
 
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||

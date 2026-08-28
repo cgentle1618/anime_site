@@ -242,6 +242,7 @@ export default function NovelModifyTab({
               "Passive Reading",
               "Paused",
               "Completed",
+              "Completed (解說)",
               "Temp Dropped",
               "Dropped",
               "Won't Read",

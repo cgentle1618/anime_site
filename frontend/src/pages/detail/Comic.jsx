@@ -31,6 +31,7 @@ const READING_STATUSES = [
   "Dropped",
   "Won't Read",
   "Completed",
+  "Completed (解說)",
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 

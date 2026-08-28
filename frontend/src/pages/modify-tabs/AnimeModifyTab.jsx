@@ -151,7 +151,13 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {["Not Yet Aired", "Airing", "Finished Airing"].map((v) => (
+            {[
+              "Not Yet Aired",
+              "Airing",
+              "Finished Airing",
+              "Canceled",
+              "Rumored",
+            ].map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -172,6 +178,7 @@ export default function AnimeModifyTab({
               "Passive Watching",
               "Paused",
               "Completed",
+              "Completed (解說)",
               "Temp Dropped",
               "Dropped",
               "Won't Watch",

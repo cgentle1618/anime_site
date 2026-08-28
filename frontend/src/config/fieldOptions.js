@@ -5,7 +5,13 @@
 // the Add form's <select> can display — otherwise an admin could save a default
 // the form cannot render.
 
-export const AIRING_STATUSES = ["Not Yet Aired", "Airing", "Finished Airing"];
+export const AIRING_STATUSES = [
+  "Not Yet Aired",
+  "Airing",
+  "Finished Airing",
+  "Canceled",
+  "Rumored",
+];
 
 export const WATCHING_STATUSES = [
   "Might Watch",
@@ -15,6 +21,7 @@ export const WATCHING_STATUSES = [
   "Passive Watching",
   "Paused",
   "Completed",
+  "Completed (解說)",
   "Temp Dropped",
   "Dropped",
   "Won't Watch",
@@ -27,6 +34,7 @@ export const READING_STATUSES = [
   "Passive Reading",
   "Paused",
   "Completed",
+  "Completed (解說)",
   "Temp Dropped",
   "Dropped",
   "Won't Read",

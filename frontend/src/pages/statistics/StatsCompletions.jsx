@@ -1,7 +1,11 @@
 // Frontend: statistics page file for StatsCompletions.
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import {
+  getCoverUrl,
+  FALLBACK_SVG,
+  COMPLETED_STATUSES,
+} from "../../utils/media";
 
 export default function StatsCompletions({
   allAnime,
@@ -111,7 +115,9 @@ export default function StatsCompletions({
           const AIRING_TYPE_ORDER = ["TV", "Movie", "ONA", "Others"];
           const completed = allAnime
             .filter(
-              (a) => a.watching_status === "Completed" && a.completed_at,
+              (a) =>
+                COMPLETED_STATUSES.includes(a.watching_status) &&
+                a.completed_at,
             )
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
@@ -276,7 +282,9 @@ export default function StatsCompletions({
           ];
           const completed = allAnimeMovies
             .filter(
-              (am) => am.watching_status === "Completed" && am.completed_at,
+              (am) =>
+                COMPLETED_STATUSES.includes(am.watching_status) &&
+                am.completed_at,
             )
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
@@ -435,7 +443,9 @@ export default function StatsCompletions({
           ];
           const completed = allMovies
             .filter(
-              (m) => m.watching_status === "Completed" && m.completed_at,
+              (m) =>
+                COMPLETED_STATUSES.includes(m.watching_status) &&
+                m.completed_at,
             )
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
@@ -588,7 +598,9 @@ export default function StatsCompletions({
           ];
           const completed = allTVShows
             .filter(
-              (tv) => tv.watching_status === "Completed" && tv.completed_at,
+              (tv) =>
+                COMPLETED_STATUSES.includes(tv.watching_status) &&
+                tv.completed_at,
             )
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
@@ -745,7 +757,9 @@ export default function StatsCompletions({
           ];
           const completed = allCartoons
             .filter(
-              (c) => c.watching_status === "Completed" && c.completed_at,
+              (c) =>
+                COMPLETED_STATUSES.includes(c.watching_status) &&
+                c.completed_at,
             )
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
@@ -917,7 +931,9 @@ export default function StatsCompletions({
             { key: "others", label: "Others" },
           ];
           const completed = allManga
-            .filter((m) => m.reading_status === "Completed" && m.completed_at)
+            .filter((m) =>
+                COMPLETED_STATUSES.includes(m.reading_status) &&
+                m.completed_at)
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
             );
@@ -1080,7 +1096,9 @@ export default function StatsCompletions({
             { key: "others", label: "Others" },
           ];
           const completed = allNovel
-            .filter((n) => n.reading_status === "Completed" && n.completed_at)
+            .filter((n) =>
+                COMPLETED_STATUSES.includes(n.reading_status) &&
+                n.completed_at)
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
             );
@@ -1236,7 +1254,9 @@ export default function StatsCompletions({
       {completionsTab === "comic" &&
         (() => {
           const completed = (allComic || [])
-            .filter((c) => c.reading_status === "Completed" && c.completed_at)
+            .filter((c) =>
+                COMPLETED_STATUSES.includes(c.reading_status) &&
+                c.completed_at)
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
             );

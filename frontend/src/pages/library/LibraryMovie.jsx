@@ -41,7 +41,7 @@ const MOVIE_LIBRARY_CONFIG = {
       key: "airingStatus",
       label: "Release Status",
       type: "set",
-      options: ["Finished Airing", "Not Yet Aired", "Airing"],
+      options: ["Finished Airing", "Not Yet Aired", "Airing", "Canceled", "Rumored"],
       match: (item, active) => active.has(item.airing_status),
     },
     {

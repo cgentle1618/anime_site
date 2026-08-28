@@ -169,6 +169,7 @@ const STATUS_CYCLE = [
   "Passive Watching",
   "Paused",
   "Completed",
+  "Completed (解說)",
   "Temp Dropped",
   "Won't Watch",
   "Dropped",
@@ -188,7 +189,7 @@ describe("getNextStatus", () => {
     expect(getNextStatus("Not A Real Status")).toBe("Might Watch");
   });
 
-  it("covers all 10 statuses in cycle", () => {
+  it("covers all 11 statuses in cycle", () => {
     STATUS_CYCLE.forEach((status, i) => {
       const expected = STATUS_CYCLE[(i + 1) % STATUS_CYCLE.length];
       expect(getNextStatus(status)).toBe(expected);

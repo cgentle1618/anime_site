@@ -13,7 +13,7 @@ const SECTIONS = [
     key: "completed",
     label: "Completed",
     icon: "fa-check-circle",
-    statuses: ["Completed"],
+    statuses: ["Completed", "Completed (解說)"],
   },
   {
     key: "watching",

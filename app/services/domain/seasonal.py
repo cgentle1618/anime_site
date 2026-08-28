@@ -43,7 +43,12 @@ from app.utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.utils.constants import (
+    COMPLETED_WATCH_STATUSES,
+    AnimeAiringType,
+    FranchiseType,
+    WatchStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +140,7 @@ def sync_seasonal_counts(db: Session) -> None:
         s = seasonal_map.get(key)
         if not s:
             continue
-        if anime.watching_status == "Completed":
+        if anime.watching_status in COMPLETED_WATCH_STATUSES:
             s.entry_completed += 1
         elif anime.watching_status in _PLANNED_STATUSES:
             s.entry_planned += 1

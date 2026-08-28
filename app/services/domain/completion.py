@@ -44,7 +44,12 @@ from app.utils.utils import (
     validate_vol_math,
     validate_ch_math,
 )
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.utils.constants import (
+    COMPLETED_WATCH_STATUSES,
+    AnimeAiringType,
+    FranchiseType,
+    WatchStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +58,9 @@ def check_is_tv_completed(entry: Union[Anime, TVShows, Cartoon]) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
     should be considered completed.
-    Returns True if watching_status is 'Completed' or ep_fin equals ep_total.
+    Returns True if watching_status is a completed one or ep_fin equals ep_total.
     """
-    if entry.watching_status == "Completed":
+    if entry.watching_status in COMPLETED_WATCH_STATUSES:
         return True
 
     ep_total = getattr(entry, "ep_total", None)
@@ -70,9 +75,9 @@ def check_is_movie_completed(entry: Union[AnimeMovies, Movies]) -> bool:
     """
     Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
     should be considered completed.
-    Returns True if watching_status is 'Completed' or ep_fin equals ep_total.
+    Returns True if watching_status is a completed one or ep_fin equals ep_total.
     """
-    if entry.watching_status == "Completed":
+    if entry.watching_status in COMPLETED_WATCH_STATUSES:
         return True
 
     return False
@@ -180,5 +185,5 @@ def mark_comic_completed(entry: Comic) -> None:
 
 def apply_completion_timestamp(entry, status_value: Optional[str]) -> None:
     """Sets completed_at the first time an entry reaches Completed status."""
-    if status_value == WatchStatus.COMPLETED and entry.completed_at is None:
+    if status_value in COMPLETED_WATCH_STATUSES and entry.completed_at is None:
         entry.completed_at = get_taipei_now()

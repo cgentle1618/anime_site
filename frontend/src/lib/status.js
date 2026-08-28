@@ -9,6 +9,7 @@ const STATUS_CYCLE = [
   "Passive Watching",
   "Paused",
   "Completed",
+  "Completed (解說)",
   "Temp Dropped",
   "Won't Watch",
   "Dropped",
@@ -30,6 +31,10 @@ const STATUS_STYLES = {
   Completed: {
     cls: "bg-blue-50 text-blue-600 border-blue-200",
     icon: "fa-check",
+  },
+  "Completed (解說)": {
+    cls: "bg-indigo-50 text-indigo-600 border-indigo-200",
+    icon: "fa-comment-dots",
   },
   "Plan to Watch": {
     cls: "bg-purple-50 text-purple-600 border-purple-200",
@@ -93,6 +98,11 @@ const STATUS_BUTTON_CONFIG = {
     cls: "bg-blue-50 text-blue-600 border-blue-200",
     target: "Might Watch",
   },
+  "Completed (解說)": {
+    symbol: "✓",
+    cls: "bg-indigo-50 text-indigo-600 border-indigo-200",
+    target: "Might Watch",
+  },
   "Temp Dropped": {
     symbol: "✕",
     cls: "bg-red-50 text-red-500 border-red-200",
@@ -131,6 +141,7 @@ const READING_BUTTON_CONFIG = {
   "Passive Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },
   Paused: { symbol: "~", cls: "bg-yellow-50 text-yellow-600 border-yellow-200", target: "Might Read" },
   Completed: { symbol: "✓", cls: "bg-blue-50 text-blue-600 border-blue-200", target: "Might Read" },
+  "Completed (解說)": { symbol: "✓", cls: "bg-indigo-50 text-indigo-600 border-indigo-200", target: "Might Read" },
   "Temp Dropped": { symbol: "✕", cls: "bg-red-50 text-red-500 border-red-200", target: "Might Read" },
   Dropped: { symbol: "✕", cls: "bg-red-50 text-red-600 border-red-200", target: "Might Read" },
   "Won't Read": { symbol: "✕", cls: "bg-red-50 text-red-400 border-red-200", target: "Might Read" },

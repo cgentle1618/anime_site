@@ -11,6 +11,7 @@ import {
   getSortName,
   isBaha,
   getRatingWeight,
+  COMPLETED_STATUSES,
 } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
 import TierBadge from "../../components/layout/TierBadge";
@@ -38,7 +39,7 @@ import RelationGraph from "../../components/relations/RelationGraph";
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
   Watching: ["Active Watching", "Passive Watching", "Paused"],
-  Completed: ["Completed"],
+  Completed: COMPLETED_STATUSES,
   Dropped: ["Temp Dropped", "Dropped", "Won't Watch"],
   "Might Watch": ["Might Watch"],
 };
@@ -425,7 +426,8 @@ export default function SeriesPage() {
         if (rs === "Plan to Read") group = "Planned";
         else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
           group = "Reading";
-        else if (rs === "Completed") group = "Completed";
+        else if (COMPLETED_STATUSES.includes(rs))
+          group = "Completed";
         else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
           group = "Dropped";
         if (!mangaFilters.readingStatus.has(group)) return false;
@@ -472,7 +474,8 @@ export default function SeriesPage() {
         if (rs === "Plan to Read") group = "Planned";
         else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
           group = "Reading";
-        else if (rs === "Completed") group = "Completed";
+        else if (COMPLETED_STATUSES.includes(rs))
+          group = "Completed";
         else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
           group = "Dropped";
         if (!novelFilters.readingStatus.has(group)) return false;
@@ -517,7 +520,8 @@ export default function SeriesPage() {
         if (rs === "Plan to Read") group = "Planned";
         else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
           group = "Reading";
-        else if (rs === "Completed") group = "Completed";
+        else if (COMPLETED_STATUSES.includes(rs))
+          group = "Completed";
         else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
           group = "Dropped";
         if (!comicFilters.readingStatus.has(group)) return false;
@@ -697,9 +701,15 @@ export default function SeriesPage() {
   const totalEntries =
     allWatchable.length + mangaList.length + novelList.length;
   const completedCount =
-    allWatchable.filter((e) => e.watching_status === "Completed").length +
-    mangaList.filter((m) => m.reading_status === "Completed").length +
-    novelList.filter((n) => n.reading_status === "Completed").length;
+    allWatchable.filter((e) =>
+      COMPLETED_STATUSES.includes(e.watching_status),
+    ).length +
+    mangaList.filter((m) =>
+      COMPLETED_STATUSES.includes(m.reading_status),
+    ).length +
+    novelList.filter((n) =>
+      COMPLETED_STATUSES.includes(n.reading_status),
+    ).length;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 
