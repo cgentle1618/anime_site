@@ -95,7 +95,7 @@ def orderable_franchise(db_session, sample_franchise, sample_anime):
             anime_name_en="Second Entry",
             airing_type="TV",
             watching_status="Might Watch",
-            release_year="2005",
+            release_date="2005",
         )
     )
     db_session.flush()
@@ -368,7 +368,7 @@ class TestReleaseOrder:
                 anime_name_en="Added Later",
                 airing_type="TV",
                 watching_status="Might Watch",
-                release_year="2030",
+                release_date="2030",
             )
         )
         db_session.flush()
@@ -382,10 +382,10 @@ class TestReleaseOrder:
     def test_steps_are_ordered_by_release_date(
         self, admin_client, db_session, sample_franchise
     ):
-        for name, year, month in [
-            ("Third", "2020", "MAR"),
-            ("First", "2001", "JAN"),
-            ("Second", "2020", "JAN"),
+        for name, date in [
+            ("Third", "2020-03"),
+            ("First", "2001-01"),
+            ("Second", "2020-01"),
         ]:
             db_session.add(
                 models.Anime(
@@ -394,8 +394,7 @@ class TestReleaseOrder:
                     anime_name_en=name,
                     airing_type="TV",
                     watching_status="Might Watch",
-                    release_year=year,
-                    release_month=month,
+                    release_date=date,
                 )
             )
         db_session.flush()
@@ -424,7 +423,7 @@ class TestReleaseOrder:
                     anime_name_en="Dated",
                     airing_type="TV",
                     watching_status="Might Watch",
-                    release_year="1999",
+                    release_date="1999",
                 ),
             ]
         )
@@ -612,14 +611,14 @@ class TestAnimeOnlyBuiltIn:
                     anime_name_en="Second Anime",
                     airing_type="TV",
                     watching_status="Might Watch",
-                    release_year="2005",
+                    release_date="2005",
                 ),
                 models.Manga(
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     manga_name_en="A Manga",
                     reading_status="Might Read",
-                    release_year="2003",
+                    release_date="2003",
                 ),
             ]
         )
@@ -721,7 +720,7 @@ class TestSeriesOwnedBuiltIn:
                     anime_name_en=f"Series Anime {n}",
                     airing_type="TV",
                     watching_status="Might Watch",
-                    release_year=year,
+                    release_date=year,
                 )
                 for n, year in ((1, "2010"), (2, "2012"))
             ]
@@ -748,7 +747,7 @@ class TestSeriesOwnedBuiltIn:
                 anime_name_en="Outside The Series",
                 airing_type="TV",
                 watching_status="Might Watch",
-                release_year="2011",
+                release_date="2011",
             )
         )
         db_session.flush()
@@ -806,7 +805,7 @@ class TestCollectionOptOut:
                     anime_name_en=f"Disney-ish {n}",
                     airing_type="TV",
                     watching_status="Might Watch",
-                    release_year="200%d" % n,
+                    release_date="200%d" % n,
                 )
                 for n in (1, 2)
             ]

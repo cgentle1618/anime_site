@@ -14,7 +14,6 @@ import pytest
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,
-    _parse_release_value,
     release_sort_key,
     resolve_items,
 )
@@ -122,11 +121,12 @@ class TestMediaTypeMap:
         assert set(_STATUS_FIELDS) == set(MEDIA_TYPE_MODELS)
 
     def test_every_progress_and_release_field_names_a_real_column(self):
-        from app.services.domain.watch_order import _RELEASE_FIELDS, _TOTAL_FIELDS
+        from app.services.domain.watch_order import _TOTAL_FIELDS
+        from app.utils.release_date import RELEASE_PRIORITY
 
         for slug, column in _TOTAL_FIELDS.items():
             assert hasattr(MEDIA_TYPE_MODELS[slug], column), (slug, column)
-        for slug, columns in _RELEASE_FIELDS.items():
+        for slug, columns in RELEASE_PRIORITY.items():
             assert isinstance(columns, tuple)
             for column in columns:
                 assert hasattr(MEDIA_TYPE_MODELS[slug], column), (slug, column)
@@ -370,36 +370,37 @@ class TestPartialDatesAreFirstOfPeriod:
     A date missing precision means the FIRST of that period: a bare year is
     1 January, a month and year the 1st of that month. Without this a
     year-only manga sorted just before a 1 January release rather than with it.
+    The parsing itself now lives in app.utils.release_date; these cases pin the
+    behaviour down where watch order depends on it.
     """
 
     def test_bare_year_is_january_first(self):
-        assert _parse_release_value("2020") == (2020, 1, 1)
-
-    def test_integer_year_is_january_first(self):
-        assert _parse_release_value(2020) == (2020, 1, 1)
-
-    def test_month_and_year_is_the_first(self):
-        assert _parse_release_value("NOV 2025") == (2025, 11, 1)
+        entry = SimpleNamespace(release_date="2020")
+        assert release_sort_key(entry, "manga") == (2020, 1, 1)
 
     def test_iso_year_month_is_the_first(self):
-        assert _parse_release_value("2018-09") == (2018, 9, 1)
+        entry = SimpleNamespace(release_date="2018-09")
+        assert release_sort_key(entry, "manga") == (2018, 9, 1)
 
     def test_full_date_is_untouched(self):
-        assert _parse_release_value("2018-09-01") == (2018, 9, 1)
-        assert _parse_release_value("2018-09-20") == (2018, 9, 20)
+        assert release_sort_key(
+            SimpleNamespace(release_date="2018-09-20"), "manga"
+        ) == (2018, 9, 20)
 
     def test_year_only_ties_with_january_first(self):
         """The point of the rule: the two are equal, then broken by name."""
-        assert _parse_release_value("2020") == _parse_release_value("2020-01-01")
+        assert release_sort_key(
+            SimpleNamespace(release_date="2020"), "manga"
+        ) == release_sort_key(SimpleNamespace(release_date="2020-01-01"), "manga")
 
     def test_anime_without_a_month_is_january_first(self):
-        entry = SimpleNamespace(release_year="2026", release_month=None)
+        entry = SimpleNamespace(release_date="2026")
         assert release_sort_key(entry, "anime") == (2026, 1, 1)
 
     def test_anime_with_a_month_is_the_first_of_it(self):
-        entry = SimpleNamespace(release_year="2026", release_month="JUL")
+        entry = SimpleNamespace(release_date="2026-07")
         assert release_sort_key(entry, "anime") == (2026, 7, 1)
 
     def test_unparseable_still_sinks(self):
-        entry = SimpleNamespace(release_year=None, release_month=None)
+        entry = SimpleNamespace(release_date=None)
         assert release_sort_key(entry, "anime") == (9999, 99, 99)

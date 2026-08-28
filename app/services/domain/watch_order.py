@@ -15,7 +15,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.utils.utils import MONTH_MAP
+from app.utils import release_date
 
 from app.models import (
     Anime,
@@ -292,95 +292,21 @@ def list_candidate_entries(
     return candidates
 
 
-# Where each media type keeps its release date, most precise field first. The
-# columns are heterogeneous by design of the existing schema: some hold an ISO
-# date, some "NOV 2025", some a bare year, and anime splits year and month
-# across two columns.
-_RELEASE_FIELDS = {
-    "anime": ("release_year", "release_month"),
-    "anime-movie": ("release_date_jp", "release_date_tw"),
-    "movie": ("release_date_usa", "release_date_tw"),
-    "tv-show": ("release_date",),
-    "cartoon": ("release_date",),
-    "manga": ("release_year",),
-    "novel": ("release_year",),
-    "comic": ("release_year",),
-}
-
-# Sorts after every real date, so undated entries land at the bottom.
-_UNDATED = (9999, 99, 99)
-
-
-def _parse_release_value(value: Any) -> Optional[tuple]:
-    """
-    Turns one release cell into a (year, month, day) tuple, or None.
-
-    Missing precision resolves to the FIRST of the period: a bare year is
-    1 January, a month and year the 1st of that month. So a manga carrying only
-    "2020" sits exactly where a 2020-01-01 release does rather than just before
-    it, and the two are then separated by name.
-
-    Tolerates every format the media tables actually contain:
-    "2018-09-01", "NOV 2025", "2023", and a bare integer year.
-    """
-    if value is None:
-        return None
-
-    text = str(value).strip()
-    if not text:
-        return None
-
-    # "2018-09-01" / "2018-09" / "2018"
-    if "-" in text:
-        parts = text.split("-")
-        try:
-            year = int(parts[0])
-        except ValueError:
-            return None
-        month = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 1
-        day = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
-        return (year, month, day)
-
-    # "NOV 2025"
-    pieces = text.split()
-    if len(pieces) == 2 and pieces[0].upper() in MONTH_MAP:
-        try:
-            return (int(pieces[1]), int(MONTH_MAP[pieces[0].upper()]), 1)
-        except ValueError:
-            return None
-
-    # A bare year, string or int.
-    try:
-        return (int(float(text)), 1, 1)
-    except ValueError:
-        return None
-
-
 def release_sort_key(entry: Any, media_type: str) -> tuple:
     """
-    (year, month, day) for an entry, or _UNDATED when nothing parses.
+    (year, month, day) for an entry, or UNDATED when nothing parses.
 
-    Precision is limited by whatever the entry stores: a manga carrying only a
-    year cannot be placed accurately against a movie with a full date, so
-    entries sharing a year sort together and are then broken by name.
+    The column consulted, and the order for the multi-region types, comes from
+    release_date.RELEASE_PRIORITY — the single source of truth. Precision is
+    limited by whatever the entry stores: a manga carrying only a year cannot
+    be placed accurately against a movie with a full date, so entries sharing a
+    year sort together and are then broken by name.
     """
-    fields = _RELEASE_FIELDS.get(media_type, ())
-
-    # Anime keeps year and month apart; the rest hold a single value.
-    if media_type == "anime":
-        year = _parse_release_value(getattr(entry, "release_year", None))
-        if year is None:
-            return _UNDATED
-        raw_month = getattr(entry, "release_month", None)
-        month = MONTH_MAP.get(str(raw_month).strip().upper()) if raw_month else None
-        # No month means the 1st of January, same "first of the period" rule.
-        return (year[0], int(month) if month else 1, 1)
-
-    for field in fields:
-        parsed = _parse_release_value(getattr(entry, field, None))
+    for field in release_date.RELEASE_PRIORITY.get(media_type, ()):
+        parsed = release_date.sort_key(getattr(entry, field, None))
         if parsed is not None:
             return parsed
-    return _UNDATED
+    return release_date.UNDATED
 
 
 def release_display(entry: Any, media_type: str) -> Optional[str]:
@@ -390,37 +316,13 @@ def release_display(entry: Any, media_type: str) -> Optional[str]:
     Deliberately NOT derived from release_sort_key: that key invents missing
     precision ("2020" becomes 2020-01-01) so entries can be ordered against one
     another. Displaying that invented day would claim a precision the entry
-    does not have, so the raw cell is shown instead - "2018-09-01", "NOV 2025"
-    and "2023" are all already readable. Returns None when nothing is stored.
+    does not have.
     """
-    # Anime keeps year and month in separate columns; the rest hold one value.
-    if media_type == "anime":
-        year = _clean_release_text(getattr(entry, "release_year", None))
-        if not year:
-            return None
-        month = _clean_release_text(getattr(entry, "release_month", None))
-        return f"{month.upper()} {year}" if month else year
-
-    for field in _RELEASE_FIELDS.get(media_type, ()):
-        text = _clean_release_text(getattr(entry, field, None))
-        if text:
-            return text
+    for field in release_date.RELEASE_PRIORITY.get(media_type, ()):
+        shown = release_date.display(getattr(entry, field, None))
+        if shown is not None:
+            return shown
     return None
-
-
-def _clean_release_text(value: Any) -> Optional[str]:
-    """Trims a release cell, and renders a numeric year as "2018", not "2018.0"."""
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text:
-        return None
-    # release_year is Float on some tables, so str() yields "2018.0".
-    try:
-        number = float(text)
-    except ValueError:
-        return text
-    return str(int(number)) if number.is_integer() else text
 
 
 def build_release_items(

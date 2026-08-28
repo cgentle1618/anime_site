@@ -634,7 +634,7 @@ function RemarksModal({ results, onClose }) {
                 >
                   {e.movie_name_en || "—"}
                 </td>
-                <td className={cellClass}>{e.release_date_usa || "—"}</td>
+                <td className={cellClass}>{e.release_date || "—"}</td>
                 <td className={cellClass}>{e.watching_status || "—"}</td>
                 <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
                   {e.remark}

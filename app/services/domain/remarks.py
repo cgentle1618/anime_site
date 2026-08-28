@@ -24,6 +24,7 @@ from app.models import (
     SystemOption,
 )
 
+from app.services.domain.watch_order import release_display
 from app.utils.utils import (
     SEASON_PATTERN,
     PART_PATTERN,
@@ -87,7 +88,7 @@ def find_all_remarks(db: Session) -> dict:
                 "system_id": str(e.system_id),
                 "movie_name_cn": e.movie_name_cn,
                 "movie_name_en": e.movie_name_en,
-                "release_date_usa": e.release_date_usa,
+                "release_date": release_display(e, "movie"),
                 "watching_status": e.watching_status,
                 "remark": e.remark,
             }
