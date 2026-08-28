@@ -209,6 +209,56 @@ function chainLengths(keys, forward) {
 }
 
 /**
+ * The most branches hanging off any one work on each key's own timeline.
+ *
+ * Used only to choose where a cluster's walk begins, as the tie-break after
+ * chain length. Every head of a chain is nobody's sequel, so "no prequels"
+ * cannot tell the spine of a franchise from the first episode of one of its
+ * spin-offs; and where the chains are also the same length - three Fate
+ * series, three works each - neither can chain length. What does tell them
+ * apart is that one of those chains runs through the work the other two hang
+ * off. Starting on it puts the hub in the top row and fans the branches below
+ * it, instead of starting inside a branch and placing the hub above the spine.
+ *
+ * Counts only branches pointing DOWN, away from the work: an entry's own edge
+ * up to the story it is a spin-off of says it is subordinate, not that it is a
+ * hub, and counting it is what sent the walk into the branch. Measured across
+ * the whole chain rather than the one node, because a work's branches belong
+ * to its story, not to the episode carrying the relation.
+ */
+function chainHubs(keys, forward, backward, sideways) {
+  // The timeline chain each key belongs to, walked in both directions.
+  const chainOf = new Map();
+  for (const key of keys) {
+    if (chainOf.has(key)) continue;
+    const members = [];
+    const queue = [key];
+    const walked = new Set([key]);
+    while (queue.length) {
+      const at = queue.pop();
+      members.push(at);
+      for (const next of [...forward.get(at), ...backward.get(at)]) {
+        if (walked.has(next)) continue;
+        walked.add(next);
+        queue.push(next);
+      }
+    }
+    for (const member of members) chainOf.set(member, members);
+  }
+
+  const hubs = new Map();
+  for (const key of keys) {
+    let best = 0;
+    for (const member of chainOf.get(key)) {
+      const down = sideways.get(member).filter((s) => s.dir === 1).length;
+      best = Math.max(best, down);
+    }
+    hubs.set(key, best);
+  }
+  return hubs;
+}
+
+/**
  * Walks one connected cluster, assigning every member a (rank, row) slot.
  *
  * Depth first rather than breadth first, and that matters: a branch's whole
@@ -218,7 +268,7 @@ function chainLengths(keys, forward) {
  *
  * Returns a Map of key -> {rank, row}, in coordinates local to this cluster.
  */
-function walkCluster(cluster, { forward, backward, sideways }, chain) {
+function walkCluster(cluster, { forward, backward, sideways }, chain, hubs) {
   const slots = new Map();
   // Columns kept clear for a connector to pass down, rather than for a node.
   const reserved = [];
@@ -313,7 +363,7 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
     (a, b) =>
       backward.get(a).length - backward.get(b).length ||
       chain.get(b) - chain.get(a) ||
-      sideways.get(b).length - sideways.get(a).length ||
+      hubs.get(b) - hubs.get(a) ||
       (a < b ? -1 : 1),
   )[0];
 
@@ -323,6 +373,30 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
   // placing a branch against a stale row is how it lands in the wrong lane.
   // Ranks are never shifted, so those are safe to carry.
   const rowOf = (key) => slots.get(key).row;
+
+  /**
+   * The earliest still-unplaced work on this one's timeline.
+   *
+   * A branch is entered here rather than at the work its relation names, so a
+   * chain hanging off a spin-off runs rightwards from under its parent instead
+   * of backwards out of the fan. Stops at anything already placed - the walk
+   * has committed to that position, and a chain leading back into it is one
+   * the recursion will meet from the other side.
+   */
+  function chainHead(key) {
+    let at = key;
+    const seen = new Set([key]);
+    for (;;) {
+      const prev = backward
+        .get(at)
+        .filter((k) => !slots.has(k) && !seen.has(k))
+        .sort()[0];
+      // A cycle the user managed to build stops here rather than spinning.
+      if (!prev) return at;
+      seen.add(prev);
+      at = prev;
+    }
+  }
 
   function place(key, rank, row) {
     take(key, rank, row);
@@ -349,9 +423,10 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
       place(prev, at, free(here, at) ? here : openRow(here, 1, at));
     }
 
-    // Branches. One row per direction, however many there are, fanned across
-    // it from this work's own rank rightwards - see the header: a sibling two
-    // rows down would have its connector drawn through the node between them.
+    // Branches. Single works fan across one row per direction - see the
+    // header: a sibling two rows down has its connector drawn through the node
+    // between them. A branch that brings a timeline of its own is the
+    // exception, and takes a row to itself; see below.
     for (const dir of [-1, 1]) {
       // Ordered by kind before key, so the fan reads outwards from the closest
       // relation to the loosest rather than alphabetically: a Director's Cut
@@ -365,15 +440,48 @@ function walkCluster(cluster, { forward, backward, sideways }, chain) {
         )
         .map((s) => s.other);
       if (!kids.length) continue;
-      let lane = openRow(rowOf(key), dir, rank);
-      let first = null;
+
+      // The fan shares one row, but only the first branch can count on it.
+      // Two branches that each carry a timeline meet head-on there: the second
+      // is laid down beyond the end of the first, and its own prequels then
+      // have no rank left to the left of it - so one of them is pushed out of
+      // the row entirely and its timeline is drawn across two, which is the
+      // one thing the timeline rule forbids. Fate/stay night's two spin-offs,
+      // each a series in its own right, are the case that found this.
+      //
+      // So a LATER branch that brings a chain takes a row of its own, and pays
+      // the header's price for it: two rows from its parent, its connector
+      // turns in the row between. A single work has no such trouble and keeps
+      // sharing the lane, which is what the fan is for.
+      //
+      // A branch is also entered at its chain's HEAD rather than at whichever
+      // member the relation happens to name. The spin-off relation points at
+      // Fate/strange Fake, but strange Fake has a prequel, and a chain entered
+      // halfway along has nowhere to put the earlier works except backwards,
+      // off the left of the fan.
+      let lane = null;
+      let laneFirst = null; // a member of it, to read that row back off
+      let outermost = key; // what the next row of its own is opened from
       for (const kid of kids) {
         if (slots.has(kid)) continue;
-        // Read back off a sibling already in the lane, for the same reason
-        // rowOf exists: one kid's own subtree can open a row underneath it.
-        if (first) lane = rowOf(first);
-        place(kid, freeRank(lane, rank), lane);
-        first = first ?? kid;
+        const head = chainHead(kid);
+        const carries =
+          head !== kid || forward.get(kid).some((k) => !slots.has(k));
+        if (laneFirst === null) {
+          lane = openRow(rowOf(key), dir, rank);
+          place(head, freeRank(lane, rank), lane);
+          laneFirst = head;
+          outermost = head;
+        } else if (carries) {
+          const row = openRow(rowOf(outermost), dir, rank);
+          place(head, freeRank(row, rank), row);
+          outermost = head;
+        } else {
+          // Read back off a sibling already in the lane, for the same reason
+          // rowOf exists: one kid's own subtree can open a row underneath it.
+          lane = rowOf(laneFirst);
+          place(head, freeRank(lane, rank), lane);
+        }
       }
     }
   }
@@ -406,6 +514,7 @@ export function layoutGraph({ nodes, edges }) {
 
   const { forward, backward, sideways, linked } = adjacency(keys, usable);
   const chain = chainLengths(keys, forward);
+  const hubs = chainHubs(keys, forward, backward, sideways);
 
   // Clusters: a scope can hold several unrelated groups of relations, and each
   // gets its own band of rows rather than being interleaved with the others.
@@ -427,7 +536,7 @@ export function layoutGraph({ nodes, edges }) {
   let previousRows = null;
   // Sorted so the same input always produces the same canvas.
   for (const root of [...clusters.keys()].sort()) {
-    const slots = walkCluster(clusters.get(root), { forward, backward, sideways }, chain);
+    const slots = walkCluster(clusters.get(root), { forward, backward, sideways }, chain, hubs);
     // Local coordinates can run negative - a row above the spine, a prequel
     // found late - so each cluster is normalised to its own top-left and then
     // dropped below the one before it.

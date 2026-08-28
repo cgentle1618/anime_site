@@ -541,6 +541,83 @@ describe("layoutGraph", () => {
     expect(ys[1] - ys[0]).toBe(ys[2] - ys[1]);
     expect((ys[1] - ys[0]) % GRID).toBe(0);
   });
+
+  // The Fate franchise, which is where both of these were found. Fate/Zero
+  // runs into Fate/stay night; two spin-offs hang off it, and each of them
+  // brings a timeline chain of its own rather than being a single work.
+  function fateGraph() {
+    return {
+      nodes: [
+        node("anime:zero1"), node("anime:zero2"), node("anime:fsn"),
+        node("anime:wd"), node("anime:sf"), node("anime:sf2"),
+        node("anime:il1"), node("anime:il2"), node("anime:il3"),
+      ],
+      edges: [
+        edge("anime:zero2", "anime:zero1"),
+        edge("anime:fsn", "anime:zero2"),
+        edge("anime:sf", "anime:wd"),
+        edge("anime:sf2", "anime:sf"),
+        edge("anime:il2", "anime:il1"),
+        edge("anime:il3", "anime:il2"),
+        edge("anime:sf", "anime:fsn", "branch", "spin_off"),
+        edge("anime:il1", "anime:fsn", "branch", "spin_off"),
+      ],
+    };
+  }
+
+  it("keeps a branch's own timeline chain in one row", () => {
+    // The bug this was written for: two spin-offs each carrying a chain were
+    // packed into one shared row, which left no rank free to the left of the
+    // second one for its prequel - so the prequel was pushed out of its own
+    // row and the timeline read across two of them. A chain is one row, and
+    // that rule does not stop applying because the chain hangs off a branch.
+    const out = byKey(layoutGraph(fateGraph()));
+
+    for (const chain of [
+      ["anime:wd", "anime:sf", "anime:sf2"],
+      ["anime:il1", "anime:il2", "anime:il3"],
+    ]) {
+      const ys = chain.map((k) => out[k].position.y);
+      expect(new Set(ys).size).toBe(1);
+      const xs = chain.map((k) => out[k].position.x);
+      expect(xs[0]).toBeLessThan(xs[1]);
+      expect(xs[1]).toBeLessThan(xs[2]);
+    }
+  });
+
+  it("gives each branch chain a row of its own", () => {
+    // Siblings share a row only while they are single works. Two chains in one
+    // row collide, and the loser is the one that gets broken up.
+    const out = byKey(layoutGraph(fateGraph()));
+    expect(out["anime:wd"].position.y).not.toBe(out["anime:il1"].position.y);
+    // Both hang below the work they branch off.
+    for (const key of ["anime:wd", "anime:il1"]) {
+      expect(out[key].position.y).toBeGreaterThan(out["anime:fsn"].position.y);
+    }
+  });
+
+  it("enters a branch chain at its head, under the work it hangs off", () => {
+    // The relation points at Fate/strange Fake, but the entry belongs to its
+    // prequel: a chain entered halfway along has nowhere to put the earlier
+    // works but backwards, off the left of the fan.
+    const out = byKey(layoutGraph(fateGraph()));
+    expect(out["anime:wd"].position.x).toBe(out["anime:fsn"].position.x);
+    expect(out["anime:il1"].position.x).toBe(out["anime:fsn"].position.x);
+  });
+
+  it("starts the walk on the spine rather than inside a branch", () => {
+    // Every chain head here ties on prequel count and on length, so the walk
+    // fell through to "most branches" - which counted a spin-off's own edge up
+    // to its parent and started the whole layout inside the branch.
+    const out = byKey(layoutGraph(fateGraph()));
+    const spine = ["anime:zero1", "anime:zero2", "anime:fsn"];
+    const ys = spine.map((k) => out[k].position.y);
+    expect(new Set(ys).size).toBe(1);
+    // The spine is the top row: everything else hangs off it.
+    for (const key of Object.keys(out)) {
+      expect(out[key].position.y).toBeGreaterThanOrEqual(ys[0]);
+    }
+  });
 });
 
 describe("mergePositions", () => {
