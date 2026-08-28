@@ -73,9 +73,10 @@ const RANK_PITCH = NODE_WIDTH + 96; // 288
 // in rows. No connector ever runs between two clusters, so none of the gutter
 // a fan needs applies there - spacing them by whole rows left a scope of three
 // unrelated sequel pairs reading as if each had branches hanging off it, with
-// the empty rows to prove it. Still comfortably wider than the 96px gutter
-// inside a cluster, which is what keeps two of them from reading as one.
-const CLUSTER_GAP = 144; // 6 * GRID
+// the empty rows to prove it. Still wider than the 96px gutter inside a
+// cluster, which is the floor: at or below it the last row of one cluster and
+// the first row of the next are spaced like two rows of the same one.
+const CLUSTER_GAP = 120; // 5 * GRID
 
 /**
  * Where a relation kind sits in a fan, lowest first.
