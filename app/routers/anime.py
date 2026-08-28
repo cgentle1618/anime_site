@@ -11,7 +11,7 @@ import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from app.dependencies import get_db, get_current_admin
 from app.database import get_taipei_now
@@ -67,7 +67,7 @@ def get_all_anime(
         if len(parts) == 2:
             query = query.filter(
                 models.Anime.release_season == parts[0],
-                models.Anime.release_year == parts[1],
+                func.substr(models.Anime.release_date, 1, 4) == parts[1],
             )
 
     if search_query:

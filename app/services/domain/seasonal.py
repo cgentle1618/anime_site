@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 from typing import Any, Dict, Optional, Tuple, Union
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
@@ -66,12 +66,14 @@ _SEASONAL_AIRING_TYPES = {
 
 def create_missing_seasonal(db: Session) -> None:
     """
-    Scans the Anime table for unique combinations of release_season and release_year.
+    Scans the Anime table for unique combinations of release_season and the year
+    prefix of release_date.
     Creates a new entry in the Seasonal table (e.g., 'WIN 2026') if it does not already exist.
     """
+    year_expr = func.substr(Anime.release_date, 1, 4)
     unique_combinations = (
-        db.query(Anime.release_season, Anime.release_year)
-        .filter(Anime.release_season.isnot(None), Anime.release_year.isnot(None))
+        db.query(Anime.release_season, year_expr)
+        .filter(Anime.release_season.isnot(None), Anime.release_date.isnot(None))
         .distinct()
         .all()
     )
@@ -122,14 +124,14 @@ def sync_seasonal_counts(db: Session) -> None:
         db.query(Anime)
         .filter(
             Anime.release_season.isnot(None),
-            Anime.release_year.isnot(None),
+            Anime.release_date.isnot(None),
             Anime.airing_type.in_(list(_SEASONAL_AIRING_TYPES)),
         )
         .all()
     )
 
     for anime in animes:
-        key = f"{anime.release_season} {anime.release_year}"
+        key = f"{anime.release_season} {str(anime.release_date)[:4]}"
         s = seasonal_map.get(key)
         if not s:
             continue
