@@ -192,6 +192,11 @@ function GraphCanvas({
   // and dims the canvas is two actions on one gesture - so it lives in its
   // own state, toggled from the node panel.
   const [isolatedKey, setIsolatedKey] = useState(null);
+  // Fullscreen is a class swap on the wrapper below rather than a portal or a
+  // second mount: the canvas keeps its nodes, its selection and its viewport
+  // across the toggle, where re-parenting the subtree would remount React Flow
+  // and throw all three away on the way in and again on the way out.
+  const [expanded, setExpanded] = useState(false);
   // Coordinates survive a refetch: only nodes new to the canvas get laid out,
   // so no write moves anything already on it - connecting an entry included.
   // Emptied by Tidy and by a scope switch, which are the only two things that
@@ -251,6 +256,27 @@ function GraphCanvas({
   // still-mounted popup at a new pair forces React to remount ConnectPopup
   // instead of reusing its internal kind/remark/swapped/query/picked state.
   const attemptIdRef = useRef(0);
+
+  // Escape leaves fullscreen, and the page behind stops scrolling under it.
+  // Both are undone by the cleanup rather than by the button, so a route
+  // change while expanded gives the body its scrollbar back too - a canvas
+  // that unmounted still holding `overflow: hidden` would freeze the site.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKeyDown = (e) => {
+      // ConnectPopup binds Escape to cancelling itself. With a drag waiting to
+      // be confirmed, that is what the key is for - collapsing as well would
+      // answer one Escape with two dismissals.
+      if (e.key === "Escape" && !pending) setExpanded(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [expanded, pending]);
 
   useEffect(() => {
     // A scope change is a different canvas, so nothing carries over.
@@ -833,7 +859,16 @@ function GraphCanvas({
   }
 
   return (
-    <div ref={wrapperRef} className="relative flex flex-col gap-2">
+    <div
+      ref={wrapperRef}
+      className={`flex flex-col gap-2 ${
+        // z-[90] rather than z-50: the sticky nav and the scroll buttons in
+        // Layout are both z-50, and a tie between them would be settled by
+        // document order - which puts the scroll buttons over the minimap.
+        // Toasts stay above at z-[100], so a write still reports itself here.
+        expanded ? "fixed inset-0 z-[90] bg-white p-4" : "relative"
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-2">
         {readOnly ? null : (
           <button
@@ -904,12 +939,36 @@ function GraphCanvas({
             </button>
           );
         })}
+
+        {/* Last in the row and pushed to the far end, so the chips keep the
+            positions they have today however many of them the scope shows. */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-pressed={expanded}
+          aria-label={expanded ? "Collapse" : "Expand"}
+          title={
+            expanded
+              ? "Return the graph to the page (Escape)"
+              : "Fill the window with the graph"
+          }
+          className="ml-auto flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50"
+        >
+          <i className={`fas ${expanded ? "fa-compress" : "fa-expand"}`}></i>
+          {expanded ? "Collapse" : "Expand"}
+        </button>
       </div>
 
       {/* The positioning context for the two panels: anchored here rather
           than on the outer wrapper, they overlay the canvas only and never
           cover the toolbar above it, whose height changes as it wraps. */}
-      <div className="relative h-[36rem] rounded-2xl border border-gray-200 bg-gray-50">
+      <div
+        className={`relative rounded-2xl border border-gray-200 bg-gray-50 ${
+          // min-h-0 so the flex child may shrink below the canvas's content
+          // height instead of pushing the toolbar off the top of the screen.
+          expanded ? "min-h-0 flex-1" : "h-[36rem]"
+        }`}
+      >
         <ReactFlow
           nodes={displayNodes}
           edges={flowEdges}
