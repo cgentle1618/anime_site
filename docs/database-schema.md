@@ -1488,7 +1488,7 @@ annotated as a unit.
 | --- | --- | --- | --- |
 | `system_id` | UUID | no | PK, indexed |
 | `list_id` | UUID | no | FK → `watch_order_list.system_id`, **ON DELETE CASCADE**. A section has no meaning outside its list. |
-| `position` | Float | yes | Float like `watch_order_item.position`, so a part can be slotted between two others without renumbering. |
+| `position` | Float | yes | Anchors the part in the **item** stream while it holds no steps. A part with steps reads where they read and ignores this. |
 | `section_name` | String | yes | |
 | `remark` | Text | yes | The part's own commentary, separate from any one step's `note`. |
 | `created_at` / `updated_at` | DateTime | yes | |
@@ -1500,47 +1500,22 @@ franchises uncollected.
 
 ### Ordering
 
-Sections sort among themselves by `position`; steps sort within their section
-by the step's own `position`; **steps with no section sort ahead of every
-section**.
+**Reading order is `watch_order_item.position` alone.** A section does not sort
+the guide: a part is drawn around whichever run of *adjacent* steps shares a
+`section_id`, so a part reads wherever its steps read.
 
-That last rule is what makes the tier backward compatible: a list authored
-before sections existed has no section rows, so every step falls in the leading
-group and orders by `position` alone — exactly as it always did. Verified
-against all 8 pre-existing lists with items; none changed order.
+That is what lets an unfiled step sit **before, between or after** parts. The
+earlier rule ranked steps by their section first and read every unfiled step
+ahead of every part, which made those positions unexpressible.
 
----
+**Contiguity.** A part owns one unbroken run — its steps are always adjacent.
+One part is therefore always one box on the page, and "move this part" always
+has a single block to move. `PUT /lists/{id}/reorder` rejects with 400 any
+order that would split a part.
 
-## `watch_order_section`
+`position` on a section matters only while the part is empty, which is the
+state it is created in; it anchors the box in the item stream so a part made
+and not yet filled still appears where the admin made it.
 
-The optional grouping tier between a `watch_order_list` and its items — the
-"parts" a long reading guide is authored in.
-
-Modelled on `collection` → `franchise`, not on a label column. A section has
-its own identity, name, ordering and commentary, and is renamed, reordered and
-annotated as a unit.
-
-| Column | Type | Null | Notes |
-| --- | --- | --- | --- |
-| `system_id` | UUID | no | PK, indexed |
-| `list_id` | UUID | no | FK → `watch_order_list.system_id`, **ON DELETE CASCADE**. A section has no meaning outside its list. |
-| `position` | Float | yes | Float like `watch_order_item.position`, so a part can be slotted between two others without renumbering. |
-| `section_name` | String | yes | |
-| `remark` | Text | yes | The part's own commentary, separate from any one step's `note`. |
-| `created_at` / `updated_at` | DateTime | yes | |
-
-`watch_order_item.section_id` is the other half: FK → `watch_order_section`,
-nullable, indexed, **ON DELETE SET NULL**. Deleting a part leaves its steps in
-the order and simply unsectioned, exactly as a deleted Collection leaves its
-franchises uncollected.
-
-### Ordering
-
-Sections sort among themselves by `position`; steps sort within their section
-by the step's own `position`; **steps with no section sort ahead of every
-section**.
-
-That last rule is what makes the tier backward compatible: a list authored
-before sections existed has no section rows, so every step falls in the leading
-group and orders by `position` alone — exactly as it always did. Verified
-against all 8 pre-existing lists with items; none changed order.
+Migration `wo_flat_order` rewrote every existing item's `position` to its
+*previous* effective reading order, so no stored guide changed on the way in.

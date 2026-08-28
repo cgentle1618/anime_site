@@ -3,7 +3,7 @@
 // Used in two places at two densities: compact inside the Franchise/Collection
 // page tab, roomy on the standalone /watch-order/:id page. Guests see it too,
 // so nothing here writes.
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ADMIN_TABS } from "../../config/adminTabs";
@@ -146,6 +146,98 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
 export function specialLabel(item) {
   if (item.ep_special == null) return null;
   return `Ep. Special ${item.ep_special}`;
+}
+
+/**
+ * Folds a flat step list into the blocks a page draws: part boxes and the
+ * loose runs between them.
+ *
+ * Parts do not sort the guide — reading order is the server's, and a part is
+ * whichever run of *adjacent* steps shares a section_id. The backend keeps
+ * those runs unbroken, so one part is always one box.
+ *
+ * Step numbers run 1..N across the whole guide, never restarting inside a
+ * part: the reader counts steps, not steps-within-a-part.
+ *
+ * A step naming a part that is not in `sections` — a deleted part, or a
+ * hand-edited Sheets restore pointing at another order's — falls into a loose
+ * run rather than vanishing, so an admin can see it and fix it.
+ *
+ * `includeEmpty` adds a box for a part that holds no steps yet, placed by its
+ * own `position` in the same stream as the items. The editor needs those (you
+ * have to be able to drop the first step into a new part); the guide does not,
+ * since an empty part has nothing to wrap.
+ */
+export function buildBlocks(items, sections, { includeEmpty = false } = {}) {
+  const byId = new Map((sections || []).map((s) => [s.system_id, s]));
+  const rows = items || [];
+
+  const blocks = [];
+  const filled = new Set();
+  let number = 0;
+
+  const push = (block) => {
+    blocks.push(block);
+    return block;
+  };
+
+  // Parts with no steps, in stream order, drained as the items pass them by.
+  const empties = includeEmpty
+    ? (sections || [])
+        .filter((s) => !rows.some((i) => i.section_id === s.system_id))
+        .sort(
+          (a, b) =>
+            (a.position ?? Number.MAX_SAFE_INTEGER) -
+            (b.position ?? Number.MAX_SAFE_INTEGER)
+        )
+    : [];
+  let nextEmpty = 0;
+
+  for (const item of rows) {
+    // An empty part sits wherever its position falls among the steps, which is
+    // where the admin created it.
+    while (
+      nextEmpty < empties.length &&
+      (empties[nextEmpty].position ?? Number.MAX_SAFE_INTEGER) <=
+        (item.position ?? Number.MAX_SAFE_INTEGER)
+    ) {
+      const section = empties[nextEmpty++];
+      filled.add(section.system_id);
+      push({ kind: "part", key: `part-${section.system_id}`, section, rows: [] });
+    }
+
+    const section = item.section_id ? byId.get(item.section_id) : null;
+    const last = blocks[blocks.length - 1];
+    const row = { item, number: ++number };
+
+    if (section) {
+      if (last?.kind === "part" && last.section.system_id === section.system_id) {
+        last.rows.push(row);
+      } else {
+        filled.add(section.system_id);
+        push({
+          kind: "part",
+          key: `part-${section.system_id}`,
+          section,
+          rows: [row],
+        });
+      }
+    } else if (last?.kind === "loose") {
+      last.rows.push(row);
+    } else {
+      push({ kind: "loose", key: `loose-${blocks.length}`, rows: [row] });
+    }
+  }
+
+  // Anything anchored past the last step, plus every empty part when the guide
+  // has no steps at all.
+  for (let i = nextEmpty; i < empties.length; i += 1) {
+    const section = empties[i];
+    if (filled.has(section.system_id)) continue;
+    push({ kind: "part", key: `part-${section.system_id}`, section, rows: [] });
+  }
+
+  return blocks;
 }
 
 function entryPath(item) {
@@ -320,13 +412,6 @@ export default function WatchOrderGuide({
   const [filter, setFilter] = useState("all");
 
   const items = useMemo(() => list?.items || [], [list]);
-  // Sections are the optional tier above the steps. A list authored before the
-  // tier existed simply has none, and every step falls through as ungrouped.
-  const sectionById = useMemo(() => {
-    const map = new Map();
-    for (const section of list?.sections || []) map.set(section.system_id, section);
-    return map;
-  }, [list]);
   const optionalCount = items.filter((i) => i.importance === "Optional").length;
   const essentialCount = items.filter(
     (i) => i.importance === "Essential"
@@ -346,6 +431,14 @@ export default function WatchOrderGuide({
   // a long order can still fit inline without truncation.
   const shown = limit ? visible.slice(0, limit) : visible;
   const hiddenCount = visible.length - shown.length;
+
+  // Blocks are built from what survives the filter and the cap, not from the
+  // whole order: a part whose every step is Optional disappears with them
+  // rather than leaving a titled empty box behind.
+  const blocks = useMemo(
+    () => buildBlocks(shown, list?.sections),
+    [shown, list?.sections]
+  );
 
   if (!list) return null;
 
@@ -426,51 +519,77 @@ export default function WatchOrderGuide({
 
       {/*
         Numbering follows the visible rows, so hiding optional steps renumbers
-        1..N instead of leaving gaps the reader has to mentally close.
+        1..N instead of leaving gaps the reader has to mentally close — and it
+        runs straight through the parts rather than restarting inside each one,
+        because the reader counts steps, not steps-within-a-part.
       */}
-      <ol className="flex flex-col gap-2">
-        {shown.map((item, index) => {
-          // A heading is emitted where the section changes, walking the flat
-          // list the server already put in reading order. Comparing against
-          // the previous row rather than grouping up front keeps the step
-          // numbering continuous across the whole guide — the reader counts
-          // steps, not steps-within-a-part.
-          const previous = index > 0 ? shown[index - 1] : null;
-          const changed =
-            (item.section_id || null) !== (previous?.section_id || null);
-          const section = item.section_id
-            ? sectionById.get(item.section_id)
-            : null;
-          // Only a real section draws a heading. Crossing *out* of one into
-          // the ungrouped tail draws nothing: there is no heading to print,
-          // and a blank rule there would read as a missing title.
-          const heading = changed && section ? section : null;
+      <div className="flex flex-col gap-2">
+        {blocks.map((block) =>
+          block.kind === "part" ? (
+            <section
+              key={block.key}
+              className={`rounded-2xl border border-gray-200 bg-gray-50/60 overflow-hidden ${
+                roomy ? "mt-2 first:mt-0" : "mt-1.5 first:mt-0"
+              }`}
+            >
+              {/*
+                The part's name and note ride on the box rather than floating
+                above the steps as a rule did, so which steps belong to the
+                part is shown by the container instead of being inferred from
+                where the next heading happens to start.
+              */}
+              <header className="px-3 py-2 bg-white/70 border-b border-gray-200">
+                <div className="flex items-baseline gap-2">
+                  <h4
+                    className={`font-black text-gray-800 tracking-tight ${
+                      roomy ? "text-base" : "text-sm"
+                    }`}
+                  >
+                    {block.section.section_name || "Untitled Section"}
+                  </h4>
+                  <span className="text-[10px] font-black text-gray-400 whitespace-nowrap">
+                    {block.rows.length}
+                    {block.rows.length === 1 ? " step" : " steps"}
+                  </span>
+                </div>
+                {block.section.remark && (
+                  <p className="text-xs text-gray-500 font-medium mt-1">
+                    {block.section.remark}
+                  </p>
+                )}
+              </header>
 
-          return (
-            <Fragment key={item.system_id}>
-              {heading && (
-                <li className="list-none mt-4 first:mt-0">
-                  <div className="flex items-baseline gap-2 pb-1.5 border-b-2 border-gray-200">
-                    <h4
-                      className={`font-black text-gray-800 tracking-tight ${
-                        roomy ? "text-base" : "text-sm"
-                      }`}
-                    >
-                      {heading.section_name || "Untitled Section"}
-                    </h4>
-                  </div>
-                  {heading.remark && (
-                    <p className="text-xs text-gray-500 font-medium mt-1.5">
-                      {heading.remark}
-                    </p>
-                  )}
-                </li>
-              )}
-              <StepRow item={item} index={index + 1} roomy={roomy} />
-            </Fragment>
-          );
-        })}
-      </ol>
+              <ol className="flex flex-col gap-2 p-2">
+                {block.rows.map((row) => (
+                  <StepRow
+                    key={row.item.system_id}
+                    item={row.item}
+                    index={row.number}
+                    roomy={roomy}
+                  />
+                ))}
+              </ol>
+            </section>
+          ) : (
+            /*
+              An unfiled run. It carries no frame on purpose: these steps
+              belong to no part, and boxing them would invent a part the admin
+              never made. They sit wherever their positions put them, which
+              may be before, between or after the part boxes.
+            */
+            <ol key={block.key} className="flex flex-col gap-2">
+              {block.rows.map((row) => (
+                <StepRow
+                  key={row.item.system_id}
+                  item={row.item}
+                  index={row.number}
+                  roomy={roomy}
+                />
+              ))}
+            </ol>
+          )
+        )}
+      </div>
 
       {/*
         Truncation is stated rather than silent: a reader who sees ten steps

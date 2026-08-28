@@ -118,51 +118,53 @@ _MISSING_PAYLOAD = {
 }
 
 
-def sort_items_by_section(items: Iterable[Any], sections: Iterable[Any]) -> List[Any]:
+def sort_items_by_reading_order(items: Iterable[Any]) -> List[Any]:
     """
-    Puts a list's steps into reading order across the section tier.
+    Puts a list's steps into reading order.
 
-    Sections order among themselves by their own `position`; steps order within
-    a section by the step's `position`. A step with no section sorts ahead of
-    every section.
+    Reading order is the step's own `position`, and nothing else. Parts do not
+    sort the guide - they are drawn around whichever runs of adjacent steps
+    share a `section_id`, so a part sits wherever its steps sit.
 
-    That last rule is what makes the tier backward compatible. A list authored
-    before sections existed has no section rows at all, so every step falls in
-    the leading group and the result is ordered by `position` alone - byte for
-    byte the order those lists have always had.
+    This is what lets an unfiled step live anywhere: before the first part,
+    between two parts, or after the last one. The older rule ranked steps by
+    their section first and read every unfiled step ahead of every part, which
+    made those positions unexpressible.
 
-    A step whose `section_id` points at a section of some *other* list, which
-    only a hand-edited Sheets restore could produce, is treated as ungrouped
-    rather than dropped: the guide shows it, and the admin can see it is
-    misfiled.
+    A step with no position sorts last. Sorting is stable, so steps sharing a
+    position keep the order the caller supplied rather than swapping run to run.
     """
-    # Sections are ranked, not compared on `position` directly: a NULL
-    # position must sort last among sections without poisoning the item key.
-    # The original index is the tiebreak, so two sections sharing a position
-    # keep the order the caller supplied rather than swapping run to run.
-    ordered_sections = sorted(
-        enumerate(sections),
-        key=lambda pair: (
-            pair[1].position is None,
-            pair[1].position or 0.0,
-            pair[0],
-        ),
+    return sorted(
+        items,
+        key=lambda item: (item.position is None, item.position or 0.0),
     )
-    rank = {
-        section.system_id: float(index)
-        for index, (_original, section) in enumerate(ordered_sections)
-    }
 
-    def key(item):
-        section_rank = rank.get(item.section_id)
-        return (
-            0 if section_rank is None else 1,
-            section_rank or 0.0,
-            item.position is None,
-            item.position or 0.0,
-        )
 
-    return sorted(items, key=key)
+def first_section_break(items: Iterable[Any]) -> Optional[UUID]:
+    """
+    Returns the id of the first part that is interrupted, or None if none is.
+
+    A part owns one unbroken run of steps: a `section_id` may not reappear once
+    its run has ended. Without that rule one part would draw as two boxes
+    carrying the same name, and "move this part" would have no single block to
+    move.
+
+    `items` must already be in reading order - the caller sorts, this only
+    checks. Consecutive steps sharing a section form one run, so this walks the
+    list once, remembering which sections have already closed.
+    """
+    closed = set()
+    previous = None
+    for item in items:
+        current = item.section_id
+        if current == previous:
+            continue
+        if current is not None and current in closed:
+            return current
+        if previous is not None:
+            closed.add(previous)
+        previous = current
+    return None
 
 
 def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:

@@ -221,14 +221,46 @@ lists with items, none of which changed order.
 | Model + `section_id` | `app/models/watch_order.py` |
 | Migration | `alembic/versions/ws1e2c3t4i5n_add_watch_order_section.py` |
 | Schemas | `app/schemas/watch_order.py` |
-| Ordering rule | `sort_items_by_section` in `app/services/domain/watch_order.py` |
+| Ordering rule | `sort_items_by_reading_order` + `first_section_break` in `app/services/domain/watch_order.py` |
 | Section CRUD + reorder | `app/routers/watch_order.py` |
 | Sheets round-trip | `formatter.py`, `backup.py`, `pull.py` (new `Watch Order Section` tab) |
-| Guide headings | `WatchOrderGuide.jsx` |
-| Parts panel + per-step selector | `WatchOrderEditor.jsx` |
+| Guide part boxes | `buildBlocks` + `WatchOrderGuide.jsx` |
+| Part boxes in the editor | `WatchOrderEditor.jsx` |
 
-Tests: `tests/unit/test_watch_order_sections.py` (11), plus four added to
-`test_formatter_watch_order.py`. No migration drift — DB is at `ws1e2c3t4i5n`.
+Tests: `tests/unit/test_watch_order_sections.py` (17),
+`frontend/.../WatchOrderGuide.test.jsx` (14), 18 added to
+`tests/api/test_watch_order.py`, plus four in `test_formatter_watch_order.py`.
+DB head is `wo_flat_order`.
+
+#### Revision — entries are wrapped by their part
+
+The ordering rule above (sections by `position`, unfiled steps ahead of every
+part) was replaced. Reading order is now **`watch_order_item.position` alone**,
+and a part is drawn around whichever run of *adjacent* steps shares a
+`section_id`.
+
+Two things drove it:
+
+- An unfiled step has to be placeable **before, between or after** parts. The
+  old rule read every unfiled step first, so "between two parts" could not be
+  expressed at all.
+- Entries should *be inside* their part, not carry a label naming it. The
+  per-step "which part?" dropdown and the separate Parts panel are gone; a
+  part is a box, its steps live in it, and a step is filed by moving it there.
+
+Consequences:
+
+- **Contiguity is now an invariant.** A part owns one unbroken run, so one
+  part is always one box. `PUT /lists/{id}/reorder` rejects a splitting order
+  with 400.
+- `reorder` carries optional `section_ids` alongside `item_ids` — a drag
+  changes order and part at once, so they commit together.
+- `POST /lists/{id}/items` with a `section_id` appends to the end of *that
+  part*, not the list.
+- A section's `position` now only anchors a part that has no steps yet.
+- Migration `wo_flat_order` rewrote every existing item's `position` to its
+  previous effective reading order, so no stored guide changed — including the
+  two seeded below.
 
 ### The two reading orders
 

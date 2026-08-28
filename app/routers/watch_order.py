@@ -10,6 +10,7 @@ which is untouched by this router.
 """
 
 import logging
+from types import SimpleNamespace
 import uuid
 from typing import Any, List, Optional
 
@@ -28,8 +29,9 @@ from app.services.domain.watch_order import (
     VALID_WATCH_ORDER_MEDIA_TYPES,
     entry_exists,
     list_candidate_entries,
+    first_section_break,
     resolve_items,
-    sort_items_by_section,
+    sort_items_by_reading_order,
 )
 from app.utils.data_control_utils import log_deleted_record
 
@@ -77,14 +79,16 @@ def _get_section_or_404(db: Session, section_id: str) -> models.WatchOrderSectio
 
 
 def _next_section_position(db: Session, list_id) -> float:
-    """Appends after the last section of this list."""
-    last = (
-        db.query(models.WatchOrderSection.position)
-        .filter(models.WatchOrderSection.list_id == list_id)
-        .order_by(models.WatchOrderSection.position.desc().nullslast())
-        .first()
-    )
-    return float((last[0] or 0) + 1) if last and last[0] is not None else 1.0
+    """
+    Where a new part is anchored in the step stream.
+
+    A part with steps needs no position of its own: it reads wherever its steps
+    read. `position` matters only while a part is empty, which is the state it
+    is created in - so it is measured against the *items*, not the other
+    sections, and a fresh part appears at the end of the list where the admin
+    just added it.
+    """
+    return _next_position(db, list_id)
 
 
 def _validate_section(db: Session, db_list, section_id) -> None:
@@ -219,6 +223,45 @@ def _next_position(db: Session, list_id) -> float:
         .scalar()
     )
     return float(highest) + 1.0 if highest is not None else 1.0
+
+
+def _append_position(db: Session, list_id, section_id) -> float:
+    """
+    Where a newly added step lands.
+
+    An unfiled step appends to the end of the list. A step added to a part
+    appends to the end of *that part's run*, not the end of the list, because
+    a part's steps must stay adjacent - dropping it at the end would split
+    every part the new step now sits behind.
+
+    The slot is the midpoint between the part's last step and whatever follows
+    it, which is why positions are floats: no other row has to be renumbered.
+    """
+    if section_id is None:
+        return _next_position(db, list_id)
+
+    rows = (
+        db.query(models.WatchOrderItem)
+        .filter(models.WatchOrderItem.list_id == list_id)
+        .order_by(models.WatchOrderItem.position.asc().nullslast())
+        .all()
+    )
+    last = next(
+        (i for i in reversed(range(len(rows))) if rows[i].section_id == section_id),
+        None,
+    )
+    # An empty part has no run to append to, so its first step simply appends
+    # to the list - which is where the part itself is anchored.
+    if last is None:
+        return _next_position(db, list_id)
+
+    before = rows[last].position
+    after = rows[last + 1].position if last + 1 < len(rows) else None
+    if before is None:
+        return _next_position(db, list_id)
+    if after is None:
+        return float(before) + 1.0
+    return (float(before) + float(after)) / 2.0
 
 
 def _ordered_types(media_types) -> List[str]:
@@ -507,9 +550,10 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
             .order_by(models.WatchOrderItem.position.asc().nullslast())
             .all()
         )
-        # Ordered across the section tier, not by position alone. A list with
-        # no sections comes back in exactly the order the query already had.
-        items = sort_items_by_section(items, sections)
+        # Reading order is `position` alone, which the query above already
+        # applied. Parts do not sort the guide - they are drawn around runs of
+        # adjacent steps sharing a section_id, so a part reads wherever its
+        # steps read and an unfiled step can sit between two parts.
         resolved = resolve_items(db, items)
 
     payload = _serialize(
@@ -1083,7 +1127,9 @@ def create_watch_order_item(
 ):
     """
     Adds a step to a watch order. Appends unless `position` is given, which
-    slots the item in without renumbering (positions are floats).
+    slots the item in without renumbering (positions are floats). A step
+    naming a `section_id` appends to the end of that part rather than the end
+    of the list, so the part stays contiguous.
 
     The same entry may be added more than once - that is how a split run
     (A ep 1-10 -> B -> A ep 11-12) is expressed.
@@ -1096,7 +1142,9 @@ def create_watch_order_item(
 
     data = payload.model_dump(exclude_unset=True)
     if data.get("position") is None:
-        data["position"] = _next_position(db, db_list.system_id)
+        data["position"] = _append_position(
+            db, db_list.system_id, data.get("section_id")
+        )
 
     new_item = models.WatchOrderItem(
         **data,
@@ -1195,10 +1243,19 @@ def reorder_watch_order_items(
     admin: dict = Depends(get_current_admin),
 ):
     """
-    Renumbers positions to 1..N in the order the item ids are given.
+    Renumbers positions to 1..N in the order the item ids are given, and
+    optionally re-files each step into a part at the same time.
 
     This is what drag-and-drop commits. The payload must name every item in the
     list exactly once - a partial payload would silently leave stale positions.
+
+    `section_ids`, when given, runs parallel to `item_ids`: one entry per step,
+    None for unfiled. Dragging a step across a part boundary changes its order
+    and its part in one gesture, so both land in one request.
+
+    The resulting order must keep every part contiguous. A part interrupted by
+    a step filed elsewhere would draw as two boxes carrying one name, so it is
+    refused here rather than rendered.
     """
     db_list = _get_list_or_404(db, system_id)
     _reject_if_generated(db_list)
@@ -1218,9 +1275,47 @@ def reorder_watch_order_items(
             detail="Reorder payload must list every item of this watch order exactly once.",
         )
 
+    section_ids = payload.section_ids
+    if section_ids is not None:
+        if len(section_ids) != len(payload.item_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="section_ids must have one entry per item id.",
+            )
+        # Validated before anything is written: a foreign part id half way
+        # through the payload must not leave the first half already moved.
+        for section_id in set(section_ids):
+            _validate_section(db, db_list, section_id)
+
+    # Contiguity is checked against the *prospective* order, before a single
+    # row is touched. Writing first and rolling back would work against the
+    # database but would also discard whatever else the caller's transaction
+    # was holding, so the check runs on plain tuples instead.
+    prospective = [
+        SimpleNamespace(
+            section_id=(
+                section_ids[index] if section_ids is not None
+                else by_id[item_id].section_id
+            )
+        )
+        for index, item_id in enumerate(payload.item_ids)
+    ]
+    broken = first_section_break(prospective)
+    if broken is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A part's steps must be adjacent; "
+                f"part {broken} would be split by this order."
+            ),
+        )
+
     for index, item_id in enumerate(payload.item_ids, start=1):
-        by_id[item_id].position = float(index)
-        by_id[item_id].updated_at = get_taipei_now()
+        item = by_id[item_id]
+        item.position = float(index)
+        if section_ids is not None:
+            item.section_id = section_ids[index - 1]
+        item.updated_at = get_taipei_now()
 
     db_list.updated_at = get_taipei_now()
     db.commit()

@@ -257,7 +257,14 @@ per-entry `watch_order` Float column, which has been dropped.
 | `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `WatchOrderItemUpdate`.                                                                                             |
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
-| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N. Body: `WatchOrderReorder` (`item_ids`). 400 unless the payload names every item of the list exactly once.               |
+| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `WatchOrderReorder` (`item_ids`, optional `section_ids`). 400 unless the payload names every item of the list exactly once, or if the order would split a part. |
+
+`WatchOrderReorder.section_ids` is optional and runs parallel to `item_ids` —
+one entry per step, `null` for unfiled. Order and part travel in one request
+because a drag changes both at once; committing them separately would leave the
+guide reordered but still filed under the part the step was dragged out of.
+Omitting it leaves every step filed where it already is. An order that would
+split a part is rejected with 400 and nothing is written.
 
 **Built-in orders.** A list with `auto_source = "release"` has no
 `watch_order_item` rows: `GET /lists/{id}` computes its steps from the entries'
@@ -691,16 +698,21 @@ refuse a built-in (generated) list, the same way the item endpoints do.
 
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
-| POST | `/api/watch-order/lists/{system_id}/sections` | `WatchOrderSectionCreate` | Appends unless `position` is given. |
+| POST | `/api/watch-order/lists/{system_id}/sections` | `WatchOrderSectionCreate` | Appends unless `position` is given. `position` is measured against the **items**, since it only anchors the part while it is empty. |
 | PUT | `/api/watch-order/sections/{section_id}` | `WatchOrderSectionUpdate` | Full update. |
 | PATCH | `/api/watch-order/sections/{section_id}` | free dict | Partial: name, position, remark. |
 | DELETE | `/api/watch-order/sections/{section_id}` | — | Steps are **not** deleted; `section_id` is SET NULL and they become ungrouped. |
-| PUT | `/api/watch-order/lists/{system_id}/sections/reorder` | `WatchOrderSectionReorder` | Renumbers 1..N. Payload must name every section exactly once. |
+| PUT | `/api/watch-order/lists/{system_id}/sections/reorder` | `WatchOrderSectionReorder` | Renumbers 1..N. Payload must name every section exactly once. Only moves **empty** parts — a part with steps reads where its steps read, so it is moved by reordering them. |
 
-`GET /api/watch-order/lists/{system_id}` now also returns `sections`. `items`
-stays a **flat list in reading order** with sections applied — the guide reads
-top to bottom, and each item names its `section_id`, so a client groups by
-walking the flat list once rather than flattening a nested shape.
+`GET /api/watch-order/lists/{system_id}` also returns `sections`. `items` stays
+a **flat list in reading order** — ordered by `position` alone. Each item names
+its `section_id`, and a client wraps each run of *adjacent* steps sharing one
+into a part box by walking the flat list once. A part's steps are always
+adjacent, so one part is always one box.
 
 An item may only name a section of its own list; `POST`/`PUT`/`PATCH` on an
-item reject a foreign `section_id` with 400.
+item, and `reorder`, reject a foreign `section_id` with 400.
+
+`POST /lists/{id}/items` with a `section_id` and no `position` appends to the
+end of **that part**, not the end of the list — appending to the tail would
+split every part the new step then sat behind.

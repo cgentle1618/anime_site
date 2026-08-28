@@ -15,8 +15,9 @@ from pydantic import BaseModel, ConfigDict
 class WatchOrderItemBase(BaseModel):
     media_type: Optional[str] = None
     entry_id: Optional[UUID] = None
-    # The grouping tier this step sits in, or None for an ungrouped step.
-    # Ungrouped steps read ahead of every section.
+    # The part this step sits in, or None for an unfiled step. Parts do not
+    # move a step: reading order is `position` alone, and an unfiled step may
+    # sit before, between or after parts.
     section_id: Optional[UUID] = None
     position: Optional[float] = None
     ep_start: Optional[int] = None
@@ -137,10 +138,12 @@ class WatchOrderListResponse(WatchOrderListBase):
 
 
 class WatchOrderListDetailResponse(WatchOrderListResponse):
-    # `items` stays a flat list in reading order, sections included - the guide
+    # `items` stays a flat list in reading order, parts included - the guide
     # reads top to bottom and a nested shape would make that the client's job
-    # to flatten. `sections` carries the headings, and each item names its
-    # section_id, so the page groups by walking the flat list once.
+    # to flatten. `sections` carries the part names and remarks, and each item
+    # names its section_id, so the page wraps each run of adjacent steps
+    # sharing a section into one part box by walking the flat list once. A
+    # part's steps are always adjacent, so one part is always one box.
     items: List[WatchOrderItemResolved] = []
     sections: List[WatchOrderSectionResponse] = []
 
@@ -173,9 +176,21 @@ class WatchOrderCandidate(BaseModel):
 
 
 class WatchOrderReorder(BaseModel):
-    """Ordered item ids; positions are renumbered 1..N to match."""
+    """
+    Ordered item ids; positions are renumbered 1..N to match.
+
+    `section_ids` optionally files each step at the same time, one entry per
+    item id and in the same order, None meaning unfiled. Order and part travel
+    together because a drag changes both at once: committing them as two
+    requests would leave the guide in a state the admin never asked for -
+    reordered but still filed under the part the step was dragged out of.
+
+    Omitting `section_ids` leaves every step filed where it already is, which
+    is what a pure reorder wants.
+    """
 
     item_ids: List[UUID]
+    section_ids: Optional[List[Optional[UUID]]] = None
 
 
 class WatchOrderSectionReorder(BaseModel):

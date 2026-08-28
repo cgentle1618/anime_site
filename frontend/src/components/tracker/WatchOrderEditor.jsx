@@ -3,13 +3,14 @@
 // Everything that writes to /api/watch-order lives here. The read-only
 // renderer is WatchOrderGuide; this component deliberately does not reuse it,
 // because an editable row needs inputs where the guide needs links.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import { buildUrl, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import {
+  buildBlocks,
   MediaScopeLine,
   specialLabel,
   supportsEpisodeRange,
@@ -57,7 +58,6 @@ function ItemRow({
   item,
   index,
   total,
-  sections,
   onPatch,
   onRemove,
   onMove,
@@ -271,28 +271,6 @@ function ItemRow({
           click instead of two. The active colors are the guide's badge colors,
           so a step reads the same in the editor as it does on the page.
         */}
-        {/*
-          The part this step is filed under. Offered only once the order has
-          parts to file into - on a flat guide the control would be a select
-          with nothing but "No part" in it.
-        */}
-        {sections.length > 0 && (
-          <select
-            value={item.section_id || ""}
-            onChange={(e) =>
-              onPatch(item.system_id, { section_id: e.target.value || null })
-            }
-            className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand max-w-[220px]"
-          >
-            <option value="">No part</option>
-            {sections.map((section) => (
-              <option key={section.system_id} value={section.system_id}>
-                {section.section_name || "Untitled Section"}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div
           role="group"
           aria-label="Importance"
@@ -377,7 +355,7 @@ function addedLabel(added) {
   return `Added · Ep ${added.ranges.join(", ")}`;
 }
 
-function EntryPicker({ candidates, items, onAdd, disabled }) {
+function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
   const [hideAdded, setHideAdded] = useState(false);
@@ -418,6 +396,26 @@ function EntryPicker({ candidates, items, onAdd, disabled }) {
 
   return (
     <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+      {/*
+        Says where the next pick lands. Without it "Add entry to this part"
+        would scroll the admin to a picker that looks exactly like the one that
+        files nothing, and the part would be silently forgotten.
+      */}
+      {target && (
+        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-brand/10 border border-brand/20">
+          <i className="fas fa-layer-group text-brand text-xs"></i>
+          <span className="text-xs font-black text-brand truncate">
+            Adding to {target.section_name || "Untitled Section"}
+          </span>
+          <button
+            type="button"
+            onClick={onClearTarget}
+            className="ml-auto text-[10px] font-bold text-brand/70 hover:text-brand"
+          >
+            Add outside any part
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 mb-2">
         <input
           type="text"
@@ -529,110 +527,26 @@ function EntryPicker({ candidates, items, onAdd, disabled }) {
 }
 
 /**
- * The parts of one order: the tier above its steps.
+ * One part, drawn as the box its steps live inside.
  *
- * Deliberately separate from the step list rather than interleaved with it.
- * A part is reordered, renamed and annotated as a unit, and doing that from
- * inside a 235-row step list would mean hunting for the row a heading happens
- * to sit on.
+ * Replaces the old arrangement, where parts were edited in a panel of their
+ * own and each step carried a "which part?" dropdown. A step's part is now
+ * shown by which box contains it and changed by moving it there, so the two
+ * can never disagree — and the box is what the admin drags a step into.
  */
-function SectionsPanel({
-  sections,
-  onAdd,
+function PartBox({
+  section,
+  count,
+  busy,
   onPatch,
   onRemove,
   onMove,
-  busy,
+  onAddHere,
+  isFirst,
+  isLast,
+  children,
+  dropHandlers,
 }) {
-  const [open, setOpen] = useState(sections.length > 0);
-
-  return (
-    <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
-      >
-        <i
-          className={`fas fa-chevron-right text-[10px] text-gray-400 transition-transform ${
-            open ? "rotate-90" : ""
-          }`}
-        ></i>
-        <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
-          Parts
-        </span>
-        <span className="text-[10px] font-bold text-gray-400 bg-white px-1.5 py-0.5 rounded-full border border-gray-200">
-          {sections.length}
-        </span>
-      </button>
-
-      {open && (
-        <div className="p-3 space-y-2">
-          {sections.length === 0 && (
-            <p className="text-xs font-medium text-gray-400">
-              No parts yet. An order without parts reads as one flat list —
-              which is exactly how every order behaved before parts existed.
-            </p>
-          )}
-
-          {sections.map((section, i) => (
-            <div
-              key={section.system_id}
-              className="flex flex-wrap items-center gap-2"
-            >
-              <div className="flex flex-col">
-                <button
-                  type="button"
-                  disabled={busy || i === 0}
-                  onClick={() => onMove(i, i - 1)}
-                  className="text-gray-300 hover:text-brand disabled:opacity-30 leading-none"
-                  aria-label="Move part up"
-                >
-                  <i className="fas fa-caret-up text-xs"></i>
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || i === sections.length - 1}
-                  onClick={() => onMove(i, i + 1)}
-                  className="text-gray-300 hover:text-brand disabled:opacity-30 leading-none"
-                  aria-label="Move part down"
-                >
-                  <i className="fas fa-caret-down text-xs"></i>
-                </button>
-              </div>
-              <span className="text-[11px] font-black text-gray-300 w-5 text-center">
-                {i + 1}
-              </span>
-              <SectionFields section={section} onPatch={onPatch} />
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onRemove(section.system_id)}
-                className="text-gray-300 hover:text-red-500 disabled:opacity-30"
-                aria-label="Delete part"
-              >
-                <i className="fas fa-trash text-xs"></i>
-              </button>
-            </div>
-          ))}
-
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onAdd}
-            className="text-xs font-bold text-brand hover:underline disabled:opacity-40"
-          >
-            <i className="fas fa-plus text-[10px] mr-1"></i>
-            Add part
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Name and remark for one part, committed on blur like every other field here. */
-function SectionFields({ section, onPatch }) {
   const [name, setName] = useState(section.section_name ?? "");
   const [remark, setRemark] = useState(section.remark ?? "");
 
@@ -642,24 +556,118 @@ function SectionFields({ section, onPatch }) {
   }, [section.section_name, section.remark]);
 
   return (
-    <>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => onPatch(section.system_id, { section_name: name })}
-        placeholder="Part name…"
-        className="flex-1 min-w-[180px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
-      />
-      <input
-        type="text"
-        value={remark}
-        onChange={(e) => setRemark(e.target.value)}
-        onBlur={() => onPatch(section.system_id, { remark })}
-        placeholder="Part note…"
-        className="flex-1 min-w-[180px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-      />
-    </>
+    <section
+      {...dropHandlers}
+      className="rounded-2xl border-2 border-brand/20 bg-brand/[0.03] overflow-hidden"
+    >
+      <header className="px-3 py-2 bg-white border-b border-brand/20 flex flex-wrap items-center gap-2">
+        <i className="fas fa-layer-group text-brand/50 text-xs"></i>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => onPatch(section.system_id, { section_name: name })}
+          placeholder="Part name…"
+          className="flex-1 min-w-[140px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-black focus:outline-none focus:ring-2 focus:ring-brand"
+        />
+        <input
+          type="text"
+          value={remark}
+          onChange={(e) => setRemark(e.target.value)}
+          onBlur={() => onPatch(section.system_id, { remark })}
+          placeholder="Part note…"
+          className="flex-1 min-w-[140px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+        />
+        <span className="text-[10px] font-black text-gray-400 whitespace-nowrap">
+          {count}
+          {count === 1 ? " step" : " steps"}
+        </span>
+        <div className="flex items-center gap-1">
+          {/*
+            Moves the whole part — every step in it, in one commit. A part is
+            a block, so there is no such thing as moving its heading past its
+            own steps.
+          */}
+          <button
+            type="button"
+            disabled={busy || isFirst}
+            onClick={() => onMove(-1)}
+            title="Move part up"
+            aria-label="Move part up"
+            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+          >
+            <i className="fas fa-chevron-up text-xs"></i>
+          </button>
+          <button
+            type="button"
+            disabled={busy || isLast}
+            onClick={() => onMove(1)}
+            title="Move part down"
+            aria-label="Move part down"
+            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+          >
+            <i className="fas fa-chevron-down text-xs"></i>
+          </button>
+          {/*
+            Deletes the part, never its steps: the FK is SET NULL, so they stay
+            in the order and simply become unfiled where they already sit.
+          */}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onRemove(section.system_id)}
+            title="Delete part (its steps stay, unfiled)"
+            aria-label="Delete part"
+            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200 disabled:opacity-30"
+          >
+            <i className="fas fa-trash text-xs"></i>
+          </button>
+        </div>
+      </header>
+
+      <div className="p-2 flex flex-col gap-2">
+        {count === 0 ? (
+          <p className="text-xs font-medium text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
+            Empty part — drag a step in, or add one below.
+          </p>
+        ) : (
+          children
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onAddHere(section)}
+          className="self-start text-xs font-bold text-brand hover:underline disabled:opacity-40"
+        >
+          <i className="fas fa-plus text-[10px] mr-1"></i>
+          Add entry to this part
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The gap between two blocks, and a drop target in its own right.
+ *
+ * Dropping here unfiles a step. Without it a step could never be placed
+ * *between* two parts: dropping onto a row adopts that row's part, so every
+ * landing spot would belong to one part or another.
+ */
+function UnfileGap({ active, dropHandlers }) {
+  return (
+    <div
+      {...dropHandlers}
+      className={`h-2 -my-1 rounded transition-colors ${
+        active ? "h-8 my-0 border-2 border-dashed border-brand/50 bg-brand/5" : ""
+      }`}
+    >
+      {active && (
+        <p className="text-[10px] font-black text-brand/70 text-center leading-7">
+          Drop here to leave it out of any part
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -671,7 +679,14 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const dragIndex = useRef(null);
+  // The flat index of the row being dragged, and the gap it is hovering. Both
+  // are state rather than a ref: the gap that would receive the drop draws
+  // itself open, so a render has to follow the pointer.
+  const [dragging, setDragging] = useState(null);
+  const [gapOver, setGapOver] = useState(null);
+  // Which part the picker files new entries into, or null for none. Set by a
+  // part's own "Add entry to this part" button.
+  const [addTarget, setAddTarget] = useState(null);
 
   const loadList = useCallback(() => {
     if (!listId) return;
@@ -748,6 +763,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       const res = await send(endpoints.watchOrder.createItem(listId), "POST", {
         media_type: candidate.media_type,
         entry_id: candidate.entry_id,
+        section_id: addTarget?.system_id ?? null,
       });
       const created = await res.json();
       // The create response holds no display data, but the picked candidate
@@ -764,11 +780,21 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         total_episodes: candidate.total_episodes ?? null,
         ep_special: candidate.ep_special ?? null,
       };
-      setList((prev) => ({
-        ...prev,
-        items: [...prev.items, resolved],
-        item_count: (prev.item_count ?? prev.items.length) + 1,
-      }));
+      // A step added to a part lands at the end of *that part*, not the end of
+      // the list, so it is spliced in by the position the server gave it
+      // rather than pushed onto the tail.
+      setList((prev) => {
+        const items = [...prev.items];
+        const at = items.findIndex(
+          (i) => (i.position ?? Infinity) > (resolved.position ?? Infinity)
+        );
+        items.splice(at === -1 ? items.length : at, 0, resolved);
+        return {
+          ...prev,
+          items,
+          item_count: (prev.item_count ?? prev.items.length) + 1,
+        };
+      });
       onListChanged?.();
     } catch (e) {
       showToast("error", e.message);
@@ -797,8 +823,6 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       loadList();
     }
   }
-
-  const sections = list?.sections || [];
 
   async function addSection() {
     try {
@@ -851,25 +875,6 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
     }
   }
 
-  async function moveSection(from, to) {
-    if (to < 0 || to >= sections.length) return;
-    const ids = sections.map((s) => s.system_id);
-    const [moved] = ids.splice(from, 1);
-    ids.splice(to, 0, moved);
-    try {
-      const res = await send(
-        endpoints.watchOrder.reorderSections(listId),
-        "PUT",
-        { section_ids: ids }
-      );
-      setList(await res.json());
-      onListChanged?.();
-    } catch (e) {
-      showToast("error", e.message);
-      loadList();
-    }
-  }
-
   async function removeItem(itemId) {
     try {
       await send(endpoints.watchOrder.removeItem(itemId), "DELETE");
@@ -885,34 +890,207 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
     }
   }
 
+  const sections = list?.sections || [];
+
+  // What the page draws: part boxes and the loose runs between them, folded
+  // out of the flat step list the server returns in reading order. Empty parts
+  // are included here and not in the guide — an admin has to be able to drop
+  // the first step into a part they just made.
+  const blocks = useMemo(
+    () => buildBlocks(list?.items, list?.sections, { includeEmpty: true }),
+    [list?.items, list?.sections]
+  );
+
+  /**
+   * Which part a moved step ends up in when nothing says explicitly.
+   *
+   * It adopts the run it lands in, read off its new neighbours: the one they
+   * agree on, else the step above it, else the step below. Every answer
+   * extends an existing run rather than starting a second one, so a move can
+   * never split a part — which is the invariant the server enforces and would
+   * otherwise reject the request for.
+   *
+   * The practical reading: nudging a step down past the last step of its part
+   * takes it out of that part, and nudging one up into the middle of a part
+   * puts it in. Both are what the arrows look like they should do.
+   */
+  function adoptedSection(reordered, index) {
+    const previous = index > 0 ? reordered[index - 1] : null;
+    const next = index + 1 < reordered.length ? reordered[index + 1] : null;
+    const above = previous ? previous.section_id || null : null;
+    const below = next ? next.section_id || null : null;
+    if (previous && next && above === below) return above;
+    if (previous) return above;
+    return below;
+  }
+
   /**
    * Commits a new order. The backend requires every item exactly once, so the
-   * full id sequence is always sent, not just the moved one.
+   * full id sequence is always sent, not just the moved one - and the parts
+   * ride along with it, because a drag changes both at once.
    */
-  async function commitOrder(ids) {
+  async function commitOrder(items, anchors = []) {
     try {
+      // Anchors go first: they are expressed against the 1..N the reorder is
+      // about to write, so patching them afterwards would race the response
+      // this function then trusts.
+      for (const anchor of anchors) {
+        await send(endpoints.watchOrder.patchSection(anchor.id), "PATCH", {
+          position: anchor.position,
+        });
+      }
       const res = await send(endpoints.watchOrder.reorder(listId), "PUT", {
-        item_ids: ids,
+        item_ids: items.map((i) => i.system_id),
+        section_ids: items.map((i) => i.section_id || null),
       });
       setList(await res.json());
+      onListChanged?.();
     } catch (e) {
       showToast("error", e.message);
       loadList();
     }
   }
 
-  function moveItem(from, to) {
-    if (!list || to < 0 || to >= list.items.length || from === to) return;
-    const ids = list.items.map((i) => i.system_id);
-    const [moved] = ids.splice(from, 1);
-    ids.splice(to, 0, moved);
+  /**
+   * Moves one step. `section` names the part it lands in when the gesture says
+   * so - a drop onto a row takes that row's part, a drop in a gap takes none -
+   * and is left undefined by the arrows, which infer it from the neighbours.
+   */
+  function moveItem(from, to, section) {
+    if (!list || to < 0 || to >= list.items.length) return;
+    const reordered = [...list.items];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    const landed =
+      section === undefined ? adoptedSection(reordered, to) : section;
+    // A step dropped onto its own slot has still moved if it changed parts -
+    // which is exactly what dropping into an empty part next to it does.
+    if (from === to && landed === (moved.section_id || null)) return;
+    reordered[to] = { ...moved, section_id: landed };
     // Optimistic: reorder locally first so the row doesn't visibly snap back
     // while the request is in flight.
-    const reordered = ids.map((id) =>
-      list.items.find((i) => i.system_id === id)
-    );
     setList({ ...list, items: reordered });
-    commitOrder(ids);
+    commitOrder(reordered);
+  }
+
+  /**
+   * Moves a whole part, steps and all, past the block on either side of it.
+   *
+   * A part is a block, so this is the only meaning "move this part" can have:
+   * there is no heading to slide independently of the steps under it.
+   */
+  function movePart(blockIndex, direction) {
+    const target = blockIndex + direction;
+    if (target < 0 || target >= blocks.length) return;
+
+    const order = [...blocks];
+    const [moved] = order.splice(blockIndex, 1);
+    order.splice(target, 0, moved);
+    const reordered = order.flatMap((b) => b.rows.map((r) => r.item));
+    if (reordered.length !== list.items.length) return;
+
+    // An empty part holds no steps, so a swap past one changes no item order
+    // at all - its own `position` is the only thing that says where its box is
+    // drawn, and it has to be moved by hand. The reorder renumbers steps to
+    // 1..N, so each anchor is counted against that: half a slot past the last
+    // step above it.
+    let above = 0;
+    const anchors = [];
+    for (const block of order) {
+      if (block.kind === "part" && block.rows.length === 0) {
+        anchors.push({ id: block.section.system_id, position: above + 0.5 });
+      } else {
+        above += block.rows.length;
+      }
+    }
+
+    const anchored = new Map(anchors.map((a) => [a.id, a.position]));
+    setList({
+      ...list,
+      items: reordered,
+      sections: (list.sections || []).map((section) =>
+        anchored.has(section.system_id)
+          ? { ...section, position: anchored.get(section.system_id) }
+          : section
+      ),
+    });
+    commitOrder(reordered, anchors);
+  }
+
+  // Drag state. `dragging` is the flat index of the row being dragged;
+  // `gapOver` is the gap it is currently hovering, which only that gap draws.
+  function rowHandlers(row) {
+    const index = row.number - 1;
+    return {
+      onDragStart: () => setDragging(index),
+      onDragOver: (e) => {
+        e.preventDefault();
+        setGapOver(null);
+      },
+      onDrop: (e) => {
+        e.stopPropagation();
+        // A drop onto a row is explicit about the part: the step joins
+        // whichever part that row is in, or leaves every part if that row is
+        // in none.
+        if (dragging !== null && dragging !== index) {
+          moveItem(dragging, index, row.item.section_id || null);
+        }
+        setDragging(null);
+        setGapOver(null);
+      },
+    };
+  }
+
+  // Dropping on a part's chrome rather than one of its rows appends to it.
+  function partHandlers(block) {
+    return {
+      onDragOver: (e) => {
+        e.preventDefault();
+        setGapOver(null);
+      },
+      onDrop: () => {
+        if (dragging !== null && block.rows.length) {
+          const last = block.rows[block.rows.length - 1].number - 1;
+          moveItem(dragging, last, block.section.system_id);
+        } else if (dragging !== null) {
+          // An empty part: the step becomes its first, landing where the part
+          // is anchored in the list.
+          moveItem(dragging, dragging, block.section.system_id);
+        }
+        setDragging(null);
+        setGapOver(null);
+      },
+    };
+  }
+
+  /**
+   * The gap before `blockIndex`, or the tail when `block` is null.
+   *
+   * Dropping here unfiles the step. It is the only landing spot that does:
+   * every row belongs to some run, so without these gaps a step could never be
+   * placed between two parts.
+   */
+  function gapHandlers(blockIndex, block) {
+    return {
+      onDragOver: (e) => {
+        e.preventDefault();
+        setGapOver(blockIndex);
+      },
+      onDragLeave: () => setGapOver((g) => (g === blockIndex ? null : g)),
+      onDrop: (e) => {
+        e.stopPropagation();
+        if (dragging !== null) {
+          const at = block?.rows.length
+            ? block.rows[0].number - 1
+            : list.items.length;
+          // Removing the dragged row first shifts everything below it up one,
+          // so a downward move lands one slot earlier than the gap's index.
+          moveItem(dragging, dragging < at ? at - 1 : at, null);
+        }
+        setDragging(null);
+        setGapOver(null);
+      },
+    };
   }
 
   if (!listId) {
@@ -1047,55 +1225,100 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           items={list.items}
           onAdd={addItem}
           disabled={busy}
+          target={addTarget}
+          onClearTarget={() => setAddTarget(null)}
         />
       )}
 
-      {!isBuiltIn && (
-        <SectionsPanel
-          sections={sections}
-          onAdd={addSection}
-          onPatch={patchSection}
-          onRemove={removeSection}
-          onMove={moveSection}
-          busy={busy}
-        />
-      )}
-
-      {list.items.length === 0 ? (
+      {/*
+        Parts are edited where they live. A step's part is shown by which box
+        contains it and changed by moving it there — there is no separate
+        panel, and no per-step "which part?" dropdown that could disagree with
+        what the page draws.
+      */}
+      {list.items.length === 0 && sections.length === 0 ? (
         <p className="text-center py-8 text-sm font-medium text-gray-400">
           No steps yet — add entries above.
         </p>
       ) : (
-        <ol className="flex flex-col gap-2">
-          {list.items.map((item, i) => (
-            <ItemRow
-              key={item.system_id}
-              item={item}
-              index={i + 1}
-              sections={sections}
-              readOnly={isBuiltIn}
-              isFirst={i === 0}
-              total={list.items.length}
-              isLast={i === list.items.length - 1}
-              onPatch={patchItem}
-              onRemove={removeItem}
-              onMove={moveItem}
-              dragHandlers={isBuiltIn ? {} : {
-                onDragStart: () => {
-                  dragIndex.current = i;
-                },
-                onDragOver: (e) => e.preventDefault(),
-                onDrop: () => {
-                  if (dragIndex.current !== null && dragIndex.current !== i) {
-                    moveItem(dragIndex.current, i);
-                  }
-                  dragIndex.current = null;
-                },
-              }}
+        <div className="flex flex-col gap-2">
+          {blocks.map((block, blockIndex) => {
+            const gapBefore = !isBuiltIn && (
+              <UnfileGap
+                key={`gap-${blockIndex}`}
+                active={dragging !== null && gapOver === blockIndex}
+                dropHandlers={gapHandlers(blockIndex, block)}
+              />
+            );
+
+            const rows = block.rows.map((row) => (
+              <ItemRow
+                key={row.item.system_id}
+                item={row.item}
+                index={row.number}
+                readOnly={isBuiltIn}
+                isFirst={row.number === 1}
+                total={list.items.length}
+                isLast={row.number === list.items.length}
+                onPatch={patchItem}
+                onRemove={removeItem}
+                onMove={moveItem}
+                dragHandlers={isBuiltIn ? {} : rowHandlers(row)}
+              />
+            ));
+
+            if (block.kind === "part") {
+              return (
+                <Fragment key={block.key}>
+                  {gapBefore}
+                  <PartBox
+                    section={block.section}
+                    count={block.rows.length}
+                    busy={busy}
+                    onPatch={patchSection}
+                    onRemove={removeSection}
+                    onMove={(direction) => movePart(blockIndex, direction)}
+                    onAddHere={setAddTarget}
+                    isFirst={blockIndex === 0}
+                    isLast={blockIndex === blocks.length - 1}
+                    dropHandlers={isBuiltIn ? {} : partHandlers(block)}
+                  >
+                    {rows}
+                  </PartBox>
+                </Fragment>
+              );
+            }
+
+            return (
+              <Fragment key={block.key}>
+                {gapBefore}
+                <div className="flex flex-col gap-2">{rows}</div>
+              </Fragment>
+            );
+          })}
+
+          {/* The tail gap, so a step can be dropped past the last part. */}
+          {!isBuiltIn && blocks.length > 0 && (
+            <UnfileGap
+              active={dragging !== null && gapOver === blocks.length}
+              dropHandlers={gapHandlers(blocks.length, null)}
             />
-          ))}
-        </ol>
+          )}
+        </div>
       )}
+
+      {!isBuiltIn && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={addSection}
+          className="self-start text-xs font-bold text-brand hover:underline disabled:opacity-40"
+        >
+          <i className="fas fa-plus text-[10px] mr-1"></i>
+          Add part
+        </button>
+      )}
+
     </div>
   );
 }

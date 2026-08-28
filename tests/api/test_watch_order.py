@@ -1408,6 +1408,340 @@ class TestReorder:
 
 
 # ---------------------------------------------------------------------------
+# Parts
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def sample_parts(db_session, sample_list):
+    """Two parts on the sample list, neither yet holding a step."""
+    parts = [
+        models.WatchOrderSection(
+            system_id=uuid.uuid4(),
+            list_id=sample_list.system_id,
+            position=10.0,
+            section_name="Part 1",
+        ),
+        models.WatchOrderSection(
+            system_id=uuid.uuid4(),
+            list_id=sample_list.system_id,
+            position=11.0,
+            section_name="Part 2",
+        ),
+    ]
+    db_session.add_all(parts)
+    db_session.flush()
+    return parts
+
+
+def _file(admin_client, list_id, pairs):
+    """Commits an order and its part assignments in one reorder call."""
+    return admin_client.put(
+        f"/api/watch-order/lists/{list_id}/reorder",
+        json={
+            "item_ids": [str(item_id) for item_id, _ in pairs],
+            "section_ids": [
+                str(section_id) if section_id else None for _, section_id in pairs
+            ],
+        },
+    )
+
+
+class TestReorderFilesSteps:
+    def test_order_and_part_are_committed_together(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one = sample_parts[0].system_id
+        response = _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, one),
+                (sample_items[2].system_id, None),
+            ],
+        )
+        assert response.status_code == 200
+        items = response.json()["items"]
+        assert [i["section_id"] for i in items] == [str(one), str(one), None]
+        assert [i["position"] for i in items] == [1.0, 2.0, 3.0]
+
+    def test_omitting_section_ids_leaves_every_step_filed_where_it_was(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one = sample_parts[0].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [(item.system_id, one) for item in sample_items],
+        )
+        # A pure reorder: same ids, no section_ids key at all.
+        response = admin_client.put(
+            f"/api/watch-order/lists/{sample_list.system_id}/reorder",
+            json={"item_ids": [str(i.system_id) for i in reversed(sample_items)]},
+        )
+        assert response.status_code == 200
+        assert all(i["section_id"] == str(one) for i in response.json()["items"])
+
+    def test_a_step_is_unfiled_by_naming_no_part(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one = sample_parts[0].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [(item.system_id, one) for item in sample_items],
+        )
+        response = _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, one),
+                (sample_items[2].system_id, None),
+            ],
+        )
+        assert response.json()["items"][2]["section_id"] is None
+
+    def test_a_mismatched_section_ids_length_is_rejected(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        response = admin_client.put(
+            f"/api/watch-order/lists/{sample_list.system_id}/reorder",
+            json={
+                "item_ids": [str(i.system_id) for i in sample_items],
+                "section_ids": [str(sample_parts[0].system_id)],
+            },
+        )
+        assert response.status_code == 400
+
+    def test_another_lists_part_is_rejected(
+        self, admin_client, db_session, sample_list, sample_items, sample_franchise
+    ):
+        other_list = models.WatchOrderList(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            list_name="Other",
+        )
+        db_session.add(other_list)
+        db_session.flush()
+        foreign = models.WatchOrderSection(
+            system_id=uuid.uuid4(),
+            list_id=other_list.system_id,
+            position=1.0,
+            section_name="Not mine",
+        )
+        db_session.add(foreign)
+        db_session.flush()
+
+        response = _file(
+            admin_client,
+            sample_list.system_id,
+            [(item.system_id, foreign.system_id) for item in sample_items],
+        )
+        assert response.status_code == 400
+
+
+class TestPartsStayContiguous:
+    def test_an_unfiled_step_between_two_parts_is_allowed(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        """The position the tier was rewritten to express."""
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        response = _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, None),
+                (sample_items[2].system_id, two),
+            ],
+        )
+        assert response.status_code == 200
+
+    def test_a_part_split_by_an_unfiled_step_is_rejected(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one = sample_parts[0].system_id
+        response = _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, None),
+                (sample_items[2].system_id, one),
+            ],
+        )
+        assert response.status_code == 400
+
+    def test_a_part_split_by_another_part_is_rejected(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        response = _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, two),
+                (sample_items[2].system_id, one),
+            ],
+        )
+        assert response.status_code == 400
+
+    def test_a_rejected_split_leaves_the_stored_order_untouched(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one = sample_parts[0].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, one),
+                (sample_items[2].system_id, None),
+            ],
+        )
+        admin_client.put(
+            f"/api/watch-order/lists/{sample_list.system_id}/reorder",
+            json={
+                "item_ids": [
+                    str(sample_items[2].system_id),
+                    str(sample_items[1].system_id),
+                    str(sample_items[0].system_id),
+                ],
+                "section_ids": [str(one), None, str(one)],
+            },
+        )
+        after = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert [i["system_id"] for i in after] == [
+            str(sample_items[0].system_id),
+            str(sample_items[1].system_id),
+            str(sample_items[2].system_id),
+        ]
+        assert [i["section_id"] for i in after] == [str(one), str(one), None]
+
+
+class TestPartsDoNotSortTheGuide:
+    def test_reading_order_is_position_alone(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        """
+        The retired rule read every unfiled step ahead of every part, so this
+        order was unreachable. Now the unfiled step reads second, where its
+        position puts it.
+        """
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, None),
+                (sample_items[2].system_id, two),
+            ],
+        )
+        items = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert [i["section_id"] for i in items] == [str(one), None, str(two)]
+
+    def test_a_part_reads_where_its_steps_read_not_where_its_position_says(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        # Part 2 carries the later section position, but its step reads first.
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, two),
+                (sample_items[1].system_id, one),
+                (sample_items[2].system_id, one),
+            ],
+        )
+        items = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert [i["section_id"] for i in items] == [str(two), str(one), str(one)]
+
+
+class TestAddingAStepToAPart:
+    def test_a_step_added_to_a_part_lands_at_the_end_of_that_part(
+        self, admin_client, sample_list, sample_items, sample_parts, sample_anime
+    ):
+        """
+        Appending to the end of the *list* would split every part the new step
+        now sits behind, so it appends to the end of its own part instead.
+        """
+        one = sample_parts[0].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, one),
+                (sample_items[2].system_id, None),
+            ],
+        )
+        response = admin_client.post(
+            f"/api/watch-order/lists/{sample_list.system_id}/items",
+            json={
+                "media_type": "anime",
+                "entry_id": str(sample_anime.system_id),
+                "section_id": str(one),
+            },
+        )
+        assert response.status_code == 200
+
+        items = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert [i["section_id"] for i in items] == [str(one), str(one), str(one), None]
+
+    def test_an_unfiled_step_still_appends_to_the_end_of_the_list(
+        self, admin_client, sample_list, sample_items, sample_parts, sample_anime
+    ):
+        one = sample_parts[0].system_id
+        _file(
+            admin_client,
+            sample_list.system_id,
+            [
+                (sample_items[0].system_id, one),
+                (sample_items[1].system_id, one),
+                (sample_items[2].system_id, None),
+            ],
+        )
+        admin_client.post(
+            f"/api/watch-order/lists/{sample_list.system_id}/items",
+            json={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+        )
+        items = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert [i["section_id"] for i in items] == [str(one), str(one), None, None]
+
+    def test_the_first_step_of_an_empty_part_appends_to_the_list(
+        self, admin_client, sample_list, sample_items, sample_parts, sample_anime
+    ):
+        two = sample_parts[1].system_id
+        admin_client.post(
+            f"/api/watch-order/lists/{sample_list.system_id}/items",
+            json={
+                "media_type": "anime",
+                "entry_id": str(sample_anime.system_id),
+                "section_id": str(two),
+            },
+        )
+        items = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()["items"]
+        assert [i["section_id"] for i in items] == [None, None, None, str(two)]
+
+
+# ---------------------------------------------------------------------------
 # Duplicate
 # ---------------------------------------------------------------------------
 

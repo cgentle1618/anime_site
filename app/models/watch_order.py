@@ -143,7 +143,8 @@ class WatchOrderItem(Base):
     # deleting a section must leave its steps in the list and simply
     # unsectioned, exactly as a deleted Collection leaves its franchises
     # uncollected. A step with no section is not an error - it is the state
-    # every step in every list was in before sections existed.
+    # every step in every list was in before sections existed, and an unfiled
+    # step may sit anywhere: before, between or after parts.
     section_id = Column(
         UUID(as_uuid=True),
         ForeignKey("watch_order_section.system_id", ondelete="SET NULL"),
@@ -185,11 +186,22 @@ class WatchOrderSection(Base):
     parts with it. The item side keeps the Collection semantics: SET NULL, so
     dropping a part leaves its steps behind rather than taking them with it.
 
-    ORDERING. Sections sort among themselves by `position`; items sort within
-    their section by the item's own `position`. Items with no section sort
-    ahead of every section, which is what makes this backward compatible: a
-    list authored before sections existed has no section rows, so its items
-    order by `position` alone, exactly as they always did.
+    ORDERING. A section does not sort the guide. Reading order is the item's
+    own `position` and nothing else; a part is drawn around whichever run of
+    adjacent items shares a `section_id`, so a part reads wherever its steps
+    read. That is what lets an unfiled step sit between two parts - under the
+    older rule, which ranked items by section and read every unfiled item
+    first, that position could not be expressed at all.
+
+    CONTIGUITY. A part owns one unbroken run: its steps are always adjacent, so
+    one part is always one box on the page and "move this part" always has a
+    single block to move. The reorder endpoint refuses an order that would
+    split one.
+
+    `position` therefore matters only while a part has no steps yet. It anchors
+    the empty part in the item stream - measured against the items, not the
+    other sections - so a part created and not yet filled still appears where
+    the admin made it.
     """
 
     __tablename__ = "watch_order_section"
