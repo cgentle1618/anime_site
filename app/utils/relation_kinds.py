@@ -1,7 +1,7 @@
 """
 The vocabulary of `media_relation.relation_type`.
 
-Ten user-facing labels compress to nine stored kinds, because Prequel is
+Eleven user-facing labels compress to ten stored kinds, because Prequel is
 Sequel read backwards. Storing both directions as distinct kinds would let one
 fact exist as two rows that no unique index could catch, so `prequel` is
 accepted on write and immediately normalized into a `sequel` row with the two
@@ -37,6 +37,13 @@ class RelationKind:
     # what lets the service sort the two endpoints before writing so that
     # A-alt-B and B-alt-A collapse to one row.
     symmetric: bool = False
+    # True when the relation carries across a chain: A-x-B and B-x-C makes A
+    # and C related too. Only the entry page expands it (see
+    # relations_for_entry) - the canvas keeps drawing stored rows alone, or
+    # every group of n peers would become a mesh of n(n-1)/2 lines saying one
+    # thing. Chains cross kinds, and the relation a mixed one implies is the
+    # weakest link along it; see TRANSITIVE_KEYS, whose order carries that.
+    transitive: bool = False
 
 
 RELATION_FAMILIES: tuple[str, ...] = (
@@ -52,7 +59,27 @@ RELATION_KINDS: dict[str, RelationKind] = {
         "sequel", "Sequel", "Prequel", "timeline"
     ),
     "alternative": RelationKind(
-        "alternative", "Alternative", "Alternative", "equivalence", symmetric=True
+        "alternative",
+        "Alternative",
+        "Alternative",
+        "equivalence",
+        symmetric=True,
+        transitive=True,
+    ),
+    # Alternative and Corresponding are neighbours, and the line between them
+    # is how far the work moved. An Alternative is essentially the same entry:
+    # a dub, a re-release, the same story told again. A Corresponding entry is
+    # fundamentally the same story told differently - the Fate/stay night
+    # routes, where Unlimited Blade Works and Heaven's Feel cover one war from
+    # another perspective. Symmetric like Alternative, because no route is the
+    # origin of the others: three routes are three peer rows, not a hub.
+    "corresponding": RelationKind(
+        "corresponding",
+        "Corresponding",
+        "Corresponding",
+        "equivalence",
+        symmetric=True,
+        transitive=True,
     ),
     # Renew, Director's Cut and Extended are all directional flavours of
     # "another version of the same work", so they share one inverse: whatever
@@ -87,10 +114,25 @@ RELATION_KINDS: dict[str, RelationKind] = {
 
 RELATION_KEYS: tuple[str, ...] = tuple(RELATION_KINDS)
 
+# The kinds relations_for_entry closes over. Derived from the registry rather
+# than listed again, so marking a kind transitive is the one-word change it
+# looks like.
+#
+# ORDER IS SIGNIFICANT: strongest claim first. A chain may cross two of these,
+# and the relation it implies is only ever as strong as its weakest link -
+# A-alternative-B with B-corresponding-C makes A and C corresponding, never
+# alternative. relations_for_entry reads that order off this tuple, so a new
+# transitive kind has to be declared in RELATION_KINDS at its right strength
+# rather than merely somewhere. Today: Alternative (essentially the same work)
+# is stronger than Corresponding (the same story told differently).
+TRANSITIVE_KEYS: tuple[str, ...] = tuple(
+    key for key, kind in RELATION_KINDS.items() if kind.transitive
+)
+
 # The one kind the API accepts but never stores. Picking "Prequel" for B and
 # choosing A writes the row A -sequel-> B.
 INPUT_ONLY_KINDS: dict[str, str] = {"prequel": "sequel"}
 
-# What POST /api/media-relation and PATCH will accept as `kind`: the nine
-# stored kinds plus `prequel`, which is the ten choices the dropdown offers.
+# What POST /api/media-relation and PATCH will accept as `kind`: the ten
+# stored kinds plus `prequel`, which is the eleven choices the dropdown offers.
 ACCEPTED_INPUT_KINDS: tuple[str, ...] = RELATION_KEYS + tuple(INPUT_ONLY_KINDS)

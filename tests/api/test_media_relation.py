@@ -40,11 +40,11 @@ def sample_manga_entry(db_session, sample_franchise):
 # ---------------------------------------------------------------------------
 
 
-def test_kinds_lists_the_ten_user_facing_choices(client):
+def test_kinds_lists_the_eleven_user_facing_choices(client):
     res = client.get("/api/media-relation/kinds")
     assert res.status_code == 200
     body = res.json()
-    assert len(body) == 10
+    assert len(body) == 11
     keys = {k["key"] for k in body}
     assert "prequel" in keys
     prequel = next(k for k in body if k["key"] == "prequel")
@@ -53,6 +53,9 @@ def test_kinds_lists_the_ten_user_facing_choices(client):
     sequel = next(k for k in body if k["key"] == "sequel")
     assert sequel["inverse_label"] == "Prequel"
     assert sequel["family"] == "timeline"
+    corresponding = next(k for k in body if k["key"] == "corresponding")
+    assert corresponding["inverse_label"] == "Corresponding"
+    assert corresponding["family"] == "equivalence"
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +127,55 @@ def test_the_same_alternative_entered_from_either_side_is_one_row(
     assert second.status_code == 409
     assert "already" in second.json()["detail"].lower()
     assert db_session.query(models.MediaRelation).count() == 1
+
+
+def test_the_same_corresponding_entered_from_either_side_is_one_row(
+    admin_client, db_session, sample_anime, second_anime
+):
+    # Corresponding is symmetric for the same reason Alternative is, so it has
+    # to collapse the same way: three Fate/stay night routes are three rows,
+    # and entering one of them from the other end must not make it a fourth.
+    first = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "corresponding",
+            "to_type": "anime", "to_id": str(second_anime.system_id),
+        },
+    )
+    assert first.status_code == 201, first.text
+    assert first.json()["relation_type"] == "corresponding"
+
+    second = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(second_anime.system_id),
+            "kind": "corresponding",
+            "to_type": "anime", "to_id": str(sample_anime.system_id),
+        },
+    )
+    assert second.status_code == 409
+    assert "already" in second.json()["detail"].lower()
+    assert db_session.query(models.MediaRelation).count() == 1
+
+
+def test_corresponding_and_alternative_are_separate_rows_on_one_pair(
+    admin_client, db_session, sample_anime, second_anime
+):
+    # The unique index is over the pair AND the kind, so the two neighbouring
+    # equivalence kinds do not shadow each other: a pair may be marked both.
+    for kind in ("alternative", "corresponding"):
+        res = admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime", "from_id": str(sample_anime.system_id),
+                "kind": kind,
+                "to_type": "anime", "to_id": str(second_anime.system_id),
+            },
+        )
+        assert res.status_code == 201, res.text
+
+    assert db_session.query(models.MediaRelation).count() == 2
 
 
 def test_self_relation_is_refused(admin_client, sample_anime):
@@ -868,3 +920,65 @@ def test_reset_requires_admin(client, sample_franchise):
         params={"franchise_id": str(sample_franchise.system_id)},
     )
     assert res.status_code in (401, 403)
+
+
+def test_a_corresponding_chain_expands_on_the_entry_page_but_not_the_graph(
+    admin_client, client, db_session, sample_franchise, sample_anime, second_anime
+):
+    # The two halves of one rule, pinned together because they only make sense
+    # as a pair: a chain of peers reads as a set on an entry's page, while the
+    # canvas keeps drawing the rows an admin wrote. Three routes are two lines
+    # there, not three - and a bigger group would be a mesh rather than a
+    # picture.
+    third = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Third Route",
+    )
+    db_session.add(third)
+    db_session.flush()
+
+    for left, right in ((sample_anime, second_anime), (second_anime, third)):
+        res = admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime", "from_id": str(left.system_id),
+                "kind": "corresponding",
+                "to_type": "anime", "to_id": str(right.system_id),
+            },
+        )
+        assert res.status_code == 201, res.text
+
+    # The entry page sees both peers, the far one marked as inferred.
+    entry = client.get(
+        "/api/media-relation/for-entry",
+        params={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+    )
+    assert entry.status_code == 200
+    rows = entry.json()
+    assert len(rows) == 2
+    by_id = {r["other"]["entry_id"]: r for r in rows}
+    assert by_id[str(second_anime.system_id)]["derived"] is False
+    inferred = by_id[str(third.system_id)]
+    assert inferred["derived"] is True
+    assert inferred["system_id"] is None
+    assert inferred["via"] == "Second Season"
+    assert inferred["label"] == "Corresponding"
+
+    # The canvas holds the two stored rows and nothing else.
+    graph = client.get(
+        "/api/media-relation/graph",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+    assert graph.status_code == 200
+    edges = graph.json()["edges"]
+    assert len(edges) == 2
+    drawn = {
+        frozenset((e["from"], e["to"]))
+        for e in edges
+    }
+    assert drawn == {
+        frozenset((f"anime:{sample_anime.system_id}", f"anime:{second_anime.system_id}")),
+        frozenset((f"anime:{second_anime.system_id}", f"anime:{third.system_id}")),
+    }
+    assert all(e["relation_type"] == "corresponding" for e in edges)

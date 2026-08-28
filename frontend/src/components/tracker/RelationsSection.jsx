@@ -7,7 +7,13 @@
 //
 // Replaces the hand-rolled prequel_id / sequel_id / alternative blocks each
 // detail page used to carry. Those could show only same-table links and only
-// three kinds; this shows all nine, in either direction, across every table.
+// three kinds; this shows every kind, in either direction, across every table.
+//
+// It also shows more than the canvas does. A transitive kind - Alternative,
+// Corresponding - is stored pair by pair but describes a whole set, and the
+// server closes over the chain for this card alone (see relations_for_entry).
+// The graph keeps drawing stored rows, so a group of peers stays a few lines
+// rather than a mesh; those extra rows arrive here with `derived` and a `via`.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -27,6 +33,12 @@ const FAMILY_COLOR = {
   branch: "text-purple-500",
   derivation: "text-green-500",
 };
+
+// A derived row stands for no stored row, so system_id is null on it and the
+// pair plus the kind is the only identity it has.
+const rowKey = (row) =>
+  row.system_id ||
+  `${row.relation_type}:${row.other.media_type}:${row.other.entry_id}`;
 
 export default function RelationsSection({ mediaType, entryId }) {
   const [rows, setRows] = useState([]);
@@ -73,7 +85,7 @@ export default function RelationsSection({ mediaType, entryId }) {
           if (other.missing) {
             return (
               <div
-                key={row.system_id}
+                key={rowKey(row)}
                 className="bg-red-50 rounded-lg border border-red-200 p-2"
               >
                 <div className="text-[9px] font-bold uppercase tracking-wider text-red-500 mb-0.5">
@@ -112,6 +124,12 @@ export default function RelationsSection({ mediaType, entryId }) {
                 <div className="text-[11px] text-gray-500">
                   {other.label}
                   {row.remark ? ` · ${row.remark}` : ""}
+                  {/* A derived row has no relation of its own behind it - it
+                      is implied by a chain of peers - so it says which link it
+                      came through. Without that, an entry appears here that
+                      the relations canvas draws no line to, and the graph
+                      looks broken rather than deliberately uncluttered. */}
+                  {row.derived && row.via ? ` · via ${row.via}` : ""}
                 </div>
               </div>
             </>
@@ -122,14 +140,14 @@ export default function RelationsSection({ mediaType, entryId }) {
 
           return other.nav_path ? (
             <Link
-              key={row.system_id}
+              key={rowKey(row)}
               to={other.nav_path}
               className={`${className} cursor-pointer hover:bg-brand/5 hover:border-brand/30`}
             >
               {body}
             </Link>
           ) : (
-            <div key={row.system_id} className={className}>
+            <div key={rowKey(row)} className={className}>
               {body}
             </div>
           );

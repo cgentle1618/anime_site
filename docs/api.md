@@ -360,6 +360,17 @@ the Sequel of B, A's page shows B as "Prequel" and B's shows A as "Sequel".
 A far endpoint whose row no longer exists comes back with `missing: true` rather
 than being dropped, since endpoints are FK-less.
 
+**Transitive kinds.** `/for-entry` also returns rows no `media_relation` row
+names directly. `alternative` and `corresponding` are transitive, so with
+`A-corresponding-B` and `B-corresponding-C` stored, A's response includes C.
+Those inferred rows carry `derived: true`, a null `system_id`, no `remark`, no
+timestamps, and a `via` naming the neighbour the chain arrived through. They
+sort after the stored rows. Chains cross kinds and resolve to their weakest
+link, so `A-alternative-B` with `B-corresponding-C` gives A a `corresponding`
+row for C; where several routes reach an entry, the strongest one any of them
+supports wins. `/graph` is unaffected — it returns stored rows only, which is
+what keeps the canvas from drawing a mesh.
+
 **Graph response.** `nodes` covers every entry in the scope, including ones
 with no relations, plus a "ghost" node for each relation endpoint outside the
 scope (`in_scope: false`); a ghost whose row no longer exists also carries

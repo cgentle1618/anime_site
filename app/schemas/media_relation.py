@@ -92,7 +92,8 @@ class RelationOtherEndpoint(BaseModel):
 class MediaRelationResolved(BaseModel):
     """A relation as read from one particular entry's point of view."""
 
-    system_id: UUID
+    # Null on a derived row, which stands for no stored row of its own.
+    system_id: Optional[UUID] = None
     relation_type: str
     # The kind's label, or its inverse label when this entry is the `to` side.
     label: str
@@ -100,6 +101,13 @@ class MediaRelationResolved(BaseModel):
     # "forward" when the viewed entry is `from`, "reverse" when it is `to`.
     direction: str
     remark: Optional[str] = None
+    # True when a transitive kind reached this entry through a chain rather
+    # than through a row naming both ends - A and C, where only A-B and B-C
+    # are stored. The canvas never sees these; see relations_for_entry.
+    derived: bool = False
+    # The display name of the neighbour the chain arrived through, so a page
+    # can say why a relation nothing points at is being shown.
+    via: Optional[str] = None
     other: RelationOtherEndpoint
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

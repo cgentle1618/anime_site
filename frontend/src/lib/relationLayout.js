@@ -106,6 +106,7 @@ const TIGHT_CLUSTER_GAP = 48; // 2 * GRID
 const KIND_ORDER = [
   "sequel",
   "alternative",
+  "corresponding",
   "renew",
   "directors_cut",
   "extended",

@@ -1058,6 +1058,7 @@ one row.
 | ---------------------- | --------------------- | ------------- | ----------- |
 | `sequel`               | A is the sequel of B  | Prequel       | timeline    |
 | `alternative`          | A is an alternative of B | Alternative (symmetric) | equivalence |
+| `corresponding`        | A is the same story as B, told from another perspective | Corresponding (symmetric) | equivalence |
 | `renew`                | A is the renew of B   | Original      | equivalence |
 | `directors_cut`        | A is the Director's Cut of B | Original | equivalence |
 | `extended`             | A is the Extended version of B | Original | equivalence |

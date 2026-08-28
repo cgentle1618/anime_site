@@ -175,3 +175,234 @@ def test_a_deleted_target_resolves_to_missing(db_session, sample_anime):
     assert rows[0]["other"]["display_name"] is None
     # sample_anime is the adaptation, so the entry it adapts is the Source.
     assert rows[0]["label"] == "Source"
+
+
+# ---------------------------------------------------------------------------
+# relations_for_entry — the transitive closure over peer kinds
+# ---------------------------------------------------------------------------
+
+
+def _anime(db_session, franchise, name):
+    a = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=franchise.system_id,
+        anime_name_en=name,
+    )
+    db_session.add(a)
+    db_session.flush()
+    return a
+
+
+def _link(db_session, kind, left, right):
+    db_session.add(
+        models.MediaRelation(
+            system_id=uuid.uuid4(),
+            from_type="anime", from_id=left.system_id,
+            relation_type=kind,
+            to_type="anime", to_id=right.system_id,
+        )
+    )
+    db_session.flush()
+
+
+def _by_name(rows):
+    return {r["other"]["display_name"]: r for r in rows}
+
+
+def test_a_corresponding_chain_makes_all_three_routes_peers(
+    db_session, sample_franchise
+):
+    # The Fate/stay night case. Two stored rows - F/SN-UBW and UBW-HF - and
+    # every one of the three pages has to list the other two.
+    fsn = _anime(db_session, sample_franchise, "Fate/stay night")
+    ubw = _anime(db_session, sample_franchise, "Unlimited Blade Works")
+    hf = _anime(db_session, sample_franchise, "Heavens Feel")
+    _link(db_session, "corresponding", fsn, ubw)
+    _link(db_session, "corresponding", ubw, hf)
+
+    for entry in (fsn, ubw, hf):
+        rows = relations_for_entry(db_session, "anime", entry.system_id)
+        assert len(rows) == 2, f"{entry.anime_name_en} sees {len(rows)}"
+        assert all(r["relation_type"] == "corresponding" for r in rows)
+        assert all(r["label"] == "Corresponding" for r in rows)
+        assert all(r["family"] == "equivalence" for r in rows)
+
+    # Only F/SN and HF are the pair no row names, so only they are derived.
+    ubw_rows = relations_for_entry(db_session, "anime", ubw.system_id)
+    assert [r["derived"] for r in ubw_rows] == [False, False]
+
+    fsn_rows = _by_name(relations_for_entry(db_session, "anime", fsn.system_id))
+    assert fsn_rows["Unlimited Blade Works"]["derived"] is False
+    assert fsn_rows["Heavens Feel"]["derived"] is True
+    # The chain arrived through UBW, which is what the page can say.
+    assert fsn_rows["Heavens Feel"]["via"] == "Unlimited Blade Works"
+    assert fsn_rows["Heavens Feel"]["system_id"] is None
+
+
+def test_a_stored_row_is_never_reported_as_derived(db_session, sample_franchise):
+    # All three pairs stored explicitly: the closure must add nothing, and must
+    # not shadow a real row with a derived duplicate.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "corresponding", a, b)
+    _link(db_session, "corresponding", b, c)
+    _link(db_session, "corresponding", a, c)
+
+    rows = relations_for_entry(db_session, "anime", a.system_id)
+    assert len(rows) == 2
+    assert all(r["derived"] is False for r in rows)
+    assert all(r["system_id"] is not None for r in rows)
+
+
+def test_the_closure_carries_along_a_longer_chain(db_session, sample_franchise):
+    # A-B-C-D stored as three rows. A's page sees all three others, and D is
+    # reached through C rather than through the row A was written with.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    d = _anime(db_session, sample_franchise, "D")
+    _link(db_session, "corresponding", a, b)
+    _link(db_session, "corresponding", b, c)
+    _link(db_session, "corresponding", c, d)
+
+    rows = _by_name(relations_for_entry(db_session, "anime", a.system_id))
+    assert set(rows) == {"B", "C", "D"}
+    assert rows["B"]["derived"] is False
+    assert rows["C"]["via"] == "B"
+    assert rows["D"]["via"] == "C"
+
+
+def test_a_cycle_terminates(db_session, sample_franchise):
+    # A-B, B-C, C-A. Every hop revisits an entry already seen, so a closure
+    # without a visited set would never return.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "corresponding", a, b)
+    _link(db_session, "corresponding", b, c)
+    _link(db_session, "corresponding", c, a)
+
+    rows = relations_for_entry(db_session, "anime", a.system_id)
+    assert len(rows) == 2
+    assert all(r["derived"] is False for r in rows)
+
+
+def test_the_closure_never_reports_the_viewed_entry_itself(
+    db_session, sample_franchise
+):
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "corresponding", a, b)
+    _link(db_session, "corresponding", b, c)
+
+    for entry in (a, b, c):
+        rows = relations_for_entry(db_session, "anime", entry.system_id)
+        assert all(
+            r["other"]["entry_id"] != entry.system_id for r in rows
+        ), "an entry corresponded to itself"
+
+
+def test_a_mixed_chain_resolves_to_its_weakest_link(db_session, sample_franchise):
+    # A-alt-B and B-corr-C. A and C are related, but only as far as the weaker
+    # hop allows: crossing a Corresponding link cannot leave A claiming C is
+    # essentially the same work, only that it is the same story told
+    # differently. The stored rows keep their own kinds either way.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "alternative", a, b)
+    _link(db_session, "corresponding", b, c)
+
+    a_rows = _by_name(relations_for_entry(db_session, "anime", a.system_id))
+    assert set(a_rows) == {"B", "C"}
+    assert a_rows["B"]["relation_type"] == "alternative"
+    assert a_rows["B"]["derived"] is False
+    assert a_rows["C"]["relation_type"] == "corresponding"
+    assert a_rows["C"]["label"] == "Corresponding"
+    assert a_rows["C"]["derived"] is True
+    assert a_rows["C"]["via"] == "B"
+
+    # And it reads the same standing at the other end, which is the point of
+    # taking the weakest link rather than the first hop.
+    c_rows = _by_name(relations_for_entry(db_session, "anime", c.system_id))
+    assert c_rows["A"]["relation_type"] == "corresponding"
+    assert c_rows["A"]["via"] == "B"
+
+    b_rows = _by_name(relations_for_entry(db_session, "anime", b.system_id))
+    assert set(b_rows) == {"A", "C"}
+    assert all(r["derived"] is False for r in b_rows.values())
+
+
+def test_a_stronger_route_wins_over_a_weaker_one(db_session, sample_franchise):
+    # A-alt-B-alt-D, and also A-corr-C-corr-D. D is reachable both ways, and
+    # the all-Alternative route supports the stronger claim, so that is the one
+    # reported - a walk that took whichever path it found first would not.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    d = _anime(db_session, sample_franchise, "D")
+    _link(db_session, "corresponding", a, c)
+    _link(db_session, "corresponding", c, d)
+    _link(db_session, "alternative", a, b)
+    _link(db_session, "alternative", b, d)
+
+    rows = _by_name(relations_for_entry(db_session, "anime", a.system_id))
+    assert rows["D"]["relation_type"] == "alternative"
+    assert rows["D"]["via"] == "B"
+
+
+def test_alternative_closes_over_a_chain_too(db_session, sample_franchise):
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "alternative", a, b)
+    _link(db_session, "alternative", b, c)
+
+    rows = _by_name(relations_for_entry(db_session, "anime", a.system_id))
+    assert set(rows) == {"B", "C"}
+    assert rows["C"]["derived"] is True
+    assert rows["C"]["label"] == "Alternative"
+
+
+def test_a_directional_kind_does_not_chain(db_session, sample_franchise):
+    # A is the sequel of B, B is the sequel of C. A is not the sequel of C,
+    # and nothing may claim it is.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "sequel", a, b)
+    _link(db_session, "sequel", b, c)
+
+    rows = _by_name(relations_for_entry(db_session, "anime", a.system_id))
+    assert set(rows) == {"B"}
+
+
+def test_derived_rows_come_after_the_stored_ones(db_session, sample_franchise):
+    # The detail page sorts by family and leaves order alone within it, so the
+    # rows an admin actually wrote have to arrive first.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    c = _anime(db_session, sample_franchise, "C")
+    _link(db_session, "corresponding", a, b)
+    _link(db_session, "corresponding", b, c)
+
+    rows = relations_for_entry(db_session, "anime", a.system_id)
+    assert [r["derived"] for r in rows] == [False, True]
+
+
+def test_an_unrelated_chain_elsewhere_is_not_pulled_in(
+    db_session, sample_franchise
+):
+    # The closure loads every transitive row in the table, so it has to start
+    # from the viewed entry rather than sweep up whatever it fetched.
+    a = _anime(db_session, sample_franchise, "A")
+    b = _anime(db_session, sample_franchise, "B")
+    x = _anime(db_session, sample_franchise, "X")
+    y = _anime(db_session, sample_franchise, "Y")
+    _link(db_session, "corresponding", a, b)
+    _link(db_session, "corresponding", x, y)
+
+    rows = _by_name(relations_for_entry(db_session, "anime", a.system_id))
+    assert set(rows) == {"B"}

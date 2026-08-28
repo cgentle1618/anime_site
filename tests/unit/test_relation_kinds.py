@@ -11,13 +11,15 @@ from app.utils.relation_kinds import (
     RELATION_FAMILIES,
     RELATION_KEYS,
     RELATION_KINDS,
+    TRANSITIVE_KEYS,
 )
 
 
-def test_nine_stored_kinds():
+def test_ten_stored_kinds():
     assert set(RELATION_KEYS) == {
         "sequel",
         "alternative",
+        "corresponding",
         "renew",
         "directors_cut",
         "extended",
@@ -45,9 +47,51 @@ def test_symmetric_is_true_exactly_when_label_equals_inverse_label():
         assert kind.symmetric == (kind.label == kind.inverse_label)
 
 
-def test_only_alternative_is_symmetric():
+def test_only_the_two_peer_kinds_are_symmetric():
+    # Both name a pair with no origin between them, which is what lets the
+    # service sort the endpoints before writing and collapse A-x-B and B-x-A
+    # into one row.
     symmetric = {k for k, v in RELATION_KINDS.items() if v.symmetric}
-    assert symmetric == {"alternative"}
+    assert symmetric == {"alternative", "corresponding"}
+
+
+def test_corresponding_is_a_symmetric_equivalence_kind():
+    # The same work seen from another angle - Unlimited Blade Works beside
+    # Heaven's Feel - so it sits with Alternative in equivalence rather than
+    # with the branch kinds, and neither route is the other's origin.
+    kind = RELATION_KINDS["corresponding"]
+    assert kind.family == "equivalence"
+    assert kind.symmetric
+    assert kind.label == kind.inverse_label == "Corresponding"
+
+
+def test_only_the_two_peer_kinds_are_transitive():
+    # A chain carries only where the kind claims sameness. A sequel of a sequel
+    # is not a sequel, and a spin-off of a spin-off is not one either.
+    assert set(TRANSITIVE_KEYS) == {"alternative", "corresponding"}
+
+
+def test_transitive_keys_run_strongest_claim_first():
+    # relations_for_entry walks these in order, widening the edge set one kind
+    # at a time, so the order is what makes a mixed chain resolve to its
+    # weakest link. Alternative asserts more than Corresponding, so it leads.
+    assert TRANSITIVE_KEYS.index("alternative") < TRANSITIVE_KEYS.index(
+        "corresponding"
+    )
+
+
+def test_transitive_keys_are_derived_from_the_registry():
+    assert TRANSITIVE_KEYS == tuple(
+        k for k, v in RELATION_KINDS.items() if v.transitive
+    )
+    assert set(TRANSITIVE_KEYS).issubset(set(RELATION_KEYS))
+
+
+def test_corresponding_is_distinct_from_alternative():
+    # Two kinds, not one relabelled: Alternative is essentially the same work,
+    # Corresponding is fundamentally the same story told differently.
+    assert RELATION_KINDS["corresponding"] != RELATION_KINDS["alternative"]
+    assert RELATION_KINDS["corresponding"].key == "corresponding"
 
 
 def test_labels_are_unique():
@@ -61,8 +105,8 @@ def test_prequel_is_input_only_and_maps_to_sequel():
     assert "prequel" in ACCEPTED_INPUT_KINDS
 
 
-def test_accepted_input_kinds_covers_the_ten_user_facing_choices():
-    assert len(ACCEPTED_INPUT_KINDS) == 10
+def test_accepted_input_kinds_covers_the_eleven_user_facing_choices():
+    assert len(ACCEPTED_INPUT_KINDS) == 11
     assert set(RELATION_KEYS).issubset(set(ACCEPTED_INPUT_KINDS))
 
 

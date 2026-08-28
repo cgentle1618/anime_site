@@ -357,7 +357,7 @@ every step of one is `Normal`.
 The vocabulary of `media_relation.relation_type`, defined in
 `app/utils/relation_kinds.py` and served at `GET /api/media-relation/kinds`.
 
-Nine labels appear in the admin dropdown; eight are stored. `Prequel` is
+Eleven labels appear in the admin dropdown; ten are stored. `Prequel` is
 accepted on write and recorded as a `sequel` row with the endpoints swapped, so
 one fact is always one row.
 
@@ -366,6 +366,7 @@ one fact is always one row.
 | Sequel         | `sequel`        | Prequel       | timeline    |
 | Prequel        | `sequel` (swapped) | Sequel     | timeline    |
 | Alternative    | `alternative`   | Alternative   | equivalence |
+| Corresponding  | `corresponding` | Corresponding | equivalence |
 | Renew          | `renew`         | Original      | equivalence |
 | Director's Cut | `directors_cut` | Original      | equivalence |
 | Extended       | `extended`      | Original      | equivalence |
@@ -377,8 +378,35 @@ one fact is always one row.
 Families group the rows on the admin page and on each detail page's Related
 Entries card: `timeline`, `equivalence`, `branch`, `derivation`.
 
-Only `alternative` is symmetric. Every other kind is directional, and the label
-shown always describes the entry at the *far* end of the link.
+Only `alternative` and `corresponding` are symmetric. Every other kind is
+directional, and the label shown always describes the entry at the *far* end of
+the link.
+
+`Alternative` and `Corresponding` differ by how far the work moved. An
+alternative is *essentially* the same entry — a dub, a re-release, the same
+story told again. A corresponding entry is *fundamentally* the same story told
+differently: the Fate/stay night routes, where Unlimited Blade Works and
+Heaven's Feel cover one war from another perspective. Neither is the origin of
+the other, so three routes are three peer rows rather than a hub.
+
+Both are also **transitive**: with `A-corresponding-B` and `B-corresponding-C`
+stored, A, B and C all correspond to each other.
+
+Chains cross the two kinds, and a chain is only as strong as its **weakest
+link**. `A-alternative-B` with `B-corresponding-C` makes A and C
+*corresponding*, never alternative — the Corresponding hop cannot carry the
+stronger claim that A and C are essentially the same work. Alternative is the
+stronger of the two, and where more than one route reaches an entry the
+strongest one it can support is the one reported. Taking the weakest link
+rather than, say, the first hop is also what makes the pair read the same from
+both ends.
+
+The closure is expanded on the **media entry page only**. `GET /for-entry`
+returns the inferred rows with `derived: true`, a null `system_id` and a `via`
+naming the neighbour the chain arrived through; the card renders that as
+"· via <name>". `GET /graph` keeps returning stored rows alone, so the
+relations canvas stays a few lines rather than a mesh of n(n-1)/2 saying one
+thing.
 
 ---
 
