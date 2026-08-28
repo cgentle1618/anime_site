@@ -5,6 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
+import { releaseYear } from "../../lib/releaseDate";
 import {
   getDisplayName,
   getCoverUrl,
@@ -38,15 +39,6 @@ const BOLT_AIRING_STATUS = {
   "tv-show": "Airing",
   cartoon: "Airing",
 };
-
-function getReleaseYearFromDate(dateStr) {
-  if (!dateStr) return null;
-  const parts = String(dateStr)
-    .trim()
-    .split(/[\s\-]/);
-  const year = parts[parts.length - 1];
-  return /^\d{4}$/.test(year) ? year : null;
-}
 
 function serializationStatusCls(status) {
   if (status === "連載中")
@@ -228,7 +220,7 @@ function LibraryMeta({ type, data }) {
 
   if (type === "anime-movie") {
     const length = formatLength(data.length_min);
-    const releaseYear = getReleaseYearFromDate(data.release_date_jp);
+    const year = releaseYear(data.release_date_jp || data.release_date_tw);
     return (
       <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
         {length && (
@@ -237,7 +229,7 @@ function LibraryMeta({ type, data }) {
             {length}
           </span>
         )}
-        {releaseYear && <span className="truncate">{releaseYear}</span>}
+        {year ? <span className="truncate">{year}</span> : null}
       </div>
     );
   }
@@ -252,8 +244,10 @@ function LibraryMeta({ type, data }) {
             {length}
           </span>
         )}
-        {data.release_date_usa && (
-          <span className="truncate">{data.release_date_usa}</span>
+        {(data.release_date_tw || data.release_date_usa) && (
+          <span className="truncate">
+            {data.release_date_tw || data.release_date_usa}
+          </span>
         )}
       </div>
     );
@@ -263,9 +257,10 @@ function LibraryMeta({ type, data }) {
     return (
       <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-center justify-between gap-1">
         <span className="truncate pr-1">
-          {data.release_year || "?"}
-          {data.end_year && data.end_year !== data.release_year
-            ? ` – ${data.end_year}`
+          {releaseYear(data.release_date) || "?"}
+          {releaseYear(data.end_date) &&
+          releaseYear(data.end_date) !== releaseYear(data.release_date)
+            ? ` – ${releaseYear(data.end_date)}`
             : ""}
         </span>
         {data.mal_rating && (
@@ -304,9 +299,10 @@ function LibraryMeta({ type, data }) {
             </div>
           )}
           <span className="truncate">
-            {data.release_year || "?"}
-            {data.end_year && data.end_year !== data.release_year
-              ? ` – ${data.end_year}`
+            {releaseYear(data.release_date) || "?"}
+            {releaseYear(data.end_date) &&
+            releaseYear(data.end_date) !== releaseYear(data.release_date)
+              ? ` – ${releaseYear(data.end_date)}`
               : ""}
           </span>
         </div>
@@ -338,9 +334,10 @@ function LibraryMeta({ type, data }) {
             </span>
           )}
           <span className="truncate">
-            {data.release_year || "?"}
-            {data.end_year && data.end_year !== data.release_year
-              ? ` – ${data.end_year}`
+            {releaseYear(data.release_date) || "?"}
+            {releaseYear(data.end_date) &&
+            releaseYear(data.end_date) !== releaseYear(data.release_date)
+              ? ` – ${releaseYear(data.end_date)}`
               : ""}
           </span>
         </div>
@@ -511,7 +508,7 @@ function FutureMeta({ type, data }) {
   }
   if (type === "anime-movie") {
     const length = formatLength(data.length_min);
-    const releaseYear = getReleaseYearFromDate(data.release_date_jp);
+    const year = releaseYear(data.release_date_jp || data.release_date_tw);
     return (
       <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
         {length && (
@@ -520,16 +517,15 @@ function FutureMeta({ type, data }) {
             {length}
           </span>
         )}
-        {releaseYear && <span className="truncate">{releaseYear}</span>}
+        {year ? <span className="truncate">{year}</span> : null}
       </div>
     );
   }
   if (type === "movie") {
     const length = formatLength(data.length_min);
-    const d = data.release_date_usa || data.release_date_tw || "";
-    const parts = String(d).trim().split(/[\s-]/);
-    const lastPart = parts[parts.length - 1];
-    const releaseYear = /^\d{4}$/.test(lastPart) ? lastPart : "TBD";
+    const d = data.release_date_tw || data.release_date_usa || "";
+    const year = releaseYear(d);
+    const shownYear = year || "TBD";
     return (
       <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
         {length && (
@@ -538,7 +534,7 @@ function FutureMeta({ type, data }) {
             {length}
           </span>
         )}
-        <span className="truncate">{releaseYear}</span>
+        <span className="truncate">{shownYear}</span>
       </div>
     );
   }

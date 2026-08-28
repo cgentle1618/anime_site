@@ -39,7 +39,6 @@ export function getQuoteImageUrl(imageFile) {
 
 /** Best-effort release year, used to prefer the newest entry as a cover. */
 export function getEntryYear(entry) {
-  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
   const d =
     entry.release_date_jp ||
     entry.release_date_tw ||

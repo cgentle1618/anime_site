@@ -1,5 +1,6 @@
 // Frontend: page component file for LibraryAnime.
 import { useNavigate } from "react-router-dom";
+import { releaseScore, releaseYear } from "../../lib/releaseDate";
 import LibraryLayout from "../../components/layout/LibraryLayout";
 import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
@@ -14,17 +15,11 @@ import {
 } from "../../utils/media";
 
 // ---------------------------------------------------------------------------
-// Release date sort score: year * 100 + month-index (anime uses season+month)
+// Release date sort score: the ISO release date, first-of-period for the
+// precision an entry does not carry.
 // ---------------------------------------------------------------------------
-const MONTH_MAP = {
-  JAN: 1, FEB: 2,  MAR: 3,  APR: 4,  MAY: 5,  JUN: 6,
-  JUL: 7, AUG: 8,  SEP: 9,  OCT: 10, NOV: 11, DEC: 12,
-};
-
 function getReleaseSortScore(item) {
-  const y = item.release_year ? parseInt(item.release_year, 10) : 0;
-  const m = MONTH_MAP[item.release_month?.toUpperCase()] ?? 0;
-  return y * 100 + m;
+  return releaseScore(item.release_date);
 }
 
 // ---------------------------------------------------------------------------
@@ -43,19 +38,17 @@ const ANIME_LIBRARY_CONFIG = {
     const fullSeason = item.release_season
       ? SEASON_MAP[item.release_season.toUpperCase()] ?? ""
       : "";
+    const year = releaseYear(item.release_date) || "";
     const seasonYear =
-      item.release_season && item.release_year
-        ? `${item.release_season}${item.release_year}`
-        : "";
-    const fullSeasonYear =
-      fullSeason && item.release_year ? `${fullSeason}${item.release_year}` : "";
+      item.release_season && year ? `${item.release_season}${year}` : "";
+    const fullSeasonYear = fullSeason && year ? `${fullSeason}${year}` : "";
     return [
       item.anime_name_cn, item.anime_name_en, item.anime_name_roman,
       item.anime_name_jp,  item.anime_name_alt,
       f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_roman,
       f?.franchise_name_jp, f?.franchise_name_alt,
       s?.series_name_cn,    s?.series_name_en,
-      item.release_season,  fullSeason, item.release_year,
+      item.release_season,  fullSeason, item.release_date,
       seasonYear,           fullSeasonYear,
       item.genre_main,      item.genre_sub,      item.studio,
     ]

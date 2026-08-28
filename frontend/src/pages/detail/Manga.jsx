@@ -681,16 +681,12 @@ export default function Manga() {
                 ],
                 [
                   {
-                    label: "Release Year",
-                    value:
-                      manga.release_year != null
-                        ? String(manga.release_year)
-                        : null,
+                    label: "Release Date",
+                    value: manga.release_date || null,
                   },
                   {
-                    label: "End Year",
-                    value:
-                      manga.end_year != null ? String(manga.end_year) : null,
+                    label: "End Date",
+                    value: manga.end_date || null,
                   },
                 ],
                 [

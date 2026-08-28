@@ -1,5 +1,6 @@
 // Frontend: page component file for FutureReleases.
 import { useState, useCallback, useMemo } from "react";
+import { releaseYear } from "../../lib/releaseDate";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
@@ -21,7 +22,8 @@ const WATCHING_PRIORITY = {
 const EXPECTATION_PRIORITY = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
 function getGroupKey(anime) {
-  const { release_year: year, release_season: season } = anime;
+  const year = releaseYear(anime.release_date) || null;
+  const season = anime.release_season;
   if (year && season && SEASON_ORDER[season] !== undefined)
     return `S_${year}_${SEASON_ORDER[season]}`;
   if (year) return `Y_${year}`;

@@ -248,17 +248,19 @@ describe("getStatusStyle", () => {
 
 describe("getReleaseFallback", () => {
   it("returns season + year when both present", () => {
-    expect(getReleaseFallback({ release_season: "WIN", release_year: "2024" })).toBe("WIN 2024");
-  });
-
-  it("returns month + year when season absent", () => {
     expect(
-      getReleaseFallback({ release_season: null, release_month: "JAN", release_year: "2024" })
-    ).toBe("JAN 2024");
+      getReleaseFallback({ release_season: "WIN", release_date: "2024-01" })
+    ).toBe("WIN 2024");
   });
 
-  it("returns year only when month/season absent", () => {
-    expect(getReleaseFallback({ release_year: "2024" })).toBe("2024");
+  it("returns the stored date verbatim when the season is absent", () => {
+    expect(
+      getReleaseFallback({ release_season: null, release_date: "2024-01" })
+    ).toBe("2024-01");
+  });
+
+  it("returns year only when that is all that is stored", () => {
+    expect(getReleaseFallback({ release_date: "2024" })).toBe("2024");
   });
 
   it("returns TBA when all absent", () => {

@@ -1,5 +1,6 @@
 // Frontend: page component file for LibraryManga.
 import LibraryLayout from "../../components/layout/LibraryLayout";
+import { releaseScore } from "../../lib/releaseDate";
 import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   READING_STATUS_GROUP,
@@ -32,7 +33,7 @@ const MANGA_LIBRARY_CONFIG = {
       item.manga_name_jp, item.manga_name_alt,
       f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_roman,
       s?.series_name_cn,   s?.series_name_en,   s?.series_name_alt,
-      String(item.release_year ?? ""),
+      String(item.release_date ?? ""),
     ].filter(Boolean).join(" ");
   },
 
@@ -71,14 +72,14 @@ const MANGA_LIBRARY_CONFIG = {
         getSortKey(a).localeCompare(getSortKey(b), undefined, { numeric: true }),
     },
     {
-      key: "release_year",
-      label: "Release Year",
-      compare: (a, b) => (b.release_year ?? 0) - (a.release_year ?? 0),
+      key: "release_date",
+      label: "Release Date",
+      compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
     {
-      key: "end_year",
-      label: "Ending Year",
-      compare: (a, b) => (b.end_year ?? 0) - (a.end_year ?? 0),
+      key: "end_date",
+      label: "Ending Date",
+      compare: (a, b) => releaseScore(b.end_date) - releaseScore(a.end_date),
     },
     {
       key: "my_rating",

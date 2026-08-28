@@ -1,4 +1,5 @@
 // Misc display/data helpers: length, release, progress, ratings, options, type parsing.
+import { formatReleaseDate } from "./releaseDate";
 
 export function isBaha(anime) {
   return (
@@ -7,12 +8,11 @@ export function isBaha(anime) {
   );
 }
 
-export function getReleaseFallback(anime) {
-  if (anime.release_season && anime.release_year)
-    return `${anime.release_season} ${anime.release_year}`;
-  if (anime.release_month && anime.release_year)
-    return `${anime.release_month} ${anime.release_year}`;
-  if (anime.release_year) return String(anime.release_year);
+export function getReleaseFallback(entry) {
+  const date = entry.release_date;
+  if (entry.release_season && date)
+    return `${entry.release_season} ${String(date).slice(0, 4)}`;
+  if (date) return formatReleaseDate(date);
   return "TBA";
 }
 

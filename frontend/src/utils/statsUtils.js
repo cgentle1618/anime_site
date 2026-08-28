@@ -23,7 +23,6 @@ export function getDisplayName(f) {
 }
 
 export function getEntryYear(entry) {
-  if (entry.release_year != null) return parseInt(entry.release_year, 10) || 0;
   const d =
     entry.release_date_jp ||
     entry.release_date_tw ||

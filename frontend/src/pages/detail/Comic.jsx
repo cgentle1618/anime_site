@@ -1,5 +1,6 @@
 // Frontend: page component file for Comic.
 import { useState, useEffect, useMemo } from "react";
+import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
@@ -170,14 +171,11 @@ export default function Comic() {
     ? "bg-gray-50 text-gray-500 cursor-not-allowed"
     : "";
 
-  const yearRange =
-    comic.release_year != null
-      ? `${comic.release_year}${
-          comic.end_year && comic.end_year !== comic.release_year
-            ? ` – ${comic.end_year}`
-            : ""
-        }`
-      : null;
+  const startYear = releaseYear(comic.release_date);
+  const endYear = releaseYear(comic.end_date);
+  const yearRange = startYear
+    ? `${startYear}${endYear && endYear !== startYear ? ` – ${endYear}` : ""}`
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">

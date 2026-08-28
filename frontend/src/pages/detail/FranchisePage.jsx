@@ -1,5 +1,6 @@
 // Frontend: page component file for FranchisePage.
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { releaseScore, releaseYear } from "../../lib/releaseDate";
 import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
@@ -50,59 +51,21 @@ function getWatchingGroup(status) {
   return "Might Watch";
 }
 
-const MONTH_MAP = {
-  JAN: 1,
-  FEB: 2,
-  MAR: 3,
-  APR: 4,
-  MAY: 5,
-  JUN: 6,
-  JUL: 7,
-  AUG: 8,
-  SEP: 9,
-  OCT: 10,
-  NOV: 11,
-  DEC: 12,
-};
-
 function animeDateScore(a) {
-  return (
-    (parseInt(a.release_year) || 0) * 100 +
-    (MONTH_MAP[(a.release_month || "").toUpperCase()] || 0)
-  );
+  return releaseScore(a.release_date);
 }
 
 function animeMovieDateScore(m) {
-  const raw = m.release_date_jp || m.release_date_tw || "";
-  if (!raw) return 0;
-  const parts = String(raw).trim().split(/[-\s]/);
-  return (
-    (parseInt(parts[0]) || 0) * 10000 +
-    (parseInt(parts[1]) || 0) * 100 +
-    (parseInt(parts[2]) || 0)
-  );
+  return releaseScore(m.release_date_jp || m.release_date_tw);
 }
 
+// TW first, matching the stored release priority for movies.
 function movieDateScore(m) {
-  const raw = m.release_date_usa || m.release_date_tw || "";
-  if (!raw) return 0;
-  const parts = String(raw).trim().split(/[-\s]/);
-  return (
-    (parseInt(parts[0]) || 0) * 10000 +
-    (parseInt(parts[1]) || 0) * 100 +
-    (parseInt(parts[2]) || 0)
-  );
+  return releaseScore(m.release_date_tw || m.release_date_usa);
 }
 
 function tvDateScore(t) {
-  const raw = t.release_date || "";
-  if (!raw) return 0;
-  const parts = String(raw).trim().split(/[-\s]/);
-  return (
-    (parseInt(parts[0]) || 0) * 10000 +
-    (parseInt(parts[1]) || 0) * 100 +
-    (parseInt(parts[2]) || 0)
-  );
+  return releaseScore(t.release_date);
 }
 
 
@@ -173,7 +136,7 @@ export default function FranchisePage() {
   // ── Comic tab state ───────────────────────────────────────────────────────
   // Grouping defaults on: a comic franchise is a shelf of many short runs, so
   // the series rail is what makes the tab readable.
-  const [comicSort, setComicSort] = useState("release_year");
+  const [comicSort, setComicSort] = useState("release_date");
   const [comicGroupBySeries, setComicGroupBySeries] = useState(true);
   const [comicFilters, setComicFilters] = useState({
     comicType: new Set(),
@@ -585,12 +548,12 @@ export default function FranchisePage() {
         const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
         if (wA !== wB) return wB - wA;
       }
-      if (mangaSort === "release_year")
+      if (mangaSort === "release_date")
         return (
-          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0)
+          releaseScore(a.release_date) - releaseScore(b.release_date)
         );
-      if (mangaSort === "end_year")
-        return (parseInt(a.end_year) || 0) - (parseInt(b.end_year) || 0);
+      if (mangaSort === "end_date")
+        return releaseScore(a.end_date) - releaseScore(b.end_date);
       return (a.manga_name_cn || a.manga_name_en || "").localeCompare(
         b.manga_name_cn || b.manga_name_en || "",
       );
@@ -651,12 +614,12 @@ export default function FranchisePage() {
         const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
         if (wA !== wB) return wB - wA;
       }
-      if (novelSort === "release_year")
+      if (novelSort === "release_date")
         return (
-          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0)
+          releaseScore(a.release_date) - releaseScore(b.release_date)
         );
-      if (novelSort === "end_year")
-        return (parseInt(a.end_year) || 0) - (parseInt(b.end_year) || 0);
+      if (novelSort === "end_date")
+        return releaseScore(a.end_date) - releaseScore(b.end_date);
       return (a.novel_name_cn || a.novel_name_en || "").localeCompare(
         b.novel_name_cn || b.novel_name_en || "",
       );
@@ -719,9 +682,9 @@ export default function FranchisePage() {
     result.sort((a, b) => {
       if (comicSort === "my_rating")
         return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (comicSort === "release_year") {
+      if (comicSort === "release_date") {
         const diff =
-          (parseInt(a.release_year) || 0) - (parseInt(b.release_year) || 0);
+          releaseScore(a.release_date) - releaseScore(b.release_date);
         if (diff !== 0) return diff;
       }
       return (a.comic_name_en || a.comic_name_cn || "").localeCompare(
@@ -1558,8 +1521,8 @@ export default function FranchisePage() {
                 <option value="title">Sort: Title</option>
                 <option value="my_rating">Sort: My Rating</option>
                 <option value="mal_rating">Sort: MAL Rating</option>
-                <option value="release_year">Sort: Release Year</option>
-                <option value="end_year">Sort: End Year</option>
+                <option value="release_date">Sort: Release Date</option>
+                <option value="end_date">Sort: End Date</option>
               </select>
 
               <div className="w-px h-5 bg-gray-200"></div>
@@ -1695,8 +1658,8 @@ export default function FranchisePage() {
                 <option value="title">Sort: Title</option>
                 <option value="my_rating">Sort: My Rating</option>
                 <option value="mal_rating">Sort: MAL Rating</option>
-                <option value="release_year">Sort: Release Year</option>
-                <option value="end_year">Sort: End Year</option>
+                <option value="release_date">Sort: Release Date</option>
+                <option value="end_date">Sort: End Date</option>
               </select>
 
               <div className="w-px h-5 bg-gray-200"></div>
@@ -1826,7 +1789,7 @@ export default function FranchisePage() {
               onChange={(e) => setComicSort(e.target.value)}
               className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
             >
-              <option value="release_year">Sort: Release Year</option>
+              <option value="release_date">Sort: Release Date</option>
               <option value="title">Sort: Title</option>
               <option value="my_rating">Sort: My Rating</option>
             </select>

@@ -516,16 +516,12 @@ export default function Novel() {
                 ],
                 [
                   {
-                    label: "Release Year",
-                    value:
-                      novel.release_year != null
-                        ? String(novel.release_year)
-                        : null,
+                    label: "Release Date",
+                    value: novel.release_date || null,
                   },
                   {
-                    label: "End Year",
-                    value:
-                      novel.end_year != null ? String(novel.end_year) : null,
+                    label: "End Date",
+                    value: novel.end_date || null,
                   },
                 ],
                 [

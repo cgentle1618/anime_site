@@ -1,5 +1,6 @@
 // Frontend: page component file for LibraryComic.
 import LibraryLayout from "../../components/layout/LibraryLayout";
+import { releaseScore } from "../../lib/releaseDate";
 import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
 import {
   READING_STATUS_GROUP,
@@ -30,7 +31,7 @@ const COMIC_LIBRARY_CONFIG = {
       item.volume_label, item.writer,
       f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_roman,
       s?.series_name_cn,   s?.series_name_en,   s?.series_name_alt,
-      String(item.release_year ?? ""),
+      String(item.release_date ?? ""),
     ].filter(Boolean).join(" ");
   },
 
@@ -81,9 +82,9 @@ const COMIC_LIBRARY_CONFIG = {
         getTitle(a).localeCompare(getTitle(b), undefined, { numeric: true }),
     },
     {
-      key: "release_year",
-      label: "Release Year",
-      compare: (a, b) => (b.release_year ?? 0) - (a.release_year ?? 0),
+      key: "release_date",
+      label: "Release Date",
+      compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
     {
       key: "my_rating",

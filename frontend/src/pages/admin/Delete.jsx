@@ -1108,7 +1108,7 @@ export default function Delete() {
                   </div>
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
-                    {item.release_year || "—"}
+                    {item.release_date || "—"}
                   </div>
                 </div>
               )}
@@ -1206,7 +1206,7 @@ export default function Delete() {
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)}
                     {item.type ? ` · ${item.type}` : ""}
-                    {item.release_year ? ` · ${item.release_year}` : ""}
+                    {item.release_date ? ` · ${item.release_date}` : ""}
                   </div>
                 </div>
               )}
@@ -1309,7 +1309,7 @@ export default function Delete() {
                   <div className="text-[11px] text-gray-500">
                     {getFranchiseTitle(item.franchise_id)}
                     {item.comic_type ? ` · ${item.comic_type}` : ""}
-                    {item.release_year ? ` · ${item.release_year}` : ""}
+                    {item.release_date ? ` · ${item.release_date}` : ""}
                   </div>
                 </div>
               )}

@@ -1,5 +1,6 @@
 // Frontend: page component file for Anime.
 import { useState, useEffect, useMemo } from "react";
+import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -177,13 +178,11 @@ export default function Anime() {
     : null;
 
   const releaseSeasonYear =
-    anime.release_season && anime.release_year
-      ? `${anime.release_season} ${anime.release_year}`
+    anime.release_season && anime.release_date
+      ? `${anime.release_season} ${releaseYear(anime.release_date)}`
       : anime.release_season || null;
-  const releaseMonthYear =
-    anime.release_month && anime.release_year
-      ? `${anime.release_month} ${anime.release_year}`
-      : anime.release_month || anime.release_year || null;
+  // Shown verbatim: a year-only date must not be dressed up as a month.
+  const releaseDate = anime.release_date || null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -445,7 +444,7 @@ export default function Anime() {
                   { label: "Airing Type", value: anime.airing_type },
                   { label: "Airing Status", value: anime.airing_status },
                   { label: "Release Season", value: releaseSeasonYear },
-                  { label: "Release Date", value: releaseMonthYear },
+                  { label: "Release Date", value: releaseDate },
                 ],
                 { label: "Genre (Main)", value: anime.genre_main },
                 { label: "Genre (Sub)", value: anime.genre_sub },

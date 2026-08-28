@@ -1,5 +1,6 @@
 // Frontend: plan page file for PlanToWatchFuture.
 import { useState, useEffect, useMemo } from "react";
+import { releaseYear } from "../../lib/releaseDate";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
 
@@ -22,7 +23,8 @@ function seasonRawToKey(raw) {
 }
 
 function getAnimeSeasonKey(anime) {
-  const { release_year: year, release_season: season } = anime;
+  const year = releaseYear(anime.release_date) || null;
+  const season = anime.release_season;
   if (year && season && SEASON_ORDER[season] !== undefined)
     return `S_${year}_${SEASON_ORDER[season]}`;
   if (year) return `Y_${year}`;
@@ -40,7 +42,7 @@ function isFutureRelease(entry, currentSeasonKey) {
 
 function getEntryYear(entry) {
   if (entry._type === "anime") {
-    return entry.release_year ? String(entry.release_year) : "TBD";
+    return releaseYear(entry.release_date) ? String(releaseYear(entry.release_date)) : "TBD";
   }
   if (entry._type === "anime_movie") {
     const d = entry.release_date_jp || entry.release_date_tw;
