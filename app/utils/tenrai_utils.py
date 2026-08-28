@@ -97,10 +97,10 @@ def _extract_date_parts(
     try:
         # Standardize the 'Z' UTC suffix to +00:00 for Python's fromisoformat
         dt = datetime.fromisoformat(date_iso.replace("Z", "+00:00"))
-        release_year = str(dt.year)
-        release_month = MONTH_MAP.get(dt.month)
-        release_date = dt.strftime("%Y-%m-%d")
-        return release_year, release_month, release_date
+        year = str(dt.year)
+        month = MONTH_MAP.get(dt.month)
+        full_date = dt.strftime("%Y-%m-%d")
+        return year, month, full_date
     except (ValueError, TypeError):
         return None, None, None
 
