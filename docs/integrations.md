@@ -395,3 +395,14 @@ GCS stores media entry cover images. Locally, images are saved to `static/covers
 - Object key: `{system_id}.jpg` — flat structure, no subdirectories.
 - Database field: `cover_image_file` stores the filename string `"{system_id}.jpg"`. Full URL is constructed at read time via `getCoverUrl()` in the frontend utils.
 - `cover_image_exists(system_id)` checks GCS or local filesystem before downloading to avoid redundant fetches.
+
+---
+
+### Watch Order Section tab
+
+Backup writes a `Watch Order Section` tab from `WatchOrderSection.__table__.columns`.
+
+Pull restores it **between** `Watch Order List` and `Watch Order Item`: a
+section belongs to a list and is pointed at by items, so both FK ends only
+resolve in that order. An unparseable `list_id` or `section_id` cell becomes
+`None` rather than failing the Pull — a step then restores ungrouped.

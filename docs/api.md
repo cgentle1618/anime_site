@@ -681,3 +681,26 @@ All endpoints in this router require admin authentication.
 | Method | Path           | Description                                                                                          |
 | ------ | -------------- | ---------------------------------------------------------------------------------------------------- |
 | `POST` | `/test-bucket` | Test GCS write permissions by uploading a diagnostic image. Returns `{status, message, public_url}`. |
+
+---
+
+## Watch Order — Sections
+
+The grouping tier above a watch order's items. All five require admin, and all
+refuse a built-in (generated) list, the same way the item endpoints do.
+
+| Method | Path | Body | Notes |
+| --- | --- | --- | --- |
+| POST | `/api/watch-order/lists/{system_id}/sections` | `WatchOrderSectionCreate` | Appends unless `position` is given. |
+| PUT | `/api/watch-order/sections/{section_id}` | `WatchOrderSectionUpdate` | Full update. |
+| PATCH | `/api/watch-order/sections/{section_id}` | free dict | Partial: name, position, remark. |
+| DELETE | `/api/watch-order/sections/{section_id}` | — | Steps are **not** deleted; `section_id` is SET NULL and they become ungrouped. |
+| PUT | `/api/watch-order/lists/{system_id}/sections/reorder` | `WatchOrderSectionReorder` | Renumbers 1..N. Payload must name every section exactly once. |
+
+`GET /api/watch-order/lists/{system_id}` now also returns `sections`. `items`
+stays a **flat list in reading order** with sections applied — the guide reads
+top to bottom, and each item names its `section_id`, so a client groups by
+walking the flat list once rather than flattening a nested shape.
+
+An item may only name a section of its own list; `POST`/`PUT`/`PATCH` on an
+item reject a foreign `section_id` with 400.

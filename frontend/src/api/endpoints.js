@@ -71,6 +71,12 @@ export const endpoints = {
     patchItem: (itemId) => `/api/watch-order/items/${itemId}`,
     removeItem: (itemId) => `/api/watch-order/items/${itemId}`,
     reorder: (listId) => `/api/watch-order/lists/${listId}/reorder`,
+    createSection: (listId) => `/api/watch-order/lists/${listId}/sections`,
+    updateSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
+    patchSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
+    removeSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
+    reorderSections: (listId) =>
+      `/api/watch-order/lists/${listId}/sections/reorder`,
     candidates: () => "/api/watch-order/candidates",
     createRelease: () => "/api/watch-order/lists/release",
     backfillRelease: () => "/api/watch-order/lists/release/backfill",

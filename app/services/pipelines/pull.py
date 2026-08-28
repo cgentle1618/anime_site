@@ -25,6 +25,7 @@ from app.models import (
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
+    WatchOrderSection,
     MediaRelation,
     Quote,
     Meme,
@@ -50,6 +51,7 @@ from app.utils.formatter import (
     parse_seasonal_from_sheet,
     parse_watch_order_list_from_sheet,
     parse_watch_order_item_from_sheet,
+    parse_watch_order_section_from_sheet,
     parse_media_relation_from_sheet,
     parse_quote_from_sheet,
     parse_meme_from_sheet,
@@ -135,6 +137,7 @@ def execute_pull_specific(
         "System Configs": SystemConfigs,
         "Seasonal": Seasonal,
         "Watch Order List": WatchOrderList,
+        "Watch Order Section": WatchOrderSection,
         "Watch Order Item": WatchOrderItem,
         "Media Relation": MediaRelation,
         "Quote": Quote,
@@ -158,6 +161,7 @@ def execute_pull_specific(
         "System Configs": parse_system_config_from_sheet,
         "Seasonal": parse_seasonal_from_sheet,
         "Watch Order List": parse_watch_order_list_from_sheet,
+        "Watch Order Section": parse_watch_order_section_from_sheet,
         "Watch Order Item": parse_watch_order_item_from_sheet,
         "Media Relation": parse_media_relation_from_sheet,
         "Quote": parse_quote_from_sheet,
@@ -810,6 +814,9 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         # Lists before Items (FK parent first), and both after every media tab
         # so a freshly restored guide points at rows that already exist.
         "Watch Order List",
+        # Sections between the two: they belong to a List and are pointed at
+        # by Items, so both FK ends resolve only in this order.
+        "Watch Order Section",
         "Watch Order Item",
         # Relations join two media rows through FK-less (media_type, entry_id)
         # pairs, so both endpoints must already exist.

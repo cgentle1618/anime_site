@@ -57,6 +57,7 @@ function ItemRow({
   item,
   index,
   total,
+  sections,
   onPatch,
   onRemove,
   onMove,
@@ -270,6 +271,28 @@ function ItemRow({
           click instead of two. The active colors are the guide's badge colors,
           so a step reads the same in the editor as it does on the page.
         */}
+        {/*
+          The part this step is filed under. Offered only once the order has
+          parts to file into - on a flat guide the control would be a select
+          with nothing but "No part" in it.
+        */}
+        {sections.length > 0 && (
+          <select
+            value={item.section_id || ""}
+            onChange={(e) =>
+              onPatch(item.system_id, { section_id: e.target.value || null })
+            }
+            className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand max-w-[220px]"
+          >
+            <option value="">No part</option>
+            {sections.map((section) => (
+              <option key={section.system_id} value={section.system_id}>
+                {section.section_name || "Untitled Section"}
+              </option>
+            ))}
+          </select>
+        )}
+
         <div
           role="group"
           aria-label="Importance"
@@ -505,6 +528,142 @@ function EntryPicker({ candidates, items, onAdd, disabled }) {
   );
 }
 
+/**
+ * The parts of one order: the tier above its steps.
+ *
+ * Deliberately separate from the step list rather than interleaved with it.
+ * A part is reordered, renamed and annotated as a unit, and doing that from
+ * inside a 235-row step list would mean hunting for the row a heading happens
+ * to sit on.
+ */
+function SectionsPanel({
+  sections,
+  onAdd,
+  onPatch,
+  onRemove,
+  onMove,
+  busy,
+}) {
+  const [open, setOpen] = useState(sections.length > 0);
+
+  return (
+    <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+      >
+        <i
+          className={`fas fa-chevron-right text-[10px] text-gray-400 transition-transform ${
+            open ? "rotate-90" : ""
+          }`}
+        ></i>
+        <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
+          Parts
+        </span>
+        <span className="text-[10px] font-bold text-gray-400 bg-white px-1.5 py-0.5 rounded-full border border-gray-200">
+          {sections.length}
+        </span>
+      </button>
+
+      {open && (
+        <div className="p-3 space-y-2">
+          {sections.length === 0 && (
+            <p className="text-xs font-medium text-gray-400">
+              No parts yet. An order without parts reads as one flat list —
+              which is exactly how every order behaved before parts existed.
+            </p>
+          )}
+
+          {sections.map((section, i) => (
+            <div
+              key={section.system_id}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  disabled={busy || i === 0}
+                  onClick={() => onMove(i, i - 1)}
+                  className="text-gray-300 hover:text-brand disabled:opacity-30 leading-none"
+                  aria-label="Move part up"
+                >
+                  <i className="fas fa-caret-up text-xs"></i>
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || i === sections.length - 1}
+                  onClick={() => onMove(i, i + 1)}
+                  className="text-gray-300 hover:text-brand disabled:opacity-30 leading-none"
+                  aria-label="Move part down"
+                >
+                  <i className="fas fa-caret-down text-xs"></i>
+                </button>
+              </div>
+              <span className="text-[11px] font-black text-gray-300 w-5 text-center">
+                {i + 1}
+              </span>
+              <SectionFields section={section} onPatch={onPatch} />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onRemove(section.system_id)}
+                className="text-gray-300 hover:text-red-500 disabled:opacity-30"
+                aria-label="Delete part"
+              >
+                <i className="fas fa-trash text-xs"></i>
+              </button>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onAdd}
+            className="text-xs font-bold text-brand hover:underline disabled:opacity-40"
+          >
+            <i className="fas fa-plus text-[10px] mr-1"></i>
+            Add part
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Name and remark for one part, committed on blur like every other field here. */
+function SectionFields({ section, onPatch }) {
+  const [name, setName] = useState(section.section_name ?? "");
+  const [remark, setRemark] = useState(section.remark ?? "");
+
+  useEffect(() => {
+    setName(section.section_name ?? "");
+    setRemark(section.remark ?? "");
+  }, [section.section_name, section.remark]);
+
+  return (
+    <>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => onPatch(section.system_id, { section_name: name })}
+        placeholder="Part name…"
+        className="flex-1 min-w-[180px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+      />
+      <input
+        type="text"
+        value={remark}
+        onChange={(e) => setRemark(e.target.value)}
+        onBlur={() => onPatch(section.system_id, { remark })}
+        placeholder="Part note…"
+        className="flex-1 min-w-[180px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+      />
+    </>
+  );
+}
+
+
 export default function WatchOrderEditor({ listId, onListChanged }) {
   const { showToast } = useToast();
 
@@ -633,6 +792,78 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           i.system_id === itemId ? { ...i, ...updated } : i
         ),
       }));
+    } catch (e) {
+      showToast("error", e.message);
+      loadList();
+    }
+  }
+
+  const sections = list?.sections || [];
+
+  async function addSection() {
+    try {
+      const res = await send(endpoints.watchOrder.createSection(listId), "POST", {
+        section_name: `Part ${sections.length + 1}`,
+      });
+      const created = await res.json();
+      setList((prev) => ({ ...prev, sections: [...(prev.sections || []), created] }));
+    } catch (e) {
+      showToast("error", e.message);
+    }
+  }
+
+  async function patchSection(sectionId, patch) {
+    try {
+      const res = await send(
+        endpoints.watchOrder.patchSection(sectionId),
+        "PATCH",
+        patch
+      );
+      const updated = await res.json();
+      setList((prev) => ({
+        ...prev,
+        sections: (prev.sections || []).map((s) =>
+          s.system_id === sectionId ? { ...s, ...updated } : s
+        ),
+      }));
+    } catch (e) {
+      showToast("error", e.message);
+      loadList();
+    }
+  }
+
+  async function removeSection(sectionId) {
+    try {
+      await send(endpoints.watchOrder.removeSection(sectionId), "DELETE");
+      // The steps survive — the FK is SET NULL — so they are unfiled here
+      // rather than dropped, matching what the server just did.
+      setList((prev) => ({
+        ...prev,
+        sections: (prev.sections || []).filter((s) => s.system_id !== sectionId),
+        items: (prev.items || []).map((i) =>
+          i.section_id === sectionId ? { ...i, section_id: null } : i
+        ),
+      }));
+      onListChanged?.();
+    } catch (e) {
+      showToast("error", e.message);
+      loadList();
+    }
+  }
+
+  async function moveSection(from, to) {
+    if (to < 0 || to >= sections.length) return;
+    const ids = sections.map((s) => s.system_id);
+    const [moved] = ids.splice(from, 1);
+    ids.splice(to, 0, moved);
+    try {
+      const res = await send(
+        endpoints.watchOrder.reorderSections(listId),
+        "PUT",
+        { section_ids: ids }
+      );
+      setList(await res.json());
+      onListChanged?.();
     } catch (e) {
       showToast("error", e.message);
       loadList();
@@ -819,6 +1050,17 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         />
       )}
 
+      {!isBuiltIn && (
+        <SectionsPanel
+          sections={sections}
+          onAdd={addSection}
+          onPatch={patchSection}
+          onRemove={removeSection}
+          onMove={moveSection}
+          busy={busy}
+        />
+      )}
+
       {list.items.length === 0 ? (
         <p className="text-center py-8 text-sm font-medium text-gray-400">
           No steps yet — add entries above.
@@ -830,6 +1072,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
               key={item.system_id}
               item={item}
               index={i + 1}
+              sections={sections}
               readOnly={isBuiltIn}
               isFirst={i === 0}
               total={list.items.length}

@@ -171,6 +171,22 @@ def parse_watch_order_list_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_watch_order_section_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Watch Order Section sheet into typed data
+    ready for the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "list_id": _uuid_or_none(raw.get("list_id")),
+        "position": parse_from_sheet(raw.get("position"), float),
+        "section_name": parse_from_sheet(raw.get("section_name"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Watch Order Item sheet into typed data
@@ -185,6 +201,9 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
         # media_type names - so an unparseable cell becomes None and the row
         # shows up in the guide as a missing step.
         "entry_id": _uuid_or_none(raw.get("entry_id")),
+        # Real FK, unlike entry_id: an unparseable cell becomes None and the
+        # step restores ungrouped rather than pointing at nothing.
+        "section_id": _uuid_or_none(raw.get("section_id")),
         "ep_start": parse_from_sheet(raw.get("ep_start"), int),
         "ep_end": parse_from_sheet(raw.get("ep_end"), int),
         # Coerced, not validated: a blank cell, or a row backed up before the

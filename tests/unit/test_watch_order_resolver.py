@@ -51,6 +51,9 @@ def make_item(media_type, entry_id, **overrides):
         "system_id": uuid.uuid4(),
         "list_id": uuid.uuid4(),
         "position": 1.0,
+        # None is the default state: a step belongs to a section only once an
+        # admin files it into one, and most orders have no sections at all.
+        "section_id": None,
         "media_type": media_type,
         "entry_id": entry_id,
         "ep_start": None,

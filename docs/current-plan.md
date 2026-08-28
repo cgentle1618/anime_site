@@ -179,3 +179,83 @@ Tests: `tests/unit/test_comic_duplicates.py` (9), plus a comic case in
 
 The plan pages. `comic.read_next` and `comic.to_reread` remain columns with no
 UI, as they were when the table was created.
+
+---
+
+## Watch Order Sections + the Krakoan Reading Orders
+
+### Context
+
+Importing the Ultimate Krakoan × A.X.E. reading guide
+(`UltimateKrakoanAXEReadingOrder.pdf`) needed something the watch order system
+did not have: the guide is authored in eleven **parts**, and a flat list of 243
+steps loses that entirely.
+
+The first design proposed a nullable `section` string on `watch_order_item`,
+rendered by grouping consecutive equal values. **That was rejected as too
+weak** — a part is a real tier above the step, not a label on it, in the same
+way a Collection is a tier above a Franchise.
+
+### The tier
+
+`watch_order_section`, mirroring `collection` → `franchise`:
+
+- The section owns its identity, `position`, `section_name` and `remark`.
+- `list_id` is **CASCADE** — a section has no meaning outside its list. This
+  is where it differs from Collection, which is standalone.
+- `watch_order_item.section_id` is **SET NULL** — deleting a part leaves its
+  steps in the order, unsectioned, exactly as a deleted Collection leaves its
+  franchises uncollected.
+
+**Ordering:** sections by `position`, steps within a section by the step's own
+`position`, and steps with no section ahead of every section. That last rule
+is what makes it backward compatible — verified against all 8 pre-existing
+lists with items, none of which changed order.
+
+### Status
+
+**Implemented.**
+
+| Piece | Where |
+| --- | --- |
+| Model + `section_id` | `app/models/watch_order.py` |
+| Migration | `alembic/versions/ws1e2c3t4i5n_add_watch_order_section.py` |
+| Schemas | `app/schemas/watch_order.py` |
+| Ordering rule | `sort_items_by_section` in `app/services/domain/watch_order.py` |
+| Section CRUD + reorder | `app/routers/watch_order.py` |
+| Sheets round-trip | `formatter.py`, `backup.py`, `pull.py` (new `Watch Order Section` tab) |
+| Guide headings | `WatchOrderGuide.jsx` |
+| Parts panel + per-step selector | `WatchOrderEditor.jsx` |
+
+Tests: `tests/unit/test_watch_order_sections.py` (11), plus four added to
+`test_formatter_watch_order.py`. No migration drift — DB is at `ws1e2c3t4i5n`.
+
+### The two reading orders
+
+Seeded onto the **Marvel Comics** franchise. Entries were matched on
+`(comic_name_en, release_year)`, which is unique across all 99 comic rows and
+is exactly the PDF's own `Series Title (Year) #Issue` format. Zero unresolved
+entries; the seeder rolls back rather than writing a partial list.
+
+| List | Sections | Steps |
+| --- | --- | --- |
+| Ultimate Krakoan × A.X.E. Reading Order (most recommended) | 11 | 243 |
+| The Combined Core 精簡整合路線 | 4 | 83 |
+
+Importance came straight from the guide's legend: ★ Essential (139),
+◆ Recommended (74), ○ Optional (30).
+
+### Decisions worth remembering
+
+- **Issue ranges carried the whole import.** `ep_start`/`ep_end` on comic
+  steps — shipped in the comic parity pass — is what lets `X-Men (2021) #7-12`
+  be one step rather than six.
+- **The guide's split rules fall out of the data model for free.** Immortal
+  X-Men stopping at #4 and resuming at #8 is just two items pointing at the
+  same entry, which `watch_order_item` was always designed to allow.
+- **`X-Force (2019) #33` is filed at the head of Part 7**, not at its slot in
+  Part 6 — the guide's own recommendation, because its ending spoils the
+  event's conclusion. The step's note says so.
+- **Hellfire Gala blocks intentionally repeat issues** already covered by the
+  run ranges above them. That is how the guide prints them: the ranges say
+  what to read, the Gala block says in what order to interleave them.

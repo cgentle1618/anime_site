@@ -29,6 +29,7 @@ from app.services.domain.watch_order import (
     entry_exists,
     list_candidate_entries,
     resolve_items,
+    sort_items_by_section,
 )
 from app.utils.data_control_utils import log_deleted_record
 
@@ -62,6 +63,52 @@ def _get_item_or_404(db: Session, item_id: str) -> models.WatchOrderItem:
     if not db_item:
         raise HTTPException(status_code=404, detail="Watch order item not found.")
     return db_item
+
+
+def _get_section_or_404(db: Session, section_id: str) -> models.WatchOrderSection:
+    db_section = (
+        db.query(models.WatchOrderSection)
+        .filter(models.WatchOrderSection.system_id == section_id)
+        .first()
+    )
+    if not db_section:
+        raise HTTPException(status_code=404, detail="Watch order section not found.")
+    return db_section
+
+
+def _next_section_position(db: Session, list_id) -> float:
+    """Appends after the last section of this list."""
+    last = (
+        db.query(models.WatchOrderSection.position)
+        .filter(models.WatchOrderSection.list_id == list_id)
+        .order_by(models.WatchOrderSection.position.desc().nullslast())
+        .first()
+    )
+    return float((last[0] or 0) + 1) if last and last[0] is not None else 1.0
+
+
+def _validate_section(db: Session, db_list, section_id) -> None:
+    """
+    A step may only be filed under a section of its own list.
+
+    Without this an admin could point a step at another order's part, which
+    would read as ungrouped (the sort treats a foreign section as no section)
+    and be invisible to fix.
+    """
+    if section_id is None:
+        return
+    db_section = (
+        db.query(models.WatchOrderSection)
+        .filter(models.WatchOrderSection.system_id == section_id)
+        .first()
+    )
+    if not db_section:
+        raise HTTPException(status_code=400, detail="Section not found.")
+    if db_section.list_id != db_list.system_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Section belongs to a different watch order.",
+        )
 
 
 def _validate_owner(franchise_id, collection_id, series_id=None) -> None:
@@ -435,6 +482,12 @@ def get_watch_order_lists(
 def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
     """Retrieves one watch order with its items resolved to display data."""
     db_list = _get_list_or_404(db, system_id)
+    sections = (
+        db.query(models.WatchOrderSection)
+        .filter(models.WatchOrderSection.list_id == db_list.system_id)
+        .order_by(models.WatchOrderSection.position.asc().nullslast())
+        .all()
+    )
 
     # Any built-in kind, not just the cross-type one.
     if db_list.auto_source in BUILT_IN_KINDS:
@@ -454,6 +507,9 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
             .order_by(models.WatchOrderItem.position.asc().nullslast())
             .all()
         )
+        # Ordered across the section tier, not by position alone. A list with
+        # no sections comes back in exactly the order the query already had.
+        items = sort_items_by_section(items, sections)
         resolved = resolve_items(db, items)
 
     payload = _serialize(
@@ -464,6 +520,7 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
         },
     )
     payload["items"] = resolved
+    payload["sections"] = sections
     return payload
 
 
@@ -1035,6 +1092,7 @@ def create_watch_order_item(
     _reject_if_generated(db_list)
     _validate_entry(db, payload.media_type, payload.entry_id)
     _validate_importance(payload.importance)
+    _validate_section(db, db_list, payload.section_id)
 
     data = payload.model_dump(exclude_unset=True)
     if data.get("position") is None:
@@ -1074,6 +1132,7 @@ def update_watch_order_item(
 
     _validate_entry(db, db_item.media_type, db_item.entry_id)
     _validate_importance(db_item.importance)
+    _validate_section(db, db_item.parent_list, db_item.section_id)
 
     db_item.updated_at = get_taipei_now()
     db.commit()
@@ -1102,6 +1161,7 @@ def patch_watch_order_item(
 
     _validate_entry(db, db_item.media_type, db_item.entry_id)
     _validate_importance(db_item.importance)
+    _validate_section(db, db_item.parent_list, db_item.section_id)
 
     db_item.updated_at = get_taipei_now()
     db.commit()
@@ -1161,6 +1221,164 @@ def reorder_watch_order_items(
     for index, item_id in enumerate(payload.item_ids, start=1):
         by_id[item_id].position = float(index)
         by_id[item_id].updated_at = get_taipei_now()
+
+    db_list.updated_at = get_taipei_now()
+    db.commit()
+
+    return get_watch_order_list(system_id, db)
+
+
+# ==========================================
+# SECTIONS
+# ==========================================
+
+
+@router.post(
+    "/lists/{system_id}/sections",
+    response_model=schemas.WatchOrderSectionResponse,
+    summary="Add Watch Order Section",
+)
+def create_watch_order_section(
+    system_id: str,
+    payload: schemas.WatchOrderSectionCreate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Adds a part to a watch order. Appends unless `position` is given.
+
+    Sections are the tier a long guide is authored in - "Part 3 - X of Swords"
+    - and are reordered and renamed as a unit, independently of the steps
+    filed under them.
+    """
+    db_list = _get_list_or_404(db, system_id)
+    _reject_if_generated(db_list)
+
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("position") is None:
+        data["position"] = _next_section_position(db, db_list.system_id)
+
+    new_section = models.WatchOrderSection(
+        **data,
+        system_id=uuid.uuid4(),
+        list_id=db_list.system_id,
+        created_at=get_taipei_now(),
+        updated_at=get_taipei_now(),
+    )
+    db.add(new_section)
+    db.commit()
+    db.refresh(new_section)
+    return new_section
+
+
+@router.put(
+    "/sections/{section_id}",
+    response_model=schemas.WatchOrderSectionResponse,
+    summary="Update Watch Order Section",
+)
+def update_watch_order_section(
+    section_id: str,
+    payload: schemas.WatchOrderSectionUpdate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Fully updates one part of a watch order."""
+    db_section = _get_section_or_404(db, section_id)
+    _reject_if_generated(db_section.parent_list)
+
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_section, key, value)
+
+    db_section.updated_at = get_taipei_now()
+    db.commit()
+    db.refresh(db_section)
+    return db_section
+
+
+@router.patch(
+    "/sections/{section_id}",
+    response_model=schemas.WatchOrderSectionResponse,
+    summary="Patch Watch Order Section",
+)
+def patch_watch_order_section(
+    section_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """Partially updates a part (name, position, remark)."""
+    db_section = _get_section_or_404(db, section_id)
+    _reject_if_generated(db_section.parent_list)
+
+    for key, value in payload.items():
+        if hasattr(db_section, key):
+            setattr(db_section, key, value)
+
+    db_section.updated_at = get_taipei_now()
+    db.commit()
+    db.refresh(db_section)
+    return db_section
+
+
+@router.delete("/sections/{section_id}", summary="Delete Watch Order Section")
+def delete_watch_order_section(
+    section_id: str,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Removes one part. Its steps are NOT removed - `section_id` is SET NULL, so
+    they stay in the order and become ungrouped, the same way a deleted
+    Collection leaves its franchises uncollected.
+    """
+    db_section = _get_section_or_404(db, section_id)
+    _reject_if_generated(db_section.parent_list)
+    db.delete(db_section)
+    db.commit()
+    return {
+        "status": "success",
+        "message": "Watch order section deleted; its steps are now ungrouped.",
+    }
+
+
+@router.put(
+    "/lists/{system_id}/sections/reorder",
+    response_model=schemas.WatchOrderListDetailResponse,
+    summary="Reorder Watch Order Sections",
+)
+def reorder_watch_order_sections(
+    system_id: str,
+    payload: schemas.WatchOrderSectionReorder,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+):
+    """
+    Renumbers section positions to 1..N in the order the ids are given.
+
+    Like the item reorder, the payload must name every section of this list
+    exactly once - a partial payload would leave stale positions behind.
+    """
+    db_list = _get_list_or_404(db, system_id)
+    _reject_if_generated(db_list)
+
+    sections = (
+        db.query(models.WatchOrderSection)
+        .filter(models.WatchOrderSection.list_id == db_list.system_id)
+        .all()
+    )
+    by_id = {section.system_id: section for section in sections}
+
+    if len(payload.section_ids) != len(set(payload.section_ids)):
+        raise HTTPException(status_code=400, detail="Duplicate section ids in payload.")
+    if set(payload.section_ids) != set(by_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Reorder payload must list every section of this watch order exactly once.",
+        )
+
+    for index, section_id in enumerate(payload.section_ids, start=1):
+        by_id[section_id].position = float(index)
+        by_id[section_id].updated_at = get_taipei_now()
 
     db_list.updated_at = get_taipei_now()
     db.commit()

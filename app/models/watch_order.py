@@ -93,6 +93,12 @@ class WatchOrderList(Base):
         cascade="all, delete-orphan",
         order_by="WatchOrderItem.position",
     )
+    sections = relationship(
+        "WatchOrderSection",
+        back_populates="parent_list",
+        cascade="all, delete-orphan",
+        order_by="WatchOrderSection.position",
+    )
     franchise = relationship("Franchise", foreign_keys=[franchise_id])
     collection = relationship("Collection", foreign_keys=[collection_id])
     series = relationship("Series", foreign_keys=[series_id])
@@ -133,6 +139,18 @@ class WatchOrderItem(Base):
     media_type = Column(String, nullable=True)
     entry_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
+    # The optional grouping tier this step belongs to. SET NULL, not CASCADE:
+    # deleting a section must leave its steps in the list and simply
+    # unsectioned, exactly as a deleted Collection leaves its franchises
+    # uncollected. A step with no section is not an error - it is the state
+    # every step in every list was in before sections existed.
+    section_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("watch_order_section.system_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Both null = the whole entry.
     ep_start = Column(Integer, nullable=True)
     ep_end = Column(Integer, nullable=True)
@@ -149,3 +167,62 @@ class WatchOrderItem(Base):
 
     # Relationships
     parent_list = relationship("WatchOrderList", back_populates="items")
+    section = relationship("WatchOrderSection", back_populates="items")
+
+
+class WatchOrderSection(Base):
+    """
+    Optional grouping tier between a WatchOrderList and its items.
+
+    Stands to WatchOrderItem as Collection stands to Franchise: a tier with its
+    own identity, name and ordering - not a label carried on the step. A long
+    guide is authored in parts ("Part 3 - X of Swords"), and those parts are
+    the unit an admin reorders, renames and annotates.
+
+    Ownership differs from Collection in one way, on purpose. A Collection is
+    standalone and a Franchise may belong to none; a section has no meaning
+    outside its list, so `list_id` is CASCADE - deleting the order deletes its
+    parts with it. The item side keeps the Collection semantics: SET NULL, so
+    dropping a part leaves its steps behind rather than taking them with it.
+
+    ORDERING. Sections sort among themselves by `position`; items sort within
+    their section by the item's own `position`. Items with no section sort
+    ahead of every section, which is what makes this backward compatible: a
+    list authored before sections existed has no section rows, so its items
+    order by `position` alone, exactly as they always did.
+    """
+
+    __tablename__ = "watch_order_section"
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    list_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("watch_order_list.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Float, matching the item convention, so a part can be slotted between two
+    # others without renumbering the whole guide.
+    position = Column(Float, nullable=True)
+
+    section_name = Column(String, nullable=True)
+    # The part's own commentary - what the guide prints under its heading,
+    # separate from any one step's note.
+    remark = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    # Relationships
+    parent_list = relationship("WatchOrderList", back_populates="sections")
+    items = relationship(
+        "WatchOrderItem",
+        back_populates="section",
+        order_by="WatchOrderItem.position",
+    )
+
+    @property
+    def display_name(self) -> str:
+        return self.section_name or "Untitled Section"

@@ -118,6 +118,53 @@ _MISSING_PAYLOAD = {
 }
 
 
+def sort_items_by_section(items: Iterable[Any], sections: Iterable[Any]) -> List[Any]:
+    """
+    Puts a list's steps into reading order across the section tier.
+
+    Sections order among themselves by their own `position`; steps order within
+    a section by the step's `position`. A step with no section sorts ahead of
+    every section.
+
+    That last rule is what makes the tier backward compatible. A list authored
+    before sections existed has no section rows at all, so every step falls in
+    the leading group and the result is ordered by `position` alone - byte for
+    byte the order those lists have always had.
+
+    A step whose `section_id` points at a section of some *other* list, which
+    only a hand-edited Sheets restore could produce, is treated as ungrouped
+    rather than dropped: the guide shows it, and the admin can see it is
+    misfiled.
+    """
+    # Sections are ranked, not compared on `position` directly: a NULL
+    # position must sort last among sections without poisoning the item key.
+    # The original index is the tiebreak, so two sections sharing a position
+    # keep the order the caller supplied rather than swapping run to run.
+    ordered_sections = sorted(
+        enumerate(sections),
+        key=lambda pair: (
+            pair[1].position is None,
+            pair[1].position or 0.0,
+            pair[0],
+        ),
+    )
+    rank = {
+        section.system_id: float(index)
+        for index, (_original, section) in enumerate(ordered_sections)
+    }
+
+    def key(item):
+        section_rank = rank.get(item.section_id)
+        return (
+            0 if section_rank is None else 1,
+            section_rank or 0.0,
+            item.position is None,
+            item.position or 0.0,
+        )
+
+    return sorted(items, key=key)
+
+
 def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
     """
     Enriches watch_order_item rows with their referenced entry's display data.
@@ -150,6 +197,7 @@ def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
             "system_id": item.system_id,
             "list_id": item.list_id,
             "position": item.position,
+            "section_id": item.section_id,
             "media_type": item.media_type,
             "entry_id": item.entry_id,
             "ep_start": item.ep_start,

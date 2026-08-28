@@ -15,6 +15,9 @@ from pydantic import BaseModel, ConfigDict
 class WatchOrderItemBase(BaseModel):
     media_type: Optional[str] = None
     entry_id: Optional[UUID] = None
+    # The grouping tier this step sits in, or None for an ungrouped step.
+    # Ungrouped steps read ahead of every section.
+    section_id: Optional[UUID] = None
     position: Optional[float] = None
     ep_start: Optional[int] = None
     ep_end: Optional[int] = None
@@ -65,6 +68,34 @@ class WatchOrderItemResolved(WatchOrderItemResponse):
 
 
 # ==========================================
+# SECTION
+# ==========================================
+
+
+class WatchOrderSectionBase(BaseModel):
+    section_name: Optional[str] = None
+    position: Optional[float] = None
+    remark: Optional[str] = None
+
+
+class WatchOrderSectionCreate(WatchOrderSectionBase):
+    """`list_id` comes from the path, so it is not part of the body."""
+
+
+class WatchOrderSectionUpdate(WatchOrderSectionBase):
+    pass
+
+
+class WatchOrderSectionResponse(WatchOrderSectionBase):
+    system_id: UUID
+    list_id: UUID
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
 # LIST
 # ==========================================
 
@@ -106,7 +137,12 @@ class WatchOrderListResponse(WatchOrderListBase):
 
 
 class WatchOrderListDetailResponse(WatchOrderListResponse):
+    # `items` stays a flat list in reading order, sections included - the guide
+    # reads top to bottom and a nested shape would make that the client's job
+    # to flatten. `sections` carries the headings, and each item names its
+    # section_id, so the page groups by walking the flat list once.
     items: List[WatchOrderItemResolved] = []
+    sections: List[WatchOrderSectionResponse] = []
 
 
 # ==========================================
@@ -142,6 +178,12 @@ class WatchOrderReorder(BaseModel):
     item_ids: List[UUID]
 
 
+class WatchOrderSectionReorder(BaseModel):
+    """Ordered section ids; positions are renumbered 1..N to match."""
+
+    section_ids: List[UUID]
+
+
 # ==========================================
 # SHEET SYNC
 # ==========================================
@@ -156,6 +198,14 @@ class WatchOrderListSheetSync(WatchOrderListCreate):
 
 class WatchOrderItemSheetSync(WatchOrderItemCreate):
     """Schema for Google Sheets Watch Order Item sync, including timestamps."""
+
+    list_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class WatchOrderSectionSheetSync(WatchOrderSectionCreate):
+    """Schema for Google Sheets Watch Order Section sync, including timestamps."""
 
     list_id: Optional[UUID] = None
     created_at: Optional[datetime] = None

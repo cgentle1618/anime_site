@@ -3,7 +3,7 @@
 // Used in two places at two densities: compact inside the Franchise/Collection
 // page tab, roomy on the standalone /watch-order/:id page. Guests see it too,
 // so nothing here writes.
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ADMIN_TABS } from "../../config/adminTabs";
@@ -320,6 +320,13 @@ export default function WatchOrderGuide({
   const [filter, setFilter] = useState("all");
 
   const items = useMemo(() => list?.items || [], [list]);
+  // Sections are the optional tier above the steps. A list authored before the
+  // tier existed simply has none, and every step falls through as ungrouped.
+  const sectionById = useMemo(() => {
+    const map = new Map();
+    for (const section of list?.sections || []) map.set(section.system_id, section);
+    return map;
+  }, [list]);
   const optionalCount = items.filter((i) => i.importance === "Optional").length;
   const essentialCount = items.filter(
     (i) => i.importance === "Essential"
@@ -422,14 +429,47 @@ export default function WatchOrderGuide({
         1..N instead of leaving gaps the reader has to mentally close.
       */}
       <ol className="flex flex-col gap-2">
-        {shown.map((item, index) => (
-          <StepRow
-            key={item.system_id}
-            item={item}
-            index={index + 1}
-            roomy={roomy}
-          />
-        ))}
+        {shown.map((item, index) => {
+          // A heading is emitted where the section changes, walking the flat
+          // list the server already put in reading order. Comparing against
+          // the previous row rather than grouping up front keeps the step
+          // numbering continuous across the whole guide — the reader counts
+          // steps, not steps-within-a-part.
+          const previous = index > 0 ? shown[index - 1] : null;
+          const changed =
+            (item.section_id || null) !== (previous?.section_id || null);
+          const section = item.section_id
+            ? sectionById.get(item.section_id)
+            : null;
+          // Only a real section draws a heading. Crossing *out* of one into
+          // the ungrouped tail draws nothing: there is no heading to print,
+          // and a blank rule there would read as a missing title.
+          const heading = changed && section ? section : null;
+
+          return (
+            <Fragment key={item.system_id}>
+              {heading && (
+                <li className="list-none mt-4 first:mt-0">
+                  <div className="flex items-baseline gap-2 pb-1.5 border-b-2 border-gray-200">
+                    <h4
+                      className={`font-black text-gray-800 tracking-tight ${
+                        roomy ? "text-base" : "text-sm"
+                      }`}
+                    >
+                      {heading.section_name || "Untitled Section"}
+                    </h4>
+                  </div>
+                  {heading.remark && (
+                    <p className="text-xs text-gray-500 font-medium mt-1.5">
+                      {heading.remark}
+                    </p>
+                  )}
+                </li>
+              )}
+              <StepRow item={item} index={index + 1} roomy={roomy} />
+            </Fragment>
+          );
+        })}
       </ol>
 
       {/*

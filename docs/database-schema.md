@@ -1472,3 +1472,75 @@ Tombstone log. Captures key metadata at the moment of deletion for audit display
 | `name_cn`        | String   | Yes      | Entry CN name with fallback; `option_value` for System Options                   |
 | `name_en`        | String   | Yes      | Entry EN name with fallback; null if CN was a fallback or type is System Options |
 | `timestamp`      | DateTime | No       | Taipei now                                                                       |
+
+---
+
+## `watch_order_section`
+
+The optional grouping tier between a `watch_order_list` and its items — the
+"parts" a long reading guide is authored in.
+
+Modelled on `collection` → `franchise`, not on a label column. A section has
+its own identity, name, ordering and commentary, and is renamed, reordered and
+annotated as a unit.
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | no | PK, indexed |
+| `list_id` | UUID | no | FK → `watch_order_list.system_id`, **ON DELETE CASCADE**. A section has no meaning outside its list. |
+| `position` | Float | yes | Float like `watch_order_item.position`, so a part can be slotted between two others without renumbering. |
+| `section_name` | String | yes | |
+| `remark` | Text | yes | The part's own commentary, separate from any one step's `note`. |
+| `created_at` / `updated_at` | DateTime | yes | |
+
+`watch_order_item.section_id` is the other half: FK → `watch_order_section`,
+nullable, indexed, **ON DELETE SET NULL**. Deleting a part leaves its steps in
+the order and simply unsectioned, exactly as a deleted Collection leaves its
+franchises uncollected.
+
+### Ordering
+
+Sections sort among themselves by `position`; steps sort within their section
+by the step's own `position`; **steps with no section sort ahead of every
+section**.
+
+That last rule is what makes the tier backward compatible: a list authored
+before sections existed has no section rows, so every step falls in the leading
+group and orders by `position` alone — exactly as it always did. Verified
+against all 8 pre-existing lists with items; none changed order.
+
+---
+
+## `watch_order_section`
+
+The optional grouping tier between a `watch_order_list` and its items — the
+"parts" a long reading guide is authored in.
+
+Modelled on `collection` → `franchise`, not on a label column. A section has
+its own identity, name, ordering and commentary, and is renamed, reordered and
+annotated as a unit.
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | no | PK, indexed |
+| `list_id` | UUID | no | FK → `watch_order_list.system_id`, **ON DELETE CASCADE**. A section has no meaning outside its list. |
+| `position` | Float | yes | Float like `watch_order_item.position`, so a part can be slotted between two others without renumbering. |
+| `section_name` | String | yes | |
+| `remark` | Text | yes | The part's own commentary, separate from any one step's `note`. |
+| `created_at` / `updated_at` | DateTime | yes | |
+
+`watch_order_item.section_id` is the other half: FK → `watch_order_section`,
+nullable, indexed, **ON DELETE SET NULL**. Deleting a part leaves its steps in
+the order and simply unsectioned, exactly as a deleted Collection leaves its
+franchises uncollected.
+
+### Ordering
+
+Sections sort among themselves by `position`; steps sort within their section
+by the step's own `position`; **steps with no section sort ahead of every
+section**.
+
+That last rule is what makes the tier backward compatible: a list authored
+before sections existed has no section rows, so every step falls in the leading
+group and orders by `position` alone — exactly as it always did. Verified
+against all 8 pre-existing lists with items; none changed order.

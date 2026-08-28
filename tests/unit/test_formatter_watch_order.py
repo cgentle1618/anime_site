@@ -10,6 +10,7 @@ from datetime import datetime
 
 from app.utils.formatter import (
     parse_watch_order_item_from_sheet,
+    parse_watch_order_section_from_sheet,
     parse_watch_order_list_from_sheet,
 )
 
@@ -96,6 +97,7 @@ class TestWatchOrderItemParser:
             "system_id",
             "list_id",
             "position",
+            "section_id",
             "media_type",
             "entry_id",
             "ep_start",
@@ -183,3 +185,32 @@ class TestWatchOrderItemParser:
     def test_hyphenated_media_type_survives(self):
         parsed = parse_watch_order_item_from_sheet({"media_type": "anime-movie"})
         assert parsed["media_type"] == "anime-movie"
+
+
+class TestWatchOrderSectionParser:
+    """The section tier's own sheet, added alongside List and Item."""
+
+    def test_every_column_is_present(self):
+        """A missing key would silently drop that column on Pull."""
+        assert set(parse_watch_order_section_from_sheet({})) == {
+            "system_id",
+            "list_id",
+            "position",
+            "section_name",
+            "remark",
+            "created_at",
+            "updated_at",
+        }
+
+    def test_a_blank_row_parses_to_all_none(self):
+        parsed = parse_watch_order_section_from_sheet({})
+        assert all(value is None for value in parsed.values())
+
+    def test_position_is_a_float(self):
+        parsed = parse_watch_order_section_from_sheet({"position": "3"})
+        assert parsed["position"] == 3.0
+
+    def test_an_unparseable_list_id_becomes_none(self):
+        # Mirrors the item parser: a broken owner cell must not fail the Pull.
+        parsed = parse_watch_order_section_from_sheet({"list_id": "not-a-uuid"})
+        assert parsed["list_id"] is None

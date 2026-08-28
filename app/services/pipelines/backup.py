@@ -25,6 +25,7 @@ from app.models import (
     Seasonal,
     WatchOrderList,
     WatchOrderItem,
+    WatchOrderSection,
     MediaRelation,
     Quote,
     Meme,
@@ -215,6 +216,15 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(w) for w in watch_order_lists
         ]
         bulk_overwrite_sheet("Watch Order List", watch_order_list_matrix)
+
+        watch_order_sections = db.query(WatchOrderSection).all()
+        watch_order_section_headers = [
+            c.name for c in WatchOrderSection.__table__.columns
+        ]
+        watch_order_section_matrix = [watch_order_section_headers] + [
+            format_model_for_sheet(w) for w in watch_order_sections
+        ]
+        bulk_overwrite_sheet("Watch Order Section", watch_order_section_matrix)
 
         watch_order_items = db.query(WatchOrderItem).all()
         watch_order_item_headers = [
