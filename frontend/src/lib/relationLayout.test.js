@@ -530,10 +530,13 @@ describe("mergePositions", () => {
     expect(merged[1].position).toEqual({ x: 400, y: 0 });
   });
 
-  it("lets a node that just left the tray take its new rank", () => {
-    // The page's main job: drag a tray entry onto the spine. Preserving its
-    // tray coordinate would leave it parked at the bottom on a long tether,
-    // which is exactly what the refetch is supposed to fix.
+  it("keeps the coordinate of a node that just left the tray", () => {
+    // This used to be the one exception - a connected entry took its fresh
+    // rank. It could not work: the fresh position comes from a layout of the
+    // whole canvas, in which every other node also moved, while those other
+    // nodes are still holding their old coordinates. Two trayed entries
+    // connected to each other landed at the top of the screen, on top of an
+    // unrelated cluster. Where the node ends up is Tidy's decision now.
     const positioned = [
       { key: "anime:a", position: { x: 400, y: 20 }, section: "graph" },
     ];
@@ -541,7 +544,32 @@ describe("mergePositions", () => {
       { "anime:a": { position: { x: 0, y: 900 }, section: "tray" } },
       positioned,
     );
-    expect(merged[0].position).toEqual({ x: 400, y: 20 });
+    expect(merged[0].position).toEqual({ x: 0, y: 900 });
+  });
+
+  it("leaves a whole new cluster clear of the nodes already placed", () => {
+    // The reported bug, as the two calls the page actually makes: A and B sit
+    // where they were put, C and D are connected out of the tray, and the
+    // fresh layout would hand C and D the first band - y=0 - straight through
+    // A and B. Neither pair may move, so neither pair can collide.
+    const before = {
+      "anime:a": { position: { x: 0, y: 0 }, section: "graph" },
+      "anime:b": { position: { x: 288, y: 0 }, section: "graph" },
+      "anime:c": { position: { x: 0, y: 800 }, section: "tray" },
+      "anime:d": { position: { x: 216, y: 800 }, section: "tray" },
+    };
+    // What layoutGraph returns once C-D is a cluster of its own: sorted first,
+    // so it takes the top band and A-B is pushed below it.
+    const positioned = [
+      { key: "anime:a", position: { x: 0, y: 216 }, section: "graph" },
+      { key: "anime:b", position: { x: 288, y: 216 }, section: "graph" },
+      { key: "anime:c", position: { x: 0, y: 0 }, section: "graph" },
+      { key: "anime:d", position: { x: 288, y: 0 }, section: "graph" },
+    ];
+    const merged = mergePositions(before, positioned);
+    for (const n of merged) {
+      expect(n.position).toEqual(before[n.key].position);
+    }
   });
 
   it("keeps the old position for a node that stays in the graph", () => {

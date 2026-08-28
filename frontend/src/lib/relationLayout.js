@@ -458,24 +458,35 @@ export function layoutGraph({ nodes, edges }) {
 /**
  * Keeps hand-dragged and previously computed coordinates across a refetch.
  *
- * Only nodes new to the canvas get the freshly computed position, so adding a
- * relation does not rearrange the graph under the cursor.
+ * A node the canvas has seen before keeps its coordinate, whatever the write
+ * was. Only nodes genuinely new to it get a freshly computed position, so the
+ * automatic layout runs on a canvas exactly once - at load, and again when
+ * Tidy empties the map. Adding, editing or removing a relation draws a line
+ * and moves nothing.
  *
- * The one exception is the page's main job: an entry that was parked in the
- * tray and has just been connected. Its old coordinate is a tray slot far
- * below the spine, so keeping it would leave the node down there on a long
- * tether instead of at the rank it just earned. A node whose `section` moved
- * from "tray" to "graph" therefore takes the freshly computed position.
+ * That rule used to have an exception: an entry connected out of the tray took
+ * the fresh position, on the grounds that its old coordinate was a tray slot
+ * far below the spine. The exception was unsound. layoutGraph recomputes the
+ * WHOLE canvas - it re-derives every cluster, sorts them, and stacks them in
+ * bands from y=0 - while every node already placed is holding a coordinate
+ * from a layout of a different graph. So the fresh position was right relative
+ * to the other nodes in the fresh layout and meaningless relative to the
+ * canvas: connecting two trayed entries moved the pair to the top of the
+ * screen, on top of an unrelated cluster that had not moved. Nothing
+ * reconciled the two coordinate systems, and nothing here could - this
+ * function sees positions, not the graph they came from.
  *
- * `previousByKey` maps key -> {position, section} - the section is what makes
- * that exception detectable, so a plain {key: position} map is not enough.
+ * So a connected entry now stays where it sits and the relation is drawn to it
+ * where it is. Reaching a tidy arrangement is Tidy's job, which recomputes
+ * every node at once and therefore has one coordinate system to be right in.
+ *
+ * `previousByKey` maps key -> {position, section}. Only `position` is read
+ * now; the shape is kept because the page stores the section alongside it.
  */
 export function mergePositions(previousByKey, positioned) {
   return positioned.map((n) => {
     const previous = previousByKey[n.key];
     if (!previous?.position) return n;
-    // Rejoined the spine: let the new rank win.
-    if (previous.section === "tray" && n.section !== "tray") return n;
     return { ...n, position: previous.position };
   });
 }

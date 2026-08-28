@@ -185,10 +185,10 @@ function GraphCanvas({
   // and dims the canvas is two actions on one gesture - so it lives in its
   // own state, toggled from the node panel.
   const [isolatedKey, setIsolatedKey] = useState(null);
-  // Coordinates survive a refetch: only nodes new to the canvas get laid out.
-  // Keyed to {position, section} rather than a bare position, because
-  // mergePositions needs the previous section to spot a node that has just
-  // been connected out of the tray and must take its new rank.
+  // Coordinates survive a refetch: only nodes new to the canvas get laid out,
+  // so no write moves anything already on it - connecting an entry included.
+  // Emptied by Tidy and by a scope switch, which are the only two things that
+  // re-run the layout.
   const positionsRef = useRef({});
   // refetch() reports failures through onError, which the page re-renders as a
   // new closure every time; holding it in a ref keeps refetch's identity tied

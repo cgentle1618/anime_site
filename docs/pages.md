@@ -1808,6 +1808,14 @@ confirm naming both entries). Clicking a node opens `NodePanel.jsx` (cover,
 name, its relation list, an isolate toggle, a link to the entry's detail page).
 Clicking a ghost node switches the page's scope to that node's franchise.
 
+**Positions.** The automatic layout runs when a scope loads and when Tidy is
+pressed, and at no other time. Writing a relation — add, edit or delete —
+re-reads the graph but every node the canvas has already seen keeps its
+coordinate, including an entry just connected out of the unconnected tray.
+(That entry used to take a freshly computed position, which put it and its new
+partner wherever the recomputed layout's first band fell — usually on top of an
+unrelated cluster, since nothing else on the canvas had moved to match.)
+
 **Canvas toolbar (admin only — the read-only graphs on the Franchise, Series
 and Collection hubs show none of it):** **Undo** reverses the last write by
 replaying its inverse (`lib/relationUndo.js`); the stack is in memory, outlives
