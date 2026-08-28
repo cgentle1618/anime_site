@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -20,6 +21,12 @@ class Cartoon(Base, NameFallbackMixin):
     """Western animated TV show entries."""
 
     __tablename__ = "cartoons"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_cartoons_release_date_iso",
+        ),
+    )
     _name_fields = ["cartoon_name_en", "cartoon_name_cn", "cartoon_name_alt"]
 
     system_id = Column(

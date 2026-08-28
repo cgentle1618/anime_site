@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -20,6 +21,16 @@ class Movies(Base, NameFallbackMixin):
     """Live-action and animated movie entries."""
 
     __tablename__ = "movies"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date_usa ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_movies_release_date_usa_iso",
+        ),
+        CheckConstraint(
+            r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_movies_release_date_tw_iso",
+        ),
+    )
     _name_fields = ["movie_name_en", "movie_name_cn", "movie_name_alt"]
 
     system_id = Column(

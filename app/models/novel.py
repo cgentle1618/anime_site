@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -21,6 +22,16 @@ class Novel(Base, NameFallbackMixin):
     """Light novel, web novel, and book entries."""
 
     __tablename__ = "novel"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_novel_release_date_iso",
+        ),
+        CheckConstraint(
+            r"end_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_novel_end_date_iso",
+        ),
+    )
     _name_fields = [
         "novel_name_en",
         "novel_name_cn",
@@ -74,8 +85,8 @@ class Novel(Base, NameFallbackMixin):
 
     author = Column(String, nullable=True)
     illustrator = Column(String, nullable=True)
-    release_year = Column(Integer, nullable=True)
-    end_year = Column(Integer, nullable=True)
+    release_date = Column(String, nullable=True)
+    end_date = Column(String, nullable=True)
     publisher_tw = Column(String, nullable=True)
 
     is_main_entry = Column(Boolean, nullable=True)

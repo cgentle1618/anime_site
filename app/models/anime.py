@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -24,6 +25,12 @@ class Anime(Base, NameFallbackMixin):
     """
 
     __tablename__ = "anime"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_anime_release_date_iso",
+        ),
+    )
     _name_fields = [
         "anime_name_en",
         "anime_name_cn",
@@ -69,9 +76,8 @@ class Anime(Base, NameFallbackMixin):
     mal_rank = Column(String, nullable=True)
     anilist_rating = Column(String, nullable=True)
 
-    release_month = Column(String, nullable=True)
     release_season = Column(String, nullable=True)
-    release_year = Column(String, nullable=True)
+    release_date = Column(String, nullable=True)
 
     broadcast_day = Column(String, nullable=True)
     broadcast_time = Column(Time, nullable=True)

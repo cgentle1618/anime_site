@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -21,6 +22,16 @@ class Comic(Base, NameFallbackMixin):
     """Western comic runs, Marvel-focused. One entry is one numbered run."""
 
     __tablename__ = "comic"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_comic_release_date_iso",
+        ),
+        CheckConstraint(
+            r"end_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_comic_end_date_iso",
+        ),
+    )
     _name_fields = [
         "comic_name_en",
         "comic_name_cn",
@@ -59,8 +70,8 @@ class Comic(Base, NameFallbackMixin):
 
     writer = Column(String, nullable=True)
     artist = Column(String, nullable=True)
-    release_year = Column(Integer, nullable=True)
-    end_year = Column(Integer, nullable=True)
+    release_date = Column(String, nullable=True)
+    end_date = Column(String, nullable=True)
     publisher_tw = Column(String, nullable=True)
 
     issue_total = Column(Integer, nullable=True)

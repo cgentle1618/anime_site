@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -21,6 +22,16 @@ class Manga(Base, NameFallbackMixin):
     """Manga, manhwa, and manhua entries."""
 
     __tablename__ = "manga"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_manga_release_date_iso",
+        ),
+        CheckConstraint(
+            r"end_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_manga_end_date_iso",
+        ),
+    )
     _name_fields = [
         "manga_name_en",
         "manga_name_cn",
@@ -67,8 +78,8 @@ class Manga(Base, NameFallbackMixin):
 
     author_plot = Column(String, nullable=True)
     author_draw = Column(String, nullable=True)
-    release_year = Column(String, nullable=True)
-    end_year = Column(String, nullable=True)
+    release_date = Column(String, nullable=True)
+    end_date = Column(String, nullable=True)
     anime_studio = Column(String, nullable=True)
     serialization_platform = Column(String, nullable=True)
     publisher_tw = Column(String, nullable=True)

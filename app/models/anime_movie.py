@@ -3,6 +3,7 @@
 import uuid
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -23,6 +24,16 @@ class AnimeMovies(Base, NameFallbackMixin):
     """
 
     __tablename__ = "anime_movies"
+    __table_args__ = (
+        CheckConstraint(
+            r"release_date_jp ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_anime_movies_release_date_jp_iso",
+        ),
+        CheckConstraint(
+            r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_anime_movies_release_date_tw_iso",
+        ),
+    )
     _name_fields = [
         "anime_movie_name_en",
         "anime_movie_name_cn",
