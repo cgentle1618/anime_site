@@ -340,9 +340,13 @@ already exist.
 
 ### Error Handling
 
-`_execute_with_retry()` classifies by HTTP status (`_status_code()` reads gspread's
-`APIError.code`, falling back to the `[503]`-style code in the rendered message when
-a proxy-level error body was not JSON):
+`_execute_with_retry()` classifies by HTTP status. `_status_code()` reads
+`APIError.response.status_code` first: gspread 5.12.0 — the pinned version — builds
+`APIError` from the raw `requests.Response` and stores nothing else, so it has **no
+`.code` attribute at all** (that arrived in gspread 6). It then falls back to `.code`,
+so an upgrade to 6.x does not silently turn every retry back off, and finally to the
+status rendered in the message (`[503]: …`, or the `'code': 503` of the parsed error
+dict) for an error carrying neither.
 
 - Quota errors (HTTP 429): backoff, wait `60 × (attempt + 1)` seconds, max 3 attempts.
 - Transient errors (HTTP 500 / 502 / 503 / 504): exponential backoff, wait `2 ^ (attempt + 1)`

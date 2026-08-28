@@ -15,7 +15,13 @@ from app.services.integrations import sheets
 
 
 class _FakeResponse:
-    """The bare slice of requests.Response that gspread's APIError reads."""
+    """
+    The bare slice of requests.Response that gspread's APIError reads.
+
+    gspread 5.12.0 keeps the whole response on the error and reads `.json()`
+    for the message, falling back to `.text`. `status_code` is therefore the
+    only place the HTTP status reliably survives.
+    """
 
     def __init__(self, code, message, parseable=True):
         self.status_code = code
@@ -63,21 +69,62 @@ class _Flaky:
 # ---------------------------------------------------------------------------
 # Status extraction
 # ---------------------------------------------------------------------------
+#
+# gspread 5.12.0 -- the pinned version -- builds APIError from the raw
+# `requests.Response` and stores nothing but `.response`. It has no `.code`
+# attribute at all; that arrived in gspread 6. So the status has to come off
+# the response, and `.code` is kept only so an upgrade to 6.x keeps working.
 
 
-def test_status_comes_from_the_parsed_error_body():
+def test_status_comes_from_the_response():
     assert sheets._status_code(api_error(503)) == 503
 
 
-def test_status_falls_back_to_the_rendered_message():
-    # An HTML 503 from a proxy leaves gspread's `.code` at -1.
+def test_status_is_found_even_when_the_body_is_not_json():
+    # An HTML 503 from a proxy: gspread falls back to `response.text`, so the
+    # parsed error dict is gone, but the response still carries the status.
     error = api_error(503, parseable=False)
-    assert error.code == -1
+    assert not hasattr(error, "code")
     assert sheets._status_code(error) == 503
+
+
+def test_status_falls_back_to_a_code_attribute():
+    # gspread 6 sets `.code`. Nothing here uses it today; this keeps the
+    # upgrade from silently turning every retry back off.
+    class _Six(Exception):
+        code = 429
+
+    assert sheets._status_code(_Six("quota")) == 429
+
+
+def test_a_negative_code_attribute_is_not_trusted():
+    # gspread 6 parks `.code` at -1 when it could not parse the body.
+    class _Six(Exception):
+        code = -1
+
+    assert sheets._status_code(_Six("[502]: bad gateway")) == 502
+
+
+def test_status_falls_back_to_the_rendered_message():
+    # No response, no code -- only the text. Both shapes gspread renders are
+    # read: the bracketed status line and the repr of the parsed error dict.
+    assert sheets._status_code(RuntimeError("[503]: unavailable")) == 503
+    assert (
+        sheets._status_code(
+            RuntimeError("{'code': 429, 'message': 'Quota exceeded'}")
+        )
+        == 429
+    )
 
 
 def test_status_is_none_when_nothing_looks_like_a_code():
     assert sheets._status_code(RuntimeError("something went wrong")) is None
+
+
+def test_a_stray_three_digit_number_is_not_read_as_a_status():
+    # "1975" or a row count must not be mistaken for an HTTP status, or a
+    # permanent error would be retried three times before surfacing.
+    assert sheets._status_code(RuntimeError("wrote 1975 rows")) is None
 
 
 # ---------------------------------------------------------------------------

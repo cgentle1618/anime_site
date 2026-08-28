@@ -40,20 +40,48 @@ class SheetsUnavailableError(RuntimeError):
 # ==========================================
 
 
+# The two shapes gspread renders an API error in, in the order they are tried.
+# `[503]: ...` is the bracketed status line it falls back to when the body is
+# not JSON; `{'code': 503, ...}` is the repr of the parsed error dict. Anchored
+# on purpose - a bare three-digit number anywhere in a message ("wrote 1975
+# rows") must not be mistaken for a status, or a permanent error would be
+# retried three times before surfacing.
+_STATUS_IN_MESSAGE = (
+    re.compile(r"\[(\d{3})\]"),
+    re.compile(r"['\"]code['\"]\s*:\s*(\d{3})\b"),
+)
+
+
 def _status_code(error: Exception) -> Optional[int]:
     """
     Digs the HTTP status out of a gspread APIError.
 
-    gspread copies it onto `.code`, but only when it managed to parse the JSON
-    error body; a proxy-level 503 often arrives as HTML instead, leaving `.code`
-    at -1 with the status visible only in the rendered message.
+    Read off `error.response` first. gspread 5.12.0 - the pinned version -
+    builds APIError straight from the `requests.Response` and keeps nothing but
+    that response: there is no `.code` attribute at all, so the response is the
+    only place the status reliably survives.
+
+    `.code` is checked next for gspread 6, which does set it, so an upgrade does
+    not silently turn every retry back off. It parks the value at -1 when it
+    could not parse the body, hence the `> 0` guard.
+
+    The message is the last resort, for an error carrying neither.
     """
+    response = getattr(error, "response", None)
+    status = getattr(response, "status_code", None)
+    if isinstance(status, int) and status > 0:
+        return status
+
     code = getattr(error, "code", None)
     if isinstance(code, int) and code > 0:
         return code
 
-    match = re.search(r"\[(\d{3})\]", str(error))
-    return int(match.group(1)) if match else None
+    text = str(error)
+    for pattern in _STATUS_IN_MESSAGE:
+        match = pattern.search(text)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -> Any:
