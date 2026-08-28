@@ -37,7 +37,7 @@ def make_comic(**kwargs):
         publisher=None,
         writer=None,
         artist=None,
-        release_year=None,
+        release_date=None,
         issue_total=None,
         cover_image_file=None,
     )
@@ -71,7 +71,7 @@ class TestAutofillComicFromComicvine:
         assert comic.publisher == "Marvel"
         assert comic.writer == "Stan Lee"
         assert comic.artist == "Steve Ditko"
-        assert comic.release_year == 1963
+        assert comic.release_date == "1963"
         assert comic.issue_total == 441
         assert comic.volume_label == "(1963)"
         assert comic.cover_image_file == "downloaded.jpg"
@@ -81,14 +81,14 @@ class TestAutofillComicFromComicvine:
             publisher="Marvel UK",
             writer="J. M. DeMatteis",
             volume_label="Legacy",
-            release_year=1999,
+            release_date="1999",
         )
         autofill_comic_from_comicvine(comic)
 
         assert comic.publisher == "Marvel UK"
         assert comic.writer == "J. M. DeMatteis"
         assert comic.volume_label == "Legacy"
-        assert comic.release_year == 1999
+        assert comic.release_date == "1999"
         # Blank fields are still filled.
         assert comic.artist == "Steve Ditko"
 

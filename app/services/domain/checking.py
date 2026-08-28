@@ -212,7 +212,7 @@ def has_missing_values_comic(comic: Comic) -> bool:
     """
     Returns True if any Comic Vine-fillable field is blank.
     Only COMIC_FIELDS_TO_FILL are considered — imprint, continuity, era, events,
-    end_year and publisher_tw are manual classifications Comic Vine does not model.
+    end_date and publisher_tw are manual classifications Comic Vine does not model.
     """
     for field in COMIC_FIELDS_TO_FILL:
         val = getattr(comic, field, None)

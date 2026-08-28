@@ -93,12 +93,10 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
             anime.airing_type = j_data.get("airing_type")
         if anime.airing_status is None:
             anime.airing_status = j_data.get("airing_status")
-        if anime.release_month is None:
-            anime.release_month = j_data.get("release_month")
         if anime.release_season is None:
             anime.release_season = j_data.get("release_season")
-        if anime.release_year is None:
-            anime.release_year = j_data.get("release_year")
+        if anime.release_date is None:
+            anime.release_date = j_data.get("release_date")
         if anime.ep_total is None:
             anime.ep_total = j_data.get("ep_total")
         if not anime.official_link:
@@ -183,7 +181,7 @@ def autofill_anime_movie_from_mal(
 def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) -> None:
     """
     Enriches a single Manga entry with Tenrai API data. Does not commit — caller is responsible.
-    Fill-only: serialization_status, release_year, end_year.
+    Fill-only: serialization_status, release_date, end_date.
     vol_total and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
     """
@@ -200,10 +198,10 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
 
         if manga.serialization_status is None:
             manga.serialization_status = j_data.get("serialization_status")
-        if manga.release_year is None:
-            manga.release_year = j_data.get("release_year")
-        if manga.end_year is None:
-            manga.end_year = j_data.get("end_year")
+        if manga.release_date is None:
+            manga.release_date = j_data.get("release_date")
+        if manga.end_date is None:
+            manga.end_date = j_data.get("end_date")
 
         if manga.serialization_status == "完結":
             if manga.vol_total is None:
@@ -233,7 +231,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
 def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) -> None:
     """
     Enriches a single Novel entry with Tenrai API data. Does not commit — caller is responsible.
-    Fill-only: serialization_status, release_year, end_year.
+    Fill-only: serialization_status, release_date, end_date.
     vol_total_original and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
     """
@@ -250,10 +248,10 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
 
         if novel.serialization_status is None:
             novel.serialization_status = j_data.get("serialization_status")
-        if novel.release_year is None:
-            novel.release_year = j_data.get("release_year")
-        if novel.end_year is None:
-            novel.end_year = j_data.get("end_year")
+        if novel.release_date is None:
+            novel.release_date = j_data.get("release_date")
+        if novel.end_date is None:
+            novel.end_date = j_data.get("end_date")
 
         if novel.serialization_status == "完結":
             if novel.vol_total_original is None:
@@ -502,7 +500,7 @@ def autofill_comic_from_comicvine(comic: Comic) -> None:
 
         cv_data = map_comicvine_to_comic_data(raw_data)
 
-        for field in ("publisher", "writer", "artist", "release_year", "issue_total", "volume_label"):
+        for field in ("publisher", "writer", "artist", "release_date", "issue_total", "volume_label"):
             if getattr(comic, field, None) is None:
                 setattr(comic, field, cv_data.get(field))
 

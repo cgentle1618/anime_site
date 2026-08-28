@@ -18,9 +18,8 @@ def make_anime(**kwargs):
     defaults = dict(
         airing_type="TV",
         airing_status="Finished Airing",
-        release_month="JAN",
         release_season="WIN",
-        release_year="2023",
+        release_date="2023-01",
         mal_rating=8.5,
         mal_rank="42",
         ep_total=12,

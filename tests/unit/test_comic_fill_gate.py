@@ -25,7 +25,7 @@ def make_comic(**kwargs):
         publisher="Marvel",
         writer="Stan Lee",
         artist="Steve Ditko",
-        release_year=1963,
+        release_date="1963",
         issue_total=441,
         cover_image_file="abc123.jpg",
     )
@@ -45,7 +45,7 @@ class TestHasMissingValuesComic:
         "publisher",
         "writer",
         "artist",
-        "release_year",
+        "release_date",
         "issue_total",
         "cover_image_file",
     ])
@@ -61,7 +61,7 @@ class TestHasMissingValuesComic:
         entry permanently 'needs filling' and re-request it on every run.
         """
         comic = make_comic()
-        for field in ("imprint", "continuity", "era", "events", "end_year", "publisher_tw"):
+        for field in ("imprint", "continuity", "era", "events", "end_date", "publisher_tw"):
             setattr(comic, field, None)
         assert has_missing_values_comic(comic) is False
 

@@ -210,10 +210,10 @@ class TestMapComicvineToComicData:
         assert result["cover_image_url"] is None
         assert result["volume_label"] is None
 
-    def test_does_not_emit_an_end_year_key(self):
+    def test_does_not_emit_an_end_date_key(self):
         """
-        The volume object's `last_issue` carries no cover date, so end_year
+        The volume object's `last_issue` carries no cover date, so end_date
         cannot be derived without a second request. It stays manual.
         """
         result = map_comicvine_to_comic_data(make_full_volume_response())
-        assert "end_year" not in result
+        assert "end_date" not in result
