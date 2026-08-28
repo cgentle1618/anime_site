@@ -73,10 +73,21 @@ const RANK_PITCH = NODE_WIDTH + 96; // 288
 // in rows. No connector ever runs between two clusters, so none of the gutter
 // a fan needs applies there - spacing them by whole rows left a scope of three
 // unrelated sequel pairs reading as if each had branches hanging off it, with
-// the empty rows to prove it. Still wider than the 96px gutter inside a
-// cluster, which is the floor: at or below it the last row of one cluster and
-// the first row of the next are spaced like two rows of the same one.
+// the empty rows to prove it. Wider than the 96px gutter inside a cluster,
+// which is the floor: at or below it the last row of one cluster and the first
+// row of the next are spaced like two rows of the same one.
 const CLUSTER_GAP = 120; // 5 * GRID
+
+// The gap between two clusters that are each a single row - a plain run of
+// sequels, nothing hanging off either of them.
+//
+// The floor above only exists because a multi-row cluster has an internal row
+// gutter to be confused with. A one-row cluster has none: there is no second
+// row of its own for the next cluster to be mistaken for, so the gap has
+// nothing to out-measure and only has to separate two lines of nodes. Applied
+// when BOTH neighbours are one row, since it is the pair that has to be
+// unambiguous rather than either one alone.
+const TIGHT_CLUSTER_GAP = 48; // 2 * GRID
 
 /**
  * Where a relation kind sits in a fan, lowest first.
@@ -409,6 +420,10 @@ export function layoutGraph({ nodes, edges }) {
 
   const positions = new Map();
   let bandTop = 0;
+  // How many rows the cluster placed just above this one occupies, which is
+  // what decides the gap below it. Null before the first cluster, which has
+  // nothing above it to be separated from.
+  let previousRows = null;
   // Sorted so the same input always produces the same canvas.
   for (const root of [...clusters.keys()].sort()) {
     const slots = walkCluster(clusters.get(root), { forward, backward, sideways }, chain);
@@ -419,16 +434,25 @@ export function layoutGraph({ nodes, edges }) {
     const ranks = [...slots.values()].map((s) => s.rank);
     const topRow = Math.min(...rows);
     const firstRank = Math.min(...ranks);
+    const rowCount = Math.max(...rows) - topRow + 1;
+
+    // The gap is opened here rather than after the cluster above, because it
+    // depends on both neighbours and this is the first point at which the
+    // second of them has been measured.
+    if (previousRows !== null) {
+      bandTop +=
+        previousRows === 1 && rowCount === 1 ? TIGHT_CLUSTER_GAP : CLUSTER_GAP;
+    }
+
     for (const [key, { rank, row }] of slots) {
       positions.set(key, {
         x: (rank - firstRank) * RANK_PITCH,
         y: bandTop + (row - topRow) * ROW_PITCH,
       });
     }
-    // A fixed gap below this cluster's own last row, so a cluster one row tall
-    // is not spaced as though it had a fan to make room for.
-    bandTop +=
-      (Math.max(...rows) - topRow) * ROW_PITCH + NODE_HEIGHT + CLUSTER_GAP;
+    // Down to this cluster's own bottom edge; the next iteration adds the gap.
+    bandTop += (rowCount - 1) * ROW_PITCH + NODE_HEIGHT;
+    previousRows = rowCount;
   }
 
   let deepest = 0;

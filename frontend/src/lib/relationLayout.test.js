@@ -165,12 +165,12 @@ describe("layoutGraph", () => {
     }
   });
 
-  it("does not leave a fan's worth of room between unrelated clusters", () => {
-    // Three sequel pairs that share nothing. Nothing is ever drawn in the gap
-    // between two clusters, so it only has to separate them - spacing them by
-    // whole rows read as if each pair had branches nobody had added, which is
-    // what this pins. The gap still has to beat the 96px gutter used inside a
-    // cluster, or two clusters read as one.
+  it("packs single-row clusters tightly, since neither has a row to be confused with", () => {
+    // Three sequel pairs that share nothing, none with a branch. Nothing is
+    // ever drawn in the gap between two clusters, and a one-row cluster has no
+    // internal row gutter for the next cluster to be mistaken for - so the gap
+    // only has to separate two lines of nodes. Spacing them by whole rows read
+    // as if each pair had branches nobody had added.
     const pairs = ["a", "b", "c"];
     const out = byKey(
       layoutGraph({
@@ -180,14 +180,43 @@ describe("layoutGraph", () => {
     );
     const tops = pairs.map((p) => out[`tv:${p}1`].position.y).sort((x, y) => x - y);
     for (let i = 1; i < tops.length; i += 1) {
-      const gap = tops[i] - tops[i - 1] - NODE_HEIGHT;
-      expect(gap).toBeGreaterThan(96);
-      expect(gap).toBeLessThan(NODE_HEIGHT + 96);
+      expect(tops[i] - tops[i - 1] - NODE_HEIGHT).toBe(48);
     }
     // Both members of a pair stay level: the gap goes between clusters only.
     for (const p of pairs) {
       expect(out[`tv:${p}2`].position.y).toBe(out[`tv:${p}1`].position.y);
     }
+  });
+
+  it("keeps the wider gap around a cluster that does have branches", () => {
+    // The tight gap only holds where neither neighbour has a second row. Give
+    // one cluster a side story and its own rows are 96px apart, so a 48px gap
+    // below it would space the next cluster more tightly than that cluster
+    // spaces itself - and the two would read as one.
+    const out = byKey(
+      layoutGraph({
+        nodes: [
+          node("tv:a1"),
+          node("tv:a2"),
+          node("tv:side"),
+          node("tv:b1"),
+          node("tv:b2"),
+        ],
+        edges: [
+          edge("tv:a2", "tv:a1"),
+          edge("tv:side", "tv:a1", "branch", "side_story"),
+          edge("tv:b2", "tv:b1"),
+        ],
+      }),
+    );
+    const branched = [out["tv:a1"], out["tv:a2"], out["tv:side"]];
+    const plain = [out["tv:b1"], out["tv:b2"]];
+    const bottom = Math.max(...branched.map((n) => n.position.y)) + NODE_HEIGHT;
+    const top = Math.min(...plain.map((n) => n.position.y));
+    expect(top - bottom).toBe(120);
+    // And the branched cluster really does have a second row, or the two
+    // clusters above are not the shapes this test claims to compare.
+    expect(new Set(branched.map((n) => n.position.y)).size).toBe(2);
   });
 
   // One realistic franchise, asserted from several angles: a spine with a
