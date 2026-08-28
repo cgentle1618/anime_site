@@ -8,6 +8,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 import {
   COMIC_TYPES,
@@ -363,24 +364,16 @@ export default function ComicAddTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={cmf.release_year}
-            onChange={(e) => ucm("release_year", e.target.value)}
-            placeholder="2020"
-          />
-        </Field>
-        <Field label="End Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={cmf.end_year}
-            onChange={(e) => ucm("end_year", e.target.value)}
-            placeholder="2024"
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={cmf.release_date}
+          onChange={(v) => ucm("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={cmf.end_date}
+          onChange={(v) => ucm("end_date", v)}
+        />
       </div>
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />

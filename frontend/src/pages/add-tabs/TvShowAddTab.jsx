@@ -7,6 +7,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import {
   AIRING_STATUSES,
@@ -341,14 +342,11 @@ export default function TvShowAddTab({
           />
         </Field>
       </div>
-      <Field label="Release Date" hint="e.g. FEB 2026">
-        <input
-          className={inputCls}
-          value={tvf.release_date}
-          onChange={(e) => utf("release_date", e.target.value)}
-          placeholder="FEB 2026"
-        />
-      </Field>
+      <ReleaseDateInput
+        label="Release Date"
+        value={tvf.release_date}
+        onChange={(v) => utf("release_date", v)}
+      />
 
       <SectionHeader icon="fa-link" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

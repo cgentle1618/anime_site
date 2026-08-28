@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for AnimeModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
   CollectionNote,
@@ -375,41 +376,11 @@ export default function AnimeModifyTab({
             ))}
           </select>
         </Field>
-        <Field label="Release Month">
-          <select
-            className={selectCls}
-            value={af.release_month}
-            onChange={(e) => ua("release_month", e.target.value)}
-          >
-            <option value="">—</option>
-            {[
-              "JAN",
-              "FEB",
-              "MAR",
-              "APR",
-              "MAY",
-              "JUN",
-              "JUL",
-              "AUG",
-              "SEP",
-              "OCT",
-              "NOV",
-              "DEC",
-            ].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            value={af.release_year}
-            onChange={(e) => ua("release_year", e.target.value)}
-            placeholder="YYYY"
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={af.release_date}
+          onChange={(v) => ua("release_date", v)}
+        />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Studio">

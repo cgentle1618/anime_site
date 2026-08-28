@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for MangaModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
   CollectionNote,
@@ -318,22 +319,16 @@ export default function MangaModifyTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={cmgf.release_year ?? ""}
-            onChange={(e) => umg("release_year", e.target.value)}
-          />
-        </Field>
-        <Field label="End Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={cmgf.end_year ?? ""}
-            onChange={(e) => umg("end_year", e.target.value)}
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={cmgf.release_date}
+          onChange={(v) => umg("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={cmgf.end_date}
+          onChange={(v) => umg("end_date", v)}
+        />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">

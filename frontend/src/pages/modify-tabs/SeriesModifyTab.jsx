@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for SeriesModifyTab.
 import { getDisplayName } from "../../utils/media";
+import { releaseYear } from "../../lib/releaseDate";
 import ComboBox from "../../components/forms/ComboBox";
 import {
   CollectionNote,
@@ -10,7 +11,6 @@ import {
 } from "../../components/forms/FormField";
 
 function getEntryYear(e) {
-  if (e.release_year != null) return parseInt(e.release_year, 10) || 0;
   const d =
     e.release_date_jp ||
     e.release_date_tw ||
@@ -64,11 +64,9 @@ export default function SeriesModifyTab({
 
   function entryOptionLabel(e) {
     const name = getDisplayName(e, e._type);
-    const yr =
-      e.release_year ||
-      (e.release_date_jp || e.release_date_usa || e.release_date || "")
-        .toString()
-        .slice(0, 4);
+    const yr = releaseYear(
+      e.release_date_jp || e.release_date_tw || e.release_date_usa || e.release_date,
+    );
     return `${name}${yr ? ` (${yr})` : ""} [${e._type}]`;
   }
 

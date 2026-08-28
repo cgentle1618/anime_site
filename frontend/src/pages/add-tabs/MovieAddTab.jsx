@@ -7,6 +7,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import {
   AIRING_STATUSES,
@@ -300,22 +301,16 @@ export default function MovieAddTab({
 
       <SectionHeader icon="fa-info-circle" title="Release & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Release Date USA">
-          <input
-            className={inputCls}
-            value={mf.release_date_usa}
-            onChange={(e) => umf("release_date_usa", e.target.value)}
-            placeholder="e.g. JUL 2024"
-          />
-        </Field>
-        <Field label="Release Date TW">
-          <input
-            className={inputCls}
-            value={mf.release_date_tw}
-            onChange={(e) => umf("release_date_tw", e.target.value)}
-            placeholder="e.g. AUG 2024"
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={mf.release_date_tw}
+          onChange={(v) => umf("release_date_tw", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date USA"
+          value={mf.release_date_usa}
+          onChange={(v) => umf("release_date_usa", v)}
+        />
         <Field label="Length (min)">
           <input
             className={inputCls}

@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for FranchiseModifyTab.
 import { getDisplayName, parseTypes } from "../../utils/media";
+import { releaseYear } from "../../lib/releaseDate";
 import {
   Field,
   SectionHeader,
@@ -20,7 +21,6 @@ const TYPE_TO_ENTRY_TYPES = {
 };
 
 function getEntryYear(e) {
-  if (e.release_year != null) return parseInt(e.release_year, 10) || 0;
   const d =
     e.release_date_jp ||
     e.release_date_tw ||
@@ -77,11 +77,9 @@ export default function FranchiseModifyTab({
 
   function entryOptionLabel(e) {
     const name = getDisplayName(e, e._type);
-    const yr =
-      e.release_year ||
-      (e.release_date_jp || e.release_date_usa || e.release_date || "")
-        .toString()
-        .slice(0, 4);
+    const yr = releaseYear(
+      e.release_date_jp || e.release_date_tw || e.release_date_usa || e.release_date,
+    );
     return `${name}${yr ? ` (${yr})` : ""} [${e._type}]`;
   }
 

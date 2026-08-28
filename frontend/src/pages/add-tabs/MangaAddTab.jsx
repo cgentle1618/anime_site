@@ -8,6 +8,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, parseTypes, getOptions } from "../../utils/media";
 import {
   IS_MAIN,
@@ -395,24 +396,16 @@ export default function MangaAddTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.release_year}
-            onChange={(e) => umg("release_year", e.target.value)}
-            placeholder="2020"
-          />
-        </Field>
-        <Field label="End Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.end_year}
-            onChange={(e) => umg("end_year", e.target.value)}
-            placeholder="2024"
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={mgf.release_date}
+          onChange={(v) => umg("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={mgf.end_date}
+          onChange={(v) => umg("end_date", v)}
+        />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">

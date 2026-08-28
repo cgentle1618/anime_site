@@ -1571,8 +1571,8 @@ export default function Add() {
         mgf.anilist_rating !== "" ? parseFloat(mgf.anilist_rating) : null,
       author_plot: mgf.author_plot || null,
       author_draw: mgf.author_draw || null,
-      release_year: mgf.release_year !== "" ? parseInt(mgf.release_year) : null,
-      end_year: mgf.end_year !== "" ? parseInt(mgf.end_year) : null,
+      release_date: mgf.release_date || null,
+      end_date: mgf.end_date || null,
       anime_studio: mgf.anime_studio || null,
       serialization_platform: mgf.serialization_platform || null,
       publisher_tw: mgf.publisher_tw || null,
@@ -1789,8 +1789,8 @@ export default function Add() {
         nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
       author: nvf.author || null,
       illustrator: nvf.illustrator || null,
-      release_year: nvf.release_year !== "" ? parseInt(nvf.release_year) : null,
-      end_year: nvf.end_year !== "" ? parseInt(nvf.end_year) : null,
+      release_date: nvf.release_date || null,
+      end_date: nvf.end_date || null,
       publisher_tw: nvf.publisher_tw || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
       novel_name_each_cn:
@@ -1991,9 +1991,8 @@ export default function Add() {
       is_main_entry: cmf.is_main_entry ?? false,
       writer: cmf.writer || null,
       artist: cmf.artist || null,
-      release_year:
-        cmf.release_year !== "" ? parseInt(cmf.release_year, 10) : null,
-      end_year: cmf.end_year !== "" ? parseInt(cmf.end_year, 10) : null,
+      release_date: cmf.release_date || null,
+      end_date: cmf.end_date || null,
       publisher_tw: cmf.publisher_tw || null,
       issue_total:
         cmf.issue_total !== "" ? parseInt(cmf.issue_total, 10) : null,

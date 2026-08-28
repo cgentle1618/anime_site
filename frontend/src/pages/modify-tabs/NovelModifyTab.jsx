@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for NovelModifyTab.
 import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
@@ -401,22 +402,16 @@ export default function NovelModifyTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={cnvf.release_year ?? ""}
-            onChange={(e) => unv("release_year", e.target.value)}
-          />
-        </Field>
-        <Field label="End Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={cnvf.end_year ?? ""}
-            onChange={(e) => unv("end_year", e.target.value)}
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={cnvf.release_date}
+          onChange={(v) => unv("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={cnvf.end_date}
+          onChange={(v) => unv("end_date", v)}
+        />
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}

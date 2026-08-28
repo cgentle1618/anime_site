@@ -9,6 +9,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
 import {
   IS_MAIN,
@@ -462,24 +463,16 @@ export default function NovelAddTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={nvf.release_year}
-            onChange={(e) => unv("release_year", e.target.value)}
-            placeholder="2020"
-          />
-        </Field>
-        <Field label="End Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={nvf.end_year}
-            onChange={(e) => unv("end_year", e.target.value)}
-            placeholder="2024"
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={nvf.release_date}
+          onChange={(v) => unv("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={nvf.end_date}
+          onChange={(v) => unv("end_date", v)}
+        />
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}

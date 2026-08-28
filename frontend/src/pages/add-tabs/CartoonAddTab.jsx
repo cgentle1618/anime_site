@@ -7,6 +7,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import {
   AIRING_STATUSES,
@@ -352,14 +353,11 @@ export default function CartoonAddTab({
           />
         </Field>
       </div>
-      <Field label="Release Date" hint="e.g. FEB 2026">
-        <input
-          className={inputCls}
-          value={cf.release_date}
-          onChange={(e) => uc("release_date", e.target.value)}
-          placeholder="FEB 2026"
-        />
-      </Field>
+      <ReleaseDateInput
+        label="Release Date"
+        value={cf.release_date}
+        onChange={(v) => uc("release_date", v)}
+      />
 
       <SectionHeader icon="fa-link" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

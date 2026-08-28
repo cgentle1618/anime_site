@@ -8,6 +8,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getOptions } from "../../utils/media";
 import {
   AIRING_STATUSES,
@@ -265,22 +266,16 @@ export default function AnimeMovieAddTab({
 
       <SectionHeader icon="fa-info-circle" title="Release & Details" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Release Date JP" hint="YYYY-MM-DD">
-          <input
-            className={inputCls}
-            type="date"
-            value={amf.release_date_jp}
-            onChange={(e) => uam("release_date_jp", e.target.value)}
-          />
-        </Field>
-        <Field label="Release Date TW" hint="YYYY-MM-DD">
-          <input
-            className={inputCls}
-            type="date"
-            value={amf.release_date_tw}
-            onChange={(e) => uam("release_date_tw", e.target.value)}
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date JP"
+          value={amf.release_date_jp}
+          onChange={(v) => uam("release_date_jp", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={amf.release_date_tw}
+          onChange={(v) => uam("release_date_tw", v)}
+        />
         <Field label="Length (min)">
           <input
             className={inputCls}

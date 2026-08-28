@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for ComicModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
   CollectionNote,
@@ -295,24 +296,16 @@ export default function ComicModifyTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Release Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={ccmf.release_year ?? ""}
-            onChange={(e) => ucm("release_year", e.target.value)}
-            placeholder="2020"
-          />
-        </Field>
-        <Field label="End Year">
-          <input
-            className={inputCls}
-            type="number"
-            value={ccmf.end_year ?? ""}
-            onChange={(e) => ucm("end_year", e.target.value)}
-            placeholder="2024"
-          />
-        </Field>
+        <ReleaseDateInput
+          label="Release Date"
+          value={ccmf.release_date}
+          onChange={(v) => ucm("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={ccmf.end_date}
+          onChange={(v) => ucm("end_date", v)}
+        />
       </div>
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />

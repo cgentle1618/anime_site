@@ -40,7 +40,6 @@ import {
   PART_NUMS,
   PROGRESS_DISPLAY_OPTIONS,
   READING_STATUSES,
-  RELEASE_MONTHS,
   RELEASE_SEASONS,
   SEASON_NUMS,
   TRISTATE,
@@ -147,9 +146,8 @@ export const COMMON_FIELD_META = {
   },
 
   // ---- Release ---------------------------------------------------------
-  release_year: { label: "Release Year", control: "number", group: "Release" },
-  end_year: { label: "End Year", control: "number", group: "Release" },
-  release_date: { label: "Release Date", group: "Release" },
+  release_date: { label: "Release Date", control: "text", group: "Release" },
+  end_date: { label: "End Date", control: "text", group: "Release" },
   length_min: { label: "Length (min)", control: "number", group: "Release" },
 
   // ---- Derivation ------------------------------------------------------
@@ -257,12 +255,6 @@ export const TYPE_FIELD_META = {
       options: RELEASE_SEASONS,
       group: "Release",
     },
-    release_month: {
-      label: "Release Month",
-      control: "select",
-      options: RELEASE_MONTHS,
-      group: "Release",
-    },
     broadcast_day: {
       label: "Broadcast Day",
       control: "select",
@@ -312,14 +304,16 @@ export const TYPE_FIELD_META = {
     anime_movie_name_roman: { label: "Name (Romaji)", group: "Names" },
     anime_movie_name_jp: { label: "Name (JP)", group: "Names" },
     anime_movie_name_alt: { label: "Name (Alt)", group: "Names" },
+    // Free text, not control: "date" — a native picker cannot express the
+    // year-only and month-only precisions the column supports.
     release_date_jp: {
       label: "Release Date (JP)",
-      control: "date",
+      control: "text",
       group: "Release",
     },
     release_date_tw: {
       label: "Release Date (TW)",
-      control: "date",
+      control: "text",
       group: "Release",
     },
   },
@@ -337,8 +331,8 @@ export const TYPE_FIELD_META = {
       options: MOVIE_TYPES,
       group: "Classification",
     },
-    release_date_usa: { label: "Release Date (USA)", group: "Release" },
-    release_date_tw: { label: "Release Date (TW)", group: "Release" },
+    release_date_tw: { label: "Release Date (TW)", control: "text", group: "Release" },
+    release_date_usa: { label: "Release Date (USA)", control: "text", group: "Release" },
     director: { label: "Director", control: "text", group: "Credits" },
   },
 
