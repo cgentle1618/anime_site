@@ -40,6 +40,7 @@ from app.services.domain import (
     autofill_movie_from_imdb,
     autofill_tv_show_from_imdb,
     autofill_cartoon_from_imdb,
+    autofill_comic_from_comicvine,
     anime_post_processing,
     anime_movie_post_processing,
     cartoon_post_processing,
@@ -360,6 +361,17 @@ def bulk_download_missing_covers(
             novel.cover_image_file = None
             autofill_novel_from_mal(novel, force_replace_ratings=False)
             if novel.cover_image_file:
+                downloaded += 1
+        else:
+            skipped += 1
+
+    comic_query = db.query(Comic).filter(Comic.cover_image_file.isnot(None))
+    for comic in _collect(comic_query, Comic):
+        total += 1
+        if comic.comicvine_id:
+            comic.cover_image_file = None
+            autofill_comic_from_comicvine(comic)
+            if comic.cover_image_file:
                 downloaded += 1
         else:
             skipped += 1

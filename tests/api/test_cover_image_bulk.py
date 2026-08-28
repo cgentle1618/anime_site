@@ -109,3 +109,62 @@ def test_orphan_deletion_only_touches_unreferenced_files(db_session, monkeypatch
     result = calculation.bulk_delete_orphaned_cover_images(db_session)
     assert result["deleted_count"] == 1
     assert deleted == [stray[:-4]]
+
+
+def test_download_missing_covers_refetches_comics(db_session, monkeypatch):
+    # The check reports comics whose cover_image_file is stamped but whose file
+    # is gone; the download must actually re-fetch them from Comic Vine.
+    comic_id = uuid.uuid4()
+    comic = models.Comic(
+        system_id=comic_id,
+        comic_name_en="Amazing Spider-Man",
+        comicvine_id=1234,
+        cover_image_file=f"{comic_id}.jpg",
+    )
+    db_session.add(comic)
+    db_session.flush()
+
+    monkeypatch.setattr(calculation, "cover_image_exists", lambda sid: False)
+    monkeypatch.setattr(db_session, "commit", lambda: None)
+
+    called = []
+
+    def fake_autofill(entry):
+        called.append(entry.system_id)
+        entry.cover_image_file = f"{entry.system_id}.jpg"
+
+    monkeypatch.setattr(calculation, "autofill_comic_from_comicvine", fake_autofill)
+
+    result = calculation.bulk_download_missing_covers(
+        db_session, system_ids=[str(comic_id)]
+    )
+    assert called == [comic_id]
+    assert "Downloaded 1 of 1" in result["message"]
+
+
+def test_download_missing_covers_skips_comics_without_comicvine_id(
+    db_session, monkeypatch
+):
+    comic_id = uuid.uuid4()
+    db_session.add(
+        models.Comic(
+            system_id=comic_id,
+            comic_name_en="Homemade Zine",
+            cover_image_file=f"{comic_id}.jpg",
+        )
+    )
+    db_session.flush()
+
+    monkeypatch.setattr(calculation, "cover_image_exists", lambda sid: False)
+    monkeypatch.setattr(db_session, "commit", lambda: None)
+    monkeypatch.setattr(
+        calculation,
+        "autofill_comic_from_comicvine",
+        lambda entry: pytest.fail("should not autofill without a comicvine_id"),
+    )
+
+    result = calculation.bulk_download_missing_covers(
+        db_session, system_ids=[str(comic_id)]
+    )
+    assert "Downloaded 0 of 1" in result["message"]
+    assert "1 skipped" in result["message"]
