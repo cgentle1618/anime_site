@@ -229,7 +229,7 @@ since the per-entry `watch_order` Float column was dropped:
 
 **Season inference:**
 
-- `apply_calculate_seasonal_from_month()` — map `release_month` → `release_season`
+- `apply_calculate_seasonal_from_month()` — map the month component of `release_date` → `release_season`
 - `derive_season_1_{anime|tv_show|cartoon}()` — if a franchise has exactly one TV entry of this type with no `season_part`, set "Season 1"
 
 **Source flags:** `apply_check_baha()` — sets `source_baha=True` if `baha_link` is present (supports Anime, AnimeMovies).

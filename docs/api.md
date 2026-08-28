@@ -276,9 +276,9 @@ materializes the generated steps into a hand-built copy. `GET /lists` accepts
 `auto=exclude` / `auto=only`, since built-in lists would otherwise bury the
 hand-built ones in any cross-owner view, and `series_id` as an owner filter.
 
-Ordering prefers the most precise date each type stores — `release_date_jp`,
-then other date columns, then `release_year` + `release_month`, then a bare
-year. A date missing precision resolves to the **first of that period**: a bare
+Ordering reads the columns named in `release_date.RELEASE_PRIORITY` — JP then
+TW for anime movies, TW then USA for movies, and `release_date` for everything
+else. A date missing precision resolves to the **first of that period**: a bare
 year is 1 January, a month and year the 1st of that month, so a year-only manga
 ties with a 1 January release rather than sorting just ahead of it, and the two
 are separated by name. Entries with no parseable date at all sink to the bottom.

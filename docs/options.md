@@ -543,9 +543,8 @@ Required metadata fields that should be populated for each entry type. Used by `
 | ------------------ | --------------------------------------------- |
 | `airing_type`      |                                               |
 | `airing_status`    |                                               |
-| `release_month`    |                                               |
+| `release_date`     |                                               |
 | `release_season`   |                                               |
-| `release_year`     |                                               |
 | `mal_rating`       | Skipped if `airing_status` is `Not Yet Aired` |
 | `mal_rank`         | Skipped if `airing_status` is `Not Yet Aired` |
 | `ep_total`         |                                               |
@@ -612,8 +611,8 @@ Required metadata fields that should be populated for each entry type. Used by `
 | Field                  | Notes |
 | ---------------------- | ----- |
 | `serialization_status` |       |
-| `release_year`         |       |
-| `end_year`             |       |
+| `release_date`         |       |
+| `end_date`             |       |
 | `mal_rating`           |       |
 | `mal_rank`             |       |
 | `cover_image_file`     |       |
@@ -623,8 +622,8 @@ Required metadata fields that should be populated for each entry type. Used by `
 | Field                  | Notes                                           |
 | ---------------------- | ----------------------------------------------- |
 | `serialization_status` |                                                 |
-| `release_year`         |                                                 |
-| `end_year`             |                                                 |
+| `release_date`         |                                                 |
+| `end_date`             |                                                 |
 | `mal_rating`           |                                                 |
 | `mal_rank`             |                                                 |
 | `vol_total_original`   | Skipped if `serialization_status` is not `完結` |

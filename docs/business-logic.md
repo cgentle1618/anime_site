@@ -4,6 +4,7 @@ All backend logic lives in `services/` and `utils/`. Routers are thin — they v
 
 ## Table of Contents
 
+- [Release Dates](#release-dates)
 - [Main Data Control Logic](#main-data-control-logic)
 - [Composite Logics](#composite-logics)
 - [Checking Logics](#checking-logics)
@@ -17,6 +18,38 @@ All backend logic lives in `services/` and `utils/`. Routers are thin — they v
 - [Formatters (DB to Sheet)](#formatters-db-to-sheet)
 - [Parsers (Sheet to Python Types)](#parsers-sheet-to-python-types)
 - [Other Helpers](#other-helpers)
+
+---
+
+## Release Dates
+
+Every release column stores a truncated ISO-8601 string: `YYYY`, `YYYY-MM`, or
+`YYYY-MM-DD` — or NULL. `app/utils/release_date.py` owns the format; every
+model, schema, pipeline and formatter reads through it, and a CHECK constraint
+on each column mirrors the regex `^\d{4}(-\d{2}(-\d{2})?)?$`.
+
+**Precision is self-describing** from the string's length, so there is no
+companion precision column, and lexicographic ordering equals chronological
+ordering. Missing precision resolves to the FIRST of the period for ordering
+(`"2024"` sorts as 2024-01-01) but is **never** filled in for display —
+display shows the stored string verbatim.
+
+**Release priority.** Which column represents an entry, most preferred first,
+lives in `release_date.RELEASE_PRIORITY`:
+
+| Media type    | Columns, in order                     |
+| ------------- | ------------------------------------- |
+| `anime-movie` | `release_date_jp`, `release_date_tw`  |
+| `movie`       | `release_date_tw`, `release_date_usa` |
+| everything else | `release_date`                      |
+
+Manga, novel and comic additionally carry `end_date` for the end of the run,
+which has no priority meaning.
+
+**Season derivation.** `release_season` is derived from `release_date` only at
+month-or-better precision, and is never cleared on a year-only date: autofill
+writes `release_season` straight from the Tenrai response, independently of any
+month, so an anime can legitimately carry a season it never had a month for.
 
 ---
 
@@ -429,7 +462,7 @@ Runs all single-entry checks and repairs for one anime.
 1. `apply_validate_episode_math`
 2. `apply_check_baha`
 3. If `check_is_tv_completed()` and `watching_status != "Completed"`: call `mark_tv_completed`.
-4. If `release_season` is None, `release_month` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
+4. If `release_season` is None, `release_date` is set, and `airing_type == "TV"`: call `apply_calculate_seasonal_from_month`.
 5. If `season_part` is None: try `apply_extract_season_from_title`, then `derive_season_1_anime`.
 
 ---
@@ -630,7 +663,7 @@ Applies to Manga and Novel entries.
 
 Returns `True` if any required field is blank.
 
-**Fields checked:** `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
+**Fields checked:** `airing_type`, `airing_status`, `release_date`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
 
 **Special cases:**
 
@@ -643,7 +676,7 @@ Returns `True` if any required field is blank.
 
 Returns `True` if any required field is blank.
 
-**Fields checked:** `airing_type`, `airing_status`, `release_year_jp`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
+**Fields checked:** `airing_type`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file`.
 
 **Special cases:**
 
@@ -818,7 +851,10 @@ Parses "Season X", "Part X", or "Cour X" from `anime_name_en`, `tv_show_name_en`
 
 ### Calculate Seasonal From Month — `apply_calculate_seasonal_from_month(anime)` / `calculate_seasonal_from_month(month_str)`
 
-Infers `release_season` from `release_month`. Only applies if `airing_type` is TV or ONA.
+Infers `release_season` from the month component of `release_date`. Fires only
+when `release_date` carries month-or-better precision and `release_season` is
+still empty; the caller restricts it to `airing_type == "TV"`. A year-only date
+leaves any existing season untouched.
 
 | Month                      | Season |
 | -------------------------- | ------ |
@@ -913,7 +949,7 @@ Enriches a single Anime entry with Tenrai API data. Does not commit — caller i
 1. Resolve `mal_id` from `anime.mal_id`. Return if no ID.
 2. Call `fetch_tenrai_anime_data(mal_id)`.
 3. Map response via `map_tenrai_to_anime_data()`.
-4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_month`, `release_season`, `release_year`, `ep_total`, `official_link`, `twitter_link`.
+4. Fill each field **only if currently None**: `airing_type`, `airing_status`, `release_date`, `release_season`, `ep_total`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
 
@@ -928,7 +964,7 @@ Enriches a single Anime Movie entry with Tenrai API data. Does not commit — ca
 1. Resolve `mal_id` from `anime_movie.mal_id`. Return if no ID.
 2. Call `fetch_tenrai_anime_data(mal_id)`.
 3. Map response via `map_tenrai_to_anime_data()`.
-4. Fill each field **only if currently None**: `airing_status`, `release_year_jp`, `official_link`, `twitter_link`.
+4. Fill each field **only if currently None**: `airing_status`, `release_date_jp`, `official_link`, `twitter_link`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite if `force_replace_ratings=True`; fill-only if `False`.
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
 
@@ -943,7 +979,7 @@ Enriches a single Manga entry with Tenrai API data. Does not commit — caller i
 1. Resolve `mal_id` from `manga.mal_id`. Return if no ID.
 2. Call `fetch_tenrai_manga_novel_data(mal_id)`.
 3. Map response via `map_tenrai_to_manga_data()`.
-4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total`, `ch_total`.
+4. Fill each field **only if currently None**: `serialization_status`, `release_date`, `end_date`, `vol_total`, `ch_total`.
    - Exception: `vol_total` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite (replace, not fill-only).
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
@@ -959,7 +995,7 @@ Enriches a single Novel entry with Tenrai API data. Does not commit — caller i
 1. Resolve `mal_id` from `novel.mal_id`. Return if no ID.
 2. Call `fetch_tenrai_manga_novel_data(mal_id)`.
 3. Map response via `map_tenrai_to_novel_data()`.
-4. Fill each field **only if currently None**: `serialization_status`, `release_year`, `end_year`, `vol_total_original`, `ch_total`.
+4. Fill each field **only if currently None**: `serialization_status`, `release_date`, `end_date`, `vol_total_original`, `ch_total`.
    - Exception: `vol_total_original` and `ch_total` are not filled if `serialization_status` is not `"完結"`.
 5. Ratings (`mal_rating`, `mal_rank`): always overwrite (replace, not fill-only).
 6. Cover image: if `cover_image_file` is None and a URL was returned, download and upload to GCS, then set `cover_image_file`.
@@ -1067,8 +1103,8 @@ Transforms raw Tenrai manga `data` dict to a flat standardized dict.
 | Output Field           | Tenrai Source / Mapping                                                                                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `serialization_status` | `status` — `"Finished"` → `"完結"`, `"Publishing"` → `"連載中"`, `"On Hiatus"` → `"停更"`, `"Discontinued"` → `"腰斬"`, `"Not yet published"` → `null` |
-| `release_year`         | `published.from` (ISO date parsed — year only)                                                                                                         |
-| `end_year`             | `published.to` (ISO date parsed — year only)                                                                                                           |
+| `release_date`         | `published.prop.from` (day / month / year, at whatever precision MAL knows)                                                                             |
+| `end_date`             | `published.prop.to` (same rule)                                                                                                                        |
 | `mal_rating`           | `score`                                                                                                                                                |
 | `mal_rank`             | `rank` (as string)                                                                                                                                     |
 | `vol_total`            | `volumes`                                                                                                                                              |
@@ -1084,8 +1120,8 @@ Transforms raw Tenrai manga `data` dict to a flat standardized dict for novel en
 | Output Field           | Tenrai Source / Mapping                                                                                                      |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `serialization_status` | `status` — `"Finished"` → `"完結"`, `"Publishing"` → `"連載中"`, `"On Hiatus"` → `"停更"`, `"Not yet published"` → `"未出"` |
-| `release_year`         | `published.from` (ISO date parsed — year only)                                                                              |
-| `end_year`             | `published.to` (ISO date parsed — year only)                                                                                |
+| `release_date`         | `published.prop.from` (day / month / year, at whatever precision MAL knows)                                                 |
+| `end_date`             | `published.prop.to` (same rule)                                                                                             |
 | `mal_rating`           | `score`                                                                                                                     |
 | `mal_rank`             | `rank` (as string)                                                                                                          |
 | `vol_total_original`   | `volumes`                                                                                                                   |
@@ -1103,9 +1139,8 @@ Transforms raw Tenrai `data` dict to a flat standardized dict.
 | `airing_type`     | `type` — normalized; `"Other"` if not in allowed set                                                          |
 | `airing_status`   | `status` — "Finished..." → `"Finished Airing"`, "Currently..." → `"Airing"`, "Not yet..." → `"Not Yet Aired"` |
 | `release_season`  | `season` — winter/spring/summer/fall → WIN/SPR/SUM/FAL                                                        |
-| `release_year`    | `aired.from` (ISO date parsed)                                                                                |
-| `release_month`   | `aired.from` (month → JAN/FEB/...)                                                                            |
-| `release_year_jp` | `aired.from` (ISO date parsed)                                                                                |
+| `release_date`    | `aired.prop.from` year, plus the month only when `aired.string` names one                                     |
+| `release_date_jp` | `aired.from` (ISO date parsed)                                                                                |
 
 | `mal_rating` | `score` |
 | `mal_rank` | `rank` (as string) |
@@ -1288,7 +1323,7 @@ Merges show-level and season-level TMDB data with OMDb data into one flat dict.
 
 ### Create Missing Seasonal — `create_missing_seasonal(db)`
 
-Queries distinct `(release_season, release_year)` pairs from `anime`. Creates a `Seasonal` row keyed `"YYYY SSS"` (e.g. `"2025 SPR"`) for each pair that doesn't already exist.
+Queries distinct `(release_season, substr(release_date, 1, 4))` pairs from `anime`. Creates a `Seasonal` row keyed `"YYYY SSS"` (e.g. `"2025 SPR"`) for each pair that doesn't already exist.
 
 ---
 
@@ -1296,7 +1331,7 @@ Queries distinct `(release_season, release_year)` pairs from `anime`. Creates a 
 
 Recomputes `entry_planned`, `entry_completed`, `entry_watching`, `entry_dropped` for all `Seasonal` rows.
 
-**Eligible anime:** `release_season` and `release_year` are set, `airing_type` in `{TV, ONA, Movie, Special}`.
+**Eligible anime:** `release_season` and `release_date` are set, `airing_type` in `{TV, ONA, Movie, Special}`.
 
 | watching_status                             | Counter incremented |
 | ------------------------------------------- | ------------------- |

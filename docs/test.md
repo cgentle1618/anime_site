@@ -1,11 +1,6 @@
 # Testing Strategy
 
 > **Status (as of 2026-08-01):** Tiers 1, part of Tier 2, and part of Tier 3 are implemented. Tiers 4–7 and the rest of Tier 3 are planned but not yet written. See the directory layout below — files marked _(planned)_ do not exist yet.
->
-> Two failures predate the current work and are unrelated to it:
-> `tests/unit/test_tenrai_utils.py::test_full_response_mapped_correctly` (expects
-> `release_year == "2023"`, gets `None`) and `frontend/src/utils/anime.test.js`
-> (imports `./anime.js`, which does not exist — the utilities moved to `lib/`).
 
 This document is the canonical reference for the CG1618 Media Tracker test suite. Tests are organized in a pyramid from fast, isolated unit tests up through full end-to-end flows.
 

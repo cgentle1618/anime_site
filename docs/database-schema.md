@@ -231,9 +231,8 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 
 | Column           | Type   | Nullable | Notes                                 |
 | ---------------- | ------ | -------- | ------------------------------------- |
-| `release_month`  | String | Yes      | `"JAN"` – `"DEC"`                     |
-| `release_season` | String | Yes      | `"WIN"` / `"SPR"` / `"SUM"` / `"FAL"` |
-| `release_year`   | String | Yes      | e.g. `"2024"`                         |
+| `release_date`   | String | Yes      | Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
+| `release_season` | String | Yes      | `"WIN"` / `"SPR"` / `"SUM"` / `"FAL"`; derived from `release_date` only at month-or-better precision, never cleared |
 
 #### Broadcast Schedule
 
@@ -311,7 +310,7 @@ seeded value remains.
 
 Standalone anime movie entries (distinct from the `anime` table which covers series/OVA formats).
 
-**Notes:** `release_date_jp` and `release_date_tw` are strings.
+**Notes:** `release_date_jp` and `release_date_tw` are truncated ISO-8601 strings, JP taking priority over TW.
 
 #### Identity & Hierarchy
 
@@ -353,8 +352,8 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 | Column            | Type    | Nullable | Notes                                            |
 | ----------------- | ------- | -------- | ------------------------------------------------ |
 | `length_min`      | Integer | Yes      | Length of the movie in minutes                   |
-| `release_date_jp` | String  | Yes      | Japan release date, e.g. `"JUL 2001"`, `"2001"`  |
-| `release_date_tw` | String  | Yes      | Taiwan release date, e.g. `"FEB 2023"`, `"2001"` |
+| `release_date_jp` | String  | Yes      | Japan release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
+| `release_date_tw` | String  | Yes      | Taiwan release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
 | `studio`          | String  | Yes      | Multi-selectable, comma-separated                |
 | `director`        | String  | Yes      | Multi-selectable, comma-separated                |
 
@@ -396,7 +395,7 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 
 Live-action and animated movie entries.
 
-**Notes:** `release_date_us` and `release_date_tw` are strings. `is_main` is a string.
+**Notes:** `release_date_tw` and `release_date_usa` are truncated ISO-8601 strings, TW taking priority over USA. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -432,8 +431,8 @@ Live-action and animated movie entries.
 | Column             | Type    | Nullable | Notes                                            |
 | ------------------ | ------- | -------- | ------------------------------------------------ |
 | `length_min`       | Integer | Yes      | Length of the movie in minutes                   |
-| `release_date_usa` | String  | Yes      | USA release date, e.g. `"JUL 2001"`, `"2001"`    |
-| `release_date_tw`  | String  | Yes      | Taiwan release date, e.g. `"FEB 2023"`, `"2001"` |
+| `release_date_usa` | String  | Yes      | USA release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
+| `release_date_tw`  | String  | Yes      | Taiwan release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
 | `director`         | String  | Yes      | Can be multiple directors                        |
 
 #### Relational & Ordering
@@ -473,7 +472,7 @@ Live-action and animated movie entries.
 
 Live-action and scripted TV show entries.
 
-**Notes:** `release_date` is a string. `is_main` is a string.
+**Notes:** `release_date` is a truncated ISO-8601 string. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -517,7 +516,7 @@ Live-action and scripted TV show entries.
 | -------------- | ------ | -------- | ----------------------------------------------------------------------------------------------- |
 | `my_rating`    | String | Yes      | S / A+ / A / B / C / D / E / F                                                                  |
 | `imdb_rating`  | String | Yes      | IMDB score stored as string (e.g. `"9.2"`, `"N/A"`); It is series rating not per-season rating. |
-| `release_date` | String | Yes      | Release month + year or year, e.g. `"FEB 2026"`, `"2025"`                                       |
+| `release_date` | String | Yes      | Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
 
 #### Relational & Ordering
 
@@ -556,7 +555,7 @@ Live-action and scripted TV show entries.
 
 Western animated TV show entries.
 
-**Notes:** `release_date` is a string. `is_main` is a string.
+**Notes:** `release_date` is a truncated ISO-8601 string. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -601,7 +600,7 @@ Western animated TV show entries.
 | Column         | Type   | Nullable | Notes                                                     |
 | -------------- | ------ | -------- | --------------------------------------------------------- |
 | `my_rating`    | String | Yes      | S / A+ / A / B / C / D / E / F                            |
-| `release_date` | String | Yes      | Release month + year or year, e.g. `"FEB 2026"`, `"2025"` |
+| `release_date` | String | Yes      | Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
 
 #### Relational & Ordering
 
@@ -640,7 +639,7 @@ Western animated TV show entries.
 
 Manga, manhwa, and manhua entries.
 
-**Notes:** No `series_id` on this table. `release_year` and `end_year` are strings. `mal_rank` and `anilist_rating` are strings. `is_main` is a string.
+**Notes:** No `series_id` on this table. `release_date` and `end_date` are truncated ISO-8601 strings. `mal_rank` and `anilist_rating` are strings. `is_main` is a string.
 
 #### Identity & Hierarchy
 
@@ -696,8 +695,8 @@ Manga, manhwa, and manhua entries.
 | ------------------------ | ------ | -------- | ---------------------------------------------------------- |
 | `author_plot`            | String | Yes      | 原作 — author responsible for plot; see system_options     |
 | `author_draw`            | String | Yes      | 作畫 — author responsible for art; see system_options      |
-| `release_year`           | String | Yes      | Release year; cannot exceed end_year                       |
-| `end_year`               | String | Yes      | Year serialization ended                                   |
+| `release_date`           | String | Yes      | Start of the run. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"`; cannot exceed `end_date` |
+| `end_date`               | String | Yes      | End of the run, same format                                |
 | `anime_studio`           | String | Yes      | Anime adaptation studio; multi-selectable, comma-separated |
 | `serialization_platform` | String | Yes      | Where the entry is serialized                              |
 | `distributor_tw`         | String | Yes      | Taiwan distributor; multi-selectable, comma-separated      |
@@ -803,8 +802,8 @@ Light novel and book entries.
 | -------------- | ------- | -------- | ---------------------------------------------------------------- |
 | `author`       | String  | Yes      | Authors; category in system_options: Novel Author                |
 | `illustrator`  | String  | Yes      | Illustrators; category in system_options: Novel Illustrator      |
-| `release_year` | Integer | Yes      | Release year of the first book; cannot exceed end_year           |
-| `end_year`     | Integer | Yes      | Release year of the last book                                    |
+| `release_date` | String  | Yes      | First book. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"`; cannot exceed `end_date`. Was Integer before the ISO migration |
+| `end_date`     | String  | Yes      | Last book, same format. Was Integer before the ISO migration     |
 | `publisher_tw` | String  | Yes      | Taiwan publisher; category in system_options: Novel Publisher TW |
 
 #### Relational & Ordering
@@ -903,8 +902,8 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 | -------------- | ------- | -------- | --------------------------------------------------------------------------------------------- |
 | `writer`       | String  | Yes      | category in system_options: Comic Writer                                                      |
 | `artist`       | String  | Yes      | category in system_options: Comic Artist                                                      |
-| `release_year` | Integer | Yes      | Release year of the run                                                                       |
-| `end_year`     | Integer | Yes      | Release year the run ended                                                                    |
+| `release_date` | String  | Yes      | Start of the run. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"`. Was Integer before the ISO migration |
+| `end_date`     | String  | Yes      | End of the run, same format. Was Integer before the ISO migration |
 | `publisher_tw` | String  | Yes      | Taiwan publisher; reuses the existing system_options category: Distributor TW (not comic-specific) |
 
 #### Relational & Ordering

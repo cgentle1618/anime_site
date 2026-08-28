@@ -2,13 +2,12 @@
 
 Companion to `2026-08-28-release-date-iso.md`. The SDD workspace
 (`.superpowers/sdd/2026-08-28-release-date-iso/`) is gitignored and does NOT
-travel between machines, so this file is the portable record. Read it before
-resuming on a different device.
+travel between machines, so this file is the portable record.
 
 **Spec:** `docs/superpowers/specs/2026-08-28-release-date-iso-design.md`
 **Plan:** `docs/superpowers/plans/2026-08-28-release-date-iso.md`
 **Branch:** `modify`
-**Paused:** 2026-08-28, after Task 4, at the user's request
+**Finished:** 2026-08-28. All 13 tasks implemented.
 
 ## Completed
 
@@ -18,48 +17,68 @@ resuming on a different device.
 | 2 — model columns + CHECK constraints | `114436c` | 29 tests pass. Reviewed with Task 3. |
 | 3 — Alembic migration | `88d8a0f` | 6 unit tests pass. Ran live: 1,979 source rows converted, **0 unparseable**. upgrade / downgrade / re-upgrade all verified. Spec PASS, quality APPROVED. |
 | 4 — Pydantic validation | `ffb8e78` | 7/7 tests pass. Validator mounted on all eight media schemas. Spec PASS, quality APPROVED. |
+| 5 — external API mappers | `2609fc2` | TMDB keeps day precision; the Tenrai anime, manga and novel mappers emit ISO; Comic Vine emits a year string. |
+| 6 — autofill wiring | uncommitted | Tenrai anime/manga/novel fills, then the comic field tuple. |
+| 7 — anime season derivation | uncommitted | Derives from `release_date`, never clears on a year-only date. |
+| 8 — seasonal grouping + season filter | uncommitted | Year read as `substr(release_date, 1, 4)`. |
+| 9 — watch order priority + remarks | uncommitted | One priority table; movies now TW first. |
+| 10 — Google Sheets round trip | uncommitted | Apostrophe escaping on write, `normalize()` on read. |
+| 11 — frontend release date input | uncommitted | `lib/releaseDate.js` + `ReleaseDateInput`, all eight add tabs and four modify tabs. |
+| 12 — frontend display | uncommitted | Cards, detail, library, admin and plan pages. |
+| 13 — documentation | uncommitted | schema / business-logic / integrations, plus api, architecture, options, pages, test. |
 
-Plan and spec documents committed as `11a228f`. Branch pushed to origin at
-`11a228f`.
+Plan and spec documents committed as `11a228f`. Tasks 6-13 were completed in one
+continuous session at the user's instruction ("continue working for everything
+until all finished") and are not yet committed.
 
-## Resume here
+## Verification at completion
 
-**Next action:** Task 5 (external API mappers emit ISO), with review BASE =
-`ffb8e78`.
+- `pytest -q` — **1137 passed, 1 failed**. The one failure,
+  `tests/unit/test_sheets_retry.py::test_status_is_found_even_when_the_body_is_not_json`,
+  predates this work and is unrelated: it asserts a gspread `APIError` carries
+  no `.code`, and the installed gspread sets one.
+- `cd frontend && npm run test:run` — **300 passed** across 29 files. Two
+  unhandled d3-drag teardown exceptions in `RelationGraphReset.test.jsx` are
+  pre-existing and unrelated.
+- `grep -rn "release_year|release_month|end_year" app/ frontend/src` — one hit
+  left, `app/schemas/system.py:136` (`CurrentSeasonUpdate.release_year`). That
+  is a calendar year on an unused request schema, not a media release column,
+  so it was deliberately left alone.
+- `alembic current` — `d1e2f3a4b5c6 (head)`, state verified.
+- `cd frontend && npm run build` — succeeds; `frontend_dist/` regenerated.
+- **Not done:** the live Backup-then-Pull round trip (Task 10 step 5, and the
+  last item on the plan's verification checklist). It writes to the real Google
+  Sheet, so it needs to be run by hand from the admin pipelines page. The
+  escaping is covered by unit tests only.
 
-**Remaining:** Tasks 5-13 — external API mappers, autofill wiring, anime
-season derivation, seasonal grouping and the season filter, watch-order
-priority and remarks, the Google Sheets apostrophe fix, the two frontend
-tasks, and documentation.
+## Deviations from the plan text
 
-The per-task briefs for Tasks 5-13 were extracted into the gitignored
-workspace and will not exist on the new machine. Regenerate any of them with:
-
-```
-bash <superpowers>/skills/subagent-driven-development/scripts/task-brief \
-  docs/superpowers/plans/2026-08-28-release-date-iso.md <N>
-```
-
-## Tree state at pause — read this first
-
-The database is **already migrated** to the new columns, but the services and
-frontend still reference `release_year` / `end_year`. The application is
-therefore half-converted and the backend will not work correctly until at
-least Task 10 lands.
-
-`pytest -q` is intentionally RED at this commit: roughly **28 failed / 33
-errored**, every one a downstream consumer of the old column names, owned by
-Tasks 5-10. This is the plan's design, not a defect. Task 12 step 5 is the
-gate that re-verifies it green:
-
-```
-grep -rn "release_year\|release_month\|end_year" frontend/src app/
-```
-
-must return nothing but the migration file.
-
-**A new machine needs its own `alembic upgrade head`** before running the
-suite — the migration ran against the original device's local Postgres only.
+1. **Task 5 also converted the Tenrai manga and novel mappers.** The plan named
+   only the anime mapper, but renaming `MANGA_FIELDS_TO_FILL` /
+   `NOVEL_FIELDS_TO_FILL` to `release_date` / `end_date` while those mappers
+   still returned `release_year` / `end_year` would have made their autofill
+   silently stop matching. Both now read `published.prop` rather than
+   `published.from`, whose ISO timestamp fabricates a day MAL does not know.
+2. **Task 9 also updated `tests/unit/test_watch_order_resolver.py` and
+   `tests/api/test_watch_order.py`.** Their fixtures constructed `Anime` with
+   `release_year=`, which raises `TypeError` against the migrated model.
+3. **Task 10 also rewrote the sheet parsers.** The plan covered only
+   `format_model_for_sheet`; the eight `parse_*_from_sheet` functions still
+   named the dropped columns, so the Pull half of the round trip would have
+   dropped every release value. They now route through `release_date.normalize`.
+4. **Task 12 was extended past the files the plan named** — `covers.js`,
+   `statsUtils.js`, `PlanToWatchFuture.jsx`, `FutureReleases.jsx`,
+   `FranchiseModifyTab.jsx`, `SeriesModifyTab.jsx` and the four modify tabs all
+   read the old columns. Two shared helpers were added to `lib/releaseDate.js`
+   so the parsing is not repeated per page: `releaseYear()` and
+   `releaseScore()`.
+5. **`remarks.py`'s movie payload key changed** from `release_date_usa` to
+   `release_date`, resolved through `release_display(e, "movie")` as the plan
+   asked; `frontend/src/pages/admin/Admin.jsx` was updated to match.
+6. **Task 13 also touched `docs/api.md`, `architecture.md`, `options.md`,
+   `pages.md` and `test.md`**, which described the old columns.
+   `docs/current-plan.md` and `docs/comicvine-link-conflicts.md` were left
+   alone: they are historical records of earlier work.
 
 ## Rulings made during execution
 

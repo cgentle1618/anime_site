@@ -61,9 +61,7 @@ Returns full anime metadata including images, external links, and episode count.
 | `type`                        | `airing_type`                                   | TV/Movie/ONA/OVA/Special kept as-is; anything else → "Other"                                |
 | `status`                      | `airing_status`                                 | "currently airing"→Airing, "finished airing"→Finished Airing, "not yet aired"→Not Yet Aired |
 | `season`                      | `release_season`                                | Lowercase → 3-letter code: winter→WIN, spring→SPR, summer→SUM, fall→FAL                     |
-| `aired.prop.from.year`        | `release_year`                                  | Stringified integer                                                                         |
-| `aired.prop.from.month` + `aired.string` | `release_month`                      | Mapped to JAN–DEC, but **only when `aired.string` names a month**. Tenrai fills `prop.from.month` with 1 when MAL knows just the year, so a leading `"2026 to ?"` suppresses it rather than recording a false January |
-| `aired.from`                  | `release_date`                                  | ISO 8601 parsed to `YYYY-MM-DD`                                                             |
+| `aired.prop.from.year` + `.month` + `aired.string` | `release_date`              | `"2026-01"` when `aired.string` names a month, otherwise `"2026"`. Tenrai fills `prop.from.month` with 1 when MAL knows just the year, so a leading `"2026 to ?"` suppresses the month rather than recording a false January |
 | `rank`                        | `mal_rank`                                      | Stringified integer                                                                         |
 | `score`                       | `mal_rating`                                    | Float                                                                                       |
 | `episodes`                    | `ep_total`                                      | Integer                                                                                     |
@@ -249,7 +247,7 @@ than silently stored as a volume.
 | Comic Vine field                     | DB field           | Transformation                              |
 | ------------------------------------ | ------------------ | ------------------------------------------- |
 | `name`                               | `comic_name_en`    | Mapped, but never written — see below       |
-| `start_year`                         | `release_year`     | String → Integer                            |
+| `start_year`                         | `release_date`     | String → canonical year, e.g. `"1963"`      |
 | `start_year`                         | `volume_label`     | `2018` → `"(2018)"`                         |
 | `publisher.name`                     | `publisher`        | As-is                                       |
 | `count_of_issues`                    | `issue_total`      | As-is                                       |
@@ -260,7 +258,7 @@ than silently stored as a volume.
 Roles match on whole comma-separated tokens, so `inker` never satisfies a search
 for a penciler.
 
-`end_year` is deliberately unmapped: the volume's `last_issue` carries no cover
+`end_date` is deliberately unmapped: the volume's `last_issue` carries no cover
 date, so deriving it would cost a second request per entry. `imprint`,
 `continuity`, `era`, `events`, `comic_type` and `publisher_tw` are collection-specific
 classifications Comic Vine does not model. All stay manual, and none appear in
@@ -326,6 +324,13 @@ already exist.
 2. For each model, serialize rows via `format_model_for_sheet()` in column-declaration order.
 3. Call `bulk_overwrite_sheet(tab_name, matrix)` — completely replaces the tab with `[headers] + [rows]`.
 4. Value conversions: `UUID → str`, `bool → "TRUE"/"FALSE"`, `datetime → ISO 8601 + "Z"`, `None → ""`, `dict/list → json.dumps(ensure_ascii=False)`.
+5. Release date columns (every column listed in `release_date.DATE_COLUMNS`) are
+   written with a **leading apostrophe**: `"2024-05-17"` goes out as
+   `"'2024-05-17"`. The write uses `value_input_option="USER_ENTERED"`, under
+   which Sheets parses a bare ISO date into a date cell and `get_all_values`
+   then returns the spreadsheet's locale rendering (`"5/17/2024"`) — which
+   would corrupt every release value on the first backup-then-pull cycle. The
+   apostrophe forces a text cell and is not part of the value on read.
 
 ### Pull Flow (Sheets → DB)
 
