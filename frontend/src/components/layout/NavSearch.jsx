@@ -105,6 +105,39 @@ function getDisplayName(item) {
   );
 }
 
+// Rows one query may put in the dropdown. The panel scrolls, so this caps the
+// result list, not the panel height.
+const MAX_RESULTS = 20;
+
+/**
+ * Flattens the per-type result buckets into at most MAX_RESULTS rows.
+ *
+ * Each type first draws up to its quota, which stops a big table from burying
+ * the small ones. The slots left over are then filled round-robin from the
+ * buckets that still have rows, so quota no type claimed is not wasted — a
+ * query matching only movies gets all of them, not just the movie quota.
+ */
+function mergeBuckets(buckets, quotas) {
+  const cursors = buckets.map(() => 0);
+  const out = [];
+  buckets.forEach((bucket, i) => {
+    const take = Math.min(quotas[i], bucket.length, MAX_RESULTS - out.length);
+    out.push(...bucket.slice(0, take));
+    cursors[i] = take;
+  });
+  let progressed = true;
+  while (out.length < MAX_RESULTS && progressed) {
+    progressed = false;
+    for (let i = 0; i < buckets.length && out.length < MAX_RESULTS; i++) {
+      if (cursors[i] < buckets[i].length) {
+        out.push(buckets[i][cursors[i]++]);
+        progressed = true;
+      }
+    }
+  }
+  return out;
+}
+
 export default function NavSearch() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,8 +153,10 @@ export default function NavSearch() {
   const seasonalCacheRef = useRef({ loaded: false, seasonal: [] });
 
   // Universal search — server-side substring search, one request per type.
-  // Each type carries its own display limit so a large table (e.g. anime) can
-  // never truncate or crowd out matches from the smaller ones.
+  // Each type carries a quota so a large table (e.g. anime) can never crowd out
+  // the smaller ones, but the quota is a floor, not a ceiling: slots no type
+  // claims go back to the types that still have matches waiting, so a query
+  // that hits only one or two tables still fills the list.
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -136,7 +171,7 @@ export default function NavSearch() {
       const qParam = encodeURIComponent(q);
       const scope = searchScope;
 
-      // [endpoint, type, display limit when scope === "all"]
+      // [endpoint, type, guaranteed slots when scope === "all"]
       const TYPE_JOBS = [
         ["/api/collection", "collection", 3],
         ["/api/franchise", "franchise", 3],
@@ -150,10 +185,10 @@ export default function NavSearch() {
         ["/api/novel", "novel", 5],
       ];
 
-      const fetchType = async (endpoint, type, limit) => {
+      const fetchType = async (endpoint, type) => {
         try {
           const res = await fetch(
-            `${endpoint}/?search_query=${qParam}&limit=${limit}`,
+            `${endpoint}/?search_query=${qParam}&limit=${MAX_RESULTS}`,
             { credentials: "include" },
           );
           if (!res.ok) return [];
@@ -165,12 +200,15 @@ export default function NavSearch() {
       };
 
       try {
-        const jobs = TYPE_JOBS.filter(
+        const activeJobs = TYPE_JOBS.filter(
           ([, type]) => scope === "all" || scope === type,
-        ).map(([endpoint, type, allLimit]) =>
-          fetchType(endpoint, type, scope === "all" ? allLimit : 10),
         );
-        const results = (await Promise.all(jobs)).flat();
+        const buckets = await Promise.all(
+          activeJobs.map(([endpoint, type]) => fetchType(endpoint, type)),
+        );
+        const quotas = activeJobs.map(([, , quota]) =>
+          scope === "all" ? quota : MAX_RESULTS,
+        );
 
         // Seasonal: no server-side search; fetch the small table once, cache it,
         // and filter client-side.
@@ -186,11 +224,14 @@ export default function NavSearch() {
             }
             seasonalCacheRef.current.loaded = true;
           }
-          seasonalCacheRef.current.seasonal
+          const seasonalHits = seasonalCacheRef.current.seasonal
             .filter((s) => cleanString(s.seasonal).includes(qClean))
-            .slice(0, 10)
-            .forEach((s) => results.push({ ...s, type: "seasonal" }));
+            .map((s) => ({ ...s, type: "seasonal" }));
+          buckets.push(seasonalHits);
+          quotas.push(scope === "all" ? 3 : MAX_RESULTS);
         }
+
+        const results = mergeBuckets(buckets, quotas);
 
         // A newer keystroke superseded this request while it was in flight.
         if (reqId !== searchReqIdRef.current) return;
@@ -256,7 +297,7 @@ export default function NavSearch() {
           return 0;
         });
 
-        setSearchResults(results.slice(0, 10));
+        setSearchResults(results);
         setShowResults(true);
       } catch {
         // ignore search errors
