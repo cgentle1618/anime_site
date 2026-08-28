@@ -12,6 +12,7 @@ from uuid import UUID
 # Imported rather than duplicated so the Sheets tab and the API agree on what
 # the three rungs are.
 from app.services.domain.watch_order import normalize_importance
+from app.utils import release_date
 
 # ==========================================
 # FORMATTERS (DB -> Google Sheets)
@@ -39,15 +40,26 @@ def format_model_for_sheet(instance: Any) -> list:
     Dynamically extracts and formats all fields from a SQLAlchemy model instance.
     This guarantees the Google Sheet order is 100% identical to the Postgres Database order forever,
     preventing column-shifting bugs.
+
+    Release date columns are prefixed with an apostrophe. The backup writes with
+    value_input_option="USER_ENTERED", under which Sheets parses "2024-05-17"
+    into a date cell and returns the spreadsheet's locale rendering on the next
+    read — corrupting the value on the first backup-then-pull cycle. The
+    apostrophe forces a text cell and is not part of the value on read.
     """
     if not instance:
         return []
+
+    date_columns = release_date.DATE_COLUMNS.get(instance.__class__.__tablename__, ())
 
     row_data = []
     # Loop through the exact columns in the exact order they appear in the database schema
     for column in instance.__class__.__table__.columns:
         val = getattr(instance, column.name, None)
-        row_data.append(format_for_sheet(val))
+        cell = format_for_sheet(val)
+        if column.name in date_columns and cell:
+            cell = f"'{cell}"
+        row_data.append(cell)
 
     return row_data
 
@@ -364,9 +376,8 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "ep_special": parse_from_sheet(raw.get("ep_special"), float),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
-        "release_month": parse_from_sheet(raw.get("release_month"), str),
         "release_season": parse_from_sheet(raw.get("release_season"), str),
-        "release_year": parse_from_sheet(raw.get("release_year"), str),
+        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "broadcast_day": parse_from_sheet(raw.get("broadcast_day"), str),
         "broadcast_time": parse_from_sheet(raw.get("broadcast_time"), time),
         "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
@@ -419,8 +430,8 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
-        "release_date_jp": parse_from_sheet(raw.get("release_date_jp"), str),
-        "release_date_tw": parse_from_sheet(raw.get("release_date_tw"), str),
+        "release_date_jp": release_date.normalize(parse_from_sheet(raw.get("release_date_jp"), str)),
+        "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -458,8 +469,8 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "movie_type": parse_from_sheet(raw.get("movie_type"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
-        "release_date_usa": parse_from_sheet(raw.get("release_date_usa"), str),
-        "release_date_tw": parse_from_sheet(raw.get("release_date_tw"), str),
+        "release_date_usa": release_date.normalize(parse_from_sheet(raw.get("release_date_usa"), str)),
+        "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
         "director": parse_from_sheet(raw.get("director"), str),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
@@ -495,7 +506,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
-        "release_date": parse_from_sheet(raw.get("release_date"), str),
+        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
@@ -531,7 +542,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "length_ep_min": parse_from_sheet(raw.get("length_ep_min"), int),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
-        "release_date": parse_from_sheet(raw.get("release_date"), str),
+        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
@@ -574,8 +585,8 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
         "author_plot": parse_from_sheet(raw.get("author_plot"), str),
         "author_draw": parse_from_sheet(raw.get("author_draw"), str),
-        "release_year": parse_from_sheet(raw.get("release_year"), str),
-        "end_year": parse_from_sheet(raw.get("end_year"), str),
+        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
+        "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "anime_studio": parse_from_sheet(raw.get("anime_studio"), str),
         "serialization_platform": parse_from_sheet(
             raw.get("serialization_platform"), str
@@ -631,8 +642,8 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
         "author": parse_from_sheet(raw.get("author"), str),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
-        "release_year": parse_from_sheet(raw.get("release_year"), int),
-        "end_year": parse_from_sheet(raw.get("end_year"), int),
+        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
+        "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "read_order": parse_from_sheet(raw.get("read_order"), float),
@@ -671,8 +682,8 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "writer": parse_from_sheet(raw.get("writer"), str),
         "artist": parse_from_sheet(raw.get("artist"), str),
-        "release_year": parse_from_sheet(raw.get("release_year"), int),
-        "end_year": parse_from_sheet(raw.get("end_year"), int),
+        "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
+        "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "issue_total": parse_from_sheet(raw.get("issue_total"), int),
         "issue_fin": parse_from_sheet(raw.get("issue_fin"), int) or 0,
