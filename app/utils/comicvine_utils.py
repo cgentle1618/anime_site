@@ -11,6 +11,8 @@ import logging
 import re
 from typing import Any, Dict, Iterable, List, Optional
 
+from app.utils.release_date import normalize
+
 logger = logging.getLogger(__name__)
 
 # ==========================================
@@ -93,14 +95,14 @@ def _build_volume_label(start_year: Any) -> Optional[str]:
     return f"({str(start_year).strip()})"
 
 
-def _parse_year(start_year: Any) -> Optional[int]:
-    """Comic Vine returns start_year as a string; release_year is an Integer column."""
-    if start_year is None:
-        return None
-    try:
-        return int(str(start_year).strip())
-    except (ValueError, TypeError):
-        return None
+def _parse_year(start_year: Any) -> Optional[str]:
+    """
+    Comic Vine's start_year as a canonical release date.
+
+    A volume only ever carries the year it began, so the stored value stops at
+    year precision.
+    """
+    return normalize(start_year)
 
 
 def _pick_cover_url(image: Optional[Dict[str, Any]]) -> Optional[str]:
@@ -129,7 +131,7 @@ def map_comicvine_to_comic_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     Parses a raw Comic Vine volume detail result into the flat dict expected by
     the Comic model.
 
-    end_year is deliberately absent: the volume object's `last_issue` carries no
+    end_date is deliberately absent: the volume object's `last_issue` carries no
     cover date, so deriving it would cost a second request per entry. It stays
     a manual field.
     """
@@ -142,7 +144,7 @@ def map_comicvine_to_comic_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "volume_label": _build_volume_label(start_year),
         "publisher": publisher.get("name"),
         "issue_total": raw_data.get("count_of_issues"),
-        "release_year": _parse_year(start_year),
+        "release_date": _parse_year(start_year),
         "writer": _extract_credits_by_role(person_credits, WRITER_ROLES),
         "artist": _extract_credits_by_role(person_credits, ARTIST_ROLES),
         "cover_image_url": _pick_cover_url(raw_data.get("image")),

@@ -40,9 +40,8 @@ MONTH_MAP = {
 ANIME_FIELDS_TO_FILL = [
     "airing_type",
     "airing_status",
-    "release_month",
+    "release_date",
     "release_season",
-    "release_year",
     "mal_rating",
     "mal_rank",
     "ep_total",
@@ -95,8 +94,8 @@ CARTOON_MOVIE_FIELDS_TO_FILL = [
 
 MANGA_FIELDS_TO_FILL = [
     "serialization_status",
-    "release_year",
-    "end_year",
+    "release_date",
+    "end_date",
     "mal_rating",
     "mal_rank",
     "cover_image_file",
@@ -104,22 +103,22 @@ MANGA_FIELDS_TO_FILL = [
 
 NOVEL_FIELDS_TO_FILL = [
     "serialization_status",
-    "release_year",
-    "end_year",
+    "release_date",
+    "end_date",
     "mal_rating",
     "mal_rank",
     "cover_image_file",
 ]
 
 # Only the fields Comic Vine actually returns for a volume. imprint, continuity,
-# era, events, end_year and publisher_tw are deliberately excluded: Comic Vine
+# era, events, end_date and publisher_tw are deliberately excluded: Comic Vine
 # models none of them, so listing them here would leave every entry permanently
 # "needs filling" and re-request it on every run.
 COMIC_FIELDS_TO_FILL = [
     "publisher",
     "writer",
     "artist",
-    "release_year",
+    "release_date",
     "issue_total",
     "cover_image_file",
 ]

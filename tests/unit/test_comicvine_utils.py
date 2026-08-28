@@ -180,19 +180,19 @@ class TestMapComicvineToComicData:
         assert result["volume_label"] == "(1963)"
         assert result["publisher"] == "Marvel"
         assert result["issue_total"] == 441
-        assert result["release_year"] == 1963
+        assert result["release_date"] == "1963"
         assert result["writer"] == "Stan Lee"
         assert result["artist"] == "Steve Ditko"
         assert result["cover_image_url"] == "https://comicvine.example/original.jpg"
 
-    def test_release_year_is_an_integer_not_the_raw_string(self):
-        """Comic Vine returns start_year as a string; the column is Integer."""
+    def test_release_date_is_a_canonical_year_string(self):
+        """Comic Vine only ever knows the start year, so precision stops there."""
         result = map_comicvine_to_comic_data({"start_year": "1963"})
-        assert result["release_year"] == 1963
+        assert result["release_date"] == "1963"
 
-    def test_release_year_is_none_when_start_year_is_unparseable(self):
+    def test_release_date_is_none_when_start_year_is_unparseable(self):
         result = map_comicvine_to_comic_data({"start_year": "n/a"})
-        assert result["release_year"] is None
+        assert result["release_date"] is None
 
     def test_handles_a_volume_with_no_publisher(self):
         result = map_comicvine_to_comic_data({"name": "Orphan Run", "publisher": None})
@@ -205,7 +205,7 @@ class TestMapComicvineToComicData:
         assert result["publisher"] is None
         assert result["writer"] is None
         assert result["artist"] is None
-        assert result["release_year"] is None
+        assert result["release_date"] is None
         assert result["issue_total"] is None
         assert result["cover_image_url"] is None
         assert result["volume_label"] is None

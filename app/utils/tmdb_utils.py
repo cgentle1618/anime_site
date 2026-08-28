@@ -5,9 +5,10 @@ TMDB (The Movie Database) API into the formats required by our database models.
 """
 
 import logging
-import re
 from collections import Counter
 from typing import Any, Dict, List, Optional
+
+from app.utils.release_date import normalize
 
 logger = logging.getLogger(__name__)
 
@@ -17,21 +18,6 @@ logger = logging.getLogger(__name__)
 
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
-MONTH_MAP = {
-    1: "JAN",
-    2: "FEB",
-    3: "MAR",
-    4: "APR",
-    5: "MAY",
-    6: "JUN",
-    7: "JUL",
-    8: "AUG",
-    9: "SEP",
-    10: "OCT",
-    11: "NOV",
-    12: "DEC",
-}
-
 
 # ==========================================
 # DATA TRANSFORMERS
@@ -40,21 +26,13 @@ MONTH_MAP = {
 
 def _convert_tmdb_date(date_str: Optional[str]) -> Optional[str]:
     """
-    Converts TMDB's ISO date string to our "MON YYYY" format.
-    e.g. "2008-07-18" -> "JUL 2008", "2008" -> "2008"
+    TMDB's date string in canonical stored form.
+
+    TMDB usually sends a full "2008-07-18", which is already canonical. The
+    previous implementation flattened that to "JUL 2008", discarding a day we
+    actually knew.
     """
-    if not date_str:
-        return None
-    try:
-        parts = date_str.split("-")
-        year = parts[0]
-        if len(parts) >= 2:
-            month = MONTH_MAP.get(int(parts[1]))
-            if month:
-                return f"{month} {year}"
-        return year or None
-    except (ValueError, IndexError):
-        return None
+    return normalize(date_str)
 
 
 def _build_poster_url(poster_path: Optional[str]) -> Optional[str]:

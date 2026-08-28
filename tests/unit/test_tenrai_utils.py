@@ -7,6 +7,8 @@ Tests the Tenrai API JSON → Anime dict transformation logic.
 import pytest
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
+    map_tenrai_to_manga_data,
+    map_tenrai_to_novel_data,
     _convert_airing_type,
     _convert_airing_status,
     _convert_season,
@@ -188,8 +190,7 @@ class TestMapTenraiToAnimeData:
         assert result["airing_type"] == "TV"
         assert result["airing_status"] == "Finished Airing"
         assert result["release_season"] == "WIN"
-        assert result["release_year"] == "2023"
-        assert result["release_month"] == "JAN"
+        assert result["release_date"] == "2023-01"
         assert result["mal_rating"] == 8.5
         assert result["mal_rank"] == "42"
         assert result["ep_total"] == 12
@@ -208,8 +209,7 @@ class TestMapTenraiToAnimeData:
             "string": "2026 to ?",
         }
         result = map_tenrai_to_anime_data(raw)
-        assert result["release_year"] == "2026"
-        assert result["release_month"] is None
+        assert result["release_date"] == "2026"
 
     def test_known_january_still_maps_the_month(self):
         # The other side of the same rule: a month named in `string` is real.
@@ -220,7 +220,7 @@ class TestMapTenraiToAnimeData:
             "string": "Jan 12, 2026 to ?",
         }
         result = map_tenrai_to_anime_data(raw)
-        assert result["release_month"] == "JAN"
+        assert result["release_date"] == "2026-01"
 
     def test_webp_preferred_over_jpg(self):
         raw = make_full_tenrai_response()
@@ -250,3 +250,97 @@ class TestMapTenraiToAnimeData:
         raw["rank"] = 100
         result = map_tenrai_to_anime_data(raw)
         assert result["mal_rank"] == "100"
+
+
+# ---------------------------------------------------------------------------
+# ISO release dates
+# ---------------------------------------------------------------------------
+
+class TestAnimeReleaseDateIsISO:
+    def test_a_known_month_maps_to_month_precision(self):
+        raw = {
+            "aired": {
+                "string": "Jan 2026 to ?",
+                "prop": {"from": {"year": 2026, "month": 1}},
+            },
+            "season": "winter",
+        }
+        mapped = map_tenrai_to_anime_data(raw)
+        assert mapped["release_date"] == "2026-01"
+        assert mapped["release_season"] == "WIN"
+
+    def test_an_unreliable_month_maps_to_year_precision(self):
+        # aired.prop.from.month defaults to 1 when MAL only knows the year; the
+        # aired.string is the honest signal.
+        raw = {
+            "aired": {
+                "string": "2026 to ?",
+                "prop": {"from": {"year": 2026, "month": 1}},
+            },
+            "season": "winter",
+        }
+        mapped = map_tenrai_to_anime_data(raw)
+        assert mapped["release_date"] == "2026"
+        assert mapped["release_season"] == "WIN"
+
+    def test_split_year_and_month_are_gone(self):
+        raw = {
+            "aired": {"string": "2026", "prop": {"from": {"year": 2026}}},
+            "season": None,
+        }
+        mapped = map_tenrai_to_anime_data(raw)
+        assert "release_year" not in mapped
+        assert "release_month" not in mapped
+
+    def test_a_missing_aired_block_yields_no_date(self):
+        assert map_tenrai_to_anime_data({})["release_date"] is None
+
+
+class TestMangaAndNovelReleaseDatesAreISO:
+    def _published(self, string, prop_from, prop_to=None):
+        return {
+            "published": {
+                "from": "1997-07-22T00:00:00+00:00",
+                "to": "2011-11-18T00:00:00+00:00" if prop_to else None,
+                "prop": {"from": prop_from, "to": prop_to or {}},
+                "string": string,
+            }
+        }
+
+    def test_manga_keeps_full_precision_when_mal_knows_the_day(self):
+        raw = self._published(
+            "Jul 22, 1997 to Nov 18, 2011",
+            {"day": 22, "month": 7, "year": 1997},
+            {"day": 18, "month": 11, "year": 2011},
+        )
+        mapped = map_tenrai_to_manga_data(raw)
+        assert mapped["release_date"] == "1997-07-22"
+        assert mapped["end_date"] == "2011-11-18"
+
+    def test_manga_falls_back_to_year_precision(self):
+        raw = self._published("1997 to ?", {"day": None, "month": None, "year": 1997})
+        mapped = map_tenrai_to_manga_data(raw)
+        assert mapped["release_date"] == "1997"
+        assert mapped["end_date"] is None
+
+    def test_manga_no_longer_returns_year_columns(self):
+        mapped = map_tenrai_to_manga_data({})
+        assert "release_year" not in mapped
+        assert "end_year" not in mapped
+        assert mapped["release_date"] is None
+
+    def test_novel_keeps_full_precision_when_mal_knows_the_day(self):
+        raw = self._published(
+            "Jul 22, 1997 to Nov 18, 2011",
+            {"day": 22, "month": 7, "year": 1997},
+            {"day": 18, "month": 11, "year": 2011},
+        )
+        mapped = map_tenrai_to_novel_data(raw)
+        assert mapped["release_date"] == "1997-07-22"
+        assert mapped["end_date"] == "2011-11-18"
+
+    def test_novel_no_longer_returns_year_columns(self):
+        mapped = map_tenrai_to_novel_data({})
+        assert "release_year" not in mapped
+        assert "end_year" not in mapped
+        assert mapped["end_date"] is None

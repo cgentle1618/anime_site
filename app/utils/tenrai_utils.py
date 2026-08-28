@@ -105,6 +105,33 @@ def _extract_date_parts(
         return None, None, None
 
 
+def _iso_from_prop(prop_part: Optional[Dict[str, Any]]) -> Optional[str]:
+    """
+    A canonical release date from Tenrai's split `published.prop.from` / `.to`
+    block, at whatever precision MAL actually knows.
+
+    The sibling ISO timestamp (`published.from`) always carries a day, even when
+    MAL only knows the year, so reading `prop` is what keeps us from inventing
+    precision. Missing month or day simply stops the string early.
+    """
+    if not prop_part:
+        return None
+
+    year = prop_part.get("year")
+    if not year:
+        return None
+
+    month = prop_part.get("month")
+    if not month:
+        return f"{int(year):04d}"
+
+    day = prop_part.get("day")
+    if not day:
+        return f"{int(year):04d}-{int(month):02d}"
+
+    return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+
+
 def _extract_external_links(
     external_links: List[Dict[str, Any]],
 ) -> Tuple[Optional[str], Optional[str]]:
@@ -149,9 +176,13 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     prop_from = (aired.get("prop") or {}).get("from") or {}
     prop_year = prop_from.get("year")
     prop_month = prop_from.get("month")
-    release_year = str(prop_year) if prop_year else None
     month_is_known = prop_month and not re.match(r"^\d{4}", aired_string)
-    release_month = MONTH_MAP.get(prop_month) if month_is_known else None
+    if prop_year and month_is_known:
+        release_date = f"{int(prop_year):04d}-{int(prop_month):02d}"
+    elif prop_year:
+        release_date = f"{int(prop_year):04d}"
+    else:
+        release_date = None
     release_season = _convert_season(raw_data.get("season"))
 
     raw_rank = raw_data.get("rank")
@@ -171,8 +202,7 @@ def map_tenrai_to_anime_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "airing_type": airing_type,
         "airing_status": airing_status,
         "release_season": release_season,
-        "release_year": release_year,
-        "release_month": release_month,
+        "release_date": release_date,
         "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
         "ep_total": raw_data.get("episodes"),
@@ -233,21 +263,9 @@ def map_tenrai_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     serialization_status = _STATUS_MAP.get(status_raw) if status_raw else None
 
     published = raw_data.get("published", {}) or {}
-    from_date = published.get("from")
-    to_date = published.get("to")
-
-    release_year = None
-    end_year = None
-    if from_date:
-        try:
-            release_year = str(from_date[:4])
-        except Exception:
-            pass
-    if to_date:
-        try:
-            end_year = str(to_date[:4])
-        except Exception:
-            pass
+    prop = published.get("prop") or {}
+    release_date = _iso_from_prop(prop.get("from"))
+    end_date = _iso_from_prop(prop.get("to"))
 
     raw_rank = raw_data.get("rank")
     mal_rank = str(raw_rank) if raw_rank is not None else None
@@ -261,8 +279,8 @@ def map_tenrai_to_manga_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "serialization_status": serialization_status,
-        "release_year": release_year,
-        "end_year": end_year,
+        "release_date": release_date,
+        "end_date": end_date,
         "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
         "vol_total": raw_data.get("volumes"),
@@ -285,21 +303,9 @@ def map_tenrai_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     serialization_status = _STATUS_MAP.get(status_raw) if status_raw else None
 
     published = raw_data.get("published", {}) or {}
-    from_date = published.get("from")
-    to_date = published.get("to")
-
-    release_year = None
-    end_year = None
-    if from_date:
-        try:
-            release_year = int(from_date[:4])
-        except Exception:
-            pass
-    if to_date:
-        try:
-            end_year = int(to_date[:4])
-        except Exception:
-            pass
+    prop = published.get("prop") or {}
+    release_date = _iso_from_prop(prop.get("from"))
+    end_date = _iso_from_prop(prop.get("to"))
 
     raw_rank = raw_data.get("rank")
     mal_rank = str(raw_rank) if raw_rank is not None else None
@@ -319,8 +325,8 @@ def map_tenrai_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "serialization_status": serialization_status,
-        "release_year": release_year,
-        "end_year": end_year,
+        "release_date": release_date,
+        "end_date": end_date,
         "mal_rating": raw_data.get("score"),
         "mal_rank": mal_rank,
         "vol_total_original": vol_total_original,
