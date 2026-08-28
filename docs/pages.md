@@ -1808,6 +1808,24 @@ confirm naming both entries). Clicking a node opens `NodePanel.jsx` (cover,
 name, its relation list, an isolate toggle, a link to the entry's detail page).
 Clicking a ghost node switches the page's scope to that node's franchise.
 
+**Below the canvas — the form** (`RelationForm.jsx`). The same three writes,
+reached by picking from lists instead of dragging between nodes, for the entry
+currently selected. It reads `GET /for-entry` for that entry (both directions,
+each row labelled for the side being viewed) and shows one row per relation:
+the sentence *"X is the **Sequel** of Y"*, a kind select, a remark saved on
+blur, Swap (disabled for a symmetric kind), and Remove behind a confirm. Below
+them, an add row — the other entry from a dropdown of the scope's entries, a
+kind, a remark, and a Swap that turns the sentence around before it is written.
+The dropdown omits the entry itself and anything already related to it, both of
+which the server refuses as a 409. Rows are written in the **stored**
+direction, so the kind select speaks the server's language and needs no
+inversion (see `restoringKind` in `lib/relationUndo` for the inversion this
+avoids). Selection comes from either the left list or a click on an in-scope
+canvas node — the canvas reports one through `onSelectNode`, and the page holds
+the single `selected` entry both read. A form write re-tallies the left pane
+and bumps `reloadNonce`, which is the canvas's cue to re-read; the canvas
+refetches itself after its own writes.
+
 **Positions.** The automatic layout runs when a scope loads and when Tidy is
 pressed, and at no other time. Writing a relation — add, edit or delete —
 re-reads the graph but every node the canvas has already seen keeps its

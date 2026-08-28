@@ -130,3 +130,69 @@ describe("RelationGraph Reset", () => {
   // edges under jsdom (it places them from measured node geometry), so neither
   // is reachable from a test. The clearing is one setHistory([]) in resetScope.
 });
+
+describe("RelationGraph selection", () => {
+  const ONE = {
+    nodes: [
+      {
+        key: "anime:a",
+        entry_id: "a",
+        media_type: "anime",
+        type_label: "Anime",
+        display_name: "A",
+        in_scope: true,
+      },
+    ],
+    edges: [],
+  };
+
+  it("reports a clicked node, so the form below the canvas can follow it", async () => {
+    // One selected entry, two ways to set it: this row in the left list, or
+    // this node on the graph.
+    mockFetch(ONE);
+    const onSelectNode = vi.fn();
+    const { container } = render(
+      <RelationGraph
+        scopeType="franchise"
+        scopeId="f1"
+        kinds={[]}
+        onSelectNode={onSelectNode}
+      />,
+    );
+    await waitFor(() =>
+      expect(container.querySelectorAll(".react-flow__node")).toHaveLength(1),
+    );
+
+    await userEvent.click(container.querySelector(".react-flow__node"));
+
+    expect(onSelectNode).toHaveBeenCalledWith("anime:a");
+  });
+
+  it("does not report a ghost, which is not one of the scope's entries", async () => {
+    // A ghost click moves the lens to its franchise instead; selecting it
+    // would point the form at an entry the scope does not hold.
+    mockFetch({
+      nodes: [{ ...ONE.nodes[0], in_scope: false, franchise_id: "f2" }],
+      edges: [],
+    });
+    const onSelectNode = vi.fn();
+    const onPickGhostFranchise = vi.fn();
+    const { container } = render(
+      <RelationGraph
+        scopeType="franchise"
+        scopeId="f1"
+        kinds={[]}
+        onSelectNode={onSelectNode}
+        onPickGhostFranchise={onPickGhostFranchise}
+      />,
+    );
+    await waitFor(() =>
+      expect(container.querySelectorAll(".react-flow__node")).toHaveLength(1),
+    );
+
+    await userEvent.click(container.querySelector(".react-flow__node"));
+
+    expect(onPickGhostFranchise).toHaveBeenCalledWith("f2");
+    expect(onSelectNode).not.toHaveBeenCalled();
+  });
+});

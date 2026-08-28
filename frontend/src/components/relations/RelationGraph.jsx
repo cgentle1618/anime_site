@@ -157,7 +157,14 @@ function toFlowEdges(edges) {
 function GraphCanvas({
   scopeType,
   scopeId,
+  // Climbs when something outside the canvas writes a relation - the form
+  // under it - so the graph re-reads. Its own writes refetch directly.
+  reloadNonce = 0,
   onPickGhostFranchise,
+  // Reports an in-scope node click upward, so the page's selected entry - the
+  // left list's highlight and the form below the canvas - can follow a click
+  // on the graph as well as one in the list.
+  onSelectNode,
   // Only the two writing surfaces read the vocabulary, so a read-only canvas
   // is not asked to fetch it.
   kinds = [],
@@ -336,7 +343,7 @@ function GraphCanvas({
     const cancel = refetch();
     return cancel;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeType, scopeId]);
+  }, [scopeType, scopeId, reloadNonce]);
 
   const nodeByKey = useCallback(
     (key) => nodes.find((n) => n.id === key)?.data || null,
@@ -795,6 +802,10 @@ function GraphCanvas({
     }
     setSelectedEdgeId(null);
     setSelectedNodeKey(node.id);
+    // The page keeps one selected entry, which the left list and the form
+    // under the canvas both read. Reported for in-scope nodes only: a ghost is
+    // not in the scope's entry list, and it has already been handled above.
+    onSelectNode?.(node.id);
   }
 
   function onEdgeClick(_event, edge) {

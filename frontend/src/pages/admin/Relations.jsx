@@ -1,8 +1,10 @@
 // Frontend: admin page for curating media relations.
 //
 // Left: pick a franchise or collection, then one of its entries. Right: the
-// scope's relations as a canvas, which is where every edit now happens -
-// selecting, connecting, inspecting and deleting all live on the graph.
+// scope's relations as a canvas - where connecting, inspecting and deleting
+// are done by hand - and under it the same three writes as a form, for the
+// selected entry. The page holds one selection, which the left list and a
+// click on the canvas both set, and both the canvas and the form read.
 //
 // The franchise/collection picker is a browsing lens, not ownership: unlike a
 // watch order, a relation belongs to no tier - it links two entries. Collection
@@ -17,6 +19,7 @@ import { getDisplayName } from "../../utils/media";
 import ComboBox from "../../components/forms/ComboBox";
 import FittedName from "../../components/layout/FittedName";
 import RelationGraph from "../../components/relations/RelationGraph";
+import RelationForm from "../../components/relations/RelationForm";
 
 export default function Relations() {
   const { showToast } = useToast();
@@ -31,6 +34,9 @@ export default function Relations() {
   // The left pane's highlight, and the canvas's focus target.
   const [selected, setSelected] = useState(null); // {media_type, entry_id}
   const [query, setQuery] = useState("");
+  // Bumped when the form writes, which is the canvas's cue to re-read. The
+  // canvas refetches itself after its own writes; it cannot see the form's.
+  const [canvasNonce, setCanvasNonce] = useState(0);
 
   // The vocabulary and the owner lists never change while the page is open.
   useEffect(() => {
@@ -132,6 +138,20 @@ export default function Relations() {
     }
     return [...buckets.entries()];
   }, [visible]);
+
+  // The selection resolved to its entry record. The form writes a sentence
+  // naming the entry, so a bare {media_type, entry_id} is not enough - and
+  // this also drops a selection whose entry left the scope.
+  const selectedEntry = useMemo(() => {
+    if (!selected) return null;
+    return (
+      candidates.find(
+        (c) =>
+          c.media_type === selected.media_type &&
+          String(c.entry_id) === String(selected.entry_id),
+      ) || null
+    );
+  }, [candidates, selected]);
 
   function switchScope(type) {
     if (type === scopeType) return;
@@ -275,6 +295,7 @@ export default function Relations() {
           <RelationGraph
             scopeType={scopeType}
             scopeId={scopeId}
+            reloadNonce={canvasNonce}
             kinds={kinds}
             // The canvas refetches itself; the page only has to re-tally the
             // left pane's relation counts.
@@ -287,12 +308,37 @@ export default function Relations() {
               selected ? `${selected.media_type}:${selected.entry_id}` : null
             }
             focusNonce={selected?.nonce}
+            // A node click and a left-pane click set the same selection, so
+            // the form below follows either. The nonce still climbs, which
+            // costs nothing: the canvas is already showing that node's panel.
+            onSelectNode={(key) => {
+              const [mediaType, entryId] = key.split(":");
+              setSelected((current) => ({
+                media_type: mediaType,
+                entry_id: entryId,
+                nonce: (current?.nonce ?? 0) + 1,
+              }));
+            }}
             onPickGhostFranchise={(franchiseId) => {
               // A ghost lives in another franchise; following it moves the lens.
               setScopeType("franchise");
               setScopeId(franchiseId);
               setSelected(null);
             }}
+          />
+
+          {/* The same three writes as a form, for when dragging between two
+              nodes a scroll apart is the awkward way to say it. */}
+          <RelationForm
+            entry={selectedEntry}
+            kinds={kinds}
+            candidates={candidates}
+            onWrote={() => {
+              loadScope();
+              setCanvasNonce((n) => n + 1);
+              showToast("success", "Relations updated.");
+            }}
+            onError={(message) => showToast("error", message)}
           />
         </div>
       </div>
