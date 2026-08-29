@@ -128,6 +128,11 @@ export const NAV_SECTIONS = [
       { label: "Control Center", icon: "fas fa-cog", to: "/system" },
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
       { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
+      {
+        label: "System Options",
+        icon: "fas fa-list-check",
+        to: "/options",
+      },
       { divider: true },
       { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
       { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },

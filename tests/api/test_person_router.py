@@ -202,3 +202,47 @@ def test_an_empty_scope_string_is_stored_as_null(admin_client, db_session):
         .one()
     )
     assert role.scope is None
+
+
+# ---------------------------------------------------------------------------
+# GET /api/person/role-counts - the Tier 3 summary the read-only System
+# Options page renders. It exists so that page can show "Director: 88"
+# without downloading every person row just to read a list length.
+# ---------------------------------------------------------------------------
+
+
+def test_role_counts_covers_every_person_role_including_the_empty_ones(client):
+    from app.utils.credit_roles import PERSON_ROLES
+
+    counts = client.get("/api/person/role-counts").json()
+    assert set(counts) == set(PERSON_ROLES)
+    assert all(v == 0 for v in counts.values())
+
+
+def test_role_counts_tallies_people_per_role(admin_client, client):
+    _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
+    _create(admin_client, "Nolan", [{"role": "director", "scope": "non_anime"}])
+    _create(admin_client, "澤野弘之", [{"role": "composer", "scope": None}])
+
+    counts = client.get("/api/person/role-counts").json()
+    assert counts["director"] == 2
+    assert counts["composer"] == 1
+    assert counts["producer"] == 0
+
+
+def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, client):
+    """A director scoped both ways has two person_role rows, but is one person."""
+    _create(
+        admin_client,
+        "宮崎駿",
+        [
+            {"role": "director", "scope": "anime"},
+            {"role": "director", "scope": "non_anime"},
+        ],
+    )
+    assert client.get("/api/person/role-counts").json()["director"] == 1
+
+
+def test_role_counts_is_not_swallowed_by_the_uuid_detail_route(client):
+    """'role-counts' must not be parsed as a person system_id."""
+    assert client.get("/api/person/role-counts").status_code == 200

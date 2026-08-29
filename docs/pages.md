@@ -47,6 +47,7 @@ React SPA served by FastAPI's catch-all route. All routing is client-side via Re
 | `/defaults`               | `FormDefaults`                                     | Admin only |
 | `/watch-orders`           | `WatchOrders`                                      | Admin only |
 | `/relations`              | `Relations`                                        | Admin only |
+| `/options`                | `SystemOptions`                                    | Admin only |
 
 Admin routes are wrapped by `ProtectedRoute`, which redirects unauthenticated users to `/login?next=<path>`.
 
@@ -72,7 +73,7 @@ Shell rendered for every route. Contains:
   - Reality _(franchise_type="TV or Movie" only)_ → Collection Library, Franchise Library, TV Show Library, Movie Library
   - Cartoon → Cartoon Library
   - More → Plan, Statistics, Completions, Future Release, Seasonal
-  - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), Add Entry, Modify Entry, Delete Entry, Form Defaults (/defaults)
+  - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), System Options (/options), Add Entry, Modify Entry, Delete Entry, Form Defaults (/defaults), Relations (/relations), Watch Orders (/watch-orders)
 - **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Collection, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
 - **Login / Logout button**
@@ -1361,6 +1362,37 @@ All admin pages redirect to `/login?next=<path>` if not authenticated (enforced 
 - Shows all data control actions from `GET /api/system/logs`
 - Per row: Action Type (main + sub, e.g. Replace / Replace All), Trigger Type (Manual / Auto), Action Time, Status (Success / Aborted / Fail), Metrics (Added / Modified / Deleted)
 - Per-row delete: `DELETE /api/system/logs/:id`
+
+---
+
+### System Options (`/options`)
+
+**File:** `frontend/src/pages/admin/SystemOptions.jsx`
+
+Read-only inventory of every choice list in the app, in the three tiers
+`docs/options.md` defines. The page never writes; each section links to where
+that tier is actually edited.
+
+**Tier 1 — Closed Enums** (from `GET /api/constants`, via the shared
+`useConstants()` hook so the page can never disagree with the dropdowns):
+
+- One card per enum key, prettified heading, value count, and every value as a chip
+- Flags the two known code-vs-Enum discrepancies (`franchise_type`, `anime_airing_type`)
+- Marked not editable anywhere — these live in `app/utils/constants.py`
+
+**Tier 2 — Open Vocabularies** (from `GET /api/options/?limit=5000`):
+
+- Grouped by category, in the endpoint's own category → sort_order → value order
+- Per value: sort order, value, scopes (or "everywhere" when unscoped), remark
+- Links to the Options tab of `/add` and `/modify`, where these are edited
+
+**Tier 3 — Entities** (from `GET /api/person/role-counts` and `GET /api/studio/`):
+
+- Two summary tiles: studio record count, and total person roles held
+- The "Became Entities" mapping table — old `system_options` category → new
+  `person`/`studio` home — with a live record count per role. Distinct people,
+  so a director scoped both `anime` and `non_anime` counts once.
+- Footnote on `character` / `character_voice` being designed but not built
 
 ---
 

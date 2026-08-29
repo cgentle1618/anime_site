@@ -34,6 +34,11 @@ export const endpoints = {
     me: () => "/api/auth/me",
   },
 
+  // Tier 1 closed enums. Read-only by design - they live in Python.
+  constants: {
+    list: () => "/api/constants",
+  },
+
   options: {
     list: () => "/api/options/",
     byCategory: (category) => `/api/options/${category}`,
@@ -107,6 +112,7 @@ export const endpoints = {
     update: (id) => `/api/person/${id}`,
     remove: (id) => `/api/person/${id}`,
     merge: (id) => `/api/person/${id}/merge`,
+    roleCounts: () => "/api/person/role-counts",
   },
 
   credits: {

@@ -14,11 +14,13 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
 from app.services.domain.credits import find_person
+from app.utils.credit_roles import PERSON_ROLES
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,32 @@ def get_all_people(
             query = query.filter(models.PersonRole.scope == scope)
     people = query.order_by(models.Person.name_native).distinct().all()
     return [_to_response(db, person) for person in people]
+
+
+@router.get(
+    "/role-counts",
+    response_model=dict[str, int],
+    summary="Count People per Role",
+)
+def get_role_counts(db: Session = Depends(get_db)):
+    """
+    How many distinct people hold each person_role, zeros included.
+
+    Declared BEFORE /{system_id} on purpose: that route parses its path as a
+    UUID, so "role-counts" would 422 there if this came second.
+
+    Counts people, not person_role rows - a director scoped both anime and
+    non_anime has two rows but is one person.
+    """
+    tallied = dict(
+        db.query(
+            models.PersonRole.role,
+            func.count(func.distinct(models.PersonRole.person_id)),
+        )
+        .group_by(models.PersonRole.role)
+        .all()
+    )
+    return {role: tallied.get(role, 0) for role in PERSON_ROLES}
 
 
 @router.get(

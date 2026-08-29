@@ -54,6 +54,7 @@ import DataHistory from "./pages/admin/DataHistory";
 import ReviewQueue from "./pages/admin/ReviewQueue";
 import WatchOrders from "./pages/admin/WatchOrders";
 import Relations from "./pages/admin/Relations";
+import SystemOptions from "./pages/admin/SystemOptions";
 
 // One shared QueryClient keeps cache behavior consistent across the whole app.
 const queryClient = new QueryClient({
@@ -148,6 +149,7 @@ export default function App() {
                   <Route path="/defaults" element={<FormDefaults />} />
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
+                  <Route path="/options" element={<SystemOptions />} />
                 </Route>
               </Route>
             </Routes>

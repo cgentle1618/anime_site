@@ -629,6 +629,7 @@ composer, manga/novel author, illustrator, comic writer/artist).
 | Method   | Path              | Auth   | Description                                                                          |
 | -------- | ----------------- | ------ | --------------------------------------------------------------------------------------- |
 | `GET`    | `/`                | Public | List people. `?role=` filters to those holding a `person_role`; `?scope=` further filters that role (only meaningful for `director`: `anime` \| `non_anime`). |
+| `GET`    | `/role-counts`     | Public | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Read by the `/options` admin page. |
 | `GET`    | `/{system_id}`     | Public | Get one person by UUID.                                                              |
 | `POST`   | `/`                | Admin  | Create a person. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`). |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. |

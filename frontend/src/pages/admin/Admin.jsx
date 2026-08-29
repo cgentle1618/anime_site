@@ -1878,6 +1878,13 @@ export default function Admin() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
+            to="/options"
+            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition shadow-sm flex items-center"
+          >
+            <i className="fas fa-list-check mr-2 text-amber-500"></i> System
+            Options
+          </Link>
+          <Link
             to="/data-history"
             className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 transition shadow-sm flex items-center"
           >

@@ -59,6 +59,13 @@ describe("NAV_SECTIONS", () => {
     expect(owners.map((s) => s.key)).toEqual(["admin"]);
   });
 
+  it("offers System Options from the Admin dropdown, admin-gated", () => {
+    const owners = NAV_SECTIONS.filter((s) =>
+      sectionItems(s).some((i) => i.to === "/options"),
+    );
+    expect(owners.map((s) => s.key)).toEqual(["admin"]);
+  });
+
   it("marks Admin as the only admin-gated section", () => {
     expect(NAV_SECTIONS.filter((s) => s.adminOnly).map((s) => s.key)).toEqual([
       "admin",
