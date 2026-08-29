@@ -18,6 +18,7 @@ export default function MyTrackerCard({
   statusOptions,
   ratingOptions,
   statusLabel = "Watching Status",
+  rewatchLabel = "To Rewatch",
 }) {
   const selectDisabledCls = !isAdmin
     ? "bg-gray-50 text-gray-500 cursor-not-allowed"
@@ -151,7 +152,7 @@ export default function MyTrackerCard({
         {onToRewatchChange !== undefined && (
           <div className="space-y-1">
             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              To Rewatch
+              {rewatchLabel}
             </label>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
@@ -164,7 +165,7 @@ export default function MyTrackerCard({
                 className="w-4 h-4 rounded accent-brand"
               />
               <span className="text-sm font-medium text-gray-700">
-                To Rewatch
+                {rewatchLabel}
               </span>
             </label>
           </div>

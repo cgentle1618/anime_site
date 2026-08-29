@@ -399,6 +399,7 @@ export default function Comic() {
                 v ? "Marked for reread" : "Removed from reread",
               )
             }
+            rewatchLabel="To Reread"
             statusOptions={READING_STATUSES}
             ratingOptions={MY_RATINGS}
             statusLabel="Reading Status"
