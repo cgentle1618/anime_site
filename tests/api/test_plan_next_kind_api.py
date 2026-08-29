@@ -110,10 +110,14 @@ def test_delete_by_target_is_kind_scoped(admin_client, seeded_movie):
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch")
     )
 
-    res = admin_client.request(
-        "DELETE",
+    res = admin_client.delete(
         "/api/plan-next/target",
-        json=_payload("entry", seeded_movie, kind="rewatch"),
+        params={
+            "scope": "entry",
+            "media_type": "movie",
+            "target_id": str(seeded_movie),
+            "kind": "rewatch",
+        },
     )
     assert res.status_code == 200
 

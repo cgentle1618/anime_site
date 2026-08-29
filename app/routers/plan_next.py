@@ -15,8 +15,7 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -159,41 +158,16 @@ def create_plan_next(
     return _resolve(db, row)
 
 
-class _PlanNextTargetBody(BaseModel):
-    """
-    Optional JSON body for DELETE /target.
-
-    Accepted alongside the original query-param form so older callers (query
-    string, no kind) and newer ones (JSON body, kind included) both work.
-    """
-
-    scope: Optional[str] = None
-    media_type: Optional[str] = None
-    target_id: Optional[UUID] = None
-    kind: Optional[str] = None
-
-
 @router.delete("/target")
 def delete_plan_next_by_target(
-    scope: Optional[str] = Query(None),
-    media_type: Optional[str] = Query(None),
-    target_id: Optional[UUID] = Query(None),
-    kind: Optional[str] = Query(None),
-    body: Optional[_PlanNextTargetBody] = Body(None),
+    scope: str = Query(...),
+    media_type: str = Query(...),
+    target_id: UUID = Query(...),
+    kind: str = Query("next"),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
     """Un-plan without knowing the row id, so a toggle needs one call."""
-    scope = scope or (body.scope if body else None)
-    media_type = media_type or (body.media_type if body else None)
-    target_id = target_id or (body.target_id if body else None)
-    kind = kind or (body.kind if body else None) or "next"
-
-    if not scope or not media_type or not target_id:
-        raise HTTPException(
-            status_code=422, detail="scope, media_type and target_id are required."
-        )
-
     row = (
         db.query(models.PlanNext)
         .filter(
