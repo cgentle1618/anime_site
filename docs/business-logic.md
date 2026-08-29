@@ -1589,7 +1589,7 @@ and inserting a missing option/person/studio row — moved to
 
 ### One-Time Backfill — `backfill_credits(db)`
 
-Fills `media_credit` and `media_tag` from the 22 legacy comma-joined string
+Fills `media_credit` and `media_tag` from the 26 legacy comma-joined string
 columns (`BACKFILL_MAP` in `app/services/domain/credits.py`), and is what the
 migration actually runs. Lives in application code rather than inside the
 Alembic revision so it can be exercised by the normal test fixtures and

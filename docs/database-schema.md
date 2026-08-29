@@ -1613,19 +1613,21 @@ been done for an entry, not a cast list, and was never migrated.
 
 ### Columns removed
 
-All 22 comma-joined credit/tag columns the migration targeted were dropped
+All 26 comma-joined credit/tag columns the migration targeted were dropped
 from the entry tables and now live in `media_credit` / `media_tag` — see each
 media entry table above for the specific columns and their new home. Two
 survive untouched by design: `anime.seiyuu` (a status column, not a cast
 list) and `manga.anime_studio` (points at the adaptation, not a credit of the
 manga itself).
 
-**Note on the count:** the design spec's own summary table lists 26 distinct
+**Note on the count:** the design spec's prose incorrectly says "22" columns
+were removed. The spec's own summary table has always listed 26 distinct
 column removals across the 8 tables (anime 7, anime-movie 2, movie 1,
-tv_show 1, cartoon 1, manga 3, novel 3, comic 8) while its prose says "22" —
-that arithmetic mismatch is in the spec itself and was not resolved here;
-what was verified against the code is that all 26 columns listed in the
-spec's table are in fact gone from the current models.
+tv_show 1, cartoon 1, manga 3, novel 3, comic 8), and that table is the
+correct figure — verified here against the current models: all 26 columns it
+lists are in fact gone. "22" appears nowhere else in this document; treat any
+other appearance of it for this migration, including in the implementation
+plan that repeated the spec's prose, as the same error.
 
 ---
 
