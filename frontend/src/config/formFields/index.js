@@ -36,7 +36,7 @@ const registryCache = new Map();
 
 /**
  * Returns the visible, configurable fields for a media type, in factory order.
- * Each entry: { key, label, control, options?, optionsCategory?, group,
+ * Each entry: { key, label, control, options?, source?, group,
  *               builtIn, defaultable, autofillable, lookup?, coerce? }
  */
 export function getFieldRegistry(type) {

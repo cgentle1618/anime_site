@@ -9,7 +9,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, parseTypes, getOptions } from "../../utils/media";
+import { getDisplayName, parseTypes, getSourceValues } from "../../utils/media";
 import {
   IS_MAIN,
   MANGA_REGIONS,
@@ -33,7 +33,7 @@ export default function MangaAddTab({
   applyMangaAutofill,
   allFranchises,
   seriesItemsForManga,
-  allOptions,
+  sources,
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
@@ -380,7 +380,10 @@ export default function MangaAddTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author (Plot)">
           <MultiSelect
-            options={getOptions(allOptions, "Manga Author")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "manga_author",
+            })}
             value={mgf.author_plot}
             onChange={(v) => umg("author_plot", v)}
             placeholder="Select plot author..."
@@ -388,7 +391,10 @@ export default function MangaAddTab({
         </Field>
         <Field label="Author (Art)">
           <MultiSelect
-            options={getOptions(allOptions, "Manga Author")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "manga_author",
+            })}
             value={mgf.author_draw}
             onChange={(v) => umg("author_draw", v)}
             placeholder="Select art author..."
@@ -410,7 +416,7 @@ export default function MangaAddTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">
           <MultiSelect
-            options={getOptions(allOptions, "Studio")}
+            options={getSourceValues(sources, { kind: "studio" })}
             value={mgf.anime_studio}
             onChange={(v) => umg("anime_studio", v)}
             placeholder="Select studio..."
@@ -426,7 +432,11 @@ export default function MangaAddTab({
         </Field>
         <Field label="Publisher TW">
           <MultiSelect
-            options={getOptions(allOptions, "Manga Publisher TW")}
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Publisher / Distributor TW",
+              scope: "manga",
+            })}
             value={mgf.publisher_tw}
             onChange={(v) => umg("publisher_tw", v)}
             placeholder="Select publisher..."

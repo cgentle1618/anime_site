@@ -14,7 +14,8 @@
 //   control         "select" | "tags" | "checkbox" | "text" | "number" |
 //                   "date" | "time" | "url" | "textarea" | "none"
 //   options         string[] or {value,label}[] for control: "select"
-//   optionsCategory /api/options category name for control: "tags"
+//   source          {kind, category?, role?, scope?} suggestion source for
+//                   control: "tags" — see getSourceValues() in lib/formatters.js
 //   group           section heading on /defaults (default: "Other")
 //   defaultable     false = no default can be set (entity pickers, repeaters)
 //   autofillable    false = cannot be copied by auto-fill
@@ -132,16 +133,22 @@ export const COMMON_FIELD_META = {
   imdb_rating: { label: "IMDb Rating", group: "Ratings" },
 
   // ---- Credits ---------------------------------------------------------
+  // Where a tags control gets its suggestions. `kind` selects the endpoint:
+  //   option -> /api/options/{category}?scope=
+  //   person -> /api/person?role=&scope=
+  //   studio -> /api/studio
+  // Splitting these is the point of the redesign: a director is an entity
+  // with a profile, a genre is a vocabulary value.
   studio: {
     label: "Studio",
     control: "tags",
-    optionsCategory: "Studio",
+    source: { kind: "studio" },
     group: "Credits",
   },
   director: {
     label: "Director",
     control: "tags",
-    optionsCategory: "Director",
+    source: { kind: "person", role: "director", scope: "anime" },
     group: "Credits",
   },
 
@@ -163,7 +170,12 @@ export const COMMON_FIELD_META = {
   imdb_link: { label: "IMDb Link", control: "url", group: "Links" },
 
   // ---- Sources ---------------------------------------------------------
-  source_official: { label: "Source Official", group: "Sources" },
+  source_official: {
+    label: "Source Official",
+    control: "tags",
+    source: { kind: "option", category: "Official Source" },
+    group: "Sources",
+  },
   source_baha: {
     label: "Bahamut Source",
     control: "select",
@@ -230,13 +242,13 @@ export const TYPE_FIELD_META = {
     genre_main: {
       label: "Genre Main",
       control: "tags",
-      optionsCategory: "Genre Main",
+      source: { kind: "option", category: "Genre Main" },
       group: "Classification",
     },
     genre_sub: {
       label: "Genre Sub",
       control: "tags",
-      optionsCategory: "Genre Sub",
+      source: { kind: "option", category: "Genre Sub" },
       group: "Classification",
     },
     ep_previous: {
@@ -275,19 +287,23 @@ export const TYPE_FIELD_META = {
     producer: {
       label: "Producer",
       control: "tags",
-      optionsCategory: "Producer",
+      source: { kind: "person", role: "producer" },
       group: "Credits",
     },
     music: {
       label: "Music / Composer",
       control: "tags",
-      optionsCategory: "Music / Composer",
+      source: { kind: "person", role: "composer" },
       group: "Credits",
     },
     distributor_tw: {
       label: "Distributor TW",
       control: "tags",
-      optionsCategory: "Distributor TW",
+      source: {
+        kind: "option",
+        category: "Publisher / Distributor TW",
+        scope: "anime",
+      },
       group: "Credits",
     },
     seiyuu: { label: "Seiyuu", group: "Credits" },
@@ -333,7 +349,12 @@ export const TYPE_FIELD_META = {
     },
     release_date_tw: { label: "Release Date (TW)", control: "text", group: "Release" },
     release_date_usa: { label: "Release Date (USA)", control: "text", group: "Release" },
-    director: { label: "Director", control: "text", group: "Credits" },
+    director: {
+      label: "Director",
+      control: "tags",
+      source: { kind: "person", role: "director", scope: "non_anime" },
+      group: "Credits",
+    },
   },
 
   "tv-show": {
@@ -394,19 +415,22 @@ export const TYPE_FIELD_META = {
     author_plot: {
       label: "Author (Plot)",
       control: "tags",
-      optionsCategory: "Manga Author",
+      source: { kind: "person", role: "manga_author" },
       group: "Credits",
     },
     author_draw: {
       label: "Author (Art)",
       control: "tags",
-      optionsCategory: "Manga Author",
+      source: { kind: "person", role: "manga_author" },
       group: "Credits",
     },
+    // Column was not migrated — it points at the adaptation studio, not a
+    // credit — but reads its suggestions from /api/studio so the same
+    // names appear as the anime Studio field.
     anime_studio: {
       label: "Anime Studio",
       control: "tags",
-      optionsCategory: "Studio",
+      source: { kind: "studio" },
       group: "Credits",
     },
     serialization_platform: {
@@ -416,7 +440,11 @@ export const TYPE_FIELD_META = {
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
-      optionsCategory: "Manga Publisher TW",
+      source: {
+        kind: "option",
+        category: "Publisher / Distributor TW",
+        scope: "manga",
+      },
       group: "Credits",
     },
   },
@@ -480,19 +508,23 @@ export const TYPE_FIELD_META = {
     author: {
       label: "Author",
       control: "tags",
-      optionsCategory: "Novel Author",
+      source: { kind: "person", role: "novel_author" },
       group: "Credits",
     },
     illustrator: {
       label: "Illustrator",
       control: "tags",
-      optionsCategory: "Novel Illustrator",
+      source: { kind: "person", role: "novel_illustrator" },
       group: "Credits",
     },
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
-      optionsCategory: "Novel Publisher TW",
+      source: {
+        kind: "option",
+        category: "Publisher / Distributor TW",
+        scope: "novel",
+      },
       group: "Credits",
     },
   },
@@ -514,19 +546,19 @@ export const TYPE_FIELD_META = {
     continuity: {
       label: "Continuity",
       control: "tags",
-      optionsCategory: "Comic Continuity",
+      source: { kind: "option", category: "Comic Continuity", scope: "comic" },
       group: "Classification",
     },
     era: {
       label: "Era",
       control: "tags",
-      optionsCategory: "Comic Era",
+      source: { kind: "option", category: "Comic Era", scope: "comic" },
       group: "Classification",
     },
     events: {
       label: "Events",
       control: "tags",
-      optionsCategory: "Comic Event",
+      source: { kind: "option", category: "Comic Event", scope: "comic" },
       group: "Classification",
       // Array-shaped in form state; the /defaults tags control emits a
       // comma-separated string, which coerceToShape would discard. Not
@@ -552,33 +584,37 @@ export const TYPE_FIELD_META = {
     writer: {
       label: "Writer",
       control: "tags",
-      optionsCategory: "Comic Writer",
+      source: { kind: "person", role: "comic_writer" },
       group: "Credits",
     },
     artist: {
       label: "Artist",
       control: "tags",
-      optionsCategory: "Comic Artist",
+      source: { kind: "person", role: "comic_artist" },
       group: "Credits",
     },
     publisher: {
       label: "Publisher",
       control: "tags",
-      optionsCategory: "Comic Publisher",
+      source: { kind: "option", category: "Comic Publisher", scope: "comic" },
       group: "Credits",
     },
     imprint: {
       label: "Imprint",
       control: "tags",
-      optionsCategory: "Comic Imprint",
+      source: { kind: "option", category: "Comic Imprint", scope: "comic" },
       group: "Credits",
     },
-    // Reuses the shared TW distributor category, not a comic-specific one —
-    // this matches the backend's _COMIC_OPTION_FIELD_MAP.
+    // Reuses the shared TW distributor category, scoped to comic — matches
+    // anime's distributor_tw and manga/novel's publisher_tw.
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
-      optionsCategory: "Distributor TW",
+      source: {
+        kind: "option",
+        category: "Publisher / Distributor TW",
+        scope: "comic",
+      },
       group: "Credits",
     },
     // is_main_entry has no COMMON_FIELD_META entry — only anime's block
@@ -637,6 +673,26 @@ export const TYPE_FIELD_META = {
     series_name_alt: { label: "Name (Alt)", group: "Names" },
   },
 };
+
+// Every distinct {role, scope} pair a "person"-sourced field asks for, deduped.
+// Fetched once at page load (one /api/person request per pair) rather than
+// fetched-then-filtered like options, because PersonResponse does not carry
+// role/scope — the API only knows how to filter server-side.
+function collectPersonSources() {
+  const groups = [COMMON_FIELD_META, ...Object.values(TYPE_FIELD_META)];
+  const seen = new Map();
+  for (const group of groups) {
+    for (const meta of Object.values(group)) {
+      if (meta.source?.kind === "person") {
+        const key = `${meta.source.role}|${meta.source.scope || ""}`;
+        if (!seen.has(key)) seen.set(key, meta.source);
+      }
+    }
+  }
+  return [...seen.values()];
+}
+
+export const PERSON_SOURCES = collectPersonSources();
 
 // The field sets auto-fill copies when nothing is configured. Lifted verbatim
 // from the six applyXAutofill functions that used to live in Add.jsx, so

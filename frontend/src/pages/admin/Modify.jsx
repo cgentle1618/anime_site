@@ -4,10 +4,12 @@ import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
+  getSourceValues,
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
 } from "../../utils/media";
+import { fetchAllSources } from "../../lib/sources";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 import MovieNotes from "../detail/MovieNotes";
 import TVShowNotes from "../detail/TVShowNotes";
@@ -37,6 +39,7 @@ import {
   fetchFormDefaults,
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
+import { endpoints } from "../../api/endpoints";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -233,7 +236,7 @@ export default function Modify() {
   const [allCollections, setAllCollections] = useState([]);
   const [allFranchises, setAllFranchises] = useState([]);
   const [allSeries, setAllSeries] = useState([]);
-  const [allOptions, setAllOptions] = useState([]);
+  const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
@@ -277,6 +280,61 @@ export default function Modify() {
   const formDefaultsRef = useRef({});
   const md = (type) => resolveDefaults(type, formDefaultsRef.current);
 
+  // Splits a tags field's comma-joined string into trimmed, non-empty names.
+  const splitTags = (raw) =>
+    (raw || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  // Creates whatever named values the user typed that aren't in `sources`
+  // yet, routed by source.kind (option / person / studio) — mirrors Add.jsx.
+  async function ensureSourceValues(fields) {
+    const toCreate = [];
+    for (const { source, values } of fields) {
+      const existing = new Set(getSourceValues(sources, source));
+      for (const v of values) {
+        if (v && !existing.has(v)) toCreate.push({ source, value: v });
+      }
+    }
+    if (toCreate.length === 0) return;
+
+    await Promise.all(
+      toCreate.map(({ source, value }) => {
+        if (source.kind === "studio") {
+          return fetch(endpoints.studio.create(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name_native: value }),
+            credentials: "include",
+          });
+        }
+        if (source.kind === "person") {
+          return fetch(endpoints.person.create(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name_native: value,
+              roles: [{ role: source.role, scope: source.scope || null }],
+            }),
+            credentials: "include",
+          });
+        }
+        return fetch(endpoints.options.create(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: source.category,
+            value,
+            scopes: source.scope ? [source.scope] : [],
+          }),
+          credentials: "include",
+        });
+      }),
+    );
+    setSources(await fetchAllSources());
+  }
+
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
@@ -297,7 +355,6 @@ export default function Modify() {
           colRes,
           fRes,
           sRes,
-          oRes,
           amRes,
           mvRes,
           tvRes,
@@ -310,7 +367,6 @@ export default function Modify() {
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
           fetch("/api/franchise/?limit=2000", { credentials: "include" }),
           fetch("/api/series/?limit=2000", { credentials: "include" }),
-          fetch("/api/options/", { credentials: "include" }),
           fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
           fetch("/api/movies/?limit=2000", { credentials: "include" }),
           fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
@@ -320,13 +376,16 @@ export default function Modify() {
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
         // Guarded separately: on failure every form falls back to its built-ins.
-        formDefaultsRef.current = await fetchFormDefaults();
+        const [fd, srcData] = await Promise.all([
+          fetchFormDefaults(),
+          fetchAllSources(),
+        ]);
+        formDefaultsRef.current = fd;
         const [
           anime,
           collections,
           franchises,
           series,
-          options,
           animeMovies,
           movies,
           tvShows,
@@ -339,7 +398,6 @@ export default function Modify() {
           colRes.json(),
           fRes.json(),
           sRes.json(),
-          oRes.json(),
           amRes.json(),
           mvRes.json(),
           tvRes.json(),
@@ -352,7 +410,7 @@ export default function Modify() {
         setAllCollections(collections);
         setAllFranchises(franchises);
         setAllSeries(series);
-        setAllOptions(options);
+        setSources(srcData);
         setAllAnimeMovies(animeMovies);
         setAllMovies(movies);
         setAllTvShows(tvShows);
@@ -758,7 +816,7 @@ export default function Modify() {
     else if (type === "manga") setCmgf(mangaToForm(item, franchises, series));
     else if (type === "novel") setCnvf(novelToForm(item, franchises, series));
     else if (type === "comic") setCcmf(comicToForm(item, franchises, series));
-    else if (type === "options") setOptValue(item.option_value || "");
+    else if (type === "options") setOptValue(item.value || "");
     setEditorOpen(true);
   }
 
@@ -1037,16 +1095,25 @@ export default function Modify() {
 
   async function saveOption() {
     const res = await fetch(`/api/options/${editingItem.system_id}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ option_value: optValue }),
+      body: JSON.stringify({
+        category: editingItem.category,
+        value: optValue,
+        sort_order: editingItem.sort_order ?? 0,
+        remark: editingItem.remark ?? null,
+        scopes: editingItem.scopes ?? [],
+      }),
       credentials: "include",
     });
     if (res.ok) {
       const updated = await res.json();
-      setAllOptions((prev) =>
-        prev.map((o) => (o.system_id === updated.system_id ? updated : o)),
-      );
+      setSources((prev) => ({
+        ...prev,
+        options: prev.options.map((o) =>
+          o.system_id === updated.system_id ? updated : o,
+        ),
+      }));
       setEditingItem(updated);
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
@@ -1757,46 +1824,25 @@ export default function Modify() {
             .map((e) => ({ key: e.key, name: e.name.trim() }))
         : null;
 
-    // Auto-create missing system options for author, illustrator, publisher_tw
-    {
-      const existingValues = {};
-      for (const o of allOptions) {
-        if (!existingValues[o.category]) existingValues[o.category] = new Set();
-        existingValues[o.category].add(o.option_value);
-      }
-      const toCreate = [];
-      for (const v of (cnvf.author || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)) {
-        if (!existingValues["Novel Author"]?.has(v))
-          toCreate.push({ category: "Novel Author", option_value: v });
-      }
-      for (const v of (cnvf.illustrator || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)) {
-        if (!existingValues["Novel Illustrator"]?.has(v))
-          toCreate.push({ category: "Novel Illustrator", option_value: v });
-      }
-      const pub = (cnvf.publisher_tw || "").trim();
-      if (pub && !existingValues["Novel Publisher TW"]?.has(pub))
-        toCreate.push({ category: "Novel Publisher TW", option_value: pub });
-      if (toCreate.length > 0) {
-        await Promise.all(
-          toCreate.map((item) =>
-            fetch("/api/options/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(item),
-              credentials: "include",
-            }),
-          ),
-        );
-        const oRes = await fetch("/api/options/", { credentials: "include" });
-        if (oRes.ok) setAllOptions(await oRes.json());
-      }
-    }
+    // Auto-create missing entities for author, illustrator, publisher_tw
+    await ensureSourceValues([
+      {
+        source: { kind: "person", role: "novel_author" },
+        values: splitTags(cnvf.author),
+      },
+      {
+        source: { kind: "person", role: "novel_illustrator" },
+        values: splitTags(cnvf.illustrator),
+      },
+      {
+        source: {
+          kind: "option",
+          category: "Publisher / Distributor TW",
+          scope: "novel",
+        },
+        values: splitTags(cnvf.publisher_tw),
+      },
+    ]);
 
     const payload = {
       novel_name_cn: cnvf.novel_name_cn || null,
@@ -1952,52 +1998,45 @@ export default function Modify() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    // Auto-create missing system options for every comic option-backed field.
-    {
-      const existingValues = {};
-      for (const o of allOptions) {
-        if (!existingValues[o.category]) existingValues[o.category] = new Set();
-        existingValues[o.category].add(o.option_value);
-      }
-      const toCreate = [];
-      const addMulti = (raw, category) => {
-        for (const v of (raw || "")
-          .split(",")
-          .map((x) => x.trim())
-          .filter(Boolean)) {
-          if (!existingValues[category]?.has(v))
-            toCreate.push({ category, option_value: v });
-        }
-      };
-      const addSingle = (raw, category) => {
-        const v = (raw || "").trim();
-        if (v && !existingValues[category]?.has(v))
-          toCreate.push({ category, option_value: v });
-      };
-      addMulti(ccmf.writer, "Comic Writer");
-      addMulti(ccmf.artist, "Comic Artist");
-      addSingle(ccmf.publisher, "Comic Publisher");
-      addSingle(ccmf.imprint, "Comic Imprint");
-      addSingle(ccmf.continuity, "Comic Continuity");
-      addSingle(ccmf.era, "Comic Era");
-      addSingle(ccmf.publisher_tw, "Distributor TW");
-      for (const ev of Array.isArray(ccmf.events) ? ccmf.events : [])
-        addSingle(ev, "Comic Event");
-      if (toCreate.length > 0) {
-        await Promise.all(
-          toCreate.map((item) =>
-            fetch("/api/options/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(item),
-              credentials: "include",
-            }),
-          ),
-        );
-        const oRes = await fetch("/api/options/", { credentials: "include" });
-        if (oRes.ok) setAllOptions(await oRes.json());
-      }
-    }
+    // Auto-create missing entities for every comic credit/tag field.
+    await ensureSourceValues([
+      {
+        source: { kind: "person", role: "comic_writer" },
+        values: splitTags(ccmf.writer),
+      },
+      {
+        source: { kind: "person", role: "comic_artist" },
+        values: splitTags(ccmf.artist),
+      },
+      {
+        source: { kind: "option", category: "Comic Publisher", scope: "comic" },
+        values: splitTags(ccmf.publisher),
+      },
+      {
+        source: { kind: "option", category: "Comic Imprint", scope: "comic" },
+        values: splitTags(ccmf.imprint),
+      },
+      {
+        source: { kind: "option", category: "Comic Continuity", scope: "comic" },
+        values: splitTags(ccmf.continuity),
+      },
+      {
+        source: { kind: "option", category: "Comic Era", scope: "comic" },
+        values: splitTags(ccmf.era),
+      },
+      {
+        source: {
+          kind: "option",
+          category: "Publisher / Distributor TW",
+          scope: "comic",
+        },
+        values: splitTags(ccmf.publisher_tw),
+      },
+      {
+        source: { kind: "option", category: "Comic Event", scope: "comic" },
+        values: Array.isArray(ccmf.events) ? ccmf.events.filter(Boolean) : [],
+      },
+    ]);
 
     const payload = {
       comic_name_en: ccmf.comic_name_en || null,
@@ -2115,7 +2154,7 @@ export default function Modify() {
         item.comic_name_alt ||
         "Unknown"
       );
-    if (type === "options") return `${item.category}: ${item.option_value}`;
+    if (type === "options") return `${item.category}: ${item.value}`;
     return "Unknown";
   }
 
@@ -2234,10 +2273,10 @@ export default function Modify() {
           ),
         )
         .slice(0, 10);
-    return allOptions
+    return sources.options
       .filter(
         (o) =>
-          cleanString(o.option_value).includes(q) ||
+          cleanString(o.value).includes(q) ||
           cleanString(o.category).includes(q),
       )
       .slice(0, 10);
@@ -2265,10 +2304,10 @@ export default function Modify() {
   })();
 
   const optionCategories = [
-    ...new Set(allOptions.map((o) => o.category)),
+    ...new Set(sources.options.map((o) => o.category)),
   ].sort();
   const filteredOptions = optCatFilter
-    ? allOptions.filter((o) => o.category === optCatFilter)
+    ? sources.options.filter((o) => o.category === optCatFilter)
     : [];
 
   const animeRibbonSection = (() => {
@@ -3048,7 +3087,7 @@ export default function Modify() {
                   onClick={() => openEditor(opt, "options")}
                   className="text-left px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand hover:text-brand hover:bg-brand/5 transition shadow-sm"
                 >
-                  {opt.option_value}
+                  {opt.value}
                 </button>
               ))}
             </div>
@@ -3159,7 +3198,7 @@ export default function Modify() {
                 ua={ua}
                 franchiseItems={franchiseItems}
                 seriesItemsForAnime={seriesItemsForAnime}
-                allOptions={allOptions}
+                sources={sources}
                 editingItem={editingItem}
               />
             )}
@@ -3217,7 +3256,7 @@ export default function Modify() {
                 amf={amf}
                 uam={uam}
                 franchiseItems={franchiseItems}
-                allOptions={allOptions}
+                sources={sources}
                 editingItem={editingItem}
               />
             )}
@@ -3231,6 +3270,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForMovie={seriesItemsForMovie}
                 editingItem={editingItem}
+                sources={sources}
               />
             )}
 
@@ -3268,7 +3308,7 @@ export default function Modify() {
                 seriesItemsForManga={seriesItemsForManga}
                 editingItem={editingItem}
                 ribbonSection={mangaRibbonSection}
-                allOptions={allOptions}
+                sources={sources}
               />
             )}
 
@@ -3282,7 +3322,7 @@ export default function Modify() {
                 seriesItemsForNovel={seriesItemsForNovel}
                 editingItem={editingItem}
                 ribbonSection={novelRibbonSection}
-                allOptions={allOptions}
+                sources={sources}
               />
             )}
 
@@ -3296,7 +3336,7 @@ export default function Modify() {
                 seriesItemsForComic={seriesItemsForComic}
                 editingItem={editingItem}
                 ribbonSection={comicRibbonSection}
-                allOptions={allOptions}
+                sources={sources}
               />
             )}
 

@@ -1,5 +1,6 @@
 // Frontend: add tab page file for MovieAddTab.
 import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
 import {
   CollectionNote,
   Field,
@@ -8,7 +9,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   AIRING_STATUSES,
   IS_MAIN,
@@ -32,6 +33,7 @@ export default function MovieAddTab({
   applyMovieAutofill,
   allFranchises,
   seriesItemsForMovie,
+  sources,
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
@@ -321,11 +323,15 @@ export default function MovieAddTab({
           />
         </Field>
         <Field label="Director">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "director",
+              scope: "non_anime",
+            })}
             value={mf.director}
-            onChange={(e) => umf("director", e.target.value)}
-            placeholder="Director name"
+            onChange={(v) => umf("director", v)}
+            placeholder="Select or type director..."
           />
         </Field>
       </div>

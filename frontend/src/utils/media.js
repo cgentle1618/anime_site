@@ -22,7 +22,7 @@ export {
   isBaha,
   getReleaseFallback,
   getRatingWeight,
-  getOptions,
+  getSourceValues,
   formatLength,
   parseTypes,
   getNovelProgress,

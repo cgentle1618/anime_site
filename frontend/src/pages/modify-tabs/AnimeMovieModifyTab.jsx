@@ -8,7 +8,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getOptions } from "../../utils/media";
+import { getSourceValues } from "../../utils/media";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 
 export default function AnimeMovieModifyTab({
@@ -16,7 +16,7 @@ export default function AnimeMovieModifyTab({
   amf,
   uam,
   franchiseItems,
-  allOptions,
+  sources,
   editingItem,
 }) {
   return (
@@ -236,7 +236,7 @@ export default function AnimeMovieModifyTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Studio">
           <MultiSelect
-            options={getOptions(allOptions, "Studio")}
+            options={getSourceValues(sources, { kind: "studio" })}
             value={amf.studio}
             onChange={(v) => uam("studio", v)}
             placeholder="Select studio..."
@@ -244,7 +244,11 @@ export default function AnimeMovieModifyTab({
         </Field>
         <Field label="Director">
           <MultiSelect
-            options={getOptions(allOptions, "Director")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "director",
+              scope: "anime",
+            })}
             value={amf.director}
             onChange={(v) => uam("director", v)}
             placeholder="Select director..."

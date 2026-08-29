@@ -9,7 +9,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, getOptions } from "../../utils/media";
+import { getDisplayName, getSourceValues } from "../../utils/media";
 import { WEEKDAYS } from "../../config/weekdays";
 import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import {
@@ -39,7 +39,7 @@ export default function AnimeAddTab({
   allFranchises,
   franchiseItems,
   seriesItemsForAnime,
-  allOptions,
+  sources,
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
@@ -421,7 +421,10 @@ export default function AnimeAddTab({
         </Field>
         <Field label="Genre Main">
           <MultiSelect
-            options={getOptions(allOptions, "Genre Main")}
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Genre Main",
+            })}
             value={af.genre_main}
             onChange={(v) => ua("genre_main", v)}
             placeholder="Select genres..."
@@ -430,7 +433,10 @@ export default function AnimeAddTab({
         </Field>
         <Field label="Genre Sub">
           <MultiSelect
-            options={getOptions(allOptions, "Genre Sub")}
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Genre Sub",
+            })}
             value={af.genre_sub}
             onChange={(v) => ua("genre_sub", v)}
             placeholder="Select sub-genres..."
@@ -464,7 +470,7 @@ export default function AnimeAddTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Studio">
           <MultiSelect
-            options={getOptions(allOptions, "Studio")}
+            options={getSourceValues(sources, { kind: "studio" })}
             value={af.studio}
             onChange={(v) => ua("studio", v)}
             placeholder="Select studio..."
@@ -473,7 +479,11 @@ export default function AnimeAddTab({
         </Field>
         <Field label="Distributor TW">
           <MultiSelect
-            options={getOptions(allOptions, "Distributor TW")}
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Publisher / Distributor TW",
+              scope: "anime",
+            })}
             value={af.distributor_tw}
             onChange={(v) => ua("distributor_tw", v)}
             placeholder="Select distributor..."
@@ -482,7 +492,11 @@ export default function AnimeAddTab({
         </Field>
         <Field label="Director">
           <MultiSelect
-            options={getOptions(allOptions, "Director")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "director",
+              scope: "anime",
+            })}
             value={af.director}
             onChange={(v) => ua("director", v)}
             placeholder="Select director..."
@@ -491,7 +505,10 @@ export default function AnimeAddTab({
         </Field>
         <Field label="Producer">
           <MultiSelect
-            options={getOptions(allOptions, "Producer")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "producer",
+            })}
             value={af.producer}
             onChange={(v) => ua("producer", v)}
             placeholder="Select producer..."
@@ -500,7 +517,10 @@ export default function AnimeAddTab({
         </Field>
         <Field label="Music / Composer">
           <MultiSelect
-            options={getOptions(allOptions, "Music / Composer")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "composer",
+            })}
             value={af.music}
             onChange={(v) => ua("music", v)}
             placeholder="Select composer..."

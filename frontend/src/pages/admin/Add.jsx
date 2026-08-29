@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
+  getSourceValues,
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
@@ -39,6 +40,7 @@ import {
 import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
+import { fetchAllSources } from "../../lib/sources";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -47,7 +49,7 @@ export default function Add() {
   const [allCollections, setAllCollections] = useState([]);
   const [allFranchises, setAllFranchises] = useState([]);
   const [allSeries, setAllSeries] = useState([]);
-  const [allOptions, setAllOptions] = useState([]);
+  const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   const [allAnimeMovies, setAllAnimeMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]);
   const [allTvShows, setAllTvShows] = useState([]);
@@ -132,6 +134,33 @@ export default function Add() {
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
 
+  // The Options tab has three sub-tabs (Options / People / Studios) sharing
+  // one "System Options" nav entry — each manages a different Tier 2/3 source.
+  const [optionsSubTab, setOptionsSubTab] = useState("options");
+  const emptyPerson = () => ({
+    name_native: "",
+    name_en: "",
+    name_cn: "",
+    gender: "",
+    my_rating: "",
+    photo_file: "",
+    remark: "",
+    role: "",
+    scope: "",
+  });
+  const emptyStudio = () => ({
+    name_native: "",
+    name_en: "",
+    name_cn: "",
+    my_rating: "",
+    logo_file: "",
+    remark: "",
+  });
+  const [personForm, setPersonForm] = useState(emptyPerson());
+  const [studioForm, setStudioForm] = useState(emptyStudio());
+  const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
+  const usf = (k, v) => setStudioForm((p) => ({ ...p, [k]: v }));
+
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
@@ -147,6 +176,62 @@ export default function Add() {
   // A blank form for `type` with the admin's configured defaults applied.
   const freshForm = (type) => resolveDefaults(type, formDefaults);
 
+  // Splits a tags field's comma-joined string into trimmed, non-empty names.
+  const splitTags = (raw) =>
+    (raw || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  // Creates whatever named values the user typed that aren't in `sources` yet,
+  // routed by source.kind (option / person / studio) rather than always
+  // POSTing a system option — a director is an entity, not a vocabulary value.
+  async function ensureSourceValues(fields) {
+    const toCreate = [];
+    for (const { source, values } of fields) {
+      const existing = new Set(getSourceValues(sources, source));
+      for (const v of values) {
+        if (v && !existing.has(v)) toCreate.push({ source, value: v });
+      }
+    }
+    if (toCreate.length === 0) return;
+
+    await Promise.all(
+      toCreate.map(({ source, value }) => {
+        if (source.kind === "studio") {
+          return fetch(endpoints.studio.create(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name_native: value }),
+            credentials: "include",
+          });
+        }
+        if (source.kind === "person") {
+          return fetch(endpoints.person.create(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name_native: value,
+              roles: [{ role: source.role, scope: source.scope || null }],
+            }),
+            credentials: "include",
+          });
+        }
+        return fetch(endpoints.options.create(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: source.category,
+            value,
+            scopes: source.scope ? [source.scope] : [],
+          }),
+          credentials: "include",
+        });
+      }),
+    );
+    setSources(await fetchAllSources());
+  }
+
   useEffect(() => {
     async function load() {
       try {
@@ -155,7 +240,6 @@ export default function Add() {
           colRes,
           fRes,
           sRes,
-          oRes,
           amRes,
           mvRes,
           tvRes,
@@ -168,7 +252,6 @@ export default function Add() {
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
           fetch("/api/franchise/?limit=2000", { credentials: "include" }),
           fetch("/api/series/?limit=2000", { credentials: "include" }),
-          fetch("/api/options/", { credentials: "include" }),
           fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
           fetch("/api/movies/?limit=2000", { credentials: "include" }),
           fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
@@ -179,13 +262,15 @@ export default function Add() {
         ]);
         // Guarded separately: a form-defaults failure must not break the page,
         // it just means every form falls back to its built-in values.
-        const fd = await fetchFormDefaults();
+        const [fd, srcData] = await Promise.all([
+          fetchFormDefaults(),
+          fetchAllSources(),
+        ]);
         const [
           anime,
           collections,
           franchises,
           series,
-          options,
           animeMovies,
           movies,
           tvShows,
@@ -198,7 +283,6 @@ export default function Add() {
           colRes.json(),
           fRes.json(),
           sRes.json(),
-          oRes.json(),
           amRes.json(),
           mvRes.json(),
           tvRes.json(),
@@ -211,7 +295,7 @@ export default function Add() {
         setAllCollections(collections);
         setAllFranchises(franchises);
         setAllSeries(series);
-        setAllOptions(options);
+        setSources(srcData);
         setAllAnimeMovies(animeMovies);
         setAllMovies(movies);
         setAllTvShows(tvShows);
@@ -848,6 +932,9 @@ export default function Add() {
   }
 
   async function submitOptions() {
+    if (optionsSubTab === "people") return submitPerson();
+    if (optionsSubTab === "studios") return submitStudio();
+
     if (!optCategory.trim()) {
       showToast("warning", "Category is required.");
       return;
@@ -860,12 +947,12 @@ export default function Add() {
 
     const results = await Promise.allSettled(
       vals.map((val) =>
-        fetch("/api/options/", {
+        fetch(endpoints.options.create(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             category: optCategory.trim(),
-            option_value: val.trim(),
+            value: val.trim(),
           }),
           credentials: "include",
         }),
@@ -882,10 +969,72 @@ export default function Add() {
         setOptCategory("");
         setOptValues([""]);
       }
-      const oRes = await fetch("/api/options/", { credentials: "include" });
-      if (oRes.ok) setAllOptions(await oRes.json());
+      setSources(await fetchAllSources());
     }
     if (failed > 0) showToast("warning", `${failed} option(s) failed to save.`);
+  }
+
+  async function submitPerson() {
+    if (!personForm.name_native.trim()) {
+      showToast("warning", "Name (native) is required.");
+      return;
+    }
+    const roles = personForm.role.trim()
+      ? [{ role: personForm.role.trim(), scope: personForm.scope || null }]
+      : [];
+    const res = await fetch(endpoints.person.create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name_native: personForm.name_native.trim(),
+        name_en: personForm.name_en || null,
+        name_cn: personForm.name_cn || null,
+        gender: personForm.gender || null,
+        my_rating: personForm.my_rating || null,
+        photo_file: personForm.photo_file || null,
+        remark: personForm.remark || null,
+        roles,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast("success", "Person appended successfully.");
+      setLastAdded(created.name_native);
+      setPersonForm(emptyPerson());
+      setSources(await fetchAllSources());
+    } else {
+      showToast("error", "Failed to create person");
+    }
+  }
+
+  async function submitStudio() {
+    if (!studioForm.name_native.trim()) {
+      showToast("warning", "Name (native) is required.");
+      return;
+    }
+    const res = await fetch(endpoints.studio.create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name_native: studioForm.name_native.trim(),
+        name_en: studioForm.name_en || null,
+        name_cn: studioForm.name_cn || null,
+        my_rating: studioForm.my_rating || null,
+        logo_file: studioForm.logo_file || null,
+        remark: studioForm.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast("success", "Studio appended successfully.");
+      setLastAdded(created.name_native);
+      setStudioForm(emptyStudio());
+      setSources(await fetchAllSources());
+    } else {
+      showToast("error", "Failed to create studio");
+    }
   }
 
   async function submitAnimeMovie() {
@@ -1713,46 +1862,25 @@ export default function Add() {
             .map((e) => ({ key: e.key, name: e.name.trim() }))
         : null;
 
-    // Auto-create missing system options for author, illustrator, publisher_tw
-    {
-      const existingValues = {};
-      for (const o of allOptions) {
-        if (!existingValues[o.category]) existingValues[o.category] = new Set();
-        existingValues[o.category].add(o.option_value);
-      }
-      const toCreate = [];
-      for (const v of (nvf.author || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)) {
-        if (!existingValues["Novel Author"]?.has(v))
-          toCreate.push({ category: "Novel Author", option_value: v });
-      }
-      for (const v of (nvf.illustrator || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)) {
-        if (!existingValues["Novel Illustrator"]?.has(v))
-          toCreate.push({ category: "Novel Illustrator", option_value: v });
-      }
-      const pub = (nvf.publisher_tw || "").trim();
-      if (pub && !existingValues["Novel Publisher TW"]?.has(pub))
-        toCreate.push({ category: "Novel Publisher TW", option_value: pub });
-      if (toCreate.length > 0) {
-        await Promise.all(
-          toCreate.map((item) =>
-            fetch("/api/options/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(item),
-              credentials: "include",
-            }),
-          ),
-        );
-        const oRes = await fetch("/api/options/", { credentials: "include" });
-        if (oRes.ok) setAllOptions(await oRes.json());
-      }
-    }
+    // Auto-create missing entities for author, illustrator, publisher_tw
+    await ensureSourceValues([
+      {
+        source: { kind: "person", role: "novel_author" },
+        values: splitTags(nvf.author),
+      },
+      {
+        source: { kind: "person", role: "novel_illustrator" },
+        values: splitTags(nvf.illustrator),
+      },
+      {
+        source: {
+          kind: "option",
+          category: "Publisher / Distributor TW",
+          scope: "novel",
+        },
+        values: splitTags(nvf.publisher_tw),
+      },
+    ]);
 
     const payload = {
       novel_name_cn: nvf.novel_name_cn || null,
@@ -1923,52 +2051,45 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    // Auto-create missing system options for every comic option-backed field.
-    {
-      const existingValues = {};
-      for (const o of allOptions) {
-        if (!existingValues[o.category]) existingValues[o.category] = new Set();
-        existingValues[o.category].add(o.option_value);
-      }
-      const toCreate = [];
-      const addMulti = (raw, category) => {
-        for (const v of (raw || "")
-          .split(",")
-          .map((x) => x.trim())
-          .filter(Boolean)) {
-          if (!existingValues[category]?.has(v))
-            toCreate.push({ category, option_value: v });
-        }
-      };
-      const addSingle = (raw, category) => {
-        const v = (raw || "").trim();
-        if (v && !existingValues[category]?.has(v))
-          toCreate.push({ category, option_value: v });
-      };
-      addMulti(cmf.writer, "Comic Writer");
-      addMulti(cmf.artist, "Comic Artist");
-      addSingle(cmf.publisher, "Comic Publisher");
-      addSingle(cmf.imprint, "Comic Imprint");
-      addSingle(cmf.continuity, "Comic Continuity");
-      addSingle(cmf.era, "Comic Era");
-      addSingle(cmf.publisher_tw, "Distributor TW");
-      for (const ev of Array.isArray(cmf.events) ? cmf.events : [])
-        addSingle(ev, "Comic Event");
-      if (toCreate.length > 0) {
-        await Promise.all(
-          toCreate.map((item) =>
-            fetch("/api/options/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(item),
-              credentials: "include",
-            }),
-          ),
-        );
-        const oRes = await fetch("/api/options/", { credentials: "include" });
-        if (oRes.ok) setAllOptions(await oRes.json());
-      }
-    }
+    // Auto-create missing entities for every comic credit/tag field.
+    await ensureSourceValues([
+      {
+        source: { kind: "person", role: "comic_writer" },
+        values: splitTags(cmf.writer),
+      },
+      {
+        source: { kind: "person", role: "comic_artist" },
+        values: splitTags(cmf.artist),
+      },
+      {
+        source: { kind: "option", category: "Comic Publisher", scope: "comic" },
+        values: splitTags(cmf.publisher),
+      },
+      {
+        source: { kind: "option", category: "Comic Imprint", scope: "comic" },
+        values: splitTags(cmf.imprint),
+      },
+      {
+        source: { kind: "option", category: "Comic Continuity", scope: "comic" },
+        values: splitTags(cmf.continuity),
+      },
+      {
+        source: { kind: "option", category: "Comic Era", scope: "comic" },
+        values: splitTags(cmf.era),
+      },
+      {
+        source: {
+          kind: "option",
+          category: "Publisher / Distributor TW",
+          scope: "comic",
+        },
+        values: splitTags(cmf.publisher_tw),
+      },
+      {
+        source: { kind: "option", category: "Comic Event", scope: "comic" },
+        values: Array.isArray(cmf.events) ? cmf.events.filter(Boolean) : [],
+      },
+    ]);
 
     const payload = {
       comic_name_en: cmf.comic_name_en || null,
@@ -2160,7 +2281,7 @@ export default function Add() {
   }));
 
   const optionCategories = [
-    ...new Set(allOptions.map((o) => o.category)),
+    ...new Set(sources.options.map((o) => o.category)),
   ].sort();
 
   if (dataLoading) {
@@ -2226,7 +2347,7 @@ export default function Add() {
             allFranchises={allFranchises}
             franchiseItems={franchiseItems}
             seriesItemsForAnime={seriesItems}
-            allOptions={allOptions}
+            sources={sources}
           />
         )}
 
@@ -2245,7 +2366,7 @@ export default function Add() {
             applyAnimeMovieAutofill={applyAnimeMovieAutofill}
             allFranchises={allFranchises}
             franchiseItems={franchiseItems}
-            allOptions={allOptions}
+            sources={sources}
           />
         )}
 
@@ -2264,6 +2385,7 @@ export default function Add() {
             applyMovieAutofill={applyMovieAutofill}
             allFranchises={allFranchises}
             seriesItemsForMovie={seriesItemsForMovie}
+            sources={sources}
           />
         )}
 
@@ -2318,7 +2440,7 @@ export default function Add() {
             applyMangaAutofill={applyMangaAutofill}
             allFranchises={allFranchises}
             seriesItemsForManga={seriesItemsForManga}
-            allOptions={allOptions}
+            sources={sources}
           />
         )}
 
@@ -2337,7 +2459,7 @@ export default function Add() {
             applyNovelAutofill={applyNovelAutofill}
             allFranchises={allFranchises}
             seriesItemsForNovel={seriesItemsForNovel}
-            allOptions={allOptions}
+            sources={sources}
           />
         )}
 
@@ -2356,7 +2478,7 @@ export default function Add() {
             applyComicAutofill={applyComicAutofill}
             allFranchises={allFranchises}
             seriesItemsForComic={seriesItemsForComic}
-            allOptions={allOptions}
+            sources={sources}
           />
         )}
 
@@ -2385,11 +2507,17 @@ export default function Add() {
         {/* ═══ OPTIONS TAB ═══ */}
         {activeTab === "options" && (
           <OptionsAddTab
+            optionsSubTab={optionsSubTab}
+            setOptionsSubTab={setOptionsSubTab}
             optCategory={optCategory}
             setOptCategory={setOptCategory}
             optValues={optValues}
             setOptValues={setOptValues}
             optionCategories={optionCategories}
+            personForm={personForm}
+            upf={upf}
+            studioForm={studioForm}
+            usf={usf}
           />
         )}
 

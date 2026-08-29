@@ -1362,7 +1362,7 @@ function DuplicatesModal({ results, onClose }) {
               key={i}
               className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded font-mono"
             >
-              [{opt.id}] {opt.option_value}
+              [{opt.system_id}] {opt.value}
             </span>
           ))}
         </div>

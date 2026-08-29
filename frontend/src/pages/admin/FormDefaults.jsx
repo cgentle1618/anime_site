@@ -15,6 +15,7 @@ import { FORM_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { BUILTIN_AUTOFILL, getFieldRegistry } from "../../config/formFields";
 import DefaultsTab from "../defaults-tabs/DefaultsTab";
+import { fetchAllSources } from "../../lib/sources";
 
 const emptyDraft = (type) => ({
   defaults: {},
@@ -63,7 +64,7 @@ export default function FormDefaults() {
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState("anime");
-  const [allOptions, setAllOptions] = useState([]);
+  const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -75,16 +76,15 @@ export default function FormDefaults() {
   useEffect(() => {
     async function load() {
       try {
-        const [fdRes, optRes] = await Promise.all([
+        const [fdRes, srcData] = await Promise.all([
           fetch(endpoints.formDefaults.list(), { credentials: "include" }),
-          fetch(endpoints.options.list(), { credentials: "include" }),
+          fetchAllSources(),
         ]);
         const config = await readJson(fdRes, {});
-        const options = await readJson(optRes, []);
 
         setSaved(seedDrafts(config));
         setDrafts(seedDrafts(config));
-        setAllOptions(Array.isArray(options) ? options : []);
+        setSources(srcData);
 
         if (!fdRes.ok) {
           showToast("error", "Could not load saved defaults — showing built-ins.");
@@ -265,7 +265,7 @@ export default function FormDefaults() {
         clearFieldDefault={clearFieldDefault}
         toggleAutofill={toggleAutofill}
         setGroupAutofill={setGroupAutofill}
-        allOptions={allOptions}
+        sources={sources}
       />
 
       {/* Footer actions */}

@@ -9,7 +9,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   COMIC_TYPES,
   MANGA_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
@@ -34,12 +34,12 @@ export default function ComicModifyTab({
   seriesItemsForComic,
   editingItem,
   ribbonSection,
-  allOptions,
+  sources,
 }) {
-  // Free-text ComboBoxes over a system-option category: the typed value is the
-  // value, so `selectedId` is only set when it matches a known option.
-  const optionCombo = (category, key, placeholder) => {
-    const options = getOptions(allOptions, category);
+  // Free-text ComboBoxes over a source: the typed value is the value, so
+  // `selectedId` is only set when it matches a known suggestion.
+  const optionCombo = (source, key, placeholder) => {
+    const options = getSourceValues(sources, source);
     return (
       <ComboBox
         items={options.map((v) => ({ id: v, label: v }))}
@@ -183,15 +183,27 @@ export default function ComicModifyTab({
       <SectionHeader icon="fa-sitemap" title="Classification" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Continuity">
-          {optionCombo("Comic Continuity", "continuity", "e.g. Earth-616")}
+          {optionCombo(
+            { kind: "option", category: "Comic Continuity", scope: "comic" },
+            "continuity",
+            "e.g. Earth-616",
+          )}
         </Field>
         <Field label="Era">
-          {optionCombo("Comic Era", "era", "e.g. Modern")}
+          {optionCombo(
+            { kind: "option", category: "Comic Era", scope: "comic" },
+            "era",
+            "e.g. Modern",
+          )}
         </Field>
       </div>
       <Field label="Events" hint="Marvel events this run is part of">
         <MultiSelect
-          options={getOptions(allOptions, "Comic Event")}
+          options={getSourceValues(sources, {
+            kind: "option",
+            category: "Comic Event",
+            scope: "comic",
+          })}
           value={eventsToString(ccmf.events)}
           onChange={(v) => ucm("events", eventsToArray(v))}
           placeholder="Select or type event..."
@@ -269,7 +281,10 @@ export default function ComicModifyTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Writer">
           <MultiSelect
-            options={getOptions(allOptions, "Comic Writer")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "comic_writer",
+            })}
             value={ccmf.writer || ""}
             onChange={(v) => ucm("writer", v)}
             placeholder="Select or type writer..."
@@ -277,7 +292,10 @@ export default function ComicModifyTab({
         </Field>
         <Field label="Artist">
           <MultiSelect
-            options={getOptions(allOptions, "Comic Artist")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "comic_artist",
+            })}
             value={ccmf.artist || ""}
             onChange={(v) => ucm("artist", v)}
             placeholder="Select or type artist..."
@@ -286,13 +304,29 @@ export default function ComicModifyTab({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Publisher">
-          {optionCombo("Comic Publisher", "publisher", "e.g. Marvel")}
+          {optionCombo(
+            { kind: "option", category: "Comic Publisher", scope: "comic" },
+            "publisher",
+            "e.g. Marvel",
+          )}
         </Field>
         <Field label="Imprint">
-          {optionCombo("Comic Imprint", "imprint", "e.g. Ultimate")}
+          {optionCombo(
+            { kind: "option", category: "Comic Imprint", scope: "comic" },
+            "imprint",
+            "e.g. Ultimate",
+          )}
         </Field>
         <Field label="Publisher TW">
-          {optionCombo("Distributor TW", "publisher_tw", "e.g. 東立")}
+          {optionCombo(
+            {
+              kind: "option",
+              category: "Publisher / Distributor TW",
+              scope: "comic",
+            },
+            "publisher_tw",
+            "e.g. 東立",
+          )}
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

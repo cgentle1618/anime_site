@@ -9,7 +9,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import MangaNotes from "../detail/MangaNotes";
 
 export default function MangaModifyTab({
@@ -20,7 +20,7 @@ export default function MangaModifyTab({
   seriesItemsForManga,
   editingItem,
   ribbonSection,
-  allOptions,
+  sources,
 }) {
   return (
     <>
@@ -304,7 +304,10 @@ export default function MangaModifyTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author (Plot)">
           <MultiSelect
-            options={getOptions(allOptions, "Manga Author")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "manga_author",
+            })}
             value={cmgf.author_plot}
             onChange={(v) => umg("author_plot", v)}
             placeholder="Select plot author..."
@@ -312,7 +315,10 @@ export default function MangaModifyTab({
         </Field>
         <Field label="Author (Art)">
           <MultiSelect
-            options={getOptions(allOptions, "Manga Author")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "manga_author",
+            })}
             value={cmgf.author_draw}
             onChange={(v) => umg("author_draw", v)}
             placeholder="Select art author..."
@@ -334,7 +340,7 @@ export default function MangaModifyTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">
           <MultiSelect
-            options={getOptions(allOptions, "Studio")}
+            options={getSourceValues(sources, { kind: "studio" })}
             value={cmgf.anime_studio}
             onChange={(v) => umg("anime_studio", v)}
             placeholder="Select studio..."
@@ -349,7 +355,11 @@ export default function MangaModifyTab({
         </Field>
         <Field label="Publisher TW">
           <MultiSelect
-            options={getOptions(allOptions, "Manga Publisher TW")}
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Publisher / Distributor TW",
+              scope: "manga",
+            })}
             value={cmgf.publisher_tw}
             onChange={(v) => umg("publisher_tw", v)}
             placeholder="Select publisher..."

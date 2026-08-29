@@ -10,7 +10,7 @@
 
 import MultiSelect from "./MultiSelect";
 import { inputCls, selectCls } from "./FormField";
-import { getOptions } from "../../lib/formatters";
+import { getSourceValues } from "../../lib/formatters";
 
 const INPUT_TYPES = {
   number: "number",
@@ -40,7 +40,7 @@ export default function DefaultValueControl({
   field,
   value,
   onChange,
-  allOptions = [],
+  sources = {},
 }) {
   const isOverridden = value !== undefined;
   const ghost = describeBuiltIn(field);
@@ -90,8 +90,8 @@ export default function DefaultValueControl({
 
   if (field.control === "tags") {
     // Tag fields store a comma-separated string, same as the Add form.
-    const options = field.optionsCategory
-      ? getOptions(allOptions, field.optionsCategory)
+    const options = field.source
+      ? getSourceValues(sources, field.source)
       : (field.options ?? []);
     return (
       <MultiSelect

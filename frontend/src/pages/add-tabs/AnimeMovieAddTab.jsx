@@ -9,7 +9,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, getOptions } from "../../utils/media";
+import { getDisplayName, getSourceValues } from "../../utils/media";
 import {
   AIRING_STATUSES,
   MY_RATINGS,
@@ -31,7 +31,7 @@ export default function AnimeMovieAddTab({
   applyAnimeMovieAutofill,
   allFranchises,
   franchiseItems,
-  allOptions,
+  sources,
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
@@ -292,7 +292,7 @@ export default function AnimeMovieAddTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Studio">
           <MultiSelect
-            options={getOptions(allOptions, "Studio")}
+            options={getSourceValues(sources, { kind: "studio" })}
             value={amf.studio}
             onChange={(v) => uam("studio", v)}
             placeholder="Select studio..."
@@ -300,7 +300,11 @@ export default function AnimeMovieAddTab({
         </Field>
         <Field label="Director">
           <MultiSelect
-            options={getOptions(allOptions, "Director")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "director",
+              scope: "anime",
+            })}
             value={amf.director}
             onChange={(v) => uam("director", v)}
             placeholder="Select director..."

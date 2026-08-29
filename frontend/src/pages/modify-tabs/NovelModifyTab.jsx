@@ -10,7 +10,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, getOptions, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import NovelNotes from "../detail/NovelNotes";
 
 const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
@@ -40,9 +40,13 @@ export default function NovelModifyTab({
   seriesItemsForNovel,
   editingItem,
   ribbonSection,
-  allOptions,
+  sources,
 }) {
-  const publisherOptions = getOptions(allOptions, "Novel Publisher TW");
+  const publisherOptions = getSourceValues(sources, {
+    kind: "option",
+    category: "Publisher / Distributor TW",
+    scope: "novel",
+  });
   const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
 
   return (
@@ -387,7 +391,10 @@ export default function NovelModifyTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Author">
           <MultiSelect
-            options={getOptions(allOptions, "Novel Author")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "novel_author",
+            })}
             value={cnvf.author || ""}
             onChange={(v) => unv("author", v)}
             placeholder="Select or type author..."
@@ -395,7 +402,10 @@ export default function NovelModifyTab({
         </Field>
         <Field label="Illustrator">
           <MultiSelect
-            options={getOptions(allOptions, "Novel Illustrator")}
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "novel_illustrator",
+            })}
             value={cnvf.illustrator || ""}
             onChange={(v) => unv("illustrator", v)}
             placeholder="Select or type illustrator..."

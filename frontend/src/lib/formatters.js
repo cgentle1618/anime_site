@@ -21,10 +21,38 @@ export function getRatingWeight(rating) {
   return RATING_WEIGHT[rating] !== undefined ? RATING_WEIGHT[rating] : 99;
 }
 
-export function getOptions(allOptions, category) {
-  return allOptions
-    .filter((o) => o.category === category)
-    .map((o) => o.value);
+/**
+ * Suggestion list for one "tags" field, given its `source` descriptor from
+ * fieldMeta.js and the page's fetched `sources` bag ({ options, people,
+ * studios } — see lib/sources.js).
+ *
+ * `kind` selects where the values come from:
+ *   option -> sources.options, filtered by category (+ scope, when scoped)
+ *   person -> sources.people[`${role}|${scope||""}`] — already server-filtered
+ *   studio -> sources.studios, unfiltered (studios have no role/scope concept)
+ */
+export function getSourceValues(sources, source) {
+  if (!source || !sources) return [];
+  if (source.kind === "option") {
+    return (sources.options || [])
+      .filter(
+        (o) =>
+          o.category === source.category &&
+          (!source.scope ||
+            !o.scopes ||
+            o.scopes.length === 0 ||
+            o.scopes.includes(source.scope)),
+      )
+      .map((o) => o.value);
+  }
+  if (source.kind === "person") {
+    const key = `${source.role}|${source.scope || ""}`;
+    return (sources.people?.[key] || []).map((p) => p.name_native);
+  }
+  if (source.kind === "studio") {
+    return (sources.studios || []).map((s) => s.name_native);
+  }
+  return [];
 }
 
 export function formatLength(minutes) {

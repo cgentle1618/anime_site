@@ -17,7 +17,7 @@ export default function DefaultsTab({
   clearFieldDefault,
   toggleAutofill,
   setGroupAutofill,
-  allOptions,
+  sources,
 }) {
   const groups = getFieldGroups(type);
   const { defaults, autofill } = draft;
@@ -75,7 +75,7 @@ export default function DefaultsTab({
                           field={field}
                           value={defaults[field.key]}
                           onChange={(v) => setFieldDefault(field.key, v)}
-                          allOptions={allOptions}
+                          sources={sources}
                         />
                       </div>
                       {isOverridden && (

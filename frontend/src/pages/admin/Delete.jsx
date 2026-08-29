@@ -91,7 +91,7 @@ function getDisplayTitle(item, type) {
       item.series_name_alt ||
       "Unknown"
     );
-  return item.option_value || "Unknown";
+  return item.value || "Unknown";
 }
 
 function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
@@ -340,7 +340,7 @@ export default function Delete() {
     setDeleting(true);
     try {
       if (type === "options") {
-        const res = await fetch(`/api/options/${item.id}`, {
+        const res = await fetch(`/api/options/${item.system_id}`, {
           method: "DELETE",
           credentials: "include",
         });
@@ -1653,11 +1653,11 @@ export default function Delete() {
               {filteredOptions.length ? (
                 filteredOptions.map((opt) => (
                   <div
-                    key={opt.id}
+                    key={opt.system_id}
                     className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm"
                   >
                     <span className="font-bold text-gray-700 text-sm truncate pr-2">
-                      {opt.option_value}
+                      {opt.value}
                     </span>
                     <button
                       onClick={() => initDelete("options", opt)}

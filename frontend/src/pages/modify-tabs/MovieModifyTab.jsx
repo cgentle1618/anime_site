@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for MovieModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
 import {
   CollectionNote,
   Field,
@@ -7,7 +8,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import MovieNotes from "../detail/MovieNotes";
 
 export default function MovieModifyTab({
@@ -17,6 +18,7 @@ export default function MovieModifyTab({
   allFranchises,
   seriesItemsForMovie,
   editingItem,
+  sources,
 }) {
   return (
     <>
@@ -260,10 +262,15 @@ export default function MovieModifyTab({
           />
         </Field>
         <Field label="Director">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "director",
+              scope: "non_anime",
+            })}
             value={mmf.director || ""}
-            onChange={(e) => umm("director", e.target.value)}
+            onChange={(v) => umm("director", v)}
+            placeholder="Select or type director..."
           />
         </Field>
       </div>
