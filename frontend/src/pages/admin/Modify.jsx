@@ -112,6 +112,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
       ([name, url]) => ({ name, url: url || "" }),
     ),
     seiyuu: anime.seiyuu || "",
+    watch_next: anime.watch_next ?? false,
     cover_image_file: anime.cover_image_file || "",
     remark: anime.remark || "",
   };

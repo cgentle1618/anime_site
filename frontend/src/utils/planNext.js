@@ -8,6 +8,8 @@ import { SIZE_GROUPS } from "../config/planNextGroups";
 
 // Upper bound of each band, in vocabulary order. Only comic is read here -
 // every other type inherits its bucket rather than computing one client-side.
+// Hand-maintained copy of the "comic" entry in SIZE_THRESHOLDS in
+// app/utils/plan_next_kinds.py - keep the two in sync by hand.
 const COMIC_BANDS = [
   [3, "1_3"],
   [10, "4_10"],

@@ -12,8 +12,12 @@ app/utils/media_resolver.py, so plan_next agrees with media_relation and
 watch_order_item on what a media_type value looks like.
 
 This module is the single source of truth for the API validator, the Calculate
-derivation, the admin dropdowns and the docs tables. The frontend fetches it
-over HTTP (GET /api/plan-next/kinds) rather than keeping a second copy.
+derivation, the admin dropdowns and the docs tables. GET /api/plan-next/kinds
+exposes it over HTTP as a documented public endpoint, but nothing in the
+frontend calls it: frontend/src/config/planNextGroups.js is a hand-maintained
+parallel copy of the scope/size-group vocabulary and must be kept in sync by
+hand whenever this module changes. SIZE_THRESHOLDS below has its own
+frontend-side copy too - see COMIC_BANDS in frontend/src/utils/planNext.js.
 """
 
 from dataclasses import dataclass
@@ -49,6 +53,8 @@ ALLOWED_SCOPES: dict[str, frozenset[str]] = {
 # Upper bound of each band, paired with the bucket key it yields. Read in
 # order; a None bound is the open-ended last band. A type absent from this dict
 # has no bucket vocabulary at all.
+# Keep in sync with COMIC_BANDS in frontend/src/utils/planNext.js (comic only)
+# and with frontend/src/config/planNextGroups.js (all media types).
 SIZE_THRESHOLDS: dict[str, tuple[tuple[Optional[int], str], ...]] = {
     "anime": ((12, "12ep"), (24, "24ep"), (None, "30ep_plus")),
     "tv-show": ((1, "1season"), (2, "2season"), (None, "3season_plus")),

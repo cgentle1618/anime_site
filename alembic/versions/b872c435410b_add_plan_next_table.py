@@ -67,7 +67,7 @@ def upgrade() -> None:
             INSERT INTO plan_next
                 (system_id, media_type, scope, target_id, created_at, updated_at)
             SELECT gen_random_uuid(), '{media_type}', 'entry', system_id,
-                   NOW(), NOW()
+                   (now() AT TIME ZONE 'Asia/Taipei'), (now() AT TIME ZONE 'Asia/Taipei')
             FROM {table}
             WHERE {column} IS TRUE
             """
@@ -79,7 +79,8 @@ def upgrade() -> None:
         """
         INSERT INTO plan_next
             (system_id, media_type, scope, target_id, created_at, updated_at)
-        SELECT gen_random_uuid(), 'anime', 'franchise', system_id, NOW(), NOW()
+        SELECT gen_random_uuid(), 'anime', 'franchise', system_id,
+               (now() AT TIME ZONE 'Asia/Taipei'), (now() AT TIME ZONE 'Asia/Taipei')
         FROM franchise
         WHERE watch_next_group IS NOT NULL AND watch_next_group <> ''
         """

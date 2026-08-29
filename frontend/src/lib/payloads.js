@@ -123,6 +123,7 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
           )
         : null,
     seiyuu: af.seiyuu || null,
+    watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
     remark: af.remark || null,
   };

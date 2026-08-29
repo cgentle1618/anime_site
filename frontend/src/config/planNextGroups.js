@@ -1,9 +1,12 @@
 // Frontend: the size-bucket vocabularies and Plan page tabs.
 //
-// Mirrors app/utils/plan_next_kinds.py. Media type keys are the hyphenated
-// ones the API stores. Previously these lived hardcoded in three separate
-// files (FranchisePage, FranchiseModifyTab, PlanWatchNext), which is how they
-// drifted out of docs/options.md entirely.
+// This is a hand-maintained copy of app/utils/plan_next_kinds.py
+// (SIZE_THRESHOLDS/ALLOWED_SCOPES) - there is no runtime guard keeping the
+// two in sync (GET /api/plan-next/kinds exists but is unused by the
+// frontend), so update both by hand whenever one changes. Media type keys
+// are the hyphenated ones the API stores. Previously these lived hardcoded
+// in three separate files (FranchisePage, FranchiseModifyTab,
+// PlanWatchNext), which is how they drifted out of docs/options.md entirely.
 
 export const SIZE_GROUPS = {
   anime: [
