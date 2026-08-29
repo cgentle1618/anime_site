@@ -1,40 +1,40 @@
-# To Rewatch / To Reread — Per-Type Levels
+# To Rewatch / To Reread — Per-Type Scopes
 
 **Date:** 2026-08-29
 **Status:** Design — awaiting review
+**Depends on:** `docs/superpowers/specs/2026-08-29-plan-next-design.md` and its
+plan, through **Task 10 (Plan page rewrite)**. See § Sequencing.
+
+> **Revision note.** An earlier draft of this spec stored the flag as a
+> `to_rewatch_types` JSONB column on `franchise` and `series`, arguing against a
+> dedicated table. That reasoning assumed no such table existed. It does now —
+> `plan_next` landed in commits `871b5ec`…`59dd55c` while this spec was being
+> written, replacing the eight `watch_next` / `read_next` / `watch_next_group`
+> columns. The premise is gone, so the storage decision is reversed. The target
+> scope mapping below is unchanged from that draft.
 
 ## Problem
 
-The Plan page's To Rewatch section currently reads the rewatch flag from exactly
-one level per media type, and the mapping is accidental rather than chosen:
+The Plan page's To Rewatch section reads the flag from one tier per media type,
+and the mapping is accidental rather than chosen:
 
 - **Anime** reads `franchise.to_rewatch` — forced, because the `anime` table has
-  no `to_rewatch` column at all.
+  no `to_rewatch` column.
 - **Every other type** reads the media entry's own boolean.
 - **Series is read nowhere**, despite `series.to_rewatch` existing with full
   admin UI behind it (`SeriesAddTab`, `SeriesModifyTab`, a badge on `SeriesPage`).
 - **Comic has no tab at all**; `comic.to_reread` is a column with no UI.
 
-We want each media type to declare which of the three levels — franchise,
-series, media entry — can carry the flag.
+Each media type should declare which tiers — franchise, series, entry — may
+carry the flag.
 
-### The collision this exposes
+The columns cannot express this. `series` is one table shared by every media
+type, so a series-level flag would need one boolean column per type; a franchise
+holding both anime and movies has one boolean and no way to say which it means;
+and an anime entry cannot be marked at all. These are the same three limitations
+`plan_next`'s docstring records for `watch_next`.
 
-`franchise.franchise_type` is multi-valued. It is parsed with `parseTypes()`
-into a list, and `FranchisePage.jsx:250-260` derives `hasACG`, `hasMovie`,
-`hasNovel` from it. A single franchise is routinely `ACG, Movie, Novel`.
-
-But `franchise.to_rewatch` is a single boolean. Under the target mapping below,
-five of the eight types read the franchise level. A mixed franchise marked for
-rewatch would therefore surface on the Anime tab *and* the Movie tab *and* the
-Novel tab, with no way to express "rewatch the anime, not the novels."
-
-`series` has the same problem and no type column whatsoever — its own model
-comment states a series holds "Any entry UUID, any type."
-
-The media entry level has no such ambiguity: an entry is exactly one type.
-
-## Target mapping
+## Target scopes by media type
 
 | Type        | Franchise | Series | Entry | Change from today               |
 | ----------- | :-------: | :----: | :---: | ------------------------------- |
@@ -47,152 +47,258 @@ The media entry level has no such ambiguity: an entry is exactly one type.
 | Novel       |     ✔     |   ✔    |   ✔   | + series, + franchise           |
 | Comic       |           |   ✔    |   ✔   | + entry, + series (new tab)     |
 
-## Decision: keep the existing tables
+This deliberately differs from Watch Next's mapping — anime and cartoon are
+rewatched as whole franchises, novels are reread at every tier — which is why
+`ALLOWED_SCOPES` gains a kind dimension below.
 
-**No new `rewatch_flag` table.** A dedicated table earns its keep when the flag
-carries data — a date marked, a priority, a note, a history. This flag is a
-bare boolean. A table would cost a new Google Sheets tab plus format/parse
-paths in the backup and pull pipelines, a join on every Plan page load and
-library filter, and the loss of the flag as a directly readable per-type sheet
-column — all for normalization with no new capability. If per-flag metadata is
-ever wanted, that is the moment to promote it.
+## Decision: extend `plan_next` with a `kind` column
 
-The two levels are handled differently, because only one of them is ambiguous:
+To Rewatch is Watch Next with a different verb. Both are Plan-page queues, both
+target one of three tiers, both need a per-media-type map of legal tiers, both
+need FK-less targeting because no foreign key spans eight entry tables plus
+`series` and `franchise`, both need delete-cleanup, and both need a Sheets path.
+`plan_next` already carries all of it.
 
-**Media entry level — unchanged.** Keep the plain booleans on `anime_movie`,
-`movie`, `tv_show`, `manga`, `novel`, `comic`. One type per entry, no ambiguity.
-
-**Group level — same tables, new column type.** Replace the single boolean on
-`franchise` and `series` with a per-type JSONB list:
+Add one column:
 
 ```
-franchise.to_rewatch_types = ["ACG", "Movie"]
-series.to_rewatch_types    = ["Movie"]
+plan_next.kind = "next" | "rewatch"
 ```
 
-This is not a novel pattern in this codebase. `franchise.type_covers` and
-`franchise.type_slots` (`app/models/franchise.py:57-58`) already solve the same
-"one franchise, many types" problem with per-type JSONB, and the Sheets Pull
-already has `_safe_json` handling wired for both
-(`formatter.py:parse_franchise_from_sheet`). `to_rewatch_types` slots into
-existing machinery rather than adding new machinery.
+`UniqueConstraint("kind", "scope", "target_id", "media_type")` replaces the
+current three-column constraint; `Index("ix_plan_next_kind_type_scope", "kind",
+"media_type", "scope")` replaces the current two-column index. The row's
+existence remains the flag — un-marking deletes the row.
 
-The column keeps the `to_rewatch` stem at group level even though it also serves
-Novel and Comic reread semantics — matching the existing precedent where
-`series.to_rewatch` already served both. UI labels read "To Reread" in novel and
-comic contexts.
+Everything else follows for free: target resolution through `OWNER_TABLES`, the
+`missing=True` treatment of dangling references, the delete-cleanup obligation
+on the franchise and series delete paths, the "Plan Next" Sheets tab, and the
+router.
 
-### Values
+The anime special case disappears. "Anime is rewatched at franchise scope"
+stops being a schema accident and becomes one line in `ALLOWED_SCOPES`, alterable
+later without a migration.
 
-`to_rewatch_types` holds **media type** values, not Franchise Type values:
-`Anime`, `Movie`, `TV Show`, `Cartoon`, `Novel`, `Comic` — one per Plan tab that
-uses a group level.
+### Rejected alternatives
 
-This deliberately does *not* reuse the `franchise_type` vocabulary. That
-vocabulary bundles types (`ACG` implies anime *and* manga *and* novel — hence
-`hasNovel = types.includes("Novel") || types.includes("ACG")` at
-`FranchisePage.jsx:255`) and carries legacy values the options list does not
-document (`FranchisePage.jsx:250` accepts a bare `"Anime"` alongside `"ACG"`).
-Bundled values cannot express "rewatch the anime, not the novels," which is the
-whole point of this change.
+**A second table with the same shape.** Buys decoupling we do not want. The two
+lists render side by side on one page and are read by one hook; separate tables
+would drift — one gains `remark`, the other does not; one gets delete-cleanup,
+the other rots.
 
-Per level, only values that level supports are valid:
+**JSONB columns on `franchise` and `series`** (the earlier draft). Its whole
+argument was that a table would cost a new Sheets tab plus pipeline paths. That
+cost is now paid. Keeping it would put the two halves of one page on two
+contradictory architectures.
 
-- franchise: `Anime`, `Movie`, `TV Show`, `Cartoon`, `Novel`
-- series: `Movie`, `TV Show`, `Novel`, `Comic`
+**Renaming `plan_next`.** The table now holds more than "next", so the name is a
+wart. Renaming is cheapest now, four commits in — but it collides head-on with
+another session's eight remaining tasks, which is precisely the coordination cost
+this design exists to avoid. Keep the name; document in `database-schema.md` that
+`plan_next` holds both kinds.
 
-The admin UI further narrows the offered checkboxes to types the group actually
-holds, using the per-type entry lists those pages already build (`animeList`,
-`movieList`, … on `FranchisePage`) rather than the `franchise_type` string.
+## Data model
 
-`null` and `[]` both mean "not marked."
+### `plan_next.kind`
+
+`String`, not nullable, no server default. Validated in the API layer against
+`KINDS`, matching the choice already made for `media_type`, `scope`,
+`media_relation.relation_type` and `watch_order_item.importance` — extending the
+vocabulary needs no migration.
+
+### `app/utils/plan_next_kinds.py`
+
+Gains the kind vocabulary and re-keys the scope map:
+
+```python
+KINDS: tuple[str, ...] = ("next", "rewatch")
+
+ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
+    "next": { ... },      # unchanged, exactly today's dict
+    "rewatch": {
+        "anime":       frozenset({"franchise"}),
+        "anime-movie": frozenset({"entry"}),
+        "movie":       frozenset({"entry", "series", "franchise"}),
+        "tv-show":     frozenset({"entry", "series", "franchise"}),
+        "cartoon":     frozenset({"franchise"}),
+        "manga":       frozenset({"entry"}),
+        "novel":       frozenset({"entry", "series", "franchise"}),
+        "comic":       frozenset({"entry", "series"}),
+    },
+}
+```
+
+`scope_allowed(media_type, scope)` becomes `scope_allowed(kind, media_type,
+scope)`. **This is a breaking signature change to a module that is four commits
+old**; every call site must move in the same change. The module's closing
+assertion becomes `set(ALLOWED_SCOPES) == set(KINDS)` plus a per-kind check that
+each inner dict covers `MEDIA_TYPE_KEYS`.
+
+`SIZE_THRESHOLDS`, `SIZE_MEASURE` and `SIZE_GROUPS` are untouched — size buckets
+are a property of a group, independent of why it is queued.
+
+### Every existing column is dropped
+
+All nine become rows: `to_rewatch` on `franchise`, `series`, `anime_movies`,
+`movies`, `tv_shows` and `cartoons`; `to_reread` on `manga`, `novel` and
+`comic`. The entry-level ones survive as API-level virtual fields (below), so
+the drop is invisible to the frontend. `cartoons` is the exception — cartoon
+moves to franchise-only, so its flag disappears from the API too.
+
+## API
+
+No new endpoints. The existing `plan_next` router gains `kind`:
+
+| Method   | Path                       | Change                                                        |
+| -------- | -------------------------- | ------------------------------------------------------------- |
+| `GET`    | `/api/plan-next/`          | optional `?kind=` filter alongside `media_type` and `scope`    |
+| `POST`   | `/api/plan-next/`          | `kind` required in the body; validated against `KINDS` and the per-kind scope map |
+| `DELETE` | `/api/plan-next/{id}`      | unchanged                                                     |
+| `DELETE` | `/api/plan-next/target`    | `kind` joins the target triple, making it a quadruple          |
+
+`GET` without `kind` returns both kinds, so the Plan page still loads its whole
+dataset in one call.
+
+**Requests omitting `kind` default to `"next"`**, so every call site written by
+the plan-next work keeps passing without edit.
+
+### Entry flags stay as virtual fields
+
+`to_rewatch` and `to_reread` survive on the entry create/update/read schemas as
+virtual fields backed by the table, exactly as the plan-next spec does for
+`watch_next` / `read_next`:
+
+- on write, `true` upserts a `kind='rewatch'`, `scope='entry'` row; `false`
+  deletes it;
+- on read, the flag is computed from `plan_next`.
+
+This is what keeps the change small. `formFactories.js`, `fieldMeta.js`,
+`payloads.js`, every Add and Modify tab, every entry detail page and the library
+toggles keep working untouched.
+
+Two exceptions:
+
+- **Cartoon** loses the field entirely — schema, model column, the `to_rewatch`
+  entry in `app/registry.py:115` `list_filters` (cartoon is the only entry type
+  that exposed it as a query param), and its frontend surfaces.
+- **Anime** does not gain one, since anime rewatches at franchise scope only.
+
+## Pipelines
+
+### Sheets
+
+**No new tab.** `kind` rides along on the "Plan Next" tab created by plan-next
+Task 7. Backup needs no code change — headers derive from `__table__.columns`
+(`backup.py:141-149`). `parse_plan_next_from_sheet` gains
+`"kind": parse_from_sheet(raw.get("kind"), str)`.
+
+Nine tabs lose a column. The corresponding parsers in `app/utils/formatter.py`
+drop the key: `parse_franchise_from_sheet`, `parse_series_from_sheet`,
+`parse_anime_movie_from_sheet`, `parse_movie_from_sheet`,
+`parse_tv_show_from_sheet` and `parse_cartoon_from_sheet` lose `to_rewatch`;
+the manga, novel and comic parsers lose `to_reread`. This mirrors what
+plan-next Task 7 does for `watch_next` / `read_next`, and should reuse whatever
+shape that task settles on.
+
+> **Regression risk.** `business-logic.md:1548` records that
+> `parse_franchise_from_sheet` once omitted columns and so silently wiped them on
+> every Pull. Removing a key is the safe direction, but the round-trip test must
+> confirm a Pull of a Franchise tab that still carries a stale `to_rewatch`
+> column does not error.
+
+### Calculate
+
+Untouched. Rewatch marks are manual; nothing derives them.
 
 ## Migration
 
-One Alembic revision:
+One Alembic revision, `down_revision` = whatever head is when this is
+implemented — necessarily after `b872c435410b`, which created `plan_next`.
 
-1. Add `to_rewatch_types` JSONB (nullable) to `franchise` and `series`.
-2. Backfill where `to_rewatch = true`, from the **actual child entries** of that
-   group — not from `franchise_type`, which is bundled and partly legacy. For
-   each group, collect the distinct media types of its entries and intersect
-   with that level's valid values above. A franchise holding anime and movies
-   becomes `["Anime", "Movie"]`; one holding only anime becomes `["Anime"]`.
-   A flagged group with no entries becomes `[]`.
-3. Drop `franchise.to_rewatch` and `series.to_rewatch`.
-4. Drop `cartoon.to_rewatch`.
+1. Add `kind` to `plan_next` as nullable, backfill every existing row to
+   `'next'`, then set not-null. (Existing rows are all Watch Next.)
+2. Drop `uq_plan_next_target`; create it over `(kind, scope, target_id,
+   media_type)`. Drop `ix_plan_next_type_scope`; create
+   `ix_plan_next_kind_type_scope` over `(kind, media_type, scope)`.
+3. Backfill rewatch rows, `kind='rewatch'`:
+   - one `scope='entry'` row per entry where `to_rewatch` / `to_reread` is true,
+     with that entry's `media_type` — for `anime_movies`, `movies`, `tv_shows`,
+     `manga`, `novel`, `comic`. **`cartoons` is excluded**: cartoon entry marks
+     are discarded by design.
+   - one `scope='franchise'` row per franchise where `to_rewatch` is true, one
+     per media type that franchise actually holds entries of, intersected with
+     the franchise-legal set (`anime`, `movie`, `tv-show`, `cartoon`, `novel`).
+   - one `scope='series'` row per series where `to_rewatch` is true, one per
+     media type that series actually holds entries of, intersected with the
+     series-legal set (`movie`, `tv-show`, `novel`, `comic`).
 
-Step 4 discards existing cartoon entry-level rewatch marks. This is intentional
-— cartoon moves to franchise-only and no consumer remains.
+   Types are read from the group's **actual child entries**, not from
+   `franchise_type` — that column is multi-valued, bundles types (`ACG` implies
+   anime and manga and novel, hence `hasNovel = types.includes("Novel") ||
+   types.includes("ACG")` at `FranchisePage.jsx:255`), and carries an
+   undocumented legacy `"Anime"` value at `:250`. A flagged group holding no
+   entries of any legal type yields no rows.
+4. Drop every remaining column, now that the rows are the source of truth:
+   `to_rewatch` from `anime_movies`, `movies`, `tv_shows`, `cartoons`,
+   `franchise` and `series`; `to_reread` from `manga`, `novel` and `comic`.
+   This mirrors step 4 of the plan-next migration, which dropped the eight
+   `watch_next` / `read_next` / `watch_next_group` columns for the same reason.
 
-Downgrade restores the three boolean columns and sets each to true where
-`to_rewatch_types` was non-empty; per-type detail is lost on downgrade, which is
-acceptable for a flag of this kind.
+Downgrade reverses 4 to 1, accepting known loss: per-type detail collapses back
+to one boolean, and discarded cartoon marks do not return.
 
-## Backend changes
+## Frontend
 
-- **`app/models/franchise.py`** — swap the column on both `Franchise` and
-  `Series`.
-- **`app/models/cartoon.py`** — drop `to_rewatch`.
-- **`app/schemas/franchise.py`** — `to_rewatch: Optional[bool]` becomes
-  `to_rewatch_types: Optional[list[str]]` on both the Franchise and Series
-  schema pairs.
-- **`app/schemas/cartoon.py`** — drop `to_rewatch`.
-- **`app/registry.py:115`** — cartoon loses `to_rewatch` from `list_filters`.
-  Cartoon is the only entry type that exposed it as a query param; movie and
-  tv_show use `movie_type` / `region` in that slot.
-- **`app/utils/formatter.py`** — `parse_franchise_from_sheet` and
-  `parse_series_from_sheet` switch from `parse_from_sheet(..., bool)` to
-  `_safe_json`; `parse_cartoon_from_sheet` drops the key. The movie and tv_show
-  parsers are unchanged.
-- **Backup needs no code change** — sheet headers are derived from
-  `__table__.columns` (`backup.py:141-149`), so the Franchise, Series and
-  Cartoon tabs pick up the new shape automatically. The existing sheet's stale
-  columns are overwritten on the next Backup.
+### Data loading
 
-## Frontend changes
+`usePlanData` already fetches `/api/plan-next/` and `/api/comic/` after
+plan-next Task 10. **It gains nothing.** The To Rewatch sections filter the rows
+already in hand by `kind === "rewatch"`. No new endpoint, no new request.
 
-### Group-level admin controls
-
-`FranchisePage`, `FranchiseModifyTab`, `SeriesPage`, `SeriesModifyTab` and
-`SeriesAddTab` replace the single "To Rewatch" checkbox with a checkbox row,
-offering only the types that group actually holds:
-
-```
-Mark for rewatch:  [x] Anime   [ ] Movie   [x] Novel
-```
-
-The `hasACG` gate on `FranchisePage.jsx:1108` (badge) and `:1181` (control) is
-removed — visibility is now driven by which types the franchise holds, which
-`parseTypes()` already provides. The badge renders one chip per marked type.
+`frontend/src/utils/planNext.js` and `frontend/src/config/planNextGroups.js`
+gain the kind vocabulary and the per-kind scope map, mirroring the backend
+module.
 
 ### Plan page
 
-`usePlanData` additionally loads series and comics, and builds an
-`allEntriesBySeries` map keyed by `series_id` alongside the existing
-`allEntriesByFranchise`.
+`PlanToRewatch.jsx` collapses the same way `PlanWatchNext.jsx` does in
+plan-next Task 10 — today it is seven near-identical blocks each
+re-implementing filter → sort → render. One config-driven path replaces them:
 
-`PlanToRewatch` tabs:
+- **Comic becomes an eighth tab**, free once the loop is uniform.
+- Within a tab, rows group into labelled sections by scope, in the order
+  Franchise → Series → Entries, showing only the scopes that tab's type allows.
+  Separate sections rather than a flat grid with level badges: it matches how
+  Watch Next reads and keeps "rewatch this whole franchise" visually distinct
+  from "rewatch this one film".
+- Sorting within a section keeps today's behavior — by name EN.
+- Cards are the ones Task 10 builds; franchise and series cards already carry a
+  tier label.
 
-- **Anime** — franchise section only, filtered to `to_rewatch_types` containing
-  `Anime`. (Existing behavior, newly type-aware.)
-- **Anime Movie** — entries only. Unchanged.
-- **Movie / TV Show / Novel** — three labelled sections in order: Franchise,
-  Series, Entries.
-- **Cartoon** — franchise section only, filtered to `to_rewatch_types`
-  containing `Cartoon`.
-- **Manga** — entries only. Unchanged.
-- **Comic** — new tab: Series section, then Entries.
+A franchise marked under two media types appears on both tabs, which the
+per-type rows now make explicit rather than inferred.
 
-Levels render as separate labelled sections rather than one flat grid with level
-badges. This matches how Watch Next already reads and keeps "rewatch this whole
-franchise" visually distinct from "rewatch this one film."
+### Group-level admin UI
 
-A franchise flagged for several types appears on each corresponding tab. With
-`to_rewatch_types` this is now explicit intent rather than inference.
+`FranchiseModifyTab.jsx`, `SeriesModifyTab.jsx`, `SeriesAddTab.jsx`, and the
+inline-edit blocks in `FranchisePage.jsx` and `SeriesPage.jsx` replace the single
+"To Rewatch" checkbox with a per-media-type toggle row, offering only the types
+that group holds and that the mapping allows:
 
-Series covers resolve through the same path as franchise covers —
-`getCoverForSlot` against `allEntriesBySeries`, honoring `series.cover_entry_id`
-with a newest-entry fallback.
+```
+To Rewatch:  [x] Anime   [ ] Movie   [x] Novel
+```
+
+Labels read "To Reread" for novel and comic.
+
+This sits directly beside the **next** toggle plan-next Task 9 adds to the same
+blocks — the two should be built as one shared control taking `kind` as a prop,
+which is the concrete reason to sequence this work after that task rather than
+alongside it.
+
+The `hasACG` gate on `FranchisePage.jsx:1108` (badge) and `:1181` (control) is
+removed; visibility now follows the types the franchise actually holds. The badge
+renders one chip per marked type.
 
 ### Comic
 
@@ -201,35 +307,75 @@ already have it.
 
 ### Cartoon removal
 
-Strip `to_rewatch` from `CartoonAddTab`, `CartoonModifyTab`, `Cartoon.jsx`,
-`formFactories.js`, `Add.jsx`, `Modify.jsx`, and the cartoon library table
-column and filter.
+Strip `to_rewatch` from `CartoonAddTab.jsx`, `CartoonModifyTab.jsx`,
+`formFactories.js` (`defaultCartoon`), `Add.jsx`, and `Modify.jsx`. In
+`Cartoon.jsx:395-415`, stop passing `toRewatch` and `onToRewatchChange` to
+`MyTrackerCard` — that component already hides the control when
+`onToRewatchChange` is undefined (`MyTrackerCard.jsx:151`), so no change is
+needed there. `LibraryCartoon.jsx` has no rewatch column and needs no edit.
+
+## Sequencing
+
+This work must not start until plan-next reaches **Task 10**. Reasons, in order
+of severity:
+
+1. **Task 10 rewrites the Plan page** — `usePlanData.js` and the plan components
+   are exactly the files this spec edits. Two sessions rewriting one file is the
+   collision CLAUDE.md's "Concurrent Claude Code Sessions" section warns about.
+2. **Task 9 builds the group-level admin UI** that this spec's per-type toggle
+   row shares a control with.
+3. **Task 5 builds the router** and **Task 7 the Sheets path** that `kind`
+   extends.
+4. `scope_allowed`'s signature change touches call sites those tasks create.
+
+The other session should be told that `franchise.to_rewatch` and
+`series.to_rewatch` are headed into `plan_next` too, so Task 9's group UI is
+built as a kind-parameterised control rather than a next-only one.
 
 ## Testing
 
-- Migration: upgrade and downgrade against a seeded local DB; verify backfill
-  for a mixed-type franchise, a single-type franchise, and a series whose
-  entries span two types.
-- API: franchise and series create/update round-trip `to_rewatch_types`
-  including `null` and `[]`; cartoon ignores `to_rewatch`; the cartoon list
-  endpoint no longer accepts the filter.
-- Sheets: Backup then Pull round-trips `to_rewatch_types` on both group tabs
-  without wiping it (the failure mode `business-logic.md:1548` records for the
-  other JSONB franchise columns).
-- Manual: each Plan tab shows the right levels; a franchise marked for two types
+**Backend**
+
+- `plan_next_kinds`: every kind covers every media type; `scope_allowed` agrees
+  with the table above for all 16 kind/type pairs; the module assertions hold.
+- Model: the four-column unique constraint permits the same target under both
+  kinds and rejects a true duplicate.
+- Router: `POST` without `kind` defaults to `"next"`; an illegal kind/type/scope
+  triple is rejected (anime + entry + rewatch must fail, anime + entry + next
+  must pass); `?kind=` filters; `DELETE /target` matches on the quadruple.
+- Virtual fields: setting `to_rewatch=true` on a movie creates exactly one
+  `kind='rewatch'`, `scope='entry'` row and reads back true; `false` deletes it;
+  cartoon rejects the field; the cartoon list endpoint no longer accepts the
+  filter.
+- Migration: upgrade and downgrade against a seeded local DB. Fixtures must
+  include a franchise holding two legal types, a franchise holding none, a
+  series spanning two types, a flagged cartoon entry (asserted discarded), and
+  pre-existing `plan_next` rows (asserted to become `kind='next'`).
+- Sheets: Backup then Pull round-trips `kind`; a Franchise tab still carrying a
+  stale `to_rewatch` column pulls without error.
+
+**Frontend**
+
+- The kind/scope map mirrors the backend for all 16 pairs (a table-driven test).
+- Each tab renders only its legal scopes; a franchise marked under two types
   appears on both tabs and nowhere else.
-- Frontend verification on `:5173`, then `npm run build` before checking `:8000`.
+- Verify on `:5173`, then `cd frontend && npm run build` before checking `:8000`.
 
 ## Documentation
 
-`database-schema.md` (franchise, series, cartoon), `options.md` (new
-`to_rewatch_types` vocabulary per level), `api.md` (cartoon filter removal,
-Franchise/Series body fields), `pages.md` (§ To Rewatch, franchise/series detail
-pages, cartoon forms), `business-logic.md` (Pull parse path).
+- `database-schema.md` — `plan_next.kind`; state plainly that the table holds
+  both kinds despite its name; remove the nine dropped `to_rewatch` /
+  `to_reread` rows from their tables and note which survive as virtual fields.
+- `options.md` — the `kind` vocabulary and the per-kind scope table.
+- `api.md` — the `kind` parameter and body field; cartoon's dropped filter.
+- `pages.md` — § To Rewatch, the franchise and series detail pages, cartoon forms.
+- `business-logic.md` — the Pull parse path and the virtual-field mechanism.
+- `current-plan.md` — mark comic's `to_reread` as no longer UI-less.
 
 ## Out of scope
 
-- Watch Next levels — unchanged.
-- Manga gaining series or franchise levels.
-- Adding a `to_rewatch` column to the `anime` table.
-- Any per-flag metadata (date marked, priority, notes).
+- Renaming `plan_next`.
+- Changing Watch Next's scope mapping.
+- Manga or anime-movie gaining group scopes.
+- Size buckets for rewatch rows.
+- Per-mark metadata beyond the `remark` column `plan_next` already has.
