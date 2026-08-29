@@ -109,6 +109,11 @@ export const endpoints = {
     merge: (id) => `/api/person/${id}/merge`,
   },
 
+  credits: {
+    get: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
+    update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
+  },
+
   studio: {
     list: () => "/api/studio/",
     detail: (id) => `/api/studio/${id}`,

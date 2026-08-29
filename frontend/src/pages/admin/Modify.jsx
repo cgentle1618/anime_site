@@ -8,6 +8,8 @@ import {
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
+  buildCreditsPayload,
+  creditsResponseToForm,
 } from "../../utils/media";
 import { fetchAllSources } from "../../lib/sources";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
@@ -85,13 +87,11 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     // API returns "23:00:00"; <input type="time"> wants "HH:MM".
     broadcast_time: (anime.broadcast_time || "").slice(0, 5),
     my_watch_day: anime.my_watch_day || "",
-    genre_main: anime.genre_main || "",
-    genre_sub: anime.genre_sub || "",
-    studio: anime.studio || "",
-    director: anime.director || "",
-    producer: anime.producer || "",
-    music: anime.music || "",
-    distributor_tw: anime.distributor_tw || "",
+    // genre_main, genre_sub, studio, director, producer, music: NOT read from
+    // `anime` here - those columns no longer exist on the entry response.
+    // loadCreditsIntoForm() merges them in from GET /api/credits/anime/{id}
+    // once that resolves; until then they're left `undefined` on purpose (see
+    // buildCreditsPayload) so an early save can't wipe credits it never saw.
     is_main_entry: anime.is_main_entry === true,
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
@@ -195,8 +195,8 @@ function movieToForm(movie, allFranchises, defaults) {
     release_date_jp: movie.release_date_jp || "",
     release_date_tw: movie.release_date_tw || "",
     length_min: movie.length_min ?? "",
-    studio: movie.studio || "",
-    director: movie.director || "",
+    // studio, director: see the comment in animeToForm - loaded from
+    // GET /api/credits/anime-movie/{id} via loadCreditsIntoForm(), not here.
     mal_id: movie.mal_id ?? "",
     mal_link: movie.mal_link || "",
     anilist_link: movie.anilist_link || "",
@@ -333,6 +333,52 @@ export default function Modify() {
       }),
     );
     setSources(await fetchAllSources());
+  }
+
+  // Saves a form's credits/tags via PUT /api/credits/{media_type}/{entry_id},
+  // once the entry has been created or updated and its system_id is known.
+  // Surfaces a failure the same way an entry save failure is surfaced - the
+  // entry itself is already saved at this point, so a credits failure must
+  // not be silent.
+  async function saveCredits(mediaType, entryId, form) {
+    const res = await fetch(endpoints.credits.update(mediaType, entryId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildCreditsPayload(mediaType, form)),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail
+          ? JSON.stringify(err.detail)
+          : "Entry saved, but credits/tags failed to save.",
+      );
+    }
+  }
+
+  // Fetches an entry's current credits/tags and merges them into its open
+  // form, so the Director/Genre/etc. fields show what's actually stored
+  // instead of rendering blank. Called right after a *ToForm() seeds the form
+  // with its other fields. On failure, the credit/tag fields are simply left
+  // `undefined` (never merged in) - buildCreditsPayload skips `undefined`
+  // fields, so a save made before this resolves (or after it fails) can't
+  // wipe credits it never saw, it just leaves them untouched.
+  async function loadCreditsIntoForm(mediaType, entryId, setForm) {
+    try {
+      const res = await fetch(endpoints.credits.get(mediaType, entryId), {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("credits fetch failed");
+      const data = await res.json();
+      setForm((prev) => ({ ...prev, ...creditsResponseToForm(mediaType, data) }));
+    } catch {
+      showToast(
+        "warning",
+        "Could not load this entry's existing credits/tags - leave those fields alone or they won't be included in this save.",
+      );
+    }
   }
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
@@ -539,7 +585,8 @@ export default function Modify() {
       length_min: m.length_min ?? "",
       release_date_usa: m.release_date_usa || "",
       release_date_tw: m.release_date_tw || "",
-      director: m.director || "",
+      // director: see the comment in animeToForm - loaded from
+      // GET /api/credits/movie/{id} via loadCreditsIntoForm(), not here.
       imdb_id: m.imdb_id ?? "",
       imdb_link: m.imdb_link || "",
       source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
@@ -568,7 +615,8 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       season_part: t.season_part || "",
       region: t.region || "",
-      source_official: t.source_official || "",
+      // source_official: see the comment in animeToForm - loaded from
+      // GET /api/credits/tv-show/{id} via loadCreditsIntoForm(), not here.
       is_main: t.is_main || "",
       airing_status: t.airing_status || "",
       watching_status: t.watching_status || md("tv-show").watching_status,
@@ -613,7 +661,8 @@ export default function Modify() {
       my_rating: c.my_rating || "",
       imdb_rating: c.imdb_rating || "",
       length_ep_min: c.length_ep_min ?? "",
-      source_official: c.source_official || "",
+      // source_official: see the comment in animeToForm - loaded from
+      // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.
       release_date: c.release_date || "",
       imdb_id: c.imdb_id ?? "",
       imdb_link: c.imdb_link || "",
@@ -657,13 +706,14 @@ export default function Modify() {
       mal_rating: m.mal_rating ?? "",
       mal_rank: m.mal_rank ?? "",
       anilist_rating: m.anilist_rating ?? "",
-      author_plot: m.author_plot || "",
-      author_draw: m.author_draw || "",
+      // author_plot, author_draw, publisher_tw: see the comment in
+      // animeToForm - loaded from GET /api/credits/manga/{id} via
+      // loadCreditsIntoForm(), not here. anime_studio is a real column (it
+      // points at the adaptation, not a credit) and stays.
       release_date: m.release_date ?? "",
       end_date: m.end_date ?? "",
       anime_studio: m.anime_studio || "",
       serialization_platform: m.serialization_platform || "",
-      publisher_tw: m.publisher_tw || "",
       mal_id: m.mal_id ?? "",
       mal_link: m.mal_link || "",
       anilist_link: m.anilist_link || "",
@@ -715,11 +765,10 @@ export default function Modify() {
       mal_rating: n.mal_rating ?? "",
       mal_rank: n.mal_rank ?? "",
       anilist_rating: n.anilist_rating ?? "",
-      author: n.author || "",
-      illustrator: n.illustrator || "",
+      // author, illustrator, publisher_tw: see the comment in animeToForm -
+      // loaded from GET /api/credits/novel/{id} via loadCreditsIntoForm().
       release_date: n.release_date ?? "",
       end_date: n.end_date ?? "",
-      publisher_tw: n.publisher_tw || "",
       read_order: n.read_order ?? "",
       novel_name_each_cn,
       novel_name_each_en,
@@ -754,27 +803,16 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       volume_label: c.volume_label || "",
       comic_type: c.comic_type || "",
-      publisher: c.publisher || "",
-      imprint: c.imprint || "",
-      continuity: c.continuity || "",
-      era: c.era || "",
-      // Stored comma-joined; the MultiSelect works on an array.
-      events: c.events
-        ? String(c.events)
-            .split(",")
-            .map((v) => v.trim())
-            .filter(Boolean)
-        : [],
+      // publisher, imprint, continuity, era, events, writer, artist,
+      // publisher_tw: see the comment in animeToForm - loaded from
+      // GET /api/credits/comic/{id} via loadCreditsIntoForm(), not here.
       serialization_status: c.serialization_status || "",
       reading_status: c.reading_status || md("comic").reading_status,
       issue_total: c.issue_total ?? "",
       issue_fin: c.issue_fin ?? "",
       my_rating: c.my_rating || "",
-      writer: c.writer || "",
-      artist: c.artist || "",
       release_date: c.release_date ?? "",
       end_date: c.end_date ?? "",
-      publisher_tw: c.publisher_tw || "",
       is_main_entry: c.is_main_entry ?? false,
       read_order: c.read_order ?? "",
       comicvine_link: c.comicvine_link || "",
@@ -800,23 +838,34 @@ export default function Modify() {
   ) {
     setEditingItem(item);
     setEditingType(type);
-    if (type === "anime")
+    if (type === "anime") {
       setAf(animeToForm(item, franchises, series, md("anime")));
-    else if (type === "collection") setColf(collectionToForm(item));
+      loadCreditsIntoForm("anime", item.system_id, setAf);
+    } else if (type === "collection") setColf(collectionToForm(item));
     else if (type === "franchise") setFf(franchiseToForm(item, collections));
     else if (type === "series") setSf(seriesToForm(item, franchises));
-    else if (type === "anime-movie")
+    else if (type === "anime-movie") {
       setAmf(movieToForm(item, franchises, md("anime-movie")));
-    else if (type === "movie")
+      loadCreditsIntoForm("anime-movie", item.system_id, setAmf);
+    } else if (type === "movie") {
       setMmf(liveMovieToForm(item, franchises, series));
-    else if (type === "tv-show")
+      loadCreditsIntoForm("movie", item.system_id, setMmf);
+    } else if (type === "tv-show") {
       setTvmf(tvShowToForm(item, franchises, series));
-    else if (type === "cartoon")
+      loadCreditsIntoForm("tv-show", item.system_id, setTvmf);
+    } else if (type === "cartoon") {
       setCmf(cartoonToForm(item, franchises, series));
-    else if (type === "manga") setCmgf(mangaToForm(item, franchises, series));
-    else if (type === "novel") setCnvf(novelToForm(item, franchises, series));
-    else if (type === "comic") setCcmf(comicToForm(item, franchises, series));
-    else if (type === "options") setOptValue(item.value || "");
+      loadCreditsIntoForm("cartoon", item.system_id, setCmf);
+    } else if (type === "manga") {
+      setCmgf(mangaToForm(item, franchises, series));
+      loadCreditsIntoForm("manga", item.system_id, setCmgf);
+    } else if (type === "novel") {
+      setCnvf(novelToForm(item, franchises, series));
+      loadCreditsIntoForm("novel", item.system_id, setCnvf);
+    } else if (type === "comic") {
+      setCcmf(comicToForm(item, franchises, series));
+      loadCreditsIntoForm("comic", item.system_id, setCcmf);
+    } else if (type === "options") setOptValue(item.value || "");
     setEditorOpen(true);
   }
 
@@ -949,11 +998,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("anime", updated.system_id, af);
     setAllAnime((prev) =>
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
     setEditingItem(updated);
     setAf(animeToForm(updated, allFranchises, allSeries, md("anime")));
+    loadCreditsIntoForm("anime", updated.system_id, setAf);
     await fetch(`/api/data-control/replace/anime/${updated.system_id}`, {
       method: "POST",
       credentials: "include",
@@ -1179,11 +1230,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("anime-movie", updated.system_id, amf);
     setAllAnimeMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     setEditingItem(updated);
     setAmf(movieToForm(updated, allFranchises, md("anime-movie")));
+    loadCreditsIntoForm("anime-movie", updated.system_id, setAmf);
     await fetch(`/api/data-control/replace/anime-movie/${updated.system_id}`, {
       method: "POST",
       credentials: "include",
@@ -1280,7 +1333,6 @@ export default function Modify() {
       length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
       release_date_usa: mmf.release_date_usa || null,
       release_date_tw: mmf.release_date_tw || null,
-      director: mmf.director || null,
       imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
       source_other:
@@ -1311,11 +1363,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("movie", updated.system_id, mmf);
     setAllMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     setEditingItem(updated);
     setMmf(liveMovieToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("movie", updated.system_id, setMmf);
     window.scrollTo(0, 0);
     showToast("success", "Movie updated and enriched successfully.");
   }
@@ -1402,7 +1456,6 @@ export default function Modify() {
       series_id: seriesId || null,
       season_part: tvmf.season_part || null,
       region: tvmf.region || null,
-      source_official: tvmf.source_official || null,
       is_main: tvmf.is_main || null,
       airing_status: tvmf.airing_status || null,
       watching_status: tvmf.watching_status || md("tv-show").watching_status,
@@ -1441,11 +1494,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("tv-show", updated.system_id, tvmf);
     setAllTvShows((prev) =>
       prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
     );
     setEditingItem(updated);
     setTvmf(tvShowToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("tv-show", updated.system_id, setTvmf);
     window.scrollTo(0, 0);
     showToast("success", "TV show updated successfully.");
   }
@@ -1541,7 +1596,6 @@ export default function Modify() {
       imdb_rating: cmf.imdb_rating || null,
       length_ep_min:
         cmf.length_ep_min !== "" ? parseInt(cmf.length_ep_min) : null,
-      source_official: cmf.source_official || null,
       release_date: cmf.release_date || null,
       imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
       imdb_link: cmf.imdb_link || null,
@@ -1572,11 +1626,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("cartoon", updated.system_id, cmf);
     setAllCartoons((prev) =>
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
     );
     setEditingItem(updated);
     setCmf(cartoonToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("cartoon", updated.system_id, setCmf);
     await fetch(`/api/data-control/replace/cartoon/${updated.system_id}`, {
       method: "POST",
       credentials: "include",
@@ -1684,13 +1740,10 @@ export default function Modify() {
       mal_rank: cmgf.mal_rank !== "" ? parseInt(cmgf.mal_rank) : null,
       anilist_rating:
         cmgf.anilist_rating !== "" ? parseFloat(cmgf.anilist_rating) : null,
-      author_plot: cmgf.author_plot || null,
-      author_draw: cmgf.author_draw || null,
       release_date: cmgf.release_date || null,
       end_date: cmgf.end_date || null,
       anime_studio: cmgf.anime_studio || null,
       serialization_platform: cmgf.serialization_platform || null,
-      publisher_tw: cmgf.publisher_tw || null,
       mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
       mal_link: cmgf.mal_link || null,
       anilist_link: cmgf.anilist_link || null,
@@ -1722,11 +1775,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("manga", updated.system_id, cmgf);
     setAllMangas((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
     setEditingItem(updated);
     setCmgf(mangaToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("manga", updated.system_id, setCmgf);
     await fetch(`/api/data-control/replace/manga/${updated.system_id}`, {
       method: "POST",
       credentials: "include",
@@ -1875,11 +1930,8 @@ export default function Modify() {
       mal_rank: cnvf.mal_rank !== "" ? parseInt(cnvf.mal_rank) : null,
       anilist_rating:
         cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
-      author: cnvf.author || null,
-      illustrator: cnvf.illustrator || null,
       release_date: cnvf.release_date || null,
       end_date: cnvf.end_date || null,
-      publisher_tw: cnvf.publisher_tw || null,
       read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
       novel_name_each_cn: novelNameEachCn,
       novel_name_each_en: novelNameEachEn,
@@ -1914,11 +1966,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("novel", updated.system_id, cnvf);
     setAllNovels((prev) =>
       prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
     );
     setEditingItem(updated);
     setCnvf(novelToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("novel", updated.system_id, setCnvf);
     window.scrollTo(0, 0);
     showToast("success", "Update successful.");
   }
@@ -2046,20 +2100,9 @@ export default function Modify() {
       series_id: seriesId || null,
       volume_label: ccmf.volume_label || null,
       comic_type: ccmf.comic_type || null,
-      publisher: ccmf.publisher || null,
-      imprint: ccmf.imprint || null,
-      continuity: ccmf.continuity || null,
-      era: ccmf.era || null,
-      // Comma-joined multi-select, the same idiom as franchise.franchise_type.
-      events: Array.isArray(ccmf.events)
-        ? ccmf.events.filter(Boolean).join(", ") || null
-        : ccmf.events || null,
       is_main_entry: ccmf.is_main_entry ?? false,
-      writer: ccmf.writer || null,
-      artist: ccmf.artist || null,
       release_date: ccmf.release_date || null,
       end_date: ccmf.end_date || null,
-      publisher_tw: ccmf.publisher_tw || null,
       issue_total: ccmf.issue_total !== "" ? parseInt(ccmf.issue_total) : null,
       // NOT NULL in the database, so this one falls back to 0, never null.
       issue_fin: ccmf.issue_fin !== "" ? parseInt(ccmf.issue_fin) : 0,
@@ -2096,11 +2139,13 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await saveCredits("comic", updated.system_id, ccmf);
     setAllComics((prev) =>
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
     );
     setEditingItem(updated);
     setCcmf(comicToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("comic", updated.system_id, setCcmf);
     window.scrollTo(0, 0);
     showToast("success", "Update successful.");
   }

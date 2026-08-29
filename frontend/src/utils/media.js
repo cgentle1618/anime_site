@@ -27,4 +27,9 @@ export {
   parseTypes,
   getNovelProgress,
 } from "../lib/formatters";
-export { buildAnimeMoviePayload, buildAnimePayload } from "../lib/payloads";
+export {
+  buildAnimeMoviePayload,
+  buildAnimePayload,
+  buildCreditsPayload,
+  creditsResponseToForm,
+} from "../lib/payloads";

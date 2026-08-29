@@ -7,6 +7,7 @@ import {
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
+  buildCreditsPayload,
 } from "../../utils/media";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
@@ -230,6 +231,28 @@ export default function Add() {
       }),
     );
     setSources(await fetchAllSources());
+  }
+
+  // Saves a form's credits/tags via PUT /api/credits/{media_type}/{entry_id},
+  // once the entry exists and its system_id is known. Surfaces a failure the
+  // same way an entry save failure is surfaced - the entry itself is already
+  // saved at this point, so a credits failure must not be silent.
+  async function saveCredits(mediaType, entryId, form) {
+    const res = await fetch(endpoints.credits.update(mediaType, entryId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildCreditsPayload(mediaType, form)),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail
+          ? JSON.stringify(err.detail)
+          : "Entry saved, but credits/tags failed to save.",
+      );
+    }
   }
 
   useEffect(() => {
@@ -727,6 +750,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("anime", created.system_id, af);
 
     // Replace (enrich from MAL)
     await fetch(`/api/data-control/replace/anime/${created.system_id}`, {
@@ -1129,6 +1153,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("anime-movie", created.system_id, amf);
 
     await fetch(`/api/data-control/replace/anime-movie/${created.system_id}`, {
       method: "POST",
@@ -1264,7 +1289,6 @@ export default function Add() {
       length_min: mf.length_min !== "" ? parseInt(mf.length_min) : null,
       release_date_usa: mf.release_date_usa || null,
       release_date_tw: mf.release_date_tw || null,
-      director: mf.director || null,
       imdb_id: mf.imdb_id !== "" ? mf.imdb_id : null,
       imdb_link: mf.imdb_link || null,
       source_other:
@@ -1296,6 +1320,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("movie", created.system_id, mf);
     window.scrollTo(0, 0);
     showToast("success", "Movie appended and enriched successfully.");
     setLastAdded(created.movie_name_en || created.movie_name_cn || "New Movie");
@@ -1415,7 +1440,6 @@ export default function Add() {
       series_id: seriesId || null,
       season_part: tvf.season_part || null,
       region: tvf.region || null,
-      source_official: tvf.source_official || null,
       is_main: tvf.is_main || null,
       airing_status: tvf.airing_status || null,
       watching_status:
@@ -1456,6 +1480,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("tv-show", created.system_id, tvf);
     window.scrollTo(0, 0);
     showToast("success", "TV Show appended and enriched successfully.");
     setLastAdded(created.tv_name_cn || created.tv_name_en || "New TV Show");
@@ -1566,7 +1591,6 @@ export default function Add() {
       imdb_rating: cf.imdb_rating || null,
       length_ep_min:
         cf.length_ep_min !== "" ? parseInt(cf.length_ep_min) : null,
-      source_official: cf.source_official || null,
       release_date: cf.release_date || null,
       imdb_id: cf.imdb_id !== "" ? cf.imdb_id : null,
       imdb_link: cf.imdb_link || null,
@@ -1598,6 +1622,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("cartoon", created.system_id, cf);
     window.scrollTo(0, 0);
     showToast("success", "Cartoon appended successfully.");
     setLastAdded(
@@ -1716,13 +1741,10 @@ export default function Add() {
       mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
       anilist_rating:
         mgf.anilist_rating !== "" ? parseFloat(mgf.anilist_rating) : null,
-      author_plot: mgf.author_plot || null,
-      author_draw: mgf.author_draw || null,
       release_date: mgf.release_date || null,
       end_date: mgf.end_date || null,
       anime_studio: mgf.anime_studio || null,
       serialization_platform: mgf.serialization_platform || null,
-      publisher_tw: mgf.publisher_tw || null,
       mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
       mal_link: mgf.mal_link || null,
       anilist_link: mgf.anilist_link || null,
@@ -1755,6 +1777,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("manga", created.system_id, mgf);
     window.scrollTo(0, 0);
     showToast("success", "Manga appended successfully.");
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
@@ -1913,11 +1936,8 @@ export default function Add() {
       mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
       anilist_rating:
         nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
-      author: nvf.author || null,
-      illustrator: nvf.illustrator || null,
       release_date: nvf.release_date || null,
       end_date: nvf.end_date || null,
-      publisher_tw: nvf.publisher_tw || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
       novel_name_each_cn:
         novelNameEachCn && Object.keys(novelNameEachCn).length > 0
@@ -1959,6 +1979,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("novel", created.system_id, nvf);
     window.scrollTo(0, 0);
     showToast("success", "Novel appended successfully.");
     setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
@@ -2099,20 +2120,9 @@ export default function Add() {
       series_id: seriesId || null,
       volume_label: cmf.volume_label || null,
       comic_type: cmf.comic_type || null,
-      publisher: cmf.publisher || null,
-      imprint: cmf.imprint || null,
-      continuity: cmf.continuity || null,
-      era: cmf.era || null,
-      // Comma-joined multi-select, the same idiom as franchise.franchise_type.
-      events: Array.isArray(cmf.events)
-        ? cmf.events.filter(Boolean).join(", ") || null
-        : cmf.events || null,
       is_main_entry: cmf.is_main_entry ?? false,
-      writer: cmf.writer || null,
-      artist: cmf.artist || null,
       release_date: cmf.release_date || null,
       end_date: cmf.end_date || null,
-      publisher_tw: cmf.publisher_tw || null,
       issue_total:
         cmf.issue_total !== "" ? parseInt(cmf.issue_total, 10) : null,
       issue_fin: cmf.issue_fin !== "" ? parseInt(cmf.issue_fin, 10) : 0,
@@ -2150,6 +2160,7 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await saveCredits("comic", created.system_id, cmf);
     window.scrollTo(0, 0);
     showToast("success", "Comic appended successfully.");
     setLastAdded(created.comic_name_en || created.comic_name_cn || "New Comic");
