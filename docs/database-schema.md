@@ -1507,7 +1507,7 @@ preserved for when a role earns columns of its own (e.g. `person_seiyuu`).
 | Column        | Type     | Nullable | Default   | Notes                                                    |
 | ------------- | -------- | -------- | --------- | ----------------------------------------------------------- |
 | `system_id`   | UUID     | No       | `uuid4()` | Primary key                                              |
-| `name_native` | String   | No       | —         | 原文名 (JP/KR/EN as appropriate). Composite unique with `name_en` (`uq_person_name`) |
+| `name_native` | String   | No       | —         | 原文名 (JP/KR/EN as appropriate). Composite unique with `name_en` (`uq_person_name`), **`NULLS NOT DISTINCT`** |
 | `name_en`     | String   | Yes      | —         |                                                            |
 | `name_cn`     | String   | Yes      | —         |                                                            |
 | `gender`      | String   | Yes      | —         |                                                            |
@@ -1528,7 +1528,7 @@ first credit exists.
 | `id`        | Integer | No       | Auto-increment PK                                                     |
 | `person_id` | UUID    | No       | FK -> `person.system_id` ON DELETE CASCADE                            |
 | `role`      | String  | No       | One of `PERSON_ROLES` (`app/utils/credit_roles.py`): `director`, `producer`, `composer`, `manga_author`, `novel_author`, `novel_illustrator`, `comic_writer`, `comic_artist` |
-| `scope`     | String  | Yes      | Only meaningful for `director`: `anime` \| `non_anime`. `NULL` for every other role, meaning "every scope". Composite unique with `(person_id, role)` (`uq_person_role`) |
+| `scope`     | String  | Yes      | Only meaningful for `director`: `anime` \| `non_anime`. `NULL` for every other role, meaning "every scope". Composite unique with `(person_id, role)` (`uq_person_role`), **`NULLS NOT DISTINCT`** |
 
 ### `studio`
 
@@ -1539,7 +1539,7 @@ Tier 2 vocabulary, since they need no profile.
 | Column        | Type     | Nullable | Default   | Notes                                              |
 | ------------- | -------- | -------- | --------- | ---------------------------------------------------- |
 | `system_id`   | UUID     | No       | `uuid4()` | Primary key                                        |
-| `name_native` | String   | No       | —         | Composite unique with `name_en` (`uq_studio_name`) |
+| `name_native` | String   | No       | —         | Composite unique with `name_en` (`uq_studio_name`), **`NULLS NOT DISTINCT`** |
 | `name_en`     | String   | Yes      | —         |                                                      |
 | `name_cn`     | String   | Yes      | —         |                                                      |
 | `my_rating`   | String   | Yes      | —         | Tier 1 `My Rating` enum                             |
@@ -1570,6 +1570,17 @@ media tables; it is resolved at read time through `MEDIA_TABLES` in
 
 **Constraints:**
 - `CHECK (num_nonnulls(person_id, studio_id) = 1)` (`ck_media_credit_one_target`) — exactly one target is set, enforced by a CHECK rather than convention because both the migration and Fill write these rows without going through the API.
+`uq_person_name`, `uq_studio_name` and `uq_person_role` carry
+`postgresql_nulls_not_distinct=True` for the same reason as
+`uq_media_credit_row` below. Each spans a nullable column (`name_en`; `scope`,
+which is `NULL` for every role except `director`), and without the flag the
+constraint is **inert** for the common case — two identical `Person` rows with
+`name_en IS NULL` committed cleanly, which is exactly what happened before
+migration `n1u2l3l4s5n6d`. That migration collapses the duplicates the inert
+version allowed, repointing credits onto the survivor rather than deleting
+(a delete would cascade them away). `POST /api/person` and `POST /api/studio`
+are find-or-create on the normalized name for the same reason.
+
 - `UNIQUE (media_type, entry_id, role, person_id, studio_id)` (`uq_media_credit_row`) **with `postgresql_nulls_not_distinct=True`** (a PostgreSQL 15+ feature). This is load-bearing and non-obvious: `person_id`/`studio_id` are each nullable, and Postgres treats two `NULL`s as distinct by default — without `NULLS NOT DISTINCT` the same person could be credited twice with the same role on the same entry, since `(person_id, NULL)` would never collide with itself.
 - Indexes on `(media_type, entry_id)`, `person_id`, `studio_id`.
 

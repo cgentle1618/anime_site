@@ -89,9 +89,22 @@ Source`, `Region (TV Show)` / `Region (Manga)`, TW distributors split three
 ways) is replaced by **one vocabulary per category, with each value carrying
 the scopes it is offered in**. A value with no scope rows is offered
 everywhere. A dropdown asks the `/api/options` endpoint for
-`?category=Official Source&scope=cartoon`; a `resolve_option()` write (Fill,
-Pull, the Add/Modify forms' create-if-missing) records the scope it was used
-in.
+`?category=Official Source&scope=cartoon`.
+
+**Scopes are admin-managed data, never derived from usage (Ruling R27).**
+Writing a tag used to stamp the entry's media type onto the value as a scope.
+That meant assigning an unscoped value to one entry silently narrowed it to
+that media type everywhere else — add `Disney+` under `Official Source`, use
+it on one TV show, and it disappears from the Cartoon dropdown with nothing to
+explain why. `replace_tags` no longer does this, for the same reason person
+`director` scope is explicit rather than derived from credits: a value must be
+offerable before its first use, and one save must not be able to un-offer it.
+
+Scopes are therefore set and repaired by hand, in the Options tab of the Add
+and Modify admin pages (`ScopePicker`), and validated against the hyphenated
+media type keys on write. Two passes still touch them, both ADDITIVE so
+neither can narrow: the one-time `backfill_credits` seeding, and
+`extract_system_options`, the deliberate reconcile action Calculate runs.
 
 | Category | Scopes | Replaces |
 |---|---|---|

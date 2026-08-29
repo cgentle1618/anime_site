@@ -474,6 +474,7 @@ Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`,
    - **Drop keys the sheet header did not have** (see the inert-pull safeguard above).
    - Resolve string foreign keys: if `franchise_id` or `series_id` is a string name (not a valid UUID), look up by name fields in DB. Skip row if not found.
    - **Smart PK logic**: if `pk_value` is empty, search by name fields to find an existing record (prevents duplicates on re-import). The PK field is `id` for `System Configs`, `Person Role` and `System Option Scope` (autoincrement integer PKs); `seasonal` for `Seasonal`; `system_id` for every other tab, `System Options` included — its `id` integer PK was reshaped onto a UUID `system_id` and the old `id` column was dropped outright.
+   - **Sequence resync**: the three integer-PK tabs restore rows with the sheet's own `id`, and Postgres does not advance a sequence when a value is supplied explicitly. After the tab commits, Pull runs `setval` on `system_configs_id_seq`, `person_role_id_seq` and `system_option_scope_id_seq`. Skip this and a restore into a fresh instance leaves ids `1..N` with the sequence still at 1, so the first save that lets the sequence pick a value dies on a duplicate primary key — repeatedly, since the sequence only creeps forward one collision at a time. There is deliberately no `system_options_id_seq`: that key is a UUID now.
    - Look up the target row by PK to decide UPDATE vs INSERT.
    - **INSERT only**, sanitize the non-nullable columns (Anime `watching_status`/`airing_status`/`airing_type`, the `Might Watch`/`Might Read` statuses, `created_at`/`updated_at`). These defaults exist to make an INSERT valid; applying them on UPDATE would overwrite a good DB value with a default whenever the sheet omits the column.
    - For every entry tab (Anime through Comic), the credit/tag columns at the end of the row (`studio`, `director`, `genre_main`, ...) are popped out under their legacy header names *before* the plain-column parse, then applied afterward via `replace_credits`/`replace_tags` once the row has a real `entry_id` to point at.
@@ -1105,6 +1106,12 @@ already carries — **every** delete path must call it:
   delete path call `delete_plans_for(db, "entry", entry.system_id)`.
 - `franchise` delete calls `delete_plans_for(db, "franchise", franchise.system_id)`.
 - `series` delete calls `delete_plans_for(db, "series", series.system_id)`.
+
+**`media_credit` / `media_tag` rows do not cascade either**, and for exactly
+the same reason — `(media_type, entry_id)` carries no foreign key. Every entry
+delete route calls `delete_links_for(db, media_type, entry_id)` alongside
+`delete_plans_for`. Without it a deleted entry's credits and tags outlive it
+forever and then feed `extract_system_options` and the duplicate checks.
 
 A row whose target was deleted without going through one of these paths (or
 before this feature existed) is not silently dropped: `GET /api/plan-next/`

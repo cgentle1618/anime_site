@@ -592,7 +592,12 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `franchise_expectation`, `my_rating`, `is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
-`music_status`, `seiyuu_status`, `watch_order_importance`. `franchise_type`
+`music_status`, `seiyuu_status`, `watch_order_importance`, `person_role`,
+`media_type`. The last two are for the admin forms: `person_role` is derived
+from `CREDIT_ROLES` in `app/utils/credit_roles.py` (it replaced a hand-written
+copy in `OptionsAddTab.jsx`), and `media_type` is the hyphenated
+`MEDIA_TABLES` keys the option scope picker offers — NOT person-role scopes,
+which are the coarser `anime` / `non_anime` split. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
@@ -667,6 +672,25 @@ field's values at once.
 `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`).
 Valid roles/fields per media type come from `credit_roles_for()` /
 `tag_fields_for()` in `app/utils/credit_roles.py`.
+
+### Reading credits: the entry payload, not this endpoint
+
+Every media entry response — list AND detail — carries its credits and tags as
+comma-joined strings under the LEGACY column names the dropped columns used
+(`anime.studio`, `anime.music` for the composer credit, `comic.era` for the
+`comic_era` tag, and so on; `sheet_column_for()` owns that mapping and the
+Sheets export uses the same one). They are attached by
+`credits.attach_link_fields()` and defined by the mixins in
+`app/schemas/link_fields.py`.
+
+This is what the public detail, library, card and statistics pages read. They
+render an entry from ONE response and must not issue a second request per row:
+a library page lists hundreds of entries, so `link_values_for_entries()` reads
+a whole batch in a fixed number of queries.
+
+These keys are READ-ONLY. They sit on the `*Response` schemas only, never on
+the `Create` / `Update` bases, so a write naming one is rejected rather than
+silently stored; `PUT /api/credits` is the only writer.
 
 ---
 
