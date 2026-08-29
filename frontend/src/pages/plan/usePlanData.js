@@ -4,21 +4,68 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMediaList } from "../../hooks/useMediaList";
 import { fetchJson } from "../../hooks/queryUtils";
 import { entryBucket } from "../../utils/planNext";
+import { getCoverForSlot } from "../../utils/statsUtils";
+import { getCoverUrl } from "../../utils/media";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
+// Series has no equivalent of getCoverForSlot (that helper is franchise-only,
+// keyed off franchise.type_covers). A series' cover is just its chosen
+// cover_entry_id, falling back to the first member entry with a usable cover.
+// Kept small and inline rather than promoted to a shared abstraction since
+// this is the only caller.
+function resolveSeriesCoverUrl(series, entriesByType) {
+  if (!series) return null;
+  const seriesId = String(series.system_id);
+  const memberEntries = Object.values(entriesByType)
+    .flat()
+    .filter((entry) => String(entry.series_id) === seriesId);
+
+  if (series.cover_entry_id) {
+    const chosen = memberEntries.find(
+      (entry) => String(entry.system_id) === String(series.cover_entry_id),
+    );
+    if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
+      return getCoverUrl(chosen.cover_image_file);
+    }
+  }
+  const withCover = memberEntries.find(
+    (entry) => entry.cover_image_file && entry.cover_image_file !== "N/A",
+  );
+  return withCover ? getCoverUrl(withCover.cover_image_file) : null;
+}
+
 // Media types the Plan page's "Watch Next" section can hold, keyed the same
 // hyphenated way as plan_next.media_type and MEDIA_CONFIG.
-function withBucket(row, { franchiseMap, seriesMap, entriesById }) {
+//
+// coverUrl is resolved here (not left to PlanNextCard) because Franchise and
+// Series carry no cover_image_file column of their own - only cover_entry_id
+// / type_covers - and franchiseMap / seriesMap / allEntriesByFranchise /
+// entriesByType, the data needed to resolve that, already live in this hook.
+// Entry-scope rows are untouched: PlanNextCard keeps reading
+// row.cover_image_file for those directly, so coverUrl is left unset there.
+function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFranchise, entriesByType }) {
   if (row.missing) return { ...row, bucket: null };
 
   if (row.scope === "franchise") {
     const f = franchiseMap[String(row.target_id)];
-    return { ...row, bucket: entryBucket(row.media_type, null, null, f) };
+    return {
+      ...row,
+      bucket: entryBucket(row.media_type, null, null, f),
+      // The tab media_type vocabulary ("anime", "tv-show", ...) does not line
+      // up with getCoverForSlot's forType vocabulary (TYPE_TO_ENTRY_TYPES:
+      // "ACG", "TV", ...), so no forType is passed rather than a wrong one -
+      // getCoverForSlot falls back to cover_entry_id / newest-entry-with-cover.
+      coverUrl: f ? getCoverForSlot(f, allEntriesByFranchise) : null,
+    };
   }
   if (row.scope === "series") {
     const s = seriesMap[String(row.target_id)];
-    return { ...row, bucket: entryBucket(row.media_type, null, s, null) };
+    return {
+      ...row,
+      bucket: entryBucket(row.media_type, null, s, null),
+      coverUrl: resolveSeriesCoverUrl(s, entriesByType),
+    };
   }
   const entry = entriesById[row.media_type]?.[String(row.target_id)];
   return {
@@ -158,9 +205,22 @@ export default function usePlanData(reloadKey = 0) {
   const planRows = useMemo(
     () =>
       planNextRows.map((row) =>
-        withBucket(row, { franchiseMap, seriesMap, entriesById }),
+        withBucket(row, {
+          franchiseMap,
+          seriesMap,
+          entriesById,
+          allEntriesByFranchise,
+          entriesByType,
+        }),
       ),
-    [planNextRows, franchiseMap, seriesMap, entriesById],
+    [
+      planNextRows,
+      franchiseMap,
+      seriesMap,
+      entriesById,
+      allEntriesByFranchise,
+      entriesByType,
+    ],
   );
 
   const queries = [

@@ -17,11 +17,16 @@ export default function PlanNextCard({ row }) {
   }
 
   const badge = SCOPE_LABELS[row.scope];
+  // Entry-scope rows keep reading cover_image_file directly, same as before.
+  // Franchise/series rows have no such column - usePlanData resolves their
+  // coverUrl via getCoverForSlot / the series member-entry fallback, since
+  // Franchise and Series only carry cover_entry_id / type_covers.
+  const src = row.coverUrl || getCoverUrl(row.cover_image_file);
   const body = (
     <>
       <div className="aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden">
         <img
-          src={getCoverUrl(row.cover_image_file)}
+          src={src}
           alt={row.display_name || ""}
           onError={(e) => {
             e.currentTarget.src = FALLBACK_SVG;
