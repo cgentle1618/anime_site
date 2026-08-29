@@ -129,7 +129,7 @@ def test_download_missing_covers_refetches_comics(db_session, monkeypatch):
 
     called = []
 
-    def fake_autofill(entry):
+    def fake_autofill(entry, db):
         called.append(entry.system_id)
         entry.cover_image_file = f"{entry.system_id}.jpg"
 
@@ -160,7 +160,7 @@ def test_download_missing_covers_skips_comics_without_comicvine_id(
     monkeypatch.setattr(
         calculation,
         "autofill_comic_from_comicvine",
-        lambda entry: pytest.fail("should not autofill without a comicvine_id"),
+        lambda entry, db: pytest.fail("should not autofill without a comicvine_id"),
     )
 
     result = calculation.bulk_download_missing_covers(

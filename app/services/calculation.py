@@ -365,7 +365,7 @@ def bulk_download_missing_covers(
         total += 1
         if comic.comicvine_id:
             comic.cover_image_file = None
-            autofill_comic_from_comicvine(comic)
+            autofill_comic_from_comicvine(comic, db)
             if comic.cover_image_file:
                 downloaded += 1
         else:

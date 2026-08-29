@@ -837,7 +837,7 @@ async def execute_fill_comic(
                 yield f"data: {json.dumps({'status': 'processing', 'current_entry': name, 'processed': index, 'total': total_in_queue})}\n\n"
 
                 try:
-                    autofill_comic_from_comicvine(comic)
+                    autofill_comic_from_comicvine(comic, db)
                     db.commit()
                     processed_count += 1
                 except Exception as e:

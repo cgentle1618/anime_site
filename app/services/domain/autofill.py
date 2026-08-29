@@ -45,6 +45,8 @@ from app.utils.utils import (
     validate_ch_math,
 )
 from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
+from app.utils.name_normalize import split_names
 from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
@@ -297,8 +299,10 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         # Fill-only fields
         if movie.length_min is None:
             movie.length_min = mapped.get("length_min")
-        if movie.director is None:
-            movie.director = mapped.get("director")
+        if not credit_names(db, "movie", movie.system_id, "director"):
+            replace_credits(
+                db, "movie", movie.system_id, "director", split_names(mapped.get("director"))
+            )
         if movie.release_date_usa is None:
             movie.release_date_usa = mapped.get("release_date_usa")
 
@@ -480,7 +484,7 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
         )
 
 
-def autofill_comic_from_comicvine(comic: Comic) -> None:
+def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
     """
     Enriches a single Comic entry with Comic Vine volume data. Does not commit —
     caller is responsible.
@@ -500,9 +504,22 @@ def autofill_comic_from_comicvine(comic: Comic) -> None:
 
         cv_data = map_comicvine_to_comic_data(raw_data)
 
-        for field in ("publisher", "writer", "artist", "release_date", "issue_total", "volume_label"):
+        for field in ("release_date", "issue_total", "volume_label"):
             if getattr(comic, field, None) is None:
                 setattr(comic, field, cv_data.get(field))
+
+        if not credit_names(db, "comic", comic.system_id, "comic_writer"):
+            replace_credits(
+                db, "comic", comic.system_id, "comic_writer", split_names(cv_data.get("writer"))
+            )
+        if not credit_names(db, "comic", comic.system_id, "comic_artist"):
+            replace_credits(
+                db, "comic", comic.system_id, "comic_artist", split_names(cv_data.get("artist"))
+            )
+        if not tag_values(db, "comic", comic.system_id, "comic_publisher"):
+            replace_tags(
+                db, "comic", comic.system_id, "comic_publisher", split_names(cv_data.get("publisher"))
+            )
 
         if not comic.cover_image_file and cv_data.get("cover_image_url"):
             filename = download_cover_image(
