@@ -2,7 +2,7 @@
 Unit tests for the Collection-related sheet parsers in app/utils/formatter.py.
 
 Covers the Collection parser plus two Franchise-parser guarantees:
-the inert-pull safeguard and the five fields that used to be dropped.
+the inert-pull safeguard and the six fields that used to be dropped.
 """
 
 import uuid
@@ -43,23 +43,27 @@ class TestFranchiseCollectionIdSafeguard:
 
 
 class TestFranchisePreviouslyDroppedFields:
-    """These five were omitted, so every Pull of the Franchise tab wiped them."""
+    """These six were omitted (or, for the size-group maps, added later
+    without being wired up here), so every Pull of the Franchise tab wiped
+    them."""
 
-    def test_all_five_round_trip(self):
+    def test_all_six_round_trip(self):
         cover = uuid.uuid4()
         parsed = parse_franchise_from_sheet(
             {
                 "cover_entry_id": str(cover),
                 "type_covers": '{"ACG": "abc"}',
                 "type_slots": '{"slot": 1}',
-                "watch_next_group": "Group A",
+                "size_group_derived": '{"anime": "24ep"}',
+                "size_group_manual": '{"anime": "12ep"}',
                 "to_rewatch": "true",
             }
         )
         assert parsed["cover_entry_id"] == cover
         assert parsed["type_covers"] == {"ACG": "abc"}
         assert parsed["type_slots"] == {"slot": 1}
-        assert parsed["watch_next_group"] == "Group A"
+        assert parsed["size_group_derived"] == {"anime": "24ep"}
+        assert parsed["size_group_manual"] == {"anime": "12ep"}
         assert parsed["to_rewatch"] is True
 
     def test_malformed_json_becomes_none_not_crash(self):

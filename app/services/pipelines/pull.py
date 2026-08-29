@@ -27,6 +27,7 @@ from app.models import (
     WatchOrderItem,
     WatchOrderSection,
     MediaRelation,
+    PlanNext,
     Quote,
     Meme,
     Note,
@@ -53,6 +54,7 @@ from app.utils.formatter import (
     parse_watch_order_item_from_sheet,
     parse_watch_order_section_from_sheet,
     parse_media_relation_from_sheet,
+    parse_plan_next_from_sheet,
     parse_quote_from_sheet,
     parse_meme_from_sheet,
     parse_note_from_sheet,
@@ -140,6 +142,7 @@ def execute_pull_specific(
         "Watch Order Section": WatchOrderSection,
         "Watch Order Item": WatchOrderItem,
         "Media Relation": MediaRelation,
+        "Plan Next": PlanNext,
         "Quote": Quote,
         "Meme": Meme,
         "Note": Note,
@@ -164,6 +167,7 @@ def execute_pull_specific(
         "Watch Order Section": parse_watch_order_section_from_sheet,
         "Watch Order Item": parse_watch_order_item_from_sheet,
         "Media Relation": parse_media_relation_from_sheet,
+        "Plan Next": parse_plan_next_from_sheet,
         "Quote": parse_quote_from_sheet,
         "Meme": parse_meme_from_sheet,
         "Note": parse_note_from_sheet,
@@ -821,6 +825,9 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         # Relations join two media rows through FK-less (media_type, entry_id)
         # pairs, so both endpoints must already exist.
         "Media Relation",
+        # Plan Next rows are FK-less (media_type, target_id) pairs too, so
+        # they restore after every media tab for the same reason.
+        "Plan Next",
         # Quotes point at media rows the same FK-less way items do.
         "Quote",
         # Memes name quotes, so they restore after them.

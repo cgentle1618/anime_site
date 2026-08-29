@@ -27,6 +27,7 @@ from app.models import (
     WatchOrderItem,
     WatchOrderSection,
     MediaRelation,
+    PlanNext,
     Quote,
     Meme,
     Note,
@@ -246,6 +247,17 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(r) for r in media_relations
         ]
         bulk_overwrite_sheet("Media Relation", media_relation_matrix)
+
+        # Plan Next rows are FK-less (media_type, target_id) pairs too, so
+        # they are written after every media tab for the same reason.
+        plan_next_rows = db.query(PlanNext).all()
+        plan_next_headers = [
+            c.name for c in PlanNext.__table__.columns
+        ]
+        plan_next_matrix = [plan_next_headers] + [
+            format_model_for_sheet(p) for p in plan_next_rows
+        ]
+        bulk_overwrite_sheet("Plan Next", plan_next_matrix)
 
         # Quotes are written after every media tab: each row points at an entry
         # via a FK-less (media_type, entry_id) pair, so on restore those rows

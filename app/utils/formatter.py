@@ -253,6 +253,27 @@ def parse_media_relation_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_plan_next_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Plan Next sheet into typed data ready for
+    the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        # Preserved as written, not coerced: a media type or scope added in a
+        # newer version must survive a round trip through an older one.
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "scope": parse_from_sheet(raw.get("scope"), str),
+        # No foreign key - the target is whichever table scope and media_type
+        # name - so an unparseable cell becomes None and the row shows up in
+        # the admin page as a missing target rather than failing the Pull.
+        "target_id": _uuid_or_none(raw.get("target_id")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_franchise_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Franchise sheet into typed data ready for the Database.
@@ -269,12 +290,15 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "franchise_expectation": parse_from_sheet(
             raw.get("franchise_expectation"), str
         ),
-        # These five were previously omitted, so every Pull of the Franchise tab
-        # silently wiped them from the database.
+        # These six were previously omitted (or, for the size-group maps, added
+        # later without being wired up here), so every Pull of the Franchise
+        # tab silently wiped them from the database. Four of the six are
+        # JSONB fields and go through _safe_json.
         "cover_entry_id": _uuid_or_none(raw.get("cover_entry_id")),
         "type_covers": _safe_json(raw.get("type_covers")),
         "type_slots": _safe_json(raw.get("type_slots")),
-        "watch_next_group": parse_from_sheet(raw.get("watch_next_group"), str),
+        "size_group_derived": _safe_json(raw.get("size_group_derived")),
+        "size_group_manual": _safe_json(raw.get("size_group_manual")),
         "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -345,6 +369,8 @@ def parse_series_from_sheet(raw: dict) -> dict:
         # Must be a real UUID: unlike franchise_id there is no name-resolution
         # step for this column, so a junk cell would hit the DB.
         "cover_entry_id": _uuid_or_none(raw.get("cover_entry_id")),
+        "size_group_derived": _safe_json(raw.get("size_group_derived")),
+        "size_group_manual": _safe_json(raw.get("size_group_manual")),
         "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         # Previously omitted, so every Pull of the Series tab silently wiped it.
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -475,7 +501,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": (_safe_json(raw.get("source_other"))),
-        "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
         "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -510,7 +535,6 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
         "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
@@ -546,7 +570,6 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "watch_next": parse_from_sheet(raw.get("watch_next"), bool),
         "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
@@ -596,7 +619,6 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "read_next": parse_from_sheet(raw.get("read_next"), bool),
         "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
@@ -651,7 +673,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "read_next": parse_from_sheet(raw.get("read_next"), bool),
         "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
@@ -695,7 +716,6 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
         "comicvine_link": parse_from_sheet(raw.get("comicvine_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "read_next": parse_from_sheet(raw.get("read_next"), bool),
         "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
