@@ -30,6 +30,7 @@ from app.services.domain.plan_next import (
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
+    PLAN_FLAG_FIELDS,
 )
 from app.utils.data_control_utils import log_deleted_record
 
@@ -73,9 +74,10 @@ def get_all_anime_movies(
         )
 
     entries = query.order_by(models.AnimeMovies.created_at.desc()).limit(limit).offset(offset).all()
-    planned = planned_entry_ids(db, "anime-movie")
-    for entry in entries:
-        entry.watch_next = entry.system_id in planned
+    for field, kind in PLAN_FLAG_FIELDS.get("anime-movie", ()):
+        planned = planned_entry_ids(db, "anime-movie", kind)
+        for entry in entries:
+            setattr(entry, field, entry.system_id in planned)
     return entries
 
 
@@ -113,7 +115,7 @@ def create_anime_movie(
     admin: dict = Depends(get_current_admin),
 ):
     payload, remark, has_remark = pop_remark(data.model_dump())
-    payload, planned, has_plan = pop_plan_flag("anime-movie", payload)
+    payload, plan_flags = pop_plan_flag("anime-movie", payload)
     new_entry = models.AnimeMovies(**payload)
     new_entry.system_id = uuid.uuid4()
 
@@ -125,8 +127,9 @@ def create_anime_movie(
     db.commit()
     db.refresh(new_entry)
 
-    if has_plan:
-        set_entry_flag(db, "anime-movie", new_entry.system_id, bool(planned))
+    if plan_flags:
+        for kind, planned in plan_flags:
+            set_entry_flag(db, "anime-movie", new_entry.system_id, bool(planned), kind=kind)
         db.commit()
 
     if has_remark:
@@ -157,11 +160,11 @@ def update_anime_movie(
         raise HTTPException(status_code=404, detail="Anime Movie entry not found.")
 
     update_data, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
-    update_data, planned, has_plan = pop_plan_flag("anime-movie", update_data)
+    update_data, plan_flags = pop_plan_flag("anime-movie", update_data)
     for key, value in update_data.items():
         setattr(entry, key, value)
-    if has_plan:
-        set_entry_flag(db, "anime-movie", entry.system_id, bool(planned))
+    for kind, planned in plan_flags:
+        set_entry_flag(db, "anime-movie", entry.system_id, bool(planned), kind=kind)
     if has_remark:
         upsert_remark(db, "anime-movie", entry.system_id, remark)
 
@@ -198,12 +201,12 @@ def patch_anime_movie(
         raise HTTPException(status_code=404, detail="Anime Movie entry not found.")
 
     payload, remark, has_remark = pop_remark(payload)
-    payload, planned, has_plan = pop_plan_flag("anime-movie", payload)
+    payload, plan_flags = pop_plan_flag("anime-movie", payload)
     for key, value in payload.items():
         if hasattr(entry, key):
             setattr(entry, key, value)
-    if has_plan:
-        set_entry_flag(db, "anime-movie", entry.system_id, bool(planned))
+    for kind, planned in plan_flags:
+        set_entry_flag(db, "anime-movie", entry.system_id, bool(planned), kind=kind)
     if has_remark:
         upsert_remark(db, "anime-movie", entry.system_id, remark)
 

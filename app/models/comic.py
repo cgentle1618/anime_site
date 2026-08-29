@@ -89,9 +89,6 @@ class Comic(Base, NameFallbackMixin):
 
     source_other = Column(JSONB, default=None, nullable=True)
 
-    # No UI this pass (plan pages are out of scope), but created now so adding
-    # those pages later needs no migration.
-
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

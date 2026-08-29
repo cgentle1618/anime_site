@@ -21,7 +21,7 @@ from app.services.domain.plan_next import (
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
-    PLAN_FLAG_FIELD,
+    PLAN_FLAG_FIELDS,
 )
 from app.services.integrations.image_manager import delete_cover_image
 from app.utils.data_control_utils import log_deleted_record
@@ -63,9 +63,8 @@ def make_media_router(spec) -> APIRouter:
             q = f"%{search_query}%"
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
         entries = query.order_by(spec.model.created_at.desc()).limit(limit).offset(offset).all()
-        field = PLAN_FLAG_FIELD.get(spec.owner_type)
-        if field:
-            planned = planned_entry_ids(db, spec.owner_type)
+        for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):
+            planned = planned_entry_ids(db, spec.owner_type, kind)
             for entry in entries:
                 setattr(entry, field, entry.system_id in planned)
         return entries
@@ -86,7 +85,7 @@ def make_media_router(spec) -> APIRouter:
         admin: dict = Depends(get_current_admin),
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
-        payload, planned, has_plan = pop_plan_flag(spec.owner_type, payload)
+        payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         entry.franchise_id, entry.series_id = spec.resolve_hierarchy(
@@ -96,8 +95,9 @@ def make_media_router(spec) -> APIRouter:
         db.commit()
         db.refresh(entry)
 
-        if has_plan:
-            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned))
+        if plan_flags:
+            for kind, planned in plan_flags:
+                set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
             db.commit()
 
         await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
@@ -119,11 +119,11 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
-        payload, planned, has_plan = pop_plan_flag(spec.owner_type, payload)
+        payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         for key, value in payload.items():
             setattr(entry, key, value)
-        if has_plan:
-            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned))
+        for kind, planned in plan_flags:
+            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
@@ -149,12 +149,12 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(payload)
-        payload, planned, has_plan = pop_plan_flag(spec.owner_type, payload)
+        payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         for key, value in payload.items():
             if hasattr(entry, key):
                 setattr(entry, key, value)
-        if has_plan:
-            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned))
+        for kind, planned in plan_flags:
+            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 

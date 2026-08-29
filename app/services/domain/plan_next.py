@@ -166,47 +166,51 @@ def set_entry_flag(
         db.delete(existing)
 
 
-# The schema field name each media type uses for its plan flag. Keys are
+# The schema field name(s) each media type uses for its plan flags, paired
+# with the plan_next kind each one is backed by. Keys are
 # MediaTypeSpec.owner_type, which is already the hyphenated media_type value.
-PLAN_FLAG_FIELD: dict[str, str] = {
-    "anime": "watch_next",
-    "anime-movie": "watch_next",
-    "movie": "watch_next",
-    "tv-show": "watch_next",
-    "cartoon": "watch_next",
-    "manga": "read_next",
-    "novel": "read_next",
-    "comic": "read_next",
+# A type absent from a pair has no such virtual field - anime has no rewatch
+# flag (it rewatches at franchise scope), cartoon has neither rewatch field.
+PLAN_FLAG_FIELDS: dict[str, tuple[tuple[str, str], ...]] = {
+    "anime": (("watch_next", "next"),),
+    "anime-movie": (("watch_next", "next"), ("to_rewatch", "rewatch")),
+    "movie": (("watch_next", "next"), ("to_rewatch", "rewatch")),
+    "tv-show": (("watch_next", "next"), ("to_rewatch", "rewatch")),
+    "cartoon": (("watch_next", "next"),),
+    "manga": (("read_next", "next"), ("to_reread", "rewatch")),
+    "novel": (("read_next", "next"), ("to_reread", "rewatch")),
+    "comic": (("read_next", "next"), ("to_reread", "rewatch")),
 }
 
 
 def pop_plan_flag(media_type: str, data: dict):
     """
-    Split watch_next / read_next out of a write payload.
+    Split watch_next/read_next/to_rewatch/to_reread out of a write payload.
 
-    Shaped exactly like pop_remark in app/services/domain/remark_field.py, and
-    for the same reason: the field is on the schema but not on the table. The
-    third return value matters - a PATCH that never mentions the flag must leave
-    the plan_next row alone, while a PUT that sends false must delete it.
+    Shaped like pop_remark in app/services/domain/remark_field.py, and for the
+    same reason: these fields are on the schema but not on the table. Returns
+    (rest, [(kind, value), ...]) - only the fields that were actually present
+    are included, so a PATCH that never mentions a flag leaves that plan_next
+    row alone, while one that sends false deletes it.
     """
-    field = PLAN_FLAG_FIELD.get(media_type)
-    if field is None or field not in data:
-        return data, None, False
-    rest = {k: v for k, v in data.items() if k != field}
-    return rest, data[field], True
+    rest = dict(data)
+    present = []
+    for field, kind in PLAN_FLAG_FIELDS.get(media_type, ()):
+        if field in rest:
+            present.append((kind, rest.pop(field)))
+    return rest, present
 
 
 def attach_plan_flag(db: Session, media_type: str, entry) -> None:
     """
-    Set the virtual flag on an ORM instance before it is serialized.
+    Set every virtual flag on an ORM instance before it is serialized.
 
     The response schema reads from attributes, and the column is gone, so the
     value has to be put back on the object. A plain instance attribute is enough
     - SQLAlchemy does not manage it.
     """
-    field = PLAN_FLAG_FIELD.get(media_type)
-    if field:
-        setattr(entry, field, entry_flag(db, media_type, entry.system_id))
+    for field, kind in PLAN_FLAG_FIELDS.get(media_type, ()):
+        setattr(entry, field, entry_flag(db, media_type, entry.system_id, kind=kind))
 
 
 def delete_plans_for(db: Session, scope: str, target_id: UUID) -> int:

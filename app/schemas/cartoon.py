@@ -38,7 +38,6 @@ class CartoonBase(BaseModel):
     source_other: Optional[dict] = None
 
     watch_next: Optional[bool] = None
-    to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None
