@@ -9,15 +9,11 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 export default function Plan() {
   const [reloadKey, setReloadKey] = useState(0);
   const {
-    franchises,
     allAnime,
     allAnimeMovies,
     allMovies,
     allTVShows,
     allCartoons,
-    allManga,
-    allNovel,
-    allEntriesByFranchise,
     franchiseMap,
     planRows,
     loading,
@@ -55,16 +51,7 @@ export default function Plan() {
       <PlanWatchNext planRows={planRows} />
 
       {/* To Rewatch */}
-      <PlanToRewatch
-        franchises={franchises}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allTVShows={allTVShows}
-        allCartoons={allCartoons}
-        allManga={allManga}
-        allNovel={allNovel}
-        allEntriesByFranchise={allEntriesByFranchise}
-      />
+      <PlanToRewatch planRows={planRows} />
 
       {/* Plan to Watch for Future Releases */}
       <PlanToWatchFuture

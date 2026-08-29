@@ -26,7 +26,7 @@ export default function PlanWatchNext({ planRows }) {
   const [tab, setTab] = useState("anime");
 
   const rows = planRows
-    .filter((r) => r.media_type === tab)
+    .filter((r) => r.kind === "next" && r.media_type === tab)
     .sort(byExpectation);
   const grouped = groupByBucket(rows, tab);
   const labels = Object.fromEntries(
