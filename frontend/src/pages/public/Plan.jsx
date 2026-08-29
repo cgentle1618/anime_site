@@ -19,6 +19,7 @@ export default function Plan() {
     allNovel,
     allEntriesByFranchise,
     franchiseMap,
+    planRows,
     loading,
     error,
   } = usePlanData(reloadKey);
@@ -51,17 +52,7 @@ export default function Plan() {
       </div>
 
       {/* Watch Next */}
-      <PlanWatchNext
-        franchises={franchises}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allTVShows={allTVShows}
-        allCartoons={allCartoons}
-        allManga={allManga}
-        allNovel={allNovel}
-        allEntriesByFranchise={allEntriesByFranchise}
-        franchiseMap={franchiseMap}
-      />
+      <PlanWatchNext planRows={planRows} />
 
       {/* To Rewatch */}
       <PlanToRewatch
