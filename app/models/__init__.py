@@ -21,6 +21,7 @@ from app.models.watch_order import (
     WatchOrderSection,
 )
 from app.models.media_relation import MediaRelation
+from app.models.staff import Person, PersonRole, Studio
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
 from app.models.meme import Meme
@@ -54,6 +55,9 @@ __all__ = [
     "WatchOrderItem",
     "WatchOrderSection",
     "MediaRelation",
+    "Person",
+    "PersonRole",
+    "Studio",
     "PlanNext",
     "Quote",
     "Meme",
