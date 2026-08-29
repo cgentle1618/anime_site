@@ -23,6 +23,7 @@ from app.models import (
 )
 
 from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
+from app.services.domain.plan_next import derive_size_groups
 from app.services.domain import (
     sync_seasonal_counts,
     create_missing_seasonal,
@@ -442,9 +443,19 @@ def run_sync(db: Session) -> dict:
     run_sync_manga(db)
     run_sync_novel(db)
     run_sync_comic(db)
+    run_sync_size_groups(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
+    }
+
+
+def run_sync_size_groups(db: Session) -> dict:
+    changed = derive_size_groups(db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Size groups derived for {changed} group(s).",
     }
 
 
