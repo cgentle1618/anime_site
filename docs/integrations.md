@@ -134,7 +134,7 @@ The Find response includes `movie_results` and `tv_results` arrays. The first ma
 | `release_date`                    | `release_date_us` | movies                     | `"2008-07-18"` → `"JUL 2008"`              |
 | `first_air_date`                  | `release_date`    | tv_shows, cartoons         | `"2011-04-17"` → `"APR 2011"`              |
 | `runtime`                         | `length_min`      | movies                     | Integer (already in minutes)               |
-| `credits.crew[job=Director].name` | `director`        | movies                     | First crew member with `job == "Director"` |
+| `credits.crew[job=Director].name` | `media_credit` (role `director`) | movies      | First crew member with `job == "Director"`; resolved through `replace_credits` — `resolve_person` finds-or-creates the `person` row (implying `person_role` `director`, `scope="non_anime"`) and writes the `media_credit` row. No longer a plain string column on `movies` — see `docs/database-schema.md`. |
 
 ---
 
@@ -249,10 +249,10 @@ than silently stored as a volume.
 | `name`                               | `comic_name_en`    | Mapped, but never written — see below       |
 | `start_year`                         | `release_date`     | String → canonical year, e.g. `"1963"`      |
 | `start_year`                         | `volume_label`     | `2018` → `"(2018)"`                         |
-| `publisher.name`                     | `publisher`        | As-is                                       |
+| `publisher.name`                     | `media_tag` (field `comic_publisher`) | As-is; resolved through `replace_tags` → `resolve_option` (find-or-create the `Comic Publisher` vocabulary value) — no longer a plain `publisher` string column |
 | `count_of_issues`                    | `issue_total`      | As-is                                       |
-| `person_credits` role `writer`       | `writer`           | Comma-joined names, deduplicated            |
-| `person_credits` role penciler/artist| `artist`           | Comma-joined names, deduplicated            |
+| `person_credits` role `writer`       | `media_credit` (role `comic_writer`) | Comma-joined names, deduplicated; resolved through `replace_credits` → `resolve_person` (find-or-creates a `person` implying `person_role` `comic_writer`) — no longer a plain `writer` string column |
+| `person_credits` role penciler/artist| `media_credit` (role `comic_artist`) | Same, implying `person_role` `comic_artist` — no longer a plain `artist` string column |
 | `image.original_url`                 | `cover_image_file` | Downloaded via `download_cover_image()`     |
 
 Roles match on whole comma-separated tokens, so `inker` never satisfies a search
@@ -296,9 +296,13 @@ Google Sheets is used as a human-readable backup and as a restore source. Data f
 
 Spreadsheet is identified by `GOOGLE_SHEET_ID` env var. One tab per model:
 
-| Tab Name         | Model          |
-| ---------------- | -------------- |
-| `System Options` | `SystemOption` |
+| Tab Name              | Model               |
+| ---------------------- | -------------------- |
+| `System Options`       | `SystemOption`        |
+| `System Option Scope`  | `SystemOptionScope`   |
+| `Person`               | `Person`               |
+| `Person Role`          | `PersonRole`           |
+| `Studio`               | `Studio`               |
 | `Franchise`      | `Franchise`    |
 | `Series`         | `Series`       |
 | `Anime`          | `Anime`        |
@@ -313,6 +317,58 @@ Spreadsheet is identified by `GOOGLE_SHEET_ID` env var. One tab per model:
 | `Plan Next`      | `PlanNext`     |
 
 Tabs are auto-created (1000 rows × 50 columns) if missing on first Backup or Pull operation.
+
+**`System Option Scope`, `Person`, `Person Role` and `Studio` are new**, added
+by the three-tier options redesign (`docs/options.md`,
+`docs/database-schema.md`). Person and Studio restore before every media tab
+in `execute_pull_all`'s strict order (see the Pull section below) so an
+entry's credits resolve against a `person_id`/`studio_id` that already
+exists.
+
+### Credit/Tag Columns on the Entry Tabs (Anime through Comic)
+
+No existing sheet column header was renamed by this redesign — a
+comma-joined field like `studio` or `genre_main` still writes under the same
+header it always did. What changed is *where that column lives* and *what
+backs it*: the value is no longer a plain string column on the entry table.
+It is derived on Backup from the entry's `media_credit`/`media_tag` rows
+(`sheet_link_values` in `app/services/domain/credits.py`) and written under
+its legacy header name (`LEGACY_SHEET_COLUMN` in
+`app/utils/credit_roles.py` — e.g. `anime.publisher_tw`'s field key writes
+under header `distributor_tw`, its header from before the redesign), and
+these columns are appended **at the end** of each of the 8 entry tabs
+(Anime through Comic), after every plain model column.
+
+**This is safe for the app but breaks position-dependent spreadsheet
+formulas.** Restore matches a sheet column by header *name*
+(`parse_row_to_dict`), never by position, so Pull is unaffected by the move.
+A formula elsewhere in the spreadsheet that referenced these columns by
+column letter (e.g. `=H2`) will now point at the wrong cell, since they no
+longer sit where the old string columns used to.
+
+**One genuinely new header:** `movies.source_official` — the Movies tab
+never had a `source_official` column before (only TV Show and Cartoon did);
+`movie` gained the `Official Source` tag field as part of the Tier 2
+`Official Source` vocabulary merge (`docs/options.md`), so its sheet column
+is new rather than relocated.
+
+On Pull, `execute_pull_specific` pops these credit/tag columns out of the
+parsed row dict under their legacy header names *before* the plain-column
+parser sees them, then applies them via `replace_credits`/`replace_tags`
+once the row has a real `entry_id` — see `docs/business-logic.md`.
+
+### Operational Warning: Backup Before Pull
+
+**Run Backup before running Pull**, at least once after this redesign. The
+live spreadsheet's `System Options` tab still carries the *old* header row
+(`id | category | option_value`) from before the schema changed. A Pull
+against that stale header parses each row into a dict carrying only
+`category` (the `option_value` → `value` rename means the parser never finds
+a `value` cell to read), silently dropping `value`, `sort_order` and
+`remark` from every imported row. Backup rewrites every tab's headers from
+the current SQLAlchemy models first (`c.name for c in Model.__table__.columns`),
+which fixes the `System Options` header row (and every other tab) before
+Pull ever reads it.
 
 `Media Relation` is written after every media tab, for the same reason `Quote`
 and the watch-order tabs are: both of its endpoints are FK-less

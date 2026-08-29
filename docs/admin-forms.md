@@ -96,6 +96,62 @@ expose the auto-fill checkbox.
 
 ---
 
+## Options Page
+
+`/options` — admin only, entry point stays under the "Sys. Options" nav
+label. Since the three-tier options redesign, this page is a management area
+for the two write-through tiers (Tier 2 vocabularies and Tier 3 entities;
+Tier 1 closed enums live in code and are not editable here). Both the Add
+and Modify variants (`OptionsAddTab.jsx`, `OptionsModifyTab.jsx`) share one
+`SubTabBar` with three sub-tabs under a single "System Options" nav entry:
+
+| Sub-tab   | Backs                                          | Form fields                                                                 |
+| --------- | ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `options` | `system_option` (Tier 2, `POST/PUT /api/options`) | Category (free text with a datalist of existing categories), a repeatable list of values |
+| `people`  | `person` + `person_role` (Tier 3, `POST/PUT /api/person`) | Name (Native/EN/CN), Role (one of `PERSON_ROLES`, see `app/utils/credit_roles.py`), Scope (only meaningful for Director: `anime` / `non_anime` / "Any"), Gender, My Rating, Photo File, Remark |
+| `studios` | `studio` (Tier 3, `POST/PUT /api/studio`)         | Name (Native/EN/CN), My Rating, Logo File, Remark                              |
+
+Selecting a Role on the People sub-tab is what makes a newly created person
+show up in the matching entry-form dropdown — `person_role` is explicit, not
+derived from credits, so a director must be given `{role: "director", scope}`
+here (or via create-if-missing on an entry form, below) before any credit
+referencing them exists.
+
+### Source Descriptors and Create-If-Missing
+
+Every "tags" control on an Add/Modify entry form (studio, director,
+producer, genre, official source, publisher, ...) is driven by a **source
+descriptor** on its `fieldMeta.js` entry — `optionsCategory` (a bare string)
+became `source: {kind, ...}`:
+
+- `{kind: "option", category, scope?}` — Tier 2 vocabulary (`system_option`)
+- `{kind: "person", role, scope?}` — Tier 3 people, filtered to a `person_role`
+- `{kind: "studio"}` — Tier 3 studios, unfiltered
+
+The control itself (`MultiSelect` / the `tags` control) didn't change — only
+where its suggestion list comes from. `frontend/src/lib/sources.js`'s
+`fetchAllSources()` fetches `/api/options` (once, filtered client-side by
+category+scope), `/api/studio` (once, flat), and `/api/person` once per
+distinct `{role, scope}` pair actually used across `fieldMeta.js`'s source
+descriptors (`PersonResponse` carries no role/scope, so the server does the
+role/scope filtering via `?role=&scope=`, not the client).
+
+**Create-if-missing** (`frontend/src/lib/ensureSourceValues.js`, shared by
+Add and Modify) runs before the entry submit: for every tags field on the
+form, any typed value not already present in the loaded sources bag is
+created — routed by `source.kind`, since a director is now an entity with a
+profile and a genre is still a vocabulary value:
+
+- `kind: "studio"` → `POST /api/studio` with `{name_native: value}`
+- `kind: "person"` → `POST /api/person` with `{name_native: value, roles: [{role, scope}]}` — the role **and** scope the field asked for, or the person exists but never appears in the dropdown that just "created" it
+- `kind: "option"` → `POST /api/options` with `{category, value, scopes: [scope] if scope else []}`
+
+All the created values are awaited (`Promise.all`) before the entry payload
+is built, and callers re-fetch `fetchAllSources()` afterward rather than
+patching the in-memory bag by hand.
+
+---
+
 ## Add Page
 
 ### Notes and the entry forms
@@ -514,23 +570,24 @@ Three sections, mirroring Franchise's layout:
 
 - Series is created using Comic Name EN/CN/Alt.
 
-**System-option auto-create**
+**Create-if-missing on submit**
 
-Before the entry itself is submitted, every free-typed value in these fields is
-checked against the already-loaded options and `POST /api/options/`'d if it is
-new. Seven categories are comic-prefixed; `publisher_tw` reuses the existing
-shared TW-distributor category instead of a comic-specific one:
+Before the entry itself is submitted, every free-typed value in these fields
+is checked against the already-loaded sources bag and created if new — see
+[Source Descriptors and Create-If-Missing](#source-descriptors-and-create-if-missing)
+below for the shared mechanism. `writer`/`artist` now create **`person`**
+rows (implying `comic_writer`/`comic_artist`), not `system_option` rows:
 
-| Field                     | Category          |
-| ------------------------- | ------------------ |
-| `writer` (multi-select)   | `Comic Writer`      |
-| `artist` (multi-select)   | `Comic Artist`      |
-| `publisher`               | `Comic Publisher`   |
-| `imprint`                 | `Comic Imprint`     |
-| `continuity`               | `Comic Continuity`  |
-| `era`                     | `Comic Era`         |
-| `events` (each value)     | `Comic Event`       |
-| `publisher_tw`            | `Distributor TW` — shared, not comic-prefixed |
+| Field                   | `fieldMeta.js` source                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `writer` (multi-select) | `{kind: "person", role: "comic_writer"}`                        |
+| `artist` (multi-select) | `{kind: "person", role: "comic_artist"}`                        |
+| `publisher`             | `{kind: "option", category: "Comic Publisher", scope: "comic"}` |
+| `imprint`               | `{kind: "option", category: "Comic Imprint", scope: "comic"}`   |
+| `continuity`            | `{kind: "option", category: "Comic Continuity", scope: "comic"}` |
+| `era`                   | `{kind: "option", category: "Comic Era", scope: "comic"}`       |
+| `events` (each value)   | `{kind: "option", category: "Comic Event", scope: "comic"}`     |
+| `publisher_tw`          | `{kind: "option", category: "Publisher / Distributor TW"}` — shared vocabulary, the merged home of the old `Distributor TW` / `Manga Publisher TW` / `Novel Publisher TW` categories |
 
 **Events field**
 

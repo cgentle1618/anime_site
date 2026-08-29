@@ -29,7 +29,11 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
+- [Constants — `/api/constants`](#constants--apiconstants)
 - [Options — `/api/options`](#options--apioptions)
+- [Person — `/api/person`](#person--apiperson)
+- [Studio — `/api/studio`](#studio--apistudio)
+- [Credits — `/api/credits`](#credits--apicredits)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
 - [Form Defaults — `/api/form-defaults`](#form-defaults--apiform-defaults)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
@@ -571,17 +575,98 @@ has no frontend caller yet — it is intentional surface awaiting a reorder UI.
 
 ---
 
+## Constants — `/api/constants`
+
+Read-only. Serves the Tier 1 closed enums from `app/utils/constants.py` (and
+`ITEM_IMPORTANCE` from `watch_order.py`) so the frontend stops keeping its
+own copies of `frontend/src/config/weekdays.js` and the hardcoded status
+lists. `docs/options.md` remains the canonical documentation of what each
+value means; this endpoint just serves them.
+
+| Method | Path | Auth   | Description                                                        |
+| ------ | ---- | ------ | ------------------------------------------------------------------- |
+| `GET`  | `/`  | Public | Every Tier 1 enum as `{snake_case_field_name: [values...]}`.        |
+
+Keys served: `watching_status`, `reading_status`, `airing_status`,
+`anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
+`franchise_expectation`, `my_rating`, `is_main`, `movie_type`, `tv_region`,
+`manga_region`, `novel_region`, `novel_type`, `comic_type`,
+`manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
+`music_status`, `seiyuu_status`, `watch_order_importance`. `franchise_type`
+and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
+`ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
+Python `Enum` classes, because the frontend dropdown has diverged from those
+enums — see the value-discrepancy note in `docs/options.md`.
+
+---
+
 ## Options — `/api/options`
 
-| Method   | Path           | Auth   | Description                                                                |
-| -------- | -------------- | ------ | -------------------------------------------------------------------------- |
-| `GET`    | `/`            | Public | List all system options across all categories.                             |
-| `GET`    | `/{category}`  | Public | List options for a specific category (e.g. `"Studio"`, `"Genre Main"`).    |
-| `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, option_value}`). |
-| `PUT`    | `/{option_id}` | Admin  | Update an existing option by integer ID. Body: `SystemOptionCreate`.       |
-| `DELETE` | `/{option_id}` | Admin  | Delete an option by integer ID. Logs to `deleted_record`.                  |
+Tier 2 open vocabularies (`system_option` / `system_option_scope`).
 
-**Response model:** `SystemOptionResponse`
+| Method   | Path           | Auth   | Description                                                                     |
+| -------- | -------------- | ------ | ---------------------------------------------------------------------------------- |
+| `GET`    | `/`            | Public | List all system options across all categories. `?scope=` filters to values with no scope rows or a matching one. `?limit=&offset=` paginate. |
+| `GET`    | `/{category}`  | Public | List options for a specific category (e.g. `"Genre Main"`, `"Comic Publisher"`). Same `?scope=` filter. |
+| `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...]}`). 400 if `(category, value)` already exists. |
+| `PUT`    | `/{option_id}` | Admin  | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope rows wholesale. 400 on a duplicate `(category, value)`. |
+| `DELETE` | `/{option_id}` | Admin  | Delete an option by UUID. Cascades its `system_option_scope` and `media_tag` rows. Logs to `deleted_record`.                  |
+
+**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...]}`)
+
+---
+
+## Person — `/api/person`
+
+Tier 3 entity CRUD for people credited on media entries (director, producer,
+composer, manga/novel author, illustrator, comic writer/artist).
+
+| Method   | Path              | Auth   | Description                                                                          |
+| -------- | ----------------- | ------ | --------------------------------------------------------------------------------------- |
+| `GET`    | `/`                | Public | List people. `?role=` filters to those holding a `person_role`; `?scope=` further filters that role (only meaningful for `director`: `anime` \| `non_anime`). |
+| `GET`    | `/{system_id}`     | Public | Get one person by UUID.                                                              |
+| `POST`   | `/`                | Admin  | Create a person. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`). |
+| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. |
+| `DELETE` | `/{system_id}`     | Admin  | Delete a person. Cascades their `media_credit` and `person_role` rows — no `deleted_record` entry is logged. |
+| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and unions the `person_role` rows onto the survivor, then deletes the loser. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
+
+**Response model:** `PersonResponse` (`PersonBase` fields + `system_id`, `credit_count`) — `credit_count` is a live count of `media_credit` rows, not a stored column.
+
+---
+
+## Studio — `/api/studio`
+
+Tier 3 entity CRUD for anime production studios. Mirrors `/api/person`
+without the role/scope filter — studios have no `person_role` concept.
+
+| Method   | Path                  | Auth   | Description                                                                       |
+| -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
+| `GET`    | `/`                   | Public | List all studios, ordered by native name.                                        |
+| `GET`    | `/{system_id}`        | Public | Get one studio by UUID.                                                          |
+| `POST`   | `/`                   | Admin  | Create a studio. Body: `StudioCreate`.                                           |
+| `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Body: `StudioUpdate`.                                     |
+| `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. |
+| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit`, then deletes the loser. Body: `MergeRequest`. |
+
+**Response model:** `StudioResponse` (`StudioBase` fields + `system_id`, `credit_count`)
+
+---
+
+## Credits — `/api/credits`
+
+Read and replace one media entry's `media_credit` / `media_tag` rows as a
+single payload, matching how the Add/Modify forms already submit a whole
+field's values at once.
+
+| Method | Path                        | Auth   | Description                                                                    |
+| ------ | --------------------------- | ------ | ---------------------------------------------------------------------------------- |
+| `GET`  | `/{media_type}/{entry_id}`  | Public | Returns `{credits: {role: [names...]}, tags: {field: [values...]}}` — only roles/fields with rows are included; a bare entry returns two empty maps. 400 for an unknown `media_type`, 404 if the entry doesn't exist. |
+| `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`system_option` row, creating on miss. 400 for a role/field not valid on this `media_type`. |
+
+`media_type` is one of the hyphenated `MEDIA_TABLES` keys (`anime`,
+`anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`).
+Valid roles/fields per media type come from `credit_roles_for()` /
+`tag_fields_for()` in `app/utils/credit_roles.py`.
 
 ---
 
@@ -697,7 +782,7 @@ All endpoints in this router require admin authentication.
 | Method | Path               | Description                                                                                   |
 | ------ | ------------------ | --------------------------------------------------------------------------------------------- |
 | `POST` | `/backup`          | Backup entire DB to Google Sheets. Synchronous, returns JSON.                                 |
-| `POST` | `/pull`            | Pull all tabs from Google Sheets (System Options → Franchise → Series → Anime). Returns JSON. |
+| `POST` | `/pull`            | Pull all tabs from Google Sheets, entities before entries (System Options → System Option Scope → Person → Person Role → Studio → System Configs → Collection → Franchise → Series → Anime → ...). Returns JSON. See `docs/integrations.md` for the full order and why Backup must run before Pull. |
 | `POST` | `/pull/manga`      | Pull Manga tab from Google Sheets. Returns JSON.                                              |
 | `POST` | `/pull/novel`      | Pull Novel tab from Google Sheets. Returns JSON.                                              |
 | `POST` | `/pull/comic`      | Pull Comic tab from Google Sheets. Returns JSON.                                              |

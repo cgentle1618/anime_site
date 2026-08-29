@@ -26,7 +26,13 @@
 - [Note Table](#note-table)
   - [note](#note)
 - [System & Configuration Tables](#system--configuration-tables)
-  - [system_options](#system_options)
+  - [system_option](#system_option)
+  - [system_option_scope](#system_option_scope)
+  - [person](#person)
+  - [person_role](#person_role)
+  - [studio](#studio)
+  - [media_credit](#media_credit)
+  - [media_tag](#media_tag)
   - [system_configs](#system_configs)
   - [seasonal](#seasonal)
   - [users](#users)
@@ -49,7 +55,7 @@ collection  (optional umbrella above franchise — e.g. Marvel, Type-Moon)
 - A `series` is an optional intermediate grouping; `series_id` may be null on media entries.
 - A `collection` is an optional umbrella grouping several distinct franchises under one IP or creator; `collection_id` may be null on `franchise`, and most franchises have none. **No media table references a collection** — media reaches it only through `franchise.collection_id`.
 - Collection is deliberately inert: it takes no part in duplicate detection or statistics.
-- `franchise`, `series`, and all media entry tables use UUID primary keys. `seasonal`, `system_options`, `system_configs`, `users`, `data_control_logs`, and `deleted_record` use integer or string PKs.
+- `franchise`, `series`, all media entry tables, and `system_option`, `person`, `studio`, `media_credit`, `media_tag` use UUID primary keys. `seasonal`, `system_configs`, `users`, `data_control_logs`, `deleted_record`, `system_option_scope` and `person_role` use integer or string PKs.
 
 ---
 
@@ -202,7 +208,7 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 | `airing_type`     | String  | Yes      | —               | `"TV"`, `"Movie"`, `"ONA"`, `"OVA"`, `"OAD"`, `"Special"`, `"Other"`, null         |
 | `airing_status`   | String  | Yes      | —               | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null                           |
 | `watching_status` | String  | No       | `"Might Watch"` | See options.md for all valid values                                                |
-| `is_main`         | String  | Yes      | —               | Whether the entry is main story or spinoff; see system_options                     |
+| `is_main`         | String  | Yes      | —               | Whether the entry is main story or spinoff; Tier 1 enum, see options.md                     |
 | `is_main_entry`   | Boolean | Yes      | —               | Whether this is the main entry among entries linked by an `alternative` relation                       |
 
 #### Episode Tracking
@@ -247,15 +253,13 @@ The granular anime entry. Covers TV series, OVAs, ONAs, specials, etc.
 
 #### Production
 
-| Column           | Type   | Nullable | Notes                             |
-| ---------------- | ------ | -------- | --------------------------------- |
-| `studio`         | String | Yes      | Multi-selectable, comma-separated |
-| `director`       | String | Yes      | Multi-selectable, comma-separated |
-| `producer`       | String | Yes      | Multi-selectable, comma-separated |
-| `music`          | String | Yes      | Multi-selectable, comma-separated |
-| `distributor_tw` | String | Yes      | Multi-selectable, comma-separated |
-| `genre_main`     | String | Yes      | Multi-selectable, comma-separated |
-| `genre_sub`      | String | Yes      | Multi-selectable, comma-separated |
+`studio`, `director`, `producer`, `music`, `distributor_tw`, `genre_main` and
+`genre_sub` used to sit here as comma-joined strings. The options redesign
+migrated them into `media_credit` (`studio`, `director`, `producer`,
+`composer`) and `media_tag` (`publisher_tw`, `genre_main`, `genre_sub`) and
+dropped all seven columns — see [`media_credit`](#media_credit) /
+[`media_tag`](#media_tag) below. `anime.music` was the score composer credit,
+not a note-section field.
 
 #### Relational & Ordering
 
@@ -357,8 +361,9 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 | `length_min`      | Integer | Yes      | Length of the movie in minutes                   |
 | `release_date_jp` | String  | Yes      | Japan release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
 | `release_date_tw` | String  | Yes      | Taiwan release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
-| `studio`          | String  | Yes      | Multi-selectable, comma-separated                |
-| `director`        | String  | Yes      | Multi-selectable, comma-separated                |
+
+`studio` and `director` used to sit here as comma-joined strings. Both moved
+into `media_credit` (roles `studio`, `director`) and the columns were dropped.
 
 #### External Links
 
@@ -425,7 +430,7 @@ Live-action and animated movie entries.
 | `my_rating`       | String | Yes      | —               | S / A+ / A / B / C / D / E / F                                 |
 | `imdb_rating`     | String | Yes      | —               | IMDB score stored as string (e.g. `"9.2"`, `"N/A"`)            |
 | `movie_type`      | String | Yes      | —               | `"Reality"`, `"Animation"`, null                               |
-| `is_main`         | String | Yes      | —               | Whether the entry is main story or spinoff; see system_options |
+| `is_main`         | String | Yes      | —               | Whether the entry is main story or spinoff; Tier 1 enum, see options.md |
 
 #### Release & Production
 
@@ -434,7 +439,10 @@ Live-action and animated movie entries.
 | `length_min`       | Integer | Yes      | Length of the movie in minutes                   |
 | `release_date_usa` | String  | Yes      | USA release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
 | `release_date_tw`  | String  | Yes      | Taiwan release date. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"` |
-| `director`         | String  | Yes      | Can be multiple directors                        |
+
+`director` used to sit here as a comma-joined string. It moved into
+`media_credit` (role `director`) and the column was dropped. `movie` also
+gained a `media_tag` `source_official` field — see [`media_tag`](#media_tag).
 
 #### Relational & Ordering
 
@@ -497,10 +505,13 @@ Live-action and scripted TV show entries.
 | ----------------- | ------ | -------- | --------------- | -------------------------------------------------------------- |
 | `region`          | String | Yes      | —               | `"歐美劇"`, `"韓劇"`, `"陸劇"`, `"台劇"`, null                 |
 | `season_part`     | String | Yes      | —               | Which season and part, e.g. `"Season 1"`, `"Season 2 Part 2"`  |
-| `source_official` | String | Yes      | —               | Name of official streaming source; see system_options          |
 | `airing_status`   | String | Yes      | —               | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null       |
 | `watching_status` | String | No       | `"Might Watch"` | See options.md for all valid values                            |
-| `is_main`         | String | Yes      | —               | Whether the entry is main story or spinoff; see system_options |
+| `is_main`         | String | Yes      | —               | Whether the entry is main story or spinoff; see [Tier 1 enums](options.md#the-three-tiers) |
+
+`source_official` used to sit here as a plain string column. It moved to
+`media_tag` (field `source_official`, vocabulary `Official Source`) and the
+column was dropped — see [`media_tag`](#media_tag).
 
 #### Episode Tracking
 
@@ -578,11 +589,13 @@ Western animated TV show entries.
 | ------------- | ------ | -------- | ------- | ------------------------------------------------------------- |
 | `season_part` | String | Yes      | —       | Which season and part, e.g. `"Season 1"`, `"Season 2 Part 2"` |
 | `airing_type` | String | Yes      | —       | `"TV"`, `"Movie"`, `"Other"`, null                            |
-
-| `source_official` | String | Yes | — | Name of official streaming source; see system_options |
 | `airing_status` | String | Yes | — | `"Not Yet Aired"`, `"Airing"`, `"Finished Airing"`, null |
 | `watching_status` | String | No | `"Might Watch"` | See options.md for all valid values |
-| `is_main` | String | Yes | — | Whether the entry is main story or spinoff; see system_options |
+| `is_main` | String | Yes | — | Whether the entry is main story or spinoff; Tier 1 enum, see options.md |
+
+`source_official` used to sit here as a plain string column. It moved to
+`media_tag` (field `source_official`, vocabulary `Official Source`) and the
+column was dropped — see [`media_tag`](#media_tag).
 
 #### Episode Tracking
 
@@ -661,7 +674,7 @@ Manga, manhwa, and manhua entries.
 | Column                 | Type   | Nullable | Default        | Notes                                                          |
 | ---------------------- | ------ | -------- | -------------- | -------------------------------------------------------------- |
 | `region`               | String | Yes      | —              | `"日漫"`, `"韓漫"`, `"國漫"`, `"台漫"`, `"其他"`, null         |
-| `is_main`              | String | Yes      | —              | Whether the entry is main story or spinoff; see system_options |
+| `is_main`              | String | Yes      | —              | Whether the entry is main story or spinoff; Tier 1 enum, see options.md |
 | `serialization_status` | String | Yes      | —              | `"連載中"`, `"停更"`, `"腰斬"`, `"完結"`, null                 |
 | `reading_status`       | String | No       | `"Might Read"` | See options.md for all valid values                            |
 
@@ -688,13 +701,16 @@ Manga, manhwa, and manhua entries.
 
 | Column                   | Type   | Nullable | Notes                                                      |
 | ------------------------ | ------ | -------- | ---------------------------------------------------------- |
-| `author_plot`            | String | Yes      | 原作 — author responsible for plot; see system_options     |
-| `author_draw`            | String | Yes      | 作畫 — author responsible for art; see system_options      |
 | `release_date`           | String | Yes      | Start of the run. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"`; cannot exceed `end_date` |
 | `end_date`               | String | Yes      | End of the run, same format                                |
-| `anime_studio`           | String | Yes      | Anime adaptation studio; multi-selectable, comma-separated |
+| `anime_studio`           | String | Yes      | Anime adaptation studio; multi-selectable, comma-separated. **Deliberately NOT migrated** — this points at the studio that adapted the manga, not a credit of the manga itself. Its honest home is a `media_relation` `adaptation` row, which already exists; out of scope for this redesign. |
 | `serialization_platform` | String | Yes      | Where the entry is serialized                              |
-| `distributor_tw`         | String | Yes      | Taiwan distributor; multi-selectable, comma-separated      |
+
+`author_plot` (原作) and `author_draw` (作畫) used to sit here as comma-joined
+strings. Both moved into `media_credit` (roles `manga_author_plot`,
+`manga_author_draw`, both implying `person_role` `manga_author`) and the
+columns were dropped. `distributor_tw` moved into `media_tag` (field
+`publisher_tw`, vocabulary `Publisher / Distributor TW`) and was dropped too.
 
 #### Relational & Ordering
 
@@ -763,7 +779,7 @@ Light novel and book entries.
 | `region`               | String | Yes      | —              | `"JP"`, `"CN"`, `"TW"`, `"KR"`, `"Western"`, null                                                        |
 | `type`                 | String | Yes      | —              | `"Light Novel"`, `"Novel"`, `"Web"`, `"Other"`, null                                                     |
 | `version`              | String | Yes      | —              | Version of the novel entry, e.g. `"陸版"`                                                                |
-| `is_main`              | String | Yes      | —              | Whether the entry is main story or spinoff; see system_options                                           |
+| `is_main`              | String | Yes      | —              | Whether the entry is main story or spinoff; Tier 1 enum, see options.md                                           |
 | `serialization_status` | String | Yes      | —              | `"完結"`, `"連載中"`, `"連載中 (不穩定)"`, `"連載中 (有生之年)"`, `"停更"`, `"可能更多"`, `"未出"`, null |
 | `reading_status`       | String | No       | `"Might Read"` | See options.md for all valid values                                                                      |
 
@@ -793,11 +809,14 @@ Light novel and book entries.
 
 | Column         | Type    | Nullable | Notes                                                            |
 | -------------- | ------- | -------- | ---------------------------------------------------------------- |
-| `author`       | String  | Yes      | Authors; category in system_options: Novel Author                |
-| `illustrator`  | String  | Yes      | Illustrators; category in system_options: Novel Illustrator      |
 | `release_date` | String  | Yes      | First book. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"`; cannot exceed `end_date`. Was Integer before the ISO migration |
 | `end_date`     | String  | Yes      | Last book, same format. Was Integer before the ISO migration     |
-| `publisher_tw` | String  | Yes      | Taiwan publisher; category in system_options: Novel Publisher TW |
+
+`author` and `illustrator` used to sit here as comma-joined strings. Both
+moved into `media_credit` (roles `novel_author`, `novel_illustrator`) and the
+columns were dropped. `publisher_tw` moved into `media_tag` (field
+`publisher_tw`, vocabulary `Publisher / Distributor TW` — the old separate
+`Novel Publisher TW` category merged into it) and was dropped too.
 
 #### Relational & Ordering
 
@@ -863,13 +882,15 @@ business-logic.md).
 | Column                 | Type    | Nullable | Default        | Notes                                                                                          |
 | ----------------------- | ------- | -------- | -------------- | ------------------------------------------------------------------------------------------------ |
 | `comic_type`            | String  | Yes      | —              | `Ongoing` / `Limited` / `One-Shot` / `Annual`, null; see options.md                              |
-| `publisher`             | String  | Yes      | —              | category in system_options: Comic Publisher                                                      |
-| `imprint`               | String  | Yes      | —              | category in system_options: Comic Imprint                                                        |
-| `continuity`            | String  | Yes      | —              | category in system_options: Comic Continuity                                                     |
-| `era`                   | String  | Yes      | —              | category in system_options: Comic Era                                                            |
-| `events`                | String  | Yes      | —              | Comma-joined multi-select, same idiom as `franchise.franchise_type`; category in system_options: Comic Event |
 | `serialization_status`  | String  | Yes      | —              | Reuses the existing Serialization Status list — see options.md                                   |
 | `reading_status`        | String  | No       | `"Might Read"` | Reuses the existing Reading Status list — see options.md                                         |
+
+`publisher`, `imprint`, `continuity`, `era` and `events` used to sit here as
+strings/comma-joined strings. All five moved into `media_tag` (fields
+`comic_publisher`, `comic_imprint`, `comic_continuity`, `comic_era`,
+`comic_event`, each its own Tier 2 vocabulary) and the columns were dropped.
+They are still treated as plain vocabularies rather than structured entities —
+see the design spec's Out of Scope section.
 
 #### Progress Tracking
 
@@ -891,11 +912,14 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 | Column         | Type    | Nullable | Notes                                                                                     |
 | -------------- | ------- | -------- | --------------------------------------------------------------------------------------------- |
-| `writer`       | String  | Yes      | category in system_options: Comic Writer                                                      |
-| `artist`       | String  | Yes      | category in system_options: Comic Artist                                                      |
 | `release_date` | String  | Yes      | Start of the run. Truncated ISO-8601: `"2024"`, `"2024-05"`, or `"2024-05-17"`. Was Integer before the ISO migration |
 | `end_date`     | String  | Yes      | End of the run, same format. Was Integer before the ISO migration |
-| `publisher_tw` | String  | Yes      | Taiwan publisher; reuses the existing system_options category: Distributor TW (not comic-specific) |
+
+`writer` and `artist` used to sit here as strings. Both moved into
+`media_credit` (roles `comic_writer`, `comic_artist`) and the columns were
+dropped. `publisher_tw` moved into `media_tag` (field `publisher_tw`,
+vocabulary `Publisher / Distributor TW`, the same merged vocabulary
+`anime`/`manga`/`novel` use) and was dropped too.
 
 #### Relational & Ordering
 
@@ -1425,45 +1449,183 @@ than as part of a routine `upgrade head`.
 
 ## System & Configuration Tables
 
-### `system_options`
+The old single `system_options` table (`id`, `category`, `option_value`) was
+replaced by the three-tier options design — see `docs/options.md` for the
+full rationale (the rule that sorts a value into a tier, the scope mechanism,
+and the discrepancies preserved from the old data). This section documents
+what tiers 2 and 3 became in the schema: `system_option` /
+`system_option_scope` (Tier 2), and `person` / `person_role` / `studio` /
+`media_credit` / `media_tag` (Tier 3 entities and their link tables). Tier 1
+is **not** a database table — it is the closed enums in
+`app/utils/constants.py`, served read-only by `GET /api/constants`.
 
-Dynamic dropdown/choice list values used in frontend forms. Editable via the admin Options page. Uses `ON CONFLICT` to handle duplicate values on upsert.
+### `system_option`
 
-| Column         | Type    | Nullable | Notes                                                                           |
-| -------------- | ------- | -------- | ------------------------------------------------------------------------------- |
-| `id`           | Integer | No       | Auto-increment PK                                                               |
-| `category`     | String  | No       | Composite unique with `option_value`. Groups options by field.                  |
-| `option_value` | String  | No       | Composite unique with `category`. One of the options for the specific category. |
+One value in an open vocabulary (Tier 2) — a category only humans read, that
+no business logic branches on. Replaces `system_options`; the integer `id`
+became a UUID `system_id` to match every other table.
 
-**Known categories:**
+| Column       | Type     | Nullable | Default | Notes                                                    |
+| ------------ | -------- | -------- | ------- | --------------------------------------------------------- |
+| `system_id`  | UUID     | No       | `uuid4()` | Primary key                                              |
+| `category`   | String   | No       | —       | e.g. `"Genre Main"`, `"Official Source"`, `"Comic Era"`. Composite unique with `value` (`uq_system_option_value`) |
+| `value`      | String   | No       | —       | One option value within the category                     |
+| `sort_order` | Integer  | No       | `0`     | Manual ordering within a category                        |
+| `remark`     | Text     | Yes      | —       |                                                            |
+| `created_at` | DateTime | No       | —       | Auto-set on create                                        |
+| `updated_at` | DateTime | No       | —       | Auto-updated on save                                      |
 
-| Category                    | Used by                                           |
-| --------------------------- | ------------------------------------------------- |
-| `Studio`                    | `anime.studio`, `anime_movies.studio`, `cartoons` |
-| `台灣代理 (Anime)`          | `anime.distributor_tw`                            |
-| `台灣代理 (Manga)`          | `manga.distributor_tw`                            |
-| `Director`                  | `anime.director`, `anime_movies.director`         |
-| `Producer`                  | `anime.producer`                                  |
-| `Music / Composer`          | `anime.music`                                     |
-| `Manga Author`              | `manga.author_plot`, `manga.author_draw`          |
-| `Genre Main`                | `anime.genre_main`                                |
-| `Genre Sub`                 | `anime.genre_sub`                                 |
-| `Official Source (TV)`      | `tv_shows.source_official`                        |
-| `Official Source (Cartoon)` | `cartoons.source_official`                        |
-| `Movie Franchise (Filter)`  | Filter option for movies page                     |
-| `Main / Spinoff`            | `anime.is_main`, `movies.is_main`, etc.           |
-| `Dub Preference`            | Preference settings                               |
-| `Novel Author`              | `novel.author`                                    |
-| `Novel Illustrator`         | `novel.illustrator`                               |
-| `Novel Publisher TW`        | `novel.publisher_tw`                              |
-| `Comic Publisher`           | `comic.publisher`                                 |
-| `Comic Imprint`             | `comic.imprint`                                   |
-| `Comic Continuity`          | `comic.continuity`                                |
-| `Comic Era`                 | `comic.era`                                       |
-| `Comic Event`                | `comic.events`                                    |
-| `Comic Writer`              | `comic.writer`                                    |
-| `Comic Artist`              | `comic.artist`                                    |
-| `Distributor TW`            | also reused by `comic.publisher_tw` (in addition to its existing use) |
+**The ten Tier 2 categories** (see `docs/options.md` for their scopes and
+which old categories merged into each): `Genre Main`, `Genre Sub`,
+`Official Source`, `Franchise for Filter`, `Publisher / Distributor TW`,
+`Comic Publisher`, `Comic Imprint`, `Comic Continuity`, `Comic Era`,
+`Comic Event`.
+
+### `system_option_scope`
+
+Which media types a vocabulary value is offered in. A value with no scope
+rows is offered everywhere; a dropdown asking for `category=Official Source,
+scope=cartoon` gets values with either a `cartoon` scope row or none.
+Replaces the old habit of duplicating a whole category per consumer (e.g.
+`TV Show Official Source` / `Cartoon Official Source`).
+
+| Column      | Type    | Nullable | Notes                                                                 |
+| ----------- | ------- | -------- | ---------------------------------------------------------------------- |
+| `id`        | Integer | No       | Auto-increment PK                                                     |
+| `option_id` | UUID    | No       | FK -> `system_option.system_id` ON DELETE CASCADE                     |
+| `scope`     | String  | No       | One of `MEDIA_TYPE_KEYS` (hyphenated) from `app/utils/media_resolver.py`. Composite unique with `option_id` (`uq_system_option_scope`) |
+
+### `person`
+
+One human credited on a media entry (Tier 3 entity) — director, producer,
+composer, manga/novel author, illustrator, comic writer/artist. `gender`
+lives on the base rather than on a role-specific extension table: only
+seiyuu need it filled today, but it is a fact about the person, not the role.
+**No role extension tables were built** — the base-plus-extensions shape is
+preserved for when a role earns columns of its own (e.g. `person_seiyuu`).
+
+| Column        | Type     | Nullable | Default   | Notes                                                    |
+| ------------- | -------- | -------- | --------- | ----------------------------------------------------------- |
+| `system_id`   | UUID     | No       | `uuid4()` | Primary key                                              |
+| `name_native` | String   | No       | —         | 原文名 (JP/KR/EN as appropriate). Composite unique with `name_en` (`uq_person_name`) |
+| `name_en`     | String   | Yes      | —         |                                                            |
+| `name_cn`     | String   | Yes      | —         |                                                            |
+| `gender`      | String   | Yes      | —         |                                                            |
+| `my_rating`   | String   | Yes      | —         | Tier 1 `My Rating` enum, reused from `constants.py`        |
+| `photo_file`  | String   | Yes      | —         | GCS object key, same convention as `cover_image_file`      |
+| `remark`      | Text     | Yes      | —         |                                                            |
+| `created_at`  | DateTime | No       | —         | Auto-set on create                                         |
+| `updated_at`  | DateTime | No       | —         | Auto-updated on save                                       |
+
+### `person_role`
+
+Which dropdowns a person appears in — explicit, not derived from credits, so
+a newly added director is offered in the director dropdown before their
+first credit exists.
+
+| Column      | Type    | Nullable | Notes                                                                 |
+| ----------- | ------- | -------- | ---------------------------------------------------------------------- |
+| `id`        | Integer | No       | Auto-increment PK                                                     |
+| `person_id` | UUID    | No       | FK -> `person.system_id` ON DELETE CASCADE                            |
+| `role`      | String  | No       | One of `PERSON_ROLES` (`app/utils/credit_roles.py`): `director`, `producer`, `composer`, `manga_author`, `novel_author`, `novel_illustrator`, `comic_writer`, `comic_artist` |
+| `scope`     | String  | Yes      | Only meaningful for `director`: `anime` \| `non_anime`. `NULL` for every other role, meaning "every scope". Composite unique with `(person_id, role)` (`uq_person_role`) |
+
+### `studio`
+
+One anime production studio (Tier 3 entity). Publishers and distributors are
+deliberately **not** here — they stay a single `Publisher / Distributor TW`
+Tier 2 vocabulary, since they need no profile.
+
+| Column        | Type     | Nullable | Default   | Notes                                              |
+| ------------- | -------- | -------- | --------- | ---------------------------------------------------- |
+| `system_id`   | UUID     | No       | `uuid4()` | Primary key                                        |
+| `name_native` | String   | No       | —         | Composite unique with `name_en` (`uq_studio_name`) |
+| `name_en`     | String   | Yes      | —         |                                                      |
+| `name_cn`     | String   | Yes      | —         |                                                      |
+| `my_rating`   | String   | Yes      | —         | Tier 1 `My Rating` enum                             |
+| `logo_file`   | String   | Yes      | —         | GCS object key                                      |
+| `remark`      | Text     | Yes      | —         |                                                      |
+| `created_at`  | DateTime | No       | —         | Auto-set on create                                  |
+| `updated_at`  | DateTime | No       | —         | Auto-updated on save                                |
+
+### `media_credit`
+
+One person or studio credited on one media entry. The entry endpoint is a
+FK-less `(media_type, entry_id)` pair — the same contract `media_relation`
+and `watch_order_item` use, since no single foreign key can span the eight
+media tables; it is resolved at read time through `MEDIA_TABLES` in
+`app/utils/media_resolver.py`.
+
+| Column       | Type     | Nullable | Default | Notes                                                        |
+| ------------ | -------- | -------- | ------- | --------------------------------------------------------------- |
+| `system_id`  | UUID     | No       | `uuid4()` | Primary key                                                |
+| `media_type` | String   | No       | —       | One of `MEDIA_TYPE_KEYS` (hyphenated), e.g. `anime`, `anime-movie`, `manga` |
+| `entry_id`   | UUID     | No       | —       | Not a real FK — see above                                     |
+| `role`       | String   | No       | —       | One of `CREDIT_ROLE_KEYS` (`app/utils/credit_roles.py`)       |
+| `person_id`  | UUID     | Yes      | —       | FK -> `person.system_id` ON DELETE CASCADE                    |
+| `studio_id`  | UUID     | Yes      | —       | FK -> `studio.system_id` ON DELETE CASCADE                    |
+| `position`   | Integer  | No       | `0`     | Preserves the order names had in the comma-joined column this table replaced |
+| `remark`     | Text     | Yes      | —       |                                                                 |
+| `created_at` | DateTime | No       | —       | Auto-set on create                                             |
+
+**Constraints:**
+- `CHECK (num_nonnulls(person_id, studio_id) = 1)` (`ck_media_credit_one_target`) — exactly one target is set, enforced by a CHECK rather than convention because both the migration and Fill write these rows without going through the API.
+- `UNIQUE (media_type, entry_id, role, person_id, studio_id)` (`uq_media_credit_row`) **with `postgresql_nulls_not_distinct=True`** (a PostgreSQL 15+ feature). This is load-bearing and non-obvious: `person_id`/`studio_id` are each nullable, and Postgres treats two `NULL`s as distinct by default — without `NULLS NOT DISTINCT` the same person could be credited twice with the same role on the same entry, since `(person_id, NULL)` would never collide with itself.
+- Indexes on `(media_type, entry_id)`, `person_id`, `studio_id`.
+
+**`CREDIT_ROLES`** (`app/utils/credit_roles.py`): `studio` (→ studio),
+`director`, `producer`, `composer`, `manga_author_plot` (原作),
+`manga_author_draw` (作画), `novel_author`, `novel_illustrator`,
+`comic_writer`, `comic_artist` (→ person, each implying a `person_role`).
+Credit roles and person roles are separate vocabularies on purpose: two
+credits can imply one role (原作/作画 both imply `manga_author`).
+
+### `media_tag`
+
+One vocabulary value (a `system_option` row) attached to one media entry.
+
+| Column       | Type     | Nullable | Default | Notes                                                        |
+| ------------ | -------- | -------- | ------- | --------------------------------------------------------------- |
+| `system_id`  | UUID     | No       | `uuid4()` | Primary key                                                |
+| `media_type` | String   | No       | —       | One of `MEDIA_TYPE_KEYS` (hyphenated)                          |
+| `entry_id`   | UUID     | No       | —       | Not a real FK, same contract as `media_credit`                 |
+| `field`      | String   | No       | —       | One of `TAG_FIELD_KEYS` (`app/utils/credit_roles.py`)          |
+| `option_id`  | UUID     | No       | —       | FK -> `system_option.system_id` ON DELETE CASCADE              |
+| `position`   | Integer  | No       | `0`     | Preserves the comma order                                      |
+| `created_at` | DateTime | No       | —       | Auto-set on create                                              |
+
+**Constraints:** `UNIQUE (media_type, entry_id, field, option_id)`
+(`uq_media_tag_row`); indexes on `(media_type, entry_id)` and `option_id`.
+
+`field` rather than `category` because one category can serve several fields
+(`publisher_tw` backs `anime`, `manga`, `novel` and `comic`), while one field
+always maps to exactly one category — the map lives in
+`credit_roles.TAG_FIELDS`.
+
+### Not built: `character` / `character_voice`
+
+The design spec designs `character` (franchise-scoped cast profiles) and
+`character_voice` (seiyuu casting, with a `language` dimension for dubs).
+**Neither table was built** in this redesign — they touch no existing column
+and are deferred to a follow-up spec. `anime.seiyuu` is unaffected either
+way: it is a `Need`/`Done` status column tracking whether the seiyuu work has
+been done for an entry, not a cast list, and was never migrated.
+
+### Columns removed
+
+All 22 comma-joined credit/tag columns the migration targeted were dropped
+from the entry tables and now live in `media_credit` / `media_tag` — see each
+media entry table above for the specific columns and their new home. Two
+survive untouched by design: `anime.seiyuu` (a status column, not a cast
+list) and `manga.anime_studio` (points at the adaptation, not a credit of the
+manga itself).
+
+**Note on the count:** the design spec's own summary table lists 26 distinct
+column removals across the 8 tables (anime 7, anime-movie 2, movie 1,
+tv_show 1, cartoon 1, manga 3, novel 3, comic 8) while its prose says "22" —
+that arithmetic mismatch is in the spec itself and was not resolved here;
+what was verified against the code is that all 26 columns listed in the
+spec's table are in fact gone from the current models.
 
 ---
 
@@ -1560,9 +1722,14 @@ Tombstone log. Captures key metadata at the moment of deletion for audit display
 | `franchise_cn`   | String   | Yes      | Parent franchise CN name with fallback; populated for Series and media entries   |
 | `series_cn`      | String   | Yes      | Parent series CN name with fallback; populated for media entries only            |
 | `category`       | String   | Yes      | Option category; populated for System Options only                               |
-| `name_cn`        | String   | Yes      | Entry CN name with fallback; `option_value` for System Options                   |
+| `name_cn`        | String   | Yes      | Entry CN name with fallback; `system_option.value` for System Options            |
 | `name_en`        | String   | Yes      | Entry EN name with fallback; null if CN was a fallback or type is System Options |
 | `timestamp`      | DateTime | No       | Taipei now                                                                       |
+
+Deleting a `person` or `studio` (`DELETE /api/person/{id}` /
+`DELETE /api/studio/{id}`) does **not** write a `deleted_record` row — neither
+router calls `log_deleted_record`. Only `system_option` deletion (via
+`DELETE /api/options/{option_id}`) is audited here among the Tier 2/3 tables.
 
 ---
 

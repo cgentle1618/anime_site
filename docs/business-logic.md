@@ -86,12 +86,26 @@ Overwrites all Google Sheets tabs with the current database state.
 2. For each model, extract column headers from the SQLAlchemy table schema.
 3. Format each row via `format_model_for_sheet()`.
 4. Bulk overwrite each tab in this order:
-   - System Options → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Comic → **Watch Order List** → **Watch Order Item** → **Media Relation** → **Quote** → **Meme** → **Note**
+   - **System Options** → **System Option Scope** → **Person** → **Person Role** → **Studio** → System Configs → Seasonal → **Collection** → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Comic → **Watch Order List** → **Watch Order Section** → **Watch Order Item** → **Media Relation** → **Plan Next** → **Quote** → **Meme** → **Note**
    - Collection is written before Franchise because `franchise.collection_id` references it.
-   - The two Watch Order tabs are written last: their items point at rows in every media tab above, so dumping them afterwards keeps the sheet in the same order Pull restores it.
+   - Person and Studio are written alongside the other entity/profile tabs at the top, not beside the media tabs they are credited on — Pull restores them before any entry tab so a credit resolves against a `person_id`/`studio_id` that already exists. System Option Scope follows System Options for the same reason.
+   - The Watch Order tabs are written after every media tab: their items point at rows in every media tab above, so dumping them afterwards keeps the sheet in the same order Pull restores it.
 5. Log result to `DataControlLog`.
 
-Tab names match model table names. Column order in the sheet is guaranteed to match DB schema order (see `format_model_for_sheet`).
+Tab names match model table names, **except** the 8 entry tabs (Anime
+through Comic), which each append their `media_credit`/`media_tag` link
+values as extra columns after the plain model columns — see
+`sheet_link_headers`/`sheet_link_values` in
+`app/services/domain/credits.py`, and `docs/integrations.md` for what that
+means for existing spreadsheet formulas. Column order for the plain columns
+is otherwise guaranteed to match DB schema order (see `format_model_for_sheet`).
+
+**Important operational note:** the live spreadsheet's `System Options` tab
+still carries the *old* `id | category | option_value` headers from before
+this redesign. **Backup must be run before Pull** — Backup rewrites every
+tab's headers from the current models first; a Pull against the stale
+headers would import rows carrying only `category` and silently drop
+`value`/`sort_order`/`remark`. See `docs/integrations.md`.
 
 **Note:** `None`, `bool`, and `datetime` values must be converted to sheet-compatible format before writing.
 
@@ -427,7 +441,17 @@ nothing for a bulk pass to do, and comic is not part of `execute_replace_all`.
 
 #### Pull All — `execute_pull_all(db, action_type="Manual")`
 
-Pulls all tabs in strict dependency order: **System Options → System Configs → Collection → Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons → Manga → Novel → Comic → Watch Order List → Watch Order Item → Media Relation → Quote → Meme → Note → Seasonal**. This order is required to satisfy foreign key constraints — Collection precedes Franchise because `franchise.collection_id` points at it.
+Pulls all tabs in strict dependency order: **System Options → System Option
+Scope → Person → Person Role → Studio → System Configs → Collection →
+Franchise → Series → Anime → Anime Movies → Movies → TV Shows → Cartoons →
+Manga → Novel → Comic → Watch Order List → Watch Order Section → Watch Order
+Item → Media Relation → Plan Next → Quote → Meme → Note → Seasonal**. This
+order is required to satisfy foreign key constraints — Collection precedes
+Franchise because `franchise.collection_id` points at it; **Person and
+Studio restore before every media tab** because a credit resolves against a
+`person_id`/`studio_id` that must already exist, and System Option Scope /
+Person Role restore right after the tables they point at (System Options /
+Person, respectively).
 
 **Collection FK resolution differs deliberately.** Like `franchise_id`/`series_id`, a `collection_id` cell may hold either a UUID or a collection *name*. But where an unresolvable franchise or series name causes the whole row to be **skipped**, an unresolvable collection name only sets `collection_id = NULL` and logs a warning — the franchise still imports. Collection is an optional tier, so an unknown umbrella name must never drop an otherwise valid franchise.
 
@@ -439,7 +463,7 @@ A **blank cell is not** an absent column: the column is present, parses to `None
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Comic"`, `"Watch Order List"`, `"Watch Order Item"`, `"Media Relation"`, `"Quote"`, `"Meme"`, `"Note"`, `"Seasonal"`, `"System Options"`, `"System Configs"`.
+Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Comic"`, `"Watch Order List"`, `"Watch Order Item"`, `"Media Relation"`, `"Quote"`, `"Meme"`, `"Note"`, `"Seasonal"`, `"System Options"`, `"System Option Scope"`, `"Person"`, `"Person Role"`, `"Studio"`, `"System Configs"`.
 
 **Steps:**
 
@@ -449,12 +473,18 @@ Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`,
    - Apply tab-specific parser to get typed dict.
    - **Drop keys the sheet header did not have** (see the inert-pull safeguard above).
    - Resolve string foreign keys: if `franchise_id` or `series_id` is a string name (not a valid UUID), look up by name fields in DB. Skip row if not found.
-   - **Smart PK logic**: if `pk_value` is empty, search by name fields to find an existing record (prevents duplicates on re-import).
+   - **Smart PK logic**: if `pk_value` is empty, search by name fields to find an existing record (prevents duplicates on re-import). The PK field is `id` for `System Configs`, `Person Role` and `System Option Scope` (autoincrement integer PKs); `seasonal` for `Seasonal`; `system_id` for every other tab, `System Options` included — its `id` integer PK was reshaped onto a UUID `system_id` and the old `id` column was dropped outright.
    - Look up the target row by PK to decide UPDATE vs INSERT.
    - **INSERT only**, sanitize the non-nullable columns (Anime `watching_status`/`airing_status`/`airing_type`, the `Might Watch`/`Might Read` statuses, `created_at`/`updated_at`). These defaults exist to make an INSERT valid; applying them on UPDATE would overwrite a good DB value with a default whenever the sheet omits the column.
+   - For every entry tab (Anime through Comic), the credit/tag columns at the end of the row (`studio`, `director`, `genre_main`, ...) are popped out under their legacy header names *before* the plain-column parse, then applied afterward via `replace_credits`/`replace_tags` once the row has a real `entry_id` to point at.
    - Update existing record if found; otherwise create new.
    - Flush every 50 rows so the DB generates new UUIDs.
-3. Commit batch. Reset `system_options` sequence after import.
+3. Commit batch. Reset the `system_configs` sequence after import (`System
+   Configs` tab only). `system_options`' reset was deliberately deleted when
+   its key became a UUID with a Python-side default, since a UUID PK has no
+   sequence to resync. `Person Role` and `System Option Scope` are in the
+   same position as `system_configs` — integer autoincrement PKs — but are
+   **not currently reset**, unlike `system_configs`.
 
 **Returns:** `{status, processed, rows_added, rows_updated}`
 
@@ -591,45 +621,55 @@ Calls `derive_ep_previous_all_anime(db)`. Was `run_derive_related`.
 
 1. `create_missing_seasonal`
 2. `sync_seasonal_counts`
-3. `extract_system_options_from_anime`
+3. `extract_system_options`
 
 ---
 
 ### Sync — `run_sync_anime_movie(db)`
 
-1. `extract_system_options_from_anime_movie`
+1. `extract_system_options`
 
 ---
 
 ### Sync — `run_sync_tv_show(db)`
 
-1. `extract_system_options_from_tv_show`
+1. `extract_system_options`
 
 ---
 
 ### Sync — `run_sync_cartoon(db)`
 
-1. `extract_system_options_from_cartoon`
+1. `extract_system_options`
 
 ---
 
 ### Sync — `run_sync_manga(db)`
 
-1. `extract_system_options_from_manga`
+1. `extract_system_options`
 
 ---
 
 ### Sync — `run_sync_novel(db)`
 
-1. `extract_system_options_from_novel`
+1. `extract_system_options`
 
 ---
 
 ### Sync — `run_sync_comic(db)`
 
-1. `extract_system_options_from_comic`
+1. `extract_system_options`
 
 ---
+
+**The six per-media-type `extract_system_options_from_*` functions were
+retired.** They are replaced by one `extract_system_options(db)`
+(`app/services/domain/options_extraction.py`) that every `run_sync_*` wrapper
+still calls individually — not type-filtered, since `media_tag` already
+carries the media type on each row, but kept as a per-wrapper call rather
+than collapsed into one top-level call because Fill and Replace invoke these
+wrappers per-entry, never the aggregate `run_sync()`. See
+[Extract System Options](#extract-system-options) below for what it actually
+does now.
 
 ### Sync — `run_sync_size_groups(db)` (`derive_size_groups`)
 
@@ -871,9 +911,33 @@ All use a **union-find** algorithm with transitive closure (A=B, B=C collapses t
 | `find_duplicate_manga`          | Same `(franchise_id, series_id, is_main)` + at least one matching manga name                                 |
 | `find_duplicate_novel`          | Same `(franchise_id, series_id, is_main, type)` + at least one matching novel name                           |
 | `find_duplicate_comic`          | Same `(franchise_id, series_id, is_main_entry)` + either a matching comic name **or** the same `comicvine_id` |
-| `find_duplicate_system_options` | Same `category` + same `option_value` (case-insensitive)                                                     |
+| `find_duplicate_system_options` | Same `category` + same `value` (case-insensitive) — case-insensitivity still catches what the exact-match `uq_system_option_value` UNIQUE constraint cannot (e.g. `"Netflix"` vs `"netflix"`) |
+| `find_duplicate_entities`       | **New.** People and studios whose `name_native`/`name_en` collapse to the same `normalize_name` key — see below |
 
-`find_all_duplicates` runs all of them: returns `{franchise, series, anime, anime_movie, movie, tv_show, cartoon, manga, novel, comic, system_options}`.
+`find_all_duplicates` runs all of them: returns `{franchise, series, anime,
+anime_movie, movie, tv_show, cartoon, manga, novel, comic, system_options,
+entities}`.
+
+#### Find Duplicate Entities — `find_duplicate_entities(db)`
+
+The duplicate-people/studio check the options redesign added: names that
+collapse to one `normalize_name` key (folding width/case/whitespace), the
+posture the spec calls for since `resolve_person`/`resolve_studio` would
+otherwise create a second row for a spelling variant (`新海誠` vs `新海 誠`).
+
+Groups on **both** `name_native` and `name_en`, not `name_native` alone,
+because `_find_by_name` (in `app/services/domain/credits.py`) looks a new
+credit up by whichever of the two fields matches — two rows that only
+collide on `name_en` are just as ambiguous to future credit resolution as
+two that collide on `name_native`. Union-find gives the transitive closure
+across both fields. A person and a studio sharing a name are never grouped
+together — `person` and `studio` are scanned independently.
+
+Each result is `{kind: "person"|"studio", key, ids: [...], names: [...]}`.
+Deleting one of a pair cascades its `media_credit` rows away, which is the
+wrong fix for a duplicate — the correct fix is `POST /api/person/{id}/merge`
+or `POST /api/studio/{id}/merge` (see `docs/api.md`), which repoints the
+credits onto the survivor before deleting the loser.
 
 Comic is the only table whose key has an ID arm. Marvel volume titles collide
 constantly — "Avengers" names dozens of distinct runs — so a shared name is weak
@@ -1495,46 +1559,101 @@ Recomputes `entry_planned`, `entry_completed`, `entry_watching`, `entry_dropped`
 
 ---
 
-### Extract System Options from Anime — `extract_system_options_from_anime(db)`
+### Extract System Options — `extract_system_options(db)`
 
-Scans all Anime entries for values in: `genre_main`, `genre_sub`, `studio`, `distributor_tw`, `director`, `producer`, `music`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
+**Rewritten, not extended, by the options redesign.** Before, this was six
+near-identical functions — one per media type, each with its own
+hand-maintained category map — and two of those maps disagreed with the
+frontend about a category name (`"TV Official Source"` written vs
+`"TV Show Official Source"` displayed), so extracted values landed in a
+category no dropdown read. That class of drift cannot recur now: there is one
+map (`credit_roles.TAG_FIELDS`) and one pass over it.
 
----
+Since `media_tag.option_id` is a real foreign key, a tag row can never name a
+`system_option` value that does not exist — that invariant is now enforced by
+the schema, not by this pass. What `extract_system_options` still does is
+walk every `media_tag` row and make sure the `system_option` it points at
+carries a `system_option_scope` row for that tag's `media_type`, so a scoped
+dropdown (`?scope=`) offers a value that is actually in use on that media
+type. It is not type-filtered — it scans every `media_tag` row regardless of
+which `run_sync_*` wrapper called it.
 
-### Extract System Options from Anime Movie — `extract_system_options_from_anime_movie(db)`
-
-Scans all Anime Movie entries for values in: `studio` and `director`. Values are comma-split. Any value not already in `system_options` for that category is added automatically.
-
----
-
-### Extract System Options from TV Show — `extract_system_options_from_tv_show(db)`
-
-Scans all TV Show entries for values in: `source_official`. Any value not already in `system_options` for that category is added automatically.
-
----
-
-### Extract System Options from Manga — `extract_system_options_from_manga(db)`
-
-Scans all Manga entries and creates any missing system options entries for relevant category fields.
-
----
-
-### Extract System Options from Novel — `extract_system_options_from_novel(db)`
-
-Scans all Novel entries and creates any missing system options entries for relevant category fields.
+The **creation** side of the old extractors — finding a new name on an entry
+and inserting a missing option/person/studio row — moved to
+`app/services/domain/credits.py`: `resolve_person`, `resolve_studio` and
+`resolve_option` are the find-or-create used by the one-time backfill, the
+`/api/credits` PUT, and Fill/Pull whenever they write a `media_credit` /
+`media_tag` row.
 
 ---
 
-### Extract System Options from Comic — `extract_system_options_from_comic(db)`
+### One-Time Backfill — `backfill_credits(db)`
 
-Scans all Comic entries for values in `publisher`, `imprint`, `continuity`,
-`era`, `events`, `writer`, `artist` and `publisher_tw`, and creates any
-missing `system_options` entries. `events` is comma-joined (same idiom as
-`franchise.franchise_type`), so it is split per value before comparing.
-Maps to categories `Comic Publisher`, `Comic Imprint`, `Comic Continuity`,
-`Comic Era`, `Comic Event`, `Comic Writer`, `Comic Artist`, and the existing
-`Distributor TW` category (for `publisher_tw`, reused rather than a new
-Comic-specific category).
+Fills `media_credit` and `media_tag` from the 22 legacy comma-joined string
+columns (`BACKFILL_MAP` in `app/services/domain/credits.py`), and is what the
+migration actually runs. Lives in application code rather than inside the
+Alembic revision so it can be exercised by the normal test fixtures and
+re-run by hand if a Sheets restore ever brings old data back.
+
+For each `(media_type, column, kind, key)` in `BACKFILL_MAP` and each entry
+with a non-empty value in that column: split on comma, trim, and call
+`replace_credits`/`replace_tags` (which themselves call `resolve_person` /
+`resolve_studio` / `resolve_option` to find-or-create the target row) with
+`position` taken from the comma order. **Idempotent** — `replace_*` is a
+whole-set replace, so re-running rewrites the same rows rather than
+duplicating them.
+
+`manga.anime_studio` is deliberately absent from `BACKFILL_MAP` — it points
+at the adaptation's studio, not a credit of the manga; see the design spec's
+Out of Scope section.
+
+**Nothing is guessed.** An empty fragment after trimming a raw value (a
+double comma, a trailing comma) is logged to the `unplaced` list with the
+owner's `entry_id`, `column` and the original raw string, for manual
+placement — the same posture `note_backfill_rows` took with 回顧/其他.
+Spelling variants (`新海誠` vs `新海 誠`) are **not** caught here; they
+produce two separate `person`/`studio` rows on purpose, and are what
+`find_duplicate_entities` (see above) exists to surface for a manual merge.
+
+Returns `{credits, tags, people, studios, options, unplaced}` — running
+totals plus the unplaced list.
+
+### Verify Backfill Lossless — `verify_backfill_lossless(db)`
+
+Proves the link tables already hold every name a legacy column had, before
+the column-drop migration removes it for good. For each `(media_type,
+column)` still physically present (checked via `information_schema`, not the
+ORM, since the column-drop migration and this check land in the same
+commit — see the function's docstring for why the ORM model can't be trusted
+here): read the column's raw values directly, rebuild what the link tables
+say via `credit_names`/`tag_values`, and compare as sets of normalized names.
+Extra names on the link side are fine (a rerun, a manual addition); only a
+name the legacy column had that the link tables are missing counts as a
+mismatch — the one case where dropping the column would lose data. Returns
+`{checked, mismatches}`; an empty `mismatches` list means the drop is
+provably lossless.
+
+---
+
+### Merge — `POST /api/person/{id}/merge` / `POST /api/studio/{id}/merge`
+
+The fix for a duplicate `person`/`studio` row (the pairs `find_duplicate_entities`
+surfaces). Deleting is the **wrong** fix — `MediaCredit.person_id` /
+`.studio_id` cascade on delete, so deleting a duplicate would silently drop
+its credit history. Merge instead:
+
+1. Reject merging a row into itself (400).
+2. For every `media_credit` currently on the row being kept, record its
+   `(media_type, entry_id, role)` key.
+3. For every `media_credit` on the row being dropped (`source_id`): if its
+   `(media_type, entry_id, role)` is already held by the survivor, delete it
+   (the survivor already has an equivalent credit — keeping both would
+   violate `uq_media_credit_row`); otherwise repoint it onto the survivor.
+4. **Person only:** union the `person_role` rows — every `(role, scope)` the
+   dropped person held that the survivor doesn't gets added to the survivor.
+5. Delete the dropped row.
+
+Returns `{status: "success", credits_moved: <count>}`.
 
 ---
 

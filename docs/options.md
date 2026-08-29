@@ -6,7 +6,8 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 
 ## Table of Contents
 
-- [System Options Categories](#system-options-categories)
+- [The Three Tiers](#the-three-tiers)
+- [Value Discrepancies (Preserved, Not Resolved)](#value-discrepancies-preserved-not-resolved)
 - [Watching Status](#watching-status)
 - [Watching Status Filter Options](#watching-status-filter-options)
 - [Reading Status](#reading-status)
@@ -20,47 +21,151 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 - [Seiyuu Status](#seiyuu-status)
 - [Movie Type](#movie-type)
 - [Comic Type](#comic-type)
+- [Main / Spinoff](#main--spinoff)
 - [Region (TV Show)](#region-tv-show)
 - [Region (Manga)](#region-manga)
 - [Serialization Status](#serialization-status)
 - [Watch Order Step Importance](#watch-order-step-importance)
+- [Media Relation Kinds](#media-relation-kinds)
 - [Size Groups](#size-groups)
 - [Note Section Kinds](#note-section-kinds)
+- [Became Entities (Tier 3)](#became-entities-tier-3)
 - [Franchise — Special Entries](#franchise--special-entries)
+- [Franchise for Filter — Example Values](#franchise-for-filter--example-values)
 - [Fields to Fill by Entry Type](#fields-to-fill-by-entry-type)
 
 ---
 
-## System Options Categories
+## The Three Tiers
 
-These categories are stored in the `system_options` table and power dynamic dropdowns in the frontend. Values are user-managed via the admin Options page and auto-extracted from anime entries by `extract_system_options`.
+Every dynamic choice list used to be one row in a single `system_options`
+table — a dropdown suggestion list, not a constraint. The 2026-08-29 options
+redesign replaced it with three homes, sorted by one question: **does code
+branch on the exact value?**
 
-| Category                     | Notes                          |
-| ---------------------------- | ------------------------------ |
-| `Studio`                     |                                |
-| `Distributor TW`             |                                |
-| `Director`                   | referring to director in anime |
-| `Producer`                   |                                |
-| `Music / Composer`           |                                |
-| `Manga Author`               |                                |
-| `Genre Main`                 |                                |
-| `Genre Sub`                  |                                |
-| `TV Show Official Source`    |                                |
-| `Cartoon Official Source`    |                                |
-| `Movie Franchise for Filter` |                                |
-| `Main / Spinoff`             |                                |
-| `Dub Preference`             |                                |
-| `Comic Publisher`            |                                |
-| `Comic Imprint`               |                                |
-| `Comic Continuity`            |                                |
-| `Comic Era`                    |                                |
-| `Comic Event`                  |                                |
-| `Comic Writer`                 |                                |
-| `Comic Artist`                 |                                |
+### Tier 1 — Closed enums (code, not database)
 
-Comic also reuses the existing `Distributor TW` category above (mapped to
-`comic.publisher_tw`), and reuses the Reading Status and Serialization Status
-option lists below rather than defining its own.
+Values the business logic compares against. `Not Yet Aired` makes Fill skip
+`mal_rating`/`mal_rank`; the watching-status filter groups `Completed` with
+`Completed (解說)`; `完結` gates the novel volume/chapter checks. If an admin
+could rename or delete these, logic would break silently and no migration
+would catch it.
+
+**They are Python constants in `app/utils/constants.py`, served read-only by
+`GET /api/constants`** (see `docs/api.md`) so the frontend stops keeping a
+second copy of each list. This document remains their canonical reference —
+every section below a Tier 1 enum documents its real, current values.
+
+| Enum | Note |
+|---|---|
+| Watching Status / Reading Status | |
+| Airing Status | |
+| Airing Type (anime, cartoon) | |
+| Franchise Type | |
+| My Rating | Reused by `person.my_rating` and `studio.my_rating` |
+| Franchise Expectation | |
+| Movie Type | |
+| Serialization Status | Manga and Novel now have **separate** value lists — see below |
+| Music Status / Seiyuu Status | |
+| Day of Week | |
+| Watch Order Step Importance | |
+| Note Section Kinds | |
+| Media Relation Kinds | Already code-side in `app/utils/relation_kinds.py` |
+| **Main / Spinoff** | Moved here from `system_options` |
+| **Region** (TV Show, Manga) | Moved here from `system_options` |
+
+`Dub Preference` is **dropped entirely** — it was used nowhere (no service,
+no form, no column ever read it) and existed only in this document. It is
+not in `system_options`, not a Tier 1 constant, and not a column anywhere.
+
+### Tier 2 — Open vocabularies (`system_option`)
+
+Values only humans read. Nothing in the code compares against them, so they
+are safe to add, rename and reorder at will. They live in the `system_option`
+/ `system_option_scope` tables — see `docs/database-schema.md`.
+
+Old per-consumer duplication (`TV Show Official Source` / `Cartoon Official
+Source`, `Region (TV Show)` / `Region (Manga)`, TW distributors split three
+ways) is replaced by **one vocabulary per category, with each value carrying
+the scopes it is offered in**. A value with no scope rows is offered
+everywhere. A dropdown asks the `/api/options` endpoint for
+`?category=Official Source&scope=cartoon`; a `resolve_option()` write (Fill,
+Pull, the Add/Modify forms' create-if-missing) records the scope it was used
+in.
+
+| Category | Scopes | Replaces |
+|---|---|---|
+| `Genre Main` | — (anime only field) | `Genre Main` |
+| `Genre Sub` | — (anime only field) | `Genre Sub` |
+| `Official Source` | `tv-show`, `cartoon`, `movie` | `TV Show Official Source` + `Cartoon Official Source` + the mismatched `TV Official Source` the code actually wrote — all one vocabulary now |
+| `Franchise for Filter` | `movie`, `tv-show` | `Movie Franchise for Filter` + a TV show equivalent |
+| `Publisher / Distributor TW` | `anime`, `manga`, `novel`, `comic` | `Distributor TW` + `Manga Publisher TW` + `Novel Publisher TW` |
+| `Comic Publisher` | `comic` | `Comic Publisher` |
+| `Comic Imprint` | `comic` | `Comic Imprint` |
+| `Comic Continuity` | `comic` | `Comic Continuity` |
+| `Comic Era` | `comic` | `Comic Era` |
+| `Comic Event` | `comic` | `Comic Event` |
+
+**`Franchise for Filter` has no frontend consumer today** — same gap the old
+`Movie Franchise for Filter` / TV show equivalent had (nothing in
+`fieldMeta.js` reads it). It exists as a vocabulary and is filter-only (see
+`FILTER_ONLY_CATEGORIES` in `app/utils/credit_roles.py`), not a
+`media_tag`-backed entry field.
+
+Comic Era, Continuity and Event carry more structure in principle (a date
+range, an ordering) but are treated as plain vocabularies for now. If they
+earn columns later they graduate to Tier 3 the way `person`/`studio` did.
+
+### Tier 3 — Entities (`person`, `studio`)
+
+Categories that named a person or a studio became real entity tables instead
+of vocabulary rows — directors and seiyuu need multilingual names, a rating,
+a photo and a remark; a flat `(category, value)` string could not hold any
+of it. See [Became Entities](#became-entities-tier-3) below for the mapping
+from old category to new role, and `docs/database-schema.md` for the
+`person` / `person_role` / `studio` / `media_credit` schema.
+
+**`character` and `character_voice` were designed but not built.** The
+design spec lays out both tables (franchise-scoped cast profiles, and
+seiyuu casting with a language dimension for dubs), but neither exists yet —
+they touch no existing column and are deferred to a follow-up spec.
+`anime.seiyuu` is unrelated either way: it always was, and still is, a
+`Need`/`Done` status column tracking whether the seiyuu work has been done
+for an entry, never a cast list.
+
+---
+
+## Value Discrepancies (Preserved, Not Resolved)
+
+The redesign's plan forbade changing any enum's values while moving it
+between homes, so a few disagreements already present in the code were
+carried over rather than silently "fixed" by picking a side. Two of them are
+genuine two-sided splits — the app itself is inconsistent — and are recorded
+here rather than resolved:
+
+- **`franchise_type`.** `app/utils/constants.py`'s `FranchiseType` Enum class
+  has `Anime` and lacks `Anime Movie`. The `FRANCHISE_TYPES` tuple —
+  what `GET /api/constants` actually serves, because it matches what the
+  frontend dropdown shows — has `Anime Movie` and lacks `Anime`. Both
+  include `ACG`. See the [Franchise Type](#franchise-type) table below for
+  the tuple's real values; the `Enum` class stays backend-internal.
+- **`anime_airing_type`.** `AnimeAiringType` (the Enum class) has six values
+  (`TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie`); `ANIME_AIRING_TYPES` (what
+  `/api/constants` serves) carries a trailing `Other` the Enum class lacks.
+
+Two more were simple documentation gaps — a single ground truth in code that
+this file had drifted from — and **are** fixed below to match the code:
+
+- **Serialization Status.** This file previously listed one shared 5-value
+  table (including `未出`, labelled "novel only"). In code, Manga and Novel
+  have always had **separate, different-length** tuples:
+  `MANGA_SERIALIZATION_STATUSES` (4 values, no `未出`) and
+  `NOVEL_SERIALIZATION_STATUSES` (8 values). See the
+  [Serialization Status](#serialization-status) section below, now split in
+  two.
+- **Franchise Expectation.** `FRANCHISE_EXPECTATIONS` in code has always
+  included `Highest` above `High`/`Medium`/`Low`; this file listed only the
+  three lower values. See the updated table below.
 
 ---
 
@@ -132,7 +237,7 @@ Field: `anime.airing_type` — Default: `null`
 | `OVA`     |         |
 | `OAD`     |         |
 | `Special` |         |
-| `Other`   |         |
+| `Other`   | Served by `/api/constants` (`ANIME_AIRING_TYPES`); absent from the `AnimeAiringType` Enum class — see [Value Discrepancies](#value-discrepancies-preserved-not-resolved) |
 
 ---
 
@@ -167,7 +272,10 @@ Field: `anime.airing_status` — Default: `Not Yet Aired`
 
 Fields: `anime.broadcast_day`, `anime.my_watch_day` — Default: `null`
 
-Stored as plain strings; the closed value list lives in `frontend/src/config/weekdays.js` (`WEEKDAYS`) and drives both dropdowns in the Anime Add/Modify forms. There is no backend enum or validator.
+Stored as plain strings; the closed value list lives in `WEEKDAYS`
+(`app/utils/constants.py`, served at `/api/constants` as `day_of_week`) and
+drives both dropdowns in the Anime Add/Modify forms. There is no backend
+enum or validator.
 
 | Value       | Default |
 | ----------- | ------- |
@@ -188,6 +296,12 @@ Related field `anime.broadcast_time` is a Postgres `TIME` column (no timezone), 
 
 Field: `franchise.franchise_type` — Default: `null`
 
+The values below are `FRANCHISE_TYPES` — what `/api/constants` actually
+serves and what the frontend dropdown shows. See
+[Value Discrepancies](#value-discrepancies-preserved-not-resolved): the
+backend-internal `FranchiseType` Enum class differs (`Anime` instead of
+`Anime Movie`).
+
 | Value         | Default |
 | ------------- | ------- |
 | `null`        | Yes     |
@@ -203,7 +317,10 @@ Field: `franchise.franchise_type` — Default: `null`
 
 ## My Rating
 
-Field: `anime.my_rating`, `franchise.my_rating`, `seasonal.my_rating` — Default: `null`
+Field: `anime.my_rating`, `franchise.my_rating`, `seasonal.my_rating`,
+**`person.my_rating`, `studio.my_rating`** — Default: `null`
+
+The Tier 3 entity tables reuse this same enum rather than defining their own.
 
 | Value  | Default |
 | ------ | ------- |
@@ -223,11 +340,16 @@ Field: `anime.my_rating`, `franchise.my_rating`, `seasonal.my_rating` — Defaul
 
 Field: `franchise.franchise_expectation` — Default: `Low`
 
-| Value    | Default |
-| -------- | ------- |
-| `Low`    | Yes     |
-| `Medium` |         |
-| `High`   |         |
+`FRANCHISE_EXPECTATIONS` in code has always included `Highest`; this table
+previously omitted it — see
+[Value Discrepancies](#value-discrepancies-preserved-not-resolved).
+
+| Value     | Default |
+| --------- | ------- |
+| `Highest` |         |
+| `High`    |         |
+| `Medium`  |         |
+| `Low`     | Yes     |
 
 ---
 
@@ -254,6 +376,12 @@ values. `note.status` exists for this dropdown alone.
 ## Seiyuu Status
 
 Field: `anime.seiyuu` — Default: `null`
+
+**Untouched by the options redesign.** This is a `Need`/`Done` status column
+tracking whether the seiyuu casting work has been done for an entry — not a
+cast list, and not related to the `seiyuu` `person_role` / `media_credit`
+concept the redesign did not build (see
+[Became Entities](#became-entities-tier-3)).
 
 | Value  | Default |
 | ------ | ------- |
@@ -289,9 +417,35 @@ Field: `comic.comic_type` — Default: `null`
 
 ---
 
+## Main / Spinoff
+
+Fields: `anime.is_main`, `movies.is_main`, `tv_shows.is_main`,
+`cartoons.is_main`, `manga.is_main`, `novel.is_main` — Default: `null`
+
+**Moved into Tier 1** from the old `Main / Spinoff` `system_options`
+category — code elsewhere (duplicate detection, listing display) treats this
+as a closed set, so it now lives in `IS_MAIN` (`app/utils/constants.py`,
+served at `/api/constants` as `is_main`) rather than an editable vocabulary.
+`comic.is_main_entry` is a separate `Boolean` column, not this string enum.
+
+| Value    | Default |
+| -------- | ------- |
+| `null`   | Yes     |
+| `本傳`   |         |
+| `外傳`   |         |
+| `前傳`   |         |
+| `後傳`   |         |
+| `總集篇` |         |
+
+---
+
 ## Region (TV Show)
 
-Field: `region` for TV show entries _(future)_ — Default: `null`
+Field: `tv_shows.region` — Default: `null`
+
+**Moved into Tier 1** from the old `system_options` category of the same
+name — now `TV_REGIONS` in `app/utils/constants.py`, served at
+`/api/constants` as `tv_region`.
 
 | Value    | Default |
 | -------- | ------- |
@@ -307,7 +461,11 @@ Field: `region` for TV show entries _(future)_ — Default: `null`
 
 ## Region (Manga)
 
-Field: `region` for manga entries _(future)_ — Default: `null`
+Field: `manga.region` — Default: `null`
+
+**Moved into Tier 1** from the old `system_options` category of the same
+name — now `MANGA_REGIONS` in `app/utils/constants.py`, served at
+`/api/constants` as `manga_region`.
 
 | Value  | Default |
 | ------ | ------- |
@@ -318,20 +476,50 @@ Field: `region` for manga entries _(future)_ — Default: `null`
 | `台漫` |         |
 | `其他` |         |
 
+`novel.region` has its own tuple, `NOVEL_REGIONS` (`"JP"`, `"CN"`, `"TW"`,
+`"KR"`, `"Western"`, served as `novel_region`) — it was never a
+`system_options` category and so was not part of this move; it is documented
+under the `novel` table in `docs/database-schema.md`.
+
 ---
 
 ## Serialization Status
 
-Field: `serialization_status` _(future)_ — Default: `null`
+Manga and Novel have **separate, different-length** value lists — a single
+shared table here previously undercounted the Novel side; see
+[Value Discrepancies](#value-discrepancies-preserved-not-resolved).
+
+### Manga
+
+Field: `manga.serialization_status` — Default: `null`. `MANGA_SERIALIZATION_STATUSES`.
 
 | Value    | Default | Notes                          |
-| -------- | ------- | ------------------------------ |
-| `null`   | Yes     |                                |
-| `連載中` |         | Currently serializing          |
-| `停更`   |         | On hiatus                      |
-| `腰斬`   |         | Cancelled / axed               |
-| `完結`   |         | Completed                      |
-| `未出`   |         | Not yet published (novel only) |
+| -------- | ------- | ------------------------------- |
+| `null`   | Yes     |                                 |
+| `連載中` |         | Currently serializing           |
+| `停更`   |         | On hiatus                       |
+| `腰斬`   |         | Cancelled / axed                |
+| `完結`   |         | Completed                       |
+
+### Novel
+
+Field: `novel.serialization_status` — Default: `null`. `NOVEL_SERIALIZATION_STATUSES`.
+
+| Value                  | Default | Notes                           |
+| ----------------------- | ------- | -------------------------------- |
+| `null`                  | Yes     |                                  |
+| `連載中`                |         | Currently serializing            |
+| `連載中 (不穩定)`       |         | Serializing, irregular schedule  |
+| `連載中 (有生之年)`     |         | Serializing, "in my lifetime" (very irregular) |
+| `停更`                  |         | On hiatus                        |
+| `完結`                  |         | Completed                        |
+| `腰斬`                  |         | Cancelled / axed                 |
+| `可能更多`               |         | Nominally complete but may continue |
+| `未出`                  |         | Not yet published                |
+
+`comic.serialization_status` reuses the Manga/Novel idiom but has no
+dedicated tuple of its own in `app/utils/constants.py` — see
+`docs/database-schema.md`.
 
 ---
 
@@ -346,7 +534,7 @@ instead coerces an unrecognized cell to `Normal`, so one bad cell cannot fail a
 whole restore.
 
 | Value         | Default | Notes                                                                      |
-| ------------- | ------- | -------------------------------------------------------------------------- |
+| ------------- | ------- | --------------------------------------------------------------------------- |
 | `Essential`   |         | Carries the story; the guide badges it and can show these alone            |
 | `Recommended` |         | Worth watching but not load-bearing; badged, and kept by "Hide optional"   |
 | `Normal`      | Yes     | An ordinary step — no badge                                                |
@@ -538,7 +726,7 @@ plays in that episode, so "which version" has no answer separate from the
 episode itself.
 
 | Value                   | Default | Notes                                    |
-| ----------------------- | ------- | ---------------------------------------- |
+| ----------------------- | ------- | ----------------------------------------- |
 | `normal`                | Yes     | The standard version                     |
 | `different version`     |         | A reworked cut of the same song          |
 | `all inclusive version` |         | The full version covering every variant  |
@@ -550,7 +738,7 @@ stored data distinguishes a great episode from a great moment inside one and a
 great arc across several, so these sections carry a dropdown.
 
 | Value    | Default | Notes                                  |
-| -------- | ------- | -------------------------------------- |
+| -------- | ------- | --------------------------------------- |
 | `神回`   |         | A standout single episode              |
 | `神片段` |         | A standout moment within an episode     |
 | `神篇章` |         | A standout arc spanning several episodes |
@@ -572,7 +760,37 @@ placement.
 
 ---
 
-## Special Franchises
+## Became Entities (Tier 3)
+
+These old `system_options` categories named a person or a studio and are now
+rows in the `person` / `studio` tables instead — see `docs/database-schema.md`
+for `person`, `person_role`, `studio` and `media_credit`, and
+`docs/api.md` for `/api/person` and `/api/studio`.
+
+| Old category(ies)                                       | New home                                                                 |
+| --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `Studio`                                                   | `studio` rows, credited via `media_credit` role `studio`                    |
+| `Director`                                                 | `person` rows holding `person_role` `director` (scoped `anime` / `non_anime`) |
+| `Producer`                                                  | `person` rows holding `person_role` `producer`                              |
+| `Music / Composer`                                          | `person` rows holding `person_role` `composer`                              |
+| `Manga Author`                                              | `person` rows holding `person_role` `manga_author` — two credit roles (`manga_author_plot` 原作, `manga_author_draw` 作画) can both imply it |
+| `Novel Author`                                              | `person` rows holding `person_role` `novel_author`                          |
+| `Novel Illustrator`                                         | `person` rows holding `person_role` `novel_illustrator`                     |
+| `Comic Writer`                                              | `person` rows holding `person_role` `comic_writer`                          |
+| `Comic Artist`                                              | `person` rows holding `person_role` `comic_artist`                          |
+
+**No role extension tables were built.** With `gender` living on the `person`
+base table (a fact about the person, not the role), no role has a column of
+its own today. If a role later earns several columns genuinely meaningless
+elsewhere (e.g. seiyuu gaining an agency and a debut year), a
+`person_seiyuu`-style extension table is added then.
+
+**`character` and `character_voice` were designed but not built** — see
+[Tier 3](#tier-3--entities-person-studio) above.
+
+---
+
+## Franchise — Special Entries
 
 Predefined franchise names used as grouping hubs within each `franchise_type`. These are not enum values — they are specific database entries.
 
@@ -611,16 +829,22 @@ Predefined franchise names used as grouping hubs within each `franchise_type`. T
 
 ---
 
-## Movie Franchise for Filter Options
+## Franchise for Filter — Example Values
+
+Seed values for the merged Tier 2 `Franchise for Filter` vocabulary (see
+[The Three Tiers](#the-three-tiers)), which replaces the old separate `Movie
+Franchise for Filter` / TV show equivalent lists below. As before, nothing in
+`fieldMeta.js` currently reads this category — it is filter-only and has no
+Add/Modify form field.
+
+### Movie (`scope=movie`)
 
 | 獨立電影 / 影集 |
 | Disney |
 | Marvel |
 | Christopher Nolan |
 
----
-
-## TV Show Franchise for Filter Options
+### TV Show (`scope=tv-show`)
 
 | 獨立電影 / 影集 |
 | Disney |
