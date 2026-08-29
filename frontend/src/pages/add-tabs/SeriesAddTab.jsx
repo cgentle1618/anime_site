@@ -114,21 +114,9 @@ export default function SeriesAddTab({
       {/*
         No Main Cover control here: a series that does not exist yet has no
         entries to choose from. It lives on the Modify tab only, exactly as
-        franchise does.
+        franchise does. To Rewatch is absent for the same reason - it targets
+        an entry group by system_id, which does not exist until save.
       */}
-      <Field label="To Rewatch">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!sf.to_rewatch}
-            onChange={(e) => us("to_rewatch", e.target.checked)}
-            className="w-4 h-4 rounded accent-brand"
-          />
-          <span className="text-sm font-medium text-gray-700">
-            Mark this series for rewatch
-          </span>
-        </label>
-      </Field>
       <Field label="Remark">
         <textarea
           className={inputCls}

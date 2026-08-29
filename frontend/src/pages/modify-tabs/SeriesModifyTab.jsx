@@ -11,6 +11,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
+import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
 
 function getEntryYear(e) {
@@ -41,10 +42,12 @@ export default function SeriesModifyTab({
 
   // ── plan-next: which media types this series is queued for ──────────────
   const [plannedTypes, setPlannedTypes] = useState(new Set());
+  const [rewatchMarked, setRewatchMarked] = useState(new Set());
 
   useEffect(() => {
     if (!seriesId) {
       setPlannedTypes(new Set());
+      setRewatchMarked(new Set());
       return;
     }
     let cancelled = false;
@@ -55,13 +58,25 @@ export default function SeriesModifyTab({
         setPlannedTypes(
           new Set(
             rows
-              .filter((r) => r.target_id === seriesId)
+              .filter(
+                (r) => r.target_id === seriesId && (r.kind ?? "next") === "next",
+              )
+              .map((r) => r.media_type),
+          ),
+        );
+        setRewatchMarked(
+          new Set(
+            rows
+              .filter((r) => r.target_id === seriesId && r.kind === "rewatch")
               .map((r) => r.media_type),
           ),
         );
       })
       .catch(() => {
-        if (!cancelled) setPlannedTypes(new Set());
+        if (!cancelled) {
+          setPlannedTypes(new Set());
+          setRewatchMarked(new Set());
+        }
       });
     return () => {
       cancelled = true;
@@ -76,7 +91,8 @@ export default function SeriesModifyTab({
   ).filter((mt) => scopesFor("next", mt).includes("series"));
   if (sizeGroupMediaTypes.length === 0) sizeGroupMediaTypes.push("anime");
 
-  async function handleTogglePlan(mediaType, next) {
+  // Shared by both plan kinds: only the kind and the target state Set differ.
+  async function handleTogglePlanKind(kind, mediaType, next) {
     if (!seriesId) return;
     try {
       if (next) {
@@ -87,6 +103,7 @@ export default function SeriesModifyTab({
           body: JSON.stringify({
             media_type: mediaType,
             scope: "series",
+            kind,
             target_id: seriesId,
           }),
         });
@@ -95,6 +112,7 @@ export default function SeriesModifyTab({
         const params = new URLSearchParams({
           scope: "series",
           media_type: mediaType,
+          kind,
           target_id: seriesId,
         });
         const res = await fetch(`/api/plan-next/target?${params}`, {
@@ -103,7 +121,8 @@ export default function SeriesModifyTab({
         });
         if (!res.ok && res.status !== 404) return;
       }
-      setPlannedTypes((prev) => {
+      const setter = kind === "rewatch" ? setRewatchMarked : setPlannedTypes;
+      setter((prev) => {
         const nextSet = new Set(prev);
         if (next) nextSet.add(mediaType);
         else nextSet.delete(mediaType);
@@ -113,6 +132,11 @@ export default function SeriesModifyTab({
       // Network error - leave the checkbox state untouched.
     }
   }
+
+  const handleTogglePlan = (mediaType, next) =>
+    handleTogglePlanKind("next", mediaType, next);
+  const handleRewatchToggle = (mediaType, next) =>
+    handleTogglePlanKind("rewatch", mediaType, next);
 
   function handleOverride(mediaType, key) {
     const nextManual = { ...(sf.size_group_manual || {}) };
@@ -149,6 +173,13 @@ export default function SeriesModifyTab({
       .filter((e) => e.series_id === seriesId)
       .map((e) => ({ ...e, _type: "comic" })),
   ].sort((a, b) => getEntryYear(b) - getEntryYear(a));
+
+  // Media types this series actually holds entries for, keyed the way
+  // scopesFor/PlanKindToggles expect. anime_movies is absent for the same
+  // reason it is absent from seriesEntries above.
+  const seriesMediaTypes = Array.from(
+    new Set(seriesEntries.map((e) => e._type)),
+  );
 
   function entryOptionLabel(e) {
     const name = getDisplayName(e, e._type);
@@ -285,18 +316,14 @@ export default function SeriesModifyTab({
           onOverride={handleOverride}
         />
       </Field>
-      <Field label="To Rewatch">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!sf.to_rewatch}
-            onChange={(e) => us("to_rewatch", e.target.checked)}
-            className="w-4 h-4 rounded accent-brand"
-          />
-          <span className="text-sm font-medium text-gray-700">
-            Mark this series for rewatch
-          </span>
-        </label>
+      <Field label={kindLabel("rewatch", seriesMediaTypes)}>
+        <PlanKindToggles
+          kind="rewatch"
+          scope="series"
+          mediaTypes={seriesMediaTypes}
+          marked={rewatchMarked}
+          onToggle={handleRewatchToggle}
+        />
       </Field>
       <Field label="Remark">
         <textarea

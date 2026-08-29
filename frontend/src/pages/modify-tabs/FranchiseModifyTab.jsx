@@ -11,6 +11,7 @@ import {
 import ComboBox from "../../components/forms/ComboBox";
 import { FRANCHISE_TYPES } from "../../config/fieldOptions";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
+import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
 
 const TYPE_TO_ENTRY_TYPES = {
@@ -51,10 +52,12 @@ export default function FranchiseModifyTab({
 
   // ── plan-next: which media types this franchise is queued for ───────────
   const [plannedTypes, setPlannedTypes] = useState(new Set());
+  const [rewatchMarked, setRewatchMarked] = useState(new Set());
 
   useEffect(() => {
     if (!franchiseId) {
       setPlannedTypes(new Set());
+      setRewatchMarked(new Set());
       return;
     }
     let cancelled = false;
@@ -65,13 +68,25 @@ export default function FranchiseModifyTab({
         setPlannedTypes(
           new Set(
             rows
-              .filter((r) => r.target_id === franchiseId)
+              .filter(
+                (r) => r.target_id === franchiseId && (r.kind ?? "next") === "next",
+              )
+              .map((r) => r.media_type),
+          ),
+        );
+        setRewatchMarked(
+          new Set(
+            rows
+              .filter((r) => r.target_id === franchiseId && r.kind === "rewatch")
               .map((r) => r.media_type),
           ),
         );
       })
       .catch(() => {
-        if (!cancelled) setPlannedTypes(new Set());
+        if (!cancelled) {
+          setPlannedTypes(new Set());
+          setRewatchMarked(new Set());
+        }
       });
     return () => {
       cancelled = true;
@@ -86,7 +101,8 @@ export default function FranchiseModifyTab({
   ).filter((mt) => scopesFor("next", mt).includes("franchise"));
   if (sizeGroupMediaTypes.length === 0) sizeGroupMediaTypes.push("anime");
 
-  async function handleTogglePlan(mediaType, next) {
+  // Shared by both plan kinds: only the kind and the target state Set differ.
+  async function handleTogglePlanKind(kind, mediaType, next) {
     if (!franchiseId) return;
     try {
       if (next) {
@@ -97,6 +113,7 @@ export default function FranchiseModifyTab({
           body: JSON.stringify({
             media_type: mediaType,
             scope: "franchise",
+            kind,
             target_id: franchiseId,
           }),
         });
@@ -105,6 +122,7 @@ export default function FranchiseModifyTab({
         const params = new URLSearchParams({
           scope: "franchise",
           media_type: mediaType,
+          kind,
           target_id: franchiseId,
         });
         const res = await fetch(`/api/plan-next/target?${params}`, {
@@ -113,7 +131,8 @@ export default function FranchiseModifyTab({
         });
         if (!res.ok && res.status !== 404) return;
       }
-      setPlannedTypes((prev) => {
+      const setter = kind === "rewatch" ? setRewatchMarked : setPlannedTypes;
+      setter((prev) => {
         const nextSet = new Set(prev);
         if (next) nextSet.add(mediaType);
         else nextSet.delete(mediaType);
@@ -123,6 +142,11 @@ export default function FranchiseModifyTab({
       // Network error - leave the checkbox state untouched.
     }
   }
+
+  const handleTogglePlan = (mediaType, next) =>
+    handleTogglePlanKind("next", mediaType, next);
+  const handleRewatchToggle = (mediaType, next) =>
+    handleTogglePlanKind("rewatch", mediaType, next);
 
   function handleOverride(mediaType, key) {
     const nextManual = { ...(ff.size_group_manual || {}) };
@@ -160,6 +184,17 @@ export default function FranchiseModifyTab({
       .filter((e) => e.franchise_id === franchiseId)
       .map((e) => ({ ...e, _type: "comic" })),
   ].sort((a, b) => getEntryYear(b) - getEntryYear(a));
+
+  // Media types this franchise actually holds entries for, keyed the way
+  // scopesFor/PlanKindToggles expect (hyphenated, not franchiseEntries'
+  // underscored "anime_movie" _type tag).
+  const franchiseMediaTypes = Array.from(
+    new Set(
+      franchiseEntries.map((e) =>
+        e._type === "anime_movie" ? "anime-movie" : e._type,
+      ),
+    ),
+  );
 
   const franchiseTypes = parseTypes(ff.franchise_type);
 
@@ -396,18 +431,14 @@ export default function FranchiseModifyTab({
           onOverride={handleOverride}
         />
       </Field>
-      <Field label="To Rewatch">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!ff.to_rewatch}
-            onChange={(e) => uf("to_rewatch", e.target.checked)}
-            className="w-4 h-4 rounded accent-brand"
-          />
-          <span className="text-sm font-medium text-gray-700">
-            Mark this franchise for rewatch
-          </span>
-        </label>
+      <Field label={kindLabel("rewatch", franchiseMediaTypes)}>
+        <PlanKindToggles
+          kind="rewatch"
+          scope="franchise"
+          mediaTypes={franchiseMediaTypes}
+          marked={rewatchMarked}
+          onToggle={handleRewatchToggle}
+        />
       </Field>
       <Field label="Remark">
         <textarea

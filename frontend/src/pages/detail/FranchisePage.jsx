@@ -37,6 +37,7 @@ import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
+import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
 
@@ -97,7 +98,7 @@ export default function FranchisePage() {
   const [rating, setRating] = useState("");
   const [expectation, setExpectation] = useState("");
   const [plannedTypes, setPlannedTypes] = useState(new Set());
-  const [toRewatch, setToRewatch] = useState(false);
+  const [rewatchMarked, setRewatchMarked] = useState(new Set());
   const [remark, setRemark] = useState("");
   const [showRemark, setShowRemark] = useState(false);
   const [remarkClipped, setRemarkClipped] = useState(false);
@@ -236,13 +237,26 @@ export default function FranchisePage() {
         setPlannedTypes(
           new Set(
             pn
-              .filter((row) => row.target_id === f.system_id)
+              .filter(
+                (row) =>
+                  row.target_id === f.system_id &&
+                  (row.kind ?? "next") === "next",
+              )
+              .map((row) => row.media_type),
+          ),
+        );
+        setRewatchMarked(
+          new Set(
+            pn
+              .filter(
+                (row) =>
+                  row.target_id === f.system_id && row.kind === "rewatch",
+              )
               .map((row) => row.media_type),
           ),
         );
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
-        setToRewatch(f.to_rewatch || false);
         setRemark(f.remark || "");
       } catch (e) {
         setError(e.message);
@@ -286,6 +300,31 @@ export default function FranchisePage() {
     );
     return filtered.length > 0 ? filtered : ["anime"];
   }, [franchise]);
+
+  // Media types this franchise actually holds entries for, driven by the
+  // per-type entry lists rather than franchise_type (which is multi-valued,
+  // bundles types together, and carries a legacy "Anime" value).
+  const franchiseMediaTypes = useMemo(() => {
+    const list = [];
+    if (animeList.length) list.push("anime");
+    if (animeMovieList.length) list.push("anime-movie");
+    if (movieList.length) list.push("movie");
+    if (tvShowList.length) list.push("tv-show");
+    if (cartoonList.length) list.push("cartoon");
+    if (mangaList.length) list.push("manga");
+    if (novelList.length) list.push("novel");
+    if (comicList.length) list.push("comic");
+    return list;
+  }, [
+    animeList,
+    animeMovieList,
+    movieList,
+    tvShowList,
+    cartoonList,
+    mangaList,
+    novelList,
+    comicList,
+  ]);
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below, because mixing the two in one
@@ -438,7 +477,9 @@ export default function FranchisePage() {
     }
   }
 
-  async function handleTogglePlan(mediaType, next) {
+  // Shared by both plan kinds at franchise scope: only the kind, the target
+  // state Set, and the resulting toast differ.
+  async function handleTogglePlanKind(kind, mediaType, next) {
     if (!franchise) return;
     try {
       if (next) {
@@ -449,6 +490,7 @@ export default function FranchisePage() {
           body: JSON.stringify({
             media_type: mediaType,
             scope: "franchise",
+            kind,
             target_id: franchise.system_id,
           }),
         });
@@ -457,6 +499,7 @@ export default function FranchisePage() {
         const params = new URLSearchParams({
           scope: "franchise",
           media_type: mediaType,
+          kind,
           target_id: franchise.system_id,
         });
         const res = await fetch(`/api/plan-next/target?${params}`, {
@@ -465,7 +508,8 @@ export default function FranchisePage() {
         });
         if (!res.ok && res.status !== 404) return;
       }
-      setPlannedTypes((prev) => {
+      const setter = kind === "rewatch" ? setRewatchMarked : setPlannedTypes;
+      setter((prev) => {
         const nextSet = new Set(prev);
         if (next) nextSet.add(mediaType);
         else nextSet.delete(mediaType);
@@ -475,6 +519,11 @@ export default function FranchisePage() {
       showToast("error", "Network error.");
     }
   }
+
+  const handleTogglePlan = (mediaType, next) =>
+    handleTogglePlanKind("next", mediaType, next);
+  const handleRewatchToggle = (mediaType, next) =>
+    handleTogglePlanKind("rewatch", mediaType, next);
 
   function handleOverride(mediaType, key) {
     const nextManual = { ...(franchise?.size_group_manual || {}) };
@@ -1187,11 +1236,15 @@ export default function FranchisePage() {
                   </span>
                 );
               })}
-              {hasACG && franchise.to_rewatch && (
-                <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-redo mr-1"></i>To Rewatch
+              {Array.from(rewatchMarked).map((mediaType) => (
+                <span
+                  key={`rewatch-${mediaType}`}
+                  className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                >
+                  <i className="fas fa-redo mr-1"></i>
+                  {kindLabel("rewatch", [mediaType])}: {mediaType.replace("-", " ")}
                 </span>
-              )}
+              ))}
               <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
                 {totalEntries} Total Entries
               </span>
@@ -1273,29 +1326,18 @@ export default function FranchisePage() {
                     onOverride={handleOverride}
                   />
                 </div>
-                {hasACG && (
-                  <>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                        To Rewatch
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={toRewatch}
-                          onChange={(e) => {
-                            setToRewatch(e.target.checked);
-                            saveField("to_rewatch", e.target.checked);
-                          }}
-                          className="w-4 h-4 rounded accent-brand"
-                        />
-                        <span className="text-xs font-medium text-gray-700">
-                          Mark for rewatch
-                        </span>
-                      </label>
-                    </div>
-                  </>
-                )}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                    {kindLabel("rewatch", franchiseMediaTypes)}
+                  </label>
+                  <PlanKindToggles
+                    kind="rewatch"
+                    scope="franchise"
+                    mediaTypes={franchiseMediaTypes}
+                    marked={rewatchMarked}
+                    onToggle={handleRewatchToggle}
+                  />
+                </div>
               </div>
             )}
           </div>

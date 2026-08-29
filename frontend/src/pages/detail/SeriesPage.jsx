@@ -35,6 +35,7 @@ import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import SeriesNotes from "./SeriesNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
+import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -98,7 +99,7 @@ export default function SeriesPage() {
   // ── admin editable ─────────────────────────────────────────────────────────
   const [rating, setRating] = useState("");
   const [expectation, setExpectation] = useState("");
-  const [toRewatch, setToRewatch] = useState(false);
+  const [rewatchMarked, setRewatchMarked] = useState(new Set());
   const [remark, setRemark] = useState("");
   const [showRemark, setShowRemark] = useState(false);
   const [remarkClipped, setRemarkClipped] = useState(false);
@@ -168,7 +169,7 @@ export default function SeriesPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes] =
+        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, pnRes] =
           await Promise.all([
           fetch(endpoints.resource("series").detail(system_id), {
             credentials: "include",
@@ -194,6 +195,9 @@ export default function SeriesPage() {
           fetch(buildUrl(endpoints.resource("comic").list(), { series_id: system_id }), {
             credentials: "include",
           }),
+          fetch("/api/plan-next/?scope=series&kind=rewatch", {
+            credentials: "include",
+          }),
         ]);
         if (!sRes.ok) throw new Error("Series not found");
         // The series itself is load-bearing, so a missing one still throws to
@@ -204,6 +208,7 @@ export default function SeriesPage() {
         const [a, m, tv, c, mg, nv, cm] = await Promise.all(
           [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes].map(asList),
         );
+        const pn = pnRes.ok ? await pnRes.json() : [];
         setSeries(s);
         setAnimeList(a);
         setMovieList(m);
@@ -212,9 +217,15 @@ export default function SeriesPage() {
         setMangaList(mg);
         setNovelList(nv);
         setComicList(cm);
+        setRewatchMarked(
+          new Set(
+            pn
+              .filter((row) => row.target_id === s.system_id)
+              .map((row) => row.media_type),
+          ),
+        );
         setRating(s.my_rating || "");
         setExpectation(s.series_expectation || "");
-        setToRewatch(s.to_rewatch || false);
         setRemark(s.remark || "");
       } catch (e) {
         setError(e.message);
@@ -224,6 +235,29 @@ export default function SeriesPage() {
     }
     load();
   }, [system_id]);
+
+  // Media types this series actually holds entries for. PlanKindToggles
+  // further filters this down to what rewatch allows at series scope (movie,
+  // tv-show, novel, comic - anime and cartoon rewatch at franchise scope only).
+  const seriesMediaTypes = useMemo(() => {
+    const list = [];
+    if (animeList.length) list.push("anime");
+    if (movieList.length) list.push("movie");
+    if (tvShowList.length) list.push("tv-show");
+    if (cartoonList.length) list.push("cartoon");
+    if (mangaList.length) list.push("manga");
+    if (novelList.length) list.push("novel");
+    if (comicList.length) list.push("comic");
+    return list;
+  }, [
+    animeList,
+    movieList,
+    tvShowList,
+    cartoonList,
+    mangaList,
+    novelList,
+    comicList,
+  ]);
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below. A series carries no type, so
@@ -335,6 +369,46 @@ export default function SeriesPage() {
     }
     setRemarkClipped(el.scrollHeight > el.clientHeight + 1);
   }, [remark, loading]);
+
+  async function handleRewatchToggle(mediaType, next) {
+    if (!series) return;
+    try {
+      if (next) {
+        const res = await fetch("/api/plan-next/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            media_type: mediaType,
+            scope: "series",
+            kind: "rewatch",
+            target_id: series.system_id,
+          }),
+        });
+        if (!res.ok && res.status !== 409) return;
+      } else {
+        const params = new URLSearchParams({
+          scope: "series",
+          media_type: mediaType,
+          kind: "rewatch",
+          target_id: series.system_id,
+        });
+        const res = await fetch(`/api/plan-next/target?${params}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok && res.status !== 404) return;
+      }
+      setRewatchMarked((prev) => {
+        const nextSet = new Set(prev);
+        if (next) nextSet.add(mediaType);
+        else nextSet.delete(mediaType);
+        return nextSet;
+      });
+    } catch {
+      showToast("error", "Network error.");
+    }
+  }
 
   async function saveField(field, value) {
     try {
@@ -845,11 +919,15 @@ export default function SeriesPage() {
                   {getDisplayName(parentFranchise, "franchise")}
                 </Link>
               )}
-              {series.to_rewatch && (
-                <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-redo mr-1"></i>To Rewatch
+              {Array.from(rewatchMarked).map((mediaType) => (
+                <span
+                  key={`rewatch-${mediaType}`}
+                  className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                >
+                  <i className="fas fa-redo mr-1"></i>
+                  {kindLabel("rewatch", [mediaType])}: {mediaType.replace("-", " ")}
                 </span>
-              )}
+              ))}
               <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
                 {totalEntries} Total Entries
               </span>
@@ -920,22 +998,15 @@ export default function SeriesPage() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                    To Rewatch
+                    {kindLabel("rewatch", seriesMediaTypes)}
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={toRewatch}
-                      onChange={(e) => {
-                        setToRewatch(e.target.checked);
-                        saveField("to_rewatch", e.target.checked);
-                      }}
-                      className="w-4 h-4 rounded accent-brand"
-                    />
-                    <span className="text-xs font-medium text-gray-700">
-                      Mark for rewatch
-                    </span>
-                  </label>
+                  <PlanKindToggles
+                    kind="rewatch"
+                    scope="series"
+                    mediaTypes={seriesMediaTypes}
+                    marked={rewatchMarked}
+                    onToggle={handleRewatchToggle}
+                  />
                 </div>
               </div>
             )}
