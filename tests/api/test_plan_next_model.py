@@ -12,9 +12,10 @@ from sqlalchemy.exc import IntegrityError
 from app import models
 
 
-def _row(scope, target_id, media_type="anime"):
+def _row(scope, target_id, media_type="anime", kind="next"):
     return models.PlanNext(
         system_id=uuid.uuid4(),
+        kind=kind,
         media_type=media_type,
         scope=scope,
         target_id=target_id,

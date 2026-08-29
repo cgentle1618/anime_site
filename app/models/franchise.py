@@ -63,7 +63,6 @@ class Franchise(Base, NameFallbackMixin):
     # manual edit. See app/services/domain/size_group.py.
     size_group_derived = Column(JSONB, nullable=True)
     size_group_manual = Column(JSONB, nullable=True)
-    to_rewatch = Column(Boolean, default=False, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
@@ -133,7 +132,6 @@ class Series(Base, NameFallbackMixin):
     # manual edit. See app/services/domain/size_group.py.
     size_group_derived = Column(JSONB, nullable=True)
     size_group_manual = Column(JSONB, nullable=True)
-    to_rewatch = Column(Boolean, default=False, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

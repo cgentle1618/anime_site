@@ -9,7 +9,9 @@ from app.database import Base, get_taipei_now
 
 class PlanNext(Base):
     """
-    One thing queued to watch or read next: an entry, a series, or a franchise.
+    One thing queued to watch/read next, or marked for rewatch/reread: an
+    entry, a series, or a franchise. The table holds both Plan-page queues,
+    distinguished by kind; the name predates the second one.
 
     The row's existence is the flag. There is no is_next column - un-planning
     deletes the row - so the table only ever holds what is actually queued.
@@ -36,21 +38,22 @@ class PlanNext(Base):
 
     __tablename__ = "plan_next"
     __table_args__ = (
-        # One row per planned thing per media type. Scoped by media_type rather
-        # than by target alone so a franchise holding both anime and TV show
-        # entries can be queued under each tab - rare, and a sign of messy data
-        # when it happens, but representable rather than silently collapsed.
+        # One row per marked thing per media type per kind. A franchise can be
+        # both queued and marked for rewatch, so kind joins the key.
         UniqueConstraint(
-            "scope", "target_id", "media_type", name="uq_plan_next_target"
+            "kind", "scope", "target_id", "media_type", name="uq_plan_next_target"
         ),
-        # The Plan page reads one tab at a time.
-        Index("ix_plan_next_type_scope", "media_type", "scope"),
+        # The Plan page reads one tab of one section at a time.
+        Index("ix_plan_next_kind_type_scope", "kind", "media_type", "scope"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
 
+    # "next" or "rewatch" - one of KINDS in app/utils/plan_next_kinds.py.
+    # The table holds both Plan-page queues; the name predates the second one.
+    kind = Column(String, nullable=False)
     # Hyphenated key from MEDIA_TABLES, e.g. "anime-movie". Not a DB enum: the
     # vocabulary is validated in the API layer, the same choice already made for
     # media_relation.relation_type, so adding a type needs no migration.
