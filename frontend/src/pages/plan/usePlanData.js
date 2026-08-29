@@ -72,11 +72,24 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
     ...row,
     bucket: entryBucket(
       row.media_type,
-      entry?.issue_total ?? null,
+      selfGroupValue(row.media_type, entry),
       seriesMap[String(entry?.series_id)],
       franchiseMap[String(entry?.franchise_id)],
     ),
   };
+}
+
+// The entry column each self-grouping type buckets on. Every other type
+// inherits from its series or franchise and reads no column of its own.
+const SELF_GROUP_COLUMN = {
+  comic: "issue_total",
+  manga: "serialization_status",
+  novel: "type",
+};
+
+function selfGroupValue(mediaType, entry) {
+  const column = SELF_GROUP_COLUMN[mediaType];
+  return column ? (entry?.[column] ?? null) : null;
 }
 
 export default function usePlanData(reloadKey = 0) {

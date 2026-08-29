@@ -35,8 +35,36 @@ export const SIZE_GROUPS = {
     { key: "11_plus", label: "11+ Issues" },
   ],
   "anime-movie": [],
-  manga: [],
-  novel: [],
+  // Manga and novel do NOT have a size bucket. They group by a column on the
+  // entry itself - the way the pre-plan_next Plan page did - so these two
+  // vocabularies exist only here, never in app/utils/plan_next_kinds.py, which
+  // is about size buckets Calculate derives. See entryBucket in
+  // frontend/src/utils/planNext.js.
+  manga: [
+    { key: "完結", label: "完結" },
+    { key: "連載中", label: "連載中" },
+    { key: "腰斬", label: "腰斬" },
+    { key: "停更", label: "停更" },
+  ],
+  // Keys must stay a subset of NOVEL_TYPES in frontend/src/config/fieldOptions.js,
+  // which is the form dropdown's source of truth. Only the ORDER differs: Web
+  // leads here, where the dropdown lists it third. "Web Novel" is a display
+  // relabel of the stored value "Web" and changes no data.
+  novel: [
+    { key: "Web", label: "Web Novel" },
+    { key: "Light Novel", label: "Light Novel" },
+    { key: "Novel", label: "Novel" },
+    { key: "Other", label: "Other" },
+  ],
+};
+
+// What a tab calls its trailing catch-all group. Manga has no "other" value in
+// its own vocabulary, so its empties land here under the label the old page
+// used. Novel is absent because it has a real "Other" key that entryBucket maps
+// empties onto directly - giving it a label here would produce two
+// near-identical trailing sections.
+export const UNGROUPED_LABELS = {
+  manga: "其他",
 };
 
 export const ALLOWED_SCOPES = {

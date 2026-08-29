@@ -50,6 +50,69 @@ describe("entryBucket", () => {
   });
 });
 
+describe("entryBucket: manga groups by serialization status", () => {
+  const series = { size_group_derived: { manga: "ignored" }, size_group_manual: null };
+
+  it("uses the entry's own serialization status", () => {
+    expect(entryBucket("manga", "連載中", series, null)).toBe("連載中");
+    expect(entryBucket("manga", "完結", null, null)).toBe("完結");
+    expect(entryBucket("manga", "腰斬", null, null)).toBe("腰斬");
+    expect(entryBucket("manga", "停更", null, null)).toBe("停更");
+  });
+
+  it("never inherits from its series or franchise", () => {
+    const franchise = { size_group_derived: { manga: "x" }, size_group_manual: null };
+    expect(entryBucket("manga", null, series, franchise)).toBeNull();
+  });
+
+  it("gives a missing or unknown status no bucket, so it lands in the trailing group", () => {
+    expect(entryBucket("manga", null, null, null)).toBeNull();
+    expect(entryBucket("manga", "休刊", null, null)).toBeNull();
+  });
+});
+
+describe("entryBucket: novel groups by type", () => {
+  it("uses the entry's own type", () => {
+    expect(entryBucket("novel", "Web", null, null)).toBe("Web");
+    expect(entryBucket("novel", "Light Novel", null, null)).toBe("Light Novel");
+    expect(entryBucket("novel", "Novel", null, null)).toBe("Novel");
+    expect(entryBucket("novel", "Other", null, null)).toBe("Other");
+  });
+
+  it("folds a missing or unknown type into Other, unlike manga", () => {
+    expect(entryBucket("novel", null, null, null)).toBe("Other");
+    expect(entryBucket("novel", "Serial", null, null)).toBe("Other");
+  });
+
+  it("never inherits from its series or franchise", () => {
+    const series = { size_group_derived: { novel: "Web" }, size_group_manual: null };
+    expect(entryBucket("novel", "Novel", series, null)).toBe("Novel");
+  });
+});
+
+describe("groupByBucket: manga and novel vocabularies", () => {
+  it("keys manga in vocabulary order plus a trailing ungrouped pile", () => {
+    expect(Object.keys(groupByBucket([], "manga"))).toEqual([
+      "完結", "連載中", "腰斬", "停更", "ungrouped",
+    ]);
+  });
+
+  it("leads novel with Web, unlike the form dropdown order", () => {
+    expect(Object.keys(groupByBucket([], "novel"))).toEqual([
+      "Web", "Light Novel", "Novel", "Other", "ungrouped",
+    ]);
+  });
+
+  it("files a statusless manga into ungrouped and a typeless novel into Other", () => {
+    const manga = groupByBucket([{ id: 1, bucket: entryBucket("manga", null) }], "manga");
+    expect(manga.ungrouped).toHaveLength(1);
+
+    const novel = groupByBucket([{ id: 1, bucket: entryBucket("novel", null) }], "novel");
+    expect(novel.Other).toHaveLength(1);
+    expect(novel.ungrouped).toHaveLength(0);
+  });
+});
+
 describe("groupByBucket", () => {
   it("keys every bucket in vocabulary order plus ungrouped", () => {
     const grouped = groupByBucket([], "anime");
@@ -68,8 +131,10 @@ describe("groupByBucket", () => {
     expect(grouped["24ep"]).toEqual([]);
   });
 
+  // anime-movie is the only type with no grouping at all: the five size-bucket
+  // types inherit one, and comic/manga/novel each group by their own column.
   it("puts everything in ungrouped for an unbucketed media type", () => {
-    const grouped = groupByBucket([{ id: 1, bucket: null }], "manga");
+    const grouped = groupByBucket([{ id: 1, bucket: null }], "anime-movie");
     expect(Object.keys(grouped)).toEqual(["ungrouped"]);
     expect(grouped.ungrouped).toHaveLength(1);
   });

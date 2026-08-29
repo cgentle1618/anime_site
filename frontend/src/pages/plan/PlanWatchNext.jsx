@@ -5,7 +5,11 @@
 // group -> sort -> render; the uniform plan_next table behind it is what
 // collapsed them, and is why comic finally has a tab.
 import { useState } from "react";
-import { PLAN_TABS, SIZE_GROUPS } from "../../config/planNextGroups";
+import {
+  PLAN_TABS,
+  SIZE_GROUPS,
+  UNGROUPED_LABELS,
+} from "../../config/planNextGroups";
 import { groupByBucket } from "../../utils/planNext";
 import PlanNextCard from "./PlanNextCard";
 
@@ -74,7 +78,7 @@ export default function PlanWatchNext({ planRows }) {
             <div key={bucket}>
               <div className="flex items-center justify-between mb-3 pb-1 border-b border-gray-200">
                 <h3 className="text-sm font-black text-gray-600 uppercase tracking-wider">
-                  {labels[bucket] ?? "Ungrouped"}
+                  {labels[bucket] ?? UNGROUPED_LABELS[tab] ?? "Ungrouped"}
                 </h3>
                 <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
                   {bucketRows.length}

@@ -1,8 +1,12 @@
-// Frontend: size-bucket resolution, mirroring app/services/domain/size_group.py.
+// Frontend: Plan page bucket resolution, mirroring app/services/domain/size_group.py.
 //
-// A bucket is a standing property of a franchise or series, stored as two maps
-// keyed by media type: size_group_derived (written by Calculate) and
-// size_group_manual (written by the admin). Manual wins per key.
+// For most media types a bucket is a standing property of a franchise or series,
+// stored as two maps keyed by media type: size_group_derived (written by
+// Calculate) and size_group_manual (written by the admin). Manual wins per key.
+//
+// Comic, manga and novel are different: they group by a column on the entry
+// itself and never inherit. Those three vocabularies are frontend-only - the
+// Python side covers derived size buckets, which these are not.
 
 import { SIZE_GROUPS } from "../config/planNextGroups";
 
@@ -39,10 +43,24 @@ function groupBucket(group, mediaType) {
   );
 }
 
-// An entry's bucket is never stored. Comic is the one exception to inheritance:
-// an individual run has a meaningful issue count of its own.
-export function entryBucket(mediaType, issueTotal, series, franchise) {
-  if (mediaType === "comic") return comicBucket(issueTotal);
+// Categorical self-grouping: the entry's own column value IS the bucket key,
+// with no band arithmetic. Anything outside the tab's vocabulary (including
+// null) falls through to `fallback` - "Other" for novel, which owns a real
+// Other key, and null for manga, whose empties belong in the trailing group.
+function selfBucket(mediaType, value, fallback = null) {
+  const keys = (SIZE_GROUPS[mediaType] ?? []).map((g) => g.key);
+  return keys.includes(value) ? value : fallback;
+}
+
+// An entry's bucket is never stored. Three types resolve it from their own
+// column instead of inheriting it, because each has a grouping of its own that
+// says more than its franchise's size would: comic by issue count, manga by
+// serialization status, novel by type. `selfValue` carries whichever column the
+// type reads. Every other type inherits: series first, then franchise.
+export function entryBucket(mediaType, selfValue, series, franchise) {
+  if (mediaType === "comic") return comicBucket(selfValue);
+  if (mediaType === "manga") return selfBucket("manga", selfValue);
+  if (mediaType === "novel") return selfBucket("novel", selfValue, "Other");
   return groupBucket(series, mediaType) ?? groupBucket(franchise, mediaType);
 }
 
