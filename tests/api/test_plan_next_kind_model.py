@@ -7,6 +7,7 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 import uuid
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app import models
@@ -47,10 +48,33 @@ def test_duplicate_within_one_kind_is_rejected(db_session):
 
 
 def test_kind_is_not_nullable(db_session):
+    # The NOT NULL constraint still stands. This has to go through raw SQL:
+    # once the column carries a server default, SQLAlchemy omits it from the
+    # INSERT whether the attribute is unset OR explicitly set to None, so the
+    # ORM cannot express "write a NULL here" at all.
+    with pytest.raises(IntegrityError):
+        db_session.execute(
+            text(
+                "INSERT INTO plan_next "
+                "(system_id, kind, media_type, scope, target_id) "
+                "VALUES (:sid, NULL, 'movie', 'entry', :tid)"
+            ),
+            {"sid": uuid.uuid4(), "tid": uuid.uuid4()},
+        )
+        db_session.commit()
+    db_session.rollback()
+
+
+def test_omitted_kind_defaults_to_next(db_session):
+    # An OMITTED kind is filled by the server default rather than failing.
+    # This is the exact shape pull.py builds when restoring a "Plan Next" tab
+    # backed up before the kind column existed: the sheet has no such header,
+    # pull drops parsed keys the header lacked, and the row arrives with kind
+    # unset. Every row in such a tab predates rewatch, so "next" is correct.
     row = models.PlanNext(
         scope="entry", media_type="movie", target_id=uuid.uuid4()
     )
     db_session.add(row)
-    with pytest.raises(IntegrityError):
-        db_session.commit()
-    db_session.rollback()
+    db_session.commit()
+    db_session.refresh(row)
+    assert row.kind == "next"

@@ -53,7 +53,17 @@ class PlanNext(Base):
 
     # "next" or "rewatch" - one of KINDS in app/utils/plan_next_kinds.py.
     # The table holds both Plan-page queues; the name predates the second one.
-    kind = Column(String, nullable=False)
+    #
+    # server_default is load-bearing, not decoration. A Pull of a Plan Next tab
+    # backed up before this column existed carries no `kind` header, and pull.py
+    # drops parsed keys the header did not have - so the ORM builds the row with
+    # `kind` unset. SQLAlchemy emits an unset non-nullable column as an explicit
+    # NULL unless the MODEL declares a default, which fails the NOT NULL check;
+    # a bare ALTER TABLE ... SET DEFAULT on the database does not help, because
+    # the NULL is sent explicitly. Declaring it here makes SQLAlchemy omit the
+    # column and let the database fill it. Every such row predates rewatch, so
+    # "next" is the correct value for it.
+    kind = Column(String, nullable=False, server_default="next")
     # Hyphenated key from MEDIA_TABLES, e.g. "anime-movie". Not a DB enum: the
     # vocabulary is validated in the API layer, the same choice already made for
     # media_relation.relation_type, so adding a type needs no migration.
