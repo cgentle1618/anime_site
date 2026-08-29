@@ -134,6 +134,10 @@ from app.schemas.media_relation import (
     RelationGraphEdge,
     RelationGraphResponse,
 )
+from app.schemas.plan_next import (
+    PlanNextCreate,
+    PlanNextRead,
+)
 from app.schemas.quote import (
     QuoteBase,
     QuoteCreate,
