@@ -273,6 +273,7 @@ export default function Modify() {
   // NOTE: cmf is the CARTOON form here; comic is ccmf. Add.jsx uses cmf for comic.
   const [ccmf, setCcmf] = useState({});
   const [optValue, setOptValue] = useState("");
+  const [optScopes, setOptScopes] = useState([]);
 
   // Admin-configured form defaults, used to fill in fields a saved entry left
   // NULL. Held in a ref rather than state because the deep-link path opens an
@@ -825,7 +826,10 @@ export default function Modify() {
     } else if (type === "comic") {
       setCcmf(comicToForm(item, franchises, series));
       loadCreditsIntoForm("comic", item.system_id, setCcmf);
-    } else if (type === "options") setOptValue(item.value || "");
+    } else if (type === "options") {
+      setOptValue(item.value || "");
+      setOptScopes(item.scopes ?? []);
+    }
     setEditorOpen(true);
   }
 
@@ -1113,7 +1117,7 @@ export default function Modify() {
         value: optValue,
         sort_order: editingItem.sort_order ?? 0,
         remark: editingItem.remark ?? null,
-        scopes: editingItem.scopes ?? [],
+        scopes: optScopes,
       }),
       credentials: "include",
     });
@@ -3350,6 +3354,8 @@ export default function Modify() {
               <OptionsModifyTab
                 editingItem={editingItem}
                 optValue={optValue}
+                optScopes={optScopes}
+                setOptScopes={setOptScopes}
                 setOptValue={setOptValue}
               />
             )}

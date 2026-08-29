@@ -1,10 +1,14 @@
 // Frontend: modify tab page file for OptionsModifyTab.
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
+import ScopePicker from "../../components/forms/ScopePicker";
+import { MEDIA_TYPES } from "../../config/fieldOptions";
 
 export default function OptionsModifyTab({
   editingItem,
   optValue,
   setOptValue,
+  optScopes,
+  setOptScopes,
 }) {
   return (
     <>
@@ -23,6 +27,13 @@ export default function OptionsModifyTab({
           onChange={(e) => setOptValue(e.target.value)}
         />
       </Field>
+      {/* The only place an existing value's scopes can be repaired by hand.
+          Nothing derives them any more (Ruling R27). */}
+      <ScopePicker
+        scopes={optScopes}
+        setScopes={setOptScopes}
+        mediaTypes={MEDIA_TYPES}
+      />
     </>
   );
 }

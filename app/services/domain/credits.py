@@ -92,7 +92,14 @@ def resolve_studio(db: Session, name: str) -> models.Studio:
 def resolve_option(
     db: Session, category: str, value: str, *, scope: Optional[str] = None
 ) -> models.SystemOption:
-    """Find or create the vocabulary value, and record the scope it is used in."""
+    """
+    Find or create the vocabulary value.
+
+    `scope` is DELIBERATE, never derived from the caller's media type: see
+    `replace_tags`. It is passed only by the one-time backfill seeding and by
+    an admin editing an option, so a scope row is always something someone
+    chose.
+    """
     key = normalize_name(value)
     option = next(
         (
@@ -167,7 +174,16 @@ def replace_tags(
     ).delete(synchronize_session=False)
 
     for position, value in enumerate(values):
-        option = resolve_option(db, spec.category, value, scope=media_type)
+        # No scope=media_type here, and that is the point (Ruling R27).
+        # Auto-scoping on write meant that assigning an UNSCOPED value to one
+        # entry silently narrowed it to that entry's media type everywhere
+        # else: add "Disney+" under Official Source, use it on one TV show,
+        # and it vanishes from the Cartoon dropdown with no warning and no way
+        # for an admin to put it back. Option scopes are admin-managed data,
+        # seeded once by the backfill and editable in the Options form - the
+        # same reason person `director` scope was made explicit rather than
+        # derived from credits.
+        option = resolve_option(db, spec.category, value)
         db.add(
             models.MediaTag(
                 media_type=media_type,
@@ -381,6 +397,14 @@ def backfill_credits(db: Session) -> dict:
                 tags_written += len(names)
 
     db.commit()
+
+    # Seed the initial option scopes from what the migrated data actually
+    # uses. This is the one place a scope is derived from usage, and it is a
+    # deliberate one-time pass rather than something a save does - see
+    # replace_tags. Additive, so re-running it can only widen.
+    from app.services.domain.options_extraction import extract_system_options
+
+    extract_system_options(db)
 
     report = {
         "credits": credits_written,

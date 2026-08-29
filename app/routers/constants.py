@@ -10,6 +10,8 @@ second copy of each list; see docs/options.md for the canonical documentation.
 from fastapi import APIRouter
 
 from app.utils import constants as c
+from app.utils.credit_roles import PERSON_ROLES
+from app.utils.media_resolver import MEDIA_TYPE_KEYS
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
@@ -53,4 +55,13 @@ def get_constants() -> dict[str, list[str]]:
         "music_status": list(c.MUSIC_STATUSES),
         "seiyuu_status": list(c.SEIYUU_STATUSES),
         "watch_order_importance": list(ITEM_IMPORTANCE),
+        # Two closed vocabularies the ADMIN forms need. person_role was
+        # hand-duplicated in OptionsAddTab.jsx with nothing enforcing the
+        # match; media_type is what the Options form's scope picker offers.
+        # Both are derived, never literals - see app/utils/credit_roles.py
+        # and app/utils/media_resolver.py.
+        "person_role": list(PERSON_ROLES),
+        # Hyphenated media-type keys - NOT person-role scopes, which are the
+        # coarser anime / non_anime split.
+        "media_type": list(MEDIA_TYPE_KEYS),
     }

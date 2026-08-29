@@ -31,6 +31,27 @@ class SystemOptionCreate(SystemOptionBase):
     # Media type keys (hyphenated) this value is offered in. Empty = everywhere.
     scopes: list[str] = []
 
+    @field_validator("scopes")
+    @classmethod
+    def _known_scopes(cls, v: list[str]) -> list[str]:
+        """
+        Scopes are now the ONLY thing deciding where a value is offered
+        (Ruling R27 removed the derive-on-save), so a typo here would hide a
+        value from every dropdown with nothing to explain why. Validate, and
+        drop duplicates while keeping the given order.
+        """
+        from app.utils.media_resolver import MEDIA_TYPE_KEYS
+
+        unknown = [s for s in v if s not in MEDIA_TYPE_KEYS]
+        if unknown:
+            raise ValueError(
+                "Not media type keys: "
+                + ", ".join(unknown)
+                + ". Expected any of: "
+                + ", ".join(MEDIA_TYPE_KEYS)
+            )
+        return list(dict.fromkeys(v))
+
 
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID

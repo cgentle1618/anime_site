@@ -133,6 +133,37 @@ export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
 
 export const SEIYUU_STATUSES = ["Need", "Done"];
 
+// The person_role vocabulary a credit can imply. Derived in Python from
+// CREDIT_ROLES (app/utils/credit_roles.py) and served by GET /api/constants -
+// this array is the pre-fetch fallback, NOT a second source of truth. It used
+// to be a hand-written literal inside OptionsAddTab.jsx with nothing enforcing
+// the match, which is the exact two-copies pattern the options redesign exists
+// to delete.
+export const PERSON_ROLES = [
+  "director",
+  "producer",
+  "composer",
+  "manga_author",
+  "novel_author",
+  "novel_illustrator",
+  "comic_writer",
+  "comic_artist",
+];
+
+// Hyphenated media type keys (MEDIA_TABLES in app/utils/media_resolver.py),
+// used by the Options form's scope picker. NOT person-role scopes, which are
+// the coarser anime / non_anime split.
+export const MEDIA_TYPES = [
+  "anime",
+  "anime-movie",
+  "movie",
+  "tv-show",
+  "cartoon",
+  "manga",
+  "novel",
+  "comic",
+];
+
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
@@ -155,6 +186,8 @@ export const CONSTANTS_FALLBACK = {
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,
+  person_role: PERSON_ROLES,
+  media_type: MEDIA_TYPES,
 };
 
 // Every Add/Modify tab imports the arrays above (e.g. `AIRING_STATUSES`) and

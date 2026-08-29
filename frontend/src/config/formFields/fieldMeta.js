@@ -170,6 +170,11 @@ export const COMMON_FIELD_META = {
   imdb_link: { label: "IMDb Link", control: "url", group: "Links" },
 
   // ---- Sources ---------------------------------------------------------
+  // Unscoped here on purpose: the shared entry is the fallback, and each media
+  // type that uses this field overrides it below with its own scope, the same
+  // way distributor_tw / publisher_tw do. Scoping is safe now that a save no
+  // longer writes a scope row of its own (Ruling R27) - before that, scoping a
+  // field and then using an unscoped value narrowed it everywhere.
   source_official: {
     label: "Source Official",
     control: "tags",
@@ -355,6 +360,16 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "director", scope: "non_anime" },
       group: "Credits",
     },
+    source_official: {
+      label: "Source Official",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Official Source",
+        scope: "movie",
+      },
+      group: "Sources",
+    },
   },
 
   "tv-show": {
@@ -368,6 +383,16 @@ export const TYPE_FIELD_META = {
       group: "Classification",
     },
     season_part: { label: "Season Part", group: "Classification" },
+    source_official: {
+      label: "Source Official",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Official Source",
+        scope: "tv-show",
+      },
+      group: "Sources",
+    },
   },
 
   cartoon: {
@@ -385,6 +410,16 @@ export const TYPE_FIELD_META = {
       label: "Episode Length (min)",
       control: "number",
       group: "Progress",
+    },
+    source_official: {
+      label: "Source Official",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Official Source",
+        scope: "cartoon",
+      },
+      group: "Sources",
     },
   },
 

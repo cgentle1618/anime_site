@@ -134,6 +134,10 @@ export default function Add() {
 
   const [optCategory, setOptCategory] = useState("");
   const [optValues, setOptValues] = useState([""]);
+  // Which media types the new values are offered in. Empty = everywhere.
+  // Explicit because a save no longer derives it - see Ruling R27 and
+  // components/forms/ScopePicker.jsx.
+  const [optScopes, setOptScopes] = useState([]);
 
   // The Options tab has three sub-tabs (Options / People / Studios) sharing
   // one "System Options" nav entry — each manages a different Tier 2/3 source.
@@ -936,6 +940,7 @@ export default function Add() {
           body: JSON.stringify({
             category: optCategory.trim(),
             value: val.trim(),
+            scopes: optScopes,
           }),
           credentials: "include",
         }),
@@ -951,6 +956,7 @@ export default function Add() {
       if (failed === 0) {
         setOptCategory("");
         setOptValues([""]);
+        setOptScopes([]);
       }
       setSources(await fetchAllSources());
     }
@@ -2484,6 +2490,8 @@ export default function Add() {
             optValues={optValues}
             setOptValues={setOptValues}
             optionCategories={optionCategories}
+            optScopes={optScopes}
+            setOptScopes={setOptScopes}
             personForm={personForm}
             upf={upf}
             studioForm={studioForm}

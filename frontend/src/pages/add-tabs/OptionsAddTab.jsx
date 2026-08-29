@@ -4,6 +4,8 @@
 // source: Options (closed vocabularies), People and Studios (credited
 // entities). See app/utils/credit_roles.py for the person-role vocabulary.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+import ScopePicker from "../../components/forms/ScopePicker";
+import { MEDIA_TYPES, PERSON_ROLES } from "../../config/fieldOptions";
 
 const SUB_TABS = [
   { key: "options", label: "Options", icon: "fa-cog" },
@@ -11,18 +13,19 @@ const SUB_TABS = [
   { key: "studios", label: "Studios", icon: "fa-industry" },
 ];
 
-// The person_role vocabulary a credit can imply — see PERSON_ROLES in
+// PERSON_ROLES and MEDIA_TYPES come from GET /api/constants via
+// fieldOptions.js — this file used to carry its own hand-written copy of the
+// person-role list with nothing enforcing the match against
 // app/utils/credit_roles.py.
-const PERSON_ROLES = [
-  { value: "director", label: "Director" },
-  { value: "producer", label: "Producer" },
-  { value: "composer", label: "Composer" },
-  { value: "manga_author", label: "Manga Author" },
-  { value: "novel_author", label: "Novel Author" },
-  { value: "novel_illustrator", label: "Novel Illustrator" },
-  { value: "comic_writer", label: "Comic Writer" },
-  { value: "comic_artist", label: "Comic Artist" },
-];
+//
+// The labels are derived from the keys rather than listed, so a role added in
+// Python needs no edit here.
+function roleLabel(key) {
+  return key
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 function SubTabBar({ active, onSelect }) {
   return (
@@ -46,7 +49,15 @@ function SubTabBar({ active, onSelect }) {
   );
 }
 
-function OptionsForm({ optCategory, setOptCategory, optValues, setOptValues, optionCategories }) {
+function OptionsForm({
+  optCategory,
+  setOptCategory,
+  optValues,
+  setOptValues,
+  optionCategories,
+  optScopes,
+  setOptScopes,
+}) {
   return (
     <div className="space-y-4">
       <Field label="Category" required>
@@ -100,6 +111,11 @@ function OptionsForm({ optCategory, setOptCategory, optValues, setOptValues, opt
           <i className="fas fa-plus-circle"></i> Add Another Entry
         </button>
       </div>
+      <ScopePicker
+        scopes={optScopes}
+        setScopes={setOptScopes}
+        mediaTypes={MEDIA_TYPES}
+      />
     </div>
   );
 }
@@ -140,8 +156,8 @@ function PersonForm({ personForm, upf }) {
           >
             <option value="">— None —</option>
             {PERSON_ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
+              <option key={r} value={r}>
+                {roleLabel(r)}
               </option>
             ))}
           </select>
@@ -256,6 +272,8 @@ export default function OptionsAddTab({
   optValues,
   setOptValues,
   optionCategories,
+  optScopes,
+  setOptScopes,
   personForm,
   upf,
   studioForm,
@@ -272,6 +290,8 @@ export default function OptionsAddTab({
           optValues={optValues}
           setOptValues={setOptValues}
           optionCategories={optionCategories}
+          optScopes={optScopes}
+          setOptScopes={setOptScopes}
         />
       )}
       {optionsSubTab === "people" && (
