@@ -5,6 +5,8 @@
 // the Add form's <select> can display — otherwise an admin could save a default
 // the form cannot render.
 
+import { WEEKDAYS } from "./weekdays";
+
 export const AIRING_STATUSES = [
   "Not Yet Aired",
   "Airing",
@@ -126,3 +128,31 @@ export const PART_NUMS = Array.from({ length: 7 }, (_, i) => String(i + 1));
 // Yes/No selects that store the STRING "true"/"false" (never a real boolean),
 // with "" meaning "unset". Used by source_baha, source_netflix.
 export const TRISTATE = ["true", "false"];
+
+export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
+
+export const SEIYUU_STATUSES = ["Need", "Done"];
+
+// Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
+export const CONSTANTS_FALLBACK = {
+  watching_status: WATCHING_STATUSES,
+  reading_status: READING_STATUSES,
+  airing_status: AIRING_STATUSES,
+  anime_airing_type: ANIME_AIRING_TYPES,
+  cartoon_airing_type: CARTOON_AIRING_TYPES,
+  franchise_type: FRANCHISE_TYPES,
+  franchise_expectation: FRANCHISE_EXPECTATIONS,
+  my_rating: MY_RATINGS,
+  is_main: IS_MAIN,
+  movie_type: MOVIE_TYPES,
+  tv_region: TV_REGIONS,
+  manga_region: MANGA_REGIONS,
+  novel_region: NOVEL_REGIONS,
+  novel_type: NOVEL_TYPES,
+  comic_type: COMIC_TYPES,
+  manga_serialization_status: MANGA_SERIALIZATION_STATUSES,
+  novel_serialization_status: NOVEL_SERIALIZATION_STATUSES,
+  day_of_week: WEEKDAYS,
+  music_status: MUSIC_STATUSES,
+  seiyuu_status: SEIYUU_STATUSES,
+};
